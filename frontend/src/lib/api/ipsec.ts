@@ -480,6 +480,7 @@ class IPSecService {
     auth_local_id?: string;
     auth_remote_id?: string;
     auth_x509_ca_cert?: string;
+    auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
     auth_x509_passphrase?: string;
     auth_rsa_local_key?: string;
@@ -555,7 +556,7 @@ class IPSecService {
       multi(
         "set_s2s_peer_auth_x509_ca_cert",
         "delete_s2s_peer_auth_x509_ca_cert",
-        config.auth_x509_ca_cert ? [config.auth_x509_ca_cert] : [],
+        config.auth_x509_ca_certs || (config.auth_x509_ca_cert ? [config.auth_x509_ca_cert] : []),
         oldX509.ca_certificate || [],
       );
       leaf("set_s2s_peer_auth_x509_cert", "delete_s2s_peer_auth_x509_cert", config.auth_x509_cert, oldX509.certificate);
@@ -847,6 +848,32 @@ class IPSecService {
     if (writableSecret(config.secret)) ops.push({ op: "set_auth_psk_secret", value: writableSecret(config.secret) });
     if (config.secret_type) ops.push({ op: "set_auth_psk_secret_type", value: config.secret_type });
     if (config.dhcp_interface) ops.push({ op: "set_auth_psk_dhcp_interface", value: config.dhcp_interface });
+    return this.batchConfigure(name, ops);
+  }
+
+  async updateAuthPSK(name: string, config: {
+    identities?: string[];
+    secret?: string;
+    secret_type?: string;
+    dhcp_interface?: string;
+  }, existing: { identities?: string[]; secret_type?: string | null; dhcp_interface?: string | null }): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [{ op: "create_auth_psk" }];
+    const nextIds = config.identities || [];
+    const oldIds = existing.identities || [];
+    for (const id of oldIds) {
+      if (!nextIds.includes(id)) ops.push({ op: "delete_auth_psk_id", value: id });
+    }
+    for (const id of nextIds) {
+      if (!oldIds.includes(id)) ops.push({ op: "set_auth_psk_id", value: id });
+    }
+    const secret = writableSecret(config.secret);
+    if (secret) ops.push({ op: "set_auth_psk_secret", value: secret });
+    if (config.secret_type && config.secret_type !== (existing.secret_type || "")) {
+      ops.push({ op: "set_auth_psk_secret_type", value: config.secret_type });
+    }
+    if (config.dhcp_interface && config.dhcp_interface !== (existing.dhcp_interface || "")) {
+      ops.push({ op: "set_auth_psk_dhcp_interface", value: config.dhcp_interface });
+    }
     return this.batchConfigure(name, ops);
   }
 

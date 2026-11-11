@@ -517,6 +517,20 @@ async def dashboard_stream(
     include_transceiver = await has_permission(request, FeatureGroup.ETHERNET, PermissionLevel.READ)
     include_policies, include_zones, include_bridge = await firewall_statistics_access(request)
     include_firewall = include_policies or include_zones or include_bridge
+    stream_read = {
+        "interface-counters": include_interfaces,
+        "system-info": include_system,
+        "qos-stats": include_qos,
+        "openvpn-status": include_openvpn,
+        "ipsec-status": include_ipsec,
+        "wireguard-peers": include_wireguard,
+        "vrrp-status": include_vrrp,
+        "bgp-status": include_bgp,
+        "pppoe-sessions": include_pppoe,
+        "hardware-sensors": include_hardware,
+        "transceiver-health": include_transceiver,
+        FIREWALL_STATS_INTEREST: include_firewall,
+    }
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -549,46 +563,11 @@ async def dashboard_stream(
                         break
                     yield ": keep-alive\n\n"
                     continue
-                if event["type"] == "wireguard-peers" and not include_wireguard:
+                kind = event["type"]
+                if kind == "error":
+                    kind = str((event.get("data") or {}).get("channel") or "")
+                if not stream_read.get(kind):
                     continue
-                if event["type"] == "vrrp-status" and not include_vrrp:
-                    continue
-                if event["type"] == "bgp-status" and not include_bgp:
-                    continue
-                if event["type"] == "pppoe-sessions" and not include_pppoe:
-                    continue
-                if event["type"] == "hardware-sensors" and not include_hardware:
-                    continue
-                if event["type"] == "transceiver-health" and not include_transceiver:
-                    continue
-                if event["type"] == "interface-counters" and not include_interfaces:
-                    continue
-                if event["type"] == "system-info" and not include_system:
-                    continue
-                if event["type"] == "qos-stats" and not include_qos:
-                    continue
-                if event["type"] == "openvpn-status" and not include_openvpn:
-                    continue
-                if event["type"] == "ipsec-status" and not include_ipsec:
-                    continue
-                if event["type"] == "error":
-                    channel = (event.get("data") or {}).get("channel")
-                    refused = (
-                        (channel == "interface-counters" and not include_interfaces)
-                        or (channel == "system-info" and not include_system)
-                        or (channel == "qos-stats" and not include_qos)
-                        or (channel == "openvpn-status" and not include_openvpn)
-                        or (channel == "ipsec-status" and not include_ipsec)
-                        or (channel == "wireguard-peers" and not include_wireguard)
-                        or (channel == "vrrp-status" and not include_vrrp)
-                        or (channel == "bgp-status" and not include_bgp)
-                        or (channel == "pppoe-sessions" and not include_pppoe)
-                        or (channel == "hardware-sensors" and not include_hardware)
-                        or (channel == "transceiver-health" and not include_transceiver)
-                        or (channel == FIREWALL_STATS_INTEREST and not include_firewall)
-                    )
-                    if refused:
-                        continue
                 if event["type"] == FIREWALL_STATS_INTEREST:
                     if not include_firewall:
                         continue

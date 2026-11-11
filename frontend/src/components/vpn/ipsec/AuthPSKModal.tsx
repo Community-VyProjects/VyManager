@@ -94,16 +94,16 @@ export function AuthPSKModal({
     setError(null);
 
     try {
-      if (isEdit) await ipsecService.deleteAuthPSK(existingPSK!.name);
-
       const ids = identities.split("\n").map((i) => i.trim()).filter(Boolean);
-
-      const result = await ipsecService.createAuthPSK(name.trim(), {
+      const payload = {
         identities: ids.length > 0 ? ids : undefined,
         secret: secret || undefined,
         secret_type: secretType || undefined,
         dhcp_interface: dhcpInterface || undefined,
-      });
+      };
+      const result = isEdit && existingPSK
+        ? await ipsecService.updateAuthPSK(existingPSK.name, payload, existingPSK)
+        : await ipsecService.createAuthPSK(name.trim(), payload);
 
       if (result.success) {
         onOpenChange(false);

@@ -213,7 +213,12 @@ export function SiteToSiteModal({
         auth_mode: authMode || undefined,
         auth_local_id: authLocalId || undefined,
         auth_remote_id: authRemoteId || undefined,
-        auth_x509_ca_cert: authMode === "x509" ? (authX509CaCert || undefined) : undefined,
+        auth_x509_ca_certs: authMode === "x509"
+          ? [
+              ...(authX509CaCert ? [authX509CaCert] : []),
+              ...((existingPeer?.authentication?.x509?.ca_certificate || []).slice(1)),
+            ].filter((name, index, all) => name && all.indexOf(name) === index)
+          : undefined,
         auth_x509_cert: authMode === "x509" ? (authX509Cert || undefined) : undefined,
         auth_x509_passphrase: authMode === "x509" ? (authX509Passphrase || undefined) : undefined,
         auth_rsa_local_key: authMode === "rsa" ? (authRsaLocalKey || undefined) : undefined,

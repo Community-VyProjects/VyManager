@@ -6,7 +6,7 @@ Generated for issue #737; edit the tables directly if the mapper changes.
 
 import pytest
 
-from vyos_builders.ipsec.ipsec import IPSecBatchBuilder
+from vyos_builders.ipsec.ipsec_batch_builder import IPSecBatchBuilder
 
 
 def _run(version, method, args, op, expected_path):
