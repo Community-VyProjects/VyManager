@@ -216,6 +216,7 @@ export interface IPSecCapabilities {
       childless: boolean;
       childless_values: string[];
       ikev2_reauth_values: string[];
+      tunnel_protocols: string[];
     };
     remote_access: { supported: boolean; description: string };
     ike_groups: { supported: boolean; description: string };
@@ -763,7 +764,12 @@ class IPSecService {
     diffLeaf("set_ra_connection_esp_group", "delete_ra_connection_esp_group", config.esp_group, existing.esp_group);
     diffLeaf("set_ra_connection_ike_group", "delete_ra_connection_ike_group", config.ike_group, existing.ike_group);
     diffLeaf("set_ra_connection_local_address", "delete_ra_connection_local_address", config.local_address, existing.local_address);
-    diffLeaf("set_ra_connection_auth_server_mode", "delete_ra_connection_auth_server_mode", config.auth_server_mode, existing.auth_server_mode);
+    const loadedServerMode = existing.auth_server_mode || "x509";
+    if (config.auth_server_mode && config.auth_server_mode !== loadedServerMode) {
+      ops.push({ op: "set_ra_connection_auth_server_mode", value: config.auth_server_mode });
+    } else if (!config.auth_server_mode && existing.auth_server_mode) {
+      ops.push({ op: "delete_ra_connection_auth_server_mode" });
+    }
     diffLeaf("set_ra_connection_auth_client_mode", "delete_ra_connection_auth_client_mode", config.auth_client_mode, existing.auth_client_mode);
     diffLeaf("set_ra_connection_auth_local_id", "delete_ra_connection_auth_local_id", config.auth_local_id, existing.auth_local_id);
     diffLeaf("set_ra_connection_auth_x509_cert", "delete_ra_connection_auth_x509_cert", config.auth_x509_cert, existing.auth_x509_cert);

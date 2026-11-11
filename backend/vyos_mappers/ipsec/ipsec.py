@@ -34,6 +34,17 @@ class IPSecMapper(BaseFeatureMapper):
     def ikev2_reauth_values(self) -> List[str]:
         return ["yes", "no", "inherit"]
 
+    def tunnel_protocols(self) -> List[str]:
+        return [
+            "ip", "hopopt", "icmp", "igmp", "ggp", "ipencap", "st", "tcp", "egp", "igp",
+            "pup", "udp", "hmp", "xns-idp", "rdp", "iso-tp4", "dccp", "xtp", "ddp",
+            "idpr-cmtp", "ipv6", "ipv6-route", "ipv6-frag", "idrp", "rsvp", "gre", "esp",
+            "ah", "skip", "ipv6-icmp", "ipv6-nonxt", "ipv6-opts", "rspf", "vmtp", "eigrp",
+            "ospf", "ax.25", "ipip", "etherip", "encap", "pim", "ipcomp", "vrrp", "l2tp",
+            "isis", "sctp", "fc", "mobility-header", "udplite", "mpls-in-ip", "manet",
+            "hip", "shim6", "wesp", "rohc", "ethernet", "mptcp",
+        ]
+
     # ========================================================================
     # Base path
     # ========================================================================

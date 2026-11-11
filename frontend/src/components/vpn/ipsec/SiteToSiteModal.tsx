@@ -299,7 +299,7 @@ export function SiteToSiteModal({
     }
   };
 
-  const connectionTypes = capabilities?.features.site_to_site.connection_types ?? ["initiate", "none"];
+  const connectionTypes = capabilities?.features.site_to_site.connection_types || [];
   const connectionLabel = (value: string) => {
     if (value === "initiate") return t("s2sModal.initiate");
     if (value === "respond") return t("s2sModal.respond");
@@ -425,7 +425,7 @@ export function SiteToSiteModal({
                 <Select value={unique || "_none"} onValueChange={(v) => setUnique(v === "_none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">{tc("none")}</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
                     {(s2s.unique_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -437,7 +437,7 @@ export function SiteToSiteModal({
                 <Select value={childless || "_none"} onValueChange={(v) => setChildless(v === "_none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">{tc("none")}</SelectItem>
+                    <SelectItem value="_none">{tc("default")}</SelectItem>
                     {(s2s.childless_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -572,9 +572,7 @@ export function SiteToSiteModal({
                         <SelectTrigger className="h-9"><SelectValue placeholder={t("s2sModal.any")} /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="_none">{t("s2sModal.any")}</SelectItem>
-                          <SelectItem value="gre">GRE</SelectItem>
-                          <SelectItem value="ipip">IPIP</SelectItem>
-                          <SelectItem value="ip">IP</SelectItem>
+                          {(s2s?.tunnel_protocols || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

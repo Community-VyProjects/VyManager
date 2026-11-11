@@ -173,7 +173,7 @@ export function AuthPSKModal({
                 <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">{tc("default")}</SelectItem>
-                  {(capabilities?.features.ipsec.psk_secret_types ?? ["base64", "plaintext"]).map((value) => (
+                  {(capabilities?.features.ipsec.psk_secret_types || []).map((value) => (
                     <SelectItem key={value} value={value}>{value}</SelectItem>
                   ))}
                 </SelectContent>

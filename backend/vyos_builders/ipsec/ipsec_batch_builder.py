@@ -637,6 +637,7 @@ class IPSecBatchBuilder(BatchBuilder):
                     "childless": "childless" in nodes,
                     "childless_values": mapper.childless_values(),
                     "ikev2_reauth_values": mapper.ikev2_reauth_values(),
+                    "tunnel_protocols": mapper.tunnel_protocols(),
                 },
                 "remote_access": {
                     "supported": True,
