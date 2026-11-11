@@ -1,8 +1,7 @@
 """Read-model for console-server config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version keys come from the mapper (MergedMapper), not from
-hardcoded 1.4/1.5 branches here.
+the tree.
 """
 
 import logging

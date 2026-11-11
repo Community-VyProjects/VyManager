@@ -1,13 +1,23 @@
-"""Console Server Command Mapper."""
-from typing import List
+"""Console Server command mapper.
+
+service console-server is the same on VyOS 1.4 and 1.5. One class holds the commands.
+"""
+from typing import Any, Dict, List
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "console-server"]
 
 
 class ConsoleServerMapper(BaseFeatureMapper):
+    """Mapper for service console-server. Identical on VyOS 1.4 and 1.5."""
+
     def __init__(self, version: str):
         super().__init__(version)
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_console_server_config
+
+        return parse_console_server_config(self, full_config)
 
     # ========================================================================
     # Top-level
@@ -25,9 +35,6 @@ class ConsoleServerMapper(BaseFeatureMapper):
 
     def get_device_delete(self, device: str) -> List[str]:
         return BASE + ["device", device]
-
-    def get_devices_delete(self) -> List[str]:
-        return BASE + ["device"]
 
     # device/<name>/alias
     def get_device_alias(self, device: str, alias: str) -> List[str]:
@@ -67,9 +74,6 @@ class ConsoleServerMapper(BaseFeatureMapper):
     # device/<name>/ssh/port
     def get_device_ssh_port(self, device: str, port: str) -> List[str]:
         return BASE + ["device", device, "ssh", "port", port]
-
-    def get_device_ssh_port_delete(self, device: str) -> List[str]:
-        return BASE + ["device", device, "ssh", "port"]
 
     def get_device_ssh_delete(self, device: str) -> List[str]:
         return BASE + ["device", device, "ssh"]

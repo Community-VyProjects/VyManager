@@ -37,9 +37,6 @@ class ConsoleServerBatchBuilder(BatchBuilder):
     # -----------------------------------------------------------------------
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
-
         return {
             "version": self.version,
             "features": {
@@ -86,10 +83,6 @@ class ConsoleServerBatchBuilder(BatchBuilder):
                     "default": "1",
                 },
             },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
-            },
         }
 
     # -----------------------------------------------------------------------
@@ -110,10 +103,6 @@ class ConsoleServerBatchBuilder(BatchBuilder):
 
     def delete_device(self, device: str) -> "ConsoleServerBatchBuilder":
         return self.add_delete(self.m.get_device_delete(device))
-
-    def delete_devices(self) -> "ConsoleServerBatchBuilder":
-        """Remove all device nodes."""
-        return self.add_delete(self.m.get_devices_delete())
 
     # device/<name>/alias
     def set_device_alias(self, device: str, alias: str) -> "ConsoleServerBatchBuilder":
@@ -153,9 +142,6 @@ class ConsoleServerBatchBuilder(BatchBuilder):
     # device/<name>/ssh/port
     def set_device_ssh_port(self, device: str, port: str) -> "ConsoleServerBatchBuilder":
         return self.add_set(self.m.get_device_ssh_port(device, port))
-
-    def delete_device_ssh_port(self, device: str) -> "ConsoleServerBatchBuilder":
-        return self.add_delete(self.m.get_device_ssh_port_delete(device))
 
     def delete_device_ssh(self, device: str) -> "ConsoleServerBatchBuilder":
         """Remove the entire ssh block for a device."""
