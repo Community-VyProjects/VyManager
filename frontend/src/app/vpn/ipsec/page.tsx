@@ -944,6 +944,7 @@ function IPSecPageInner() {
         onOpenChange={(open) => { setShowPSKModal(open); if (!open) setEditingPSK(null); }}
         onSuccess={onSuccess}
         existingPSK={editingPSK}
+        capabilities={capabilities}
       />
       {deleteTarget && (
         <DeleteConfirmModal

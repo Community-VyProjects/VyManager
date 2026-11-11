@@ -25,6 +25,9 @@ class IPSecMapper(BaseFeatureMapper):
     def connection_types(self) -> List[str]:
         return ["initiate", "respond", "none"]
 
+    def secret_types(self) -> List[str]:
+        return ["base64", "plaintext"]
+
     # ========================================================================
     # Base path
     # ========================================================================
@@ -367,9 +370,6 @@ class IPSecMapper(BaseFeatureMapper):
     # Profile
     # ========================================================================
 
-    def get_profile_path(self, name: str) -> List[str]:
-        return ["vpn", "ipsec", "profile", name]
-
     # ========================================================================
     # Config Parsing
     # ========================================================================
@@ -425,6 +425,9 @@ class IPSecMapper(BaseFeatureMapper):
             "flexvpn": "flexvpn" in options,
             "interface": self._normalize_to_list(options.get("interface")),
             "virtual_ip": "virtual-ip" in options,
+            "retransmission_attempts": (options.get("retransmission") or {}).get("attempts") if isinstance(options.get("retransmission"), dict) else None,
+            "retransmission_base": (options.get("retransmission") or {}).get("base") if isinstance(options.get("retransmission"), dict) else None,
+            "retransmission_timeout": (options.get("retransmission") or {}).get("timeout") if isinstance(options.get("retransmission"), dict) else None,
         }
 
         # Parse authentication PSKs
@@ -436,7 +439,7 @@ class IPSecMapper(BaseFeatureMapper):
                 "identities": self._normalize_to_list(psk_data.get("id")),
                 "secret": psk_data.get("secret"),
                 "secret_type": psk_data.get("secret-type"),
-                "dhcp_interface": psk_data.get("dhcp-interface"),
+                "dhcp_interface": self._normalize_to_list(psk_data.get("dhcp-interface")),
             }
 
         # Parse ESP groups

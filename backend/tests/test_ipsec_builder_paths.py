@@ -27,7 +27,6 @@ COMMON_CASES = [
     ('delete_options_disable_route_autoinstall', (), 'delete', ['vpn', 'ipsec', 'options', 'disable-route-autoinstall']),
     ('delete_options_flexvpn', (), 'delete', ['vpn', 'ipsec', 'options', 'flexvpn']),
     ('delete_options_virtual_ip', (), 'delete', ['vpn', 'ipsec', 'options', 'virtual-ip']),
-    ('delete_profile', ('G0',), 'delete', ['vpn', 'ipsec', 'profile', 'G0']),
     ('delete_ra_connection', ('G0',), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0']),
     ('delete_ra_connection_auth_client_mode', ('G0', 'nat'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'client-mode', 'nat']),
     ('delete_ra_connection_auth_local_id', ('G0', 'G0'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'local-id', 'G0']),
@@ -141,7 +140,7 @@ COMMON_CASES = [
     ('set_s2s_peer_vti_ts_local_prefix', ('G0', '10.0.0.0/8'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'traffic-selector', 'local', 'prefix', '10.0.0.0/8']),
     ('set_s2s_peer_vti_ts_remote_prefix', ('G0', '10.0.0.0/8'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'traffic-selector', 'remote', 'prefix', '10.0.0.0/8']),
     ('delete_auth_psk_secret_type', ('G0',), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'secret-type']),
-    ('delete_auth_psk_dhcp_interface', ('G0',), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'dhcp-interface']),
+    ('delete_auth_psk_dhcp_interface', ('G0', 'eth0'), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'dhcp-interface', 'eth0']),
     ('delete_s2s_peer_replay_window', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'replay-window']),
     ('delete_s2s_peer_tunnel_local_port', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'local', 'port']),
     ('delete_s2s_peer_tunnel_remote_port', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'remote', 'port']),
@@ -190,5 +189,4 @@ def test_capabilities_follow_the_mapper_allowlist(monkeypatch):
     assert "version_notes" not in caps
     assert "version" not in caps
     assert caps["features"]["site_to_site"]["childless"] is True
-    assert caps["features"]["site_to_site"]["ppk"] is False
     assert caps["features"]["site_to_site"]["connection_types"] == ["initiate", "trap", "none"]

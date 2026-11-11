@@ -149,8 +149,6 @@
     "useX509Id": "Use X.509 ID",
     "unique": "Unique",
     "childless": "Childless",
-    "ppkId": "PPK ID",
-    "ppkRequired": "PPK required",
     "tunnelDisable": "Disable",
     "localPort": "Local port",
     "remotePort": "Remote port",

@@ -97,8 +97,6 @@ export function SiteToSiteModal({
   const [authRsaLocalKey, setAuthRsaLocalKey] = useState("");
   const [authRsaRemoteKey, setAuthRsaRemoteKey] = useState("");
   const [authRsaPassphrase, setAuthRsaPassphrase] = useState("");
-  const [ppkId, setPpkId] = useState("");
-  const [ppkRequired, setPpkRequired] = useState(false);
   const [pkiCas, setPkiCas] = useState<string[]>([]);
   const [pkiCerts, setPkiCerts] = useState<string[]>([]);
   const [pkiKeys, setPkiKeys] = useState<string[]>([]);
@@ -154,8 +152,6 @@ export function SiteToSiteModal({
         setAuthRsaLocalKey(auth?.rsa?.local_key || "");
         setAuthRsaRemoteKey(auth?.rsa?.remote_key || "");
         setAuthRsaPassphrase(auth?.rsa?.passphrase || "");
-        setPpkId(auth?.ppk?.id || "");
-        setPpkRequired(auth?.ppk?.required || false);
         setTunnels(
           existingPeer.tunnels.map((t) => ({
             number: t.number,
@@ -200,8 +196,6 @@ export function SiteToSiteModal({
         setAuthRsaLocalKey("");
         setAuthRsaRemoteKey("");
         setAuthRsaPassphrase("");
-        setPpkId("");
-        setPpkRequired(false);
         setTunnels([]);
         setVtiBind("");
         setVtiEspGroup("");
@@ -276,8 +270,6 @@ export function SiteToSiteModal({
         use_x509_id: useX509Id,
         unique: capabilities?.features.site_to_site.unique ? (unique || undefined) : undefined,
         childless: capabilities?.features.site_to_site.childless ? (childless || undefined) : undefined,
-        ppk_id: capabilities?.features.site_to_site.ppk ? (ppkId || undefined) : undefined,
-        ppk_required: capabilities?.features.site_to_site.ppk ? ppkRequired : undefined,
         vti_bind: vtiBind || undefined,
         vti_esp_group: vtiBind ? (vtiEspGroup || undefined) : undefined,
         vti_ts_local_prefix: vtiBind
@@ -537,18 +529,6 @@ export function SiteToSiteModal({
                   <Input type="password" value={authRsaPassphrase} onChange={(e) => setAuthRsaPassphrase(e.target.value)} />
                 </div>
               </>
-            )}
-            {s2s?.ppk && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t("s2sModal.ppkId")}</Label>
-                  <Input value={ppkId} onChange={(e) => setPpkId(e.target.value)} />
-                </div>
-                <div className="flex items-center gap-2 pt-6">
-                  <Checkbox id="ppkRequired" checked={ppkRequired} onCheckedChange={(c) => setPpkRequired(c === true)} />
-                  <Label htmlFor="ppkRequired" className="cursor-pointer text-sm">{t("s2sModal.ppkRequired")}</Label>
-                </div>
-              </div>
             )}
           </TabsContent>
 

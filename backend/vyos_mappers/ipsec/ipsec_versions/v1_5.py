@@ -8,7 +8,6 @@ from typing import FrozenSet, List
 
 from ..ipsec import IPSecMapper
 
-
 class IPSecMapperV1_5(IPSecMapper):
     """VyOS 1.5 IPSec mapper."""
 
@@ -18,12 +17,14 @@ class IPSecMapperV1_5(IPSecMapper):
             "childless",
             "pool_range",
             "always_send_cert",
-            "s2s_ppk",
             "s2s_unique",
         })
 
     def connection_types(self) -> List[str]:
         return ["initiate", "trap", "none"]
+
+    def secret_types(self) -> List[str]:
+        return ["base64", "hex", "plaintext"]
 
     def get_options_retransmission_attempts_path(self, attempts: str) -> List[str]:
         return ["vpn", "ipsec", "options", "retransmission", "attempts", attempts]
@@ -39,12 +40,6 @@ class IPSecMapperV1_5(IPSecMapper):
 
     def get_s2s_peer_unique_path(self, peer: str, value: str) -> List[str]:
         return ["vpn", "ipsec", "site-to-site", "peer", peer, "unique", value]
-
-    def get_s2s_peer_auth_ppk_id_path(self, peer: str, ppk_id: str) -> List[str]:
-        return ["vpn", "ipsec", "site-to-site", "peer", peer, "authentication", "ppk", "id", ppk_id]
-
-    def get_s2s_peer_auth_ppk_required_path(self, peer: str) -> List[str]:
-        return ["vpn", "ipsec", "site-to-site", "peer", peer, "authentication", "ppk", "required"]
 
     def get_ra_connection_auth_always_send_cert_path(self, conn: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "connection", conn, "authentication", "always-send-cert"]

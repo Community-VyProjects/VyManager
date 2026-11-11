@@ -192,7 +192,7 @@ export interface AuthPSK {
   identities?: string[];
   secret?: string | null;
   secret_type?: string | null;
-  dhcp_interface?: string | null;
+  dhcp_interface?: string[];
 }
 
 export interface IPSecProfile {
@@ -250,7 +250,7 @@ export interface IPSecConfigResponse {
 
 export interface IPSecCapabilities {
   features: {
-    ipsec: { supported: boolean; description: string };
+    ipsec: { supported: boolean; description: string; psk_secret_types: string[] };
     site_to_site: {
       supported: boolean;
       description: string;
@@ -259,7 +259,6 @@ export interface IPSecCapabilities {
       unique_values: string[];
       childless: boolean;
       childless_values: string[];
-      ppk: boolean;
     };
     remote_access: { supported: boolean; description: string };
     ike_groups: { supported: boolean; description: string };
@@ -477,8 +476,6 @@ class IPSecService {
     if (config.use_x509_id) ops.push({ op: "set_s2s_peer_auth_use_x509_id" });
     if (config.unique) ops.push({ op: "set_s2s_peer_unique", value: config.unique });
     if (config.childless) ops.push({ op: "set_s2s_peer_childless", value: config.childless });
-    if (config.ppk_id) ops.push({ op: "set_s2s_peer_auth_ppk_id", value: config.ppk_id });
-    if (config.ppk_required) ops.push({ op: "set_s2s_peer_auth_ppk_required" });
     if (config.vti_bind) ops.push({ op: "set_s2s_peer_vti_bind", value: config.vti_bind });
     if (config.vti_esp_group) ops.push({ op: "set_s2s_peer_vti_esp_group", value: config.vti_esp_group });
     if (config.vti_ts_local_prefix) {
@@ -634,11 +631,9 @@ class IPSecService {
     flag("set_s2s_peer_disable", "delete_s2s_peer_disable", config.disabled, existing.disabled);
     flag("set_s2s_peer_ikev2_reauth", "delete_s2s_peer_ikev2_reauth", config.ikev2_reauth, existing.ikev2_reauth);
     flag("set_s2s_peer_auth_use_x509_id", "delete_s2s_peer_auth_use_x509_id", config.use_x509_id, oldAuth.use_x509_id);
-    flag("set_s2s_peer_auth_ppk_required", "delete_s2s_peer_auth_ppk_required", config.ppk_required, oldAuth.ppk?.required);
     leaf("set_s2s_peer_replay_window", "delete_s2s_peer_replay_window", config.replay_window, existing.replay_window);
     leaf("set_s2s_peer_unique", "delete_s2s_peer_unique", config.unique, existing.unique);
     leaf("set_s2s_peer_childless", "delete_s2s_peer_childless", config.childless, existing.childless);
-    leaf("set_s2s_peer_auth_ppk_id", "delete_s2s_peer_auth_ppk_id", config.ppk_id, oldAuth.ppk?.id);
     multi("set_s2s_peer_virtual_address", "delete_s2s_peer_virtual_address", config.virtual_addresses || [], existing.virtual_address || []);
 
     const oldVti = existing.vti || {};
@@ -918,7 +913,7 @@ class IPSecService {
     identities?: string[];
     secret?: string;
     secret_type?: string;
-    dhcp_interface?: string;
+    dhcp_interfaces?: string[];
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_auth_psk" }];
     if (config.identities) {
@@ -928,7 +923,9 @@ class IPSecService {
     }
     if (writableSecret(config.secret)) ops.push({ op: "set_auth_psk_secret", value: writableSecret(config.secret) });
     if (config.secret_type) ops.push({ op: "set_auth_psk_secret_type", value: config.secret_type });
-    if (config.dhcp_interface) ops.push({ op: "set_auth_psk_dhcp_interface", value: config.dhcp_interface });
+    for (const iface of config.dhcp_interfaces || []) {
+      ops.push({ op: "set_auth_psk_dhcp_interface", value: iface });
+    }
     return this.batchConfigure(name, ops);
   }
 
@@ -936,8 +933,8 @@ class IPSecService {
     identities?: string[];
     secret?: string;
     secret_type?: string;
-    dhcp_interface?: string;
-  }, existing: { identities?: string[]; secret_type?: string | null; dhcp_interface?: string | null }): Promise<VyOSResponse> {
+    dhcp_interfaces?: string[];
+  }, existing: { identities?: string[]; secret_type?: string | null; dhcp_interface?: string[] | string | null }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_auth_psk" }];
     const nextIds = config.identities || [];
     const oldIds = existing.identities || [];
@@ -954,24 +951,21 @@ class IPSecService {
     } else if (!config.secret_type && existing.secret_type) {
       ops.push({ op: "delete_auth_psk_secret_type" });
     }
-    if (config.dhcp_interface && config.dhcp_interface !== (existing.dhcp_interface || "")) {
-      ops.push({ op: "set_auth_psk_dhcp_interface", value: config.dhcp_interface });
-    } else if (!config.dhcp_interface && existing.dhcp_interface) {
-      ops.push({ op: "delete_auth_psk_dhcp_interface" });
+    const nextIfaces = config.dhcp_interfaces || [];
+    const oldIfaces = Array.isArray(existing.dhcp_interface)
+      ? existing.dhcp_interface
+      : existing.dhcp_interface ? [existing.dhcp_interface] : [];
+    for (const iface of oldIfaces) {
+      if (!nextIfaces.includes(iface)) ops.push({ op: "delete_auth_psk_dhcp_interface", value: iface });
+    }
+    for (const iface of nextIfaces) {
+      if (!oldIfaces.includes(iface)) ops.push({ op: "set_auth_psk_dhcp_interface", value: iface });
     }
     return this.batchConfigure(name, ops);
   }
 
   async deleteAuthPSK(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_auth_psk" }]);
-  }
-
-  // ==========================================================================
-  // Profile Operations
-  // ==========================================================================
-
-  async deleteProfile(name: string): Promise<VyOSResponse> {
-    return this.batchConfigure(name, [{ op: "delete_profile" }]);
   }
 
   // ==========================================================================

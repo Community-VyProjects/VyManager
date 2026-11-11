@@ -141,8 +141,8 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_auth_psk_secret_type(self, name: str) -> "IPSecBatchBuilder":
         return self._delete_value_node(self.mappers[self.mapper_key].get_auth_psk_secret_type_path(name, ""))
 
-    def delete_auth_psk_dhcp_interface(self, name: str) -> "IPSecBatchBuilder":
-        return self._delete_value_node(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, ""))
+    def delete_auth_psk_dhcp_interface(self, name: str, interface: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, interface))
 
     # Authentication - PPK (1.5 only)
 
@@ -376,25 +376,6 @@ class IPSecBatchBuilder(BatchBuilder):
         return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_auth_rsa_passphrase_path(peer, ""))
 
     # Site-to-Site Peer Authentication - PPK (1.5 only)
-    def set_s2s_peer_auth_ppk_id(self, peer: str, ppk_id: str) -> "IPSecBatchBuilder":
-        mapper = self.mappers[self.mapper_key]
-        mapper._require_node("s2s_ppk")
-        return self.add_set(getattr(mapper, "get_s2s_peer_auth_ppk_id_path")(peer, ppk_id))
-
-    def delete_s2s_peer_auth_ppk_id(self, peer: str) -> "IPSecBatchBuilder":
-        mapper = self.mappers[self.mapper_key]
-        mapper._require_node("s2s_ppk")
-        return self._delete_value_node(getattr(mapper, "get_s2s_peer_auth_ppk_id_path")(peer, ""))
-
-    def set_s2s_peer_auth_ppk_required(self, peer: str) -> "IPSecBatchBuilder":
-        mapper = self.mappers[self.mapper_key]
-        mapper._require_node("s2s_ppk")
-        return self.add_set(getattr(mapper, "get_s2s_peer_auth_ppk_required_path")(peer))
-
-    def delete_s2s_peer_auth_ppk_required(self, peer: str) -> "IPSecBatchBuilder":
-        mapper = self.mappers[self.mapper_key]
-        mapper._require_node("s2s_ppk")
-        return self.add_delete(getattr(mapper, "get_s2s_peer_auth_ppk_required_path")(peer))
 
     def set_s2s_peer_childless(self, peer: str, value: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
@@ -643,9 +624,6 @@ class IPSecBatchBuilder(BatchBuilder):
     # Profile
     # ========================================================================
 
-    def delete_profile(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_profile_path(name))
-
     # ========================================================================
     # Capabilities
     # ========================================================================
@@ -658,6 +636,7 @@ class IPSecBatchBuilder(BatchBuilder):
                 "ipsec": {
                     "supported": True,
                     "description": "IPSec VPN tunnel support",
+                    "psk_secret_types": mapper.secret_types(),
                 },
                 "site_to_site": {
                     "supported": True,
@@ -667,7 +646,6 @@ class IPSecBatchBuilder(BatchBuilder):
                     "unique_values": ["never", "keep", "replace"] if "s2s_unique" in nodes else [],
                     "childless": "childless" in nodes,
                     "childless_values": ["allow", "prefer", "force", "never"] if "childless" in nodes else [],
-                    "ppk": "s2s_ppk" in nodes,
                 },
                 "remote_access": {
                     "supported": True,

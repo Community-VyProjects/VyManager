@@ -22,9 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Key, Eye, EyeOff, RefreshCw } from "lucide-react";
-import { ipsecService, AuthPSK } from "@/lib/api/ipsec";
+import { ipsecService, AuthPSK, IPSecCapabilities } from "@/lib/api/ipsec";
 import { showService, InterfaceName } from "@/lib/api/show";
-import { InterfaceSelect } from "@/components/ui/interface-select";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import { ApiError } from "@/lib/types/api";
 
 interface AuthPSKModalProps {
@@ -32,6 +32,7 @@ interface AuthPSKModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingPSK: AuthPSK | null;
+  capabilities: IPSecCapabilities | null;
 }
 
 export function AuthPSKModal({
@@ -39,6 +40,7 @@ export function AuthPSKModal({
   onOpenChange,
   onSuccess,
   existingPSK,
+  capabilities,
 }: AuthPSKModalProps) {
   const t = useTranslations("ipsecSettings");
   const tc = useTranslations("common");
@@ -49,7 +51,7 @@ export function AuthPSKModal({
   const [showSecret, setShowSecret] = useState(false);
   const [identities, setIdentities] = useState("");
   const [secretType, setSecretType] = useState("");
-  const [dhcpInterface, setDhcpInterface] = useState("");
+  const [dhcpInterfaces, setDhcpInterfaces] = useState<string[]>([]);
 
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,13 +75,13 @@ export function AuthPSKModal({
         setSecret("");
         setIdentities((existingPSK.identities || []).join("\n"));
         setSecretType(existingPSK.secret_type || "");
-        setDhcpInterface(existingPSK.dhcp_interface || "");
+        setDhcpInterfaces(existingPSK.dhcp_interface || []);
       } else {
         setName("");
         setSecret("");
         setIdentities("");
         setSecretType("");
-        setDhcpInterface("");
+        setDhcpInterfaces([]);
       }
       setShowSecret(false);
       setError(null);
@@ -99,7 +101,7 @@ export function AuthPSKModal({
         identities: ids.length > 0 ? ids : undefined,
         secret: secret || undefined,
         secret_type: secretType || undefined,
-        dhcp_interface: dhcpInterface || undefined,
+        dhcp_interfaces: dhcpInterfaces,
       };
       const result = isEdit && existingPSK
         ? await ipsecService.updateAuthPSK(existingPSK.name, payload, existingPSK)
@@ -171,18 +173,18 @@ export function AuthPSKModal({
                 <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">{tc("default")}</SelectItem>
-                  <SelectItem value="base64">Base64</SelectItem>
+                  {(capabilities?.features.ipsec.psk_secret_types ?? ["base64", "plaintext"]).map((value) => (
+                    <SelectItem key={value} value={value}>{value}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>{t("psk.dhcpInterface")}</Label>
-              <InterfaceSelect
-                value={dhcpInterface || "_none"}
-                onValueChange={(v) => setDhcpInterface(v === "_none" ? "" : v)}
+              <InterfaceMultiSelect
+                values={dhcpInterfaces}
+                onChange={setDhcpInterfaces}
                 interfaces={allInterfaces}
-                noneOption={{ label: tc("none"), value: "_none" }}
-                placeholder={tc("none")}
               />
             </div>
           </div>
