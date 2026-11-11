@@ -37,6 +37,8 @@ BOTH_CASES = [
     ('delete_subnet_lease', ('LAN', '192.168.1.0/24'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'lease']),
     ('delete_subnet_ping_check', ('LAN', '192.168.1.0/24'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'ping-check']),
     ('delete_subnet_range', ('LAN', '192.168.1.0/24', '0'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'range', '0']),
+    ('delete_subnet_range_start', ('LAN', '192.168.1.0/24', '0'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'range', '0', 'start']),
+    ('delete_subnet_range_stop', ('LAN', '192.168.1.0/24', '0'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'range', '0', 'stop']),
     ('set_failover_mode', ('active-active',), 'set', ['service', 'dhcp-server', 'high-availability', 'mode', 'active-active']),
     ('set_failover_name', ('peer1',), 'set', ['service', 'dhcp-server', 'high-availability', 'name', 'peer1']),
     ('set_failover_remote', ('192.0.2.1',), 'set', ['service', 'dhcp-server', 'high-availability', 'remote', '192.0.2.1']),
