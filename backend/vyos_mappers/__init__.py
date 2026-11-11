@@ -118,7 +118,6 @@ from .container.container_versions import get_container_mapper
 from .conntrack_sync import ConntrackSyncMapper
 from .conntrack_sync.conntrack_sync_versions import get_conntrack_sync_mapper
 from .console_server import ConsoleServerMapper
-from .console_server.console_server_versions import get_console_server_mapper
 from .dhcpv6_server import DHCPv6ServerMapper
 from .dhcpv6_server.dhcpv6_server_versions import get_dhcpv6_server_mapper
 from .dns_forwarding import DNSForwardingMapper
@@ -305,8 +304,8 @@ CommandMapperRegistry.register_feature("config_sync", get_config_sync_mapper)
 CommandMapperRegistry.register_feature("container", get_container_mapper)
 # Conntrack-Sync uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("conntrack_sync", get_conntrack_sync_mapper)
-# Console Server uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("console_server", get_console_server_mapper)
+# Console Server uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("console_server", ConsoleServerMapper)
 # DHCPv6 Server uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dhcpv6_server", get_dhcpv6_server_mapper)
 # DNS Forwarding uses factory for version-specific mappers

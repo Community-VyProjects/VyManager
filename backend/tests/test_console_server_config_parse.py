@@ -1,8 +1,9 @@
 """Console server GET /config parse lives on the mapper (issue #966)."""
 
-from vyos_mappers.console_server.console_server_versions import (
-    get_console_server_mapper,
-)
+from pathlib import Path
+
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.console_server import ConsoleServerMapper
 
 
 def _tree():
@@ -28,14 +29,8 @@ def _tree():
     }
 
 
-def test_parse_config_is_explicit_and_version_falls_through():
-    mapper = get_console_server_mapper("1.4")
-    assert "parse_config" in type(mapper).__dict__
-    assert mapper.version == "1.4"
-
-
 def test_devices_sorted_and_ssh_port_coerced():
-    parsed = get_console_server_mapper("1.5").parse_config(_tree())
+    parsed = ConsoleServerMapper("1.5").parse_config(_tree())
     names = [device["name"] for device in parsed["devices"]]
     assert names == ["ttyS0", "ttyS1", "ttyS2", "ttyUSB0"]
     by_name = {device["name"]: device for device in parsed["devices"]}
@@ -49,7 +44,7 @@ def test_devices_sorted_and_ssh_port_coerced():
     assert usb["stop_bits"] == "1"
     assert usb["alias"] == "ups"
     assert (
-        get_console_server_mapper("1.5").parse_config(
+        ConsoleServerMapper("1.5").parse_config(
             {"service": {"console-server": {"device": "ttyS0"}}}
         )
         == {"devices": []}
@@ -57,16 +52,37 @@ def test_devices_sorted_and_ssh_port_coerced():
 
 
 def test_empty_tree():
-    assert get_console_server_mapper("1.4").parse_config({}) == {"devices": []}
-    assert get_console_server_mapper("1.5").parse_config(
+    assert ConsoleServerMapper("1.4").parse_config({}) == {"devices": []}
+    assert ConsoleServerMapper("1.5").parse_config(
         {"service": {"console-server": {}}}
     ) == {"devices": []}
 
 
+def test_registry_returns_shared_mapper():
+    """Labs match, so the registry must not wrap a merge proxy."""
+    for version in ("1.4", "1.4.3", "1.5", "2026.09.23-rolling"):
+        mapper = CommandMapperRegistry.get_mapper("console_server", version)
+        assert type(mapper) is ConsoleServerMapper
+        assert mapper.version == version
+        assert "parse_config" in type(mapper).__dict__
+    direct = ConsoleServerMapper("1.5").parse_config(_tree())
+    registered = CommandMapperRegistry.get_mapper("console_server", "1.5")
+    assert isinstance(registered, ConsoleServerMapper)
+    assert registered.parse_config(_tree())["devices"][0]["ssh"]["port"] == (
+        direct["devices"][0]["ssh"]["port"]
+    ) == 2022
+    versions = (
+        Path(__file__).resolve().parents[1]
+        / "vyos_mappers"
+        / "console_server"
+        / "console_server_versions"
+    )
+    assert not versions.exists()
+
 
 def test_get_config_returns_mapper_parse(monkeypatch):
     tree = _tree()
-    expected = get_console_server_mapper("1.5").parse_config(tree)
+    expected = ConsoleServerMapper("1.5").parse_config(tree)
 
     async def allow(*_args, **_kwargs):
         return None
