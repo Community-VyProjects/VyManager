@@ -11,9 +11,6 @@ from ..base import BaseFeatureMapper
 class IPSecMapper(BaseFeatureMapper):
     """Base mapper with common IPSec operations."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     def versioned_nodes(self) -> FrozenSet[str]:
         """1.5-only leaves this device has. Capabilities and ops read this set."""
         return frozenset()

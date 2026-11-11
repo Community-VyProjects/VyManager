@@ -51,8 +51,8 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_log_level(self, level: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_log_level_path(level))
 
-    def delete_log_level(self, level: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_log_level_path(level))
+    def delete_log_level(self) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_log_level_path(""))
 
     def set_log_subsystem(self, subsystem: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_log_subsystem_path(subsystem))
@@ -88,30 +88,30 @@ class IPSecBatchBuilder(BatchBuilder):
         mapper._require_node("retransmission")
         return self.add_set(getattr(mapper, "get_options_retransmission_attempts_path")(attempts))
 
-    def delete_options_retransmission_attempts(self, attempts: str) -> "IPSecBatchBuilder":
+    def delete_options_retransmission_attempts(self) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("retransmission")
-        return self.add_delete(getattr(mapper, "get_options_retransmission_attempts_path")(attempts))
+        return self._delete_value_node(getattr(mapper, "get_options_retransmission_attempts_path")(""))
 
     def set_options_retransmission_base(self, base: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("retransmission")
         return self.add_set(getattr(mapper, "get_options_retransmission_base_path")(base))
 
-    def delete_options_retransmission_base(self, base: str) -> "IPSecBatchBuilder":
+    def delete_options_retransmission_base(self) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("retransmission")
-        return self.add_delete(getattr(mapper, "get_options_retransmission_base_path")(base))
+        return self._delete_value_node(getattr(mapper, "get_options_retransmission_base_path")(""))
 
     def set_options_retransmission_timeout(self, timeout: str) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("retransmission")
         return self.add_set(getattr(mapper, "get_options_retransmission_timeout_path")(timeout))
 
-    def delete_options_retransmission_timeout(self, timeout: str) -> "IPSecBatchBuilder":
+    def delete_options_retransmission_timeout(self) -> "IPSecBatchBuilder":
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("retransmission")
-        return self.add_delete(getattr(mapper, "get_options_retransmission_timeout_path")(timeout))
+        return self._delete_value_node(getattr(mapper, "get_options_retransmission_timeout_path")(""))
 
     # ========================================================================
     # Authentication - PSK

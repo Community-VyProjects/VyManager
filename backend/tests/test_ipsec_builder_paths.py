@@ -22,7 +22,7 @@ COMMON_CASES = [
     ('delete_esp_group', ('G0',), 'delete', ['vpn', 'ipsec', 'esp-group', 'G0']),
     ('delete_ike_group', ('G0',), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0']),
     ('delete_interface', ('eth0',), 'delete', ['vpn', 'ipsec', 'interface', 'eth0']),
-    ('delete_log_level', ('1',), 'delete', ['vpn', 'ipsec', 'log', 'level', '1']),
+    ('delete_log_level', (), 'delete', ['vpn', 'ipsec', 'log', 'level']),
     ('delete_log_subsystem', ('dmn',), 'delete', ['vpn', 'ipsec', 'log', 'subsystem', 'dmn']),
     ('delete_options_disable_route_autoinstall', (), 'delete', ['vpn', 'ipsec', 'options', 'disable-route-autoinstall']),
     ('delete_options_flexvpn', (), 'delete', ['vpn', 'ipsec', 'options', 'flexvpn']),
@@ -169,9 +169,9 @@ def test_ipsec_common_paths(method, args, op, expected_path, version):
     _run(version, method, args, op, expected_path)
 
 V15_ONLY_CASES = [
-    ('delete_options_retransmission_attempts', ('5',), 'delete', ['vpn', 'ipsec', 'options', 'retransmission', 'attempts', '5']),
-    ('delete_options_retransmission_base', ('5',), 'delete', ['vpn', 'ipsec', 'options', 'retransmission', 'base', '5']),
-    ('delete_options_retransmission_timeout', ('5',), 'delete', ['vpn', 'ipsec', 'options', 'retransmission', 'timeout', '5']),
+    ('delete_options_retransmission_attempts', (), 'delete', ['vpn', 'ipsec', 'options', 'retransmission', 'attempts']),
+    ('delete_options_retransmission_base', (), 'delete', ['vpn', 'ipsec', 'options', 'retransmission', 'base']),
+    ('delete_options_retransmission_timeout', (), 'delete', ['vpn', 'ipsec', 'options', 'retransmission', 'timeout']),
     ('set_options_retransmission_attempts', ('5',), 'set', ['vpn', 'ipsec', 'options', 'retransmission', 'attempts', '5']),
     ('set_options_retransmission_base', ('5',), 'set', ['vpn', 'ipsec', 'options', 'retransmission', 'base', '5']),
     ('set_options_retransmission_timeout', ('5',), 'set', ['vpn', 'ipsec', 'options', 'retransmission', 'timeout', '5']),
