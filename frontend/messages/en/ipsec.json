@@ -182,7 +182,6 @@
     "any": "Any",
     "localPrefix": "Local Prefix",
     "remotePrefix": "Remote Prefix",
-    "vtiHelp": "Bind a Virtual Tunnel Interface (VTI) to this peer for route-based VPN. The interface must already exist under Interfaces › VTI.",
     "boundInterface": "Bound Interface",
     "tsLocalPrefix": "Traffic Selector — Local Prefix",
     "tsRemotePrefix": "Traffic Selector — Remote Prefix",

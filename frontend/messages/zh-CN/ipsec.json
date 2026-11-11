@@ -182,7 +182,6 @@
     "any": "任意",
     "localPrefix": "本地子网",
     "remotePrefix": "远端子网",
-    "vtiHelp": "将虚拟隧道接口（VTI）绑定到此对端，以实现基于路由的 VPN。该接口必须已存在于“接口 › VTI”下。",
     "boundInterface": "绑定接口",
     "tsLocalPrefix": "流量选择器 — 本地子网",
     "tsRemotePrefix": "流量选择器 — 远端子网",

@@ -631,9 +631,6 @@ export function SiteToSiteModal({
           </TabsContent>
 
           <TabsContent value="vti" className="space-y-4 mt-4">
-            <p className="text-xs text-muted-foreground">
-              {t("s2sModal.vtiHelp")}
-            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("s2sModal.boundInterface")}</Label>
