@@ -92,7 +92,7 @@ async def batch_configure(http_request: Request, request: BatchRequest):
                 method()
             elif len(params) == 1:
                 method(effective_name)
-            elif len(params) == 2 and op.value is not None:
+            elif len(params) == 2 and op.value:
                 method(effective_name, op.value)
             elif len(params) == 2:
                 raise HTTPException(

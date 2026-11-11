@@ -14,6 +14,7 @@ from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.ipsec import IPSecBatchBuilder
 from vyos_mappers.ipsec import IPSecMapper
+from vyos_mappers import CommandMapperRegistry
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from ipsec_status import ipsec_gql_fields, build_ipsec_status
@@ -113,7 +114,9 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
 
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
-        mapper = IPSecMapper(version)
+        mapper = CommandMapperRegistry.get_mapper("ipsec", version)
+        if not isinstance(mapper, IPSecMapper):
+            raise HTTPException(status_code=500, detail="Internal server error")
         config = mapper.parse_config(full_config)
 
         # Convert to list format for frontend consumption
@@ -297,6 +300,11 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid parameters for operation {operation.op}",
+                )
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} is not supported on this device",
                 )
 
         if builder.is_empty():

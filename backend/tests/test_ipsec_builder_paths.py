@@ -20,23 +20,14 @@ COMMON_CASES = [
     ('delete_auth_psk_id', ('G0', 'G0'), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'id', 'G0']),
     ('delete_disable_uniqreqids', (), 'delete', ['vpn', 'ipsec', 'disable-uniqreqids']),
     ('delete_esp_group', ('G0',), 'delete', ['vpn', 'ipsec', 'esp-group', 'G0']),
-    ('delete_esp_group_compression', ('G0',), 'delete', ['vpn', 'ipsec', 'esp-group', 'G0', 'compression']),
-    ('delete_esp_group_disable_rekey', ('G0',), 'delete', ['vpn', 'ipsec', 'esp-group', 'G0', 'disable-rekey']),
-    ('delete_esp_group_proposal', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'esp-group', 'G0', 'proposal', '1']),
     ('delete_ike_group', ('G0',), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0']),
-    ('delete_ike_group_disable_mobike', ('G0',), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0', 'disable-mobike']),
-    ('delete_ike_group_ikev2_reauth', ('G0',), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0', 'ikev2-reauth']),
-    ('delete_ike_group_proposal', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'ike-group', 'G0', 'proposal', '1']),
     ('delete_interface', ('eth0',), 'delete', ['vpn', 'ipsec', 'interface', 'eth0']),
     ('delete_log_level', ('1',), 'delete', ['vpn', 'ipsec', 'log', 'level', '1']),
     ('delete_log_subsystem', ('dmn',), 'delete', ['vpn', 'ipsec', 'log', 'subsystem', 'dmn']),
     ('delete_options_disable_route_autoinstall', (), 'delete', ['vpn', 'ipsec', 'options', 'disable-route-autoinstall']),
     ('delete_options_flexvpn', (), 'delete', ['vpn', 'ipsec', 'options', 'flexvpn']),
-    ('delete_options_interface', ('eth0',), 'delete', ['vpn', 'ipsec', 'options', 'interface', 'eth0']),
     ('delete_options_virtual_ip', (), 'delete', ['vpn', 'ipsec', 'options', 'virtual-ip']),
     ('delete_profile', ('G0',), 'delete', ['vpn', 'ipsec', 'profile', 'G0']),
-    ('delete_profile_bind_tunnel', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'profile', 'G0', 'bind', 'tunnel', '1']),
-    ('delete_profile_disable', ('G0',), 'delete', ['vpn', 'ipsec', 'profile', 'G0', 'disable']),
     ('delete_ra_connection', ('G0',), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0']),
     ('delete_ra_connection_auth_client_mode', ('G0', 'nat'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'client-mode', 'nat']),
     ('delete_ra_connection_auth_local_id', ('G0', 'G0'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'local-id', 'G0']),
@@ -50,15 +41,8 @@ COMMON_CASES = [
     ('delete_ra_connection_esp_group', ('G0', '5'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'esp-group', '5']),
     ('delete_ra_connection_ike_group', ('G0', '5'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'ike-group', '5']),
     ('delete_ra_connection_local_address', ('G0', '192.0.2.1'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'local-address', '192.0.2.1']),
-    ('delete_ra_connection_local_prefix', ('G0', '10.0.0.0/8'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'local', 'prefix', '10.0.0.0/8']),
     ('delete_ra_connection_pool', ('G0', 'G0'), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'pool', 'G0']),
     ('delete_ra_pool', ('G0',), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0']),
-    ('delete_ra_pool_exclude', ('G0', '5'), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'exclude', '5']),
-    ('delete_ra_pool_name_server', ('G0', '192.0.2.1'), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'name-server', '192.0.2.1']),
-    ('delete_ra_pool_prefix', ('G0', '10.0.0.0/8'), 'delete', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'prefix', '10.0.0.0/8']),
-    ('delete_ra_radius_server', ('192.0.2.1',), 'delete', ['vpn', 'ipsec', 'remote-access', 'radius', 'server', '192.0.2.1']),
-    ('delete_ra_radius_server_disable', ('192.0.2.1',), 'delete', ['vpn', 'ipsec', 'remote-access', 'radius', 'server', '192.0.2.1', 'disable']),
-    ('delete_ra_radius_server_disable_accounting', ('192.0.2.1',), 'delete', ['vpn', 'ipsec', 'remote-access', 'radius', 'server', '192.0.2.1', 'disable-accounting']),
     ('delete_s2s_peer', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0']),
     ('delete_s2s_peer_auth_use_x509_id', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'use-x509-id']),
     ('delete_s2s_peer_disable', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'disable']),
@@ -102,16 +86,8 @@ COMMON_CASES = [
     ('set_log_subsystem', ('dmn',), 'set', ['vpn', 'ipsec', 'log', 'subsystem', 'dmn']),
     ('set_options_disable_route_autoinstall', (), 'set', ['vpn', 'ipsec', 'options', 'disable-route-autoinstall']),
     ('set_options_flexvpn', (), 'set', ['vpn', 'ipsec', 'options', 'flexvpn']),
-    ('set_options_interface', ('eth0',), 'set', ['vpn', 'ipsec', 'options', 'interface', 'eth0']),
     ('set_options_virtual_ip', (), 'set', ['vpn', 'ipsec', 'options', 'virtual-ip']),
-    ('set_profile_auth_mode', ('G0', 'nat'), 'set', ['vpn', 'ipsec', 'profile', 'G0', 'authentication', 'mode', 'nat']),
-    ('set_profile_auth_psk', ('G0', 'secret'), 'set', ['vpn', 'ipsec', 'profile', 'G0', 'authentication', 'pre-shared-secret', 'secret']),
-    ('set_profile_bind_tunnel', ('G0', '1'), 'set', ['vpn', 'ipsec', 'profile', 'G0', 'bind', 'tunnel', '1']),
-    ('set_profile_disable', ('G0',), 'set', ['vpn', 'ipsec', 'profile', 'G0', 'disable']),
-    ('set_profile_esp_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'profile', 'G0', 'esp-group', '5']),
-    ('set_profile_ike_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'profile', 'G0', 'ike-group', '5']),
     ('set_ra_connection_auth_client_mode', ('G0', 'nat'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'client-mode', 'nat']),
-    ('set_ra_connection_auth_eap_id', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'eap-id', '5']),
     ('set_ra_connection_auth_local_id', ('G0', 'G0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'local-id', 'G0']),
     ('set_ra_connection_auth_local_user_disable', ('G0', 'user1'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'local-users', 'username', 'user1', 'disable']),
     ('set_ra_connection_auth_local_user_password', ('G0', 'user1', 'secret'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'local-users', 'username', 'user1', 'password', 'secret']),
@@ -119,30 +95,15 @@ COMMON_CASES = [
     ('set_ra_connection_auth_server_mode', ('G0', 'nat'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'server-mode', 'nat']),
     ('set_ra_connection_auth_x509_ca_cert', ('G0', 'G0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'x509', 'ca-certificate', 'G0']),
     ('set_ra_connection_auth_x509_cert', ('G0', 'G0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'x509', 'certificate', 'G0']),
-    ('set_ra_connection_auth_x509_passphrase', ('G0', 'secret'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'x509', 'passphrase', 'secret']),
     ('set_ra_connection_description', ('G0', 'lab'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'description', 'lab']),
-    ('set_ra_connection_dhcp_interface', ('G0', 'eth0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'dhcp-interface', 'eth0']),
     ('set_ra_connection_disable', ('G0',), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'disable']),
     ('set_ra_connection_esp_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'esp-group', '5']),
     ('set_ra_connection_ike_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'ike-group', '5']),
     ('set_ra_connection_local_address', ('G0', '192.0.2.1'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'local-address', '192.0.2.1']),
-    ('set_ra_connection_local_port', ('G0', '8080'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'local', 'port', '8080']),
-    ('set_ra_connection_local_prefix', ('G0', '10.0.0.0/8'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'local', 'prefix', '10.0.0.0/8']),
     ('set_ra_connection_pool', ('G0', 'G0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'pool', 'G0']),
-    ('set_ra_connection_replay_window', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'replay-window', '5']),
-    ('set_ra_connection_timeout', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'timeout', '5']),
-    ('set_ra_connection_unique', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'unique', '5']),
-    ('set_ra_dhcp_interface', ('eth0',), 'set', ['vpn', 'ipsec', 'remote-access', 'dhcp', 'interface', 'eth0']),
-    ('set_ra_dhcp_server', ('192.0.2.1',), 'set', ['vpn', 'ipsec', 'remote-access', 'dhcp', 'server', '192.0.2.1']),
     ('set_ra_pool_exclude', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'exclude', '5']),
     ('set_ra_pool_name_server', ('G0', '192.0.2.1'), 'set', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'name-server', '192.0.2.1']),
     ('set_ra_pool_prefix', ('G0', '10.0.0.0/8'), 'set', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'prefix', '10.0.0.0/8']),
-    ('set_ra_radius_nas_identifier', ('5',), 'set', ['vpn', 'ipsec', 'remote-access', 'radius', 'nas-identifier', '5']),
-    ('set_ra_radius_server_disable', ('192.0.2.1',), 'set', ['vpn', 'ipsec', 'remote-access', 'radius', 'server', '192.0.2.1', 'disable']),
-    ('set_ra_radius_server_disable_accounting', ('192.0.2.1',), 'set', ['vpn', 'ipsec', 'remote-access', 'radius', 'server', '192.0.2.1', 'disable-accounting']),
-    ('set_ra_radius_server_key', ('192.0.2.1', 'secret'), 'set', ['vpn', 'ipsec', 'remote-access', 'radius', 'server', '192.0.2.1', 'key', 'secret']),
-    ('set_ra_radius_server_port', ('192.0.2.1', '8080'), 'set', ['vpn', 'ipsec', 'remote-access', 'radius', 'server', '192.0.2.1', 'port', '8080']),
-    ('set_ra_radius_timeout', ('5',), 'set', ['vpn', 'ipsec', 'remote-access', 'radius', 'timeout', '5']),
     ('set_s2s_peer_auth_local_id', ('G0', 'G0'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'local-id', 'G0']),
     ('set_s2s_peer_auth_mode', ('G0', 'nat'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'mode', 'nat']),
     ('set_s2s_peer_auth_remote_id', ('G0', '5'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'remote-id', '5']),
@@ -181,6 +142,12 @@ COMMON_CASES = [
     ('set_s2s_peer_vti_esp_group', ('G0', '5'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'esp-group', '5']),
     ('set_s2s_peer_vti_ts_local_prefix', ('G0', '10.0.0.0/8'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'traffic-selector', 'local', 'prefix', '10.0.0.0/8']),
     ('set_s2s_peer_vti_ts_remote_prefix', ('G0', '10.0.0.0/8'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'traffic-selector', 'remote', 'prefix', '10.0.0.0/8']),
+    ('delete_auth_psk_secret_type', ('G0',), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'secret-type']),
+    ('delete_auth_psk_dhcp_interface', ('G0',), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'dhcp-interface']),
+    ('delete_s2s_peer_replay_window', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'replay-window']),
+    ('delete_s2s_peer_tunnel_local_port', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'local', 'port']),
+    ('delete_s2s_peer_tunnel_remote_port', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'remote', 'port']),
+    ('delete_s2s_peer_tunnel_priority', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'priority']),
 ]
 
 
@@ -196,12 +163,34 @@ V15_ONLY_CASES = [
     ('set_options_retransmission_attempts', ('5',), 'set', ['vpn', 'ipsec', 'options', 'retransmission', 'attempts', '5']),
     ('set_options_retransmission_base', ('5',), 'set', ['vpn', 'ipsec', 'options', 'retransmission', 'base', '5']),
     ('set_options_retransmission_timeout', ('5',), 'set', ['vpn', 'ipsec', 'options', 'retransmission', 'timeout', '5']),
-    ('set_ra_connection_bind', ('G0', 'eth0'), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'bind', 'eth0']),
     ('set_ra_pool_range_start', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'range', 'start', '5']),
     ('set_ra_pool_range_stop', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'range', 'stop', '5']),
+    ('set_s2s_peer_unique', ('G0', 'keep'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'unique', 'keep']),
+    ('delete_s2s_peer_unique', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'unique']),
+    ('set_s2s_peer_childless', ('G0', 'allow'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'childless', 'allow']),
+    ('delete_s2s_peer_childless', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'childless']),
 ]
 
 
 @pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
 def test_ipsec_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
+
+
+def test_missing_leaf_raises_value_error():
+    builder = IPSecBatchBuilder(version="1.4.3")
+    with pytest.raises(ValueError):
+        builder.set_s2s_peer_unique("G0", "keep")
+
+
+def test_capabilities_follow_the_mapper_allowlist(monkeypatch):
+    builder = IPSecBatchBuilder(version="1.4.3")
+    mapper = builder.mappers["ipsec"]
+    monkeypatch.setattr(mapper, "versioned_nodes", lambda: frozenset({"childless", "s2s_unique"}))
+    monkeypatch.setattr(mapper, "connection_types", lambda: ["initiate", "trap", "none"])
+    caps = builder.get_capabilities()
+    assert "version_notes" not in caps
+    assert "version" not in caps
+    assert caps["features"]["childless"]["supported"] is True
+    assert caps["features"]["ppk"]["supported"] is False
+    assert caps["features"]["site_to_site"]["connection_types"] == ["initiate", "trap", "none"]

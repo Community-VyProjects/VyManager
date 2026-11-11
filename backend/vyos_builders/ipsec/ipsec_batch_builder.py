@@ -5,10 +5,10 @@ Provides all batch operations for IPSec VPN configuration.
 Handles version-specific differences through the mapper layer.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.ipsec.ipsec import IPSecMapper
 from vyos_builders.base import BatchBuilder
-
 
 class IPSecBatchBuilder(BatchBuilder):
     """Complete batch builder for IPSec VPN operations."""
@@ -16,7 +16,7 @@ class IPSecBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
         self.mapper_key = "ipsec"
-        self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
+        self.mappers = {self.mapper_key: cast(IPSecMapper, CommandMapperRegistry.get_mapper(self.mapper_key, version))}
 
     # ========================================================================
     # Core Batch Operations
@@ -76,12 +76,6 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_options_flexvpn(self) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_options_flexvpn_path())
 
-    def set_options_interface(self, interface: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_options_interface_path(interface))
-
-    def delete_options_interface(self, interface: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_options_interface_path(interface))
-
     def set_options_virtual_ip(self) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_options_virtual_ip_path())
 
@@ -90,22 +84,34 @@ class IPSecBatchBuilder(BatchBuilder):
 
     # Options - Retransmission (1.5 only)
     def set_options_retransmission_attempts(self, attempts: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_options_retransmission_attempts_path(attempts))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("retransmission")
+        return self.add_set(getattr(mapper, "get_options_retransmission_attempts_path")(attempts))
 
     def delete_options_retransmission_attempts(self, attempts: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_options_retransmission_attempts_path(attempts))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("retransmission")
+        return self.add_delete(getattr(mapper, "get_options_retransmission_attempts_path")(attempts))
 
     def set_options_retransmission_base(self, base: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_options_retransmission_base_path(base))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("retransmission")
+        return self.add_set(getattr(mapper, "get_options_retransmission_base_path")(base))
 
     def delete_options_retransmission_base(self, base: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_options_retransmission_base_path(base))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("retransmission")
+        return self.add_delete(getattr(mapper, "get_options_retransmission_base_path")(base))
 
     def set_options_retransmission_timeout(self, timeout: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_options_retransmission_timeout_path(timeout))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("retransmission")
+        return self.add_set(getattr(mapper, "get_options_retransmission_timeout_path")(timeout))
 
     def delete_options_retransmission_timeout(self, timeout: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_options_retransmission_timeout_path(timeout))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("retransmission")
+        return self.add_delete(getattr(mapper, "get_options_retransmission_timeout_path")(timeout))
 
     # ========================================================================
     # Authentication - PSK
@@ -132,21 +138,13 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_auth_psk_dhcp_interface(self, name: str, interface: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, interface))
 
+    def delete_auth_psk_secret_type(self, name: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_auth_psk_secret_type_path(name, "")[:-1])
+
+    def delete_auth_psk_dhcp_interface(self, name: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, "")[:-1])
+
     # Authentication - PPK (1.5 only)
-    def create_auth_ppk(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_auth_ppk_path(name))
-
-    def delete_auth_ppk(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_auth_ppk_path(name))
-
-    def set_auth_ppk_id(self, name: str, identity: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_auth_ppk_id_path(name, identity))
-
-    def set_auth_ppk_secret(self, name: str, secret: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_auth_ppk_secret_path(name, secret))
-
-    def set_auth_ppk_secret_type(self, name: str, secret_type: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_auth_ppk_secret_type_path(name, secret_type))
 
     # ========================================================================
     # ESP Group
@@ -161,14 +159,8 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_esp_group_compression(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_compression_path(name))
 
-    def delete_esp_group_compression(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_esp_group_compression_path(name))
-
     def set_esp_group_disable_rekey(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_disable_rekey_path(name))
-
-    def delete_esp_group_disable_rekey(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_esp_group_disable_rekey_path(name))
 
     def set_esp_group_life_bytes(self, name: str, value: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_life_bytes_path(name, value))
@@ -187,9 +179,6 @@ class IPSecBatchBuilder(BatchBuilder):
 
     def create_esp_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_proposal_path(name, proposal))
-
-    def delete_esp_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_esp_group_proposal_path(name, proposal))
 
     def set_esp_group_proposal_encryption(self, name: str, proposal: str, encryption: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_proposal_encryption_path(name, proposal, encryption))
@@ -222,14 +211,8 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ike_group_disable_mobike(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_disable_mobike_path(name))
 
-    def delete_ike_group_disable_mobike(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ike_group_disable_mobike_path(name))
-
     def set_ike_group_ikev2_reauth(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_ikev2_reauth_path(name))
-
-    def delete_ike_group_ikev2_reauth(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ike_group_ikev2_reauth_path(name))
 
     def set_ike_group_key_exchange(self, name: str, key_exchange: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_key_exchange_path(name, key_exchange))
@@ -242,9 +225,6 @@ class IPSecBatchBuilder(BatchBuilder):
 
     def create_ike_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_proposal_path(name, proposal))
-
-    def delete_ike_group_proposal(self, name: str, proposal: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ike_group_proposal_path(name, proposal))
 
     def set_ike_group_proposal_dh_group(self, name: str, proposal: str, dh_group: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ike_group_proposal_dh_group_path(name, proposal, dh_group))
@@ -328,6 +308,9 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_s2s_peer_replay_window(self, peer: str, value: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_replay_window_path(peer, value))
 
+    def delete_s2s_peer_replay_window(self, peer: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_replay_window_path(peer, "")[:-1])
+
     def set_s2s_peer_virtual_address(self, peer: str, address: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_virtual_address_path(peer, address))
 
@@ -394,20 +377,44 @@ class IPSecBatchBuilder(BatchBuilder):
 
     # Site-to-Site Peer Authentication - PPK (1.5 only)
     def set_s2s_peer_auth_ppk_id(self, peer: str, ppk_id: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_auth_ppk_id_path(peer, ppk_id))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("s2s_ppk")
+        return self.add_set(getattr(mapper, "get_s2s_peer_auth_ppk_id_path")(peer, ppk_id))
+
+    def delete_s2s_peer_auth_ppk_id(self, peer: str) -> "IPSecBatchBuilder":
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("s2s_ppk")
+        return self.add_delete(getattr(mapper, "get_s2s_peer_auth_ppk_id_path")(peer, "")[:-1])
 
     def set_s2s_peer_auth_ppk_required(self, peer: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_auth_ppk_required_path(peer))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("s2s_ppk")
+        return self.add_set(getattr(mapper, "get_s2s_peer_auth_ppk_required_path")(peer))
 
     def delete_s2s_peer_auth_ppk_required(self, peer: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_auth_ppk_required_path(peer))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("s2s_ppk")
+        return self.add_delete(getattr(mapper, "get_s2s_peer_auth_ppk_required_path")(peer))
 
-    # Site-to-Site Peer - Childless (1.5 only)
-    def set_s2s_peer_childless(self, peer: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_childless_path(peer))
+    def set_s2s_peer_childless(self, peer: str, value: str) -> "IPSecBatchBuilder":
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("childless")
+        return self.add_set(getattr(mapper, "get_s2s_peer_childless_path")(peer, value))
 
     def delete_s2s_peer_childless(self, peer: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_childless_path(peer))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("childless")
+        return self.add_delete(getattr(mapper, "get_s2s_peer_childless_path")(peer, "")[:-1])
+
+    def set_s2s_peer_unique(self, peer: str, value: str) -> "IPSecBatchBuilder":
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("s2s_unique")
+        return self.add_set(getattr(mapper, "get_s2s_peer_unique_path")(peer, value))
+
+    def delete_s2s_peer_unique(self, peer: str) -> "IPSecBatchBuilder":
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("s2s_unique")
+        return self.add_delete(getattr(mapper, "get_s2s_peer_unique_path")(peer, "")[:-1])
 
     # Site-to-Site Tunnel
     def create_s2s_peer_tunnel(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
@@ -439,6 +446,9 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_s2s_peer_tunnel_local_port(self, peer: str, tunnel: str, port: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_local_port_path(peer, tunnel, port))
 
+    def delete_s2s_peer_tunnel_local_port(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_tunnel_local_port_path(peer, tunnel, "")[:-1])
+
     def set_s2s_peer_tunnel_remote_prefix(self, peer: str, tunnel: str, prefix: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_remote_prefix_path(peer, tunnel, prefix))
 
@@ -448,8 +458,14 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_s2s_peer_tunnel_remote_port(self, peer: str, tunnel: str, port: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_remote_port_path(peer, tunnel, port))
 
+    def delete_s2s_peer_tunnel_remote_port(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_tunnel_remote_port_path(peer, tunnel, "")[:-1])
+
     def set_s2s_peer_tunnel_priority(self, peer: str, tunnel: str, priority: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_priority_path(peer, tunnel, priority))
+
+    def delete_s2s_peer_tunnel_priority(self, peer: str, tunnel: str) -> "IPSecBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_tunnel_priority_path(peer, tunnel, "")[:-1])
 
     def set_s2s_peer_tunnel_protocol(self, peer: str, tunnel: str, protocol: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_tunnel_protocol_path(peer, tunnel, protocol))
@@ -524,32 +540,11 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_ra_connection_local_address(self, conn: str, address: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_local_address_path(conn, address))
 
-    def set_ra_connection_dhcp_interface(self, conn: str, interface: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_dhcp_interface_path(conn, interface))
-
     def set_ra_connection_pool(self, conn: str, pool: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_pool_path(conn, pool))
 
     def delete_ra_connection_pool(self, conn: str, pool: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_pool_path(conn, pool))
-
-    def set_ra_connection_replay_window(self, conn: str, value: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_replay_window_path(conn, value))
-
-    def set_ra_connection_timeout(self, conn: str, value: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_timeout_path(conn, value))
-
-    def set_ra_connection_unique(self, conn: str, value: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_unique_path(conn, value))
-
-    def set_ra_connection_local_prefix(self, conn: str, prefix: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_local_prefix_path(conn, prefix))
-
-    def delete_ra_connection_local_prefix(self, conn: str, prefix: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_local_prefix_path(conn, prefix))
-
-    def set_ra_connection_local_port(self, conn: str, port: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_local_port_path(conn, port))
 
     # Remote Access Connection Authentication
     def set_ra_connection_auth_server_mode(self, conn: str, mode: str) -> "IPSecBatchBuilder":
@@ -570,9 +565,6 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_ra_connection_auth_local_id(self, conn: str, local_id: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_local_id_path(conn, local_id))
 
-    def set_ra_connection_auth_eap_id(self, conn: str, eap_id: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_eap_id_path(conn, eap_id))
-
     def set_ra_connection_auth_psk(self, conn: str, secret: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_psk_path(conn, secret))
 
@@ -587,9 +579,6 @@ class IPSecBatchBuilder(BatchBuilder):
 
     def delete_ra_connection_auth_x509_cert(self, conn: str, cert: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_x509_cert_path(conn, cert))
-
-    def set_ra_connection_auth_x509_passphrase(self, conn: str, passphrase: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_x509_passphrase_path(conn, passphrase))
 
     def create_ra_connection_auth_local_user(self, conn: str, username: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_local_user_path(conn, username))
@@ -607,29 +596,16 @@ class IPSecBatchBuilder(BatchBuilder):
         return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_local_user_disable_path(conn, username))
 
     # Remote Access Connection - 1.5 only features
-    def set_ra_connection_bind(self, conn: str, interface: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_bind_path(conn, interface))
-
-    def set_ra_connection_childless(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_childless_path(conn))
-
-    def delete_ra_connection_childless(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_childless_path(conn))
 
     def set_ra_connection_auth_always_send_cert(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_always_send_cert_path(conn))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("always_send_cert")
+        return self.add_set(getattr(mapper, "get_ra_connection_auth_always_send_cert_path")(conn))
 
     def delete_ra_connection_auth_always_send_cert(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_always_send_cert_path(conn))
-
-    def set_ra_connection_auth_ppk_id(self, conn: str, ppk_id: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_ppk_id_path(conn, ppk_id))
-
-    def set_ra_connection_auth_ppk_required(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_ppk_required_path(conn))
-
-    def delete_ra_connection_auth_ppk_required(self, conn: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_ppk_required_path(conn))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("always_send_cert")
+        return self.add_delete(getattr(mapper, "get_ra_connection_auth_always_send_cert_path")(conn))
 
     # ========================================================================
     # Remote Access - Pool
@@ -644,114 +620,46 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ra_pool_prefix(self, pool: str, prefix: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_prefix_path(pool, prefix))
 
-    def delete_ra_pool_prefix(self, pool: str, prefix: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_pool_prefix_path(pool, prefix))
-
     def set_ra_pool_name_server(self, pool: str, server: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_name_server_path(pool, server))
-
-    def delete_ra_pool_name_server(self, pool: str, server: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_pool_name_server_path(pool, server))
 
     def set_ra_pool_exclude(self, pool: str, exclude: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_pool_exclude_path(pool, exclude))
 
-    def delete_ra_pool_exclude(self, pool: str, exclude: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_pool_exclude_path(pool, exclude))
-
     # Pool Range (1.5 only)
     def set_ra_pool_range_start(self, pool: str, start: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_pool_range_start_path(pool, start))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("pool_range")
+        return self.add_set(getattr(mapper, "get_ra_pool_range_start_path")(pool, start))
 
     def set_ra_pool_range_stop(self, pool: str, stop: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_pool_range_stop_path(pool, stop))
+        mapper = self.mappers[self.mapper_key]
+        mapper._require_node("pool_range")
+        return self.add_set(getattr(mapper, "get_ra_pool_range_stop_path")(pool, stop))
 
     # ========================================================================
     # Remote Access - DHCP
     # ========================================================================
 
-    def set_ra_dhcp_interface(self, interface: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_dhcp_interface_path(interface))
-
-    def set_ra_dhcp_server(self, server: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_dhcp_server_path(server))
-
     # ========================================================================
     # Remote Access - RADIUS
     # ========================================================================
-
-    def set_ra_radius_nas_identifier(self, identifier: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_radius_nas_identifier_path(identifier))
-
-    def set_ra_radius_timeout(self, timeout: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_radius_timeout_path(timeout))
-
-    def create_ra_radius_server(self, server: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_radius_server_path(server))
-
-    def delete_ra_radius_server(self, server: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_radius_server_path(server))
-
-    def set_ra_radius_server_key(self, server: str, key: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_radius_server_key_path(server, key))
-
-    def set_ra_radius_server_port(self, server: str, port: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_radius_server_port_path(server, port))
-
-    def set_ra_radius_server_disable(self, server: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_radius_server_disable_path(server))
-
-    def delete_ra_radius_server_disable(self, server: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_radius_server_disable_path(server))
-
-    def set_ra_radius_server_disable_accounting(self, server: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ra_radius_server_disable_accounting_path(server))
-
-    def delete_ra_radius_server_disable_accounting(self, server: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_radius_server_disable_accounting_path(server))
 
     # ========================================================================
     # Profile
     # ========================================================================
 
-    def create_profile(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_profile_path(name))
-
     def delete_profile(self, name: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_profile_path(name))
-
-    def set_profile_disable(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_profile_disable_path(name))
-
-    def delete_profile_disable(self, name: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_profile_disable_path(name))
-
-    def set_profile_ike_group(self, name: str, ike_group: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_profile_ike_group_path(name, ike_group))
-
-    def set_profile_esp_group(self, name: str, esp_group: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_profile_esp_group_path(name, esp_group))
-
-    def set_profile_auth_mode(self, name: str, mode: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_profile_auth_mode_path(name, mode))
-
-    def set_profile_auth_psk(self, name: str, secret: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_profile_auth_psk_path(name, secret))
-
-    def set_profile_bind_tunnel(self, name: str, tunnel: str) -> "IPSecBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_profile_bind_tunnel_path(name, tunnel))
-
-    def delete_profile_bind_tunnel(self, name: str, tunnel: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_profile_bind_tunnel_path(name, tunnel))
 
     # ========================================================================
     # Capabilities
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_v15 = "1.5" in self.version or "latest" in self.version
+        mapper = self.mappers[self.mapper_key]
+        nodes = mapper.versioned_nodes()
         return {
-            "version": self.version,
             "features": {
                 "ipsec": {
                     "supported": True,
@@ -760,6 +668,12 @@ class IPSecBatchBuilder(BatchBuilder):
                 "site_to_site": {
                     "supported": True,
                     "description": "Site-to-site IPSec tunnels",
+                    "connection_types": mapper.connection_types(),
+                    "unique": "s2s_unique" in nodes,
+                    "unique_values": ["never", "keep", "replace"] if "s2s_unique" in nodes else [],
+                    "childless": "childless" in nodes,
+                    "childless_values": ["allow", "prefer", "force", "never"] if "childless" in nodes else [],
+                    "ppk": "s2s_ppk" in nodes,
                 },
                 "remote_access": {
                     "supported": True,
@@ -778,32 +692,29 @@ class IPSecBatchBuilder(BatchBuilder):
                     "description": "IPSec VPN profiles",
                 },
                 "ppk": {
-                    "supported": is_v15,
-                    "description": "Post-quantum Pre-shared Keys (VyOS 1.5+)",
+                    "supported": "s2s_ppk" in nodes,
+                    "description": "Post-quantum Pre-shared Keys",
                 },
                 "retransmission_options": {
-                    "supported": is_v15,
-                    "description": "Retransmission tuning (VyOS 1.5+)",
+                    "supported": "retransmission" in nodes,
+                    "description": "Retransmission tuning",
                 },
                 "childless": {
-                    "supported": is_v15,
-                    "description": "Childless IKE SA (VyOS 1.5+)",
+                    "supported": "childless" in nodes,
+                    "values": ["allow", "prefer", "force", "never"],
+                    "description": "Childless IKE SA",
                 },
                 "pool_range": {
-                    "supported": is_v15,
-                    "description": "Pool address range with start/stop (VyOS 1.5+)",
+                    "supported": "pool_range" in nodes,
+                    "description": "Pool address range with start/stop",
                 },
                 "connection_bind": {
-                    "supported": is_v15,
-                    "description": "Bind remote-access connection to interface (VyOS 1.5+)",
+                    "supported": "connection_bind" in nodes,
+                    "description": "Bind remote-access connection to interface",
                 },
                 "always_send_cert": {
-                    "supported": is_v15,
-                    "description": "Always send certificate (VyOS 1.5+)",
+                    "supported": "always_send_cert" in nodes,
+                    "description": "Always send certificate",
                 },
-            },
-            "version_notes": {
-                "is_1_4": "1.4" in self.version,
-                "is_1_5": is_v15,
             },
         }

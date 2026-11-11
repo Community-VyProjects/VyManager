@@ -84,6 +84,10 @@ export interface S2SPeerAuth {
   local_id?: string | null;
   remote_id?: string | null;
   use_x509_id?: boolean;
+  ppk?: {
+    id?: string | null;
+    required?: boolean;
+  };
   x509?: {
     ca_certificate?: string[];
     certificate?: string | null;
@@ -119,6 +123,8 @@ export interface SiteToSitePeer {
   ikev2_reauth?: boolean;
   replay_window?: string | null;
   virtual_address?: string[];
+  unique?: string | null;
+  childless?: string | null;
   authentication?: S2SPeerAuth;
   tunnels: S2STunnel[];
   vti?: S2SPeerVti;
@@ -172,8 +178,8 @@ export interface RAPool {
 export interface RARadius {
   nas_identifier?: string | null;
   timeout?: string | null;
-  servers?: Array<{
-    address: string;
+  servers?: Record<string, {
+    address?: string;
     key?: string | null;
     port?: string | null;
     disabled?: boolean;
@@ -243,24 +249,28 @@ export interface IPSecConfigResponse {
 }
 
 export interface IPSecCapabilities {
-  version: string;
   features: {
     ipsec: { supported: boolean; description: string };
-    site_to_site: { supported: boolean; description: string };
+    site_to_site: {
+      supported: boolean;
+      description: string;
+      connection_types: string[];
+      unique: boolean;
+      unique_values: string[];
+      childless: boolean;
+      childless_values: string[];
+      ppk: boolean;
+    };
     remote_access: { supported: boolean; description: string };
     ike_groups: { supported: boolean; description: string };
     esp_groups: { supported: boolean; description: string };
     profiles: { supported: boolean; description: string };
     ppk: { supported: boolean; description: string };
     retransmission_options: { supported: boolean; description: string };
-    childless: { supported: boolean; description: string };
+    childless: { supported: boolean; description: string; values: string[] };
     pool_range: { supported: boolean; description: string };
     connection_bind: { supported: boolean; description: string };
     always_send_cert: { supported: boolean; description: string };
-  };
-  version_notes: {
-    is_1_4: boolean;
-    is_1_5: boolean;
   };
 }
 
@@ -404,13 +414,22 @@ class IPSecService {
     auth_mode?: string;
     auth_local_id?: string;
     auth_remote_id?: string;
-    auth_x509_ca_cert?: string;
+    auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
     auth_x509_passphrase?: string;
     auth_rsa_local_key?: string;
     auth_rsa_remote_key?: string;
     auth_rsa_passphrase?: string;
     force_udp_encapsulation?: boolean;
+    disabled?: boolean;
+    ikev2_reauth?: boolean;
+    replay_window?: string;
+    virtual_addresses?: string[];
+    use_x509_id?: boolean;
+    unique?: string;
+    childless?: string;
+    ppk_id?: string;
+    ppk_required?: boolean;
     vti_bind?: string;
     vti_esp_group?: string;
     vti_ts_local_prefix?: string[];
@@ -421,6 +440,10 @@ class IPSecService {
       local_prefix?: string[];
       remote_prefix?: string[];
       protocol?: string;
+      disabled?: boolean;
+      local_port?: string;
+      remote_port?: string;
+      priority?: string;
     }>;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_s2s_peer" }];
@@ -438,13 +461,28 @@ class IPSecService {
     if (config.auth_mode) ops.push({ op: "set_s2s_peer_auth_mode", value: config.auth_mode });
     if (config.auth_local_id) ops.push({ op: "set_s2s_peer_auth_local_id", value: config.auth_local_id });
     if (config.auth_remote_id) ops.push({ op: "set_s2s_peer_auth_remote_id", value: config.auth_remote_id });
-    if (config.auth_x509_ca_cert) ops.push({ op: "set_s2s_peer_auth_x509_ca_cert", value: config.auth_x509_ca_cert });
+    if (config.auth_x509_ca_certs) {
+      for (const ca of config.auth_x509_ca_certs) {
+        ops.push({ op: "set_s2s_peer_auth_x509_ca_cert", value: ca });
+      }
+    }
     if (config.auth_x509_cert) ops.push({ op: "set_s2s_peer_auth_x509_cert", value: config.auth_x509_cert });
     if (writableSecret(config.auth_x509_passphrase)) ops.push({ op: "set_s2s_peer_auth_x509_passphrase", value: writableSecret(config.auth_x509_passphrase) });
     if (config.auth_rsa_local_key) ops.push({ op: "set_s2s_peer_auth_rsa_local_key", value: config.auth_rsa_local_key });
     if (config.auth_rsa_remote_key) ops.push({ op: "set_s2s_peer_auth_rsa_remote_key", value: config.auth_rsa_remote_key });
     if (writableSecret(config.auth_rsa_passphrase)) ops.push({ op: "set_s2s_peer_auth_rsa_passphrase", value: writableSecret(config.auth_rsa_passphrase) });
     if (config.force_udp_encapsulation) ops.push({ op: "set_s2s_peer_force_udp_encapsulation" });
+    if (config.disabled) ops.push({ op: "set_s2s_peer_disable" });
+    if (config.ikev2_reauth) ops.push({ op: "set_s2s_peer_ikev2_reauth" });
+    if (config.replay_window) ops.push({ op: "set_s2s_peer_replay_window", value: config.replay_window });
+    if (config.virtual_addresses) {
+      for (const address of config.virtual_addresses) ops.push({ op: "set_s2s_peer_virtual_address", value: address });
+    }
+    if (config.use_x509_id) ops.push({ op: "set_s2s_peer_auth_use_x509_id" });
+    if (config.unique) ops.push({ op: "set_s2s_peer_unique", value: config.unique });
+    if (config.childless) ops.push({ op: "set_s2s_peer_childless", value: config.childless });
+    if (config.ppk_id) ops.push({ op: "set_s2s_peer_auth_ppk_id", value: config.ppk_id });
+    if (config.ppk_required) ops.push({ op: "set_s2s_peer_auth_ppk_required" });
     if (config.vti_bind) ops.push({ op: "set_s2s_peer_vti_bind", value: config.vti_bind });
     if (config.vti_esp_group) ops.push({ op: "set_s2s_peer_vti_esp_group", value: config.vti_esp_group });
     if (config.vti_ts_local_prefix) {
@@ -479,7 +517,6 @@ class IPSecService {
     auth_mode?: string;
     auth_local_id?: string;
     auth_remote_id?: string;
-    auth_x509_ca_cert?: string;
     auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
     auth_x509_passphrase?: string;
@@ -487,6 +524,15 @@ class IPSecService {
     auth_rsa_remote_key?: string;
     auth_rsa_passphrase?: string;
     force_udp_encapsulation?: boolean;
+    disabled?: boolean;
+    ikev2_reauth?: boolean;
+    replay_window?: string;
+    virtual_addresses?: string[];
+    use_x509_id?: boolean;
+    unique?: string;
+    childless?: string;
+    ppk_id?: string;
+    ppk_required?: boolean;
     vti_bind?: string;
     vti_esp_group?: string;
     vti_ts_local_prefix?: string[];
@@ -497,6 +543,10 @@ class IPSecService {
       local_prefix?: string[];
       remote_prefix?: string[];
       protocol?: string;
+      disabled?: boolean;
+      local_port?: string;
+      remote_port?: string;
+      priority?: string;
     }>;
   }, existing: SiteToSitePeer): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_s2s_peer" }];
@@ -556,7 +606,7 @@ class IPSecService {
       multi(
         "set_s2s_peer_auth_x509_ca_cert",
         "delete_s2s_peer_auth_x509_ca_cert",
-        config.auth_x509_ca_certs || (config.auth_x509_ca_cert ? [config.auth_x509_ca_cert] : []),
+        config.auth_x509_ca_certs || [],
         oldX509.ca_certificate || [],
       );
       leaf("set_s2s_peer_auth_x509_cert", "delete_s2s_peer_auth_x509_cert", config.auth_x509_cert, oldX509.certificate);
@@ -581,6 +631,19 @@ class IPSecService {
     } else if (!config.force_udp_encapsulation && existing.force_udp_encapsulation) {
       drop("delete_s2s_peer_force_udp_encapsulation");
     }
+    const flag = (setOp: string, deleteOp: string, next?: boolean, prev?: boolean) => {
+      if (next && !prev) ops.push({ op: setOp });
+      else if (!next && prev) drop(deleteOp);
+    };
+    flag("set_s2s_peer_disable", "delete_s2s_peer_disable", config.disabled, existing.disabled);
+    flag("set_s2s_peer_ikev2_reauth", "delete_s2s_peer_ikev2_reauth", config.ikev2_reauth, existing.ikev2_reauth);
+    flag("set_s2s_peer_auth_use_x509_id", "delete_s2s_peer_auth_use_x509_id", config.use_x509_id, oldAuth.use_x509_id);
+    flag("set_s2s_peer_auth_ppk_required", "delete_s2s_peer_auth_ppk_required", config.ppk_required, oldAuth.ppk?.required);
+    leaf("set_s2s_peer_replay_window", "delete_s2s_peer_replay_window", config.replay_window, existing.replay_window);
+    leaf("set_s2s_peer_unique", "delete_s2s_peer_unique", config.unique, existing.unique);
+    leaf("set_s2s_peer_childless", "delete_s2s_peer_childless", config.childless, existing.childless);
+    leaf("set_s2s_peer_auth_ppk_id", "delete_s2s_peer_auth_ppk_id", config.ppk_id, oldAuth.ppk?.id);
+    multi("set_s2s_peer_virtual_address", "delete_s2s_peer_virtual_address", config.virtual_addresses || [], existing.virtual_address || []);
 
     const oldVti = existing.vti || {};
     if (config.vti_bind) {
@@ -614,6 +677,20 @@ class IPSecService {
         else if (tunnel.protocol && tunnel.protocol !== old.protocol) {
           ops.push({ op: "set_s2s_peer_tunnel_protocol", value: `${tunnel.number}|${tunnel.protocol}` });
         }
+        if (tunnel.disabled && !old.disabled) ops.push({ op: "set_s2s_peer_tunnel_disable", value: tunnel.number });
+        else if (!tunnel.disabled && old.disabled) drop("delete_s2s_peer_tunnel_disable", tunnel.number);
+        if (!tunnel.local_port && old.local_port) drop("delete_s2s_peer_tunnel_local_port", tunnel.number);
+        else if (tunnel.local_port && tunnel.local_port !== old.local_port) {
+          ops.push({ op: "set_s2s_peer_tunnel_local_port", value: `${tunnel.number}|${tunnel.local_port}` });
+        }
+        if (!tunnel.remote_port && old.remote_port) drop("delete_s2s_peer_tunnel_remote_port", tunnel.number);
+        else if (tunnel.remote_port && tunnel.remote_port !== old.remote_port) {
+          ops.push({ op: "set_s2s_peer_tunnel_remote_port", value: `${tunnel.number}|${tunnel.remote_port}` });
+        }
+        if (!tunnel.priority && old.priority) drop("delete_s2s_peer_tunnel_priority", tunnel.number);
+        else if (tunnel.priority && tunnel.priority !== old.priority) {
+          ops.push({ op: "set_s2s_peer_tunnel_priority", value: `${tunnel.number}|${tunnel.priority}` });
+        }
       } else {
         ops.push(...this.buildS2STunnelOps(tunnel.number, tunnel).slice(1));
       }
@@ -634,6 +711,10 @@ class IPSecService {
     local_prefix?: string[];
     remote_prefix?: string[];
     protocol?: string;
+    disabled?: boolean;
+    local_port?: string;
+    remote_port?: string;
+    priority?: string;
   }): BatchOperation[] {
     const ops: BatchOperation[] = [{ op: "create_s2s_peer_tunnel", value: tunnelNum }];
     if (config.esp_group) ops.push({ op: "set_s2s_peer_tunnel_esp_group", value: `${tunnelNum}|${config.esp_group}` });
@@ -648,6 +729,10 @@ class IPSecService {
       }
     }
     if (config.protocol) ops.push({ op: "set_s2s_peer_tunnel_protocol", value: `${tunnelNum}|${config.protocol}` });
+    if (config.disabled) ops.push({ op: "set_s2s_peer_tunnel_disable", value: tunnelNum });
+    if (config.local_port) ops.push({ op: "set_s2s_peer_tunnel_local_port", value: `${tunnelNum}|${config.local_port}` });
+    if (config.remote_port) ops.push({ op: "set_s2s_peer_tunnel_remote_port", value: `${tunnelNum}|${config.remote_port}` });
+    if (config.priority) ops.push({ op: "set_s2s_peer_tunnel_priority", value: `${tunnelNum}|${config.priority}` });
     return ops;
   }
 
@@ -870,9 +955,13 @@ class IPSecService {
     if (secret) ops.push({ op: "set_auth_psk_secret", value: secret });
     if (config.secret_type && config.secret_type !== (existing.secret_type || "")) {
       ops.push({ op: "set_auth_psk_secret_type", value: config.secret_type });
+    } else if (!config.secret_type && existing.secret_type) {
+      ops.push({ op: "delete_auth_psk_secret_type" });
     }
     if (config.dhcp_interface && config.dhcp_interface !== (existing.dhcp_interface || "")) {
       ops.push({ op: "set_auth_psk_dhcp_interface", value: config.dhcp_interface });
+    } else if (!config.dhcp_interface && existing.dhcp_interface) {
+      ops.push({ op: "delete_auth_psk_dhcp_interface" });
     }
     return this.batchConfigure(name, ops);
   }

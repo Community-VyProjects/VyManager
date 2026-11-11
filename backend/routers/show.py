@@ -569,8 +569,6 @@ async def dashboard_stream(
                 if not stream_read.get(kind):
                     continue
                 if event["type"] == FIREWALL_STATS_INTEREST:
-                    if not include_firewall:
-                        continue
                     # Copy. The queued event is shared with every subscriber.
                     payload = firewall_hits_for_viewer(
                         event["data"],

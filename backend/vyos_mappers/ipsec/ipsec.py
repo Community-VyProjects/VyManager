@@ -5,14 +5,26 @@ Handles command path generation for IPSec VPN configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, FrozenSet
+from ..base import BaseFeatureMapper
 
 
-class IPSecMapper:
+class IPSecMapper(BaseFeatureMapper):
     """Base mapper with common IPSec operations."""
 
     def __init__(self, version: str):
-        self.version = version
+        super().__init__(version)
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """1.5-only leaves this device has. Capabilities and ops read this set."""
+        return frozenset()
+
+    def _require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"ipsec {node} is not supported on this device")
+
+    def connection_types(self) -> List[str]:
+        return ["initiate", "respond", "none"]
 
     # ========================================================================
     # Base path
@@ -647,11 +659,17 @@ class IPSecMapper:
             "ikev2_reauth": "ikev2-reauth" in config,
             "replay_window": config.get("replay-window"),
             "virtual_address": self._normalize_to_list(config.get("virtual-address")),
+            "unique": config.get("unique"),
+            "childless": config.get("childless"),
             "authentication": {
                 "mode": auth.get("mode"),
                 "local_id": auth.get("local-id"),
                 "remote_id": auth.get("remote-id"),
                 "use_x509_id": "use-x509-id" in auth,
+                "ppk": {
+                    "id": (auth.get("ppk") or {}).get("id") if isinstance(auth.get("ppk"), dict) else None,
+                    "required": isinstance(auth.get("ppk"), dict) and "required" in auth.get("ppk"),
+                },
                 "x509": {
                     "ca_certificate": self._normalize_to_list(x509.get("ca-certificate")),
                     "certificate": x509.get("certificate"),
