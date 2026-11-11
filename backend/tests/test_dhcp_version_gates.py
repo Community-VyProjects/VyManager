@@ -14,14 +14,14 @@ from pathlib import Path
 
 import pytest
 
-from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
+from vyos_builders.dhcp_server.dhcp_server_batch_builder import DHCPServerBatchBuilder
 from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.dhcp.dhcp import DDNS_SCALAR_FIELDS, DHCPMapper
-from vyos_mappers.dhcp.dhcp_versions import get_dhcp_mapper
-from vyos_mappers.dhcp.dhcp_versions.v1_4 import DHCPMapperV1_4
-from vyos_mappers.dhcp.dhcp_versions.v1_5 import DHCPMapperV1_5
+from vyos_mappers.dhcp_server.dhcp_server import DDNS_SCALAR_FIELDS, DHCPServerMapper
+from vyos_mappers.dhcp_server.dhcp_server_versions import get_dhcp_server_mapper
+from vyos_mappers.dhcp_server.dhcp_server_versions.v1_4 import DHCPServerMapperV1_4
+from vyos_mappers.dhcp_server.dhcp_server_versions.v1_5 import DHCPServerMapperV1_5
 
-MAPPER_DIR = Path(__file__).resolve().parents[1] / "vyos_mappers" / "dhcp"
+MAPPER_DIR = Path(__file__).resolve().parents[1] / "vyos_mappers" / "dhcp_server"
 
 V14_ONLY = {"host-decl-name", "subnet enable-failover", "dynamic-dns-update"}
 V15_ONLY = {
@@ -41,19 +41,19 @@ V15_ONLY = {
 
 
 def test_factory_returns_subclasses():
-    assert isinstance(get_dhcp_mapper("1.4"), DHCPMapperV1_4)
-    assert isinstance(get_dhcp_mapper("1.4.3"), DHCPMapperV1_4)
-    assert isinstance(get_dhcp_mapper("1.5"), DHCPMapperV1_5)
-    assert isinstance(get_dhcp_mapper("2026.09.23-0027-rolling"), DHCPMapperV1_5)
-    assert isinstance(get_dhcp_mapper("latest"), DHCPMapperV1_5)
-    assert isinstance(CommandMapperRegistry.get_mapper("dhcp", "1.4.3"), DHCPMapperV1_4)
+    assert isinstance(get_dhcp_server_mapper("1.4"), DHCPServerMapperV1_4)
+    assert isinstance(get_dhcp_server_mapper("1.4.3"), DHCPServerMapperV1_4)
+    assert isinstance(get_dhcp_server_mapper("1.5"), DHCPServerMapperV1_5)
+    assert isinstance(get_dhcp_server_mapper("2026.09.23-0027-rolling"), DHCPServerMapperV1_5)
+    assert isinstance(get_dhcp_server_mapper("latest"), DHCPServerMapperV1_5)
+    assert isinstance(CommandMapperRegistry.get_mapper("dhcp_server", "1.4.3"), DHCPServerMapperV1_4)
     assert isinstance(
-        CommandMapperRegistry.get_mapper("dhcp", "2026.09.23-0027-rolling"), DHCPMapperV1_5
+        CommandMapperRegistry.get_mapper("dhcp_server", "2026.09.23-0027-rolling"), DHCPServerMapperV1_5
     )
 
 
 def test_shared_class_does_not_read_the_version():
-    shared = (MAPPER_DIR / "dhcp.py").read_text()
+    shared = (MAPPER_DIR / "dhcp_server.py").read_text()
     assert re.search(r"\bself\.version\b", shared) is None
     assert "version_mapper" not in shared
     assert "hasattr" not in shared
@@ -62,12 +62,12 @@ def test_shared_class_does_not_read_the_version():
 def test_versioned_nodes_come_from_the_subclass_not_the_string():
     # A 1.5 class handed a 1.4 string still reports the 1.5 leaves, so a
     # handwritten version check anywhere would fail this.
-    assert DHCPMapperV1_5("1.4").versioned_nodes() == frozenset(V15_ONLY)
-    assert DHCPMapperV1_4("2026.09.23-0027-rolling").versioned_nodes() == frozenset(V14_ONLY)
+    assert DHCPServerMapperV1_5("1.4").versioned_nodes() == frozenset(V15_ONLY)
+    assert DHCPServerMapperV1_4("2026.09.23-0027-rolling").versioned_nodes() == frozenset(V14_ONLY)
 
 
 def test_14_class_does_not_gain_15_leaves():
-    mapper = DHCPMapperV1_4("1.4")
+    mapper = DHCPServerMapperV1_4("1.4")
     for method in (
         "get_listen_interface",
         "get_subnet_subnet_id",
@@ -79,15 +79,15 @@ def test_14_class_does_not_gain_15_leaves():
         "get_client_class",
     ):
         assert not hasattr(mapper, method), method
-    assert not hasattr(DHCPMapper, "get_host_decl_name")
-    assert not hasattr(DHCPMapperV1_5, "get_host_decl_name")
-    assert not hasattr(DHCPMapperV1_5, "get_subnet_enable_failover")
-    assert not hasattr(DHCPMapperV1_5, "get_dynamic_dns_update")
+    assert not hasattr(DHCPServerMapper, "get_host_decl_name")
+    assert not hasattr(DHCPServerMapperV1_5, "get_host_decl_name")
+    assert not hasattr(DHCPServerMapperV1_5, "get_subnet_enable_failover")
+    assert not hasattr(DHCPServerMapperV1_5, "get_dynamic_dns_update")
 
 
 def test_option_prefix_and_mac_leaf_follow_the_lab_tree():
-    v14 = DHCPMapperV1_4("1.4")
-    v15 = DHCPMapperV1_5("1.5")
+    v14 = DHCPServerMapperV1_4("1.4")
+    v15 = DHCPServerMapperV1_5("1.5")
     assert v14.get_subnet_time_offset("LAN", "192.168.1.0/24", "-18000")[-3:] == [
         "192.168.1.0/24", "time-offset", "-18000",
     ]
@@ -105,8 +105,8 @@ def test_option_prefix_and_mac_leaf_follow_the_lab_tree():
 
 
 def _fields(monkeypatch, cls):
-    monkeypatch.setitem(CommandMapperRegistry._features, "dhcp", cls)
-    return DHCPBatchBuilder(version="unknown").get_capabilities()["fields"]
+    monkeypatch.setitem(CommandMapperRegistry._features, "dhcp_server", cls)
+    return DHCPServerBatchBuilder(version="unknown").get_capabilities()["fields"]
 
 
 @pytest.mark.parametrize(
@@ -130,19 +130,19 @@ def _fields(monkeypatch, cls):
     ],
 )
 def test_capabilities_read_the_mapper(monkeypatch, flag, on_14, on_15):
-    assert _fields(monkeypatch, DHCPMapperV1_4)[flag]["supported"] is on_14
-    assert _fields(monkeypatch, DHCPMapperV1_5)[flag]["supported"] is on_15
+    assert _fields(monkeypatch, DHCPServerMapperV1_4)[flag]["supported"] is on_14
+    assert _fields(monkeypatch, DHCPServerMapperV1_5)[flag]["supported"] is on_15
 
 
 def test_capabilities_drop_version_echo():
-    caps = DHCPBatchBuilder(version="1.5").get_capabilities()
+    caps = DHCPServerBatchBuilder(version="1.5").get_capabilities()
     assert "version" not in caps
     assert "version_notes" not in caps
     assert "has_subnet_id" not in caps
 
 
 def test_ddns_scalar_rejects_unknown_field():
-    builder = DHCPBatchBuilder(version="1.5")
+    builder = DHCPServerBatchBuilder(version="1.5")
     with pytest.raises(ValueError, match="not supported"):
         builder.set_ddns_scalar("bogus-leaf|x")
     with pytest.raises(ValueError, match="not supported"):
@@ -150,14 +150,14 @@ def test_ddns_scalar_rejects_unknown_field():
 
 
 def test_ddns_domain_rejects_unknown_kind():
-    builder = DHCPBatchBuilder(version="1.5")
+    builder = DHCPServerBatchBuilder(version="1.5")
     with pytest.raises(ValueError, match="not supported"):
         builder.set_ddns_domain("sideways-domain", "example.com")
 
 
 @pytest.mark.parametrize("field", DDNS_SCALAR_FIELDS)
 def test_v15_builder_ddns_scalar_set_delete(field):
-    builder = DHCPBatchBuilder(version="1.5")
+    builder = DHCPServerBatchBuilder(version="1.5")
     builder.set_ddns_scalar(f"{field}|x")
     builder.delete_ddns_scalar(field)
     assert builder.get_operations() == [
@@ -169,7 +169,7 @@ def test_v15_builder_ddns_scalar_set_delete(field):
 def test_ddns_scalar_value_keeps_embedded_pipe():
     # A value containing "|" must survive; only the first separator is the
     # field/value boundary.
-    builder = DHCPBatchBuilder(version="1.5")
+    builder = DHCPServerBatchBuilder(version="1.5")
     builder.set_ddns_scalar("hostname-char-set|[a|b]")
     assert builder.get_operations()[0]["path"][-1] == "[a|b]"
 
@@ -177,7 +177,7 @@ def test_ddns_scalar_value_keeps_embedded_pipe():
 def test_ddns_container_delete_is_shared():
     # 1.4 deletes the valueless leaf; 1.5 deletes the whole Kea node.
     for version in ("1.4", "1.5"):
-        builder = DHCPBatchBuilder(version=version)
+        builder = DHCPServerBatchBuilder(version=version)
         builder.delete_dynamic_dns_update()
         assert builder.get_operations()[0]["path"] == [
             "service", "dhcp-server", "dynamic-dns-update",

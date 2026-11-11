@@ -42,7 +42,7 @@ import {
   type DHCPLease,
   type DHCPStaticMapping,
   type DHCPRange,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import { cn } from "@/lib/utils";
 import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { DHCPServerModal } from "./DHCPServerModal";

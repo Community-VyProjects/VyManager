@@ -180,6 +180,20 @@ interface DHCPFieldCapability {
   description: string;
 }
 
+interface DHCPFailoverCapability extends DHCPFieldCapability {
+  modes: string[];
+  statuses: string[];
+}
+
+interface DHCPDdnsKeaCapability extends DHCPFieldCapability {
+  toggle_values: string[];
+  replace_client_name_values: string[];
+  tsig_algorithms: string[];
+}
+
+/** Config responses replace a secret with this. It is never written back. */
+export const MASKED_SECRET = "***";
+
 export interface DHCPCapabilitiesResponse {
   fields: {
     // Basic fields
@@ -221,10 +235,10 @@ export interface DHCPCapabilitiesResponse {
     host_decl_name: DHCPFieldCapability;
     static_mapping_duid: DHCPFieldCapability;
     static_mapping_description: DHCPFieldCapability;
-    failover: DHCPFieldCapability;
+    failover: DHCPFailoverCapability;
     failover_certificate: DHCPFieldCapability;
     dynamic_dns_update_leaf: DHCPFieldCapability;
-    dynamic_dns_update_kea: DHCPFieldCapability;
+    dynamic_dns_update_kea: DHCPDdnsKeaCapability;
     network_disable: DHCPFieldCapability;
     subnet_disable: DHCPFieldCapability;
     client_class?: DHCPFieldCapability;
@@ -319,14 +333,14 @@ export class DHCPService {
    * Get DHCP server capabilities based on VyOS version
    */
   async getCapabilities(): Promise<DHCPCapabilitiesResponse> {
-    return apiClient.get<DHCPCapabilitiesResponse>("/vyos/dhcp/capabilities");
+    return apiClient.get<DHCPCapabilitiesResponse>("/vyos/dhcp-server/capabilities");
   }
 
   /**
    * Get all DHCP configurations
    */
   async getConfig(refresh: boolean = false): Promise<DHCPConfigResponse> {
-    return apiClient.get<DHCPConfigResponse>("/vyos/dhcp/config", {
+    return apiClient.get<DHCPConfigResponse>("/vyos/dhcp-server/config", {
       refresh: refresh.toString(),
     });
   }
@@ -335,7 +349,7 @@ export class DHCPService {
    * Get active DHCP leases
    */
   async getLeases(): Promise<DHCPLeasesResponse> {
-    return apiClient.get<DHCPLeasesResponse>("/vyos/dhcp/leases");
+    return apiClient.get<DHCPLeasesResponse>("/vyos/dhcp-server/leases");
   }
 
   /**
@@ -343,7 +357,7 @@ export class DHCPService {
    * This is an operational command issued via the VyOS GraphQL API.
    */
   async clearLease(ipAddress: string, vrf?: string): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp/leases/clear", {
+    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp-server/leases/clear", {
       ip_address: ipAddress,
       vrf: vrf ?? null,
     });
@@ -364,7 +378,7 @@ export class DHCPService {
    * Execute batch DHCP operations
    */
   async batchConfigure(request: DHCPBatchRequest): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp/batch", request);
+    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp-server/batch", request);
     // Refresh config cache after successful commit
     await this.refreshConfig();
     return result;
@@ -1131,8 +1145,10 @@ export class DHCPService {
           if ((key.algorithm ?? "") !== (prev?.algorithm ?? "") && key.algorithm) {
             operations.push({ op: "set_ddns_tsig_key_algorithm", value: `${name}|${key.algorithm}` });
           }
-          if ((key.secret ?? "") !== (prev?.secret ?? "") && key.secret) {
-            operations.push({ op: "set_ddns_tsig_key_secret", value: `${name}|${key.secret}` });
+          // A blank or masked secret keeps the configured one.
+          const secret = key.secret ?? "";
+          if (secret && secret !== MASKED_SECRET) {
+            operations.push({ op: "set_ddns_tsig_key_secret", value: `${name}|${secret}` });
           }
         }
         const diffDomains = (kind: "forward-domain" | "reverse-domain", origList: DHCPDdnsDomain[], nextList: DHCPDdnsDomain[]) => {
@@ -1166,11 +1182,18 @@ export class DHCPService {
                   value: `${kind}|${name}|${id}|${server.address}`,
                 });
               }
-              if ((server.port ?? "") !== (prevS?.port ?? "") && server.port) {
-                operations.push({
-                  op: "set_ddns_domain_dns_server_port",
-                  value: `${kind}|${name}|${id}|${server.port}`,
-                });
+              if ((server.port ?? "") !== (prevS?.port ?? "")) {
+                if (server.port) {
+                  operations.push({
+                    op: "set_ddns_domain_dns_server_port",
+                    value: `${kind}|${name}|${id}|${server.port}`,
+                  });
+                } else if (prevS?.port) {
+                  operations.push({
+                    op: "delete_ddns_domain_dns_server_port",
+                    value: `${kind}|${name}|${id}`,
+                  });
+                }
               }
             }
           }

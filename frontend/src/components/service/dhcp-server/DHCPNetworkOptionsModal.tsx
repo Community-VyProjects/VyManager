@@ -20,7 +20,7 @@ import {
   dhcpService,
   type DHCPCapabilitiesResponse,
   type DHCPSharedNetwork,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
 import { catalogDraftFrom, catalogOps, type CatalogDraft } from "./dhcp-catalog";
 import {

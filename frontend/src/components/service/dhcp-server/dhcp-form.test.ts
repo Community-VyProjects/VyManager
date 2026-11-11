@@ -5,7 +5,7 @@ import {
   type DHCPRange,
   type DHCPSharedNetwork,
   type DHCPStaticMapping,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import type { VyOSResponse } from "@/lib/types/api";
 import { failedSaveMessage } from "./dhcp-save";
 import {

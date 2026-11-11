@@ -62,12 +62,8 @@ class CatalogLeaf:
         self.group = group
         self.sample = sample
 
-    def rel(self, version: str, scope: str) -> Optional[RelPath]:
-        return self.paths.get(_version_key(version), {}).get(scope)
-
-
-def _version_key(version: str) -> VersionKey:
-    return "1.4" if str(version).startswith("1.4") else "1.5"
+    def rel(self, key: VersionKey, scope: str) -> Optional[RelPath]:
+        return self.paths.get(key, {}).get(scope)
 
 
 def _opt(name: str) -> Dict[VersionKey, Dict[Scope, RelPath]]:
@@ -521,8 +517,7 @@ def leaf_for(token: str) -> CatalogLeaf:
     return leaf
 
 
-def leaves_for(version: str, scope: str) -> List[CatalogLeaf]:
-    key = _version_key(version)
+def leaves_for(key: VersionKey, scope: str) -> List[CatalogLeaf]:
     found = []
     for leaf in LEAVES:
         if scope not in leaf.paths.get(key, {}):
@@ -535,7 +530,7 @@ def leaves_for(version: str, scope: str) -> List[CatalogLeaf]:
     return found
 
 
-def catalog_payload(version: str) -> Dict[str, List[Dict[str, Any]]]:
+def catalog_payload(key: VersionKey) -> Dict[str, List[Dict[str, Any]]]:
     payload: Dict[str, List[Dict[str, Any]]] = {}
     for scope in SCOPES:
         payload[scope.replace("-", "_")] = [
@@ -547,7 +542,7 @@ def catalog_payload(version: str) -> Dict[str, List[Dict[str, Any]]]:
                 "choices": list(leaf.choices),
                 "group": leaf.group,
             }
-            for leaf in leaves_for(version, scope)
+            for leaf in leaves_for(key, scope)
         ]
     return payload
 
@@ -582,9 +577,9 @@ def _anchor(scope: str, anchors: Sequence[str]) -> List[str]:
     raise ValueError(f"Unknown DHCP option scope {scope}")
 
 
-def _require(version: str, scope: str, token: str) -> CatalogLeaf:
+def _require(key: VersionKey, scope: str, token: str) -> CatalogLeaf:
     leaf = leaf_for(token)
-    if leaf.rel(version, scope) is None:
+    if leaf.rel(key, scope) is None:
         raise ValueError(f"{token} is not supported on this device")
     return leaf
 
@@ -601,14 +596,14 @@ def _check_value(leaf: CatalogLeaf, value: str) -> str:
 
 
 def set_path(
-    version: str,
+    key: VersionKey,
     scope: str,
     token: str,
     anchors: Sequence[str],
     values: Sequence[str] = (),
 ) -> List[str]:
-    leaf = _require(version, scope, token)
-    rel = list(leaf.rel(version, scope) or ())
+    leaf = _require(key, scope, token)
+    rel = list(leaf.rel(key, scope) or ())
     path = _anchor(scope, anchors) + rel
     if leaf.kind == "flag":
         if values:
@@ -626,14 +621,14 @@ def set_path(
 
 
 def delete_path(
-    version: str,
+    key: VersionKey,
     scope: str,
     token: str,
     anchors: Sequence[str],
     values: Sequence[str] = (),
 ) -> List[str]:
-    leaf = _require(version, scope, token)
-    rel = list(leaf.rel(version, scope) or ())
+    leaf = _require(key, scope, token)
+    rel = list(leaf.rel(key, scope) or ())
     path = _anchor(scope, anchors) + rel
     if leaf.kind == "flag":
         return path
@@ -680,12 +675,12 @@ def _as_routes(node: Any) -> List[Dict[str, str]]:
     return routes
 
 
-def parse_scope(cfg: Any, version: str, scope: str) -> Dict[str, Any]:
+def parse_scope(cfg: Any, key: VersionKey, scope: str) -> Dict[str, Any]:
     if not isinstance(cfg, dict):
         return {}
     parsed: Dict[str, Any] = {}
-    for leaf in leaves_for(version, scope):
-        rel = leaf.rel(version, scope)
+    for leaf in leaves_for(key, scope):
+        rel = leaf.rel(key, scope)
         if not rel:
             continue
         node: Any = cfg

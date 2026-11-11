@@ -1,4 +1,4 @@
-import type { DHCPBatchOperation, DHCPClientClass } from "@/lib/api/dhcp";
+import type { DHCPBatchOperation, DHCPClientClass } from "@/lib/api/dhcp-server";
 
 export interface ClientClassDraft {
   name: string;

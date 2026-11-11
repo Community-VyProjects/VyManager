@@ -26,7 +26,7 @@ import {
   type DHCPCapabilitiesResponse,
   type DHCPSharedNetwork,
   type DHCPStaticMapping,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import { ApiError } from "@/lib/types/api";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
 import { failedSaveMessage } from "./dhcp-save";

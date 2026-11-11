@@ -30,7 +30,7 @@ from vyos_builders.config_sync import ConfigSyncBatchBuilder
 from vyos_builders.conntrack_sync import ConntrackSyncBatchBuilder
 from vyos_builders.console_server import ConsoleServerBatchBuilder
 from vyos_builders.container import ContainerBatchBuilder
-from vyos_builders.dhcp import DHCPBatchBuilder
+from vyos_builders.dhcp_server import DHCPServerBatchBuilder
 from vyos_builders.dhcp_relay import DHCPRelayBatchBuilder
 from vyos_builders.dhcpv6_relay import DHCPv6RelayBatchBuilder
 from vyos_builders.dhcpv6_server import DHCPv6ServerBatchBuilder
@@ -136,7 +136,7 @@ _BUILDER_REGISTRY: dict[str, type] = {
     "conntrack-sync": ConntrackSyncBatchBuilder,
     "console-server": ConsoleServerBatchBuilder,
     "container": ContainerBatchBuilder,
-    "dhcp": DHCPBatchBuilder,
+    "dhcp-server": DHCPServerBatchBuilder,
     "dhcp-relay": DHCPRelayBatchBuilder,
     "dhcpv6-relay": DHCPv6RelayBatchBuilder,
     "dhcpv6-server": DHCPv6ServerBatchBuilder,

@@ -28,7 +28,7 @@ import {
   type DHCPDdnsConfig,
   type DHCPDdnsDomain,
   type DHCPDdnsTsigKey,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 
 interface DHCPDdnsModalProps {
   open: boolean;
@@ -56,10 +56,6 @@ const emptyDdns = (): DHCPDdnsConfig => ({
   reverse_domains: [],
 });
 
-const ALGOS = ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"];
-const ENABLE_DISABLE = ["enable", "disable"];
-const REPLACE_CLIENT_NAME = ["never", "always", "when-present", "when-not-present"];
-
 export function DHCPDdnsModal({
   open,
   onOpenChange,
@@ -73,7 +69,12 @@ export function DHCPDdnsModal({
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<DHCPDdnsConfig>(emptyDdns());
   const leaf = capabilities?.fields.dynamic_dns_update_leaf?.supported ?? false;
-  const kea = capabilities?.fields.dynamic_dns_update_kea?.supported ?? false;
+  const keaCaps = capabilities?.fields.dynamic_dns_update_kea;
+  const kea = keaCaps?.supported ?? false;
+  const toggleValues = keaCaps?.toggle_values || [];
+  const replaceClientNameValues = keaCaps?.replace_client_name_values || [];
+  const algorithms = keaCaps?.tsig_algorithms || [];
+  const keyNames = form.tsig_keys.map((k) => k.name.trim()).filter(Boolean);
 
   useEffect(() => {
     if (!open) return;
@@ -91,7 +92,7 @@ export function DHCPDdnsModal({
       qualifying_suffix: ddns.qualifying_suffix ?? "",
       hostname_char_replacement: ddns.hostname_char_replacement ?? "",
       hostname_char_set: ddns.hostname_char_set ?? "",
-      tsig_keys: ddns.tsig_keys.map((k) => ({ ...k })),
+      tsig_keys: ddns.tsig_keys.map((k) => ({ ...k, secret: "" })),
       forward_domains: ddns.forward_domains.map((d) => ({
         ...d,
         dns_servers: d.dns_servers.map((s) => ({ ...s })),
@@ -107,7 +108,7 @@ export function DHCPDdnsModal({
     setForm((prev) => ({
       ...prev,
       present: true,
-      tsig_keys: [...prev.tsig_keys, { name: "", algorithm: "sha256", secret: "" }],
+      tsig_keys: [...prev.tsig_keys, { name: "", algorithm: "", secret: "" }],
     }));
   };
 
@@ -202,11 +203,26 @@ export function DHCPDdnsModal({
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <Input
-            placeholder={t("ddns.tsigKeyName")}
-            value={domain.key_name ?? ""}
-            onChange={(e) => updateDomain(kind, index, { key_name: e.target.value })}
-          />
+          <Select
+            value={domain.key_name || undefined}
+            onValueChange={(v) =>
+              updateDomain(kind, index, { key_name: v === "__none__" ? "" : v })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t("ddns.tsigKeyName")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">{tc("none")}</SelectItem>
+              {Array.from(new Set([...keyNames, ...(domain.key_name ? [domain.key_name] : [])])).map(
+                (name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                )
+              )}
+            </SelectContent>
+          </Select>
           {domain.dns_servers.map((server, sidx) => (
             <div key={server.id} className="flex gap-2">
               <Input
@@ -301,19 +317,22 @@ export function DHCPDdnsModal({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">{t("unset")}</SelectItem>
-                        <SelectItem value="enable">{tc("shown.enable")}</SelectItem>
-                        <SelectItem value="disable">{tc("shown.disable")}</SelectItem>
+                        {toggleValues.map((v) => (
+                          <SelectItem key={v} value={v}>
+                            {v}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {(
                       [
-                        ["conflict_resolution", t("ddns.conflictResolution"), ENABLE_DISABLE],
-                        ["override_client_update", t("ddns.overrideClientUpdate"), ENABLE_DISABLE],
-                        ["override_no_update", t("ddns.overrideNoUpdate"), ENABLE_DISABLE],
-                        ["update_on_renew", t("ddns.updateOnRenew"), ENABLE_DISABLE],
-                        ["replace_client_name", t("ddns.replaceClientName"), REPLACE_CLIENT_NAME],
+                        ["conflict_resolution", t("ddns.conflictResolution"), toggleValues],
+                        ["override_client_update", t("ddns.overrideClientUpdate"), toggleValues],
+                        ["override_no_update", t("ddns.overrideNoUpdate"), toggleValues],
+                        ["update_on_renew", t("ddns.updateOnRenew"), toggleValues],
+                        ["replace_client_name", t("ddns.replaceClientName"), replaceClientNameValues],
                       ] as Array<["conflict_resolution" | "override_client_update" | "override_no_update" | "update_on_renew" | "replace_client_name", string, string[]]>
                     ).map(([field, label, options]) => (
                       <div className="space-y-1" key={field}>
@@ -408,14 +427,14 @@ export function DHCPDdnsModal({
                           </Button>
                         </div>
                         <Select
-                          value={key.algorithm || "sha256"}
+                          value={key.algorithm || undefined}
                           onValueChange={(v) => updateKey(index, { algorithm: v })}
                         >
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder={t("unset")} />
                           </SelectTrigger>
                           <SelectContent>
-                            {ALGOS.map((a) => (
+                            {algorithms.map((a) => (
                               <SelectItem key={a} value={a}>
                                 {a}
                               </SelectItem>
@@ -423,6 +442,8 @@ export function DHCPDdnsModal({
                           </SelectContent>
                         </Select>
                         <Input
+                          type="password"
+                          autoComplete="new-password"
                           className="font-mono"
                           placeholder={t("ddns.base64Secret")}
                           value={key.secret ?? ""}

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
+from vyos_builders.dhcp_server.dhcp_server_batch_builder import DHCPServerBatchBuilder
 from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
@@ -74,13 +74,13 @@ def test_failover_route_calls_global_builder(monkeypatch):
 
 def test_dhcp_disable_calls_global_builder(monkeypatch):
     called = {}
-    real = DHCPBatchBuilder.set_global_disable
+    real = DHCPServerBatchBuilder.set_global_disable
 
     def spy(self):
         called["ran"] = True
         return real(self)
 
-    monkeypatch.setattr(DHCPBatchBuilder, "set_global_disable", spy)
+    monkeypatch.setattr(DHCPServerBatchBuilder, "set_global_disable", spy)
     builder = VrfBatchBuilder("1.5")
     builder.set_vrf_dhcp_disable("blue")
     assert called == {"ran": True}

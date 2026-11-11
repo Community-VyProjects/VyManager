@@ -3,7 +3,7 @@ import type {
   DhcpCatalogLeaf,
   DhcpCatalogValue,
   DhcpRoute,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 
 export type CatalogDraft = Record<string, DhcpCatalogValue>;
 

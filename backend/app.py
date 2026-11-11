@@ -31,7 +31,7 @@ from routers.firewall import separators as firewall_separators
 from routers.nat import nat
 from routers.nat64 import nat64
 from routers.nat66 import nat66
-from routers.dhcp import dhcp
+from routers.dhcp_server import dhcp_server as dhcp_server_router
 from routers.static_routes import static_routes
 from routers.route_map import route_map
 from routers.access_list import access_list
@@ -393,7 +393,7 @@ app.include_router(firewall_separators.router)
 app.include_router(nat.router)
 app.include_router(nat64.router)
 app.include_router(nat66.router)
-app.include_router(dhcp.router)
+app.include_router(dhcp_server_router.router)
 app.include_router(static_routes.router)
 app.include_router(route_map.router)
 app.include_router(access_list.router)

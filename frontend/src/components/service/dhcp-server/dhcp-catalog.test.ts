@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { DhcpCatalogLeaf } from "@/lib/api/dhcp";
+import type { DhcpCatalogLeaf } from "@/lib/api/dhcp-server";
 import { catalogCreateOps, catalogDraftFrom, catalogOps, editMultiRow, keptListValues } from "./dhcp-catalog";
 
 const leaves: DhcpCatalogLeaf[] = [

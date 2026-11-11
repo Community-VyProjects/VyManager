@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, Monitor } from "lucide-react";
-import { dhcpService, type DHCPStaticMapping } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPStaticMapping } from "@/lib/api/dhcp-server";
 
 interface DeleteStaticMappingModalProps {
   open: boolean;

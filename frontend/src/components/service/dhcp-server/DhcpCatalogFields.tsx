@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { DhcpCatalogLeaf, DhcpCatalogValue, DhcpRoute } from "@/lib/api/dhcp";
+import type { DhcpCatalogLeaf, DhcpCatalogValue, DhcpRoute } from "@/lib/api/dhcp-server";
 import { editMultiRow, keptListValues } from "./dhcp-catalog";
 
 const NONE = "__none__";

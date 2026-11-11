@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Network, Plus } from "lucide-react";
-import { dhcpService, type DHCPLease, type DHCPSharedNetwork } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPLease, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 
 interface AddLeaseToStaticMappingModalProps {
   open: boolean;

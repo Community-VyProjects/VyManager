@@ -1,4 +1,4 @@
-import type { DHCPBatchOperation, DHCPSharedNetwork } from "@/lib/api/dhcp";
+import type { DHCPBatchOperation, DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 
 export interface NetworkSettingsDraft {
   description: string;

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
-import { dhcpService } from "@/lib/api/dhcp";
+import { dhcpService } from "@/lib/api/dhcp-server";
 import { ApiError } from "@/lib/types/api";
 
 interface DeleteDHCPModalProps {

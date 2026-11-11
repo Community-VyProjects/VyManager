@@ -1,7 +1,7 @@
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface } from "@/lib/api/types/ethernet";
 import { showService, type InterfaceName } from "@/lib/api/show";
-import { dhcpService } from "@/lib/api/dhcp";
+import { dhcpService } from "@/lib/api/dhcp-server";
 import { natService } from "@/lib/api/nat";
 import { vrfService } from "@/lib/api/vrf";
 import { Network, Layers } from "lucide-react";

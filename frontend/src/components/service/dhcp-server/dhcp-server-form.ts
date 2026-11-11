@@ -16,7 +16,7 @@ import {
   type DHCPSubnet,
   type CreateSubnetConfig,
   type UpdateSubnetConfig,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import type { VyOSResponse } from "@/lib/types/api";
 
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;

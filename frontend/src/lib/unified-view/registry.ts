@@ -86,7 +86,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Network, Users, Activity, Database } from "lucide-react";
-import { dhcpService, type DHCPLease } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPLease } from "@/lib/api/dhcp-server";
 
 /** Keys under the `sharedUi.unifiedView` messages namespace. */
 export type UnifiedViewMessageKey =

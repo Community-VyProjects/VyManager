@@ -24,7 +24,7 @@ import {
   dhcpService,
   type DHCPCapabilitiesResponse,
   type DHCPGlobalConfig,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 
 const NO_LEAVES: never[] = [];
 

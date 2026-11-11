@@ -5,7 +5,7 @@ import {
   type DHCPBatchOperation,
   type DHCPConfigResponse,
   type DHCPSubnet,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import type { VyOSResponse } from "@/lib/types/api";
 import {
   buildServerCreate,

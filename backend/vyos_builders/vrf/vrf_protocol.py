@@ -11,7 +11,7 @@ import inspect
 from typing import Any, Callable, List, Optional, Tuple
 
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
-from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
+from vyos_builders.dhcp_server.dhcp_server_batch_builder import DHCPServerBatchBuilder
 from vyos_builders.dhcpv6_server.dhcpv6_server_batch_builder import DHCPv6ServerBatchBuilder
 from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.isis.isis_batch_builder import IsisBatchBuilder
@@ -38,7 +38,7 @@ PROTOCOL_BUILDERS = {
 # feature node itself. Delete of the feature root exists for every entry.
 FEATURE_BUILDERS = {
     "dhcpv6": DHCPv6ServerBatchBuilder,
-    "dhcp": DHCPBatchBuilder,
+    "dhcp": DHCPServerBatchBuilder,
     "static": StaticRoutesBatchBuilder,
     "failover": FailoverBatchBuilder,
 }
@@ -234,8 +234,8 @@ def _leaf_name(verb: str, suffix: Optional[str]) -> str:
 
 def _feature_mapper_cls(proto: str):
     if proto == "dhcp":
-        from vyos_mappers.dhcp.dhcp import DHCPMapper
-        return DHCPMapper
+        from vyos_mappers.dhcp_server.dhcp_server import DHCPServerMapper
+        return DHCPServerMapper
     if proto == "dhcpv6":
         from vyos_mappers.dhcpv6_server.dhcpv6_server import DHCPv6ServerMapper
         return DHCPv6ServerMapper

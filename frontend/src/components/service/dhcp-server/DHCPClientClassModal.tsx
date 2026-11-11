@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import {
   dhcpService,
   type DHCPClientClass,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import { clientClassOperations, duplicateClassName, type ClientClassDraft } from "./dhcp-client-class";
 import { failedSaveMessage } from "./dhcp-save";
 

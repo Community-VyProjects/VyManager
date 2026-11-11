@@ -1,4 +1,4 @@
-"""Golden (method, args, op, expected_path) cases for DHCPBatchBuilder.
+"""Golden (method, args, op, expected_path) cases for DHCPServerBatchBuilder.
 
 Every path was checked against the service/dhcp-server template trees on the
 1.4 lab (100.64.64.4) and the 1.5 lab (100.64.64.5). Rows whose path is the
@@ -11,7 +11,7 @@ import inspect
 
 import pytest
 
-from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
+from vyos_builders.dhcp_server.dhcp_server_batch_builder import DHCPServerBatchBuilder
 
 BOTH_CASES = [
     ('delete_dynamic_dns_update', (), 'delete', ['service', 'dhcp-server', 'dynamic-dns-update']),
@@ -120,6 +120,7 @@ V15_CASES = [
     ('delete_client_class_remote_id', ('CLS',), 'delete', ['service', 'dhcp-server', 'client-class', 'CLS', 'relay-agent-information', 'remote-id']),
     ('delete_ddns_domain', ('forward-domain', 'example.com'), 'delete', ['service', 'dhcp-server', 'dynamic-dns-update', 'forward-domain', 'example.com']),
     ('delete_ddns_domain_dns_server', ('forward-domain', 'example.com', '1'), 'delete', ['service', 'dhcp-server', 'dynamic-dns-update', 'forward-domain', 'example.com', 'dns-server', '1']),
+    ('delete_ddns_domain_dns_server_port', ('forward-domain', 'example.com', '1'), 'delete', ['service', 'dhcp-server', 'dynamic-dns-update', 'forward-domain', 'example.com', 'dns-server', '1', 'port']),
     ('delete_ddns_domain_key_name', ('forward-domain', 'example.com'), 'delete', ['service', 'dhcp-server', 'dynamic-dns-update', 'forward-domain', 'example.com', 'key-name']),
     ('delete_ddns_scalar', ('ttl-percent',), 'delete', ['service', 'dhcp-server', 'dynamic-dns-update', 'ttl-percent']),
     ('delete_ddns_send_updates', (), 'delete', ['service', 'dhcp-server', 'dynamic-dns-update', 'send-updates']),
@@ -202,7 +203,7 @@ VERSIONS = {"1.4": V14_CASES, "1.5": V15_CASES}
 @pytest.mark.parametrize("method, args, op, expected_path", BOTH_CASES)
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_dhcp_builder_shared_paths(method, args, op, expected_path, version):
-    builder = DHCPBatchBuilder(version=version)
+    builder = DHCPServerBatchBuilder(version=version)
     getattr(builder, method)(*args)
     operations = builder.get_operations()
     assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
@@ -213,7 +214,7 @@ def test_dhcp_builder_shared_paths(method, args, op, expected_path, version):
     [(version, *row) for version, rows in VERSIONS.items() for row in rows],
 )
 def test_dhcp_builder_version_paths(version, method, args, op, expected_path):
-    builder = DHCPBatchBuilder(version=version)
+    builder = DHCPServerBatchBuilder(version=version)
     getattr(builder, method)(*args)
     operations = builder.get_operations()
     assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
@@ -229,13 +230,13 @@ def test_dhcp_builder_version_paths(version, method, args, op, expected_path):
     ],
 )
 def test_dhcp_builder_rejects_other_version_leaf(version, other, method, args):
-    builder = DHCPBatchBuilder(version=other)
+    builder = DHCPServerBatchBuilder(version=other)
     with pytest.raises(ValueError, match="not supported"):
         getattr(builder, method)(*args)
 
 
 def test_every_builder_op_has_a_golden_row():
-    builder = DHCPBatchBuilder(version="1.5")
+    builder = DHCPServerBatchBuilder(version="1.5")
     ops = {
         name
         for name, _ in inspect.getmembers(builder, inspect.ismethod)

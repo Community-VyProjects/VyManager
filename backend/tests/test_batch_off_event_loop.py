@@ -52,6 +52,8 @@ REMAINING_OFFLOADED = [
     ("get_available_ethernet_interfaces", "routers/show.py", "show", 1),
     ("get_interface_counters", "routers/show.py", "show", 1),
     ("get_system_updates", "routers/show.py", "show", 1),
+    ("get_dhcp_config", "routers/dhcp_server/dhcp_server.py", "get_full_config", 1),
+    ("dhcp_batch_configure", "routers/dhcp_server/dhcp_server.py", "execute_batch", 1),
 ]
 
 # handler, file, blocking attribute, expected offload count

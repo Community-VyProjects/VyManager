@@ -1,11 +1,13 @@
 """DHCP server mapper shared by every VyOS version.
 
 Commands both lab template trees have live on this class. A command only one
-version has lives on that version's subclass in ``dhcp_versions``.
+version has lives on that version's subclass in ``dhcp_server_versions``.
 """
-from typing import Any, Dict, FrozenSet, List, Sequence, Tuple
+from abc import abstractmethod
+from typing import Any, Dict, FrozenSet, List, Optional, Sequence, Tuple
 from ..base import BaseFeatureMapper
-from .dhcp_catalog import catalog_payload, delete_path, set_path
+from .config_parse import parse_config as parse_dhcp_server_config
+from .dhcp_server_catalog import catalog_payload, delete_path, set_path
 
 # Container-level behavior leaves of the Kea dynamic-dns-update node.
 DDNS_SCALAR_FIELDS: Tuple[str, ...] = (
@@ -22,7 +24,7 @@ DDNS_SCALAR_FIELDS: Tuple[str, ...] = (
 )
 
 
-class DHCPMapper(BaseFeatureMapper):
+class DHCPServerMapper(BaseFeatureMapper):
     """Shared mapper for ``service dhcp-server``."""
 
     # Set by each version subclass from its lab template tree.
@@ -30,10 +32,12 @@ class DHCPMapper(BaseFeatureMapper):
     OPTION_PREFIX: Tuple[str, ...]
     # Static-mapping hardware address leaf name.
     MAC_LEAF: str
-    # Key into the dhcp_catalog path tables.
+    # Key into the dhcp_server_catalog path tables.
     CATALOG_KEY: str
     # Whether the operational lease clear also clears non-active leases.
     CLEARS_INACTIVE_LEASES: bool
+    # GraphQL mutation that clears one lease on this version.
+    LEASE_CLEAR_MUTATION: str
 
     # Leaves only one version has, keyed by CLI path below service dhcp-server,
     # mapped to the path method the version subclass defines for that leaf.
@@ -73,6 +77,30 @@ class DHCPMapper(BaseFeatureMapper):
     def require_node(self, node: str) -> None:
         if node not in self.versioned_nodes():
             raise ValueError(f"{node} is not supported on this device")
+
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        return parse_dhcp_server_config(self, full_config)
+
+    @abstractmethod
+    def lease_clear_request(
+        self, address: str, family: str, vrf: Optional[str]
+    ) -> Tuple[str, Dict[str, Any]]:
+        """GraphQL query and variables (without ``key``) that clear one lease."""
+
+    def failover_modes(self) -> List[str]:
+        return ["active-active", "active-passive"]
+
+    def failover_statuses(self) -> List[str]:
+        return ["primary", "secondary"]
+
+    def ddns_toggle_values(self) -> List[str]:
+        return []
+
+    def ddns_replace_client_name_values(self) -> List[str]:
+        return []
+
+    def ddns_tsig_algorithms(self) -> List[str]:
+        return []
 
     def catalog(self) -> Dict[str, Any]:
         return catalog_payload(self.CATALOG_KEY)

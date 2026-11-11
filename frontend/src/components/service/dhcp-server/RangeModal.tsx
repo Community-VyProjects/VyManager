@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Network, Pencil, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 import { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
