@@ -278,7 +278,7 @@ export interface IPSecCapabilities {
       auth_modes: string[];
       ppk: boolean;
     };
-    remote_access: { supported: boolean; description: string; server_modes: string[]; client_modes: string[]; pool_values: string[]; unique_values: string[]; bind: boolean; childless: boolean; ppk: boolean };
+    remote_access: { supported: boolean; description: string; server_modes: string[]; client_modes: string[]; pool_values: string[]; unique_values: string[]; bind: boolean; childless: boolean; childless_values: string[]; ppk: boolean };
     ike_groups: {
       supported: boolean;
       description: string;

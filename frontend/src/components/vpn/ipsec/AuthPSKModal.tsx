@@ -178,7 +178,6 @@ export function AuthPSKModal({
               placeholder={"@local-id\n@remote-id\n192.168.1.1"}
               rows={4}
             />
-            {!isPpk && <p className="text-xs text-muted-foreground">{t("psk.identitiesHelp")}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

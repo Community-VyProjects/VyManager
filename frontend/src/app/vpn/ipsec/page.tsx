@@ -1098,6 +1098,7 @@ function IPSecPageInner() {
         capabilities={capabilities}
         ikeGroups={config?.ike_groups || []}
         espGroups={config?.esp_groups || []}
+        ppkIds={(config?.authentication.ppk || []).flatMap((ppk) => ppk.identities || [])}
         existingPeer={editingS2S}
       />
       <RemoteAccessModal
@@ -1108,6 +1109,7 @@ function IPSecPageInner() {
         ikeGroups={config?.ike_groups || []}
         espGroups={config?.esp_groups || []}
         pools={config?.remote_access.pools || []}
+        ppkIds={(config?.authentication.ppk || []).flatMap((ppk) => ppk.identities || [])}
         existingConnection={editingRA}
       />
       <PoolModal

@@ -43,6 +43,7 @@ interface RemoteAccessModalProps {
   espGroups: ESPGroup[];
   pools: RAPool[];
   existingConnection: RAConnection | null;
+  ppkIds: string[];
 }
 
 interface LocalUserRow {
@@ -60,6 +61,7 @@ export function RemoteAccessModal({
   espGroups,
   pools,
   existingConnection,
+  ppkIds,
 }: RemoteAccessModalProps) {
   const t = useTranslations("ipsec");
   const tc = useTranslations("common");
@@ -358,7 +360,7 @@ export function RemoteAccessModal({
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">{tc("default")}</SelectItem>
-                    {(capabilities?.features.site_to_site.childless_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                    {(capabilities?.features.remote_access.childless_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -404,7 +406,13 @@ export function RemoteAccessModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("s2sModal.ppk")}</Label>
-                  <Input value={ppkId} onChange={(e) => setPpkId(e.target.value)} />
+                  <Select value={ppkId || "_none"} onValueChange={(v) => setPpkId(v === "_none" ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
+                      {Array.from(new Set([...ppkIds, ...(ppkId ? [ppkId] : [])])).map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center gap-2 pt-7">
                   <Checkbox id="ra-ppk-required" checked={ppkRequired} onCheckedChange={(c) => setPpkRequired(c === true)} />
@@ -460,18 +468,13 @@ export function RemoteAccessModal({
                   <Input type="password" value={x509Passphrase} onChange={(e) => setX509Passphrase(e.target.value)} />
                 </div>
                 {capabilities?.features.always_send_cert.supported && (
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-center gap-2">
                     <Checkbox
                       id="always-send-cert"
                       checked={alwaysSendCert}
                       onCheckedChange={(checked) => setAlwaysSendCert(checked === true)}
                     />
-                    <div className="space-y-0.5">
-                      <Label htmlFor="always-send-cert" className="cursor-pointer text-sm">{t("raModal.alwaysSendCert")}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t("raModal.alwaysSendCertHelp")}
-                      </p>
-                    </div>
+                    <Label htmlFor="always-send-cert" className="cursor-pointer text-sm">{t("raModal.alwaysSendCert")}</Label>
                   </div>
                 )}
               </>

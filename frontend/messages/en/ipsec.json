@@ -156,7 +156,6 @@
     "defaultEspGroup": "Default ESP Group",
     "localAddressPlaceholder": "any or IP address",
     "remoteAddresses": "Remote Addresses",
-    "commaSeparated": "Comma-separated for multiple",
     "connectionType": "Connection Type",
     "ikev2Reauth": "IKEv2 reauth",
     "ppk": "PPK",
@@ -203,7 +202,6 @@
     "preSharedKey": "Pre-Shared Key",
     "enterPsk": "Enter PSK",
     "alwaysSendCert": "Always send certificate",
-    "alwaysSendCertHelp": "Send the server certificate even when not requested. Required by some clients (e.g. Windows).",
     "localUsers": "Local Users",
     "addUser": "Add User",
     "noLocalUsers": "No local users configured",
@@ -229,7 +227,6 @@
     "description": "Configure a RADIUS server for remote-access authentication.",
     "address": "Server Address",
     "key": "Shared Key",
-    "keepCurrent": "Leave blank to keep current",
     "port": "Port",
     "disableAccounting": "Disable accounting"
   }

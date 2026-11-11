@@ -955,6 +955,7 @@ class IPSecBatchBuilder(BatchBuilder):
                     "unique_values": mapper.unique_values(),
                     "bind": "ra_bind" in nodes,
                     "childless": "ra_childless" in nodes,
+                    "childless_values": mapper.childless_values(),
                     "ppk": "ppk" in nodes,
                 },
                 "ike_groups": {

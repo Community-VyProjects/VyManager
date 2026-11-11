@@ -43,6 +43,7 @@ interface SiteToSiteModalProps {
   ikeGroups: IKEGroup[];
   espGroups: ESPGroup[];
   existingPeer: SiteToSitePeer | null;
+  ppkIds: string[];
 }
 
 interface TunnelRow {
@@ -65,6 +66,7 @@ export function SiteToSiteModal({
   ikeGroups,
   espGroups,
   existingPeer,
+  ppkIds,
 }: SiteToSiteModalProps) {
   const t = useTranslations("ipsec");
   const tc = useTranslations("common");
@@ -367,7 +369,6 @@ export function SiteToSiteModal({
               <div className="space-y-2">
                 <Label>{t("s2sModal.remoteAddresses")}</Label>
                 <Input value={remoteAddresses} onChange={(e) => setRemoteAddresses(e.target.value)} placeholder="203.0.113.1" />
-                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -472,7 +473,13 @@ export function SiteToSiteModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("s2sModal.ppk")}</Label>
-                  <Input value={ppkId} onChange={(e) => setPpkId(e.target.value)} />
+                  <Select value={ppkId || "_none"} onValueChange={(v) => setPpkId(v === "_none" ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
+                      {Array.from(new Set([...ppkIds, ...(ppkId ? [ppkId] : [])])).map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center gap-2 pt-7">
                   <Checkbox id="ppkRequired" checked={ppkRequired} onCheckedChange={(c) => setPpkRequired(c === true)} />
@@ -653,12 +660,10 @@ export function SiteToSiteModal({
               <div className="space-y-2">
                 <Label>{t("s2sModal.tsLocalPrefix")}</Label>
                 <Input value={vtiTsLocalPrefix} onChange={(e) => setVtiTsLocalPrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
-                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
               <div className="space-y-2">
                 <Label>{t("s2sModal.tsRemotePrefix")}</Label>
                 <Input value={vtiTsRemotePrefix} onChange={(e) => setVtiTsRemotePrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
-                <p className="text-xs text-muted-foreground">{t("s2sModal.commaSeparated")}</p>
               </div>
             </div>
           </TabsContent>

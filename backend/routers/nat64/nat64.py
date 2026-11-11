@@ -11,9 +11,11 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.nat64 import NAT64BatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.nat64 import NAT64Mapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from batch_dispatch import resolve_batch_method
@@ -130,67 +132,14 @@ async def get_config(request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(request)
+        version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
-        nat64_config = full_config.get("nat64", {})
-        source_config = nat64_config.get("source", {})
-        rules_config = source_config.get("rule", {})
-
-        source_rules = []
-
-        for rule_num_str, rule_data in rules_config.items():
-            try:
-                rule_number = int(rule_num_str)
-            except (ValueError, TypeError):
-                continue
-
-            # Parse translation pools
-            translation_pools = []
-            pools_config = rule_data.get("translation", {}).get("pool", {})
-            for pool_num_str, pool_data in pools_config.items():
-                try:
-                    pool_number = int(pool_num_str)
-                except (ValueError, TypeError):
-                    continue
-
-                # Parse protocol flags
-                protocol_config = pool_data.get("protocol", {})
-                protocol = None
-                if protocol_config:
-                    protocol = NAT64TranslationPoolProtocol(
-                        tcp="tcp" in protocol_config,
-                        udp="udp" in protocol_config,
-                        icmp="icmp" in protocol_config,
-                    )
-
-                translation_pools.append(NAT64TranslationPool(
-                    pool_number=pool_number,
-                    address=pool_data.get("address"),
-                    description=pool_data.get("description"),
-                    disable="disable" in pool_data,
-                    port=pool_data.get("port"),
-                    protocol=protocol,
-                ))
-
-            translation_pools.sort(key=lambda p: p.pool_number)
-
-            # Parse match
-            match_config = rule_data.get("match", {})
-            match_mark = match_config.get("mark")
-
-            source_rules.append(NAT64SourceRule(
-                rule_number=rule_number,
-                description=rule_data.get("description"),
-                disable="disable" in rule_data,
-                match_mark=match_mark,
-                source_prefix=rule_data.get("source", {}).get("prefix"),
-                translation_pools=translation_pools,
-            ))
-
-        source_rules.sort(key=lambda r: r.rule_number)
+        mapper = cast(NAT64Mapper, CommandMapperRegistry.get_mapper("nat64", version))
+        source_rules = mapper.parse_config(full_config)["source_rules"]
 
         return NAT64ConfigResponse(
-            source_rules=source_rules,
+            source_rules=[NAT64SourceRule(**rule) for rule in source_rules],
             total=len(source_rules),
         )
 

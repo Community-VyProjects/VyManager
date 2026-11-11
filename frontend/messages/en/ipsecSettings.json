@@ -21,7 +21,6 @@
     "newSecretPlaceholder": "Enter new secret or leave blank",
     "secretPlaceholder": "Enter secret",
     "identities": "Identities",
-    "identitiesHelp": "One identity per line (e.g., @id, IP, %any)",
     "secretType": "Secret Type (optional)",
     "dhcpInterface": "DHCP Interface (optional)",
     "create": "Create PSK"
@@ -76,7 +75,6 @@
     "virtualIp": "Virtual IP",
     "disableUniqReqIds": "Disable Unique Request IDs",
     "interfaces": "Interfaces",
-    "optionsInterface": "Options interface",
     "logging": "Logging",
     "logLevel": "Log Level",
     "subsystems": "Subsystems",
@@ -84,11 +82,7 @@
     "attempts": "Attempts",
     "base": "Base",
     "timeout": "Timeout",
-    "save": "Save Settings",
-    "remoteAccess": "Remote Access",
-    "dhcpServer": "DHCP Server",
-    "nasIdentifier": "NAS Identifier",
-    "radiusTimeout": "RADIUS Timeout"
+    "save": "Save Settings"
   },
   "ppk": {
     "titleEdit": "Edit Post-Quantum Key",

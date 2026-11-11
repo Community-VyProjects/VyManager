@@ -21,7 +21,6 @@
     "newSecretPlaceholder": "输入新密钥或留空",
     "secretPlaceholder": "输入密钥",
     "identities": "身份标识",
-    "identitiesHelp": "每行一个身份标识（例如 @id、IP、%any）",
     "secretType": "密钥类型（可选）",
     "dhcpInterface": "DHCP 接口（可选）",
     "create": "创建 PSK"
@@ -76,7 +75,6 @@
     "virtualIp": "虚拟 IP",
     "disableUniqReqIds": "禁用唯一请求 ID",
     "interfaces": "接口",
-    "optionsInterface": "选项接口",
     "logging": "日志",
     "logLevel": "日志级别",
     "subsystems": "子系统",
@@ -84,11 +82,7 @@
     "attempts": "尝试次数",
     "base": "基数",
     "timeout": "超时",
-    "save": "保存设置",
-    "remoteAccess": "远程访问",
-    "dhcpServer": "DHCP 服务器",
-    "nasIdentifier": "NAS 标识符",
-    "radiusTimeout": "RADIUS 超时"
+    "save": "保存设置"
   },
   "ppk": {
     "titleEdit": "编辑后量子密钥",

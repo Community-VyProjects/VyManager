@@ -156,7 +156,6 @@
     "defaultEspGroup": "默认 ESP 组",
     "localAddressPlaceholder": "any 或 IP 地址",
     "remoteAddresses": "远端地址",
-    "commaSeparated": "多个值用逗号分隔",
     "connectionType": "连接类型",
     "ikev2Reauth": "IKEv2 重新认证",
     "ppk": "PPK",
@@ -203,7 +202,6 @@
     "preSharedKey": "预共享密钥",
     "enterPsk": "输入 PSK",
     "alwaysSendCert": "始终发送证书",
-    "alwaysSendCertHelp": "即使未被请求也发送服务器证书。部分客户端（如 Windows）需要此选项。",
     "localUsers": "本地用户",
     "addUser": "添加用户",
     "noLocalUsers": "尚未配置本地用户",
@@ -229,7 +227,6 @@
     "description": "配置用于远程访问认证的 RADIUS 服务器。",
     "address": "服务器地址",
     "key": "共享密钥",
-    "keepCurrent": "留空以保留当前值",
     "port": "端口",
     "disableAccounting": "禁用计费"
   }

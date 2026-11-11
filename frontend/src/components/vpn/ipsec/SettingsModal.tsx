@@ -62,6 +62,7 @@ export function SettingsModal({
   currentRadius,
 }: SettingsModalProps) {
   const t = useTranslations("ipsecSettings");
+  const tp = useTranslations("ipsec");
   const tc = useTranslations("common");
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
 
@@ -236,7 +237,7 @@ export function SettingsModal({
             <InterfaceMultiSelect values={interfaces} onChange={setInterfaces} interfaces={allInterfaces} />
           </div>
           <div className="space-y-2">
-            <Label>{t("settings.optionsInterface")}</Label>
+            <Label>{tp("page.settings.optionsInterface")}</Label>
             <InterfaceSelect
               value={optionsInterface}
               onValueChange={setOptionsInterface}
@@ -277,10 +278,10 @@ export function SettingsModal({
 
           {/* Remote access DHCP and RADIUS */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">{t("settings.remoteAccess")}</Label>
+            <Label className="text-sm font-medium">{tp("page.tabs.remoteAccess")}</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{t("psk.dhcpInterface")}</Label>
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.dhcpInterface")}</Label>
                 <InterfaceSelect
                   value={dhcpInterface}
                   onValueChange={setDhcpInterface}
@@ -289,15 +290,15 @@ export function SettingsModal({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{t("settings.dhcpServer")}</Label>
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.dhcpServer")}</Label>
                 <Input value={dhcpServer} onChange={(e) => setDhcpServer(e.target.value)} placeholder="192.0.2.1" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{t("settings.nasIdentifier")}</Label>
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.nasIdentifier")}</Label>
                 <Input value={nasIdentifier} onChange={(e) => setNasIdentifier(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{t("settings.radiusTimeout")}</Label>
+                <Label className="text-xs text-muted-foreground">{tp("page.settings.radiusTimeout")}</Label>
                 <Input value={radiusTimeout} onChange={(e) => setRadiusTimeout(e.target.value)} placeholder={tc("default")} />
               </div>
             </div>

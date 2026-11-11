@@ -32,6 +32,7 @@ export function RadiusServerModal({
   existingServer,
 }: RadiusServerModalProps) {
   const t = useTranslations("ipsec");
+  const ts = useTranslations("ipsecSettings");
   const tc = useTranslations("common");
   const isEdit = !!existingServer;
 
@@ -103,8 +104,8 @@ export function RadiusServerModal({
             <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="192.0.2.10" disabled={isEdit} />
           </div>
           <div className="space-y-2">
-            <Label>{t("radiusModal.key")}</Label>
-            <Input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={isEdit ? t("radiusModal.keepCurrent") : undefined} />
+            <Label>{t("radiusModal.key")} {isEdit && ts("psk.keepCurrent")}</Label>
+            <Input type="password" value={key} onChange={(e) => setKey(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>{t("radiusModal.port")}</Label>
