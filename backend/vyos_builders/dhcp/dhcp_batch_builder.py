@@ -244,15 +244,6 @@ class DHCPBatchBuilder(BatchBuilder):
         )
         return self.add_set(path)
 
-    def delete_subnet_subnet_id(
-        self, network_name: str, subnet: str
-    ) -> "DHCPBatchBuilder":
-        """Delete subnet-id."""
-        path = self._versioned_path(
-            "subnet-id", "get_subnet_subnet_id_path", network_name, subnet
-        )
-        return self.add_delete(path)
-
     def set_subnet_default_router(
         self, network_name: str, subnet: str, router: str
     ) -> "DHCPBatchBuilder":

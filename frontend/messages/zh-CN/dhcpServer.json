@@ -343,8 +343,7 @@
   },
   "networkOptions": {
     "title": "{name} 选项",
-    "description": "此设备支持、且尚未在其他位置设置的共享网络配置项",
-    "none": "此设备没有额外的共享网络选项。",
+    "description": "此共享网络的设置",
     "saveFailed": "保存网络选项失败",
     "open": "网络选项"
   },

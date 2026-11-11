@@ -37,9 +37,6 @@ class DHCPMapperV1_5(DHCPMapper):
     def get_subnet_subnet_id(self, network_name: str, subnet: str, subnet_id: int) -> List[str]:
         return self.get_subnet(network_name, subnet) + ["subnet-id", str(subnet_id)]
 
-    def get_subnet_subnet_id_path(self, network_name: str, subnet: str) -> List[str]:
-        return self.get_subnet(network_name, subnet) + ["subnet-id"]
-
     def get_subnet_disable(self, network_name: str, subnet: str) -> List[str]:
         return self.get_subnet(network_name, subnet) + ["disable"]
 

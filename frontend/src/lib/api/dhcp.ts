@@ -230,7 +230,8 @@ export interface DHCPCapabilitiesResponse {
     client_class?: DHCPFieldCapability;
   };
   catalog?: DhcpCatalog;
-  device_name?: string;
+  instance_name?: string;
+  instance_id?: string;
 }
 
 export interface DHCPBatchOperation {

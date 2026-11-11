@@ -147,7 +147,6 @@ V15_CASES = [
     ('delete_subnet_domain_search', ('LAN', '192.168.1.0/24', 'example.com'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'option', 'domain-search', 'example.com']),
     ('delete_subnet_name_server', ('LAN', '192.168.1.0/24', '192.0.2.53'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'option', 'name-server', '192.0.2.53']),
     ('delete_subnet_ntp_server', ('LAN', '192.168.1.0/24', '192.0.2.123'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'option', 'ntp-server', '192.0.2.123']),
-    ('delete_subnet_subnet_id', ('LAN', '192.168.1.0/24'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'subnet-id']),
     ('delete_subnet_tftp_server_name', ('LAN', '192.168.1.0/24'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'option', 'tftp-server-name']),
     ('delete_subnet_time_offset', ('LAN', '192.168.1.0/24'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'option', 'time-offset']),
     ('delete_subnet_time_server', ('LAN', '192.168.1.0/24', '192.0.2.123'), 'delete', ['service', 'dhcp-server', 'shared-network-name', 'LAN', 'subnet', '192.168.1.0/24', 'option', 'time-server', '192.0.2.123']),
