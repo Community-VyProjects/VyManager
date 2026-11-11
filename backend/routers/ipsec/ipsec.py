@@ -164,8 +164,6 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             masked = {**data}
             if masked.get("auth_psk"):
                 masked["auth_psk"] = "***"
-            if masked.get("auth_x509_passphrase"):
-                masked["auth_x509_passphrase"] = "***"
             local_users = []
             for user in masked.get("local_users") or []:
                 user = {**user}
@@ -195,16 +193,6 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
                 masked["secret"] = "***"
             psk_entries.append(masked)
 
-        radius = dict(config.get("remote_access", {}).get("radius") or {})
-        servers = {}
-        for addr, srv in (radius.get("servers") or {}).items():
-            srv = {**srv}
-            if srv.get("key"):
-                srv["key"] = "***"
-            servers[addr] = srv
-        if radius:
-            radius["servers"] = servers
-
         return {
             "ike_groups": ike_groups,
             "esp_groups": esp_groups,
@@ -212,8 +200,6 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             "remote_access": {
                 "connections": ra_connections,
                 "pools": ra_pools,
-                "radius": radius,
-                "dhcp": config.get("remote_access", {}).get("dhcp", {}),
             },
             "profiles": profiles,
             "authentication": {

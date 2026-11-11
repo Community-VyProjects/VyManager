@@ -6,6 +6,7 @@ from typing import List, Optional, Any, Dict
 
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.load_balancing import LoadBalancingBatchBuilder
+from vyos_mappers import CommandMapperRegistry
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from batch_dispatch import resolve_batch_method
@@ -67,7 +68,6 @@ async def get_config(request: Request, refresh: bool = False):
     await require_read_permission(request, FeatureGroup.LOAD_BALANCING)
     service = get_session_vyos_service(request)
     full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-    from vyos_mappers import CommandMapperRegistry
     mapper = CommandMapperRegistry.get_mapper("load_balancing", service.get_version())
     return mapper.parse_config(full_config)
 

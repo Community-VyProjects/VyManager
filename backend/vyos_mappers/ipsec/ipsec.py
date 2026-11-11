@@ -364,8 +364,6 @@ class IPSecMapper(BaseFeatureMapper):
             "remote_access": {
                 "connections": {},
                 "pools": {},
-                "radius": {},
-                "dhcp": {},
             },
             "profiles": {},
             "authentication": {"psk": {}},
@@ -404,7 +402,6 @@ class IPSecMapper(BaseFeatureMapper):
         result["options"] = {
             "disable_route_autoinstall": "disable-route-autoinstall" in options,
             "flexvpn": "flexvpn" in options,
-            "interface": self._normalize_to_list(options.get("interface")),
             "virtual_ip": "virtual-ip" in options,
             "retransmission_attempts": (options.get("retransmission") or {}).get("attempts") if isinstance(options.get("retransmission"), dict) else None,
             "retransmission_base": (options.get("retransmission") or {}).get("base") if isinstance(options.get("retransmission"), dict) else None,
@@ -443,31 +440,6 @@ class IPSecMapper(BaseFeatureMapper):
 
         for pool_name, pool_config in ra_config.get("pool", {}).items():
             result["remote_access"]["pools"][pool_name] = self._parse_ra_pool(pool_name, pool_config)
-
-        # Parse RADIUS
-        radius_config = ra_config.get("radius", {})
-        if radius_config:
-            result["remote_access"]["radius"] = {
-                "nas_identifier": radius_config.get("nas-identifier"),
-                "timeout": radius_config.get("timeout"),
-                "servers": {},
-            }
-            for srv, srv_config in radius_config.get("server", {}).items():
-                result["remote_access"]["radius"]["servers"][srv] = {
-                    "address": srv,
-                    "key": srv_config.get("key"),
-                    "port": srv_config.get("port"),
-                    "disabled": "disable" in srv_config,
-                    "disable_accounting": "disable-accounting" in srv_config,
-                }
-
-        # Parse DHCP relay
-        dhcp_config = ra_config.get("dhcp", {})
-        if dhcp_config:
-            result["remote_access"]["dhcp"] = {
-                "interface": dhcp_config.get("interface"),
-                "server": dhcp_config.get("server"),
-            }
 
         # Parse profiles
         for profile_name, profile_config in ipsec_config.get("profile", {}).items():
@@ -602,8 +574,6 @@ class IPSecMapper(BaseFeatureMapper):
     def _parse_ra_connection(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         auth = config.get("authentication", {})
         x509 = auth.get("x509", {})
-        local = config.get("local", {})
-        ppk = auth.get("ppk", {})
         local_users = []
         for username, user_config in auth.get("local-users", {}).get("username", {}).items():
             user_config = user_config or {}
@@ -612,34 +582,20 @@ class IPSecMapper(BaseFeatureMapper):
                 "disabled": "disable" in user_config,
                 "password": user_config.get("password"),
             })
-        ca_certs = self._normalize_to_list(x509.get("ca-certificate"))
         return {
             "name": name,
             "description": config.get("description"),
-            "disabled": "disable" in config,
             "esp_group": config.get("esp-group"),
             "ike_group": config.get("ike-group"),
             "local_address": config.get("local-address"),
-            "dhcp_interface": config.get("dhcp-interface"),
             "pools": self._normalize_to_list(config.get("pool")),
-            "replay_window": config.get("replay-window"),
-            "timeout": config.get("timeout"),
-            "unique": config.get("unique"),
-            "local_prefix": self._normalize_to_list(local.get("prefix")),
-            "local_port": local.get("port"),
-            "bind": config.get("bind"),
-            "childless": "childless" in config,
             "auth_server_mode": auth.get("server-mode"),
             "auth_client_mode": auth.get("client-mode"),
             "auth_local_id": auth.get("local-id"),
-            "auth_eap_id": auth.get("eap-id"),
             "auth_psk": auth.get("pre-shared-secret"),
             "auth_always_send_cert": "always-send-cert" in auth,
-            "auth_x509_ca_cert": ca_certs[0] if ca_certs else None,
+            "auth_x509_ca_cert": self._normalize_to_list(x509.get("ca-certificate")),
             "auth_x509_cert": x509.get("certificate"),
-            "auth_x509_passphrase": x509.get("passphrase"),
-            "auth_ppk_id": ppk.get("id"),
-            "auth_ppk_required": "required" in ppk,
             "local_users": local_users,
         }
 

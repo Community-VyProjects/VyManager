@@ -31,6 +31,7 @@ import {
   IPSecCapabilities,
 } from "@/lib/api/ipsec";
 import { ApiError } from "@/lib/types/api";
+import { pkiService } from "@/lib/api/pki";
 
 interface RemoteAccessModalProps {
   open: boolean;
@@ -74,13 +75,22 @@ export function RemoteAccessModal({
   const [authLocalId, setAuthLocalId] = useState("");
   const [authPsk, setAuthPsk] = useState("");
   const [showPsk, setShowPsk] = useState(false);
-  const [authX509CaCert, setAuthX509CaCert] = useState("");
+  const [caCerts, setCaCerts] = useState<string[]>([]);
   const [authX509Cert, setAuthX509Cert] = useState("");
+  const [pkiCas, setPkiCas] = useState<string[]>([]);
+  const [pkiCerts, setPkiCerts] = useState<string[]>([]);
   const [alwaysSendCert, setAlwaysSendCert] = useState(false);
   const [localUsers, setLocalUsers] = useState<LocalUserRow[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    pkiService.getConfig().then((cfg) => {
+      setPkiCas((cfg.ca || []).map((item) => item.name));
+      setPkiCerts((cfg.certificates || []).map((item) => item.name));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -95,7 +105,7 @@ export function RemoteAccessModal({
         setAuthClientMode(existingConnection.auth_client_mode || "");
         setAuthLocalId(existingConnection.auth_local_id || "");
         setAuthPsk("");
-        setAuthX509CaCert(existingConnection.auth_x509_ca_cert || "");
+        setCaCerts(existingConnection.auth_x509_ca_cert || []);
         setAuthX509Cert(existingConnection.auth_x509_cert || "");
         setAlwaysSendCert(!!existingConnection.auth_always_send_cert);
         setLocalUsers(
@@ -116,7 +126,7 @@ export function RemoteAccessModal({
         setAuthClientMode("");
         setAuthLocalId("");
         setAuthPsk("");
-        setAuthX509CaCert("");
+        setCaCerts([]);
         setAuthX509Cert("");
         setAlwaysSendCert(false);
         setLocalUsers([]);
@@ -149,7 +159,7 @@ export function RemoteAccessModal({
         auth_client_mode: authClientMode || undefined,
         auth_local_id: authLocalId || undefined,
         auth_psk: !isX509 ? authPsk || undefined : undefined,
-        auth_x509_ca_cert: isX509 ? authX509CaCert || undefined : undefined,
+        auth_x509_ca_certs: isX509 ? caCerts : undefined,
         auth_x509_cert: isX509 ? authX509Cert || undefined : undefined,
         auth_always_send_cert: isX509 ? alwaysSendCert || undefined : undefined,
         local_users: cleanedUsers,
@@ -298,17 +308,35 @@ export function RemoteAccessModal({
             )}
             {authServerMode === "x509" && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{t("modal.caCertificate")}</Label>
-                    <Input value={authX509CaCert} onChange={(e) => setAuthX509CaCert(e.target.value)} placeholder="ca-cert" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("modal.certificate")}</Label>
-                    <Input value={authX509Cert} onChange={(e) => setAuthX509Cert(e.target.value)} placeholder="server-cert" />
-                  </div>
+                <div className="space-y-2">
+                  <Label>{t("modal.caCertificate")}</Label>
+                  {caCerts.map((name) => (
+                    <div key={name} className="flex items-center justify-between rounded border px-2 py-1">
+                      <span className="text-sm">{name}</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCaCerts(caCerts.filter((item) => item !== name))}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Select value="_add" onValueChange={(v) => { if (v !== "_add" && !caCerts.includes(v)) setCaCerts([...caCerts, v]); }}>
+                    <SelectTrigger><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_add">{t("modal.select")}</SelectItem>
+                      {pkiCas.filter((name) => !caCerts.includes(name)).map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
-                {(capabilities?.features.always_send_cert.supported ?? true) && (
+                <div className="space-y-2">
+                  <Label>{t("modal.certificate")}</Label>
+                  <Select value={authX509Cert || "_none"} onValueChange={(v) => setAuthX509Cert(v === "_none" ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">{tc("none")}</SelectItem>
+                      {pkiCerts.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {capabilities?.features.always_send_cert.supported && (
                   <div className="flex items-start gap-2">
                     <Checkbox
                       id="always-send-cert"

@@ -142,9 +142,24 @@ COMMON_CASES = [
     ('delete_auth_psk_secret_type', ('G0',), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'secret-type']),
     ('delete_auth_psk_dhcp_interface', ('G0', 'eth0'), 'delete', ['vpn', 'ipsec', 'authentication', 'psk', 'G0', 'dhcp-interface', 'eth0']),
     ('delete_s2s_peer_replay_window', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'replay-window']),
+    ('delete_s2s_peer_default_esp_group', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'default-esp-group']),
+    ('delete_s2s_peer_dhcp_interface', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'dhcp-interface']),
+    ('delete_s2s_peer_auth_local_id', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'local-id']),
+    ('delete_s2s_peer_auth_remote_id', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'remote-id']),
+    ('delete_s2s_peer_auth_x509_ca_cert', ('G0', 'CA'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'x509', 'ca-certificate', 'CA']),
+    ('delete_s2s_peer_auth_x509_cert', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'x509', 'certificate']),
+    ('delete_s2s_peer_auth_rsa_local_key', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'rsa', 'local-key']),
+    ('delete_s2s_peer_auth_rsa_remote_key', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'rsa', 'remote-key']),
+    ('delete_s2s_peer_auth_rsa_passphrase', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'rsa', 'passphrase']),
+    ('delete_s2s_peer_tunnel_protocol', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'protocol']),
+    ('delete_s2s_peer_vti_bind', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'bind']),
+    ('delete_s2s_peer_vti_esp_group', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'esp-group']),
+    ('delete_s2s_peer_vti_ts_local_prefix', ('G0', '10.0.0.0/8'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'traffic-selector', 'local', 'prefix', '10.0.0.0/8']),
+    ('delete_s2s_peer_vti_ts_remote_prefix', ('G0', '10.0.0.0/8'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'vti', 'traffic-selector', 'remote', 'prefix', '10.0.0.0/8']),
     ('delete_s2s_peer_tunnel_local_port', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'local', 'port']),
     ('delete_s2s_peer_tunnel_remote_port', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'remote', 'port']),
     ('delete_s2s_peer_tunnel_priority', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'priority']),
+    ('delete_ra_connection_auth_psk', ('G0',), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'pre-shared-secret']),
 ]
 
 
@@ -164,6 +179,8 @@ V15_ONLY_CASES = [
     ('set_ra_pool_range_stop', ('G0', '5'), 'set', ['vpn', 'ipsec', 'remote-access', 'pool', 'G0', 'range', 'stop', '5']),
     ('set_s2s_peer_unique', ('G0', 'keep'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'unique', 'keep']),
     ('delete_s2s_peer_unique', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'unique']),
+    ('set_ra_connection_auth_always_send_cert', ('G0',), 'set', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'always-send-cert']),
+    ('delete_ra_connection_auth_always_send_cert', ('G0',), 'delete', ['vpn', 'ipsec', 'remote-access', 'connection', 'G0', 'authentication', 'always-send-cert']),
     ('set_s2s_peer_childless', ('G0', 'allow'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'childless', 'allow']),
     ('delete_s2s_peer_childless', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'childless']),
 ]

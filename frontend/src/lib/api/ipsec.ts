@@ -135,30 +135,17 @@ export interface RALocalUser {
 export interface RAConnection {
   name: string;
   description?: string | null;
-  disabled?: boolean;
   esp_group?: string | null;
   ike_group?: string | null;
   local_address?: string | null;
-  dhcp_interface?: string | null;
   pools?: string[];
-  replay_window?: string | null;
-  timeout?: string | null;
-  unique?: string | null;
-  local_prefix?: string[];
-  local_port?: string | null;
-  bind?: string | null;
-  childless?: boolean;
   auth_server_mode?: string | null;
   auth_client_mode?: string | null;
   auth_local_id?: string | null;
-  auth_eap_id?: string | null;
   auth_psk?: string | null;
   auth_always_send_cert?: boolean;
-  auth_x509_ca_cert?: string | null;
+  auth_x509_ca_cert?: string[];
   auth_x509_cert?: string | null;
-  auth_x509_passphrase?: string | null;
-  auth_ppk_id?: string | null;
-  auth_ppk_required?: boolean;
   local_users: RALocalUser[];
 }
 
@@ -169,18 +156,6 @@ export interface RAPool {
   exclude?: string[];
   range_start?: string | null;
   range_stop?: string | null;
-}
-
-export interface RARadius {
-  nas_identifier?: string | null;
-  timeout?: string | null;
-  servers?: Record<string, {
-    address?: string;
-    key?: string | null;
-    port?: string | null;
-    disabled?: boolean;
-    disable_accounting?: boolean;
-  }>;
 }
 
 export interface AuthPSK {
@@ -208,7 +183,6 @@ export interface IPSecProfile {
 export interface IPSecOptions {
   disable_route_autoinstall?: boolean;
   flexvpn?: boolean;
-  interface?: string[];
   virtual_ip?: boolean;
   retransmission_attempts?: string | null;
   retransmission_base?: string | null;
@@ -227,8 +201,6 @@ export interface IPSecConfigResponse {
   remote_access: {
     connections: RAConnection[];
     pools: RAPool[];
-    radius: RARadius;
-    dhcp: Record<string, unknown>;
   };
   profiles: IPSecProfile[];
   authentication: {
@@ -723,19 +695,6 @@ class IPSecService {
     return ops;
   }
 
-  async createS2STunnel(peerName: string, tunnelNum: string, config: {
-    esp_group?: string;
-    local_prefix?: string[];
-    remote_prefix?: string[];
-    protocol?: string;
-  }): Promise<VyOSResponse> {
-    return this.batchConfigure(peerName, this.buildS2STunnelOps(tunnelNum, config));
-  }
-
-  async deleteS2STunnel(peerName: string, tunnelNum: string): Promise<VyOSResponse> {
-    return this.batchConfigure(peerName, [{ op: "delete_s2s_peer_tunnel", value: tunnelNum }]);
-  }
-
   // ==========================================================================
   // Remote Access Connection Operations
   // ==========================================================================
@@ -750,7 +709,7 @@ class IPSecService {
     auth_client_mode?: string;
     auth_local_id?: string;
     auth_psk?: string;
-    auth_x509_ca_cert?: string;
+    auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
     auth_always_send_cert?: boolean;
     local_users?: { username: string; password?: string; disabled?: boolean }[];
@@ -769,7 +728,11 @@ class IPSecService {
     if (config.auth_client_mode) ops.push({ op: "set_ra_connection_auth_client_mode", value: config.auth_client_mode });
     if (config.auth_local_id) ops.push({ op: "set_ra_connection_auth_local_id", value: config.auth_local_id });
     if (writableSecret(config.auth_psk)) ops.push({ op: "set_ra_connection_auth_psk", value: writableSecret(config.auth_psk) });
-    if (config.auth_x509_ca_cert) ops.push({ op: "set_ra_connection_auth_x509_ca_cert", value: config.auth_x509_ca_cert });
+    if (config.auth_x509_ca_certs) {
+      for (const ca of config.auth_x509_ca_certs) {
+        ops.push({ op: "set_ra_connection_auth_x509_ca_cert", value: ca });
+      }
+    }
     if (config.auth_x509_cert) ops.push({ op: "set_ra_connection_auth_x509_cert", value: config.auth_x509_cert });
     if (config.auth_always_send_cert) ops.push({ op: "set_ra_connection_auth_always_send_cert" });
     if (config.local_users) {
@@ -793,7 +756,7 @@ class IPSecService {
     auth_client_mode?: string;
     auth_local_id?: string;
     auth_psk?: string;
-    auth_x509_ca_cert?: string;
+    auth_x509_ca_certs?: string[];
     auth_x509_cert?: string;
     auth_always_send_cert?: boolean;
     local_users?: { username: string; password?: string; disabled?: boolean }[];
@@ -819,10 +782,14 @@ class IPSecService {
 
     // X.509 CA cert is a multi-value node: replacing requires deleting the old value.
     {
-      const nv = (config.auth_x509_ca_cert || "").trim();
-      const ov = (existing.auth_x509_ca_cert || "").trim();
-      if (ov && ov !== nv) ops.push({ op: "delete_ra_connection_auth_x509_ca_cert", value: ov });
-      if (nv && nv !== ov) ops.push({ op: "set_ra_connection_auth_x509_ca_cert", value: nv });
+      const next = config.auth_x509_ca_certs || [];
+      const prev = existing.auth_x509_ca_cert || [];
+      for (const ca of prev) {
+        if (!next.includes(ca)) ops.push({ op: "delete_ra_connection_auth_x509_ca_cert", value: ca });
+      }
+      for (const ca of next) {
+        if (!prev.includes(ca)) ops.push({ op: "set_ra_connection_auth_x509_ca_cert", value: ca });
+      }
     }
 
     // Pools (multi-value): reconcile add/remove.
@@ -833,7 +800,11 @@ class IPSecService {
       for (const p of newPools) if (!oldPools.includes(p)) ops.push({ op: "set_ra_connection_pool", value: p });
     }
 
-    if (writableSecret(config.auth_psk)) ops.push({ op: "set_ra_connection_auth_psk", value: writableSecret(config.auth_psk) });
+    if (config.auth_server_mode && config.auth_server_mode !== "pre-shared-secret" && existing.auth_psk) {
+      ops.push({ op: "delete_ra_connection_auth_psk" });
+    } else if (writableSecret(config.auth_psk)) {
+      ops.push({ op: "set_ra_connection_auth_psk", value: writableSecret(config.auth_psk) });
+    }
 
     // always-send-cert flag.
     if (config.auth_always_send_cert && !existing.auth_always_send_cert) {

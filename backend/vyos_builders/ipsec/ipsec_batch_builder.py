@@ -144,6 +144,10 @@ class IPSecBatchBuilder(BatchBuilder):
     def delete_auth_psk_dhcp_interface(self, name: str, interface: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_auth_psk_dhcp_interface_path(name, interface))
 
+    # ========================================================================
+    # ESP Group
+    # ========================================================================
+
     def create_esp_group(self, name: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_esp_group_path(name))
 
@@ -534,6 +538,9 @@ class IPSecBatchBuilder(BatchBuilder):
 
     def set_ra_connection_auth_psk(self, conn: str, secret: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_psk_path(conn, secret))
+
+    def delete_ra_connection_auth_psk(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_auth_psk_path(conn, ""))
 
     def set_ra_connection_auth_x509_ca_cert(self, conn: str, ca_cert: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_x509_ca_cert_path(conn, ca_cert))
