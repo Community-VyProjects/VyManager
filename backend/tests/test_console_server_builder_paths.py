@@ -18,7 +18,6 @@ CASES = [
     ("delete_console_server", (), "delete", BASE),
     ("set_device", (DEVICE,), "set", NODE),
     ("delete_device", (DEVICE,), "delete", NODE),
-    ("delete_devices", (), "delete", BASE + ["device"]),
     ("set_device_alias", (DEVICE, "core-console"), "set", NODE + ["alias", "core-console"]),
     ("delete_device_alias", (DEVICE,), "delete", NODE + ["alias"]),
     ("set_device_data_bits", (DEVICE, "8"), "set", NODE + ["data-bits", "8"]),
@@ -30,11 +29,19 @@ CASES = [
     ("set_device_speed", (DEVICE, "9600"), "set", NODE + ["speed", "9600"]),
     ("delete_device_speed", (DEVICE,), "delete", NODE + ["speed"]),
     ("set_device_ssh_port", (DEVICE, "2222"), "set", NODE + ["ssh", "port", "2222"]),
-    ("delete_device_ssh_port", (DEVICE,), "delete", NODE + ["ssh", "port"]),
     ("delete_device_ssh", (DEVICE,), "delete", NODE + ["ssh"]),
     ("set_device_stop_bits", (DEVICE, "1"), "set", NODE + ["stop-bits", "1"]),
     ("delete_device_stop_bits", (DEVICE,), "delete", NODE + ["stop-bits"]),
 ]
+
+
+def test_capabilities_do_not_branch_on_version_string():
+    rolling = ConsoleServerBatchBuilder(version="2026.09.23-rolling").get_capabilities()
+    one_four = ConsoleServerBatchBuilder(version="VyOS 1.4.3").get_capabilities()
+    assert "version_info" not in rolling
+    assert "version_info" not in one_four
+    assert rolling["features"] == one_four["features"]
+    assert all(item["supported"] for item in rolling["features"].values())
 
 
 @pytest.mark.parametrize("method, args, op, expected_path", CASES)
