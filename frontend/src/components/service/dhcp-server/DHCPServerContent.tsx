@@ -760,7 +760,7 @@ export function DHCPServerContent() {
                                         >
                                           {subnet.subnet}
                                         </ClickableSubnet>
-                                        {capabilities?.has_subnet_id && subnet.subnet_id && (
+                                        {capabilities?.fields.subnet_id.supported && subnet.subnet_id && (
                                           <Badge variant="outline" className="text-xs ml-1">
                                             ID: {subnet.subnet_id}
                                           </Badge>

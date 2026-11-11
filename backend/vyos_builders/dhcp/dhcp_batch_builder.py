@@ -8,7 +8,7 @@ Handles version-specific differences through the mapper layer.
 from typing import Any, Dict, List, Sequence, Tuple, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.dhcp.dhcp import DHCPMapper
-from vyos_mappers.dhcp.dhcp_catalog import catalog_payload, leaf_for
+from vyos_mappers.dhcp.dhcp_catalog import leaf_for
 from vyos_builders.base import BatchBuilder
 
 
@@ -36,6 +36,12 @@ class DHCPBatchBuilder(BatchBuilder):
     def operation_count(self) -> int:
         """Get the number of operations in the batch."""
         return len(self._operations)
+
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a leaf only one VyOS version has; ValueError elsewhere."""
+        mapper = self._mapper()
+        mapper.require_node(node)
+        return getattr(mapper, method)(*args)
 
     # ========================================================================
     # Global DHCP Server Operations
@@ -73,20 +79,20 @@ class DHCPBatchBuilder(BatchBuilder):
 
     def set_host_decl_name(self) -> "DHCPBatchBuilder":
         """Enable host-decl-name."""
-        path = self.mappers[self.mapper_key].get_host_decl_name()
+        path = self._versioned_path("host-decl-name", "get_host_decl_name")
         return self.add_set(path)
 
     def delete_host_decl_name(self) -> "DHCPBatchBuilder":
         """Disable host-decl-name."""
-        path = self.mappers[self.mapper_key].get_host_decl_name_path()
+        path = self._versioned_path("host-decl-name", "get_host_decl_name_path")
         return self.add_delete(path)
 
     def set_listen_interface(self, interface: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_listen_interface(interface)
+        path = self._versioned_path("listen-interface", "get_listen_interface", interface)
         return self.add_set(path)
 
     def delete_listen_interface(self, interface: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_listen_interface_path(interface)
+        path = self._versioned_path("listen-interface", "get_listen_interface_path", interface)
         return self.add_delete(path)
 
     # ========================================================================
@@ -233,19 +239,10 @@ class DHCPBatchBuilder(BatchBuilder):
         self, network_name: str, subnet: str, subnet_id: int
     ) -> "DHCPBatchBuilder":
         """Set subnet-id (VyOS 1.5 only)."""
-        path = self.mappers[self.mapper_key].get_subnet_subnet_id(
-            network_name, subnet, subnet_id
+        path = self._versioned_path(
+            "subnet-id", "get_subnet_subnet_id", network_name, subnet, subnet_id
         )
         return self.add_set(path)
-
-    def delete_subnet_subnet_id(
-        self, network_name: str, subnet: str
-    ) -> "DHCPBatchBuilder":
-        """Delete subnet-id."""
-        path = self.mappers[self.mapper_key].get_subnet_subnet_id_path(
-            network_name, subnet
-        )
-        return self.add_delete(path)
 
     def set_subnet_default_router(
         self, network_name: str, subnet: str, router: str
@@ -357,12 +354,16 @@ class DHCPBatchBuilder(BatchBuilder):
 
     def set_subnet_disable(self, network_name: str, subnet: str) -> "DHCPBatchBuilder":
         """Disable a subnet."""
-        path = self.mappers[self.mapper_key].get_subnet_disable(network_name, subnet)
+        path = self._versioned_path(
+            "subnet disable", "get_subnet_disable", network_name, subnet
+        )
         return self.add_set(path)
 
     def delete_subnet_disable(self, network_name: str, subnet: str) -> "DHCPBatchBuilder":
         """Enable a subnet."""
-        path = self.mappers[self.mapper_key].get_subnet_disable_path(network_name, subnet)
+        path = self._versioned_path(
+            "subnet disable", "get_subnet_disable_path", network_name, subnet
+        )
         return self.add_delete(path)
 
     def set_subnet_description(
@@ -524,16 +525,18 @@ class DHCPBatchBuilder(BatchBuilder):
     def set_static_mapping_duid(
         self, network_name: str, subnet: str, mapping_name: str, duid: str
     ) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_static_mapping_duid(
-            network_name, subnet, mapping_name, duid
+        path = self._versioned_path(
+            "static-mapping duid", "get_static_mapping_duid",
+            network_name, subnet, mapping_name, duid,
         )
         return self.add_set(path)
 
     def delete_static_mapping_duid(
         self, network_name: str, subnet: str, mapping_name: str
     ) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_static_mapping_duid_path(
-            network_name, subnet, mapping_name
+        path = self._versioned_path(
+            "static-mapping duid", "get_static_mapping_duid_path",
+            network_name, subnet, mapping_name,
         )
         return self.add_delete(path)
 
@@ -559,8 +562,9 @@ class DHCPBatchBuilder(BatchBuilder):
         self, network_name: str, subnet: str, mapping_name: str, description: str
     ) -> "DHCPBatchBuilder":
         """Set static mapping description."""
-        path = self.mappers[self.mapper_key].get_static_mapping_description(
-            network_name, subnet, mapping_name, description
+        path = self._versioned_path(
+            "static-mapping description", "get_static_mapping_description",
+            network_name, subnet, mapping_name, description,
         )
         return self.add_set(path)
 
@@ -568,8 +572,9 @@ class DHCPBatchBuilder(BatchBuilder):
         self, network_name: str, subnet: str, mapping_name: str
     ) -> "DHCPBatchBuilder":
         """Delete static mapping description."""
-        path = self.mappers[self.mapper_key].get_static_mapping_description_path(
-            network_name, subnet, mapping_name
+        path = self._versioned_path(
+            "static-mapping description", "get_static_mapping_description_path",
+            network_name, subnet, mapping_name,
         )
         return self.add_delete(path)
 
@@ -747,8 +752,8 @@ class DHCPBatchBuilder(BatchBuilder):
         self, network_name: str, subnet: str
     ) -> "DHCPBatchBuilder":
         """Enable subnet failover."""
-        path = self.mappers[self.mapper_key].get_subnet_enable_failover(
-            network_name, subnet
+        path = self._versioned_path(
+            "subnet enable-failover", "get_subnet_enable_failover", network_name, subnet
         )
         return self.add_set(path)
 
@@ -756,8 +761,8 @@ class DHCPBatchBuilder(BatchBuilder):
         self, network_name: str, subnet: str
     ) -> "DHCPBatchBuilder":
         """Disable subnet failover."""
-        path = self.mappers[self.mapper_key].get_subnet_enable_failover_path(
-            network_name, subnet
+        path = self._versioned_path(
+            "subnet enable-failover", "get_subnet_enable_failover_path", network_name, subnet
         )
         return self.add_delete(path)
 
@@ -812,23 +817,31 @@ class DHCPBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     def set_failover_certificate(self, name: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_failover_certificate(name)
+        path = self._versioned_path(
+            "high-availability certificate", "get_failover_certificate", name
+        )
         return self.add_set(path)
 
     def delete_failover_certificate(self) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_failover_certificate_path()
+        path = self._versioned_path(
+            "high-availability certificate", "get_failover_certificate_path"
+        )
         return self.add_delete(path)
 
     def set_failover_ca_certificate(self, name: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_failover_ca_certificate(name)
+        path = self._versioned_path(
+            "high-availability ca-certificate", "get_failover_ca_certificate", name
+        )
         return self.add_set(path)
 
     def delete_failover_ca_certificate(self) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_failover_ca_certificate_path()
+        path = self._versioned_path(
+            "high-availability ca-certificate", "get_failover_ca_certificate_path"
+        )
         return self.add_delete(path)
 
     def set_dynamic_dns_update(self) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dynamic_dns_update()
+        path = self._versioned_path("dynamic-dns-update", "get_dynamic_dns_update")
         return self.add_set(path)
 
     def delete_dynamic_dns_update(self) -> "DHCPBatchBuilder":
@@ -836,7 +849,9 @@ class DHCPBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     def set_ddns_send_updates(self, value: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_send_updates(value)
+        path = self._versioned_path(
+            "dynamic-dns-update send-updates", "get_ddns_send_updates", value
+        )
         return self.add_set(path)
 
     def set_ddns_scalar(self, spec: str) -> "DHCPBatchBuilder":
@@ -846,70 +861,93 @@ class DHCPBatchBuilder(BatchBuilder):
         field, sep, value = spec.partition("|")
         if not sep:
             raise ValueError("set_ddns_scalar requires '<field>|<value>'")
-        path = self.mappers[self.mapper_key].get_ddns_scalar(field, value)
+        path = self._versioned_path(
+            f"dynamic-dns-update {field}", "get_ddns_scalar", field, value
+        )
         return self.add_set(path)
 
     def delete_ddns_scalar(self, field: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_scalar_path(field)
+        path = self._versioned_path(
+            f"dynamic-dns-update {field}", "get_ddns_scalar_path", field
+        )
         return self.add_delete(path)
 
     def delete_ddns_send_updates(self) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_send_updates_path()
+        path = self._versioned_path(
+            "dynamic-dns-update send-updates", "get_ddns_send_updates_path"
+        )
         return self.add_delete(path)
 
     def set_ddns_tsig_key(self, name: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_tsig_key(name)
+        path = self._versioned_path("dynamic-dns-update tsig-key", "get_ddns_tsig_key", name)
         return self.add_set(path)
 
     def delete_ddns_tsig_key(self, name: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_tsig_key_path(name)
+        path = self._versioned_path(
+            "dynamic-dns-update tsig-key", "get_ddns_tsig_key_path", name
+        )
         return self.add_delete(path)
 
     def set_ddns_tsig_key_algorithm(self, name: str, algorithm: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_tsig_key_algorithm(name, algorithm)
+        path = self._versioned_path(
+            "dynamic-dns-update tsig-key", "get_ddns_tsig_key_algorithm", name, algorithm
+        )
         return self.add_set(path)
 
     def set_ddns_tsig_key_secret(self, name: str, secret: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_tsig_key_secret(name, secret)
+        path = self._versioned_path(
+            "dynamic-dns-update tsig-key", "get_ddns_tsig_key_secret", name, secret
+        )
         return self.add_set(path)
 
     def set_ddns_domain(self, kind: str, domain: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_domain(kind, domain)
+        path = self._versioned_path(
+            f"dynamic-dns-update {kind}", "get_ddns_domain", kind, domain
+        )
         return self.add_set(path)
 
     def delete_ddns_domain(self, kind: str, domain: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_domain_path(kind, domain)
+        path = self._versioned_path(
+            f"dynamic-dns-update {kind}", "get_ddns_domain_path", kind, domain
+        )
         return self.add_delete(path)
 
     def set_ddns_domain_key_name(self, kind: str, domain: str, key_name: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_domain_key_name(kind, domain, key_name)
+        path = self._versioned_path(
+            f"dynamic-dns-update {kind}", "get_ddns_domain_key_name", kind, domain, key_name
+        )
         return self.add_set(path)
 
     def delete_ddns_domain_key_name(self, kind: str, domain: str) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_domain_key_name_path(kind, domain)
+        path = self._versioned_path(
+            f"dynamic-dns-update {kind}", "get_ddns_domain_key_name_path", kind, domain
+        )
         return self.add_delete(path)
 
     def set_ddns_domain_dns_server_address(
         self, kind: str, domain: str, server_id: str, address: str
     ) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_domain_dns_server_address(
-            kind, domain, server_id, address
+        path = self._versioned_path(
+            f"dynamic-dns-update {kind}", "get_ddns_domain_dns_server_address",
+            kind, domain, server_id, address,
         )
         return self.add_set(path)
 
     def set_ddns_domain_dns_server_port(
         self, kind: str, domain: str, server_id: str, port: str
     ) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_domain_dns_server_port(
-            kind, domain, server_id, port
+        path = self._versioned_path(
+            f"dynamic-dns-update {kind}", "get_ddns_domain_dns_server_port",
+            kind, domain, server_id, port,
         )
         return self.add_set(path)
 
     def delete_ddns_domain_dns_server(
         self, kind: str, domain: str, server_id: str
     ) -> "DHCPBatchBuilder":
-        path = self.mappers[self.mapper_key].get_ddns_domain_dns_server_path(
-            kind, domain, server_id
+        path = self._versioned_path(
+            f"dynamic-dns-update {kind}", "get_ddns_domain_dns_server_path",
+            kind, domain, server_id,
         )
         return self.add_delete(path)
 
@@ -985,28 +1023,42 @@ class DHCPBatchBuilder(BatchBuilder):
         return parts[0].strip(), parts[1]
 
     def set_client_class(self, name: str) -> "DHCPBatchBuilder":
-        return self.add_set(self._mapper().get_client_class(name))
+        return self.add_set(self._versioned_path("client-class", "get_client_class", name))
 
     def delete_client_class(self, name: str) -> "DHCPBatchBuilder":
-        return self.add_delete(self._mapper().get_client_class_path(name))
+        return self.add_delete(
+            self._versioned_path("client-class", "get_client_class_path", name)
+        )
 
     def set_client_class_disable(self, name: str) -> "DHCPBatchBuilder":
-        return self.add_set(self._mapper().get_client_class_disable(name))
+        return self.add_set(
+            self._versioned_path("client-class", "get_client_class_disable", name)
+        )
 
     def delete_client_class_disable(self, name: str) -> "DHCPBatchBuilder":
-        return self.add_delete(self._mapper().get_client_class_disable_path(name))
+        return self.add_delete(
+            self._versioned_path("client-class", "get_client_class_disable_path", name)
+        )
 
     def set_client_class_circuit_id(self, name: str, value: str) -> "DHCPBatchBuilder":
-        return self.add_set(self._mapper().get_client_class_circuit_id(name, value))
+        return self.add_set(
+            self._versioned_path("client-class", "get_client_class_circuit_id", name, value)
+        )
 
     def delete_client_class_circuit_id(self, name: str) -> "DHCPBatchBuilder":
-        return self.add_delete(self._mapper().get_client_class_circuit_id_path(name))
+        return self.add_delete(
+            self._versioned_path("client-class", "get_client_class_circuit_id_path", name)
+        )
 
     def set_client_class_remote_id(self, name: str, value: str) -> "DHCPBatchBuilder":
-        return self.add_set(self._mapper().get_client_class_remote_id(name, value))
+        return self.add_set(
+            self._versioned_path("client-class", "get_client_class_remote_id", name, value)
+        )
 
     def delete_client_class_remote_id(self, name: str) -> "DHCPBatchBuilder":
-        return self.add_delete(self._mapper().get_client_class_remote_id_path(name))
+        return self.add_delete(
+            self._versioned_path("client-class", "get_client_class_remote_id_path", name)
+        )
 
     # ========================================================================
     # Capabilities
@@ -1015,14 +1067,9 @@ class DHCPBatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
         mapper = self._mapper()
-        has_subnet_id = mapper.has_subnet_id()
-        can_clear_inactive_leases = mapper.can_clear_inactive_leases()
-        is_v15_or_later = "1.5" in self.version or "latest" in self.version
-        is_v14 = "1.4" in self.version
+        nodes = mapper.versioned_nodes()
 
         return {
-            "version": self.version,
-            "has_subnet_id": has_subnet_id,
             "fields": {
                 # Basic configuration fields
                 "subnet": {
@@ -1030,7 +1077,7 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "Subnet CIDR (e.g., 192.168.1.0/24)",
                 },
                 "subnet_id": {
-                    "supported": has_subnet_id,
+                    "supported": "subnet-id" in nodes,
                     "description": "Subnet ID (VyOS 1.5+ required)",
                 },
                 "default_router": {
@@ -1059,7 +1106,7 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "Addresses the DHCP server listens on",
                 },
                 "listen_interface": {
-                    "supported": mapper.has_listen_interface(),
+                    "supported": "listen-interface" in nodes,
                     "description": "Interfaces the DHCP server listens on",
                 },
                 "hostfile_update": {
@@ -1067,27 +1114,32 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "Write DHCP hostnames into the hosts file",
                 },
                 "host_decl_name": {
-                    "supported": mapper.has_host_decl_name(),
+                    "supported": "host-decl-name" in nodes,
                     "description": "Use the host declaration name as the hostname",
                 },
                 "static_mapping_duid": {
-                    "supported": mapper.has_static_mapping_duid(),
+                    "supported": "static-mapping duid" in nodes,
                     "description": "Identify a static mapping by DUID",
+                },
+                "static_mapping_description": {
+                    "supported": "static-mapping description" in nodes,
+                    "description": "Static mapping description",
                 },
                 "failover": {
                     "supported": True,
                     "description": "DHCP high-availability peer",
                 },
                 "failover_certificate": {
-                    "supported": mapper.has_failover_certificate(),
+                    "supported": "high-availability certificate" in nodes
+                    and "high-availability ca-certificate" in nodes,
                     "description": "TLS certificate for DHCP high availability",
                 },
                 "dynamic_dns_update_leaf": {
-                    "supported": mapper.has_dynamic_dns_update_leaf(),
+                    "supported": "dynamic-dns-update" in nodes,
                     "description": "Enable DHCP dynamic DNS updates",
                 },
                 "dynamic_dns_update_kea": {
-                    "supported": mapper.has_dynamic_dns_update_kea(),
+                    "supported": "dynamic-dns-update send-updates" in nodes,
                     "description": "Kea dynamic DNS update settings",
                 },
                 "network_disable": {
@@ -1095,7 +1147,7 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "Disable a shared network",
                 },
                 "subnet_disable": {
-                    "supported": mapper.has_subnet_disable(),
+                    "supported": "subnet disable" in nodes,
                     "description": "Disable a subnet",
                 },
                 # DNS fields
@@ -1139,7 +1191,7 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "NTP server addresses",
                 },
                 "time_offset": {
-                    "supported": mapper.has_time_offset(),
+                    "supported": True,
                     "description": "Time offset in seconds",
                 },
                 # Advanced options - Windows/WINS
@@ -1162,25 +1214,17 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "Test IP with ping before assignment",
                 },
                 "enable_failover": {
-                    "supported": mapper.has_enable_failover(),
+                    "supported": "subnet enable-failover" in nodes,
                     "description": "High availability failover",
                 },
                 "clear_inactive_lease": {
-                    "supported": can_clear_inactive_leases,
+                    "supported": mapper.CLEARS_INACTIVE_LEASES,
                     "description": "Clear leases that are not in the active state",
                 },
                 "client_class": {
-                    "supported": mapper.has_client_class(),
+                    "supported": "client-class" in nodes,
                     "description": "Named DHCP client classes",
                 },
             },
-            "catalog": catalog_payload(self.version),
-            "version_notes": {
-                "subnet_id_required": has_subnet_id,
-                "option_prefix": is_v15_or_later,
-                "subnet_failover_removed": not is_v14,
-                "time_offset_requires_option_prefix": is_v15_or_later,
-                "mac_key": "mac" if is_v15_or_later else "mac-address",
-                "shared_network_option_prefix": is_v15_or_later,
-            },
+            "catalog": mapper.catalog(),
         }

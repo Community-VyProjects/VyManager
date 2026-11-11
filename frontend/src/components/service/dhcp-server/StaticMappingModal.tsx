@@ -312,15 +312,17 @@ export function StaticMappingModal({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="mapping-description">{tc("description")}</Label>
-            <Input
-              id="mapping-description"
-              placeholder={tc("optionalDescription")}
-              value={draft.description}
-              onChange={(e) => patch({ description: e.target.value })}
-            />
-          </div>
+          {capabilities?.fields.static_mapping_description?.supported && (
+            <div className="space-y-2">
+              <Label htmlFor="mapping-description">{tc("description")}</Label>
+              <Input
+                id="mapping-description"
+                placeholder={tc("optionalDescription")}
+                value={draft.description}
+                onChange={(e) => patch({ description: e.target.value })}
+              />
+            </div>
+          )}
 
           <DhcpCatalogFields
             leaves={mappingLeaves}

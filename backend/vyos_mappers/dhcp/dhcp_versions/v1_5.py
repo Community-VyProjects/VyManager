@@ -1,362 +1,182 @@
-"""VyOS 1.5 DHCP Server mapper - version-specific differences."""
+"""VyOS 1.5 DHCP server mapper.
+
+On 1.5 (Kea) the subnet and shared-network options sit under ``option`` and
+the static-mapping hardware address is ``mac``. These leaves exist only here:
+``subnet-id``, ``listen-interface``, ``subnet disable``, static-mapping
+``duid`` and ``description``, high-availability ``certificate`` and
+``ca-certificate``, the Kea ``dynamic-dns-update`` children, and
+``client-class``.
+"""
+import re
 from typing import List
 
+from ..dhcp import DHCPMapper
 
-class DHCPMapperV1_5:
-    """Version-specific mapper for VyOS 1.5 DHCP commands.
+_CLIENT_CLASS_NAME = re.compile(r"^[-_a-zA-Z0-9][\w\-\.\+]*$")
 
-    Key differences in 1.5:
-    - Requires subnet-id parameter for each subnet
-    - Uses 'option' prefix for:
-      * default-router
-      * name-server
-      * domain-name
-      * domain-search
-      * bootfile-name
-      * bootfile-server
-      * tftp-server-name
-      * time-server
-      * ntp-server
-      * wins-server
-      * time-offset
-    - No 'option' prefix for:
-      * exclude
-      * lease
-      * range
-      * ping-check
-      * enable-failover
-    """
 
-    # ==================== Version-Specific Commands ====================
+class DHCPMapperV1_5(DHCPMapper):
+    """VyOS 1.5 DHCP server mapper."""
 
-    def get_subnet_subnet_id(
-        self, network_name: str, subnet: str, subnet_id: int
+    OPTION_PREFIX = ("option",)
+    MAC_LEAF = "mac"
+    CATALOG_KEY = "1.5"
+    # 1.5 GraphQL ClearDhcpServerLeaseDhcp clears any lease state.
+    CLEARS_INACTIVE_LEASES = True
+
+    # ==================== Global ====================
+
+    def get_listen_interface(self, interface: str) -> List[str]:
+        return ["service", "dhcp-server", "listen-interface", interface]
+
+    def get_listen_interface_path(self, interface: str) -> List[str]:
+        return ["service", "dhcp-server", "listen-interface", interface]
+
+    # ==================== Subnet ====================
+
+    def get_subnet_subnet_id(self, network_name: str, subnet: str, subnet_id: int) -> List[str]:
+        return self.get_subnet(network_name, subnet) + ["subnet-id", str(subnet_id)]
+
+    def get_subnet_disable(self, network_name: str, subnet: str) -> List[str]:
+        return self.get_subnet(network_name, subnet) + ["disable"]
+
+    def get_subnet_disable_path(self, network_name: str, subnet: str) -> List[str]:
+        return self.get_subnet(network_name, subnet) + ["disable"]
+
+    # ==================== Static Mapping ====================
+
+    def get_static_mapping_duid(
+        self, network_name: str, subnet: str, mapping_name: str, duid: str
     ) -> List[str]:
-        """Get command path for subnet-id (1.5 only)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "subnet-id", str(subnet_id)
+        return self.get_static_mapping(network_name, subnet, mapping_name) + ["duid", duid]
+
+    def get_static_mapping_duid_path(
+        self, network_name: str, subnet: str, mapping_name: str
+    ) -> List[str]:
+        return self.get_static_mapping(network_name, subnet, mapping_name) + ["duid"]
+
+    def get_static_mapping_description(
+        self, network_name: str, subnet: str, mapping_name: str, description: str
+    ) -> List[str]:
+        return self.get_static_mapping(network_name, subnet, mapping_name) + [
+            "description", description,
         ]
 
-    def get_subnet_subnet_id_path(
-        self, network_name: str, subnet: str
+    def get_static_mapping_description_path(
+        self, network_name: str, subnet: str, mapping_name: str
     ) -> List[str]:
-        """Get command path for subnet-id deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "subnet-id"
+        return self.get_static_mapping(network_name, subnet, mapping_name) + ["description"]
+
+    # ==================== High Availability ====================
+
+    def get_failover_certificate(self, name: str) -> List[str]:
+        return ["service", "dhcp-server", "high-availability", "certificate", name]
+
+    def get_failover_certificate_path(self) -> List[str]:
+        return ["service", "dhcp-server", "high-availability", "certificate"]
+
+    def get_failover_ca_certificate(self, name: str) -> List[str]:
+        return ["service", "dhcp-server", "high-availability", "ca-certificate", name]
+
+    def get_failover_ca_certificate_path(self) -> List[str]:
+        return ["service", "dhcp-server", "high-availability", "ca-certificate"]
+
+    # ==================== Kea dynamic-dns-update ====================
+
+    def _ddns(self) -> List[str]:
+        return ["service", "dhcp-server", "dynamic-dns-update"]
+
+    def get_ddns_scalar(self, field: str, value: str) -> List[str]:
+        return self._ddns() + [field, value]
+
+    def get_ddns_scalar_path(self, field: str) -> List[str]:
+        return self._ddns() + [field]
+
+    def get_ddns_send_updates(self, value: str) -> List[str]:
+        return self._ddns() + ["send-updates", value]
+
+    def get_ddns_send_updates_path(self) -> List[str]:
+        return self._ddns() + ["send-updates"]
+
+    def get_ddns_tsig_key(self, name: str) -> List[str]:
+        return self._ddns() + ["tsig-key", name]
+
+    def get_ddns_tsig_key_path(self, name: str) -> List[str]:
+        return self._ddns() + ["tsig-key", name]
+
+    def get_ddns_tsig_key_algorithm(self, name: str, algorithm: str) -> List[str]:
+        return self.get_ddns_tsig_key(name) + ["algorithm", algorithm]
+
+    def get_ddns_tsig_key_secret(self, name: str, secret: str) -> List[str]:
+        return self.get_ddns_tsig_key(name) + ["secret", secret]
+
+    def get_ddns_domain(self, kind: str, domain: str) -> List[str]:
+        return self._ddns() + [kind, domain]
+
+    def get_ddns_domain_path(self, kind: str, domain: str) -> List[str]:
+        return self._ddns() + [kind, domain]
+
+    def get_ddns_domain_key_name(self, kind: str, domain: str, key_name: str) -> List[str]:
+        return self.get_ddns_domain(kind, domain) + ["key-name", key_name]
+
+    def get_ddns_domain_key_name_path(self, kind: str, domain: str) -> List[str]:
+        return self.get_ddns_domain(kind, domain) + ["key-name"]
+
+    def get_ddns_domain_dns_server_address(
+        self, kind: str, domain: str, server_id: str, address: str
+    ) -> List[str]:
+        return self.get_ddns_domain_dns_server_path(kind, domain, server_id) + [
+            "address", address,
         ]
 
-    def get_subnet_default_router(
-        self, network_name: str, subnet: str, router: str
+    def get_ddns_domain_dns_server_port(
+        self, kind: str, domain: str, server_id: str, port: str
     ) -> List[str]:
-        """Get command path for subnet default-router (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "default-router", router
+        return self.get_ddns_domain_dns_server_path(kind, domain, server_id) + ["port", port]
+
+    def get_ddns_domain_dns_server_path(
+        self, kind: str, domain: str, server_id: str
+    ) -> List[str]:
+        return self.get_ddns_domain(kind, domain) + ["dns-server", server_id]
+
+    # ==================== Client Class ====================
+
+    def _class_value(self, value: str, label: str) -> str:
+        cleaned = str(value or "").strip()
+        if not cleaned:
+            raise ValueError(f"{label} requires a value")
+        if "|" in cleaned:
+            raise ValueError(f"{label} value cannot contain '|'")
+        return cleaned
+
+    def get_client_class(self, name: str) -> List[str]:
+        if not _CLIENT_CLASS_NAME.match(name or ""):
+            raise ValueError("Invalid client-class name")
+        return ["service", "dhcp-server", "client-class", name]
+
+    def get_client_class_path(self, name: str) -> List[str]:
+        return self.get_client_class(name)
+
+    def get_client_class_disable(self, name: str) -> List[str]:
+        return self.get_client_class(name) + ["disable"]
+
+    def get_client_class_disable_path(self, name: str) -> List[str]:
+        return self.get_client_class(name) + ["disable"]
+
+    def get_client_class_circuit_id(self, name: str, value: str) -> List[str]:
+        cleaned = self._class_value(value, "circuit-id")
+        return self.get_client_class(name) + [
+            "relay-agent-information", "circuit-id", cleaned,
         ]
 
-    def get_subnet_default_router_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet default-router deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "default-router"
+    def get_client_class_circuit_id_path(self, name: str) -> List[str]:
+        return self.get_client_class(name) + ["relay-agent-information", "circuit-id"]
+
+    def get_client_class_remote_id(self, name: str, value: str) -> List[str]:
+        cleaned = self._class_value(value, "remote-id")
+        return self.get_client_class(name) + [
+            "relay-agent-information", "remote-id", cleaned,
         ]
 
-    def get_subnet_name_server(
-        self, network_name: str, subnet: str, name_server: str
-    ) -> List[str]:
-        """Get command path for subnet name-server (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "name-server", name_server
-        ]
-
-    def get_subnet_name_server_path(
-        self, network_name: str, subnet: str, name_server: str
-    ) -> List[str]:
-        """Get command path for specific name-server deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "name-server", name_server
-        ]
-
-    def get_subnet_domain_name(
-        self, network_name: str, subnet: str, domain_name: str
-    ) -> List[str]:
-        """Get command path for subnet domain-name (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "domain-name", domain_name
-        ]
-
-    def get_subnet_domain_name_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet domain-name deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "domain-name"
-        ]
-
-    def get_subnet_domain_search(
-        self, network_name: str, subnet: str, domain_search: str
-    ) -> List[str]:
-        """Get command path for subnet domain-search (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "domain-search", domain_search
-        ]
-
-    def get_subnet_domain_search_path(
-        self, network_name: str, subnet: str, domain_search: str
-    ) -> List[str]:
-        """Get command path for specific domain-search deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "domain-search", domain_search
-        ]
-
-    def get_subnet_bootfile_name(
-        self, network_name: str, subnet: str, bootfile_name: str
-    ) -> List[str]:
-        """Get command path for subnet bootfile-name (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "bootfile-name", bootfile_name
-        ]
-
-    def get_subnet_bootfile_name_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet bootfile-name deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "bootfile-name"
-        ]
-
-    def get_subnet_bootfile_server(
-        self, network_name: str, subnet: str, bootfile_server: str
-    ) -> List[str]:
-        """Get command path for subnet bootfile-server (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "bootfile-server", bootfile_server
-        ]
-
-    def get_subnet_bootfile_server_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet bootfile-server deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "bootfile-server"
-        ]
-
-    def get_subnet_tftp_server_name(
-        self, network_name: str, subnet: str, tftp_server_name: str
-    ) -> List[str]:
-        """Get command path for subnet tftp-server-name (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "tftp-server-name", tftp_server_name
-        ]
-
-    def get_subnet_tftp_server_name_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet tftp-server-name deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "tftp-server-name"
-        ]
-
-    def get_subnet_time_server(
-        self, network_name: str, subnet: str, time_server: str
-    ) -> List[str]:
-        """Get command path for subnet time-server (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "time-server", time_server
-        ]
-
-    def get_subnet_time_server_path(
-        self, network_name: str, subnet: str, time_server: str
-    ) -> List[str]:
-        """Get command path for specific time-server deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "time-server", time_server
-        ]
-
-    def get_subnet_ntp_server(
-        self, network_name: str, subnet: str, ntp_server: str
-    ) -> List[str]:
-        """Get command path for subnet ntp-server (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "ntp-server", ntp_server
-        ]
-
-    def get_subnet_ntp_server_path(
-        self, network_name: str, subnet: str, ntp_server: str
-    ) -> List[str]:
-        """Get command path for specific ntp-server deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "ntp-server", ntp_server
-        ]
-
-    def get_subnet_wins_server(
-        self, network_name: str, subnet: str, wins_server: str
-    ) -> List[str]:
-        """Get command path for subnet wins-server (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "wins-server", wins_server
-        ]
-
-    def get_subnet_wins_server_path(
-        self, network_name: str, subnet: str, wins_server: str
-    ) -> List[str]:
-        """Get command path for specific wins-server deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "wins-server", wins_server
-        ]
-
-    def get_subnet_time_offset(
-        self, network_name: str, subnet: str, time_offset: str
-    ) -> List[str]:
-        """Get command path for subnet time-offset (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "time-offset", time_offset
-        ]
-
-    def get_subnet_time_offset_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet time-offset deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "time-offset"
-        ]
-
-    def get_subnet_client_prefix_length(
-        self, network_name: str, subnet: str, prefix_length: str
-    ) -> List[str]:
-        """Get command path for subnet client-prefix-length (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "client-prefix-length", prefix_length
-        ]
-
-    def get_subnet_client_prefix_length_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet client-prefix-length deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "client-prefix-length"
-        ]
-
-    def get_subnet_wpad_url(
-        self, network_name: str, subnet: str, url: str
-    ) -> List[str]:
-        """Get command path for subnet wpad-url (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "wpad-url", url
-        ]
-
-    def get_subnet_wpad_url_path(
-        self, network_name: str, subnet: str
-    ) -> List[str]:
-        """Get command path for subnet wpad-url deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "option", "wpad-url"
-        ]
-
-    def get_shared_network_name_server(
-        self, network_name: str, name_server: str
-    ) -> List[str]:
-        """Get command path for shared network name-server (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "option", "name-server", name_server
-        ]
-
-    def get_shared_network_name_server_path(
-        self, network_name: str, name_server: str
-    ) -> List[str]:
-        """Get command path for shared network name-server deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "option", "name-server", name_server
-        ]
-
-    def get_shared_network_domain_name(
-        self, network_name: str, domain_name: str
-    ) -> List[str]:
-        """Get command path for shared network domain-name (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "option", "domain-name", domain_name
-        ]
-
-    def get_shared_network_domain_name_path(
-        self, network_name: str
-    ) -> List[str]:
-        """Get command path for shared network domain-name deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "option", "domain-name"
-        ]
-
-    def get_shared_network_domain_search(
-        self, network_name: str, domain_search: str
-    ) -> List[str]:
-        """Get command path for shared network domain-search (1.5: with 'option' prefix)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "option", "domain-search", domain_search
-        ]
-
-    def get_shared_network_domain_search_path(
-        self, network_name: str, domain_search: str
-    ) -> List[str]:
-        """Get command path for shared network domain-search deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "option", "domain-search", domain_search
-        ]
-
-    def get_subnet_exclude(
-        self, network_name: str, subnet: str, exclude: str
-    ) -> List[str]:
-        """Get command path for subnet exclude (1.5: no 'option' prefix for exclude)."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "exclude", exclude
-        ]
-
-    def get_subnet_exclude_path(
-        self, network_name: str, subnet: str, exclude: str
-    ) -> List[str]:
-        """Get command path for specific exclude deletion."""
-        return [
-            "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "exclude", exclude
-        ]
-
-    def has_subnet_id(self) -> bool:
-        """Returns True - subnet-id is required in VyOS 1.5."""
-        return True
-
-    def can_clear_inactive_leases(self) -> bool:
-        """1.5 GraphQL ClearDhcpServerLeaseDhcp clears any lease state."""
-        return True
+    def get_client_class_remote_id_path(self, name: str) -> List[str]:
+        return self.get_client_class(name) + ["relay-agent-information", "remote-id"]

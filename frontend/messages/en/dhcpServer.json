@@ -343,8 +343,7 @@
   },
   "networkOptions": {
     "title": "{name} options",
-    "description": "Shared-network leaves this device supports that are not already set elsewhere",
-    "none": "No extra shared-network options on this device.",
+    "description": "Settings for this shared network",
     "saveFailed": "Failed to save network options",
     "open": "Network options"
   },

@@ -76,7 +76,7 @@ export function serverFieldSupport(
 ): ServerFieldSupport {
   const fields = capabilities?.fields;
   return {
-    hasSubnetId: capabilities?.has_subnet_id ?? false,
+    hasSubnetId: fields?.subnet_id.supported ?? false,
     pingCheck: fields?.ping_check.supported ?? false,
     enableFailover: fields?.enable_failover.supported ?? false,
     bootfileName: fields?.bootfile_name.supported ?? false,

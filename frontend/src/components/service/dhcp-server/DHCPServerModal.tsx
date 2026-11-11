@@ -109,7 +109,7 @@ export function DHCPServerModal({
   const support = serverFieldSupport(capabilities);
 
   const calculateNextSubnetId = useCallback(async () => {
-    if (!capabilities?.has_subnet_id) return;
+    if (!capabilities?.fields.subnet_id.supported) return;
 
     try {
       const config = await dhcpService.getConfig();

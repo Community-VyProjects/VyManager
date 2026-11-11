@@ -1,4 +1,4 @@
 """DHCP Server batch builder."""
-from .dhcp import DHCPBatchBuilder
+from .dhcp_batch_builder import DHCPBatchBuilder
 
 __all__ = ["DHCPBatchBuilder"]

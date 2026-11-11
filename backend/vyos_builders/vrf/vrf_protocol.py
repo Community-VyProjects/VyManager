@@ -11,7 +11,7 @@ import inspect
 from typing import Any, Callable, List, Optional, Tuple
 
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
-from vyos_builders.dhcp.dhcp import DHCPBatchBuilder
+from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
 from vyos_builders.dhcpv6_server.dhcpv6_server_batch_builder import DHCPv6ServerBatchBuilder
 from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.isis.isis_batch_builder import IsisBatchBuilder
