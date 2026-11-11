@@ -1161,7 +1161,9 @@ export class DHCPService {
           else operations.push({ op: "delete_ddns_scalar", value: leaf });
         }
         const origKeys = new Map(original.tsig_keys.map((k) => [k.name, k]));
-        const nextKeys = new Map(updated.tsig_keys.filter((k) => k.name.trim()).map((k) => [k.name, k]));
+        const nextKeys = new Map(
+          updated.tsig_keys.filter((k) => k.name.trim()).map((k) => [k.name.trim(), k])
+        );
         for (const name of origKeys.keys()) {
           if (!nextKeys.has(name)) operations.push({ op: "delete_ddns_tsig_key", value: name });
         }
@@ -1179,7 +1181,7 @@ export class DHCPService {
         }
         const diffDomains = (kind: "forward-domain" | "reverse-domain", origList: DHCPDdnsDomain[], nextList: DHCPDdnsDomain[]) => {
           const origMap = new Map(origList.map((d) => [d.name, d]));
-          const nextMap = new Map(nextList.filter((d) => d.name.trim()).map((d) => [d.name, d]));
+          const nextMap = new Map(nextList.filter((d) => d.name.trim()).map((d) => [d.name.trim(), d]));
           for (const name of origMap.keys()) {
             if (!nextMap.has(name)) operations.push({ op: "delete_ddns_domain", value: `${kind}|${name}` });
           }
@@ -1194,7 +1196,9 @@ export class DHCPService {
               }
             }
             const origServers = new Map((prev?.dns_servers ?? []).map((s) => [s.id, s]));
-            const nextServers = new Map(domain.dns_servers.filter((s) => s.id.trim()).map((s) => [s.id, s]));
+            const nextServers = new Map(
+              domain.dns_servers.filter((s) => s.id.trim()).map((s) => [s.id.trim(), s])
+            );
             for (const id of origServers.keys()) {
               if (!nextServers.has(id)) {
                 operations.push({ op: "delete_ddns_domain_dns_server", value: `${kind}|${name}|${id}` });
@@ -1202,17 +1206,19 @@ export class DHCPService {
             }
             for (const [id, server] of nextServers) {
               const prevS = origServers.get(id);
-              if ((server.address ?? "") !== (prevS?.address ?? "") && server.address) {
+              const address = (server.address ?? "").trim();
+              if (address !== (prevS?.address ?? "") && address) {
                 operations.push({
                   op: "set_ddns_domain_dns_server_address",
-                  value: `${kind}|${name}|${id}|${server.address}`,
+                  value: `${kind}|${name}|${id}|${address}`,
                 });
               }
-              if ((server.port ?? "") !== (prevS?.port ?? "")) {
-                if (server.port) {
+              const port = (server.port ?? "").trim();
+              if (port !== (prevS?.port ?? "")) {
+                if (port) {
                   operations.push({
                     op: "set_ddns_domain_dns_server_port",
-                    value: `${kind}|${name}|${id}|${server.port}`,
+                    value: `${kind}|${name}|${id}|${port}`,
                   });
                 } else if (prevS?.port) {
                   operations.push({

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ddnsProblem, type DHCPDdnsConfig } from "@/lib/api/dhcp-server";
+import { ddnsProblem, dhcpService, type DHCPBatchRequest, type DHCPDdnsConfig } from "@/lib/api/dhcp-server";
 
 const base = (): DHCPDdnsConfig => ({
   present: true,
@@ -37,5 +37,29 @@ describe("ddnsProblem", () => {
       reverse_domains: [{ name: "2.0.192.in-addr.arpa", dns_servers: [{ id: "1", port: "53" }] }],
     };
     assert.equal(ddnsProblem(base(), next), "dnsServerAddress");
+  });
+});
+
+describe("saveDdns", () => {
+  it("emits the trimmed names it validated", async () => {
+    let sent: DHCPBatchRequest | undefined;
+    const service = Object.create(dhcpService) as typeof dhcpService;
+    service.batchConfigure = async (request: DHCPBatchRequest) => {
+      sent = request;
+      return { success: true };
+    };
+    const next: DHCPDdnsConfig = {
+      ...base(),
+      tsig_keys: [{ name: "K1 ", algorithm: "sha256", secret: "" }],
+      forward_domains: [
+        { name: " example.com", key_name: "K1", dns_servers: [{ id: "1 ", address: " 192.0.2.1", port: "" }] },
+      ],
+    };
+    await service.saveDdns(base(), next, false, true);
+    assert.deepEqual(sent?.operations, [
+      { op: "set_ddns_domain", value: "forward-domain|example.com" },
+      { op: "set_ddns_domain_key_name", value: "forward-domain|example.com|K1" },
+      { op: "set_ddns_domain_dns_server_address", value: "forward-domain|example.com|1|192.0.2.1" },
+    ]);
   });
 });
