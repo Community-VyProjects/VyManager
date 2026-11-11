@@ -194,6 +194,12 @@ interface DHCPDdnsKeaCapability extends DHCPFieldCapability {
 /** Config responses replace a secret with this. It is never written back. */
 export const MASKED_SECRET = "***";
 
+/** The TSIG secret an edit writes: trimmed, and blank when it is empty or the mask. */
+function tsigSecretToWrite(key: DHCPDdnsTsigKey): string {
+  const secret = (key.secret ?? "").trim();
+  return secret === MASKED_SECRET ? "" : secret;
+}
+
 export type DdnsProblem = "tsigKeyIncomplete" | "dnsServerAddress" | "unknownKey";
 
 /** A Kea dynamic-dns-update edit the lab commit would reject, or null. */
@@ -206,7 +212,7 @@ export function ddnsProblem(original: DHCPDdnsConfig, updated: DHCPDdnsConfig): 
     if (!name) continue;
     names.add(name);
     if (!key.algorithm) return "tsigKeyIncomplete";
-    if (!configured.has(name) && !(key.secret ?? "").trim()) return "tsigKeyIncomplete";
+    if (!configured.has(name) && !tsigSecretToWrite(key)) return "tsigKeyIncomplete";
   }
   for (const domain of [...updated.forward_domains, ...updated.reverse_domains]) {
     if (!domain.name.trim()) continue;
@@ -1174,8 +1180,8 @@ export class DHCPService {
             operations.push({ op: "set_ddns_tsig_key_algorithm", value: `${name}|${key.algorithm}` });
           }
           // A blank or masked secret keeps the configured one.
-          const secret = key.secret ?? "";
-          if (secret && secret !== MASKED_SECRET) {
+          const secret = tsigSecretToWrite(key);
+          if (secret) {
             operations.push({ op: "set_ddns_tsig_key_secret", value: `${name}|${secret}` });
           }
         }

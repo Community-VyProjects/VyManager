@@ -20,6 +20,10 @@ describe("ddnsProblem", () => {
     const noAlgo = { ...base(), tsig_keys: [...base().tsig_keys, { name: "K2", algorithm: "", secret: "c2Vj" }] };
     assert.equal(ddnsProblem(base(), noSecret), "tsigKeyIncomplete");
     assert.equal(ddnsProblem(base(), noAlgo), "tsigKeyIncomplete");
+    for (const secret of ["  ", "***", " *** "]) {
+      const masked = { ...base(), tsig_keys: [...base().tsig_keys, { name: "K2", algorithm: "sha1", secret }] };
+      assert.equal(ddnsProblem(base(), masked), "tsigKeyIncomplete");
+    }
   });
 
   it("rejects a domain whose key is removed", () => {
@@ -50,13 +54,19 @@ describe("saveDdns", () => {
     };
     const next: DHCPDdnsConfig = {
       ...base(),
-      tsig_keys: [{ name: "K1 ", algorithm: "sha256", secret: "" }],
+      tsig_keys: [
+        { name: "K1 ", algorithm: "sha256", secret: "   " },
+        { name: "K2", algorithm: "sha1", secret: " c2Vj " },
+      ],
       forward_domains: [
         { name: " example.com", key_name: "K1", dns_servers: [{ id: "1 ", address: " 192.0.2.1", port: "" }] },
       ],
     };
     await service.saveDdns(base(), next, false, true);
     assert.deepEqual(sent?.operations, [
+      { op: "set_ddns_tsig_key", value: "K2" },
+      { op: "set_ddns_tsig_key_algorithm", value: "K2|sha1" },
+      { op: "set_ddns_tsig_key_secret", value: "K2|c2Vj" },
       { op: "set_ddns_domain", value: "forward-domain|example.com" },
       { op: "set_ddns_domain_key_name", value: "forward-domain|example.com|K1" },
       { op: "set_ddns_domain_dns_server_address", value: "forward-domain|example.com|1|192.0.2.1" },
