@@ -28,6 +28,9 @@ class IPSecBatchBuilder(BatchBuilder):
     def operation_count(self) -> int:
         return len(self._operations)
 
+    def _delete_value_node(self, path: list) -> "IPSecBatchBuilder":
+        return self.add_delete(path[:-1])
+
     # ========================================================================
     # Global Settings
     # ========================================================================
@@ -242,9 +245,6 @@ class IPSecBatchBuilder(BatchBuilder):
 
     def create_s2s_peer(self, peer: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_path(peer))
-
-    def _delete_value_node(self, path: list) -> "IPSecBatchBuilder":
-        return self.add_delete(path[:-1])
 
     def delete_s2s_peer(self, peer: str) -> "IPSecBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_s2s_peer_path(peer))
@@ -610,6 +610,10 @@ class IPSecBatchBuilder(BatchBuilder):
         mapper = self.mappers[self.mapper_key]
         mapper._require_node("pool_range")
         return self.add_set(getattr(mapper, "get_ra_pool_range_stop_path")(pool, stop))
+
+    # ========================================================================
+    # Capabilities
+    # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
         mapper = self.mappers[self.mapper_key]

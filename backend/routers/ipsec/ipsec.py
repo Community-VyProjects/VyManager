@@ -37,6 +37,7 @@ class IPSecBatchOperation(BaseModel):
     """Single operation in a batch request."""
     op: str = Field(..., description="Operation name (e.g., create_esp_group, set_s2s_peer_ike_group)")
     value: Optional[str] = Field(None, description="Operation value")
+    item_name: Optional[str] = Field(None, description="Per-operation name. Overrides the request item_name.")
 
 
 class IPSecBatchRequest(BaseModel):
@@ -257,8 +258,9 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
             params = [p for p in sig.parameters.keys() if p != "self"]
 
             args = []
+            effective_name = operation.item_name or request.item_name
             if len(params) >= 1:
-                args.append(request.item_name)
+                args.append(effective_name)
             if len(params) >= 2:
                 if not operation.value:
                     raise HTTPException(

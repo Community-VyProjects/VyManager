@@ -141,7 +141,6 @@
     "initiate": "发起",
     "respond": "响应",
     "trap": "触发",
-    "connectionNone": "无",
     "disable": "禁用",
     "ikev2Reauth": "IKEv2 重新认证",
     "replayWindow": "重放窗口",

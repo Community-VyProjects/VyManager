@@ -101,7 +101,7 @@ export function RemoteAccessModal({
         setEspGroup(existingConnection.esp_group || "");
         setLocalAddress(existingConnection.local_address || "");
         setSelectedPools((existingConnection.pools || []).join(", "));
-        setAuthServerMode(existingConnection.auth_server_mode || "pre-shared-secret");
+        setAuthServerMode(existingConnection.auth_server_mode || "x509");
         setAuthClientMode(existingConnection.auth_client_mode || "");
         setAuthLocalId(existingConnection.auth_local_id || "");
         setAuthPsk("");

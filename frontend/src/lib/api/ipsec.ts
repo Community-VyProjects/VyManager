@@ -258,6 +258,7 @@ export interface VyOSResponse {
 export interface BatchOperation {
   op: string;
   value?: string | null;
+  item_name?: string;
 }
 
 // ============================================================================

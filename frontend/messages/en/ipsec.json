@@ -141,7 +141,6 @@
     "initiate": "Initiate",
     "respond": "Respond",
     "trap": "Trap",
-    "connectionNone": "None",
     "disable": "Disable",
     "ikev2Reauth": "IKEv2 reauth",
     "replayWindow": "Replay window",

@@ -304,7 +304,7 @@ export function SiteToSiteModal({
     if (value === "initiate") return t("s2sModal.initiate");
     if (value === "respond") return t("s2sModal.respond");
     if (value === "trap") return t("s2sModal.trap");
-    if (value === "none") return t("s2sModal.connectionNone");
+    if (value === "none") return tc("none");
     return value;
   };
   const s2s = capabilities?.features.site_to_site;

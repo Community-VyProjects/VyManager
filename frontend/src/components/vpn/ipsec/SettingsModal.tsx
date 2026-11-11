@@ -110,117 +110,56 @@ export function SettingsModal({
     setError(null);
 
     try {
-      // Build operations for boolean toggles
-      // These use a dummy item_name since the builder methods take 0 params
-      const toggleOps: Array<{ itemName: string; ops: BatchOperation[] }> = [];
+      const ops: BatchOperation[] = [];
+      const changed = (next: boolean, prev: boolean, setOp: string, deleteOp: string) => {
+        if (next === prev) return;
+        ops.push({ op: next ? setOp : deleteOp });
+      };
+      changed(disableRouteAutoinstall, currentOptions.disable_route_autoinstall || false, "set_options_disable_route_autoinstall", "delete_options_disable_route_autoinstall");
+      changed(flexvpn, currentOptions.flexvpn || false, "set_options_flexvpn", "delete_options_flexvpn");
+      changed(virtualIp, currentOptions.virtual_ip || false, "set_options_virtual_ip", "delete_options_virtual_ip");
+      changed(disableUniqreqids, currentDisableUniqreqids, "set_disable_uniqreqids", "delete_disable_uniqreqids");
 
-      // Disable route autoinstall
-      if (disableRouteAutoinstall !== (currentOptions.disable_route_autoinstall || false)) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: disableRouteAutoinstall ? "set_options_disable_route_autoinstall" : "delete_options_disable_route_autoinstall" }],
-        });
-      }
-
-      // FlexVPN
-      if (flexvpn !== (currentOptions.flexvpn || false)) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: flexvpn ? "set_options_flexvpn" : "delete_options_flexvpn" }],
-        });
-      }
-
-      // Virtual IP
-      if (virtualIp !== (currentOptions.virtual_ip || false)) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: virtualIp ? "set_options_virtual_ip" : "delete_options_virtual_ip" }],
-        });
-      }
-
-      // Disable unique req IDs
-      if (disableUniqreqids !== currentDisableUniqreqids) {
-        toggleOps.push({
-          itemName: "_settings",
-          ops: [{ op: disableUniqreqids ? "set_disable_uniqreqids" : "delete_disable_uniqreqids" }],
-        });
-      }
-
-      // Interfaces - delete old, set new
       const newInterfaces = interfaces.split(",").map((i) => i.trim()).filter(Boolean);
       for (const oldIface of currentInterfaces) {
-        if (!newInterfaces.includes(oldIface)) {
-          toggleOps.push({
-            itemName: oldIface,
-            ops: [{ op: "delete_interface" }],
-          });
-        }
+        if (!newInterfaces.includes(oldIface)) ops.push({ op: "delete_interface", item_name: oldIface });
       }
       for (const newIface of newInterfaces) {
-        if (!currentInterfaces.includes(newIface)) {
-          toggleOps.push({
-            itemName: newIface,
-            ops: [{ op: "set_interface" }],
-          });
-        }
+        if (!currentInterfaces.includes(newIface)) ops.push({ op: "set_interface", item_name: newIface });
       }
 
-      // Log level
       const currentLevel = currentLog.level || "";
-      if (logLevel !== currentLevel) {
-        if (currentLevel) {
-          toggleOps.push({ itemName: currentLevel, ops: [{ op: "delete_log_level" }] });
-        }
-        if (logLevel) {
-          toggleOps.push({ itemName: logLevel, ops: [{ op: "set_log_level" }] });
-        }
-      }
+      if (!logLevel && currentLevel) ops.push({ op: "delete_log_level" });
+      else if (logLevel && logLevel !== currentLevel) ops.push({ op: "set_log_level", item_name: logLevel });
 
-      // Log subsystems - delete removed, add new
       const currentSubs = currentLog.subsystems || [];
       for (const oldSub of currentSubs) {
-        if (!logSubsystems.includes(oldSub)) {
-          toggleOps.push({ itemName: oldSub, ops: [{ op: "delete_log_subsystem" }] });
-        }
+        if (!logSubsystems.includes(oldSub)) ops.push({ op: "delete_log_subsystem", item_name: oldSub });
       }
       for (const newSub of logSubsystems) {
-        if (!currentSubs.includes(newSub)) {
-          toggleOps.push({ itemName: newSub, ops: [{ op: "set_log_subsystem" }] });
-        }
+        if (!currentSubs.includes(newSub)) ops.push({ op: "set_log_subsystem", item_name: newSub });
       }
 
-      // Retransmission (1.5 only)
       if (capabilities?.features.retransmission_options.supported) {
-        const curAttempts = currentOptions.retransmission_attempts || "";
-        if (retransmissionAttempts !== curAttempts) {
-          if (curAttempts) toggleOps.push({ itemName: curAttempts, ops: [{ op: "delete_options_retransmission_attempts" }] });
-          if (retransmissionAttempts) toggleOps.push({ itemName: retransmissionAttempts, ops: [{ op: "set_options_retransmission_attempts" }] });
-        }
-        const curBase = currentOptions.retransmission_base || "";
-        if (retransmissionBase !== curBase) {
-          if (curBase) toggleOps.push({ itemName: curBase, ops: [{ op: "delete_options_retransmission_base" }] });
-          if (retransmissionBase) toggleOps.push({ itemName: retransmissionBase, ops: [{ op: "set_options_retransmission_base" }] });
-        }
-        const curTimeout = currentOptions.retransmission_timeout || "";
-        if (retransmissionTimeout !== curTimeout) {
-          if (curTimeout) toggleOps.push({ itemName: curTimeout, ops: [{ op: "delete_options_retransmission_timeout" }] });
-          if (retransmissionTimeout) toggleOps.push({ itemName: retransmissionTimeout, ops: [{ op: "set_options_retransmission_timeout" }] });
-        }
+        const leaf = (next: string, prev: string, setOp: string, deleteOp: string) => {
+          if (!next && prev) ops.push({ op: deleteOp });
+          else if (next && next !== prev) ops.push({ op: setOp, item_name: next });
+        };
+        leaf(retransmissionAttempts, currentOptions.retransmission_attempts || "", "set_options_retransmission_attempts", "delete_options_retransmission_attempts");
+        leaf(retransmissionBase, currentOptions.retransmission_base || "", "set_options_retransmission_base", "delete_options_retransmission_base");
+        leaf(retransmissionTimeout, currentOptions.retransmission_timeout || "", "set_options_retransmission_timeout", "delete_options_retransmission_timeout");
       }
 
-      if (toggleOps.length === 0) {
+      if (ops.length === 0) {
         onOpenChange(false);
         return;
       }
 
-      // Execute all operations
-      for (const batch of toggleOps) {
-        const result = await ipsecService.executeBatch(batch.itemName, batch.ops);
-        if (!result.success) {
-          setError(result.error || t("settings.updateFailed"));
-          setLoading(false);
-          return;
-        }
+      const result = await ipsecService.executeBatch("_settings", ops);
+      if (!result.success) {
+        setError(result.error || t("settings.updateFailed"));
+        setLoading(false);
+        return;
       }
 
       onOpenChange(false);

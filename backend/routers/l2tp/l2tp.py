@@ -10,9 +10,10 @@ Uses session-based architecture - VyOS instance comes from user's active session
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.l2tp import L2TPBatchBuilder
+from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.l2tp import L2TPMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -98,7 +99,7 @@ async def get_l2tp_config(request: Request, refresh: bool = False):
 
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
-        mapper = L2TPMapper(version)
+        mapper = cast(L2TPMapper, CommandMapperRegistry.get_mapper("l2tp", version))
         config = mapper.parse_config(full_config)
 
         # Convert local users dict to list for frontend

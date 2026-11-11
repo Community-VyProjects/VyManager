@@ -358,6 +358,10 @@ class IPSecMapper(BaseFeatureMapper):
     def get_ra_pool_exclude_path(self, pool: str, exclude: str) -> List[str]:
         return ["vpn", "ipsec", "remote-access", "pool", pool, "exclude", exclude]
 
+    # ========================================================================
+    # Config Parsing
+    # ========================================================================
+
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         """Parse IPSec configuration from VyOS full config."""
         result = {
@@ -397,7 +401,7 @@ class IPSecMapper(BaseFeatureMapper):
         log_config = ipsec_config.get("log", {})
         result["log"] = {
             "level": log_config.get("level"),
-            "subsystem": self._normalize_to_list(log_config.get("subsystem")),
+            "subsystems": self._normalize_to_list(log_config.get("subsystem")),
         }
 
         # Parse options
@@ -497,11 +501,9 @@ class IPSecMapper(BaseFeatureMapper):
         return {
             "name": name,
             "close_action": config.get("close-action"),
-            "dead_peer_detection": {
-                "action": dpd.get("action"),
-                "interval": dpd.get("interval"),
-                "timeout": dpd.get("timeout"),
-            },
+            "dpd_action": dpd.get("action"),
+            "dpd_interval": dpd.get("interval"),
+            "dpd_timeout": dpd.get("timeout"),
             "disable_mobike": "disable-mobike" in config,
             "ikev2_reauth": "ikev2-reauth" in config,
             "key_exchange": config.get("key-exchange"),
