@@ -144,7 +144,10 @@ export function DHCPDdnsModal({
       ...prev,
       [kind]: prev[kind].map((d, i) => {
         if (i !== index) return d;
-        const nextId = String((d.dns_servers.length || 0) + 1);
+        const used = new Set(d.dns_servers.map((s) => s.id.trim()));
+        let n = 1;
+        while (used.has(String(n))) n += 1;
+        const nextId = String(n);
         return {
           ...d,
           dns_servers: [...d.dns_servers, { id: nextId, address: "", port: "" }],

@@ -200,7 +200,7 @@ function tsigSecretToWrite(key: DHCPDdnsTsigKey): string {
   return secret === MASKED_SECRET ? "" : secret;
 }
 
-export type DdnsProblem = "tsigKeyIncomplete" | "dnsServerAddress" | "unknownKey";
+export type DdnsProblem = "tsigKeyIncomplete" | "dnsServerAddress" | "unknownKey" | "duplicateName";
 
 /** A Kea dynamic-dns-update edit the lab commit would reject, or null. */
 export function ddnsProblem(original: DHCPDdnsConfig, updated: DHCPDdnsConfig): DdnsProblem | null {
@@ -210,13 +210,20 @@ export function ddnsProblem(original: DHCPDdnsConfig, updated: DHCPDdnsConfig): 
   for (const key of updated.tsig_keys) {
     const name = key.name.trim();
     if (!name) continue;
+    if (names.has(name)) return "duplicateName";
     names.add(name);
     if (!key.algorithm) return "tsigKeyIncomplete";
     if (!configured.has(name) && !tsigSecretToWrite(key)) return "tsigKeyIncomplete";
   }
+  for (const list of [updated.forward_domains, updated.reverse_domains]) {
+    const domainNames = list.map((d) => d.name.trim()).filter(Boolean);
+    if (new Set(domainNames).size !== domainNames.length) return "duplicateName";
+  }
   for (const domain of [...updated.forward_domains, ...updated.reverse_domains]) {
     if (!domain.name.trim()) continue;
     if (domain.key_name && !names.has(domain.key_name)) return "unknownKey";
+    const ids = domain.dns_servers.map((s) => s.id.trim()).filter(Boolean);
+    if (new Set(ids).size !== ids.length) return "duplicateName";
     if (domain.dns_servers.some((s) => s.id.trim() && !(s.address ?? "").trim())) {
       return "dnsServerAddress";
     }

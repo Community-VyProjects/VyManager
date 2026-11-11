@@ -35,6 +35,32 @@ describe("ddnsProblem", () => {
     assert.equal(ddnsProblem(base(), next), "unknownKey");
   });
 
+  it("rejects duplicate key names, domain names and DNS server ids", () => {
+    const keys = { ...base(), tsig_keys: [...base().tsig_keys, { name: "K1 ", algorithm: "sha1", secret: "c2Vj" }] };
+    const domains = {
+      ...base(),
+      forward_domains: [
+        { name: "example.com", dns_servers: [] },
+        { name: "example.com ", dns_servers: [] },
+      ],
+    };
+    const servers = {
+      ...base(),
+      forward_domains: [
+        {
+          name: "example.com",
+          dns_servers: [
+            { id: "2", address: "192.0.2.1" },
+            { id: "2", address: "192.0.2.2" },
+          ],
+        },
+      ],
+    };
+    assert.equal(ddnsProblem(base(), keys), "duplicateName");
+    assert.equal(ddnsProblem(base(), domains), "duplicateName");
+    assert.equal(ddnsProblem(base(), servers), "duplicateName");
+  });
+
   it("needs an address on each DNS server", () => {
     const next = {
       ...base(),
