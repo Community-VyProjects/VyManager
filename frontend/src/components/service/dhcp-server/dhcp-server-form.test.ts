@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  DHCPService,
+  DHCPServerService,
   type DHCPBatchOperation,
   type DHCPConfigResponse,
   type DHCPSubnet,
@@ -98,7 +98,7 @@ function configFor(record: DHCPSubnet, network = "LAN"): DHCPConfigResponse {
   };
 }
 
-class RecordingDhcpService extends DHCPService {
+class RecordingDhcpService extends DHCPServerService {
   calls: { network_name: string; subnet?: string; operations: DHCPBatchOperation[] }[] = [];
   seen: DHCPConfigResponse;
 

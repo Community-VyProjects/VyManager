@@ -35,7 +35,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import {
-  dhcpService,
+  dhcpServerService,
   type DHCPConfigResponse,
   type DHCPSubnet,
   type DHCPCapabilitiesResponse,
@@ -196,15 +196,15 @@ export function DHCPServerContent() {
     try {
       if (disableConfirm.kind === "network") {
         if (disableConfirm.currentlyDisabled) {
-          await dhcpService.deleteSharedNetworkDisable(disableConfirm.networkName);
+          await dhcpServerService.deleteSharedNetworkDisable(disableConfirm.networkName);
         } else {
-          await dhcpService.setSharedNetworkDisable(disableConfirm.networkName);
+          await dhcpServerService.setSharedNetworkDisable(disableConfirm.networkName);
         }
       } else {
         if (disableConfirm.currentlyDisabled) {
-          await dhcpService.deleteGlobalDisable();
+          await dhcpServerService.deleteGlobalDisable();
         } else {
-          await dhcpService.setGlobalDisable();
+          await dhcpServerService.setGlobalDisable();
         }
       }
       setDisableConfirm(null);
@@ -221,7 +221,7 @@ export function DHCPServerContent() {
     setClearLeaseLoading(true);
     setClearLeaseError(null);
     try {
-      await dhcpService.clearLease(clearLeaseTarget.ip_address);
+      await dhcpServerService.clearLease(clearLeaseTarget.ip_address);
       setClearLeaseTarget(null);
       fetchLeases();
     } catch (err) {
@@ -235,7 +235,7 @@ export function DHCPServerContent() {
   const fetchLeases = async () => {
     try {
       setLeasesLoading(true);
-      const leasesData = await dhcpService.getLeases();
+      const leasesData = await dhcpServerService.getLeases();
       setLeases(leasesData.leases);
     } catch (err) {
       console.error("Error fetching leases:", err);
@@ -248,7 +248,7 @@ export function DHCPServerContent() {
   const handleDeleteRange = async (subnet: string, rangeId: string) => {
     if (!currentNetwork) return;
     try {
-      await dhcpService.deleteRange(currentNetwork.name, subnet, rangeId);
+      await dhcpServerService.deleteRange(currentNetwork.name, subnet, rangeId);
       fetchConfig(true);
     } catch (err) {
       console.error("Error deleting range:", err);
@@ -260,8 +260,8 @@ export function DHCPServerContent() {
       setLoading(true);
       setError(null);
       const [configData, capsData] = await Promise.all([
-        dhcpService.getConfig(refresh),
-        dhcpService.getCapabilities(),
+        dhcpServerService.getConfig(refresh),
+        dhcpServerService.getCapabilities(),
       ]);
       setConfig(configData);
       setCapabilities(capsData);

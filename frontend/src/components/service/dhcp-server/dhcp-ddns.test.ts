@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ddnsProblem, dhcpService, type DHCPBatchRequest, type DHCPDdnsConfig } from "@/lib/api/dhcp-server";
+import { ddnsProblem, dhcpServerService, type DHCPBatchRequest, type DHCPDdnsConfig } from "@/lib/api/dhcp-server";
 
 const base = (): DHCPDdnsConfig => ({
   present: true,
@@ -85,7 +85,7 @@ describe("ddnsProblem", () => {
 describe("saveDdns", () => {
   it("emits the trimmed names it validated", async () => {
     let sent: DHCPBatchRequest | undefined;
-    const service = Object.create(dhcpService) as typeof dhcpService;
+    const service = Object.create(dhcpServerService) as typeof dhcpServerService;
     service.batchConfigure = async (request: DHCPBatchRequest) => {
       sent = request;
       return { success: true };

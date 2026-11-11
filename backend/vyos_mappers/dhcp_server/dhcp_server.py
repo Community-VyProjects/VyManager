@@ -81,6 +81,25 @@ class DHCPServerMapper(BaseFeatureMapper):
     def parse_config(self, full_config: Any) -> Dict[str, Any]:
         return parse_dhcp_server_config(self, full_config)
 
+    LEASE_LIST_ALIASES: Tuple[str, ...] = ("local", "remote")
+
+    def lease_list_query(self) -> str:
+        """GraphQL query that lists IPv4 leases, one alias per origin.
+
+        1.4 filters on ``origin``; 1.5 ignores it and returns every lease, so
+        the router dedupes across the aliases.
+        """
+        fields = "{ success data { result } }"
+        parts = [
+            f"  {alias}: ShowServerLeasesDhcp(data: {{key: $key, family: inet, state: all, origin: {alias}}}) {fields}"
+            for alias in self.LEASE_LIST_ALIASES
+        ]
+        return "query ($key: String) {" + "".join(parts) + "}"
+
+    def lease_show_path(self) -> List[str]:
+        """Op-mode path of ``show dhcp server leases``."""
+        return ["dhcp", "server", "leases"]
+
     @abstractmethod
     def lease_clear_request(
         self, address: str, family: str, vrf: Optional[str]

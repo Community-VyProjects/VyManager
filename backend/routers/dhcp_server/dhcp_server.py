@@ -373,23 +373,15 @@ def _parse_gql_lease_rows(rows: Any) -> List[DHCPLease]:
     return leases
 
 
-async def _fetch_leases_graphql(service) -> List[DHCPLease]:
+async def _fetch_leases_graphql(service, mapper: DHCPServerMapper) -> List[DHCPLease]:
     """Fetch IPv4 DHCP server leases via the VyOS GraphQL API.
 
-    The ``origin`` argument is required by the schema but is honored on 1.4
-    (filters local vs. remote) and ignored on 1.5 (returns the full set for
-    either value). We therefore query both origins in a single request and
-    dedupe by IP+MAC so the result is correct on both versions.
+    The mapper's query asks for each origin; rows are deduped by IP+MAC so the
+    result is correct on both versions.
     """
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
-    query = (
-        "query ($key: String) {"
-        "  local: ShowServerLeasesDhcp(data: {key: $key, family: inet, state: all, origin: local}) { success data { result } }"
-        "  remote: ShowServerLeasesDhcp(data: {key: $key, family: inet, state: all, origin: remote}) { success data { result } }"
-        "}"
-    )
-    payload = {"query": query, "variables": {"key": api_key}}
+    payload = {"query": mapper.lease_list_query(), "variables": {"key": api_key}}
 
     async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
         resp = await client.post(url, json=payload, auth=("vyos", api_key))
@@ -403,7 +395,7 @@ async def _fetch_leases_graphql(service) -> List[DHCPLease]:
 
     data = body.get("data") or {}
     deduped: Dict[tuple, DHCPLease] = {}
-    for alias in ("local", "remote"):
+    for alias in mapper.LEASE_LIST_ALIASES:
         node = data.get(alias) or {}
         rows = (node.get("data") or {}).get("result")
         for lease in _parse_gql_lease_rows(rows):
@@ -411,9 +403,9 @@ async def _fetch_leases_graphql(service) -> List[DHCPLease]:
     return list(deduped.values())
 
 
-def _fetch_leases_rest(service) -> List[DHCPLease]:
+def _fetch_leases_rest(service, mapper: DHCPServerMapper) -> List[DHCPLease]:
     """Fallback: fetch leases via the REST 'show dhcp server leases' text output."""
-    response = service.device.show(path=["dhcp", "server", "leases"])
+    response = service.device.show(path=mapper.lease_show_path())
     if response.status != 200 or not response.result:
         return []
 
@@ -469,12 +461,16 @@ async def get_dhcp_leases(request: Request):
 
     try:
         service = get_session_vyos_service(request)
+        mapper = cast(
+            DHCPServerMapper,
+            CommandMapperRegistry.get_mapper("dhcp_server", service.get_version()),
+        )
 
         try:
-            leases = await _fetch_leases_graphql(service)
+            leases = await _fetch_leases_graphql(service, mapper)
         except Exception as e:
             logger.warning("GraphQL lease fetch failed (%s); falling back to REST", e)
-            leases = await run_in_threadpool(_fetch_leases_rest, service)
+            leases = await run_in_threadpool(_fetch_leases_rest, service, mapper)
 
         return DHCPLeasesResponse(leases=leases, total=len(leases))
 

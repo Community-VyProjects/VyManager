@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  dhcpService,
+  dhcpServerService,
   type DHCPCapabilitiesResponse,
   type DHCPSharedNetwork,
 } from "@/lib/api/dhcp-server";
@@ -95,7 +95,7 @@ export function DHCPNetworkOptionsModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await dhcpService.batchConfigure({
+      const result = await dhcpServerService.batchConfigure({
         network_name: network.name,
         operations,
       });

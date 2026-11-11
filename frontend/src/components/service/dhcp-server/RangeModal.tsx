@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Network, Pencil, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
+import { dhcpServerService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 import { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
@@ -127,7 +127,7 @@ export function RangeModal({
           catalogDraft,
           existing.range.range_id,
         );
-        const updated = await submitRangeUpdate(network.name, existing, draft, dhcpService, follow);
+        const updated = await submitRangeUpdate(network.name, existing, draft, dhcpServerService, follow);
         const updateError = failedSaveMessage(updated, "Failed to save range");
         if (updateError) {
           setError(updateError);
@@ -136,7 +136,7 @@ export function RangeModal({
       } else {
         const rangeId = nextRangeId(network, draft.subnet);
         const follow = catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, rangeId);
-        const created = await submitRangeCreate(network.name, draft, rangeId, dhcpService, follow);
+        const created = await submitRangeCreate(network.name, draft, rangeId, dhcpServerService, follow);
         const createError = failedSaveMessage(created, "Failed to create range");
         if (createError) {
           setError(createError);

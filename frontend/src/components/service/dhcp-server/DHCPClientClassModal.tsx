@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  dhcpService,
+  dhcpServerService,
   type DHCPClientClass,
 } from "@/lib/api/dhcp-server";
 import { clientClassOperations, duplicateClassName, type ClientClassDraft } from "./dhcp-client-class";
@@ -75,7 +75,7 @@ export function DHCPClientClassModal({
     const stored = rows.find((item) => item.name === (draft.originalName ?? name));
     const operations = clientClassOperations(draft, stored);
     try {
-      const result = await dhcpService.batchConfigure({
+      const result = await dhcpServerService.batchConfigure({
         network_name: "_global",
         operations,
       });
@@ -97,7 +97,7 @@ export function DHCPClientClassModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await dhcpService.batchConfigure({
+      const result = await dhcpServerService.batchConfigure({
         network_name: "_global",
         operations: [{ op: "delete_client_class", value: name }],
       });

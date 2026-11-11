@@ -8,8 +8,8 @@
  */
 
 import {
-  dhcpService,
-  DHCPService,
+  dhcpServerService,
+  DHCPServerService,
   rangeAddressOps,
   type DHCPBatchOperation,
   type DHCPRange,
@@ -122,7 +122,7 @@ export async function submitRangeCreate(
   networkName: string,
   draft: RangeDraft,
   rangeId: string,
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
   extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse> {
   return service.createRange(
@@ -139,7 +139,7 @@ export async function submitRangeUpdate(
   networkName: string,
   stored: { subnet: string; range: DHCPRange },
   draft: RangeDraft,
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
   extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse | null> {
   const start = draft.startIp.trim();
@@ -312,7 +312,7 @@ export function buildMappingUpdateConfig(
 export async function submitMappingCreate(
   networkName: string,
   draft: MappingDraft,
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
   extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse> {
   return service.createStaticMapping(
@@ -330,7 +330,7 @@ export async function submitMappingCreate(
 export async function submitMappingUpdate(
   stored: { network: string; subnet: string; mapping: DHCPStaticMapping },
   draft: MappingDraft,
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
   extra: DHCPBatchOperation[] = [],
 ): Promise<VyOSResponse | null> {
   const config = buildMappingUpdateConfig(stored.mapping, draft);

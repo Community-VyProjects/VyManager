@@ -86,7 +86,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Network, Users, Activity, Database } from "lucide-react";
-import { dhcpService, type DHCPLease } from "@/lib/api/dhcp-server";
+import { dhcpServerService, type DHCPLease } from "@/lib/api/dhcp-server";
 
 /** Keys under the `sharedUi.unifiedView` messages namespace. */
 export type UnifiedViewMessageKey =
@@ -174,7 +174,7 @@ export interface UnifiedViewConfig {
 
 async function fetchLeasesForSubnet(data: unknown): Promise<{ leases: DHCPLease[] }> {
   try {
-    const leasesData = await dhcpService.getLeases();
+    const leasesData = await dhcpServerService.getLeases();
     const { network, subnet } = data as {
       network: { name: string };
       subnet: { subnet: string };

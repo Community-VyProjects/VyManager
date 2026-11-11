@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Plus, X } from "lucide-react";
-import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSubnet } from "@/lib/api/dhcp-server";
+import { dhcpServerService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSubnet } from "@/lib/api/dhcp-server";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ApiError } from "@/lib/types/api";
@@ -112,7 +112,7 @@ export function DHCPServerModal({
     if (!capabilities?.fields.subnet_id.supported) return;
 
     try {
-      const config = await dhcpService.getConfig();
+      const config = await dhcpServerService.getConfig();
       const usedIds = new Set<number>();
 
       // Collect all used subnet IDs
@@ -218,7 +218,7 @@ export function DHCPServerModal({
 
   const loadExistingNetworks = async () => {
     try {
-      const config = await dhcpService.getConfig();
+      const config = await dhcpServerService.getConfig();
       setExistingNetworks(config.shared_networks.map(n => n.name));
     } catch (err) {
       console.error("Failed to load existing networks:", err);
@@ -289,7 +289,7 @@ export function DHCPServerModal({
             catalogOriginal,
             catalogDraft,
           ),
-          dhcpService,
+          dhcpServerService,
         );
         const updateError = failedSaveMessage(updated, t("edit.failed"));
         if (updateError) {
@@ -302,7 +302,7 @@ export function DHCPServerModal({
           if (subnetId) {
             calculatedSubnetId = parseInt(subnetId, 10);
           } else {
-            const config = await dhcpService.getConfig();
+            const config = await dhcpServerService.getConfig();
             const usedIds = new Set<number>();
             config.shared_networks.forEach((network) => {
               network.subnets.forEach((entry) => {
@@ -319,7 +319,7 @@ export function DHCPServerModal({
           support,
           calculatedSubnetId,
           catalogCreateOps("set_subnet_catalog", subnetLeaves, catalogDraft),
-          dhcpService,
+          dhcpServerService,
         );
         const createError = failedSaveMessage(created, t("create.failed"));
         if (createError) {
@@ -361,7 +361,8 @@ export function DHCPServerModal({
   };
 
   const addRange = () => {
-    const used = new Set(ranges.map((r) => r.range_id));
+    // A removed stored id stays used, so the save deletes that range instead of reusing it.
+    const used = new Set([...ranges, ...(existing?.subnet.ranges ?? [])].map((r) => r.range_id));
     let n = 0;
     while (used.has(String(n))) n += 1;
     setRanges([...ranges, { range_id: String(n), start: "", stop: "" }]);

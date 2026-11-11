@@ -23,7 +23,7 @@ import {
 import { AlertCircle } from "lucide-react";
 import { pkiService } from "@/lib/api/pki";
 import {
-  dhcpService,
+  dhcpServerService,
   type DHCPCapabilitiesResponse,
   type DHCPFailoverConfig,
 } from "@/lib/api/dhcp-server";
@@ -99,7 +99,7 @@ export function DHCPFailoverModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await dhcpService.saveFailover(failover, form, canCert);
+      const result = await dhcpServerService.saveFailover(failover, form, canCert);
       if (!result.success) {
         setError(result.error ?? t("failover.saveFailed"));
         setLoading(false);

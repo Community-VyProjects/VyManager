@@ -390,7 +390,7 @@ export interface UpdateSubnetConfig {
 // API Service
 // ============================================================================
 
-export class DHCPService {
+export class DHCPServerService {
   /**
    * Get DHCP server capabilities based on VyOS version
    */
@@ -1304,4 +1304,4 @@ export class DHCPService {
   }
 }
 
-export const dhcpService = new DHCPService();
+export const dhcpServerService = new DHCPServerService();

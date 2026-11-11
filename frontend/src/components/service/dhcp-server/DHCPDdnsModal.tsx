@@ -24,7 +24,7 @@ import {
 import { AlertCircle, Plus, X } from "lucide-react";
 import {
   ddnsProblem,
-  dhcpService,
+  dhcpServerService,
   type DHCPCapabilitiesResponse,
   type DHCPDdnsConfig,
   type DHCPDdnsDomain,
@@ -165,7 +165,7 @@ export function DHCPDdnsModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await dhcpService.saveDdns(ddns, form, leaf, kea);
+      const result = await dhcpServerService.saveDdns(ddns, form, leaf, kea);
       if (!result.success) {
         setError(result.error ?? t("ddns.saveFailed"));
         setLoading(false);

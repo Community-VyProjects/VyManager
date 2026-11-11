@@ -8,8 +8,8 @@
  */
 
 import {
-  dhcpService,
-  DHCPService,
+  dhcpServerService,
+  DHCPServerService,
   type DHCPBatchOperation,
   type DHCPCapabilitiesResponse,
   type DHCPRange,
@@ -533,7 +533,7 @@ export async function submitServerCreate(
   support: ServerFieldSupport,
   subnetId: number | undefined,
   catalogOperations: DHCPBatchOperation[],
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
 ): Promise<VyOSResponse> {
   return service.createSubnet(buildServerCreate(draft, support, subnetId, catalogOperations));
 }
@@ -543,7 +543,7 @@ export async function submitServerUpdate(
   draft: ServerDraft,
   support: ServerFieldSupport,
   catalogOperations: DHCPBatchOperation[],
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
 ): Promise<VyOSResponse | null> {
   const payload = buildServerUpdate(existing, draft, support, catalogOperations);
   if (!payload) return null;

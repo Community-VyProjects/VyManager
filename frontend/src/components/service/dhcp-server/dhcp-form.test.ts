@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  DHCPService,
+  DHCPServerService,
   type DHCPRange,
   type DHCPSharedNetwork,
   type DHCPStaticMapping,
@@ -26,7 +26,7 @@ import {
 
 const ok: VyOSResponse = { success: true };
 
-class RecordingDhcpService extends DHCPService {
+class RecordingDhcpService extends DHCPServerService {
   batches: {
     network: string;
     subnet?: string;

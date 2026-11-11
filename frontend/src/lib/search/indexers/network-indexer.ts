@@ -1,7 +1,7 @@
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface } from "@/lib/api/types/ethernet";
 import { showService, type InterfaceName } from "@/lib/api/show";
-import { dhcpService } from "@/lib/api/dhcp-server";
+import { dhcpServerService } from "@/lib/api/dhcp-server";
 import { natService } from "@/lib/api/nat";
 import { vrfService } from "@/lib/api/vrf";
 import { Network, Layers } from "lucide-react";
@@ -73,7 +73,7 @@ function indexInterfaces(
   return results;
 }
 
-function indexDhcp(config: Awaited<ReturnType<typeof dhcpService.getConfig>>, i18n: SearchI18n): SearchResult[] {
+function indexDhcp(config: Awaited<ReturnType<typeof dhcpServerService.getConfig>>, i18n: SearchI18n): SearchResult[] {
   const results: SearchResult[] = [];
   const l = i18n.label;
 
@@ -326,7 +326,7 @@ export const networkIndexer: SearchIndexer = {
       }),
 
       safeIndex("dhcp", async () => {
-        const config = await dhcpService.getConfig();
+        const config = await dhcpServerService.getConfig();
         return buildLocalized(i18n, (l) => indexDhcp(config, l));
       }),
 
