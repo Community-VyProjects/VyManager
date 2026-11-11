@@ -490,26 +490,26 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ra_connection_description(self, conn: str, description: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_description_path(conn, description))
 
-    def delete_ra_connection_description(self, conn: str, description: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_description_path(conn, description))
+    def delete_ra_connection_description(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_description_path(conn, ""))
 
     def set_ra_connection_esp_group(self, conn: str, esp_group: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_esp_group_path(conn, esp_group))
 
-    def delete_ra_connection_esp_group(self, conn: str, esp_group: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_esp_group_path(conn, esp_group))
+    def delete_ra_connection_esp_group(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_esp_group_path(conn, ""))
 
     def set_ra_connection_ike_group(self, conn: str, ike_group: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_ike_group_path(conn, ike_group))
 
-    def delete_ra_connection_ike_group(self, conn: str, ike_group: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_ike_group_path(conn, ike_group))
+    def delete_ra_connection_ike_group(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_ike_group_path(conn, ""))
 
     def set_ra_connection_local_address(self, conn: str, address: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_local_address_path(conn, address))
 
-    def delete_ra_connection_local_address(self, conn: str, address: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_local_address_path(conn, address))
+    def delete_ra_connection_local_address(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_local_address_path(conn, ""))
 
     def set_ra_connection_pool(self, conn: str, pool: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_pool_path(conn, pool))
@@ -521,20 +521,20 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ra_connection_auth_server_mode(self, conn: str, mode: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_server_mode_path(conn, mode))
 
-    def delete_ra_connection_auth_server_mode(self, conn: str, mode: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_server_mode_path(conn, mode))
+    def delete_ra_connection_auth_server_mode(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_auth_server_mode_path(conn, ""))
 
     def set_ra_connection_auth_client_mode(self, conn: str, mode: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_client_mode_path(conn, mode))
 
-    def delete_ra_connection_auth_client_mode(self, conn: str, mode: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_client_mode_path(conn, mode))
+    def delete_ra_connection_auth_client_mode(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_auth_client_mode_path(conn, ""))
 
     def set_ra_connection_auth_local_id(self, conn: str, local_id: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_local_id_path(conn, local_id))
 
-    def delete_ra_connection_auth_local_id(self, conn: str, local_id: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_local_id_path(conn, local_id))
+    def delete_ra_connection_auth_local_id(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_auth_local_id_path(conn, ""))
 
     def set_ra_connection_auth_psk(self, conn: str, secret: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_psk_path(conn, secret))
@@ -551,8 +551,8 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_ra_connection_auth_x509_cert(self, conn: str, cert: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_x509_cert_path(conn, cert))
 
-    def delete_ra_connection_auth_x509_cert(self, conn: str, cert: str) -> "IPSecBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ra_connection_auth_x509_cert_path(conn, cert))
+    def delete_ra_connection_auth_x509_cert(self, conn: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_ra_connection_auth_x509_cert_path(conn, ""))
 
     def create_ra_connection_auth_local_user(self, conn: str, username: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_ra_connection_auth_local_user_path(conn, username))
@@ -626,9 +626,9 @@ class IPSecBatchBuilder(BatchBuilder):
                     "description": "Site-to-site IPSec tunnels",
                     "connection_types": mapper.connection_types(),
                     "unique": "s2s_unique" in nodes,
-                    "unique_values": ["never", "keep", "replace"] if "s2s_unique" in nodes else [],
+                    "unique_values": mapper.unique_values(),
                     "childless": "childless" in nodes,
-                    "childless_values": ["allow", "prefer", "force", "never"] if "childless" in nodes else [],
+                    "childless_values": mapper.childless_values(),
                 },
                 "remote_access": {
                     "supported": True,

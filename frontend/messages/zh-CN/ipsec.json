@@ -149,7 +149,6 @@
     "useX509Id": "使用 X.509 ID",
     "unique": "唯一性",
     "childless": "无子 SA",
-    "tunnelDisable": "禁用",
     "localPort": "本地端口",
     "remotePort": "远端端口",
     "priority": "优先级",

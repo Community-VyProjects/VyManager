@@ -149,7 +149,6 @@
     "useX509Id": "Use X.509 ID",
     "unique": "Unique",
     "childless": "Childless",
-    "tunnelDisable": "Disable",
     "localPort": "Local port",
     "remotePort": "Remote port",
     "priority": "Priority",

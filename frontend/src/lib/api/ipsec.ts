@@ -768,7 +768,7 @@ class IPSecService {
       const nv = (newVal || "").trim();
       const ov = (oldVal || "").trim();
       if (nv && nv !== ov) ops.push({ op: setOp, value: nv });
-      else if (!nv && ov) ops.push({ op: deleteOp, value: ov });
+      else if (!nv && ov) ops.push({ op: deleteOp });
     };
 
     diffLeaf("set_ra_connection_description", "delete_ra_connection_description", config.description, existing.description);

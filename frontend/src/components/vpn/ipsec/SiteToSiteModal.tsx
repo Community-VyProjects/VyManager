@@ -468,21 +468,17 @@ export function SiteToSiteModal({
                 </div>
                 <div className="space-y-2">
                   <Label>{t("modal.caCertificate")}</Label>
-                  {caCerts.map((name) => (
-                    <div key={name} className="flex items-center justify-between rounded border px-2 py-1">
-                      <span className="text-sm">{name}</span>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCaCerts(caCerts.filter((item) => item !== name))}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Select value="_add" onValueChange={(v) => { if (v !== "_add" && !caCerts.includes(v)) setCaCerts([...caCerts, v]); }}>
-                    <SelectTrigger><SelectValue placeholder={t("modal.select")} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_add">{t("modal.select")}</SelectItem>
-                      {pkiCas.filter((name) => !caCerts.includes(name)).map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
+                    {pkiCas.map((name) => (
+                      <label key={name} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={caCerts.includes(name)}
+                          onCheckedChange={(v) => setCaCerts(v ? [...caCerts, name] : caCerts.filter((item) => item !== name))}
+                        />
+                        <span>{name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>{t("modal.certificate")}</Label>
@@ -602,7 +598,7 @@ export function SiteToSiteModal({
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox id={`tun-disable-${tun.number}`} checked={tun.disabled} onCheckedChange={(c) => setTunnels(tunnels.map((row) => row.number === tun.number ? { ...row, disabled: c === true } : row))} />
-                    <Label htmlFor={`tun-disable-${tun.number}`} className="cursor-pointer text-sm">{t("s2sModal.tunnelDisable")}</Label>
+                    <Label htmlFor={`tun-disable-${tun.number}`} className="cursor-pointer text-sm">{t("s2sModal.disable")}</Label>
                   </div>
                 </div>
               ))

@@ -26,6 +26,12 @@ class IPSecMapperV1_5(IPSecMapper):
     def secret_types(self) -> List[str]:
         return ["base64", "hex", "plaintext"]
 
+    def unique_values(self) -> List[str]:
+        return ["never", "keep", "replace"]
+
+    def childless_values(self) -> List[str]:
+        return ["allow", "prefer", "force", "never"]
+
     def get_options_retransmission_attempts_path(self, attempts: str) -> List[str]:
         return ["vpn", "ipsec", "options", "retransmission", "attempts", attempts]
 

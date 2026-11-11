@@ -28,6 +28,12 @@ class IPSecMapper(BaseFeatureMapper):
     def secret_types(self) -> List[str]:
         return ["base64", "plaintext"]
 
+    def unique_values(self) -> List[str]:
+        return []
+
+    def childless_values(self) -> List[str]:
+        return []
+
     # ========================================================================
     # Base path
     # ========================================================================
