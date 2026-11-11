@@ -507,6 +507,11 @@ async def dashboard_stream(
     include_bgp = await has_permission(request, FeatureGroup.BGP, PermissionLevel.READ)
     include_pppoe = await has_permission(request, FeatureGroup.PPPOE, PermissionLevel.READ)
     include_hardware = await has_permission(request, FeatureGroup.INTERFACES, PermissionLevel.READ)
+    include_interfaces = include_hardware
+    include_system = await has_permission(request, FeatureGroup.SYSTEM, PermissionLevel.READ)
+    include_qos = await has_permission(request, FeatureGroup.QOS, PermissionLevel.READ)
+    include_openvpn = await has_permission(request, FeatureGroup.OPENVPN, PermissionLevel.READ)
+    include_ipsec = await has_permission(request, FeatureGroup.IPSEC, PermissionLevel.READ)
     # Same gate as GET /vyos/ethernet/{interface}/transceiver, so the stream
     # cannot hand out DDM data the REST endpoint would refuse.
     include_transceiver = await has_permission(request, FeatureGroup.ETHERNET, PermissionLevel.READ)
@@ -556,6 +561,34 @@ async def dashboard_stream(
                     continue
                 if event["type"] == "transceiver-health" and not include_transceiver:
                     continue
+                if event["type"] == "interface-counters" and not include_interfaces:
+                    continue
+                if event["type"] == "system-info" and not include_system:
+                    continue
+                if event["type"] == "qos-stats" and not include_qos:
+                    continue
+                if event["type"] == "openvpn-status" and not include_openvpn:
+                    continue
+                if event["type"] == "ipsec-status" and not include_ipsec:
+                    continue
+                if event["type"] == "error":
+                    channel = (event.get("data") or {}).get("channel")
+                    refused = (
+                        (channel == "interface-counters" and not include_interfaces)
+                        or (channel == "system-info" and not include_system)
+                        or (channel == "qos-stats" and not include_qos)
+                        or (channel == "openvpn-status" and not include_openvpn)
+                        or (channel == "ipsec-status" and not include_ipsec)
+                        or (channel == "wireguard-peers" and not include_wireguard)
+                        or (channel == "vrrp-status" and not include_vrrp)
+                        or (channel == "bgp-status" and not include_bgp)
+                        or (channel == "pppoe-sessions" and not include_pppoe)
+                        or (channel == "hardware-sensors" and not include_hardware)
+                        or (channel == "transceiver-health" and not include_transceiver)
+                        or (channel == FIREWALL_STATS_INTEREST and not include_firewall)
+                    )
+                    if refused:
+                        continue
                 if event["type"] == FIREWALL_STATS_INTEREST:
                     if not include_firewall:
                         continue

@@ -95,7 +95,15 @@ async def batch_configure(http_request: Request, request: BatchRequest):
             elif len(params) == 2 and op.value is not None:
                 method(effective_name, op.value)
             elif len(params) == 2:
-                method(effective_name)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {op.op} requires a value",
+                )
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported operation signature for {op.op}",
+                )
     except HTTPException:
         raise
     except ValueError as e:

@@ -142,14 +142,39 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             tunnels = []
             for tunnel_num, tunnel_data in data.get("tunnels", {}).items():
                 tunnels.append(tunnel_data)
-            site_to_site_peers.append({
+            auth = data.get("authentication")
+            peer = {
                 **data,
                 "tunnels": sorted(tunnels, key=lambda t: str(t.get("number", "0"))),
-            })
+            }
+            if isinstance(auth, dict):
+                masked_auth = dict(auth)
+                x509 = dict(masked_auth.get("x509") or {})
+                rsa = dict(masked_auth.get("rsa") or {})
+                if x509.get("passphrase"):
+                    x509["passphrase"] = "***"
+                if rsa.get("passphrase"):
+                    rsa["passphrase"] = "***"
+                masked_auth["x509"] = x509
+                masked_auth["rsa"] = rsa
+                peer["authentication"] = masked_auth
+            site_to_site_peers.append(peer)
 
         ra_connections = []
         for name, data in config.get("remote_access", {}).get("connections", {}).items():
-            ra_connections.append(data)
+            masked = {**data}
+            if masked.get("auth_psk"):
+                masked["auth_psk"] = "***"
+            if masked.get("auth_x509_passphrase"):
+                masked["auth_x509_passphrase"] = "***"
+            local_users = []
+            for user in masked.get("local_users") or []:
+                user = {**user}
+                if user.get("password"):
+                    user["password"] = "***"
+                local_users.append(user)
+            masked["local_users"] = local_users
+            ra_connections.append(masked)
 
         ra_pools = []
         for name, data in config.get("remote_access", {}).get("pools", {}).items():
@@ -157,7 +182,11 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
 
         profiles = []
         for name, data in config.get("profiles", {}).items():
-            profiles.append(data)
+            profile = {**data}
+            auth = data.get("authentication")
+            if isinstance(auth, dict) and auth.get("pre_shared_secret"):
+                profile["authentication"] = {**auth, "pre_shared_secret": "***"}
+            profiles.append(profile)
 
         psk_entries = []
         for name, data in config.get("authentication", {}).get("psk", {}).items():
@@ -167,6 +196,16 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
                 masked["secret"] = "***"
             psk_entries.append(masked)
 
+        radius = dict(config.get("remote_access", {}).get("radius") or {})
+        servers = {}
+        for addr, srv in (radius.get("servers") or {}).items():
+            srv = {**srv}
+            if srv.get("key"):
+                srv["key"] = "***"
+            servers[addr] = srv
+        if radius:
+            radius["servers"] = servers
+
         return {
             "ike_groups": ike_groups,
             "esp_groups": esp_groups,
@@ -174,7 +213,7 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
             "remote_access": {
                 "connections": ra_connections,
                 "pools": ra_pools,
-                "radius": config.get("remote_access", {}).get("radius", {}),
+                "radius": radius,
                 "dhcp": config.get("remote_access", {}).get("dhcp", {}),
             },
             "profiles": profiles,
@@ -235,16 +274,30 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
             args = []
             if len(params) >= 1:
                 args.append(request.item_name)
-            if len(params) >= 2 and operation.value is not None:
-                # For methods with 3+ params, split value on '|' delimiter
-                # e.g. "1|aes256" -> ["1", "aes256"] for proposal num + encryption
+            if len(params) >= 2:
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
                 if len(params) >= 3:
                     parts = operation.value.split("|", len(params) - 2)
+                    if len(parts) != len(params) - 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation {operation.op} requires a value",
+                        )
                     args.extend(parts)
                 else:
                     args.append(operation.value)
 
-            method(*args)
+            try:
+                method(*args)
+            except TypeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid parameters for operation {operation.op}",
+                )
 
         if builder.is_empty():
             return VyOSResponse(

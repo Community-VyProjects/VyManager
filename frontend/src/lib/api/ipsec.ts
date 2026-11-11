@@ -264,6 +264,14 @@ export interface IPSecCapabilities {
   };
 }
 
+/** Config responses replace a secret with this. It is never written back. */
+const MASKED_SECRET = "***";
+
+function writableSecret(value?: string | null): string | undefined {
+  if (!value || value === MASKED_SECRET) return undefined;
+  return value;
+}
+
 export interface VyOSResponse {
   success: boolean;
   data?: Record<string, unknown> | null;
@@ -432,10 +440,10 @@ class IPSecService {
     if (config.auth_remote_id) ops.push({ op: "set_s2s_peer_auth_remote_id", value: config.auth_remote_id });
     if (config.auth_x509_ca_cert) ops.push({ op: "set_s2s_peer_auth_x509_ca_cert", value: config.auth_x509_ca_cert });
     if (config.auth_x509_cert) ops.push({ op: "set_s2s_peer_auth_x509_cert", value: config.auth_x509_cert });
-    if (config.auth_x509_passphrase) ops.push({ op: "set_s2s_peer_auth_x509_passphrase", value: config.auth_x509_passphrase });
+    if (writableSecret(config.auth_x509_passphrase)) ops.push({ op: "set_s2s_peer_auth_x509_passphrase", value: writableSecret(config.auth_x509_passphrase) });
     if (config.auth_rsa_local_key) ops.push({ op: "set_s2s_peer_auth_rsa_local_key", value: config.auth_rsa_local_key });
     if (config.auth_rsa_remote_key) ops.push({ op: "set_s2s_peer_auth_rsa_remote_key", value: config.auth_rsa_remote_key });
-    if (config.auth_rsa_passphrase) ops.push({ op: "set_s2s_peer_auth_rsa_passphrase", value: config.auth_rsa_passphrase });
+    if (writableSecret(config.auth_rsa_passphrase)) ops.push({ op: "set_s2s_peer_auth_rsa_passphrase", value: writableSecret(config.auth_rsa_passphrase) });
     if (config.force_udp_encapsulation) ops.push({ op: "set_s2s_peer_force_udp_encapsulation" });
     if (config.vti_bind) ops.push({ op: "set_s2s_peer_vti_bind", value: config.vti_bind });
     if (config.vti_esp_group) ops.push({ op: "set_s2s_peer_vti_esp_group", value: config.vti_esp_group });
@@ -535,7 +543,7 @@ class IPSecService {
     if (config.auth_server_mode) ops.push({ op: "set_ra_connection_auth_server_mode", value: config.auth_server_mode });
     if (config.auth_client_mode) ops.push({ op: "set_ra_connection_auth_client_mode", value: config.auth_client_mode });
     if (config.auth_local_id) ops.push({ op: "set_ra_connection_auth_local_id", value: config.auth_local_id });
-    if (config.auth_psk) ops.push({ op: "set_ra_connection_auth_psk", value: config.auth_psk });
+    if (writableSecret(config.auth_psk)) ops.push({ op: "set_ra_connection_auth_psk", value: writableSecret(config.auth_psk) });
     if (config.auth_x509_ca_cert) ops.push({ op: "set_ra_connection_auth_x509_ca_cert", value: config.auth_x509_ca_cert });
     if (config.auth_x509_cert) ops.push({ op: "set_ra_connection_auth_x509_cert", value: config.auth_x509_cert });
     if (config.auth_always_send_cert) ops.push({ op: "set_ra_connection_auth_always_send_cert" });
@@ -543,7 +551,7 @@ class IPSecService {
       for (const user of config.local_users) {
         if (!user.username) continue;
         ops.push({ op: "create_ra_connection_auth_local_user", value: user.username });
-        if (user.password) ops.push({ op: "set_ra_connection_auth_local_user_password", value: `${user.username}|${user.password}` });
+        if (writableSecret(user.password)) ops.push({ op: "set_ra_connection_auth_local_user_password", value: `${user.username}|${writableSecret(user.password)}` });
         if (user.disabled) ops.push({ op: "set_ra_connection_auth_local_user_disable", value: user.username });
       }
     }
@@ -600,9 +608,7 @@ class IPSecService {
       for (const p of newPools) if (!oldPools.includes(p)) ops.push({ op: "set_ra_connection_pool", value: p });
     }
 
-    // PSK is never returned by the API, so only set it when the user typed one;
-    // leaving it blank preserves the existing key.
-    if (config.auth_psk) ops.push({ op: "set_ra_connection_auth_psk", value: config.auth_psk });
+    if (writableSecret(config.auth_psk)) ops.push({ op: "set_ra_connection_auth_psk", value: writableSecret(config.auth_psk) });
 
     // always-send-cert flag.
     if (config.auth_always_send_cert && !existing.auth_always_send_cert) {
@@ -621,7 +627,7 @@ class IPSecService {
       for (const u of newUsers) {
         const old = oldByName.get(u.username);
         if (!old) ops.push({ op: "create_ra_connection_auth_local_user", value: u.username });
-        if (u.password) ops.push({ op: "set_ra_connection_auth_local_user_password", value: `${u.username}|${u.password}` });
+        if (writableSecret(u.password)) ops.push({ op: "set_ra_connection_auth_local_user_password", value: `${u.username}|${writableSecret(u.password)}` });
         if (u.disabled && !old?.disabled) ops.push({ op: "set_ra_connection_auth_local_user_disable", value: u.username });
         else if (!u.disabled && old?.disabled) ops.push({ op: "delete_ra_connection_auth_local_user_disable", value: u.username });
       }
@@ -686,7 +692,7 @@ class IPSecService {
         ops.push({ op: "set_auth_psk_id", value: id });
       }
     }
-    if (config.secret) ops.push({ op: "set_auth_psk_secret", value: config.secret });
+    if (writableSecret(config.secret)) ops.push({ op: "set_auth_psk_secret", value: writableSecret(config.secret) });
     if (config.secret_type) ops.push({ op: "set_auth_psk_secret_type", value: config.secret_type });
     if (config.dhcp_interface) ops.push({ op: "set_auth_psk_dhcp_interface", value: config.dhcp_interface });
     return this.batchConfigure(name, ops);

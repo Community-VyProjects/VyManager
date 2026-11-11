@@ -218,14 +218,30 @@ async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest)
             args = []
             if len(params) >= 1:
                 args.append(request.item_name)
-            if len(params) >= 2 and operation.value is not None:
+            if len(params) >= 2:
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
                 if len(params) >= 3:
                     parts = operation.value.split("|", len(params) - 2)
+                    if len(parts) != len(params) - 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation {operation.op} requires a value",
+                        )
                     args.extend(parts)
                 else:
                     args.append(operation.value)
 
-            method(*args)
+            try:
+                method(*args)
+            except TypeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid parameters for operation {operation.op}",
+                )
 
         if builder.is_empty():
             return VyOSResponse(
