@@ -178,14 +178,6 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
         for name, data in config.get("remote_access", {}).get("pools", {}).items():
             ra_pools.append(data)
 
-        profiles = []
-        for name, data in config.get("profiles", {}).items():
-            profile = {**data}
-            auth = data.get("authentication")
-            if isinstance(auth, dict) and auth.get("pre_shared_secret"):
-                profile["authentication"] = {**auth, "pre_shared_secret": "***"}
-            profiles.append(profile)
-
         psk_entries = []
         for name, data in config.get("authentication", {}).get("psk", {}).items():
             # Mask secrets for display
@@ -202,7 +194,6 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
                 "connections": ra_connections,
                 "pools": ra_pools,
             },
-            "profiles": profiles,
             "authentication": {
                 "psk": psk_entries,
             },
@@ -216,7 +207,6 @@ async def get_ipsec_config(request: Request, refresh: bool = False):
                 "site_to_site_peers": len(site_to_site_peers),
                 "remote_access_connections": len(ra_connections),
                 "remote_access_pools": len(ra_pools),
-                "profiles": len(profiles),
             },
         }
     except HTTPException:

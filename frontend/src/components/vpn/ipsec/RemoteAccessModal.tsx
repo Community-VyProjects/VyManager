@@ -387,6 +387,17 @@ export function RemoteAccessModal({
                         }}
                         placeholder={t("raModal.passwordPlaceholder")}
                       />
+                      <div className="flex items-center gap-1.5">
+                        <Checkbox
+                          checked={user.disabled}
+                          onCheckedChange={(checked) => {
+                            const next = [...localUsers];
+                            next[idx] = { ...next[idx], disabled: checked === true };
+                            setLocalUsers(next);
+                          }}
+                        />
+                        <Label className="text-xs">{tc("disabled")}</Label>
+                      </div>
                       <Button
                         type="button"
                         variant="ghost"

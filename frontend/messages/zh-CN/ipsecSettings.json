@@ -88,8 +88,6 @@
     "virtualIp": "虚拟 IP",
     "disableUniqReqIds": "禁用唯一请求 ID",
     "interfaces": "接口",
-    "noInterfaces": "没有可用的接口",
-    "interfacesHelp": "选择要监听的接口",
     "logging": "日志",
     "logLevel": "日志级别",
     "subsystems": "子系统",

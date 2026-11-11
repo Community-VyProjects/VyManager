@@ -166,20 +166,6 @@ export interface AuthPSK {
   dhcp_interface?: string[];
 }
 
-export interface IPSecProfile {
-  name: string;
-  disabled?: boolean;
-  ike_group?: string | null;
-  esp_group?: string | null;
-  authentication?: {
-    mode?: string | null;
-    pre_shared_secret?: string | null;
-  };
-  bind?: {
-    tunnel?: string[];
-  };
-}
-
 export interface IPSecOptions {
   disable_route_autoinstall?: boolean;
   flexvpn?: boolean;
@@ -202,7 +188,6 @@ export interface IPSecConfigResponse {
     connections: RAConnection[];
     pools: RAPool[];
   };
-  profiles: IPSecProfile[];
   authentication: {
     psk: AuthPSK[];
   };
@@ -216,7 +201,6 @@ export interface IPSecConfigResponse {
     site_to_site_peers: number;
     remote_access_connections: number;
     remote_access_pools: number;
-    profiles: number;
   };
 }
 
@@ -552,6 +536,8 @@ class IPSecService {
     leaf("set_s2s_peer_dhcp_interface", "delete_s2s_peer_dhcp_interface", config.dhcp_interface, existing.dhcp_interface);
     if (config.connection_type && config.connection_type !== existing.connection_type) {
       ops.push({ op: "set_s2s_peer_connection_type", value: config.connection_type });
+    } else if (!config.connection_type && existing.connection_type) {
+      ops.push({ op: "delete_s2s_peer_connection_type" });
     }
     multi("set_s2s_peer_remote_address", "delete_s2s_peer_remote_address", config.remote_addresses || [], existing.remote_address || []);
 

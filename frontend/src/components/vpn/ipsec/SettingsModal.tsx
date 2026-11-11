@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import {
   ipsecService,
   IPSecOptions,
@@ -43,8 +44,8 @@ interface SettingsModalProps {
   disableUniqreqids: boolean;
 }
 
-const LOG_LEVELS = ["0", "1", "2", "3", "4"];
-const LOG_SUBSYSTEMS = ["dmn", "mgr", "ike", "chd", "job", "cfg", "knl", "net", "asn", "enc", "lib", "esp", "tls"];
+const LOG_LEVELS = ["0", "1", "2"];
+const LOG_SUBSYSTEMS = ["any", "dmn", "mgr", "ike", "chd", "job", "cfg", "knl", "net", "asn", "enc", "tnc", "imc", "imv", "pts", "tls", "esp", "lib"];
 
 export function SettingsModal({
   open,
@@ -65,7 +66,7 @@ export function SettingsModal({
   const [flexvpn, setFlexvpn] = useState(false);
   const [virtualIp, setVirtualIp] = useState(false);
   const [disableUniqreqids, setDisableUniqreqids] = useState(false);
-  const [interfaces, setInterfaces] = useState("");
+  const [interfaces, setInterfaces] = useState<string[]>([]);
 
   // Logging
   const [logLevel, setLogLevel] = useState("");
@@ -89,7 +90,7 @@ export function SettingsModal({
       setFlexvpn(currentOptions.flexvpn || false);
       setVirtualIp(currentOptions.virtual_ip || false);
       setDisableUniqreqids(currentDisableUniqreqids);
-      setInterfaces(currentInterfaces.join(", "));
+      setInterfaces(currentInterfaces);
       setLogLevel(currentLog.level || "");
       setLogSubsystems(currentLog.subsystems || []);
       setRetransmissionAttempts(currentOptions.retransmission_attempts || "");
@@ -120,11 +121,10 @@ export function SettingsModal({
       changed(virtualIp, currentOptions.virtual_ip || false, "set_options_virtual_ip", "delete_options_virtual_ip");
       changed(disableUniqreqids, currentDisableUniqreqids, "set_disable_uniqreqids", "delete_disable_uniqreqids");
 
-      const newInterfaces = interfaces.split(",").map((i) => i.trim()).filter(Boolean);
       for (const oldIface of currentInterfaces) {
-        if (!newInterfaces.includes(oldIface)) ops.push({ op: "delete_interface", item_name: oldIface });
+        if (!interfaces.includes(oldIface)) ops.push({ op: "delete_interface", item_name: oldIface });
       }
-      for (const newIface of newInterfaces) {
+      for (const newIface of interfaces) {
         if (!currentInterfaces.includes(newIface)) ops.push({ op: "set_interface", item_name: newIface });
       }
 
@@ -211,33 +211,7 @@ export function SettingsModal({
           {/* Interfaces */}
           <div className="space-y-2">
             <Label>{t("settings.interfaces")}</Label>
-            {allInterfaces.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {allInterfaces.map((iface) => {
-                  const selected = interfaces.split(",").map((i) => i.trim()).filter(Boolean);
-                  const isChecked = selected.includes(iface.name);
-                  return (
-                    <div key={iface.name} className="flex items-center gap-1.5">
-                      <Checkbox
-                        id={`iface-${iface.name}`}
-                        checked={isChecked}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setInterfaces([...selected, iface.name].join(", "));
-                          } else {
-                            setInterfaces(selected.filter((i) => i !== iface.name).join(", "));
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`iface-${iface.name}`} className="cursor-pointer text-xs font-mono">{iface.name}</Label>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("settings.noInterfaces")}</p>
-            )}
-            <p className="text-xs text-muted-foreground">{t("settings.interfacesHelp")}</p>
+            <InterfaceMultiSelect values={interfaces} onChange={setInterfaces} interfaces={allInterfaces} />
           </div>
 
           {/* Logging */}

@@ -88,8 +88,6 @@
     "virtualIp": "Virtual IP",
     "disableUniqReqIds": "Disable Unique Request IDs",
     "interfaces": "Interfaces",
-    "noInterfaces": "No interfaces available",
-    "interfacesHelp": "Select interfaces to listen on",
     "logging": "Logging",
     "logLevel": "Log Level",
     "subsystems": "Subsystems",

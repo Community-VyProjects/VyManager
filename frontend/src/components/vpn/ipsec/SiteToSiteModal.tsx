@@ -132,7 +132,7 @@ export function SiteToSiteModal({
         setDefaultEspGroup(existingPeer.default_esp_group || "");
         setLocalAddress(existingPeer.local_address || "");
         setRemoteAddresses((existingPeer.remote_address || []).join(", "));
-        setConnectionType(existingPeer.connection_type || "initiate");
+        setConnectionType(existingPeer.connection_type || "");
         setDhcpInterface(existingPeer.dhcp_interface || "");
         setForceUdp(existingPeer.force_udp_encapsulation || false);
         setDisabled(existingPeer.disabled || false);
@@ -177,7 +177,7 @@ export function SiteToSiteModal({
         setDefaultEspGroup("");
         setLocalAddress("");
         setRemoteAddresses("");
-        setConnectionType("initiate");
+        setConnectionType("");
         setDhcpInterface("");
         setForceUdp(false);
         setDisabled(false);
@@ -372,9 +372,10 @@ export function SiteToSiteModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("s2sModal.connectionType")}</Label>
-                <Select value={connectionType} onValueChange={setConnectionType}>
+                <Select value={connectionType || "_none"} onValueChange={(v) => setConnectionType(v === "_none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="_none">{tc("none")}</SelectItem>
                     {connectionTypes.map((value) => <SelectItem key={value} value={value}>{connectionLabel(value)}</SelectItem>)}
                   </SelectContent>
                 </Select>

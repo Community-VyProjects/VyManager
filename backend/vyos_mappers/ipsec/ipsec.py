@@ -372,7 +372,6 @@ class IPSecMapper(BaseFeatureMapper):
                 "connections": {},
                 "pools": {},
             },
-            "profiles": {},
             "authentication": {"psk": {}},
             "options": {},
             "log": {},
@@ -447,23 +446,6 @@ class IPSecMapper(BaseFeatureMapper):
 
         for pool_name, pool_config in ra_config.get("pool", {}).items():
             result["remote_access"]["pools"][pool_name] = self._parse_ra_pool(pool_name, pool_config)
-
-        # Parse profiles
-        for profile_name, profile_config in ipsec_config.get("profile", {}).items():
-            auth = profile_config.get("authentication", {})
-            result["profiles"][profile_name] = {
-                "name": profile_name,
-                "disabled": "disable" in profile_config,
-                "ike_group": profile_config.get("ike-group"),
-                "esp_group": profile_config.get("esp-group"),
-                "authentication": {
-                    "mode": auth.get("mode"),
-                    "pre_shared_secret": auth.get("pre-shared-secret"),
-                },
-                "bind": {
-                    "tunnel": self._normalize_to_list(profile_config.get("bind", {}).get("tunnel")),
-                },
-            }
 
         return result
 

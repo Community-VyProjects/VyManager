@@ -126,6 +126,7 @@ COMMON_CASES = [
     ('set_s2s_peer_tunnel_esp_group', ('G0', '1', '5'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'esp-group', '5']),
     ('set_s2s_peer_tunnel_local_port', ('G0', '1', '8080'), 'set', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'local', 'port', '8080']),
     ('delete_s2s_peer_description', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'description']),
+    ('delete_s2s_peer_connection_type', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'connection-type']),
     ('delete_s2s_peer_local_address', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'local-address']),
     ('delete_s2s_peer_auth_x509_passphrase', ('G0',), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'authentication', 'x509', 'passphrase']),
     ('delete_s2s_peer_tunnel_esp_group', ('G0', '1'), 'delete', ['vpn', 'ipsec', 'site-to-site', 'peer', 'G0', 'tunnel', '1', 'esp-group']),

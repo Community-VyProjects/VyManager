@@ -32,7 +32,6 @@ import {
   Key,
   Wifi,
   Database,
-  Settings,
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -295,15 +294,6 @@ function IPSecPageInner() {
                 <div>
                   <p className="text-xs text-muted-foreground">{t("page.pools")}</p>
                   <p className="font-semibold">{totals?.remote_access_pools ?? 0}</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-gray-500" />
-                <div>
-                  <p className="text-xs text-muted-foreground">{t("page.profiles")}</p>
-                  <p className="font-semibold">{totals?.profiles ?? 0}</p>
                 </div>
               </div>
             </Card>
@@ -873,23 +863,6 @@ function IPSecPageInner() {
                         <p className="text-sm text-muted-foreground">{t("page.settings.noInterfaces")}</p>
                       )}
                     </Card>
-                    {(config?.profiles.length ?? 0) > 0 && (
-                      <Card className="p-4 space-y-3">
-                        <h4 className="text-sm font-medium">{t("page.profiles")}</h4>
-                        <div className="space-y-2 text-sm">
-                          {config?.profiles.map((p) => (
-                            <div key={p.name} className="flex justify-between">
-                              <span className="font-medium">{p.name}</span>
-                              <div className="flex gap-2">
-                                {p.ike_group && <Badge variant="outline" className="text-xs">IKE: {p.ike_group}</Badge>}
-                                {p.esp_group && <Badge variant="outline" className="text-xs">ESP: {p.esp_group}</Badge>}
-                                {p.disabled && <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-600">{tc("disabled")}</Badge>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </Card>
-                    )}
                   </div>
                 </TabsContent>
               </div>

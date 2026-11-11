@@ -291,6 +291,9 @@ class IPSecBatchBuilder(BatchBuilder):
     def set_s2s_peer_connection_type(self, peer: str, conn_type: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_connection_type_path(peer, conn_type))
 
+    def delete_s2s_peer_connection_type(self, peer: str) -> "IPSecBatchBuilder":
+        return self._delete_value_node(self.mappers[self.mapper_key].get_s2s_peer_connection_type_path(peer, ""))
+
     def set_s2s_peer_force_udp_encapsulation(self, peer: str) -> "IPSecBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_s2s_peer_force_udp_encapsulation_path(peer))
 
