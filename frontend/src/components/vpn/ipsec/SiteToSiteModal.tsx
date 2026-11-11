@@ -405,9 +405,7 @@ export function SiteToSiteModal({
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">{tc("default")}</SelectItem>
-                  <SelectItem value="yes">yes</SelectItem>
-                  <SelectItem value="no">no</SelectItem>
-                  <SelectItem value="inherit">inherit</SelectItem>
+                  {(s2s?.ikev2_reauth_values || []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

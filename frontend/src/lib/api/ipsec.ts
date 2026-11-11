@@ -215,6 +215,7 @@ export interface IPSecCapabilities {
       unique_values: string[];
       childless: boolean;
       childless_values: string[];
+      ikev2_reauth_values: string[];
     };
     remote_access: { supported: boolean; description: string };
     ike_groups: { supported: boolean; description: string };

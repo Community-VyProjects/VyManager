@@ -69,7 +69,7 @@ export function RemoteAccessModal({
   const [ikeGroup, setIkeGroup] = useState("");
   const [espGroup, setEspGroup] = useState("");
   const [localAddress, setLocalAddress] = useState("");
-  const [selectedPools, setSelectedPools] = useState("");
+  const [selectedPools, setSelectedPools] = useState<string[]>([]);
   const [authServerMode, setAuthServerMode] = useState("pre-shared-secret");
   const [authClientMode, setAuthClientMode] = useState("");
   const [authLocalId, setAuthLocalId] = useState("");
@@ -100,7 +100,7 @@ export function RemoteAccessModal({
         setIkeGroup(existingConnection.ike_group || "");
         setEspGroup(existingConnection.esp_group || "");
         setLocalAddress(existingConnection.local_address || "");
-        setSelectedPools((existingConnection.pools || []).join(", "));
+        setSelectedPools(existingConnection.pools || []);
         setAuthServerMode(existingConnection.auth_server_mode || "x509");
         setAuthClientMode(existingConnection.auth_client_mode || "");
         setAuthLocalId(existingConnection.auth_local_id || "");
@@ -121,7 +121,7 @@ export function RemoteAccessModal({
         setIkeGroup("");
         setEspGroup("");
         setLocalAddress("");
-        setSelectedPools("");
+        setSelectedPools([]);
         setAuthServerMode("pre-shared-secret");
         setAuthClientMode("");
         setAuthLocalId("");
@@ -143,7 +143,6 @@ export function RemoteAccessModal({
     setError(null);
 
     try {
-      const poolList = selectedPools.split(",").map((p) => p.trim()).filter(Boolean);
       const isX509 = authServerMode === "x509";
       const cleanedUsers = localUsers
         .map((u) => ({ username: u.username.trim(), password: u.password, disabled: u.disabled }))
@@ -154,7 +153,7 @@ export function RemoteAccessModal({
         esp_group: espGroup || undefined,
         ike_group: ikeGroup || undefined,
         local_address: localAddress || undefined,
-        pools: poolList.length > 0 ? poolList : undefined,
+        pools: selectedPools.length > 0 ? selectedPools : undefined,
         auth_server_mode: authServerMode || undefined,
         auth_client_mode: authClientMode || undefined,
         auth_local_id: authLocalId || undefined,
@@ -231,26 +230,18 @@ export function RemoteAccessModal({
               <Label>{t("page.pools")}</Label>
               {pools.length > 0 ? (
                 <div className="space-y-2">
-                  {pools.map((pool) => {
-                    const poolList = selectedPools.split(",").map((p) => p.trim()).filter(Boolean);
-                    const isChecked = poolList.includes(pool.name);
-                    return (
-                      <div key={pool.name} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`pool-${pool.name}`}
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedPools([...poolList, pool.name].join(", "));
-                            } else {
-                              setSelectedPools(poolList.filter((p) => p !== pool.name).join(", "));
-                            }
-                          }}
-                        />
+                  {pools.map((pool) => (
+                    <div key={pool.name} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`pool-${pool.name}`}
+                        checked={selectedPools.includes(pool.name)}
+                        onCheckedChange={(checked) => {
+                          setSelectedPools(checked ? [...selectedPools, pool.name] : selectedPools.filter((name) => name !== pool.name));
+                        }}
+                      />
                         <Label htmlFor={`pool-${pool.name}`} className="cursor-pointer text-sm">{pool.name}</Label>
-                      </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">{t("raModal.noPools")}</p>

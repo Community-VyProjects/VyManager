@@ -31,6 +31,9 @@ class IPSecMapper(BaseFeatureMapper):
     def childless_values(self) -> List[str]:
         return []
 
+    def ikev2_reauth_values(self) -> List[str]:
+        return ["yes", "no", "inherit"]
+
     # ========================================================================
     # Base path
     # ========================================================================
