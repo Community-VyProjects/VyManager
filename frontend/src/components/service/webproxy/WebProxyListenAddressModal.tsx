@@ -21,7 +21,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   listenAddress: ListenAddress | null;
-  onSubmit: (addr: ListenAddress, isEdit: boolean) => Promise<void>;
+  onSubmit: (addr: ListenAddress) => Promise<void>;
 }
 
 const numOrNull = (s: string): number | null => {
@@ -61,7 +61,7 @@ export function WebProxyListenAddressModal({ open, onOpenChange, listenAddress, 
         address: address.trim(),
         port: numOrNull(port),
         disable_transparent: disableTransparent,
-      }, isEdit);
+      });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));

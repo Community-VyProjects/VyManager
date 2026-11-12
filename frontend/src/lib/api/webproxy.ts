@@ -195,6 +195,12 @@ class WebProxyService {
     return this.batch(operations);
   }
 
+  // ----- Whole service -----------------------------------------------------
+
+  async deleteWebProxy(): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_webproxy" }]);
+  }
+
   // ----- Global settings + lists ------------------------------------------
 
   async saveSettings(original: WebProxyConfig, updated: WebProxyConfig): Promise<VyOSResponse> {
@@ -235,6 +241,14 @@ class WebProxyService {
   }
 
   // ----- URL filtering -----------------------------------------------------
+
+  async clearUrlFiltering(): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_url_filtering" }]);
+  }
+
+  async clearSquidGuard(): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_squidguard" }]);
+  }
 
   async setUrlFilteringDisabled(disabled: boolean): Promise<VyOSResponse> {
     return this.batch([

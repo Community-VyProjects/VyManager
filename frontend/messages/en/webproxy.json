@@ -90,6 +90,9 @@
     "deleteFilterRule": "Delete Filter Rule",
     "deleteSourceGroup": "Delete Source Group",
     "deleteTimePeriod": "Delete Time Period",
+    "deleteWebProxy": "Delete Web Proxy",
+    "clearSquidGuard": "Clear squidGuard",
+    "clearUrlFiltering": "Clear URL Filtering",
     "deleteConfirm": "Remove <code>{name}</code>? This cannot be undone."
   },
   "common": {
@@ -97,7 +100,6 @@
   },
   "auth": {
     "description": "Require users to authenticate against an LDAP directory before using the proxy.",
-    "selectMethod": "Select method",
     "realmPlaceholder": "My Company proxy server",
     "credentialsTtlMin": "Credentials TTL (min)",
     "ldapSettings": "LDAP Settings",
@@ -140,8 +142,7 @@
     "allowCategoriesPlaceholder": "e.g. news",
     "blockCategoriesPlaceholder": "e.g. ads",
     "enableSafeSearch": "Enable safe search",
-    "ipOrFqdn": "IP or FQDN",
-    "categoryHint": "Categories come from the squidGuard blacklist database installed on the router."
+    "ipOrFqdn": "IP or FQDN"
   },
   "rule": {
     "numberRequired": "Rule number is required",

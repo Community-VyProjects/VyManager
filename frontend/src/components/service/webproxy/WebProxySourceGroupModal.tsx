@@ -23,7 +23,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   sourceGroup: SquidGuardSourceGroup | null;
   existingNames: string[];
-  onSubmit: (group: SquidGuardSourceGroup, isEdit: boolean) => Promise<void>;
+  onSubmit: (group: SquidGuardSourceGroup) => Promise<void>;
 }
 
 const empty = (): SquidGuardSourceGroup => ({
@@ -64,7 +64,7 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
     setLoading(true);
     setError(null);
     try {
-      await onSubmit({ ...form, name }, isEdit);
+      await onSubmit({ ...form, name });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));

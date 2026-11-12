@@ -26,6 +26,8 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { MultiValueInput } from "./MultiValueInput";
 import type { SquidGuard, WebProxyCapabilities } from "@/lib/api/webproxy";
 
+const NONE = "__none__";
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -120,10 +122,11 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("content.defaultAction")}</Label>
-                <Select value={defaultAction} onValueChange={setDefaultAction}>
-                  <SelectTrigger><SelectValue placeholder={tc("shown.allow")} /></SelectTrigger>
+                <Select value={defaultAction || NONE} onValueChange={(v) => setDefaultAction(v === NONE ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(caps?.options.default_action ?? ["allow", "block"]).map((a) => (
+                    <SelectItem value={NONE}>{t("content.withDefault", { value: tc("shown.allow") })}</SelectItem>
+                    {(caps?.options.default_action ?? []).map((a) => (
                       <SelectItem key={a} value={a}>{a}</SelectItem>
                     ))}
                   </SelectContent>
@@ -150,8 +153,8 @@ export function WebProxySquidGuardModal({ open, onOpenChange, squidguard, caps, 
               </div>
             </div>
 
-            <MultiValueInput label={t("content.allowCategories")} values={allowCategories} onChange={setAllowCategories} placeholder={t("filter.allowCategoriesPlaceholder")} hint={t("filter.categoryHint")} />
-            <MultiValueInput label={t("content.blockCategories")} values={blockCategories} onChange={setBlockCategories} placeholder={t("filter.blockCategoriesPlaceholder")} hint={t("filter.categoryHint")} />
+            <MultiValueInput label={t("content.allowCategories")} values={allowCategories} onChange={setAllowCategories} placeholder={t("filter.allowCategoriesPlaceholder")} />
+            <MultiValueInput label={t("content.blockCategories")} values={blockCategories} onChange={setBlockCategories} placeholder={t("filter.blockCategoriesPlaceholder")} />
             <MultiValueInput label={t("filter.logCategories")} values={log} onChange={setLog} placeholder={t("filter.logCategoriesPlaceholder")} />
             <MultiValueInput label={t("filter.localBlockSites")} values={localBlock} onChange={setLocalBlock} placeholder={t("filter.ipOrFqdn")} />
             <MultiValueInput label={t("filter.localBlockKeywords")} values={localBlockKeyword} onChange={setLocalBlockKeyword} placeholder={t("filter.keywordPlaceholder")} />

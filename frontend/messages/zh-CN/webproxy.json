@@ -90,6 +90,9 @@
     "deleteFilterRule": "删除过滤规则",
     "deleteSourceGroup": "删除源组",
     "deleteTimePeriod": "删除时间段",
+    "deleteWebProxy": "删除 Web 代理",
+    "clearSquidGuard": "清除 squidGuard",
+    "clearUrlFiltering": "清除 URL 过滤",
     "deleteConfirm": "确定移除 <code>{name}</code> 吗？此操作无法撤销。"
   },
   "common": {
@@ -97,7 +100,6 @@
   },
   "auth": {
     "description": "要求用户先通过 LDAP 目录认证才能使用代理。",
-    "selectMethod": "选择方法",
     "realmPlaceholder": "我的公司代理服务器",
     "credentialsTtlMin": "凭据有效期（分钟）",
     "ldapSettings": "LDAP 设置",
@@ -140,8 +142,7 @@
     "allowCategoriesPlaceholder": "例如 news",
     "blockCategoriesPlaceholder": "例如 ads",
     "enableSafeSearch": "启用安全搜索",
-    "ipOrFqdn": "IP 或 FQDN",
-    "categoryHint": "类别来自路由器上安装的 SquidGuard 黑名单数据库。"
+    "ipOrFqdn": "IP 或 FQDN"
   },
   "rule": {
     "numberRequired": "规则编号不能为空",

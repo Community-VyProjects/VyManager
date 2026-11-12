@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { SquidGuardTimePeriod, TimePeriodDay, WebProxyCapabilities } from "@/lib/api/webproxy";
-import { TIME_PERIOD_DAYS, timePeriodDayKey } from "./time-period-days";
+import { timePeriodDayKey } from "./time-period-days";
 
 interface Props {
   open: boolean;
@@ -31,7 +31,7 @@ interface Props {
   timePeriod: SquidGuardTimePeriod | null;
   caps: WebProxyCapabilities | null;
   existingNames: string[];
-  onSubmit: (period: SquidGuardTimePeriod, isEdit: boolean) => Promise<void>;
+  onSubmit: (period: SquidGuardTimePeriod) => Promise<void>;
 }
 
 export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, existingNames, onSubmit }: Props) {
@@ -46,7 +46,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const dayOptions = caps?.options.time_period_days ?? TIME_PERIOD_DAYS;
+  const dayOptions = caps?.options.time_period_days ?? [];
 
   const dayLabel = (day: string) => {
     const key = timePeriodDayKey(day);
@@ -89,7 +89,7 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
     setLoading(true);
     setError(null);
     try {
-      await onSubmit({ name: n, description: description.trim() || null, days }, isEdit);
+      await onSubmit({ name: n, description: description.trim() || null, days });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));

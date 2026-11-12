@@ -36,7 +36,7 @@ interface Props {
   sourceGroups: string[];
   timePeriods: string[];
   existingNumbers: string[];
-  onSubmit: (rule: SquidGuardRule, isEdit: boolean) => Promise<void>;
+  onSubmit: (rule: SquidGuardRule) => Promise<void>;
 }
 
 const emptyRule = (): SquidGuardRule => ({
@@ -92,7 +92,7 @@ export function WebProxyRuleModal({
     setLoading(true);
     setError(null);
     try {
-      await onSubmit({ ...form, number: num }, isEdit);
+      await onSubmit({ ...form, number: num });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));
@@ -118,10 +118,11 @@ export function WebProxyRuleModal({
               </div>
               <div className="space-y-2">
                 <Label>{t("content.defaultAction")}</Label>
-                <Select value={form.default_action ?? ""} onValueChange={(v) => update({ default_action: v })}>
-                  <SelectTrigger><SelectValue placeholder={tc("shown.allow")} /></SelectTrigger>
+                <Select value={form.default_action || NONE} onValueChange={(v) => update({ default_action: v === NONE ? null : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(caps?.options.default_action ?? ["allow", "block"]).map((a) => (
+                    <SelectItem value={NONE}>{t("content.withDefault", { value: tc("shown.allow") })}</SelectItem>
+                    {(caps?.options.default_action ?? []).map((a) => (
                       <SelectItem key={a} value={a}>{a}</SelectItem>
                     ))}
                   </SelectContent>
