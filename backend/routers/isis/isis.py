@@ -251,7 +251,7 @@ async def get_isis_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -288,35 +288,38 @@ async def isis_batch_configure(http_request: Request, body: IsisBatchRequest):
         service = get_session_vyos_service(http_request)
         builder = IsisBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
+                if count == 0:
                     method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                parts = operation.value.split(",", count - 1)
+                if len(parts) != count or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {count} values",
+                    )
+                method(*parts)
+        except ValueError as e:
+            # The mapper raises ValueError for a leaf this version lacks.
+            raise HTTPException(status_code=400, detail=str(e))
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "IS-IS configuration updated"},
             error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
