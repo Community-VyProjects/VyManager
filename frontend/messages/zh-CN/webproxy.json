@@ -95,9 +95,6 @@
     "clearUrlFiltering": "清除 URL 过滤",
     "deleteConfirm": "确定移除 <code>{name}</code> 吗？此操作无法撤销。"
   },
-  "common": {
-    "nameImmutable": "名称创建后无法更改。"
-  },
   "auth": {
     "description": "要求用户先通过 LDAP 目录认证才能使用代理。",
     "realmPlaceholder": "我的公司代理服务器",
@@ -127,7 +124,6 @@
     "addTitle": "添加监听地址",
     "description": "将代理绑定到本地 IPv4 地址。",
     "ipv4Address": "IPv4 地址",
-    "addressImmutable": "地址创建后无法更改。",
     "disableTransparent": "禁用透明模式"
   },
   "filter": {

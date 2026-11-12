@@ -136,6 +136,9 @@ describe("authenticationOps", () => {
     assert.deepEqual(authenticationOps(auth({ password: MASKED_SECRET }), auth({ password: "n3w" })), [
       { op: "set_ldap_password", value: "n3w" },
     ]);
+    assert.deepEqual(authenticationOps(auth({ password: MASKED_SECRET }), auth({ password: " p w " })), [
+      { op: "set_ldap_password", value: " p w " },
+    ]);
     assert.deepEqual(authenticationOps(auth(), auth({ password: null })), []);
   });
 });

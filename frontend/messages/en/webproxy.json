@@ -95,9 +95,6 @@
     "clearUrlFiltering": "Clear URL Filtering",
     "deleteConfirm": "Remove <code>{name}</code>? This cannot be undone."
   },
-  "common": {
-    "nameImmutable": "Name cannot be changed after creation."
-  },
   "auth": {
     "description": "Require users to authenticate against an LDAP directory before using the proxy.",
     "realmPlaceholder": "My Company proxy server",
@@ -127,7 +124,6 @@
     "addTitle": "Add Listen Address",
     "description": "Bind the proxy to a local IPv4 address.",
     "ipv4Address": "IPv4 Address",
-    "addressImmutable": "Address cannot be changed after creation.",
     "disableTransparent": "Disable transparent mode"
   },
   "filter": {

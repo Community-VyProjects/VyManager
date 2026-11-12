@@ -86,7 +86,6 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
             <div className="space-y-2">
               <Label htmlFor="sgrp-name">{tc("name")}</Label>
               <Input id="sgrp-name" value={form.name} onChange={(e) => update({ name: e.target.value })} placeholder="lan-users" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
-              {isEdit && <p className="text-xs text-muted-foreground">{t("common.nameImmutable")}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="sgrp-desc">{tc("description")}</Label>

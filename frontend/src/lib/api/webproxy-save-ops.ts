@@ -15,7 +15,7 @@ export const MASKED_SECRET = "***";
 
 type Scalar = number | string | null | undefined;
 
-/** Every value the save reads goes through this: trimmed, null and undefined become "". */
+/** Every non-secret value the save reads goes through this: trimmed, null and undefined become "". */
 export function normalizeValue(value: Scalar): string {
   return value === null || value === undefined ? "" : String(value).trim();
 }
@@ -88,15 +88,19 @@ function listOps(
   for (const v of a) if (!b.includes(v)) push(ops, addOp, keyed(key, v));
 }
 
-/** Unchanged mask keeps the stored secret, a cleared field deletes it, new text sets it. */
+/**
+ * Unchanged mask keeps the stored secret, a blank field deletes it, and any
+ * other text is sent exactly as typed (a password may start or end with a space).
+ */
 function secretOps(ops: BatchOperation[], setOp: string, deleteOp: string, before: Scalar, after: Scalar): void {
-  const a = normalizeValue(after);
+  const raw = after === null || after === undefined ? "" : String(after);
+  const a = raw.trim();
   if (a === MASKED_SECRET) return;
   if (!a) {
     if (normalizeValue(before)) push(ops, deleteOp, undefined);
     return;
   }
-  if (a !== normalizeValue(before)) push(ops, setOp, a);
+  if (raw !== String(before ?? "")) push(ops, setOp, raw);
 }
 
 // ----- Global settings ------------------------------------------------------

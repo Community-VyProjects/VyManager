@@ -111,7 +111,6 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
             <div className="space-y-2">
               <Label htmlFor="tp-name">{tc("name")}</Label>
               <Input id="tp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="work-hours" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
-              {isEdit && <p className="text-xs text-muted-foreground">{t("common.nameImmutable")}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="tp-desc">{tc("description")}</Label>
