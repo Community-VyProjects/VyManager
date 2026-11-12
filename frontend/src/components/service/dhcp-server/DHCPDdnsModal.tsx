@@ -434,7 +434,7 @@ export function DHCPDdnsModal({
                           </Button>
                         </div>
                         <Select
-                          value={key.algorithm || undefined}
+                          value={key.algorithm ?? ""}
                           onValueChange={(v) => updateKey(index, { algorithm: v })}
                         >
                           <SelectTrigger>

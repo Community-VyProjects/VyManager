@@ -231,6 +231,15 @@ describe("dhcp server form", () => {
     assert.deepEqual(untouched.calls, []);
   });
 
+  it("creates a static mapping node before its leaves", async () => {
+    const service = new RecordingDhcpService(configFor(subnet()));
+    await service.createStaticMapping("LAN", "192.168.1.0/24", "printer", "192.168.1.20", "aa:bb:cc:dd:ee:ff");
+    assert.deepEqual(service.calls[0].operations.slice(0, 2), [
+      { op: "set_static_mapping", value: "printer" },
+      { op: "set_static_mapping_ip_address", value: "printer|192.168.1.20" },
+    ]);
+  });
+
   it("keeps a range id it still has and deletes only a removed range", async () => {
     const stored = subnet({
       ranges: [

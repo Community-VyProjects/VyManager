@@ -912,6 +912,7 @@ export class DHCPServerService {
     extra: DHCPBatchOperation[] = [],
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
+      { op: "set_static_mapping", value: mapping_name },
       {
         op: "set_static_mapping_ip_address",
         value: `${mapping_name}|${ip_address}`,
