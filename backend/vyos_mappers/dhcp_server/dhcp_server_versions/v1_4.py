@@ -5,12 +5,12 @@ the static-mapping hardware address is ``mac-address``, and these leaves exist
 only here: ``host-decl-name``, ``subnet enable-failover``, and the valueless
 ``dynamic-dns-update`` leaf.
 """
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..dhcp import DHCPMapper
+from ..dhcp_server import DHCPServerMapper
 
 
-class DHCPMapperV1_4(DHCPMapper):
+class DHCPServerMapperV1_4(DHCPServerMapper):
     """VyOS 1.4 DHCP server mapper."""
 
     OPTION_PREFIX = ()
@@ -18,6 +18,19 @@ class DHCPMapperV1_4(DHCPMapper):
     CATALOG_KEY = "1.4"
     # 1.4 GraphQL ClearReleaseLeaseDhcp only releases active leases.
     CLEARS_INACTIVE_LEASES = False
+    LEASE_CLEAR_MUTATION = "ClearReleaseLeaseDhcp"
+
+    def lease_clear_request(
+        self, address: str, family: str, vrf: Optional[str]
+    ) -> Tuple[str, Dict[str, Any]]:
+        query = (
+            "mutation ($key: String, $ip: String!) {"
+            f"  {self.LEASE_CLEAR_MUTATION}(data: {{key: $key, ip_address: $ip}}) {{"
+            "    success errors"
+            "  }"
+            "}"
+        )
+        return query, {"ip": address}
 
     def get_host_decl_name(self) -> List[str]:
         return ["service", "dhcp-server", "host-decl-name"]

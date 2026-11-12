@@ -180,6 +180,82 @@ interface DHCPFieldCapability {
   description: string;
 }
 
+interface DHCPFailoverCapability extends DHCPFieldCapability {
+  modes: string[];
+  statuses: string[];
+}
+
+interface DHCPDdnsKeaCapability extends DHCPFieldCapability {
+  toggle_values: string[];
+  replace_client_name_values: string[];
+  tsig_algorithms: string[];
+}
+
+/** Config responses replace a secret with this. It is never written back. */
+export const MASKED_SECRET = "***";
+
+/** The TSIG secret an edit writes: trimmed, and blank when it is empty or the mask. */
+function tsigSecretToWrite(key: DHCPDdnsTsigKey): string {
+  const secret = (key.secret ?? "").trim();
+  return secret === MASKED_SECRET ? "" : secret;
+}
+
+/** Set the range start and stop that changed. A set replaces the value, so the range and its other children stay. */
+export function rangeAddressOps(
+  rangeId: string,
+  prev: { start: string; stop: string },
+  next: { start: string; stop: string },
+): DHCPBatchOperation[] {
+  const ops: DHCPBatchOperation[] = [];
+  if (next.start && next.start !== prev.start) {
+    ops.push({ op: "set_subnet_range_start", value: `${rangeId}|${next.start}` });
+  }
+  if (next.stop && next.stop !== prev.stop) {
+    ops.push({ op: "set_subnet_range_stop", value: `${rangeId}|${next.stop}` });
+  }
+  return ops;
+}
+
+export type DdnsProblem = "tsigKeyIncomplete" | "dnsServerAddress" | "unknownKey" | "duplicateName" | "missingName";
+
+/** A Kea dynamic-dns-update edit the lab commit would reject, or null. */
+export function ddnsProblem(original: DHCPDdnsConfig, updated: DHCPDdnsConfig): DdnsProblem | null {
+  if (!updated.present) return null;
+  const configured = new Set(original.tsig_keys.map((k) => k.name));
+  const names = new Set<string>();
+  for (const key of updated.tsig_keys) {
+    const name = key.name.trim();
+    if (!name) {
+      if (key.algorithm || tsigSecretToWrite(key)) return "missingName";
+      continue;
+    }
+    if (names.has(name)) return "duplicateName";
+    names.add(name);
+    if (!key.algorithm) return "tsigKeyIncomplete";
+    if (!configured.has(name) && !tsigSecretToWrite(key)) return "tsigKeyIncomplete";
+  }
+  for (const list of [updated.forward_domains, updated.reverse_domains]) {
+    const domainNames = list.map((d) => d.name.trim()).filter(Boolean);
+    if (new Set(domainNames).size !== domainNames.length) return "duplicateName";
+  }
+  for (const domain of [...updated.forward_domains, ...updated.reverse_domains]) {
+    if (!domain.name.trim()) {
+      if (domain.key_name || domain.dns_servers.length) return "missingName";
+      continue;
+    }
+    if (domain.key_name && !names.has(domain.key_name)) return "unknownKey";
+    if (domain.dns_servers.some((s) => !s.id.trim() && ((s.address ?? "").trim() || (s.port ?? "").trim()))) {
+      return "missingName";
+    }
+    const ids = domain.dns_servers.map((s) => s.id.trim()).filter(Boolean);
+    if (new Set(ids).size !== ids.length) return "duplicateName";
+    if (domain.dns_servers.some((s) => s.id.trim() && !(s.address ?? "").trim())) {
+      return "dnsServerAddress";
+    }
+  }
+  return null;
+}
+
 export interface DHCPCapabilitiesResponse {
   fields: {
     // Basic fields
@@ -221,10 +297,10 @@ export interface DHCPCapabilitiesResponse {
     host_decl_name: DHCPFieldCapability;
     static_mapping_duid: DHCPFieldCapability;
     static_mapping_description: DHCPFieldCapability;
-    failover: DHCPFieldCapability;
+    failover: DHCPFailoverCapability;
     failover_certificate: DHCPFieldCapability;
     dynamic_dns_update_leaf: DHCPFieldCapability;
-    dynamic_dns_update_kea: DHCPFieldCapability;
+    dynamic_dns_update_kea: DHCPDdnsKeaCapability;
     network_disable: DHCPFieldCapability;
     subnet_disable: DHCPFieldCapability;
     client_class?: DHCPFieldCapability;
@@ -314,19 +390,19 @@ export interface UpdateSubnetConfig {
 // API Service
 // ============================================================================
 
-export class DHCPService {
+export class DHCPServerService {
   /**
    * Get DHCP server capabilities based on VyOS version
    */
   async getCapabilities(): Promise<DHCPCapabilitiesResponse> {
-    return apiClient.get<DHCPCapabilitiesResponse>("/vyos/dhcp/capabilities");
+    return apiClient.get<DHCPCapabilitiesResponse>("/vyos/dhcp-server/capabilities");
   }
 
   /**
    * Get all DHCP configurations
    */
   async getConfig(refresh: boolean = false): Promise<DHCPConfigResponse> {
-    return apiClient.get<DHCPConfigResponse>("/vyos/dhcp/config", {
+    return apiClient.get<DHCPConfigResponse>("/vyos/dhcp-server/config", {
       refresh: refresh.toString(),
     });
   }
@@ -335,7 +411,7 @@ export class DHCPService {
    * Get active DHCP leases
    */
   async getLeases(): Promise<DHCPLeasesResponse> {
-    return apiClient.get<DHCPLeasesResponse>("/vyos/dhcp/leases");
+    return apiClient.get<DHCPLeasesResponse>("/vyos/dhcp-server/leases");
   }
 
   /**
@@ -343,7 +419,7 @@ export class DHCPService {
    * This is an operational command issued via the VyOS GraphQL API.
    */
   async clearLease(ipAddress: string, vrf?: string): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp/leases/clear", {
+    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp-server/leases/clear", {
       ip_address: ipAddress,
       vrf: vrf ?? null,
     });
@@ -364,7 +440,7 @@ export class DHCPService {
    * Execute batch DHCP operations
    */
   async batchConfigure(request: DHCPBatchRequest): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp/batch", request);
+    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp-server/batch", request);
     // Refresh config cache after successful commit
     await this.refreshConfig();
     return result;
@@ -563,29 +639,24 @@ export class DHCPService {
       operations.push({ op: "set_subnet_lease", value: config.lease });
     }
 
-    // Update ranges (delete old ones, then set new ones)
+    // Update ranges. A kept range id only rewrites start and stop, so its
+    // client-class and options stay; a removed id deletes that range.
     if (config.ranges !== undefined) {
-      // Delete existing ranges
-      if (currentSubnet?.ranges) {
-        for (const range of currentSubnet.ranges) {
-          operations.push({ op: "delete_subnet_range", value: range.range_id });
-        }
+      const nextIds = new Set(config.ranges.map((r) => r.range_id));
+      const prevRanges = new Map((currentSubnet?.ranges ?? []).map((r) => [r.range_id, r]));
+      for (const id of prevRanges.keys()) {
+        if (!nextIds.has(id)) operations.push({ op: "delete_subnet_range", value: id });
       }
-      // Set new ranges
       for (const range of config.ranges) {
-        operations.push({ op: "set_subnet_range", value: range.range_id });
-        if (range.start) {
-          operations.push({
-            op: "set_subnet_range_start",
-            value: `${range.range_id}|${range.start}`,
-          });
-        }
-        if (range.stop) {
-          operations.push({
-            op: "set_subnet_range_stop",
-            value: `${range.range_id}|${range.stop}`,
-          });
-        }
+        const prev = prevRanges.get(range.range_id);
+        if (!prev) operations.push({ op: "set_subnet_range", value: range.range_id });
+        operations.push(
+          ...rangeAddressOps(
+            range.range_id,
+            { start: prev?.start ?? "", stop: prev?.stop ?? "" },
+            { start: range.start ?? "", stop: range.stop ?? "" },
+          ),
+        );
       }
     }
 
@@ -826,9 +897,7 @@ export class DHCPService {
   }
 
   /**
-   * Create a static mapping
-   * Note: We only set ip-address and mac-address, as VyOS implicitly creates
-   * the static-mapping node when setting child properties.
+   * Create a static mapping node, then its ip-address and the optional leaves.
    */
   async createStaticMapping(
     network_name: string,
@@ -841,6 +910,7 @@ export class DHCPService {
     extra: DHCPBatchOperation[] = [],
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
+      { op: "set_static_mapping", value: mapping_name },
       {
         op: "set_static_mapping_ip_address",
         value: `${mapping_name}|${ip_address}`,
@@ -1092,6 +1162,8 @@ export class DHCPService {
       if (!updated.present && original.present) {
         operations.push({ op: "delete_dynamic_dns_update" });
       } else if (updated.present) {
+        const problem = ddnsProblem(original, updated);
+        if (problem) throw new Error(problem);
         const nextSend = updated.send_updates ?? "";
         const prevSend = original.send_updates ?? "";
         if (nextSend !== prevSend) {
@@ -1121,7 +1193,9 @@ export class DHCPService {
           else operations.push({ op: "delete_ddns_scalar", value: leaf });
         }
         const origKeys = new Map(original.tsig_keys.map((k) => [k.name, k]));
-        const nextKeys = new Map(updated.tsig_keys.filter((k) => k.name.trim()).map((k) => [k.name, k]));
+        const nextKeys = new Map(
+          updated.tsig_keys.filter((k) => k.name.trim()).map((k) => [k.name.trim(), k])
+        );
         for (const name of origKeys.keys()) {
           if (!nextKeys.has(name)) operations.push({ op: "delete_ddns_tsig_key", value: name });
         }
@@ -1131,13 +1205,15 @@ export class DHCPService {
           if ((key.algorithm ?? "") !== (prev?.algorithm ?? "") && key.algorithm) {
             operations.push({ op: "set_ddns_tsig_key_algorithm", value: `${name}|${key.algorithm}` });
           }
-          if ((key.secret ?? "") !== (prev?.secret ?? "") && key.secret) {
-            operations.push({ op: "set_ddns_tsig_key_secret", value: `${name}|${key.secret}` });
+          // A blank or masked secret keeps the configured one.
+          const secret = tsigSecretToWrite(key);
+          if (secret) {
+            operations.push({ op: "set_ddns_tsig_key_secret", value: `${name}|${secret}` });
           }
         }
         const diffDomains = (kind: "forward-domain" | "reverse-domain", origList: DHCPDdnsDomain[], nextList: DHCPDdnsDomain[]) => {
           const origMap = new Map(origList.map((d) => [d.name, d]));
-          const nextMap = new Map(nextList.filter((d) => d.name.trim()).map((d) => [d.name, d]));
+          const nextMap = new Map(nextList.filter((d) => d.name.trim()).map((d) => [d.name.trim(), d]));
           for (const name of origMap.keys()) {
             if (!nextMap.has(name)) operations.push({ op: "delete_ddns_domain", value: `${kind}|${name}` });
           }
@@ -1152,7 +1228,9 @@ export class DHCPService {
               }
             }
             const origServers = new Map((prev?.dns_servers ?? []).map((s) => [s.id, s]));
-            const nextServers = new Map(domain.dns_servers.filter((s) => s.id.trim()).map((s) => [s.id, s]));
+            const nextServers = new Map(
+              domain.dns_servers.filter((s) => s.id.trim()).map((s) => [s.id.trim(), s])
+            );
             for (const id of origServers.keys()) {
               if (!nextServers.has(id)) {
                 operations.push({ op: "delete_ddns_domain_dns_server", value: `${kind}|${name}|${id}` });
@@ -1160,17 +1238,26 @@ export class DHCPService {
             }
             for (const [id, server] of nextServers) {
               const prevS = origServers.get(id);
-              if ((server.address ?? "") !== (prevS?.address ?? "") && server.address) {
+              const address = (server.address ?? "").trim();
+              if (address !== (prevS?.address ?? "") && address) {
                 operations.push({
                   op: "set_ddns_domain_dns_server_address",
-                  value: `${kind}|${name}|${id}|${server.address}`,
+                  value: `${kind}|${name}|${id}|${address}`,
                 });
               }
-              if ((server.port ?? "") !== (prevS?.port ?? "") && server.port) {
-                operations.push({
-                  op: "set_ddns_domain_dns_server_port",
-                  value: `${kind}|${name}|${id}|${server.port}`,
-                });
+              const port = (server.port ?? "").trim();
+              if (port !== (prevS?.port ?? "")) {
+                if (port) {
+                  operations.push({
+                    op: "set_ddns_domain_dns_server_port",
+                    value: `${kind}|${name}|${id}|${port}`,
+                  });
+                } else if (prevS?.port) {
+                  operations.push({
+                    op: "delete_ddns_domain_dns_server_port",
+                    value: `${kind}|${name}|${id}`,
+                  });
+                }
               }
             }
           }
@@ -1197,23 +1284,6 @@ export class DHCPService {
       operations: [{ op: "delete_shared_network_disable" }],
     });
   }
-
-  // Subnet disable
-  async setSubnetDisable(networkName: string, subnet: string): Promise<VyOSResponse> {
-    return this.batchConfigure({
-      network_name: networkName,
-      subnet,
-      operations: [{ op: "set_subnet_disable" }],
-    });
-  }
-
-  async deleteSubnetDisable(networkName: string, subnet: string): Promise<VyOSResponse> {
-    return this.batchConfigure({
-      network_name: networkName,
-      subnet,
-      operations: [{ op: "delete_subnet_disable" }],
-    });
-  }
 }
 
-export const dhcpService = new DHCPService();
+export const dhcpServerService = new DHCPServerService();

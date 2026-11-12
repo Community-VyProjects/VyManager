@@ -21,10 +21,10 @@ import { DhcpCatalogFields } from "./DhcpCatalogFields";
 import { catalogDraftFrom, catalogOps, type CatalogDraft } from "./dhcp-catalog";
 import { failedSaveMessage } from "./dhcp-save";
 import {
-  dhcpService,
+  dhcpServerService,
   type DHCPCapabilitiesResponse,
   type DHCPGlobalConfig,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 
 const NO_LEAVES: never[] = [];
 
@@ -98,7 +98,7 @@ export function DHCPServerSettingsModal({
         catalogOriginal,
         catalogDraft,
       );
-      const result = await dhcpService.saveGlobalSettings(globalConfig, {
+      const result = await dhcpServerService.saveGlobalSettings(globalConfig, {
         ...globalConfig,
         listen_addresses: listenAddresses,
         listen_interfaces: canListenInterface ? listenInterfaces : (globalConfig.listen_interfaces ?? []),

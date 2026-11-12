@@ -8,15 +8,15 @@
  */
 
 import {
-  dhcpService,
-  DHCPService,
+  dhcpServerService,
+  DHCPServerService,
   type DHCPBatchOperation,
   type DHCPCapabilitiesResponse,
   type DHCPRange,
   type DHCPSubnet,
   type CreateSubnetConfig,
   type UpdateSubnetConfig,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import type { VyOSResponse } from "@/lib/types/api";
 
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
@@ -533,7 +533,7 @@ export async function submitServerCreate(
   support: ServerFieldSupport,
   subnetId: number | undefined,
   catalogOperations: DHCPBatchOperation[],
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
 ): Promise<VyOSResponse> {
   return service.createSubnet(buildServerCreate(draft, support, subnetId, catalogOperations));
 }
@@ -543,7 +543,7 @@ export async function submitServerUpdate(
   draft: ServerDraft,
   support: ServerFieldSupport,
   catalogOperations: DHCPBatchOperation[],
-  service: DHCPService = dhcpService,
+  service: DHCPServerService = dhcpServerService,
 ): Promise<VyOSResponse | null> {
   const payload = buildServerUpdate(existing, draft, support, catalogOperations);
   if (!payload) return null;

@@ -248,7 +248,7 @@ ROUTER_FEATURE_MAP = {
     "/vyos/nat": FeatureGroup.NAT,
     "/vyos/nat64": FeatureGroup.NAT64,
     "/vyos/nat66": FeatureGroup.NAT66,
-    "/vyos/dhcp": FeatureGroup.DHCP,
+    "/vyos/dhcp-server": FeatureGroup.DHCP,
     "/vyos/interfaces": FeatureGroup.INTERFACES,
     "/vyos/static-routes": FeatureGroup.STATIC_ROUTES,
     "/vyos/route": FeatureGroup.ROUTING_POLICIES,

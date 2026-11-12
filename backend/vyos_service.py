@@ -15,7 +15,7 @@ from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
 from config_state import clear_managed_config, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
-from vyos_builders.dhcp import DHCPBatchBuilder
+from vyos_builders.dhcp_server import DHCPServerBatchBuilder
 from vyos_builders.firewall import FirewallGroupsBatchBuilder
 from vyos_builders.interfaces import (
     EthernetInterfaceBuilderMixin,
@@ -284,7 +284,7 @@ class VyOSService:
             InputInterfaceBuilderMixin,
             FirewallGroupsBatchBuilder,
             NATBatchBuilder,
-            DHCPBatchBuilder,
+            DHCPServerBatchBuilder,
             WireGuardBatchBuilder,
             SystemPerformanceBatchBuilder,
             LoopbackInterfaceBuilderMixin,

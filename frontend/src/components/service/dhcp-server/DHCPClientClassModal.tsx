@@ -16,9 +16,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  dhcpService,
+  dhcpServerService,
   type DHCPClientClass,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import { clientClassOperations, duplicateClassName, type ClientClassDraft } from "./dhcp-client-class";
 import { failedSaveMessage } from "./dhcp-save";
 
@@ -62,12 +62,11 @@ export function DHCPClientClassModal({
   const saveDraft = async () => {
     const name = draft.name.trim();
     if (!/^[-_a-zA-Z0-9][\w\-.+]*$/.test(name)) {
-      setError("Class name may only contain letters, numbers, and . _ - +");
+      setError(t("clientClass.nameInvalid"));
       return;
     }
-    const duplicate = duplicateClassName(name, rows, draft.originalName);
-    if (duplicate) {
-      setError(duplicate);
+    if (duplicateClassName(name, rows, draft.originalName)) {
+      setError(t("clientClass.nameTaken"));
       return;
     }
     setLoading(true);
@@ -75,11 +74,11 @@ export function DHCPClientClassModal({
     const stored = rows.find((item) => item.name === (draft.originalName ?? name));
     const operations = clientClassOperations(draft, stored);
     try {
-      const result = await dhcpService.batchConfigure({
+      const result = await dhcpServerService.batchConfigure({
         network_name: "_global",
         operations,
       });
-      const saveError = failedSaveMessage(result, "Failed to save client class");
+      const saveError = failedSaveMessage(result, t("clientClass.saveFailed"));
       if (saveError) {
         setError(saveError);
         return;
@@ -87,7 +86,7 @@ export function DHCPClientClassModal({
       onSuccess();
       setDraft(emptyDraft());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save client class");
+      setError(err instanceof Error ? err.message : t("clientClass.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -97,7 +96,7 @@ export function DHCPClientClassModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await dhcpService.batchConfigure({
+      const result = await dhcpServerService.batchConfigure({
         network_name: "_global",
         operations: [{ op: "delete_client_class", value: name }],
       });

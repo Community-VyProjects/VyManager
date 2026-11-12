@@ -8,14 +8,14 @@ the static-mapping hardware address is ``mac``. These leaves exist only here:
 ``client-class``.
 """
 import re
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..dhcp import DHCPMapper
+from ..dhcp_server import DHCPServerMapper
 
 _CLIENT_CLASS_NAME = re.compile(r"^[-_a-zA-Z0-9][\w\-\.\+]*$")
 
 
-class DHCPMapperV1_5(DHCPMapper):
+class DHCPServerMapperV1_5(DHCPServerMapper):
     """VyOS 1.5 DHCP server mapper."""
 
     OPTION_PREFIX = ("option",)
@@ -23,6 +23,28 @@ class DHCPMapperV1_5(DHCPMapper):
     CATALOG_KEY = "1.5"
     # 1.5 GraphQL ClearDhcpServerLeaseDhcp clears any lease state.
     CLEARS_INACTIVE_LEASES = True
+    LEASE_CLEAR_MUTATION = "ClearDhcpServerLeaseDhcp"
+
+    def lease_clear_request(
+        self, address: str, family: str, vrf: Optional[str]
+    ) -> Tuple[str, Dict[str, Any]]:
+        query = (
+            "mutation ($key: String, $family: FamilyDhcp!, $address: String!, $vrf: String) {"
+            f"  {self.LEASE_CLEAR_MUTATION}(data: {{key: $key, family: $family, address: $address, vrf: $vrf}}) {{"
+            "    success errors"
+            "  }"
+            "}"
+        )
+        return query, {"family": family, "address": address, "vrf": vrf}
+
+    def ddns_toggle_values(self) -> List[str]:
+        return ["enable", "disable"]
+
+    def ddns_replace_client_name_values(self) -> List[str]:
+        return ["never", "always", "when-present", "when-not-present"]
+
+    def ddns_tsig_algorithms(self) -> List[str]:
+        return ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"]
 
     # ==================== Global ====================
 
@@ -133,6 +155,11 @@ class DHCPMapperV1_5(DHCPMapper):
         self, kind: str, domain: str, server_id: str, port: str
     ) -> List[str]:
         return self.get_ddns_domain_dns_server_path(kind, domain, server_id) + ["port", port]
+
+    def get_ddns_domain_dns_server_port_path(
+        self, kind: str, domain: str, server_id: str
+    ) -> List[str]:
+        return self.get_ddns_domain_dns_server_path(kind, domain, server_id) + ["port"]
 
     def get_ddns_domain_dns_server_path(
         self, kind: str, domain: str, server_id: str

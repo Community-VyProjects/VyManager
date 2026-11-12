@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
+from vyos_builders.dhcp_server.dhcp_server_batch_builder import DHCPServerBatchBuilder
 from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
@@ -32,6 +32,20 @@ def test_legacy_op_names_still_resolve():
     ):
         with pytest.raises(AttributeError):
             getattr(builder, gone)
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_direct_feature_ops_resolve_on_global_builder(version):
+    from vyos_builders.vrf.feature_modes import DIRECT
+    from vyos_builders.vrf.vrf_protocol import FEATURE_BUILDERS, _alias
+
+    missing = []
+    for key in sorted(DIRECT):
+        proto, verb, suffix = key.split(":")
+        inner = FEATURE_BUILDERS[proto](version)
+        if not hasattr(inner, f"{verb}_{_alias(proto, suffix)}"):
+            missing.append(key)
+    assert missing == []
 
 
 def test_static_route_calls_global_builder(monkeypatch):
@@ -74,13 +88,13 @@ def test_failover_route_calls_global_builder(monkeypatch):
 
 def test_dhcp_disable_calls_global_builder(monkeypatch):
     called = {}
-    real = DHCPBatchBuilder.set_global_disable
+    real = DHCPServerBatchBuilder.set_global_disable
 
     def spy(self):
         called["ran"] = True
         return real(self)
 
-    monkeypatch.setattr(DHCPBatchBuilder, "set_global_disable", spy)
+    monkeypatch.setattr(DHCPServerBatchBuilder, "set_global_disable", spy)
     builder = VrfBatchBuilder("1.5")
     builder.set_vrf_dhcp_disable("blue")
     assert called == {"ran": True}

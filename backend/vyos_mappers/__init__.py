@@ -36,8 +36,8 @@ from .nat64 import NAT64Mapper
 from .nat64.nat64_versions import get_nat64_mapper
 from .nat66 import NAT66Mapper
 from .nat66.nat66_versions import get_nat66_mapper
-from .dhcp import DHCPMapper
-from .dhcp.dhcp_versions import get_dhcp_mapper
+from .dhcp_server import DHCPServerMapper
+from .dhcp_server.dhcp_server_versions import get_dhcp_server_mapper
 from .static_routes import StaticRoutesMapper
 from .static_routes.static_routes_versions import get_static_routes_mapper
 from .route_map import RouteMapMapper
@@ -207,7 +207,7 @@ CommandMapperRegistry.register_feature("nat64", get_nat64_mapper)
 # NAT66 uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("nat66", get_nat66_mapper)
 # DHCP uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("dhcp", get_dhcp_mapper)
+CommandMapperRegistry.register_feature("dhcp_server", get_dhcp_server_mapper)
 # Static Routes uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("static_routes", get_static_routes_mapper)
 # Route Map uses factory for version-specific mappers
@@ -356,7 +356,7 @@ __all__ = [
     "NATMapper",
     "NAT64Mapper",
     "NAT66Mapper",
-    "DHCPMapper",
+    "DHCPServerMapper",
     "DHCPv6ServerMapper",
     "StaticRoutesMapper",
     "RouteMapMapper",

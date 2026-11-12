@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Network, Pencil, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp";
+import { dhcpServerService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 import { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import { DhcpCatalogFields } from "./DhcpCatalogFields";
@@ -119,21 +119,16 @@ export function RangeModal({
 
     try {
       if (write.kind === "update" && existing) {
-        const startChanged =
-          draft.startIp.trim() !== (existing.range.start || "") ||
-          draft.stopIp.trim() !== (existing.range.stop || "");
-        const follow = startChanged
-          ? catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, existing.range.range_id)
-          : catalogOps(
-              "set_range_catalog",
-              "delete_range_catalog",
-              rangeLeaves,
-              catalogOriginal,
-              catalogDraft,
-              existing.range.range_id,
-            );
-        const updated = await submitRangeUpdate(network.name, existing, draft, dhcpService, follow);
-        const updateError = failedSaveMessage(updated, "Failed to save range");
+        const follow = catalogOps(
+          "set_range_catalog",
+          "delete_range_catalog",
+          rangeLeaves,
+          catalogOriginal,
+          catalogDraft,
+          existing.range.range_id,
+        );
+        const updated = await submitRangeUpdate(network.name, existing, draft, dhcpServerService, follow);
+        const updateError = failedSaveMessage(updated, t("range.updateFailed"));
         if (updateError) {
           setError(updateError);
           return;
@@ -141,8 +136,8 @@ export function RangeModal({
       } else {
         const rangeId = nextRangeId(network, draft.subnet);
         const follow = catalogCreateOps("set_range_catalog", rangeLeaves, catalogDraft, rangeId);
-        const created = await submitRangeCreate(network.name, draft, rangeId, dhcpService, follow);
-        const createError = failedSaveMessage(created, "Failed to create range");
+        const created = await submitRangeCreate(network.name, draft, rangeId, dhcpServerService, follow);
+        const createError = failedSaveMessage(created, t("range.createFailed"));
         if (createError) {
           setError(createError);
           return;

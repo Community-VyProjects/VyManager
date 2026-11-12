@@ -41,12 +41,9 @@ describe("clientClassOperations", () => {
   });
 
   it("rejects a rename onto a class that already exists", () => {
-    assert.equal(
-      duplicateClassName("WAN", [{ name: "LAN" }, { name: "WAN" }], "LAN"),
-      "A client class with that name already exists",
-    );
-    assert.equal(duplicateClassName("LAN", [{ name: "LAN" }], "LAN"), null);
-    assert.equal(duplicateClassName("NEW", [{ name: "LAN" }], null), null);
+    assert.equal(duplicateClassName("WAN", [{ name: "LAN" }, { name: "WAN" }], "LAN"), true);
+    assert.equal(duplicateClassName("LAN", [{ name: "LAN" }], "LAN"), false);
+    assert.equal(duplicateClassName("NEW", [{ name: "LAN" }], null), false);
   });
 
   it("the modal rejects a taken name before it saves", () => {

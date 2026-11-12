@@ -35,7 +35,10 @@
     "startIpHelp": "地址范围中的第一个 IP 地址",
     "stopIp": "结束 IP 地址",
     "stopIpHelp": "地址范围中的最后一个 IP 地址",
-    "create": "创建地址范围"
+    "create": "创建地址范围",
+    "deleteTitle": "删除 DHCP 范围",
+    "deleteDescription": "从 <mono>{subnet}</mono> 删除范围 <mono>{id}</mono>（{start} - {stop}）？",
+    "deleteFailed": "删除范围失败"
   },
   "mapping": {
     "updateFailed": "更新静态映射失败",
@@ -130,7 +133,14 @@
     "keyName": "密钥名称",
     "base64Secret": "base64 密钥",
     "forwardDomains": "正向域",
-    "reverseDomains": "反向域"
+    "reverseDomains": "反向域",
+    "errors": {
+      "tsigKeyIncomplete": "每个 TSIG 密钥都需要算法，新密钥还需要密钥值",
+      "dnsServerAddress": "每个 DNS 服务器都需要地址",
+      "unknownKey": "某个域使用了未配置的 TSIG 密钥",
+      "duplicateName": "每个 TSIG 密钥、域和 DNS 服务器的名称都必须唯一",
+      "missingName": "每个 TSIG 密钥、域和 DNS 服务器都需要名称"
+    }
   },
   "subnetForm": {
     "errors": {
@@ -339,7 +349,10 @@
     "remoteId": "中继 remote-id",
     "new": "新建",
     "save": "保存类别",
-    "deleteFailed": "删除客户端类别失败"
+    "deleteFailed": "删除客户端类别失败",
+    "nameInvalid": "类名只能包含字母、数字以及 . _ - +",
+    "nameTaken": "已存在同名的客户端类",
+    "saveFailed": "保存客户端类失败"
   },
   "networkOptions": {
     "title": "{name} 选项",

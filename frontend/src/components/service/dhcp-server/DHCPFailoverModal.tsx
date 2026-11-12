@@ -23,10 +23,11 @@ import {
 import { AlertCircle } from "lucide-react";
 import { pkiService } from "@/lib/api/pki";
 import {
-  dhcpService,
+  dhcpServerService,
   type DHCPCapabilitiesResponse,
   type DHCPFailoverConfig,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
+import { failedSaveMessage } from "./dhcp-save";
 
 interface DHCPFailoverModalProps {
   open: boolean;
@@ -60,6 +61,9 @@ export function DHCPFailoverModal({
   const [form, setForm] = useState<DHCPFailoverConfig>(empty);
   const [certs, setCerts] = useState<string[]>([]);
   const [cas, setCas] = useState<string[]>([]);
+  const failoverCaps = capabilities?.fields.failover;
+  const modes = failoverCaps?.modes || [];
+  const statuses = failoverCaps?.statuses || [];
   const canCert = capabilities?.fields.failover_certificate?.supported ?? false;
 
   useEffect(() => {
@@ -96,10 +100,10 @@ export function DHCPFailoverModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await dhcpService.saveFailover(failover, form, canCert);
-      if (!result.success) {
-        setError(result.error ?? t("failover.saveFailed"));
-        setLoading(false);
+      const result = await dhcpServerService.saveFailover(failover, form, canCert);
+      const saveError = failedSaveMessage(result, t("failover.saveFailed"));
+      if (saveError) {
+        setError(saveError);
         return;
       }
       onOpenChange(false);
@@ -127,8 +131,11 @@ export function DHCPFailoverModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">{t("unset")}</SelectItem>
-                <SelectItem value="active-active">{tc("shown.activeActive")}</SelectItem>
-                <SelectItem value="active-passive">{tc("shown.activePassive")}</SelectItem>
+                {modes.map((mode) => (
+                  <SelectItem key={mode} value={mode}>
+                    {mode}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -160,8 +167,11 @@ export function DHCPFailoverModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">{t("unset")}</SelectItem>
-                <SelectItem value="primary">{tc("shown.primary")}</SelectItem>
-                <SelectItem value="secondary">{tc("shown.secondary")}</SelectItem>
+                {statuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

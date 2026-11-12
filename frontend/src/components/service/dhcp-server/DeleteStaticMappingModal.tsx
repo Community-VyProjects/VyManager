@@ -13,7 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, Monitor } from "lucide-react";
-import { dhcpService, type DHCPStaticMapping } from "@/lib/api/dhcp";
+import { dhcpServerService, type DHCPStaticMapping } from "@/lib/api/dhcp-server";
+import { failedSaveMessage } from "./dhcp-save";
 
 interface DeleteStaticMappingModalProps {
   open: boolean;
@@ -47,7 +48,12 @@ export function DeleteStaticMappingModal({
     setError(null);
 
     try {
-      await dhcpService.deleteStaticMapping(networkName, subnet, mapping.name);
+      const result = await dhcpServerService.deleteStaticMapping(networkName, subnet, mapping.name);
+      const deleteError = failedSaveMessage(result, t("deleteMapping.failed"));
+      if (deleteError) {
+        setError(deleteError);
+        return;
+      }
       handleClose();
       onSuccess();
     } catch (err) {

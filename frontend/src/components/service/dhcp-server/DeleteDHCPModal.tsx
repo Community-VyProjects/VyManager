@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
-import { dhcpService } from "@/lib/api/dhcp";
+import { dhcpServerService } from "@/lib/api/dhcp-server";
 import { ApiError } from "@/lib/types/api";
+import { failedSaveMessage } from "./dhcp-save";
 
 interface DeleteDHCPModalProps {
   open: boolean;
@@ -47,13 +48,19 @@ export function DeleteDHCPModal({
     setError(null);
 
     try {
+      let result;
       if (deleteEntireNetwork) {
-        await dhcpService.deleteSharedNetwork(networkName);
+        result = await dhcpServerService.deleteSharedNetwork(networkName);
       } else {
         if (!subnet) {
           throw new Error(t("deleteNetwork.subnetRequired"));
         }
-        await dhcpService.deleteSubnet(networkName, subnet);
+        result = await dhcpServerService.deleteSubnet(networkName, subnet);
+      }
+      const deleteError = failedSaveMessage(result, t("deleteNetwork.failed"));
+      if (deleteError) {
+        setError(deleteError);
+        return;
       }
 
       handleClose();

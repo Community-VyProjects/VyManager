@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { DHCPSharedNetwork } from "@/lib/api/dhcp";
+import type { DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 import { networkSettingsDraft, networkSettingsOps } from "./dhcp-network-settings";
 
 const stored: DHCPSharedNetwork = {

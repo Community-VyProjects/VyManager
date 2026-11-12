@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  DHCPService,
+  DHCPServerService,
   type DHCPBatchOperation,
   type DHCPConfigResponse,
   type DHCPSubnet,
-} from "@/lib/api/dhcp";
+} from "@/lib/api/dhcp-server";
 import type { VyOSResponse } from "@/lib/types/api";
 import {
   buildServerCreate,
@@ -98,7 +98,7 @@ function configFor(record: DHCPSubnet, network = "LAN"): DHCPConfigResponse {
   };
 }
 
-class RecordingDhcpService extends DHCPService {
+class RecordingDhcpService extends DHCPServerService {
   calls: { network_name: string; subnet?: string; operations: DHCPBatchOperation[] }[] = [];
   seen: DHCPConfigResponse;
 
@@ -229,6 +229,38 @@ describe("dhcp server form", () => {
     );
     assert.equal(result, null);
     assert.deepEqual(untouched.calls, []);
+  });
+
+  it("creates a static mapping node before its leaves", async () => {
+    const service = new RecordingDhcpService(configFor(subnet()));
+    await service.createStaticMapping("LAN", "192.168.1.0/24", "printer", "192.168.1.20", "aa:bb:cc:dd:ee:ff");
+    assert.deepEqual(service.calls[0].operations.slice(0, 2), [
+      { op: "set_static_mapping", value: "printer" },
+      { op: "set_static_mapping_ip_address", value: "printer|192.168.1.20" },
+    ]);
+  });
+
+  it("keeps a range id it still has and deletes only a removed range", async () => {
+    const stored = subnet({
+      ranges: [
+        { range_id: "0", start: "192.168.1.100", stop: "192.168.1.200" },
+        { range_id: "1", start: "192.168.1.210", stop: "192.168.1.220" },
+      ],
+    });
+    const service = new RecordingDhcpService(configFor(stored));
+    const draft = serverDraftFrom("LAN", stored);
+    draft.ranges = [
+      { range_id: "0", start: "192.168.1.100", stop: "192.168.1.150" },
+      { range_id: "2", start: "192.168.1.230", stop: "192.168.1.240" },
+    ];
+    await submitServerUpdate({ network: "LAN", subnet: stored }, draft, allOn, [], service);
+    assert.deepEqual(service.calls[0].operations, [
+      { op: "delete_subnet_range", value: "1" },
+      { op: "set_subnet_range_stop", value: "0|192.168.1.150" },
+      { op: "set_subnet_range", value: "2" },
+      { op: "set_subnet_range_start", value: "2|192.168.1.230" },
+      { op: "set_subnet_range_stop", value: "2|192.168.1.240" },
+    ]);
   });
 
   it("replaces a changed name-server list and leaves the other fields alone", async () => {

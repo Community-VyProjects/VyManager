@@ -22,7 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Network, Plus } from "lucide-react";
-import { dhcpService, type DHCPLease, type DHCPSharedNetwork } from "@/lib/api/dhcp";
+import { dhcpServerService, type DHCPLease, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
+import { failedSaveMessage } from "./dhcp-save";
 
 interface AddLeaseToStaticMappingModalProps {
   open: boolean;
@@ -162,13 +163,18 @@ export function AddLeaseToStaticMappingModal({
     setError(null);
 
     try {
-      await dhcpService.createStaticMapping(
+      const result = await dhcpServerService.createStaticMapping(
         network.name,
         selectedSubnet,
         mappingName.trim(),
         ipAddress.trim(),
         macAddress.trim().toLowerCase()
       );
+      const createError = failedSaveMessage(result, t("mapping.createFailed"));
+      if (createError) {
+        setError(createError);
+        return;
+      }
 
       handleClose();
       onSuccess();

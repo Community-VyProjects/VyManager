@@ -2,13 +2,13 @@
 
 import pytest
 
-from vyos_builders.dhcp.dhcp_batch_builder import DHCPBatchBuilder
-from vyos_mappers.dhcp.dhcp_versions import get_dhcp_mapper
-from vyos_mappers.dhcp.dhcp_catalog import parse_scope
+from vyos_builders.dhcp_server.dhcp_server_batch_builder import DHCPServerBatchBuilder
+from vyos_mappers.dhcp_server.dhcp_server_versions import get_dhcp_server_mapper
+from vyos_mappers.dhcp_server.dhcp_server_catalog import parse_scope
 
 
 def test_ignore_client_id_is_15_only_and_not_under_option():
-    mapper = get_dhcp_mapper("1.5")
+    mapper = get_dhcp_server_mapper("1.5")
     path = mapper.catalog_set(
         "subnet", "ignore-client-id", ("LAN", "192.168.9.0/24")
     )
@@ -18,16 +18,16 @@ def test_ignore_client_id_is_15_only_and_not_under_option():
     ]
     assert "option" not in path
     with pytest.raises(ValueError, match="not supported"):
-        get_dhcp_mapper("1.4").catalog_set("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
+        get_dhcp_server_mapper("1.4").catalog_set("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
     with pytest.raises(ValueError, match="not supported"):
-        get_dhcp_mapper("1.4").catalog_delete("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
+        get_dhcp_server_mapper("1.4").catalog_delete("subnet", "ignore-client-id", ("LAN", "192.168.9.0/24"))
 
 
 def test_bootfile_size_path_differs_by_version():
-    v14 = get_dhcp_mapper("1.4").catalog_set(
+    v14 = get_dhcp_server_mapper("1.4").catalog_set(
         "subnet", "bootfile-size", ("LAN", "192.168.1.0/24"), ("4",)
     )
-    v15 = get_dhcp_mapper("1.5").catalog_set(
+    v15 = get_dhcp_server_mapper("1.5").catalog_set(
         "subnet", "bootfile-size", ("LAN", "192.168.1.0/24"), ("4",)
     )
     assert v14[-2:] == ["bootfile-size", "4"]
@@ -36,44 +36,44 @@ def test_bootfile_size_path_differs_by_version():
 
 
 def test_static_route_includes_next_hop():
-    path = get_dhcp_mapper("1.5").catalog_set(
+    path = get_dhcp_server_mapper("1.5").catalog_set(
         "subnet",
         "static-route",
         ("LAN", "192.168.1.0/24"),
         ("10.0.0.0/24", "192.0.2.1"),
     )
     assert path[-4:] == ["static-route", "10.0.0.0/24", "next-hop", "192.0.2.1"]
-    deleted = get_dhcp_mapper("1.5").catalog_delete(
+    deleted = get_dhcp_server_mapper("1.5").catalog_delete(
         "subnet", "static-route", ("LAN", "192.168.1.0/24"), ("10.0.0.0/24",)
     )
     assert deleted[-2:] == ["static-route", "10.0.0.0/24"]
 
 
 def test_client_class_rejected_on_14():
-    builder = DHCPBatchBuilder("1.4")
+    builder = DHCPServerBatchBuilder("1.4")
     with pytest.raises(ValueError, match="not supported"):
         builder.set_client_class("LAN")
     with pytest.raises(ValueError, match="not supported"):
         builder.delete_client_class("LAN")
-    assert not hasattr(get_dhcp_mapper("1.4"), "get_client_class")
-    path = get_dhcp_mapper("1.5").get_client_class_circuit_id("LAN", "ge-0")
+    assert not hasattr(get_dhcp_server_mapper("1.4"), "get_client_class")
+    path = get_dhcp_server_mapper("1.5").get_client_class_circuit_id("LAN", "ge-0")
     assert path[-2:] == ["circuit-id", "ge-0"]
 
 
 def test_capabilities_hide_15_only_leaf_on_14():
-    cat14 = DHCPBatchBuilder("1.4").get_capabilities()["catalog"]["subnet"]
-    cat15 = DHCPBatchBuilder("1.5").get_capabilities()["catalog"]["subnet"]
+    cat14 = DHCPServerBatchBuilder("1.4").get_capabilities()["catalog"]["subnet"]
+    cat15 = DHCPServerBatchBuilder("1.5").get_capabilities()["catalog"]["subnet"]
     tokens14 = {item["token"] for item in cat14}
     tokens15 = {item["token"] for item in cat15}
     assert "ignore-client-id" not in tokens14
     assert "ignore-client-id" in tokens15
     assert "name-server" not in tokens15
-    assert DHCPBatchBuilder("1.4").get_capabilities()["fields"]["client_class"]["supported"] is False
-    assert DHCPBatchBuilder("1.5").get_capabilities()["fields"]["client_class"]["supported"] is True
+    assert DHCPServerBatchBuilder("1.4").get_capabilities()["fields"]["client_class"]["supported"] is False
+    assert DHCPServerBatchBuilder("1.5").get_capabilities()["fields"]["client_class"]["supported"] is True
 
 
 def test_builder_emits_ignore_client_id():
-    builder = DHCPBatchBuilder("1.5")
+    builder = DHCPServerBatchBuilder("1.5")
     builder.set_subnet_catalog("LAN", "192.168.9.0/24", "ignore-client-id")
     ops = builder.get_operations()
     assert ops == [{
@@ -104,7 +104,7 @@ def test_parse_scope_reads_flag_and_route():
 
 
 def test_pipe_in_catalog_value_is_rejected_not_truncated():
-    mapper = get_dhcp_mapper("1.5")
+    mapper = get_dhcp_server_mapper("1.5")
     with pytest.raises(ValueError, match="cannot contain"):
         mapper.catalog_set(
             "subnet", "bootfile-name", ("LAN", "192.168.1.0/24"), ("pxe|linux",)
@@ -116,7 +116,7 @@ def test_pipe_in_catalog_value_is_rejected_not_truncated():
 
 
 def test_pipe_in_client_class_id_is_rejected():
-    mapper = get_dhcp_mapper("1.5")
+    mapper = get_dhcp_server_mapper("1.5")
     with pytest.raises(ValueError, match="cannot contain"):
         mapper.get_client_class_circuit_id("LAN", "ge-0|extra")
     with pytest.raises(ValueError, match="cannot contain"):
@@ -124,7 +124,7 @@ def test_pipe_in_client_class_id_is_rejected():
 
 
 def test_split_packed_value_keeps_extra_pipes_on_the_last_arg():
-    from routers.dhcp.dhcp import split_packed_value
+    from routers.dhcp_server.dhcp_server import split_packed_value
 
     assert split_packed_value("ge-0|extra", 1) == ["ge-0|extra"]
     assert split_packed_value("LAN|ge-0|extra", 2) == ["LAN", "ge-0|extra"]
@@ -141,7 +141,7 @@ def test_split_packed_value_keeps_extra_pipes_on_the_last_arg():
     ],
 )
 def test_14_only_parameter_leaf_raises_on_15(scope, token, anchors, value):
-    mapper = get_dhcp_mapper("1.5")
+    mapper = get_dhcp_server_mapper("1.5")
     with pytest.raises(ValueError, match="not supported"):
         mapper.catalog_set(scope, token, anchors, (value,))
     with pytest.raises(ValueError, match="not supported"):
@@ -149,7 +149,7 @@ def test_14_only_parameter_leaf_raises_on_15(scope, token, anchors, value):
 
 
 def test_range_and_mapping_catalog_ops_include_child_id():
-    builder = DHCPBatchBuilder("1.5")
+    builder = DHCPServerBatchBuilder("1.5")
     builder.set_range_catalog("LAN", "192.168.1.0/24", "0|bootfile-size|4")
     builder.delete_range_catalog("LAN", "192.168.1.0/24", "0|pop-server|192.0.2.1")
     builder.set_mapping_catalog("LAN", "192.168.1.0/24", "host1|bootfile-name|pxelinux.0")
@@ -166,19 +166,19 @@ def test_range_and_mapping_catalog_ops_include_child_id():
 
 
 def test_child_spec_rejects_a_bare_token():
-    builder = DHCPBatchBuilder("1.5")
+    builder = DHCPServerBatchBuilder("1.5")
     with pytest.raises(ValueError, match="requires an id"):
         builder.set_range_catalog("LAN", "192.168.1.0/24", "bootfile-size")
 
 
 def test_delete_flag_takes_no_packed_value():
-    builder = DHCPBatchBuilder("1.5")
+    builder = DHCPServerBatchBuilder("1.5")
     with pytest.raises(ValueError, match="wrong number of values"):
         builder.delete_subnet_catalog("LAN", "192.168.9.0/24", "ignore-client-id|extra")
 
 
 def test_parse_client_classes_reads_relay_ids():
-    from vyos_mappers.dhcp.dhcp_catalog import parse_client_classes
+    from vyos_mappers.dhcp_server.dhcp_server_catalog import parse_client_classes
 
     parsed = parse_client_classes({
         "client-class": {
@@ -204,7 +204,7 @@ def test_batch_dispatch_rejects_a_pipe_in_circuit_id(monkeypatch):
 
     from fastapi import HTTPException
 
-    from routers.dhcp.dhcp import DHCPBatchOperation, DHCPBatchRequest, dhcp_batch_configure
+    from routers.dhcp_server.dhcp_server import DHCPBatchOperation, DHCPBatchRequest, dhcp_batch_configure
 
     class _Service:
         def get_version(self):
@@ -216,8 +216,8 @@ def test_batch_dispatch_rejects_a_pipe_in_circuit_id(monkeypatch):
     async def _allow(*_args, **_kwargs):
         return None
 
-    monkeypatch.setattr("routers.dhcp.dhcp.get_session_vyos_service", lambda request: _Service())
-    monkeypatch.setattr("routers.dhcp.dhcp.require_write_permission", _allow)
+    monkeypatch.setattr("routers.dhcp_server.dhcp_server.get_session_vyos_service", lambda request: _Service())
+    monkeypatch.setattr("routers.dhcp_server.dhcp_server.require_write_permission", _allow)
 
     request = DHCPBatchRequest(
         network_name="_global",
@@ -233,7 +233,7 @@ def test_batch_dispatch_rejects_a_pipe_in_circuit_id(monkeypatch):
 def test_batch_dispatch_sends_range_catalog_to_the_builder(monkeypatch):
     import asyncio
 
-    from routers.dhcp.dhcp import DHCPBatchOperation, DHCPBatchRequest, dhcp_batch_configure
+    from routers.dhcp_server.dhcp_server import DHCPBatchOperation, DHCPBatchRequest, dhcp_batch_configure
 
     seen = {}
 
@@ -254,8 +254,8 @@ def test_batch_dispatch_sends_range_catalog_to_the_builder(monkeypatch):
     async def _allow(*_args, **_kwargs):
         return None
 
-    monkeypatch.setattr("routers.dhcp.dhcp.get_session_vyos_service", lambda request: _Service())
-    monkeypatch.setattr("routers.dhcp.dhcp.require_write_permission", _allow)
+    monkeypatch.setattr("routers.dhcp_server.dhcp_server.get_session_vyos_service", lambda request: _Service())
+    monkeypatch.setattr("routers.dhcp_server.dhcp_server.require_write_permission", _allow)
 
     request = DHCPBatchRequest(
         network_name="LAN",
@@ -271,7 +271,7 @@ def test_batch_dispatch_sends_range_catalog_to_the_builder(monkeypatch):
 def test_get_config_puts_catalog_and_classes_on_the_response(monkeypatch):
     import asyncio
 
-    from routers.dhcp.dhcp import get_dhcp_config
+    from routers.dhcp_server.dhcp_server import get_dhcp_config
 
     class _Service:
         def get_version(self):
@@ -311,9 +311,9 @@ def test_get_config_puts_catalog_and_classes_on_the_response(monkeypatch):
     async def _pool(fn, **kwargs):
         return fn(**kwargs)
 
-    monkeypatch.setattr("routers.dhcp.dhcp.get_session_vyos_service", lambda request: _Service())
-    monkeypatch.setattr("routers.dhcp.dhcp.require_read_permission", _allow)
-    monkeypatch.setattr("routers.dhcp.dhcp.run_in_threadpool", _pool)
+    monkeypatch.setattr("routers.dhcp_server.dhcp_server.get_session_vyos_service", lambda request: _Service())
+    monkeypatch.setattr("routers.dhcp_server.dhcp_server.require_read_permission", _allow)
+    monkeypatch.setattr("routers.dhcp_server.dhcp_server.run_in_threadpool", _pool)
 
     response = asyncio.run(get_dhcp_config(object()))  # type: ignore[arg-type]
     assert response.client_classes[0].name == "LAN"
