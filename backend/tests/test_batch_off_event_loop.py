@@ -56,6 +56,8 @@ REMAINING_OFFLOADED = [
     ("dhcp_batch_configure", "routers/dhcp_server/dhcp_server.py", "execute_batch", 1),
     ("get_webproxy_config", "routers/webproxy/webproxy.py", "get_full_config", 1),
     ("webproxy_batch_configure", "routers/webproxy/webproxy.py", "execute_batch", 1),
+    ("get_isis_config", "routers/isis/isis.py", "get_full_config", 1),
+    ("isis_batch_configure", "routers/isis/isis.py", "execute_batch", 1),
 ]
 
 # handler, file, blocking attribute, expected offload count
