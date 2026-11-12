@@ -49,6 +49,7 @@ import {
   SquidGuardRule,
   SquidGuardSourceGroup,
   SquidGuardTimePeriod,
+  SquidGuard,
 } from "@/lib/api/webproxy";
 import { WebProxySettingsModal } from "./WebProxySettingsModal";
 import { WebProxyAuthModal } from "./WebProxyAuthModal";
@@ -151,6 +152,8 @@ export function WebProxyContent() {
   const sourceGroupNames = sg?.source_groups.map((g) => g.name) ?? [];
   const timePeriodNames = sg?.time_periods.map((t) => t.name) ?? [];
   const authConfigured = !!(config?.authentication.method || config?.authentication.ldap.server);
+  const squidGuardConfigured = !!sg && squidGuardHasConfig(sg);
+  const urlFilteringConfigured = !!config?.url_filtering.disable || squidGuardConfigured;
   const isConfigured = listenCount > 0 || (config?.default_port != null);
 
   return (
@@ -461,12 +464,12 @@ export function WebProxyContent() {
                         {config?.url_filtering.disable ? t("content.enable") : t("content.disable")}
                       </Button>
                     )}
-                    {hasWritePermission && (
+                    {hasWritePermission && squidGuardConfigured && (
                       <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setClearing("squidguard")}>
                         <Trash2 className="h-4 w-4 mr-2" />{t("content.clearSquidGuard")}
                       </Button>
                     )}
-                    {hasWritePermission && (
+                    {hasWritePermission && urlFilteringConfigured && (
                       <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setClearing("urlFiltering")}>
                         <Trash2 className="h-4 w-4 mr-2" />{t("content.clearUrlFiltering")}
                       </Button>
@@ -811,6 +814,31 @@ const CLEAR_TARGETS = {
   urlFiltering: "service webproxy url-filtering",
   squidguard: "service webproxy url-filtering squidguard",
 } as const;
+
+/** The parser returns an empty squidguard object when the node is absent. */
+function squidGuardHasConfig(sg: SquidGuard): boolean {
+  const lists = [
+    sg.allow_categories,
+    sg.block_categories,
+    sg.log,
+    sg.local_block,
+    sg.local_block_keyword,
+    sg.local_block_url,
+    sg.local_ok,
+    sg.local_ok_url,
+    sg.rules,
+    sg.source_groups,
+    sg.time_periods,
+  ];
+  return (
+    lists.some((list) => list.length > 0) ||
+    sg.allow_ipaddr_url ||
+    sg.enable_safe_search ||
+    !!sg.default_action ||
+    !!sg.redirect_url ||
+    sg.auto_update_hour != null
+  );
+}
 
 function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
