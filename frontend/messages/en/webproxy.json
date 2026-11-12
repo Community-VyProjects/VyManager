@@ -90,14 +90,13 @@
     "deleteFilterRule": "Delete Filter Rule",
     "deleteSourceGroup": "Delete Source Group",
     "deleteTimePeriod": "Delete Time Period",
+    "deleteWebProxy": "Delete Web Proxy",
+    "clearSquidGuard": "Clear squidGuard",
+    "clearUrlFiltering": "Clear URL Filtering",
     "deleteConfirm": "Remove <code>{name}</code>? This cannot be undone."
-  },
-  "common": {
-    "nameImmutable": "Name cannot be changed after creation."
   },
   "auth": {
     "description": "Require users to authenticate against an LDAP directory before using the proxy.",
-    "selectMethod": "Select method",
     "realmPlaceholder": "My Company proxy server",
     "credentialsTtlMin": "Credentials TTL (min)",
     "ldapSettings": "LDAP Settings",
@@ -125,7 +124,6 @@
     "addTitle": "Add Listen Address",
     "description": "Bind the proxy to a local IPv4 address.",
     "ipv4Address": "IPv4 Address",
-    "addressImmutable": "Address cannot be changed after creation.",
     "disableTransparent": "Disable transparent mode"
   },
   "filter": {
@@ -140,8 +138,7 @@
     "allowCategoriesPlaceholder": "e.g. news",
     "blockCategoriesPlaceholder": "e.g. ads",
     "enableSafeSearch": "Enable safe search",
-    "ipOrFqdn": "IP or FQDN",
-    "categoryHint": "Categories come from the squidGuard blacklist database installed on the router."
+    "ipOrFqdn": "IP or FQDN"
   },
   "rule": {
     "numberRequired": "Rule number is required",
@@ -204,7 +201,6 @@
     "description": "Define days and time ranges to scope filter rules.",
     "allDay": "all day",
     "timePlaceholder": "08:00-17:00 (optional)",
-    "timeHelp": "Time range in 24-hour format (hh:mm-hh:mm). Leave empty to match the whole day.",
     "days": {
       "Sun": "Sun",
       "Mon": "Mon",

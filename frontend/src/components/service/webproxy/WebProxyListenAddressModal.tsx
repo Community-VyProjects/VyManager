@@ -21,7 +21,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   listenAddress: ListenAddress | null;
-  onSubmit: (addr: ListenAddress, isEdit: boolean) => Promise<void>;
+  onSubmit: (addr: ListenAddress) => Promise<void>;
 }
 
 const numOrNull = (s: string): number | null => {
@@ -61,7 +61,7 @@ export function WebProxyListenAddressModal({ open, onOpenChange, listenAddress, 
         address: address.trim(),
         port: numOrNull(port),
         disable_transparent: disableTransparent,
-      }, isEdit);
+      });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));
@@ -82,7 +82,6 @@ export function WebProxyListenAddressModal({ open, onOpenChange, listenAddress, 
           <div className="space-y-2">
             <Label htmlFor="la-address">{t("listen.ipv4Address")}</Label>
             <Input id="la-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="192.168.1.1" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
-            {isEdit && <p className="text-xs text-muted-foreground">{t("listen.addressImmutable")}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="la-port">{t("content.port")}</Label>

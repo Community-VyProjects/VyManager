@@ -90,14 +90,13 @@
     "deleteFilterRule": "删除过滤规则",
     "deleteSourceGroup": "删除源组",
     "deleteTimePeriod": "删除时间段",
+    "deleteWebProxy": "删除 Web 代理",
+    "clearSquidGuard": "清除 squidGuard",
+    "clearUrlFiltering": "清除 URL 过滤",
     "deleteConfirm": "确定移除 <code>{name}</code> 吗？此操作无法撤销。"
-  },
-  "common": {
-    "nameImmutable": "名称创建后无法更改。"
   },
   "auth": {
     "description": "要求用户先通过 LDAP 目录认证才能使用代理。",
-    "selectMethod": "选择方法",
     "realmPlaceholder": "我的公司代理服务器",
     "credentialsTtlMin": "凭据有效期（分钟）",
     "ldapSettings": "LDAP 设置",
@@ -125,7 +124,6 @@
     "addTitle": "添加监听地址",
     "description": "将代理绑定到本地 IPv4 地址。",
     "ipv4Address": "IPv4 地址",
-    "addressImmutable": "地址创建后无法更改。",
     "disableTransparent": "禁用透明模式"
   },
   "filter": {
@@ -140,8 +138,7 @@
     "allowCategoriesPlaceholder": "例如 news",
     "blockCategoriesPlaceholder": "例如 ads",
     "enableSafeSearch": "启用安全搜索",
-    "ipOrFqdn": "IP 或 FQDN",
-    "categoryHint": "类别来自路由器上安装的 SquidGuard 黑名单数据库。"
+    "ipOrFqdn": "IP 或 FQDN"
   },
   "rule": {
     "numberRequired": "规则编号不能为空",
@@ -204,7 +201,6 @@
     "description": "定义日期和时间范围，用于限定过滤规则的生效时间。",
     "allDay": "全天",
     "timePlaceholder": "08:00-17:00（可选）",
-    "timeHelp": "24 小时制时间范围（hh:mm-hh:mm）。留空则匹配全天。",
     "days": {
       "Sun": "周日",
       "Mon": "周一",

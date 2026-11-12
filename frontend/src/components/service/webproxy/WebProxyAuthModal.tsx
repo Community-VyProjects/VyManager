@@ -25,6 +25,8 @@ import {
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { WebProxyAuthentication, WebProxyCapabilities } from "@/lib/api/webproxy";
 
+const NONE = "__none__";
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -122,10 +124,11 @@ export function WebProxyAuthModal({ open, onOpenChange, auth, caps, onSubmit }: 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("content.method")}</Label>
-                <Select value={method} onValueChange={setMethod}>
-                  <SelectTrigger><SelectValue placeholder={t("auth.selectMethod")} /></SelectTrigger>
+                <Select value={method || NONE} onValueChange={(v) => setMethod(v === NONE ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(caps?.options.auth_method ?? ["ldap"]).map((m) => (
+                    <SelectItem value={NONE}>{tc("notSet")}</SelectItem>
+                    {(caps?.options.auth_method ?? []).map((m) => (
                       <SelectItem key={m} value={m}>{m.toUpperCase()}</SelectItem>
                     ))}
                   </SelectContent>
@@ -158,10 +161,11 @@ export function WebProxyAuthModal({ open, onOpenChange, auth, caps, onSubmit }: 
                 </div>
                 <div className="space-y-2">
                   <Label>{t("auth.protocolVersion")}</Label>
-                  <Select value={version} onValueChange={setVersion}>
-                    <SelectTrigger><SelectValue placeholder="3" /></SelectTrigger>
+                  <Select value={version || NONE} onValueChange={(v) => setVersion(v === NONE ? "" : v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {(caps?.options.ldap_version ?? ["2", "3"]).map((v) => (
+                      <SelectItem value={NONE}>{t("content.withDefault", { value: "3" })}</SelectItem>
+                      {(caps?.options.ldap_version ?? []).map((v) => (
                         <SelectItem key={v} value={v}>{v}</SelectItem>
                       ))}
                     </SelectContent>

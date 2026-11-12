@@ -23,7 +23,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   sourceGroup: SquidGuardSourceGroup | null;
   existingNames: string[];
-  onSubmit: (group: SquidGuardSourceGroup, isEdit: boolean) => Promise<void>;
+  onSubmit: (group: SquidGuardSourceGroup) => Promise<void>;
 }
 
 const empty = (): SquidGuardSourceGroup => ({
@@ -64,7 +64,7 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
     setLoading(true);
     setError(null);
     try {
-      await onSubmit({ ...form, name }, isEdit);
+      await onSubmit({ ...form, name });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));
@@ -86,7 +86,6 @@ export function WebProxySourceGroupModal({ open, onOpenChange, sourceGroup, exis
             <div className="space-y-2">
               <Label htmlFor="sgrp-name">{tc("name")}</Label>
               <Input id="sgrp-name" value={form.name} onChange={(e) => update({ name: e.target.value })} placeholder="lan-users" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
-              {isEdit && <p className="text-xs text-muted-foreground">{t("common.nameImmutable")}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="sgrp-desc">{tc("description")}</Label>

@@ -23,12 +23,14 @@ import {
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { CachePeer, WebProxyCapabilities } from "@/lib/api/webproxy";
 
+const NONE = "__none__";
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   peer: CachePeer | null;
   caps: WebProxyCapabilities | null;
-  onSubmit: (peer: CachePeer, isEdit: boolean) => Promise<void>;
+  onSubmit: (peer: CachePeer) => Promise<void>;
 }
 
 const numOrNull = (s: string): number | null => {
@@ -81,7 +83,7 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
         http_port: numOrNull(httpPort),
         icp_port: numOrNull(icpPort),
         options: options.trim() || null,
-      }, isEdit);
+      });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));
@@ -102,7 +104,6 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
           <div className="space-y-2">
             <Label htmlFor="cp-name">{t("peer.name")}</Label>
             <Input id="cp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="upstream-cache" disabled={isEdit} className={isEdit ? "bg-muted font-mono" : "font-mono"} />
-            {isEdit && <p className="text-xs text-muted-foreground">{t("common.nameImmutable")}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="cp-address">{t("peer.addressHostname")}</Label>
@@ -111,10 +112,11 @@ export function WebProxyCachePeerModal({ open, onOpenChange, peer, caps, onSubmi
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("content.type")}</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger><SelectValue placeholder={tc("shown.parent")} /></SelectTrigger>
+              <Select value={type || NONE} onValueChange={(v) => setType(v === NONE ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(caps?.options.cache_peer_type ?? ["parent", "sibling", "multicast"]).map((pt) => (
+                  <SelectItem value={NONE}>{t("content.withDefault", { value: tc("shown.parent") })}</SelectItem>
+                  {(caps?.options.cache_peer_type ?? []).map((pt) => (
                     <SelectItem key={pt} value={pt}>{pt}</SelectItem>
                   ))}
                 </SelectContent>

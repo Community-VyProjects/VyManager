@@ -37,6 +37,7 @@ import {
   Network,
   ShieldCheck,
   KeyRound,
+  AlertCircle,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -48,6 +49,7 @@ import {
   SquidGuardRule,
   SquidGuardSourceGroup,
   SquidGuardTimePeriod,
+  SquidGuard,
 } from "@/lib/api/webproxy";
 import { WebProxySettingsModal } from "./WebProxySettingsModal";
 import { WebProxyAuthModal } from "./WebProxyAuthModal";
@@ -71,7 +73,6 @@ export function WebProxyContent() {
   const [caps, setCaps] = useState<WebProxyCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
 
   // Modal state
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -94,6 +95,7 @@ export function WebProxyContent() {
   const [deletingRule, setDeletingRule] = useState<string | null>(null);
   const [deletingGroup, setDeletingGroup] = useState<string | null>(null);
   const [deletingPeriod, setDeletingPeriod] = useState<string | null>(null);
+  const [clearing, setClearing] = useState<"webproxy" | "authentication" | "urlFiltering" | "squidguard" | null>(null);
 
   const loadData = useCallback(async (refresh = false) => {
     try {
@@ -117,15 +119,12 @@ export function WebProxyContent() {
   }, [loadData]);
 
   const withAction = async (fn: () => Promise<void>) => {
-    setActionLoading(true);
     setError(null);
     try {
       await fn();
       await loadData(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : tc("operationFailed"));
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -153,6 +152,8 @@ export function WebProxyContent() {
   const sourceGroupNames = sg?.source_groups.map((g) => g.name) ?? [];
   const timePeriodNames = sg?.time_periods.map((t) => t.name) ?? [];
   const authConfigured = !!(config?.authentication.method || config?.authentication.ldap.server);
+  const squidGuardConfigured = !!sg && squidGuardHasConfig(sg);
+  const urlFilteringConfigured = !!config?.url_filtering.disable || squidGuardConfigured;
   const isConfigured = listenCount > 0 || (config?.default_port != null);
 
   return (
@@ -183,6 +184,12 @@ export function WebProxyContent() {
                 <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
                   <Settings2 className="h-4 w-4 mr-2" />
                   {t("content.editSettings")}
+                </Button>
+              )}
+              {hasWritePermission && isConfigured && (
+                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setClearing("webproxy")}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {tc("delete")}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => loadData(true)}>
@@ -300,7 +307,7 @@ export function WebProxyContent() {
                   <h3 className="font-semibold">{t("content.proxyAuthentication")}</h3>
                   <div className="flex items-center gap-2">
                     {authConfigured && hasWritePermission && (
-                      <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => withAction(async () => { await webProxyService.clearAuthentication(); })}>
+                      <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setClearing("authentication")}>
                         <Trash2 className="h-4 w-4 mr-2" />{t("content.clear")}
                       </Button>
                     )}
@@ -455,6 +462,16 @@ export function WebProxyContent() {
                     {hasWritePermission && (
                       <Button size="sm" variant="outline" onClick={() => withAction(async () => { await webProxyService.setUrlFilteringDisabled(!config?.url_filtering.disable); })}>
                         {config?.url_filtering.disable ? t("content.enable") : t("content.disable")}
+                      </Button>
+                    )}
+                    {hasWritePermission && squidGuardConfigured && (
+                      <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setClearing("squidguard")}>
+                        <Trash2 className="h-4 w-4 mr-2" />{t("content.clearSquidGuard")}
+                      </Button>
+                    )}
+                    {hasWritePermission && urlFilteringConfigured && (
+                      <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setClearing("urlFiltering")}>
+                        <Trash2 className="h-4 w-4 mr-2" />{t("content.clearUrlFiltering")}
                       </Button>
                     )}
                     {hasWritePermission && (
@@ -639,7 +656,8 @@ export function WebProxyContent() {
         config={config}
         caps={caps}
         onSubmit={async (newConfig) => {
-          await webProxyService.saveSettings(newConfig);
+          if (!config) return;
+          await webProxyService.saveSettings(config, newConfig);
           await loadData(true);
         }}
       />
@@ -650,7 +668,8 @@ export function WebProxyContent() {
         auth={config?.authentication ?? null}
         caps={caps}
         onSubmit={async (auth) => {
-          await webProxyService.saveAuthentication(auth);
+          if (!config) return;
+          await webProxyService.saveAuthentication(config.authentication, auth);
           await loadData(true);
         }}
       />
@@ -660,8 +679,8 @@ export function WebProxyContent() {
         onOpenChange={(o) => { setPeerOpen(o); if (!o) setEditingPeer(null); }}
         peer={editingPeer}
         caps={caps}
-        onSubmit={async (peer, isEdit) => {
-          await webProxyService.saveCachePeer(peer, isEdit);
+        onSubmit={async (peer) => {
+          await webProxyService.saveCachePeer(peer, editingPeer);
           await loadData(true);
         }}
       />
@@ -670,8 +689,8 @@ export function WebProxyContent() {
         open={listenOpen}
         onOpenChange={(o) => { setListenOpen(o); if (!o) setEditingListen(null); }}
         listenAddress={editingListen}
-        onSubmit={async (addr, isEdit) => {
-          await webProxyService.saveListenAddress(addr, isEdit);
+        onSubmit={async (addr) => {
+          await webProxyService.saveListenAddress(addr, editingListen);
           await loadData(true);
         }}
       />
@@ -683,7 +702,7 @@ export function WebProxyContent() {
           squidguard={sg}
           caps={caps}
           onSubmit={async (newSg) => {
-            await webProxyService.saveSquidGuardGlobal(newSg);
+            await webProxyService.saveSquidGuardGlobal(sg, newSg);
             await loadData(true);
           }}
         />
@@ -697,8 +716,8 @@ export function WebProxyContent() {
         sourceGroups={sourceGroupNames}
         timePeriods={timePeriodNames}
         existingNumbers={sg?.rules.map((r) => r.number) ?? []}
-        onSubmit={async (rule, isEdit) => {
-          await webProxyService.saveRule(rule, isEdit);
+        onSubmit={async (rule) => {
+          await webProxyService.saveRule(rule, editingRule);
           await loadData(true);
         }}
       />
@@ -708,8 +727,8 @@ export function WebProxyContent() {
         onOpenChange={(o) => { setGroupOpen(o); if (!o) setEditingGroup(null); }}
         sourceGroup={editingGroup}
         existingNames={sourceGroupNames}
-        onSubmit={async (group, isEdit) => {
-          await webProxyService.saveSourceGroup(group, isEdit);
+        onSubmit={async (group) => {
+          await webProxyService.saveSourceGroup(group, editingGroup);
           await loadData(true);
         }}
       />
@@ -720,8 +739,8 @@ export function WebProxyContent() {
         timePeriod={editingPeriod}
         caps={caps}
         existingNames={timePeriodNames}
-        onSubmit={async (period, isEdit) => {
-          await webProxyService.saveTimePeriod(period, isEdit);
+        onSubmit={async (period) => {
+          await webProxyService.saveTimePeriod(period, editingPeriod);
           await loadData(true);
         }}
       />
@@ -731,43 +750,93 @@ export function WebProxyContent() {
         open={!!deletingPeer}
         title={t("content.deleteCachePeer")}
         name={deletingPeer}
-        actionLoading={actionLoading}
         onCancel={() => setDeletingPeer(null)}
-        onConfirm={() => withAction(async () => { await webProxyService.deleteCachePeer(deletingPeer!); setDeletingPeer(null); })}
+        onConfirm={async () => { await webProxyService.deleteCachePeer(deletingPeer!); setDeletingPeer(null); await loadData(true); }}
       />
       <DeleteDialog
         open={!!deletingListen}
         title={t("content.deleteListenAddress")}
         name={deletingListen}
-        actionLoading={actionLoading}
         onCancel={() => setDeletingListen(null)}
-        onConfirm={() => withAction(async () => { await webProxyService.deleteListenAddress(deletingListen!); setDeletingListen(null); })}
+        onConfirm={async () => { await webProxyService.deleteListenAddress(deletingListen!); setDeletingListen(null); await loadData(true); }}
       />
       <DeleteDialog
         open={!!deletingRule}
         title={t("content.deleteFilterRule")}
         name={deletingRule}
-        actionLoading={actionLoading}
         onCancel={() => setDeletingRule(null)}
-        onConfirm={() => withAction(async () => { await webProxyService.deleteRule(deletingRule!); setDeletingRule(null); })}
+        onConfirm={async () => { await webProxyService.deleteRule(deletingRule!); setDeletingRule(null); await loadData(true); }}
       />
       <DeleteDialog
         open={!!deletingGroup}
         title={t("content.deleteSourceGroup")}
         name={deletingGroup}
-        actionLoading={actionLoading}
         onCancel={() => setDeletingGroup(null)}
-        onConfirm={() => withAction(async () => { await webProxyService.deleteSourceGroup(deletingGroup!); setDeletingGroup(null); })}
+        onConfirm={async () => { await webProxyService.deleteSourceGroup(deletingGroup!); setDeletingGroup(null); await loadData(true); }}
       />
       <DeleteDialog
         open={!!deletingPeriod}
         title={t("content.deleteTimePeriod")}
         name={deletingPeriod}
-        actionLoading={actionLoading}
         onCancel={() => setDeletingPeriod(null)}
-        onConfirm={() => withAction(async () => { await webProxyService.deleteTimePeriod(deletingPeriod!); setDeletingPeriod(null); })}
+        onConfirm={async () => { await webProxyService.deleteTimePeriod(deletingPeriod!); setDeletingPeriod(null); await loadData(true); }}
+      />
+      <DeleteDialog
+        open={!!clearing}
+        title={
+          clearing === "webproxy"
+            ? t("content.deleteWebProxy")
+            : clearing === "authentication"
+              ? t("content.proxyAuthentication")
+              : clearing === "squidguard"
+                ? t("content.clearSquidGuard")
+                : t("content.clearUrlFiltering")
+        }
+        name={clearing ? CLEAR_TARGETS[clearing] : null}
+        onCancel={() => setClearing(null)}
+        onConfirm={async () => {
+          if (clearing === "webproxy") await webProxyService.deleteWebProxy();
+          else if (clearing === "authentication") await webProxyService.clearAuthentication();
+          else if (clearing === "squidguard") await webProxyService.clearSquidGuard();
+          else await webProxyService.clearUrlFiltering();
+          setClearing(null);
+          await loadData(true);
+        }}
       />
     </>
+  );
+}
+
+/** CLI node each clear action deletes, shown in the confirm text. */
+const CLEAR_TARGETS = {
+  webproxy: "service webproxy",
+  authentication: "service webproxy authentication",
+  urlFiltering: "service webproxy url-filtering",
+  squidguard: "service webproxy url-filtering squidguard",
+} as const;
+
+/** The parser returns an empty squidguard object when the node is absent. */
+function squidGuardHasConfig(sg: SquidGuard): boolean {
+  const lists = [
+    sg.allow_categories,
+    sg.block_categories,
+    sg.log,
+    sg.local_block,
+    sg.local_block_keyword,
+    sg.local_block_url,
+    sg.local_ok,
+    sg.local_ok_url,
+    sg.rules,
+    sg.source_groups,
+    sg.time_periods,
+  ];
+  return (
+    lists.some((list) => list.length > 0) ||
+    sg.allow_ipaddr_url ||
+    sg.enable_safe_search ||
+    !!sg.default_action ||
+    !!sg.redirect_url ||
+    sg.auto_update_hour != null
   );
 }
 
@@ -810,30 +879,54 @@ function DeleteDialog({
   open,
   title,
   name,
-  actionLoading,
   onCancel,
   onConfirm,
 }: {
   open: boolean;
   title: string;
   name: string | null;
-  actionLoading: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
 }) {
   const t = useTranslations("webproxy");
   const tc = useTranslations("common");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) setError(null);
+  }, [open]);
+
+  // A rejected commit keeps the dialog open with the router's error.
+  const confirm = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await onConfirm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tc("operationFailed"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
+    <AlertDialog open={open} onOpenChange={(o) => { if (!o && !loading) onCancel(); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{t.rich("content.deleteConfirm", { name: name ?? "", code: (chunks) => <span className="font-mono">{chunks}</span> })}</AlertDialogDescription>
         </AlertDialogHeader>
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{error}</pre>
+          </div>
+        )}
         <AlertDialogFooter>
-          <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>
-            {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
+          <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
+          <AlertDialogAction disabled={loading} onClick={(e) => { e.preventDefault(); void confirm(); }}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

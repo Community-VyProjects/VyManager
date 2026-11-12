@@ -1,6 +1,9 @@
 """Webproxy GET /config parse lives on the mapper (issue #966)."""
 
-from vyos_mappers.webproxy.webproxy_versions import get_webproxy_mapper
+from pathlib import Path
+
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.webproxy import WebProxyMapper
 
 
 def _tree():
@@ -20,6 +23,7 @@ def _tree():
                     "ldap": {
                         "server": "ldap.example",
                         "base-dn": "dc=example,dc=com",
+                        "password": "s3cret",
                         "port": "389",
                         "use-ssl": {},
                         "persistent-connection": {},
@@ -131,15 +135,70 @@ def _empty():
     }
 
 
-def test_parse_config_is_explicit_and_version_falls_through():
-    mapper = get_webproxy_mapper("1.4")
-    assert "parse_config" in type(mapper).__dict__
-    assert mapper.version == "1.4"
-    assert get_webproxy_mapper("1.5").version == "1.5"
+def test_registry_returns_shared_mapper():
+    """Labs match, so the registry must not wrap a merge proxy."""
+    for version in ("1.4", "1.4.3", "1.5", "2026.09.23-0027-rolling"):
+        mapper = CommandMapperRegistry.get_mapper("webproxy", version)
+        assert type(mapper) is WebProxyMapper
+        assert mapper.version == version
+        assert "parse_config" in type(mapper).__dict__
+    registered = CommandMapperRegistry.get_mapper("webproxy", "1.5")
+    assert isinstance(registered, WebProxyMapper)
+    assert registered.parse_config(_tree()) == WebProxyMapper("1.5").parse_config(_tree())
+    versions = (
+        Path(__file__).resolve().parents[1]
+        / "vyos_mappers"
+        / "webproxy"
+        / "webproxy_versions"
+    )
+    assert not versions.exists()
+
+
+def test_capabilities_read_mapper_lists(monkeypatch):
+    """get_capabilities reads the option lists from the mapper, not a version string."""
+    from vyos_builders.webproxy import WebProxyBatchBuilder
+
+    lists = {
+        "cache_peer_types": ["p"],
+        "default_actions": ["a"],
+        "ldap_versions": ["v"],
+        "authentication_methods": ["m"],
+        "time_period_days": ["d"],
+        "reply_block_mimes": ["x/y"],
+    }
+    for name, value in lists.items():
+        monkeypatch.setattr(WebProxyMapper, name, lambda self, value=value: value)
+
+    for version in ("1.4", "2026.09.23-0027-rolling"):
+        caps = WebProxyBatchBuilder(version).get_capabilities()
+        assert caps["options"] == {
+            "cache_peer_type": ["p"],
+            "default_action": ["a"],
+            "ldap_version": ["v"],
+            "auth_method": ["m"],
+            "time_period_days": ["d"],
+            "reply_block_mime": ["x/y"],
+        }
+        assert "version_info" not in caps
+
+
+def test_option_lists_match_lab_allowed_values():
+    mapper = WebProxyMapper("1.5")
+    assert mapper.cache_peer_types() == ["parent", "sibling", "multicast"]
+    assert mapper.default_actions() == ["allow", "block"]
+    assert mapper.ldap_versions() == ["2", "3"]
+    assert mapper.authentication_methods() == ["ldap"]
+    assert mapper.time_period_days() == [
+        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "weekdays", "weekend", "all",
+    ]
+    mimes = mapper.reply_block_mimes()
+    assert len(mimes) == len(set(mimes)) == 102
+    assert "application/x-msdownload" not in mimes
+    assert {"image/png", "application/pdf", "text/html", "chemical/x-xyz"} <= set(mimes)
 
 
 def test_auth_peers_and_squidguard_rules():
-    parsed = get_webproxy_mapper("1.5").parse_config(_tree())
+    parsed = WebProxyMapper("1.5").parse_config(_tree())
     assert type(parsed) is dict
     assert parsed["append_domain"] == ".example.com"
     assert parsed["cache_size"] == 256
@@ -152,6 +211,7 @@ def test_auth_peers_and_squidguard_rules():
     assert auth["method"] == "ldap"
     assert auth["ldap"]["server"] == "ldap.example"
     assert auth["ldap"]["port"] == 389
+    assert auth["ldap"]["password"] == "***"
     assert auth["ldap"]["use_ssl"] is True
     assert auth["ldap"]["persistent_connection"] is True
     assert parsed["cache_peers"][0]["name"] == "upstream-a"
@@ -180,19 +240,19 @@ def test_auth_peers_and_squidguard_rules():
         {"day": "mon", "time": "09:00-17:00"},
         {"day": "sun", "time": None},
     ]
-    assert get_webproxy_mapper("1.4").parse_config(_tree()) == parsed
+    assert WebProxyMapper("1.4").parse_config(_tree()) == parsed
 
 
 def test_empty_tree():
-    assert get_webproxy_mapper("1.4").parse_config({}) == _empty()
-    assert get_webproxy_mapper("1.5").parse_config({"service": {}}) == _empty()
-    assert get_webproxy_mapper("1.5").parse_config({"service": {"webproxy": {}}}) == _empty()
+    assert WebProxyMapper("1.4").parse_config({}) == _empty()
+    assert WebProxyMapper("1.5").parse_config({"service": {}}) == _empty()
+    assert WebProxyMapper("1.5").parse_config({"service": {"webproxy": {}}}) == _empty()
 
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
     tree = _tree()
-    expected = get_webproxy_mapper("1.5").parse_config(tree)
+    expected = WebProxyMapper("1.5").parse_config(tree)
 
     async def allow(*_args, **_kwargs):
         return None
@@ -222,5 +282,7 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     body = response.json()
     assert body["cache_size"] == expected["cache_size"]
     assert body["authentication"]["ldap"]["use_ssl"] is True
+    assert body["authentication"]["ldap"]["password"] == "***"
+    assert "s3cret" not in response.text
     assert body["url_filtering"]["squidguard"]["rules"][1]["source_group"] == "staff"
     assert body["url_filtering"]["squidguard"]["time_periods"][0]["days"][1]["time"] is None
