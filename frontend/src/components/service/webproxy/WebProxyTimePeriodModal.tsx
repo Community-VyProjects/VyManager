@@ -146,7 +146,6 @@ export function WebProxyTimePeriodModal({ open, onOpenChange, timePeriod, caps, 
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">{t("period.timeHelp")}</p>
             </div>
           </div>
         </ScrollArea>
