@@ -30,6 +30,7 @@ import {
   type DHCPDdnsDomain,
   type DHCPDdnsTsigKey,
 } from "@/lib/api/dhcp-server";
+import { failedSaveMessage } from "./dhcp-save";
 
 interface DHCPDdnsModalProps {
   open: boolean;
@@ -166,9 +167,9 @@ export function DHCPDdnsModal({
     setError(null);
     try {
       const result = await dhcpServerService.saveDdns(ddns, form, leaf, kea);
-      if (!result.success) {
-        setError(result.error ?? t("ddns.saveFailed"));
-        setLoading(false);
+      const saveError = failedSaveMessage(result, t("ddns.saveFailed"));
+      if (saveError) {
+        setError(saveError);
         return;
       }
       onOpenChange(false);

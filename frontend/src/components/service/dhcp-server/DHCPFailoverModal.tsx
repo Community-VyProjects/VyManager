@@ -27,6 +27,7 @@ import {
   type DHCPCapabilitiesResponse,
   type DHCPFailoverConfig,
 } from "@/lib/api/dhcp-server";
+import { failedSaveMessage } from "./dhcp-save";
 
 interface DHCPFailoverModalProps {
   open: boolean;
@@ -100,9 +101,9 @@ export function DHCPFailoverModal({
     setError(null);
     try {
       const result = await dhcpServerService.saveFailover(failover, form, canCert);
-      if (!result.success) {
-        setError(result.error ?? t("failover.saveFailed"));
-        setLoading(false);
+      const saveError = failedSaveMessage(result, t("failover.saveFailed"));
+      if (saveError) {
+        setError(saveError);
         return;
       }
       onOpenChange(false);

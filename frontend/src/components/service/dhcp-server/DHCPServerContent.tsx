@@ -205,18 +205,20 @@ export function DHCPServerContent() {
     setDisableConfirmLoading(true);
     setDisableConfirmError(null);
     try {
+      let result;
       if (disableConfirm.kind === "network") {
-        if (disableConfirm.currentlyDisabled) {
-          await dhcpServerService.deleteSharedNetworkDisable(disableConfirm.networkName);
-        } else {
-          await dhcpServerService.setSharedNetworkDisable(disableConfirm.networkName);
-        }
+        result = disableConfirm.currentlyDisabled
+          ? await dhcpServerService.deleteSharedNetworkDisable(disableConfirm.networkName)
+          : await dhcpServerService.setSharedNetworkDisable(disableConfirm.networkName);
       } else {
-        if (disableConfirm.currentlyDisabled) {
-          await dhcpServerService.deleteGlobalDisable();
-        } else {
-          await dhcpServerService.setGlobalDisable();
-        }
+        result = disableConfirm.currentlyDisabled
+          ? await dhcpServerService.deleteGlobalDisable()
+          : await dhcpServerService.setGlobalDisable();
+      }
+      const toggleError = failedSaveMessage(result, tc("operationFailed"));
+      if (toggleError) {
+        setDisableConfirmError(toggleError);
+        return;
       }
       setDisableConfirm(null);
       fetchConfig(true);
