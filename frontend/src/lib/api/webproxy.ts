@@ -1,4 +1,14 @@
 import { apiClient } from "./client";
+import {
+  authenticationOps,
+  cachePeerOps,
+  listenAddressOps,
+  ruleOps,
+  settingsOps,
+  sourceGroupOps,
+  squidGuardGlobalOps,
+  timePeriodOps,
+} from "./webproxy-save-ops";
 
 // ============================================================================
 // Types
@@ -141,7 +151,6 @@ export interface WebProxyCapabilities {
     time_period_days: string[];
     reply_block_mime: string[];
   };
-  version_info: { is_1_4: boolean; is_1_5: boolean };
 }
 
 export interface BatchOperation {
@@ -180,79 +189,25 @@ class WebProxyService {
     return result;
   }
 
+  /** An edit that changes nothing sends no batch; the router rejects an empty one. */
+  private async commit(operations: BatchOperation[]): Promise<VyOSResponse> {
+    if (operations.length === 0) return { success: true };
+    return this.batch(operations);
+  }
+
   // ----- Global settings + lists ------------------------------------------
 
-  async saveSettings(config: WebProxyConfig): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-
-    const scalar = (op: string, value: number | string | null | undefined) => {
-      ops.push({ op: `delete_${op}` });
-      if (value !== null && value !== undefined && String(value) !== "") {
-        ops.push({ op: `set_${op}`, value: String(value) });
-      }
-    };
-
-    scalar("append_domain", config.append_domain);
-    scalar("cache_size", config.cache_size);
-    scalar("default_port", config.default_port);
-    scalar("maximum_object_size", config.maximum_object_size);
-    scalar("mem_cache_size", config.mem_cache_size);
-    scalar("minimum_object_size", config.minimum_object_size);
-    scalar("outgoing_address", config.outgoing_address);
-    scalar("reply_body_max_size", config.reply_body_max_size);
-
-    ops.push({ op: "delete_disable_access_log" });
-    if (config.disable_access_log) ops.push({ op: "set_disable_access_log" });
-
-    const list = (
-      addOp: string,
-      delAllOp: string,
-      values: string[]
-    ) => {
-      ops.push({ op: delAllOp });
-      for (const v of values) ops.push({ op: addOp, value: v });
-    };
-
-    list("add_domain_block", "delete_domain_block_all", config.domain_block);
-    list("add_domain_noncache", "delete_domain_noncache_all", config.domain_noncache);
-    list("add_reply_block_mime", "delete_reply_block_mime_all", config.reply_block_mime);
-    list("add_safe_port", "delete_safe_port_all", config.safe_ports);
-    list("add_ssl_safe_port", "delete_ssl_safe_port_all", config.ssl_safe_ports);
-
-    return this.batch(ops);
+  async saveSettings(original: WebProxyConfig, updated: WebProxyConfig): Promise<VyOSResponse> {
+    return this.commit(settingsOps(original, updated));
   }
 
   // ----- Authentication ----------------------------------------------------
 
-  async saveAuthentication(auth: WebProxyAuthentication): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    // Replace the whole authentication subtree for a clean state.
-    ops.push({ op: "delete_authentication" });
-
-    const set = (op: string, value: number | string | null | undefined) => {
-      if (value !== null && value !== undefined && String(value) !== "") {
-        ops.push({ op, value: String(value) });
-      }
-    };
-
-    set("set_authentication_children", auth.children);
-    set("set_authentication_credentials_ttl", auth.credentials_ttl);
-    set("set_authentication_method", auth.method);
-    set("set_authentication_realm", auth.realm);
-
-    const ldap = auth.ldap;
-    set("set_ldap_server", ldap.server);
-    set("set_ldap_base_dn", ldap.base_dn);
-    set("set_ldap_bind_dn", ldap.bind_dn);
-    set("set_ldap_filter_expression", ldap.filter_expression);
-    set("set_ldap_password", ldap.password);
-    set("set_ldap_username_attribute", ldap.username_attribute);
-    set("set_ldap_port", ldap.port);
-    set("set_ldap_version", ldap.version);
-    if (ldap.persistent_connection) ops.push({ op: "set_ldap_persistent_connection" });
-    if (ldap.use_ssl) ops.push({ op: "set_ldap_use_ssl" });
-
-    return this.batch(ops);
+  async saveAuthentication(
+    original: WebProxyAuthentication,
+    updated: WebProxyAuthentication
+  ): Promise<VyOSResponse> {
+    return this.commit(authenticationOps(original, updated));
   }
 
   async clearAuthentication(): Promise<VyOSResponse> {
@@ -261,24 +216,8 @@ class WebProxyService {
 
   // ----- Cache peers -------------------------------------------------------
 
-  async saveCachePeer(peer: CachePeer, isEdit: boolean): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    const name = peer.name;
-    if (isEdit) ops.push({ op: "delete_cache_peer", value: name });
-    ops.push({ op: "set_cache_peer", value: name });
-
-    const set = (op: string, value: number | string | null | undefined) => {
-      if (value !== null && value !== undefined && String(value) !== "") {
-        ops.push({ op, value: `${name},${value}` });
-      }
-    };
-    set("set_cache_peer_address", peer.address);
-    set("set_cache_peer_http_port", peer.http_port);
-    set("set_cache_peer_icp_port", peer.icp_port);
-    set("set_cache_peer_options", peer.options);
-    set("set_cache_peer_type", peer.type);
-
-    return this.batch(ops);
+  async saveCachePeer(peer: CachePeer, original: CachePeer | null): Promise<VyOSResponse> {
+    return this.commit(cachePeerOps(peer, original));
   }
 
   async deleteCachePeer(name: string): Promise<VyOSResponse> {
@@ -287,19 +226,8 @@ class WebProxyService {
 
   // ----- Listen addresses --------------------------------------------------
 
-  async saveListenAddress(addr: ListenAddress, isEdit: boolean): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    const address = addr.address;
-    if (isEdit) ops.push({ op: "delete_listen_address", value: address });
-    ops.push({ op: "set_listen_address", value: address });
-
-    if (addr.port !== null && addr.port !== undefined && String(addr.port) !== "") {
-      ops.push({ op: "set_listen_address_port", value: `${address},${addr.port}` });
-    }
-    if (addr.disable_transparent) {
-      ops.push({ op: "set_listen_address_disable_transparent", value: address });
-    }
-    return this.batch(ops);
+  async saveListenAddress(addr: ListenAddress, original: ListenAddress | null): Promise<VyOSResponse> {
+    return this.commit(listenAddressOps(addr, original));
   }
 
   async deleteListenAddress(address: string): Promise<VyOSResponse> {
@@ -314,71 +242,14 @@ class WebProxyService {
     ]);
   }
 
-  async saveSquidGuardGlobal(sg: SquidGuard): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-
-    const list = (addOp: string, delAllOp: string, values: string[]) => {
-      ops.push({ op: delAllOp });
-      for (const v of values) ops.push({ op: addOp, value: v });
-    };
-    list("add_squidguard_allow_category", "delete_squidguard_allow_category_all", sg.allow_categories);
-    list("add_squidguard_block_category", "delete_squidguard_block_category_all", sg.block_categories);
-    list("add_squidguard_log", "delete_squidguard_log_all", sg.log);
-    list("add_squidguard_local_block", "delete_squidguard_local_block_all", sg.local_block);
-    list("add_squidguard_local_block_keyword", "delete_squidguard_local_block_keyword_all", sg.local_block_keyword);
-    list("add_squidguard_local_block_url", "delete_squidguard_local_block_url_all", sg.local_block_url);
-    list("add_squidguard_local_ok", "delete_squidguard_local_ok_all", sg.local_ok);
-    list("add_squidguard_local_ok_url", "delete_squidguard_local_ok_url_all", sg.local_ok_url);
-
-    ops.push({ op: "delete_squidguard_allow_ipaddr_url" });
-    if (sg.allow_ipaddr_url) ops.push({ op: "set_squidguard_allow_ipaddr_url" });
-    ops.push({ op: "delete_squidguard_enable_safe_search" });
-    if (sg.enable_safe_search) ops.push({ op: "set_squidguard_enable_safe_search" });
-
-    ops.push({ op: "delete_squidguard_default_action" });
-    if (sg.default_action) ops.push({ op: "set_squidguard_default_action", value: sg.default_action });
-    ops.push({ op: "delete_squidguard_redirect_url" });
-    if (sg.redirect_url) ops.push({ op: "set_squidguard_redirect_url", value: sg.redirect_url });
-    ops.push({ op: "delete_squidguard_auto_update" });
-    if (sg.auto_update_hour !== null && sg.auto_update_hour !== undefined) {
-      ops.push({ op: "set_squidguard_auto_update_hour", value: String(sg.auto_update_hour) });
-    }
-
-    return this.batch(ops);
+  async saveSquidGuardGlobal(original: SquidGuard, updated: SquidGuard): Promise<VyOSResponse> {
+    return this.commit(squidGuardGlobalOps(original, updated));
   }
 
   // ----- squidGuard rules --------------------------------------------------
 
-  async saveRule(rule: SquidGuardRule, isEdit: boolean): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    const n = rule.number;
-    if (isEdit) ops.push({ op: "delete_squidguard_rule", value: n });
-    ops.push({ op: "set_squidguard_rule", value: n });
-
-    const list = (addOp: string, values: string[]) => {
-      for (const v of values) ops.push({ op: addOp, value: `${n},${v}` });
-    };
-    list("add_squidguard_rule_allow_category", rule.allow_categories);
-    list("add_squidguard_rule_block_category", rule.block_categories);
-    list("add_squidguard_rule_log", rule.log);
-    list("add_squidguard_rule_local_block", rule.local_block);
-    list("add_squidguard_rule_local_block_keyword", rule.local_block_keyword);
-    list("add_squidguard_rule_local_block_url", rule.local_block_url);
-    list("add_squidguard_rule_local_ok", rule.local_ok);
-    list("add_squidguard_rule_local_ok_url", rule.local_ok_url);
-
-    if (rule.allow_ipaddr_url) ops.push({ op: "set_squidguard_rule_allow_ipaddr_url", value: n });
-    if (rule.enable_safe_search) ops.push({ op: "set_squidguard_rule_enable_safe_search", value: n });
-
-    const set = (op: string, value: string | null | undefined) => {
-      if (value) ops.push({ op, value: `${n},${value}` });
-    };
-    set("set_squidguard_rule_default_action", rule.default_action);
-    set("set_squidguard_rule_redirect_url", rule.redirect_url);
-    set("set_squidguard_rule_source_group", rule.source_group);
-    set("set_squidguard_rule_time_period", rule.time_period);
-
-    return this.batch(ops);
+  async saveRule(rule: SquidGuardRule, original: SquidGuardRule | null): Promise<VyOSResponse> {
+    return this.commit(ruleOps(rule, original));
   }
 
   async deleteRule(number: string): Promise<VyOSResponse> {
@@ -387,27 +258,11 @@ class WebProxyService {
 
   // ----- squidGuard source groups -----------------------------------------
 
-  async saveSourceGroup(group: SquidGuardSourceGroup, isEdit: boolean): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    const name = group.name;
-    if (isEdit) ops.push({ op: "delete_squidguard_source_group", value: name });
-    ops.push({ op: "set_squidguard_source_group", value: name });
-
-    const list = (addOp: string, values: string[]) => {
-      for (const v of values) ops.push({ op: addOp, value: `${name},${v}` });
-    };
-    list("add_squidguard_source_group_address", group.address);
-    list("add_squidguard_source_group_domain", group.domain);
-    list("add_squidguard_source_group_ldap_ip_search", group.ldap_ip_search);
-    list("add_squidguard_source_group_ldap_user_search", group.ldap_user_search);
-
-    if (group.description) {
-      ops.push({ op: "set_squidguard_source_group_description", value: `${name},${group.description}` });
-    }
-    if (group.user) {
-      ops.push({ op: "set_squidguard_source_group_user", value: `${name},${group.user}` });
-    }
-    return this.batch(ops);
+  async saveSourceGroup(
+    group: SquidGuardSourceGroup,
+    original: SquidGuardSourceGroup | null
+  ): Promise<VyOSResponse> {
+    return this.commit(sourceGroupOps(group, original));
   }
 
   async deleteSourceGroup(name: string): Promise<VyOSResponse> {
@@ -416,21 +271,11 @@ class WebProxyService {
 
   // ----- squidGuard time periods ------------------------------------------
 
-  async saveTimePeriod(period: SquidGuardTimePeriod, isEdit: boolean): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    const name = period.name;
-    if (isEdit) ops.push({ op: "delete_squidguard_time_period", value: name });
-    ops.push({ op: "set_squidguard_time_period", value: name });
-
-    if (period.description) {
-      ops.push({ op: "set_squidguard_time_period_description", value: `${name},${period.description}` });
-    }
-    for (const d of period.days) {
-      if (d.time) {
-        ops.push({ op: "set_squidguard_time_period_day_time", value: `${name},${d.day},${d.time}` });
-      }
-    }
-    return this.batch(ops);
+  async saveTimePeriod(
+    period: SquidGuardTimePeriod,
+    original: SquidGuardTimePeriod | null
+  ): Promise<VyOSResponse> {
+    return this.commit(timePeriodOps(period, original));
   }
 
   async deleteTimePeriod(name: string): Promise<VyOSResponse> {

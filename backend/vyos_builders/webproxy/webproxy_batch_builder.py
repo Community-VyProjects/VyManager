@@ -16,19 +16,20 @@ Sections:
 The webproxy CLI is identical on VyOS 1.4 and 1.5, so there are no
 version-specific operations.
 
-Multi-value lists follow a delete-all-then-add pattern: callers delete the
-whole list then re-add each desired value.
+Multi-value lists add and delete one value at a time; the `_all` delete clears
+the whole leaf.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.webproxy import WebProxyMapper
 from vyos_builders.base import BatchBuilder
 
 
 class WebProxyBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("webproxy", version)
+        self.m = cast(WebProxyMapper, CommandMapperRegistry.get_mapper("webproxy", version))
 
     # -----------------------------------------------------------------------
     # Top-level
@@ -102,11 +103,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_domain_block(self, value: str):
         return self.add_set(self.m.get_domain_block(value))
 
+    def delete_domain_block(self, value: str):
+        return self.add_delete(self.m.get_domain_block(value))
+
     def delete_domain_block_all(self):
         return self.add_delete(self.m.get_domain_block_all_delete())
 
     def add_domain_noncache(self, value: str):
         return self.add_set(self.m.get_domain_noncache(value))
+
+    def delete_domain_noncache(self, value: str):
+        return self.add_delete(self.m.get_domain_noncache(value))
 
     def delete_domain_noncache_all(self):
         return self.add_delete(self.m.get_domain_noncache_all_delete())
@@ -114,17 +121,26 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_reply_block_mime(self, value: str):
         return self.add_set(self.m.get_reply_block_mime(value))
 
+    def delete_reply_block_mime(self, value: str):
+        return self.add_delete(self.m.get_reply_block_mime(value))
+
     def delete_reply_block_mime_all(self):
         return self.add_delete(self.m.get_reply_block_mime_all_delete())
 
     def add_safe_port(self, value: str):
         return self.add_set(self.m.get_safe_port(value))
 
+    def delete_safe_port(self, value: str):
+        return self.add_delete(self.m.get_safe_port(value))
+
     def delete_safe_port_all(self):
         return self.add_delete(self.m.get_safe_port_all_delete())
 
     def add_ssl_safe_port(self, value: str):
         return self.add_set(self.m.get_ssl_safe_port(value))
+
+    def delete_ssl_safe_port(self, value: str):
+        return self.add_delete(self.m.get_ssl_safe_port(value))
 
     def delete_ssl_safe_port_all(self):
         return self.add_delete(self.m.get_ssl_safe_port_all_delete())
@@ -304,11 +320,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_allow_category(self, value: str):
         return self.add_set(self.m.get_squidguard_allow_category(value))
 
+    def delete_squidguard_allow_category(self, value: str):
+        return self.add_delete(self.m.get_squidguard_allow_category(value))
+
     def delete_squidguard_allow_category_all(self):
         return self.add_delete(self.m.get_squidguard_allow_category_all_delete())
 
     def add_squidguard_block_category(self, value: str):
         return self.add_set(self.m.get_squidguard_block_category(value))
+
+    def delete_squidguard_block_category(self, value: str):
+        return self.add_delete(self.m.get_squidguard_block_category(value))
 
     def delete_squidguard_block_category_all(self):
         return self.add_delete(self.m.get_squidguard_block_category_all_delete())
@@ -316,11 +338,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_log(self, value: str):
         return self.add_set(self.m.get_squidguard_log(value))
 
+    def delete_squidguard_log(self, value: str):
+        return self.add_delete(self.m.get_squidguard_log(value))
+
     def delete_squidguard_log_all(self):
         return self.add_delete(self.m.get_squidguard_log_all_delete())
 
     def add_squidguard_local_block(self, value: str):
         return self.add_set(self.m.get_squidguard_local_block(value))
+
+    def delete_squidguard_local_block(self, value: str):
+        return self.add_delete(self.m.get_squidguard_local_block(value))
 
     def delete_squidguard_local_block_all(self):
         return self.add_delete(self.m.get_squidguard_local_block_all_delete())
@@ -328,11 +356,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_local_block_keyword(self, value: str):
         return self.add_set(self.m.get_squidguard_local_block_keyword(value))
 
+    def delete_squidguard_local_block_keyword(self, value: str):
+        return self.add_delete(self.m.get_squidguard_local_block_keyword(value))
+
     def delete_squidguard_local_block_keyword_all(self):
         return self.add_delete(self.m.get_squidguard_local_block_keyword_all_delete())
 
     def add_squidguard_local_block_url(self, value: str):
         return self.add_set(self.m.get_squidguard_local_block_url(value))
+
+    def delete_squidguard_local_block_url(self, value: str):
+        return self.add_delete(self.m.get_squidguard_local_block_url(value))
 
     def delete_squidguard_local_block_url_all(self):
         return self.add_delete(self.m.get_squidguard_local_block_url_all_delete())
@@ -340,11 +374,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_local_ok(self, value: str):
         return self.add_set(self.m.get_squidguard_local_ok(value))
 
+    def delete_squidguard_local_ok(self, value: str):
+        return self.add_delete(self.m.get_squidguard_local_ok(value))
+
     def delete_squidguard_local_ok_all(self):
         return self.add_delete(self.m.get_squidguard_local_ok_all_delete())
 
     def add_squidguard_local_ok_url(self, value: str):
         return self.add_set(self.m.get_squidguard_local_ok_url(value))
+
+    def delete_squidguard_local_ok_url(self, value: str):
+        return self.add_delete(self.m.get_squidguard_local_ok_url(value))
 
     def delete_squidguard_local_ok_url_all(self):
         return self.add_delete(self.m.get_squidguard_local_ok_url_all_delete())
@@ -389,11 +429,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_rule_allow_category(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_allow_category(number, value))
 
+    def delete_squidguard_rule_allow_category(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_allow_category(number, value))
+
     def delete_squidguard_rule_allow_category_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_allow_category_all_delete(number))
 
     def add_squidguard_rule_block_category(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_block_category(number, value))
+
+    def delete_squidguard_rule_block_category(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_block_category(number, value))
 
     def delete_squidguard_rule_block_category_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_block_category_all_delete(number))
@@ -401,11 +447,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_rule_log(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_log(number, value))
 
+    def delete_squidguard_rule_log(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_log(number, value))
+
     def delete_squidguard_rule_log_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_log_all_delete(number))
 
     def add_squidguard_rule_local_block(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_local_block(number, value))
+
+    def delete_squidguard_rule_local_block(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_local_block(number, value))
 
     def delete_squidguard_rule_local_block_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_local_block_all_delete(number))
@@ -413,11 +465,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_rule_local_block_keyword(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_local_block_keyword(number, value))
 
+    def delete_squidguard_rule_local_block_keyword(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_local_block_keyword(number, value))
+
     def delete_squidguard_rule_local_block_keyword_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_local_block_keyword_all_delete(number))
 
     def add_squidguard_rule_local_block_url(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_local_block_url(number, value))
+
+    def delete_squidguard_rule_local_block_url(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_local_block_url(number, value))
 
     def delete_squidguard_rule_local_block_url_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_local_block_url_all_delete(number))
@@ -425,11 +483,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_rule_local_ok(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_local_ok(number, value))
 
+    def delete_squidguard_rule_local_ok(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_local_ok(number, value))
+
     def delete_squidguard_rule_local_ok_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_local_ok_all_delete(number))
 
     def add_squidguard_rule_local_ok_url(self, number: str, value: str):
         return self.add_set(self.m.get_squidguard_rule_local_ok_url(number, value))
+
+    def delete_squidguard_rule_local_ok_url(self, number: str, value: str):
+        return self.add_delete(self.m.get_squidguard_rule_local_ok_url(number, value))
 
     def delete_squidguard_rule_local_ok_url_all(self, number: str):
         return self.add_delete(self.m.get_squidguard_rule_local_ok_url_all_delete(number))
@@ -480,11 +544,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_source_group_address(self, name: str, value: str):
         return self.add_set(self.m.get_squidguard_source_group_address(name, value))
 
+    def delete_squidguard_source_group_address(self, name: str, value: str):
+        return self.add_delete(self.m.get_squidguard_source_group_address(name, value))
+
     def delete_squidguard_source_group_address_all(self, name: str):
         return self.add_delete(self.m.get_squidguard_source_group_address_all_delete(name))
 
     def add_squidguard_source_group_domain(self, name: str, value: str):
         return self.add_set(self.m.get_squidguard_source_group_domain(name, value))
+
+    def delete_squidguard_source_group_domain(self, name: str, value: str):
+        return self.add_delete(self.m.get_squidguard_source_group_domain(name, value))
 
     def delete_squidguard_source_group_domain_all(self, name: str):
         return self.add_delete(self.m.get_squidguard_source_group_domain_all_delete(name))
@@ -492,11 +562,17 @@ class WebProxyBatchBuilder(BatchBuilder):
     def add_squidguard_source_group_ldap_ip_search(self, name: str, value: str):
         return self.add_set(self.m.get_squidguard_source_group_ldap_ip_search(name, value))
 
+    def delete_squidguard_source_group_ldap_ip_search(self, name: str, value: str):
+        return self.add_delete(self.m.get_squidguard_source_group_ldap_ip_search(name, value))
+
     def delete_squidguard_source_group_ldap_ip_search_all(self, name: str):
         return self.add_delete(self.m.get_squidguard_source_group_ldap_ip_search_all_delete(name))
 
     def add_squidguard_source_group_ldap_user_search(self, name: str, value: str):
         return self.add_set(self.m.get_squidguard_source_group_ldap_user_search(name, value))
+
+    def delete_squidguard_source_group_ldap_user_search(self, name: str, value: str):
+        return self.add_delete(self.m.get_squidguard_source_group_ldap_user_search(name, value))
 
     def delete_squidguard_source_group_ldap_user_search_all(self, name: str):
         return self.add_delete(self.m.get_squidguard_source_group_ldap_user_search_all_delete(name))
@@ -526,20 +602,23 @@ class WebProxyBatchBuilder(BatchBuilder):
     def delete_squidguard_time_period_description(self, name: str):
         return self.add_delete(self.m.get_squidguard_time_period_description_delete(name))
 
+    def set_squidguard_time_period_day(self, name: str, day: str):
+        return self.add_set(self.m.get_squidguard_time_period_day(name, day))
+
+    def delete_squidguard_time_period_day(self, name: str, day: str):
+        return self.add_delete(self.m.get_squidguard_time_period_day(name, day))
+
     def set_squidguard_time_period_day_time(self, name: str, day: str, value: str):
         return self.add_set(self.m.get_squidguard_time_period_day_time(name, day, value))
 
-    def delete_squidguard_time_period_day(self, name: str, day: str):
-        return self.add_delete(self.m.get_squidguard_time_period_day_delete(name, day))
+    def delete_squidguard_time_period_day_time(self, name: str, day: str):
+        return self.add_delete(self.m.get_squidguard_time_period_day_time_delete(name, day))
 
     # -----------------------------------------------------------------------
     # Capabilities
     # -----------------------------------------------------------------------
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
-
         return {
             "version": self.version,
             "features": {
@@ -565,24 +644,11 @@ class WebProxyBatchBuilder(BatchBuilder):
                 },
             },
             "options": {
-                "cache_peer_type": ["parent", "sibling", "multicast"],
-                "default_action": ["allow", "block"],
-                "ldap_version": ["2", "3"],
-                "auth_method": ["ldap"],
-                "time_period_days": [
-                    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
-                    "weekdays", "weekend", "all",
-                ],
-                "reply_block_mime": [
-                    "application/pdf", "application/zip", "application/octet-stream",
-                    "application/x-msdownload", "application/x-shockwave-flash",
-                    "audio/mpeg", "image/gif", "image/jpeg", "image/png",
-                    "text/html", "text/plain", "video/mpeg", "video/quicktime",
-                    "video/x-msvideo",
-                ],
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
+                "cache_peer_type": self.m.cache_peer_types(),
+                "default_action": self.m.default_actions(),
+                "ldap_version": self.m.ldap_versions(),
+                "auth_method": self.m.authentication_methods(),
+                "time_period_days": self.m.time_period_days(),
+                "reply_block_mime": self.m.reply_block_mimes(),
             },
         }

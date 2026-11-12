@@ -1,11 +1,13 @@
 """Read-model for webproxy config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version keys come from the mapper (MergedMapper), not from
-hardcoded 1.4/1.5 branches here.
+the tree.
 """
 
 from typing import Any, Dict, List, Optional
+
+# A configured LDAP bind password is returned as this mask, never in clear.
+MASKED_SECRET = "***"
 
 
 def _parse_multi(value: Any) -> List[str]:
@@ -121,7 +123,7 @@ def _parse_authentication(raw: Any) -> Dict[str, Any]:
             "base_dn": _parse_scalar(ldap_raw.get("base-dn")),
             "bind_dn": _parse_scalar(ldap_raw.get("bind-dn")),
             "filter_expression": _parse_scalar(ldap_raw.get("filter-expression")),
-            "password": _parse_scalar(ldap_raw.get("password")),
+            "password": MASKED_SECRET if _parse_scalar(ldap_raw.get("password")) else None,
             "username_attribute": _parse_scalar(ldap_raw.get("username-attribute")),
             "port": _parse_int(ldap_raw.get("port")),
             "version": _parse_scalar(ldap_raw.get("version")),

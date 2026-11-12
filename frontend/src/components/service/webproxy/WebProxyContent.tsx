@@ -639,7 +639,8 @@ export function WebProxyContent() {
         config={config}
         caps={caps}
         onSubmit={async (newConfig) => {
-          await webProxyService.saveSettings(newConfig);
+          if (!config) return;
+          await webProxyService.saveSettings(config, newConfig);
           await loadData(true);
         }}
       />
@@ -650,7 +651,8 @@ export function WebProxyContent() {
         auth={config?.authentication ?? null}
         caps={caps}
         onSubmit={async (auth) => {
-          await webProxyService.saveAuthentication(auth);
+          if (!config) return;
+          await webProxyService.saveAuthentication(config.authentication, auth);
           await loadData(true);
         }}
       />
@@ -660,8 +662,8 @@ export function WebProxyContent() {
         onOpenChange={(o) => { setPeerOpen(o); if (!o) setEditingPeer(null); }}
         peer={editingPeer}
         caps={caps}
-        onSubmit={async (peer, isEdit) => {
-          await webProxyService.saveCachePeer(peer, isEdit);
+        onSubmit={async (peer) => {
+          await webProxyService.saveCachePeer(peer, editingPeer);
           await loadData(true);
         }}
       />
@@ -670,8 +672,8 @@ export function WebProxyContent() {
         open={listenOpen}
         onOpenChange={(o) => { setListenOpen(o); if (!o) setEditingListen(null); }}
         listenAddress={editingListen}
-        onSubmit={async (addr, isEdit) => {
-          await webProxyService.saveListenAddress(addr, isEdit);
+        onSubmit={async (addr) => {
+          await webProxyService.saveListenAddress(addr, editingListen);
           await loadData(true);
         }}
       />
@@ -683,7 +685,7 @@ export function WebProxyContent() {
           squidguard={sg}
           caps={caps}
           onSubmit={async (newSg) => {
-            await webProxyService.saveSquidGuardGlobal(newSg);
+            await webProxyService.saveSquidGuardGlobal(sg, newSg);
             await loadData(true);
           }}
         />
@@ -697,8 +699,8 @@ export function WebProxyContent() {
         sourceGroups={sourceGroupNames}
         timePeriods={timePeriodNames}
         existingNumbers={sg?.rules.map((r) => r.number) ?? []}
-        onSubmit={async (rule, isEdit) => {
-          await webProxyService.saveRule(rule, isEdit);
+        onSubmit={async (rule) => {
+          await webProxyService.saveRule(rule, editingRule);
           await loadData(true);
         }}
       />
@@ -708,8 +710,8 @@ export function WebProxyContent() {
         onOpenChange={(o) => { setGroupOpen(o); if (!o) setEditingGroup(null); }}
         sourceGroup={editingGroup}
         existingNames={sourceGroupNames}
-        onSubmit={async (group, isEdit) => {
-          await webProxyService.saveSourceGroup(group, isEdit);
+        onSubmit={async (group) => {
+          await webProxyService.saveSourceGroup(group, editingGroup);
           await loadData(true);
         }}
       />
@@ -720,8 +722,8 @@ export function WebProxyContent() {
         timePeriod={editingPeriod}
         caps={caps}
         existingNames={timePeriodNames}
-        onSubmit={async (period, isEdit) => {
-          await webProxyService.saveTimePeriod(period, isEdit);
+        onSubmit={async (period) => {
+          await webProxyService.saveTimePeriod(period, editingPeriod);
           await loadData(true);
         }}
       />

@@ -3,14 +3,14 @@
 Maps webproxy configuration attributes to VyOS config-tree paths under:
     service webproxy
 
-The webproxy templates are identical between VyOS 1.4 and 1.5, so there are
-no version-specific path overrides — the version subclasses are empty.
+The webproxy templates are identical on VyOS 1.4 and 1.5. One class holds the
+commands and the option lists.
 
 SET paths include the value as the last list element. DELETE paths stop at the
 attribute key. Presence flags use the same path for set and delete.
 """
 
-from typing import List
+from typing import Any, Dict, List
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "webproxy"]
@@ -18,10 +18,73 @@ AUTH = BASE + ["authentication"]
 LDAP = AUTH + ["ldap"]
 SG = BASE + ["url-filtering", "squidguard"]
 
+# reply-block-mime allowed: values in lab order, duplicates removed.
+REPLY_BLOCK_MIME = [
+    "image/gif", "www/mime", "application/macbinary", "application/oda",
+    "application/octet-stream", "application/pdf", "application/postscript",
+    "text/rtf", "application/x-tar", "application/x-csh", "application/x-dvi",
+    "application/x-hdf", "application/x-latex", "text/plain",
+    "application/x-netcdf", "application/x-sh", "application/x-tcl",
+    "application/x-tex", "application/x-texinfo", "application/x-troff",
+    "application/x-troff-man", "application/x-troff-me", "application/x-troff-ms",
+    "application/x-wais-source", "application/zip", "application/x-bcpio",
+    "application/x-cpio", "application/x-gtar", "application/x-rpm",
+    "application/x-shar", "application/x-sv4cpio", "application/x-sv4crc",
+    "application/x-ustar", "audio/basic", "audio/mpeg", "audio/x-aiff",
+    "audio/x-wav", "image/bmp", "image/ief", "image/jpeg", "image/tiff",
+    "image/x-cmu-raster", "image/x-portable-anymap", "image/x-portable-bitmap",
+    "image/x-portable-graymap", "image/x-portable-pixmap", "image/x-rgb",
+    "image/x-xbitmap", "image/x-xpixmap", "image/x-xwindowdump", "text/html",
+    "text/css", "application/x-javascript", "text/richtext",
+    "text/tab-separated-values", "text/x-setext", "video/mpeg", "video/quicktime",
+    "video/x-msvideo", "video/x-sgi-movie", "application/mac-compactpro",
+    "application/mac-binhex40", "application/macwriteii", "application/msword",
+    "application/vnd.ms-excel", "application/vnd.ms-powerpoint",
+    "application/vnd.lotus-1-2-3", "application/vnd.mif", "application/x-stuffit",
+    "application/pict", "application/x-arj-compressed",
+    "application/x-lha-compressed", "application/x-deflate", "image/png",
+    "application/x-xpinstall", "application/x-director", "image/vnd.djvu",
+    "application/andrew-inset", "x-conference/x-cooltalk", "model/iges",
+    "audio/midi", "model/mesh", "video/vnd.mpegurl", "chemical/x-pdb",
+    "application/x-chess-pgn", "audio/x-realaudio", "audio/x-pn-realaudio",
+    "text/sgml", "application/x-koan", "application/smil",
+    "application/x-futuresplash", "application/x-shockwave-flash",
+    "application/x-cdlink", "model/vrml", "image/vnd.wap.wbmp",
+    "application/vnd.wap.wbxml", "application/vnd.wap.wmlc",
+    "application/vnd.wap.wmlscriptc", "application/vnd.wap.wmlscript",
+    "application/xhtml", "text/xml", "chemical/x-xyz",
+]
+
 
 class WebProxyMapper(BaseFeatureMapper):
-    def __init__(self, version: str):
-        super().__init__(version)
+    """Mapper for service webproxy. Identical on VyOS 1.4 and 1.5."""
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_webproxy_config
+
+        return parse_webproxy_config(self, full_config)
+
+    # ========================================================================
+    # Option lists (lab allowed: values)
+    # ========================================================================
+
+    def cache_peer_types(self) -> List[str]:
+        return ["parent", "sibling", "multicast"]
+
+    def default_actions(self) -> List[str]:
+        return ["allow", "block"]
+
+    def ldap_versions(self) -> List[str]:
+        return ["2", "3"]
+
+    def authentication_methods(self) -> List[str]:
+        return ["ldap"]
+
+    def time_period_days(self) -> List[str]:
+        return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "weekdays", "weekend", "all"]
+
+    def reply_block_mimes(self) -> List[str]:
+        return list(REPLY_BLOCK_MIME)
 
     # ========================================================================
     # Top-level service
@@ -490,8 +553,11 @@ class WebProxyMapper(BaseFeatureMapper):
     def get_squidguard_time_period_description_delete(self, name: str) -> List[str]:
         return SG + ["time-period", name, "description"]
 
+    def get_squidguard_time_period_day(self, name: str, day: str) -> List[str]:
+        return SG + ["time-period", name, "days", day]
+
     def get_squidguard_time_period_day_time(self, name: str, day: str, value: str) -> List[str]:
         return SG + ["time-period", name, "days", day, "time", value]
 
-    def get_squidguard_time_period_day_delete(self, name: str, day: str) -> List[str]:
-        return SG + ["time-period", name, "days", day]
+    def get_squidguard_time_period_day_time_delete(self, name: str, day: str) -> List[str]:
+        return SG + ["time-period", name, "days", day, "time"]

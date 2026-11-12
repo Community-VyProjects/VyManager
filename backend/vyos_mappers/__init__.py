@@ -125,7 +125,6 @@ from .dns_forwarding.dns_forwarding_versions import get_dns_forwarding_mapper
 from .dns_dynamic import DNSDynamicMapper
 from .dns_dynamic.dns_dynamic_versions import get_dns_dynamic_mapper
 from .webproxy import WebProxyMapper
-from .webproxy.webproxy_versions import get_webproxy_mapper
 from .event_handler import EventHandlerMapper
 from .event_handler.event_handler_versions import get_event_handler_mapper
 from .https import HTTPSMapper
@@ -312,7 +311,8 @@ CommandMapperRegistry.register_feature("dhcpv6_server", get_dhcpv6_server_mapper
 CommandMapperRegistry.register_feature("dns_forwarding", get_dns_forwarding_mapper)
 # DNS Dynamic uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dns_dynamic", get_dns_dynamic_mapper)
-CommandMapperRegistry.register_feature("webproxy", get_webproxy_mapper)
+# Web Proxy uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("webproxy", WebProxyMapper)
 CommandMapperRegistry.register_feature("event_handler", get_event_handler_mapper)
 # HTTPS uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("https", get_https_mapper)
