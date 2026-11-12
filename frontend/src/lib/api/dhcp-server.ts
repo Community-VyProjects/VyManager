@@ -1284,23 +1284,6 @@ export class DHCPServerService {
       operations: [{ op: "delete_shared_network_disable" }],
     });
   }
-
-  // Subnet disable
-  async setSubnetDisable(networkName: string, subnet: string): Promise<VyOSResponse> {
-    return this.batchConfigure({
-      network_name: networkName,
-      subnet,
-      operations: [{ op: "set_subnet_disable" }],
-    });
-  }
-
-  async deleteSubnetDisable(networkName: string, subnet: string): Promise<VyOSResponse> {
-    return this.batchConfigure({
-      network_name: networkName,
-      subnet,
-      operations: [{ op: "delete_subnet_disable" }],
-    });
-  }
 }
 
 export const dhcpServerService = new DHCPServerService();
