@@ -897,9 +897,7 @@ export class DHCPServerService {
   }
 
   /**
-   * Create a static mapping
-   * Note: We only set ip-address and mac-address, as VyOS implicitly creates
-   * the static-mapping node when setting child properties.
+   * Create a static mapping node, then its ip-address and the optional leaves.
    */
   async createStaticMapping(
     network_name: string,
