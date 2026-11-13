@@ -58,6 +58,9 @@ REMAINING_OFFLOADED = [
     ("webproxy_batch_configure", "routers/webproxy/webproxy.py", "execute_batch", 1),
     ("get_isis_config", "routers/isis/isis.py", "get_full_config", 1),
     ("isis_batch_configure", "routers/isis/isis.py", "execute_batch", 1),
+    ("get_local_route_config", "routers/local_route/local_route.py", "get_full_config", 1),
+    ("local_route_batch_configure", "routers/local_route/local_route.py", "execute_batch", 1),
+    ("local_route_reorder_rules", "routers/local_route/local_route.py", "execute_batch", 1),
 ]
 
 # handler, file, blocking attribute, expected offload count
@@ -156,12 +159,23 @@ def _handler_names(exc):
     return names
 
 
-def test_load_balancing_value_error_does_not_wrap_execute_batch():
+# handler, file: ValueError (a missing leaf) is HTTP 400 around the op loop;
+# an empty batch ValueError from execute_batch stays a 500.
+VALUE_ERROR_SCOPED = [
+    ("batch_configure", "routers/load_balancing/load_balancing.py"),
+    ("local_route_batch_configure", "routers/local_route/local_route.py"),
+    ("local_route_reorder_rules", "routers/local_route/local_route.py"),
+]
+
+
+@pytest.mark.parametrize(
+    "name,rel",
+    VALUE_ERROR_SCOPED,
+    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED],
+)
+def test_value_error_does_not_wrap_execute_batch(name, rel):
     """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""
-    handler = _handler(
-        BACKEND / "routers/load_balancing/load_balancing.py",
-        "batch_configure",
-    )
+    handler = _handler(BACKEND / rel, name)
     value_error_tries = []
     for node in ast.walk(handler):
         if not isinstance(node, ast.Try):
@@ -170,14 +184,14 @@ def test_load_balancing_value_error_does_not_wrap_execute_batch():
             if isinstance(exc, ast.ExceptHandler) and "ValueError" in _handler_names(exc):
                 value_error_tries.append(node)
 
-    assert value_error_tries, "batch_configure must catch ValueError"
+    assert value_error_tries, f"{name} must catch ValueError"
     for try_node in value_error_tries:
         for call in ast.walk(try_node):
             if not isinstance(call, ast.Call):
                 continue
             func = call.func
-            name = getattr(func, "attr", None) or getattr(func, "id", None)
-            assert name != "execute_batch", "ValueError handler must not wrap execute_batch"
+            called = getattr(func, "attr", None) or getattr(func, "id", None)
+            assert called != "execute_batch", "ValueError handler must not wrap execute_batch"
 
     offloaded = _offloaded(handler, "execute_batch")
     assert len(offloaded) == 1

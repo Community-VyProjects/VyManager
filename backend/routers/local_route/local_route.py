@@ -8,14 +8,17 @@ Supports both IPv4 (local-route) and IPv6 (local-route6) rules.
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Literal, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.local_route import LocalRouteBatchBuilder
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.local_route import LocalRouteMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
 import logging
 from batch_dispatch import resolve_batch_method
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/local-route", tags=["local-route"])
@@ -26,10 +29,9 @@ router = APIRouter(prefix="/vyos/local-route", tags=["local-route"])
 # ============================================================================
 
 
-class LocalRouteRule(BaseModel):
-    """Model for a local route rule (IPv4 or IPv6)."""
+class LocalRouteRuleFields(BaseModel):
+    """Match and set leaves of a local route rule (IPv4 or IPv6)."""
 
-    rule_number: int = Field(..., ge=1, le=32765, description="Rule number (1-32765)")
     source: Optional[str] = Field(None, description="Source address or prefix")
     destination: Optional[str] = Field(None, description="Destination address or prefix")
     inbound_interface: Optional[str] = Field(None, description="Inbound interface name")
@@ -39,6 +41,12 @@ class LocalRouteRule(BaseModel):
     destination_port: Optional[str] = Field(None, description="Destination port")
     table: Optional[str] = Field(None, description="Routing table (1-200 or 'main')")
     vrf: Optional[str] = Field(None, description="VRF instance name (VyOS 1.5+ only)")
+
+
+class LocalRouteRule(LocalRouteRuleFields):
+    """Model for a local route rule (IPv4 or IPv6)."""
+
+    rule_number: int = Field(..., ge=1, le=32765, description="Rule number (1-32765)")
 
 
 class LocalRouteConfigResponse(BaseModel):
@@ -73,11 +81,19 @@ class LocalRouteBatchRequest(BaseModel):
     operations: List[LocalRouteBatchOperation]
 
 
+class LocalRouteReorderItem(BaseModel):
+    """One rule moved from old_number to new_number."""
+
+    old_number: int = Field(..., ge=1, le=32765)
+    new_number: int = Field(..., ge=1, le=32765)
+    rule_data: LocalRouteRuleFields
+
+
 class LocalRouteReorderRequest(BaseModel):
     """Model for reordering rules."""
 
-    rule_type: str = Field(..., description="Rule type: 'ipv4' or 'ipv6'")
-    rules: List[Dict[str, Any]] = Field(
+    rule_type: Literal["ipv4", "ipv6"] = Field(..., description="Rule type: 'ipv4' or 'ipv6'")
+    rules: List[LocalRouteReorderItem] = Field(
         ..., description="List of rules with old and new numbers"
     )
 
@@ -116,7 +132,7 @@ async def get_local_route_capabilities(http_request: Request):
             capabilities["instance_name"] = http_request.state.instance.get("name")
             capabilities["instance_id"] = http_request.state.instance.get("id")
         return capabilities
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -124,65 +140,6 @@ async def get_local_route_capabilities(http_request: Request):
 # ============================================================================
 # Endpoint 2: Config (Generalized Data)
 # ============================================================================
-
-
-def parse_address_field(value):
-    """
-    Parse VyOS address field which can be:
-    - A string: "10.2.4.5"
-    - A dict with 'address' key: {'address': ['10.2.4.5']}
-    - None
-    """
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict) and "address" in value:
-        # VyOS returns {'address': ['10.2.4.5']}
-        addresses = value["address"]
-        if isinstance(addresses, list) and len(addresses) > 0:
-            return str(addresses[0])
-        if isinstance(addresses, str):
-            return addresses
-    return None
-
-
-def parse_leaf(value) -> Optional[str]:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, list) and value:
-        return parse_leaf(value[0])
-    if isinstance(value, dict) and value:
-        return str(next(iter(value.keys())))
-    return None
-
-
-def parse_container_leaf(container, key: str) -> Optional[str]:
-    if not isinstance(container, dict):
-        return None
-    return parse_leaf(container.get(key))
-
-
-def _parse_rule(rule_num_str, rule_data) -> LocalRouteRule:
-    source = rule_data.get("source")
-    destination = rule_data.get("destination")
-    set_data = rule_data.get("set") if isinstance(rule_data.get("set"), dict) else {}
-    return LocalRouteRule(
-        rule_number=int(rule_num_str),
-        source=parse_address_field(source),
-        destination=parse_address_field(destination),
-        inbound_interface=parse_leaf(rule_data.get("inbound-interface")),
-        fwmark=parse_leaf(rule_data.get("fwmark")),
-        protocol=parse_leaf(rule_data.get("protocol")),
-        source_port=parse_container_leaf(source, "port"),
-        destination_port=parse_container_leaf(destination, "port"),
-        table=parse_leaf(set_data.get("table")),
-        vrf=parse_leaf(set_data.get("vrf")),
-    )
 
 
 @router.get("/config", response_model=LocalRouteConfigResponse)
@@ -202,35 +159,12 @@ async def get_local_route_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        ipv4_rules = []
-        ipv6_rules = []
-
-        # Parse IPv4 local-route rules
-        if "policy" in full_config and "local-route" in full_config["policy"]:
-            local_route_config = full_config["policy"]["local-route"]
-            if "rule" in local_route_config:
-                for rule_num_str, rule_data in local_route_config["rule"].items():
-                    ipv4_rules.append(_parse_rule(rule_num_str, rule_data))
-
-        # Parse IPv6 local-route6 rules
-        if "policy" in full_config and "local-route6" in full_config["policy"]:
-            local_route6_config = full_config["policy"]["local-route6"]
-            if "rule" in local_route6_config:
-                for rule_num_str, rule_data in local_route6_config["rule"].items():
-                    ipv6_rules.append(_parse_rule(rule_num_str, rule_data))
-
-        # Sort by rule number
-        ipv4_rules.sort(key=lambda x: x.rule_number)
-        ipv6_rules.sort(key=lambda x: x.rule_number)
-
-        return LocalRouteConfigResponse(
-            ipv4_rules=ipv4_rules,
-            ipv6_rules=ipv6_rules,
-            total_ipv4=len(ipv4_rules),
-            total_ipv6=len(ipv6_rules),
+        mapper = cast(
+            LocalRouteMapper,
+            CommandMapperRegistry.get_mapper("local_route", service.get_version()),
         )
-    except Exception as e:
+        return LocalRouteConfigResponse(**mapper.parse_config(full_config))
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -255,23 +189,27 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
 
-        # Process operations using inspect for dynamic method calls
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
+                if count > 1 and not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                try:
+                    method(*[body.rule_number, operation.value][:count])
+                except TypeError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} has invalid arguments",
+                    )
+        except ValueError as e:
+            # The mapper rejects a node this device version does not have.
+            raise HTTPException(status_code=400, detail=str(e))
 
-            # Build arguments dynamically
-            args = []
-            if "rule_number" in params:
-                args.append(body.rule_number)
-            if operation.value and len(params) > len(args):
-                args.append(operation.value)
-
-            method(*args)
-
-        # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -280,10 +218,7 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
         )
     except HTTPException:
         raise
-    except ValueError as e:
-        # The mapper rejects a node this device version does not have.
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -309,76 +244,60 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
 
-        # Determine operation prefix based on rule type
         if body.rule_type == "ipv4":
-            delete_op = "delete_local_route_rule"
-            create_op = "set_local_route_rule"
-            source_op = "set_local_route_rule_source"
-            dest_op = "set_local_route_rule_destination"
-            interface_op = "set_local_route_rule_inbound_interface"
-            fwmark_op = "set_local_route_rule_fwmark"
-            protocol_op = "set_local_route_rule_protocol"
-            source_port_op = "set_local_route_rule_source_port"
-            dest_port_op = "set_local_route_rule_destination_port"
-            table_op = "set_local_route_rule_set_table"
-            vrf_op = "set_local_route_rule_set_vrf"
-        else:  # ipv6
-            delete_op = "delete_local_route6_rule"
-            create_op = "set_local_route6_rule"
-            source_op = "set_local_route6_rule_source"
-            dest_op = "set_local_route6_rule_destination"
-            interface_op = "set_local_route6_rule_inbound_interface"
-            fwmark_op = "set_local_route6_rule_fwmark"
-            protocol_op = "set_local_route6_rule_protocol"
-            source_port_op = "set_local_route6_rule_source_port"
-            dest_port_op = "set_local_route6_rule_destination_port"
-            table_op = "set_local_route6_rule_set_table"
-            vrf_op = "set_local_route6_rule_set_vrf"
+            delete_rule = builder.delete_local_route_rule
+            create_rule = builder.set_local_route_rule
+            setters = {
+                "source": builder.set_local_route_rule_source,
+                "destination": builder.set_local_route_rule_destination,
+                "inbound_interface": builder.set_local_route_rule_inbound_interface,
+                "fwmark": builder.set_local_route_rule_fwmark,
+                "protocol": builder.set_local_route_rule_protocol,
+                "source_port": builder.set_local_route_rule_source_port,
+                "destination_port": builder.set_local_route_rule_destination_port,
+                "table": builder.set_local_route_rule_set_table,
+                "vrf": builder.set_local_route_rule_set_vrf,
+            }
+        else:
+            delete_rule = builder.delete_local_route6_rule
+            create_rule = builder.set_local_route6_rule
+            setters = {
+                "source": builder.set_local_route6_rule_source,
+                "destination": builder.set_local_route6_rule_destination,
+                "inbound_interface": builder.set_local_route6_rule_inbound_interface,
+                "fwmark": builder.set_local_route6_rule_fwmark,
+                "protocol": builder.set_local_route6_rule_protocol,
+                "source_port": builder.set_local_route6_rule_source_port,
+                "destination_port": builder.set_local_route6_rule_destination_port,
+                "table": builder.set_local_route6_rule_set_table,
+                "vrf": builder.set_local_route6_rule_set_vrf,
+            }
 
-        # Step 1: Delete all rules in reverse order
-        old_numbers = [rule["old_number"] for rule in body.rules]
-        for old_num in sorted(old_numbers, reverse=True):
-            getattr(builder, delete_op)(old_num)
+        try:
+            # Step 1: Delete all rules in reverse order
+            for old_num in sorted((rule.old_number for rule in body.rules), reverse=True):
+                delete_rule(old_num)
 
-        # Step 2: Recreate rules with new numbers
-        for rule in body.rules:
-            new_num = rule["new_number"]
-            rule_data = rule["rule_data"]
+            # Step 2: Recreate rules with new numbers
+            for rule in body.rules:
+                create_rule(rule.new_number)
+                for field, setter in setters.items():
+                    value = getattr(rule.rule_data, field)
+                    if value:
+                        setter(rule.new_number, value)
+        except ValueError as e:
+            # The mapper rejects a node this device version does not have.
+            raise HTTPException(status_code=400, detail=str(e))
 
-            # Create rule
-            getattr(builder, create_op)(new_num)
-
-            # Set properties
-            if rule_data.get("source"):
-                getattr(builder, source_op)(new_num, rule_data["source"])
-            if rule_data.get("destination"):
-                getattr(builder, dest_op)(new_num, rule_data["destination"])
-            if rule_data.get("inbound_interface"):
-                getattr(builder, interface_op)(new_num, rule_data["inbound_interface"])
-            if rule_data.get("fwmark"):
-                getattr(builder, fwmark_op)(new_num, rule_data["fwmark"])
-            if rule_data.get("protocol"):
-                getattr(builder, protocol_op)(new_num, rule_data["protocol"])
-            if rule_data.get("source_port"):
-                getattr(builder, source_port_op)(new_num, rule_data["source_port"])
-            if rule_data.get("destination_port"):
-                getattr(builder, dest_port_op)(new_num, rule_data["destination_port"])
-            if rule_data.get("table"):
-                getattr(builder, table_op)(new_num, rule_data["table"])
-            if rule_data.get("vrf"):
-                getattr(builder, vrf_op)(new_num, rule_data["vrf"])
-
-        # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Rules reordered successfully"},
             error=response.error if response.error else None,
         )
-    except ValueError as e:
-        # The mapper rejects a node this device version does not have.
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

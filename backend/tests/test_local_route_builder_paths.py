@@ -9,7 +9,6 @@ coverage check counts that table instead of restating it.
 
 import pytest
 
-from routers.local_route.local_route import _parse_rule
 from tests.dispatchable_ops import dispatchable_ops
 from tests.test_local_route_vrf_version_gate import BUILDER_CASES as VRF_CASES
 from vyos_builders.local_route.local_route import LocalRouteBatchBuilder
@@ -182,24 +181,3 @@ def test_capabilities_advertise_match_leaves():
         assert features["source_port_matching"]["supported"] is True
         assert features["destination_port_matching"]["supported"] is True
 
-
-def test_parse_rule_reads_fwmark_protocol_and_ports():
-    rule = _parse_rule(
-        "10",
-        {
-            "source": {"address": ["192.0.2.1"], "port": "80"},
-            "destination": {"address": "192.0.2.8", "port": "443"},
-            "fwmark": "1",
-            "protocol": "tcp",
-            "inbound-interface": "eth0",
-            "set": {"table": "main"},
-        },
-    )
-    assert rule.source == "192.0.2.1"
-    assert rule.source_port == "80"
-    assert rule.destination == "192.0.2.8"
-    assert rule.destination_port == "443"
-    assert rule.fwmark == "1"
-    assert rule.protocol == "tcp"
-    assert rule.inbound_interface == "eth0"
-    assert rule.table == "main"
