@@ -9,12 +9,10 @@ VRF choice from the capability.
 import inspect
 import re
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
+from tests.local_route_client import local_route_client
 from vyos_builders.local_route.local_route import LocalRouteBatchBuilder
 from vyos_mappers.local_route.local_route import LocalRouteMapper
 from vyos_mappers.local_route.local_route_versions import get_local_route_mapper
@@ -129,49 +127,24 @@ def test_vrf_capability_reads_the_mapper(monkeypatch):
 # Endpoints: 400 on 1.4 before anything is committed
 # ---------------------------------------------------------------------------
 
-MODULE = "routers.local_route.local_route"
-
-
-def _client(monkeypatch, version):
-    captured = []
-
-    async def allow(*_args, **_kwargs):
-        return None
-
-    class Service:
-        def get_version(self):
-            return version
-
-        def execute_batch(self, batch):
-            captured.append(batch.get_operations())
-            return SimpleNamespace(status=200, result="", error=None)
-
-    monkeypatch.setattr(f"{MODULE}.require_write_permission", allow)
-    monkeypatch.setattr(f"{MODULE}.get_session_vyos_service", lambda _req: Service())
-
-    router = __import__(MODULE, fromlist=["router"]).router
-    app = FastAPI()
-    app.include_router(router)
-    return TestClient(app), captured
-
 
 @pytest.mark.parametrize("rule_type, op, family", [
     ("ipv4", "set_local_route_rule_set_vrf", "local-route"),
     ("ipv6", "set_local_route6_rule_set_vrf", "local-route6"),
 ])
 def test_batch_writes_vrf_on_1_5(monkeypatch, rule_type, op, family):
-    client, captured = _client(monkeypatch, "1.5")
+    client, captured = local_route_client(monkeypatch, "1.5")
     body = {"rule_number": 10, "rule_type": rule_type, "operations": [{"op": op, "value": VRF}]}
     response = client.post("/vyos/local-route/batch", json=body)
     assert response.status_code == 200, response.text
-    assert [(item["op"], item["path"]) for item in captured[0]] == [
+    assert captured == [[
         ("set", ["policy", family, "rule", "10", "set", "vrf", VRF]),
-    ]
+    ]]
 
 
 @pytest.mark.parametrize("op", [case[0] for case in BUILDER_CASES])
 def test_batch_rejects_vrf_on_1_4_without_commit(monkeypatch, op):
-    client, captured = _client(monkeypatch, "1.4")
+    client, captured = local_route_client(monkeypatch, "1.4")
     rule_type = "ipv6" if "route6" in op else "ipv4"
     value = VRF if op.startswith("set_") else None
     body = {"rule_number": 10, "rule_type": rule_type, "operations": [{"op": op, "value": value}]}
@@ -190,17 +163,15 @@ def _reorder_body(rule_type):
 
 @pytest.mark.parametrize("rule_type, family", [("ipv4", "local-route"), ("ipv6", "local-route6")])
 def test_reorder_writes_vrf_on_1_5(monkeypatch, rule_type, family):
-    client, captured = _client(monkeypatch, "1.5")
+    client, captured = local_route_client(monkeypatch, "1.5")
     response = client.post("/vyos/local-route/reorder", json=_reorder_body(rule_type))
     assert response.status_code == 200, response.text
-    assert ("set", ["policy", family, "rule", "20", "set", "vrf", VRF]) in [
-        (item["op"], item["path"]) for item in captured[0]
-    ]
+    assert ("set", ["policy", family, "rule", "20", "set", "vrf", VRF]) in captured[0]
 
 
 @pytest.mark.parametrize("rule_type", ["ipv4", "ipv6"])
 def test_reorder_rejects_vrf_on_1_4_without_commit(monkeypatch, rule_type):
-    client, captured = _client(monkeypatch, "1.4")
+    client, captured = local_route_client(monkeypatch, "1.4")
     response = client.post("/vyos/local-route/reorder", json=_reorder_body(rule_type))
     assert response.status_code == 400, response.text
     assert "not supported on this device" in response.json()["detail"]

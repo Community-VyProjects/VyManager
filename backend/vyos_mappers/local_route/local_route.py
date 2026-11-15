@@ -5,7 +5,7 @@ Handles command path generation for VyOS local route policy configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import FrozenSet, List
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
@@ -17,10 +17,6 @@ class LocalRouteMapper(BaseFeatureMapper):
     # subclasses narrow this set.
     _RULE_SET_VERSIONED = ("vrf",)
 
-    def __init__(self, version: str):
-        """Initialize with VyOS version."""
-        super().__init__(version)
-
     def versioned_rule_set_actions(self) -> FrozenSet[str]:
         """Version-dependent rule ``set`` actions this device has."""
         return frozenset(self._RULE_SET_VERSIONED)
@@ -28,6 +24,11 @@ class LocalRouteMapper(BaseFeatureMapper):
     def _require_rule_set(self, action: str) -> None:
         if action not in self.versioned_rule_set_actions():
             raise ValueError(f"local-route rule set {action} is not supported on this device")
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_local_route_config
+
+        return parse_local_route_config(self, full_config)
 
     # ========================================================================
     # IPv4 Local Route - Rule Paths
