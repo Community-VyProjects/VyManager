@@ -61,6 +61,8 @@ REMAINING_OFFLOADED = [
     ("get_local_route_config", "routers/local_route/local_route.py", "get_full_config", 1),
     ("local_route_batch_configure", "routers/local_route/local_route.py", "execute_batch", 1),
     ("local_route_reorder_rules", "routers/local_route/local_route.py", "execute_batch", 1),
+    ("get_groups_config", "routers/firewall/groups.py", "get_full_config", 1),
+    ("configure_group_batch", "routers/firewall/groups.py", "execute_batch", 1),
 ]
 
 # handler, file, blocking attribute, expected offload count
@@ -165,6 +167,7 @@ VALUE_ERROR_SCOPED = [
     ("batch_configure", "routers/load_balancing/load_balancing.py"),
     ("local_route_batch_configure", "routers/local_route/local_route.py"),
     ("local_route_reorder_rules", "routers/local_route/local_route.py"),
+    ("configure_group_batch", "routers/firewall/groups.py"),
 ]
 
 
