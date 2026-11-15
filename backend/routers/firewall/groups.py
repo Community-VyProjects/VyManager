@@ -12,7 +12,9 @@ from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.firewall import FirewallGroupsBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
+import inspect
 import logging
+from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/groups", tags=["firewall-groups"])
@@ -314,385 +316,37 @@ async def get_groups_config(request: Request, refresh: bool = False):
 @router.post("/batch", response_model=VyOSResponse)
 async def configure_group_batch(http_request: Request, request: GroupBatchRequest):
     """
-    Configure firewall group using batch operations.
+    Configure one firewall group in a single VyOS commit.
 
-    This is the main endpoint for configuring firewall groups. All operations
-    are version-aware and sent to VyOS in a single batch for efficiency.
+    Each operation names a FirewallGroupsBatchBuilder method. Every method
+    takes the group name; a method with a second argument (a description, a
+    member, an included group) also requires `value`.
 
-    **Address Group Operations (IPv4):**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_address_group` | No | Create address group |
-    | `delete_address_group` | No | Delete address group |
-    | `set_address_group_description` | Yes | Set group description |
-    | `delete_address_group_description` | No | Delete group description |
-    | `set_address_group_address` | Yes | Add IPv4 address or range (e.g., 10.0.0.1 or 10.0.0.1-10.0.0.10) |
-    | `delete_address_group_address` | Yes | Remove IPv4 address or range |
-
-    **IPv6 Address Group Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_ipv6_address_group` | No | Create IPv6 address group |
-    | `delete_ipv6_address_group` | No | Delete IPv6 address group |
-    | `set_ipv6_address_group_description` | Yes | Set group description |
-    | `delete_ipv6_address_group_description` | No | Delete group description |
-    | `set_ipv6_address_group_address` | Yes | Add IPv6 address or range |
-    | `delete_ipv6_address_group_address` | Yes | Remove IPv6 address or range |
-
-    **Network Group Operations (IPv4):**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_network_group` | No | Create network group |
-    | `delete_network_group` | No | Delete network group |
-    | `set_network_group_description` | Yes | Set group description |
-    | `delete_network_group_description` | No | Delete group description |
-    | `set_network_group_network` | Yes | Add IPv4 network in CIDR (e.g., 10.0.0.0/24) |
-    | `delete_network_group_network` | Yes | Remove IPv4 network |
-
-    **IPv6 Network Group Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_ipv6_network_group` | No | Create IPv6 network group |
-    | `delete_ipv6_network_group` | No | Delete IPv6 network group |
-    | `set_ipv6_network_group_description` | Yes | Set group description |
-    | `delete_ipv6_network_group_description` | No | Delete group description |
-    | `set_ipv6_network_group_network` | Yes | Add IPv6 network in CIDR |
-    | `delete_ipv6_network_group_network` | Yes | Remove IPv6 network |
-
-    **Port Group Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_port_group` | No | Create port group |
-    | `delete_port_group` | No | Delete port group |
-    | `set_port_group_description` | Yes | Set group description |
-    | `delete_port_group_description` | No | Delete group description |
-    | `set_port_group_port` | Yes | Add port (number, range, or name: 80, 8000-8100, http) |
-    | `delete_port_group_port` | Yes | Remove port |
-
-    **Interface Group Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_interface_group` | No | Create interface group |
-    | `delete_interface_group` | No | Delete interface group |
-    | `set_interface_group_description` | Yes | Set group description |
-    | `delete_interface_group_description` | No | Delete group description |
-    | `set_interface_group_interface` | Yes | Add interface name (e.g., eth0, eth1.100) |
-    | `delete_interface_group_interface` | Yes | Remove interface name |
-
-    **MAC Group Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_mac_group` | No | Create MAC address group |
-    | `delete_mac_group` | No | Delete MAC address group |
-    | `set_mac_group_description` | Yes | Set group description |
-    | `delete_mac_group_description` | No | Delete group description |
-    | `set_mac_group_mac` | Yes | Add MAC address (e.g., 00:11:22:33:44:55) |
-    | `delete_mac_group_mac` | Yes | Remove MAC address |
-
-    **Domain Group Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_domain_group` | No | Create domain name group |
-    | `delete_domain_group` | No | Delete domain name group |
-    | `set_domain_group_description` | Yes | Set group description |
-    | `delete_domain_group_description` | No | Delete group description |
-    | `set_domain_group_address` | Yes | Add domain name (e.g., example.com) |
-    | `delete_domain_group_address` | Yes | Remove domain name |
-
-    **Remote Group Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_remote_group` | No | Create remote address group |
-    | `delete_remote_group` | No | Delete remote address group |
-    | `set_remote_group_description` | Yes | Set group description |
-    | `delete_remote_group_description` | No | Delete group description |
-    | `set_remote_group_url` | Yes | Set URL for remote address list (http/https) |
-    | `delete_remote_group_url` | No | Delete URL from remote group |
-
-    **Example:**
-    ```json
-    {
-        "group_name": "INTERNAL_NETS",
-        "operations": [
-            {"op": "set_network_group"},
-            {"op": "set_network_group_description", "value": "Internal networks"},
-            {"op": "set_network_group_network", "value": "10.0.0.0/8"},
-            {"op": "set_network_group_network", "value": "192.168.0.0/16"}
-        ]
-    }
-    ```
+    Requires WRITE permission on FIREWALL_GROUPS feature.
     """
-    # Check user has WRITE permission for firewall groups (modifying configuration)
     await require_write_permission(http_request, FeatureGroup.FIREWALL_GROUPS)
 
     try:
         service = get_session_vyos_service(http_request)
-        batch = service.create_firewall_groups_batch()
+        batch = FirewallGroupsBatchBuilder(version=service.get_version())
 
-        # Process each operation
-        for operation in request.operations:
-            op_type = operation.op
-            value = operation.value
+        try:
+            for operation in request.operations:
+                method = resolve_batch_method(batch, operation.op)
+                if len(inspect.signature(method).parameters) == 1:
+                    method(request.group_name)
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{operation.op} requires a value",
+                    )
+                method(request.group_name, operation.value)
+        except ValueError as e:
+            # The mapper raises ValueError for a group type this version lacks.
+            raise HTTPException(status_code=400, detail=str(e))
 
-            if not op_type:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid operation: {operation}. Must have 'op' key"
-                )
-
-            # Map operation to batch method - Address Group
-            if op_type == "set_address_group":
-                batch.set_address_group(request.group_name)
-            elif op_type == "delete_address_group":
-                batch.delete_address_group(request.group_name)
-            elif op_type == "set_address_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_address_group_description(request.group_name, value)
-            elif op_type == "delete_address_group_description":
-                batch.delete_address_group_description(request.group_name)
-            elif op_type == "set_address_group_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_address_group_address(request.group_name, value)
-            elif op_type == "delete_address_group_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_address_group_address(request.group_name, value)
-            elif op_type == "set_address_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_address_group_include(request.group_name, value)
-            elif op_type == "delete_address_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_address_group_include(request.group_name, value)
-
-            # IPv6 Address Group
-            elif op_type == "set_ipv6_address_group":
-                batch.set_ipv6_address_group(request.group_name)
-            elif op_type == "delete_ipv6_address_group":
-                batch.delete_ipv6_address_group(request.group_name)
-            elif op_type == "set_ipv6_address_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_ipv6_address_group_description(request.group_name, value)
-            elif op_type == "delete_ipv6_address_group_description":
-                batch.delete_ipv6_address_group_description(request.group_name)
-            elif op_type == "set_ipv6_address_group_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_ipv6_address_group_address(request.group_name, value)
-            elif op_type == "delete_ipv6_address_group_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_ipv6_address_group_address(request.group_name, value)
-            elif op_type == "set_ipv6_address_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_ipv6_address_group_include(request.group_name, value)
-            elif op_type == "delete_ipv6_address_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_ipv6_address_group_include(request.group_name, value)
-
-            # Network Group
-            elif op_type == "set_network_group":
-                batch.set_network_group(request.group_name)
-            elif op_type == "delete_network_group":
-                batch.delete_network_group(request.group_name)
-            elif op_type == "set_network_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_network_group_description(request.group_name, value)
-            elif op_type == "delete_network_group_description":
-                batch.delete_network_group_description(request.group_name)
-            elif op_type == "set_network_group_network":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_network_group_network(request.group_name, value)
-            elif op_type == "delete_network_group_network":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_network_group_network(request.group_name, value)
-            elif op_type == "set_network_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_network_group_include(request.group_name, value)
-            elif op_type == "delete_network_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_network_group_include(request.group_name, value)
-
-            # IPv6 Network Group
-            elif op_type == "set_ipv6_network_group":
-                batch.set_ipv6_network_group(request.group_name)
-            elif op_type == "delete_ipv6_network_group":
-                batch.delete_ipv6_network_group(request.group_name)
-            elif op_type == "set_ipv6_network_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_ipv6_network_group_description(request.group_name, value)
-            elif op_type == "delete_ipv6_network_group_description":
-                batch.delete_ipv6_network_group_description(request.group_name)
-            elif op_type == "set_ipv6_network_group_network":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_ipv6_network_group_network(request.group_name, value)
-            elif op_type == "delete_ipv6_network_group_network":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_ipv6_network_group_network(request.group_name, value)
-            elif op_type == "set_ipv6_network_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_ipv6_network_group_include(request.group_name, value)
-            elif op_type == "delete_ipv6_network_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_ipv6_network_group_include(request.group_name, value)
-
-            # Port Group
-            elif op_type == "set_port_group":
-                batch.set_port_group(request.group_name)
-            elif op_type == "delete_port_group":
-                batch.delete_port_group(request.group_name)
-            elif op_type == "set_port_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_port_group_description(request.group_name, value)
-            elif op_type == "delete_port_group_description":
-                batch.delete_port_group_description(request.group_name)
-            elif op_type == "set_port_group_port":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_port_group_port(request.group_name, value)
-            elif op_type == "delete_port_group_port":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_port_group_port(request.group_name, value)
-            elif op_type == "set_port_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_port_group_include(request.group_name, value)
-            elif op_type == "delete_port_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_port_group_include(request.group_name, value)
-
-            # Interface Group
-            elif op_type == "set_interface_group":
-                batch.set_interface_group(request.group_name)
-            elif op_type == "delete_interface_group":
-                batch.delete_interface_group(request.group_name)
-            elif op_type == "set_interface_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_interface_group_description(request.group_name, value)
-            elif op_type == "delete_interface_group_description":
-                batch.delete_interface_group_description(request.group_name)
-            elif op_type == "set_interface_group_interface":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_interface_group_interface(request.group_name, value)
-            elif op_type == "delete_interface_group_interface":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_interface_group_interface(request.group_name, value)
-            elif op_type == "set_interface_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_interface_group_include(request.group_name, value)
-            elif op_type == "delete_interface_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_interface_group_include(request.group_name, value)
-
-            # MAC Group
-            elif op_type == "set_mac_group":
-                batch.set_mac_group(request.group_name)
-            elif op_type == "delete_mac_group":
-                batch.delete_mac_group(request.group_name)
-            elif op_type == "set_mac_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_mac_group_description(request.group_name, value)
-            elif op_type == "delete_mac_group_description":
-                batch.delete_mac_group_description(request.group_name)
-            elif op_type == "set_mac_group_mac":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_mac_group_mac(request.group_name, value)
-            elif op_type == "delete_mac_group_mac":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_mac_group_mac(request.group_name, value)
-            elif op_type == "set_mac_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_mac_group_include(request.group_name, value)
-            elif op_type == "delete_mac_group_include":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_mac_group_include(request.group_name, value)
-
-            # Domain group. The mapper rejects the path when the device lacks the node.
-            elif op_type == "set_domain_group":
-                batch.set_domain_group(request.group_name)
-            elif op_type == "delete_domain_group":
-                batch.delete_domain_group(request.group_name)
-            elif op_type == "set_domain_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_domain_group_description(request.group_name, value)
-            elif op_type == "delete_domain_group_description":
-                batch.delete_domain_group_description(request.group_name)
-            elif op_type == "set_domain_group_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_domain_group_address(request.group_name, value)
-            elif op_type == "delete_domain_group_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_domain_group_address(request.group_name, value)
-
-            # Remote Group
-            elif op_type == "set_remote_group":
-                batch.set_remote_group(request.group_name)
-            elif op_type == "delete_remote_group":
-                batch.delete_remote_group(request.group_name)
-            elif op_type == "set_remote_group_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_remote_group_description(request.group_name, value)
-            elif op_type == "delete_remote_group_description":
-                batch.delete_remote_group_description(request.group_name)
-            elif op_type == "set_remote_group_url":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_remote_group_url(request.group_name, value)
-            elif op_type == "delete_remote_group_url":
-                # URL value is required for deletion
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_remote_group_url(request.group_name, value)
-
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unsupported operation: {op_type}"
-                )
-
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         # Handle empty string result (convert to None for Pydantic validation)
         result_data = response.result
@@ -708,10 +362,8 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
             error=response.error if response.error else None
         )
 
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
