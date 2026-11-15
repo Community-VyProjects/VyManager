@@ -7,7 +7,7 @@ Supports both IPv4 (local-route) and IPv6 (local-route6) rules.
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Literal, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.local_route import LocalRouteBatchBuilder
@@ -77,7 +77,7 @@ class LocalRouteBatchRequest(BaseModel):
     """Model for batch configuration."""
 
     rule_number: int = Field(..., ge=1, le=32765, description="Rule number")
-    rule_type: str = Field(..., description="Rule type: 'ipv4' or 'ipv6'")
+    rule_type: Literal["ipv4", "ipv6"] = Field(..., description="Rule type: 'ipv4' or 'ipv6'")
     operations: List[LocalRouteBatchOperation]
 
 
@@ -96,6 +96,15 @@ class LocalRouteReorderRequest(BaseModel):
     rules: List[LocalRouteReorderItem] = Field(
         ..., description="List of rules with old and new numbers"
     )
+
+    @model_validator(mode="after")
+    def _numbers_are_unique(self) -> "LocalRouteReorderRequest":
+        """Two rules on one number would merge their leaves in the commit."""
+        for field in ("old_number", "new_number"):
+            numbers = [getattr(rule, field) for rule in self.rules]
+            if len(numbers) != len(set(numbers)):
+                raise ValueError(f"{field} values must be unique")
+        return self
 
 
 class VyOSResponse(BaseModel):
@@ -125,13 +134,7 @@ async def get_local_route_capabilities(http_request: Request):
         service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
-        capabilities = builder.get_capabilities()
-
-        # Add instance info
-        if hasattr(http_request.state, "instance") and http_request.state.instance:
-            capabilities["instance_name"] = http_request.state.instance.get("name")
-            capabilities["instance_id"] = http_request.state.instance.get("id")
-        return capabilities
+        return builder.get_capabilities()
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -192,19 +195,18 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
         try:
             for operation in body.operations:
                 method = resolve_batch_method(builder, operation.op)
+                if ("local_route6" in operation.op) != (body.rule_type == "ipv6"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} does not match rule type {body.rule_type}",
+                    )
                 count = len(inspect.signature(method).parameters)
                 if count > 1 and not operation.value:
                     raise HTTPException(
                         status_code=400,
                         detail=f"Operation {operation.op} requires a value",
                     )
-                try:
-                    method(*[body.rule_number, operation.value][:count])
-                except TypeError:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} has invalid arguments",
-                    )
+                method(*[body.rule_number, operation.value][:count])
         except ValueError as e:
             # The mapper rejects a node this device version does not have.
             raise HTTPException(status_code=400, detail=str(e))

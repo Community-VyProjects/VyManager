@@ -1,7 +1,5 @@
 """Local-route GET /config parse lives on the mapper."""
 
-from typing import cast
-
 from routers.local_route.local_route import LocalRouteConfigResponse
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.local_route import LocalRouteMapper
@@ -10,7 +8,7 @@ from vyos_mappers.local_route import LocalRouteMapper
 def _mapper(version):
     mapper = CommandMapperRegistry.get_mapper("local_route", version)
     assert isinstance(mapper, LocalRouteMapper)
-    return cast(LocalRouteMapper, mapper)
+    return mapper
 
 
 def _tree():

@@ -1,46 +1,21 @@
-"""Local-route batch and reorder routes: 400 on bad ops, commit off the loop.
+"""Local-route routes driven through the handlers with a stub service.
 
-execute_batch runs through run_in_threadpool (locked in
-test_batch_off_event_loop.py). These tests drive the handlers end to end with
-a stub service so the emitted ops and the 400/500 paths are checked.
+execute_batch and get_full_config run through run_in_threadpool (locked in
+test_batch_off_event_loop.py). These tests check the config payload, the
+emitted ops, and the 400/422/500 paths.
 """
 
-from types import SimpleNamespace
-
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
-ROUTER = "routers.local_route.local_route"
+from tests.local_route_client import local_route_client
+
 V4 = ["policy", "local-route", "rule"]
 V6 = ["policy", "local-route6", "rule"]
 
 
 @pytest.fixture
 def client(monkeypatch):
-    executed = []
-
-    async def allow(*_args, **_kwargs):
-        return None
-
-    class Service:
-        def get_version(self):
-            return "1.4"
-
-        def execute_batch(self, batch):
-            if batch.is_empty():
-                raise ValueError("Cannot execute empty batch")
-            executed.append([(item["op"], item["path"]) for item in batch.get_operations()])
-            return SimpleNamespace(status=200, result="", error=None)
-
-    monkeypatch.setattr(f"{ROUTER}.require_write_permission", allow)
-    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: Service())
-
-    from routers.local_route.local_route import router
-
-    app = FastAPI()
-    app.include_router(router)
-    return TestClient(app), executed
+    return local_route_client(monkeypatch, "1.4")
 
 
 def _batch(test_client, operations, rule_type="ipv4"):
@@ -50,13 +25,67 @@ def _batch(test_client, operations, rule_type="ipv4"):
     )
 
 
+@pytest.mark.parametrize("version, vrf", [("1.4", False), ("1.5", True)])
+def test_capabilities_returns_builder_flags(monkeypatch, version, vrf):
+    test_client, _executed = local_route_client(monkeypatch, version)
+    resp = test_client.get("/vyos/local-route/capabilities")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["version"] == version
+    assert body["features"]["vrf_support"]["supported"] is vrf
+
+
+def test_config_returns_parsed_rules(monkeypatch):
+    tree = {
+        "policy": {
+            "local-route": {
+                "rule": {
+                    "20": {"set": {"table": "100"}},
+                    "10": {"source": {"address": ["192.0.2.1"], "port": "80"}, "protocol": "tcp"},
+                }
+            },
+            "local-route6": {"rule": {"5": {"destination": {"address": ["2001:db8::8"]}}}},
+        }
+    }
+    test_client, _executed = local_route_client(monkeypatch, "1.5", full_config=tree)
+    resp = test_client.get("/vyos/local-route/config")
+    assert resp.status_code == 200, resp.text
+    empty = {
+        "source": None,
+        "destination": None,
+        "inbound_interface": None,
+        "fwmark": None,
+        "protocol": None,
+        "source_port": None,
+        "destination_port": None,
+        "table": None,
+        "vrf": None,
+    }
+    assert resp.json() == {
+        "ipv4_rules": [
+            {**empty, "rule_number": 10, "source": "192.0.2.1", "source_port": "80", "protocol": "tcp"},
+            {**empty, "rule_number": 20, "table": "100"},
+        ],
+        "ipv6_rules": [{**empty, "rule_number": 5, "destination": "2001:db8::8"}],
+        "total_ipv4": 2,
+        "total_ipv6": 1,
+    }
+
+
+def test_config_without_local_route_is_empty(client):
+    test_client, _executed = client
+    resp = test_client.get("/vyos/local-route/config")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"ipv4_rules": [], "ipv6_rules": [], "total_ipv4": 0, "total_ipv6": 0}
+
+
 def test_batch_passes_rule_number_and_value(client):
     test_client, executed = client
     resp = _batch(test_client, [
         {"op": "set_local_route_rule"},
         {"op": "set_local_route_rule_source", "value": "192.0.2.1"},
         {"op": "delete_local_route_rule_fwmark", "value": "ignored"},
-        {"op": "set_local_route6_rule_set_table", "value": "main"},
+        {"op": "set_local_route_rule_set_table", "value": "main"},
     ])
     assert resp.status_code == 200, resp.text
     assert resp.json()["success"] is True
@@ -64,18 +93,53 @@ def test_batch_passes_rule_number_and_value(client):
         ("set", V4 + ["10"]),
         ("set", V4 + ["10", "source", "address", "192.0.2.1"]),
         ("delete", V4 + ["10", "fwmark"]),
+        ("set", V4 + ["10", "set", "table", "main"]),
+    ]]
+
+
+def test_batch_passes_ipv6_ops(client):
+    test_client, executed = client
+    resp = _batch(test_client, [
+        {"op": "set_local_route6_rule"},
+        {"op": "set_local_route6_rule_set_table", "value": "main"},
+    ], "ipv6")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["success"] is True
+    assert executed == [[
+        ("set", V6 + ["10"]),
         ("set", V6 + ["10", "set", "table", "main"]),
     ]]
 
 
-@pytest.mark.parametrize("operation", [
-    {"op": "set_local_route_rule_source"},
-    {"op": "set_local_route_rule_source", "value": ""},
-    {"op": "set_local_route6_rule_protocol", "value": None},
+@pytest.mark.parametrize("rule_type, op", [
+    ("ipv4", "set_local_route6_rule"),
+    ("ipv6", "set_local_route_rule"),
+    ("ipv4", "delete_local_route6_rule_fwmark"),
+    ("ipv6", "delete_local_route_rule_fwmark"),
 ])
-def test_batch_missing_value_is_400(client, operation):
+def test_batch_op_of_other_family_is_400(client, rule_type, op):
     test_client, executed = client
-    resp = _batch(test_client, [operation])
+    resp = _batch(test_client, [{"op": op}], rule_type)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {op} does not match rule type {rule_type}"
+    assert executed == []
+
+
+def test_batch_rejects_unknown_rule_type(client):
+    test_client, executed = client
+    resp = _batch(test_client, [{"op": "set_local_route_rule"}], "ipv5")
+    assert resp.status_code == 422, resp.text
+    assert executed == []
+
+
+@pytest.mark.parametrize("rule_type, operation", [
+    ("ipv4", {"op": "set_local_route_rule_source"}),
+    ("ipv4", {"op": "set_local_route_rule_source", "value": ""}),
+    ("ipv6", {"op": "set_local_route6_rule_protocol", "value": None}),
+])
+def test_batch_missing_value_is_400(client, rule_type, operation):
+    test_client, executed = client
+    resp = _batch(test_client, [operation], rule_type)
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == f"Operation {operation['op']} requires a value"
     assert executed == []
@@ -162,6 +226,24 @@ def test_reorder_rejects_unknown_rule_type(client):
 def test_reorder_rejects_missing_numbers(client):
     test_client, executed = client
     resp = _reorder(test_client, [{"new_number": 20, "rule_data": {}}])
+    assert resp.status_code == 422, resp.text
+    assert executed == []
+
+
+@pytest.mark.parametrize("rules", [
+    [
+        {"old_number": 10, "new_number": 30, "rule_data": {"table": "100"}},
+        {"old_number": 20, "new_number": 30, "rule_data": {"table": "main"}},
+    ],
+    [
+        {"old_number": 10, "new_number": 20, "rule_data": {"table": "100"}},
+        {"old_number": 10, "new_number": 30, "rule_data": {"table": "main"}},
+    ],
+], ids=["new_number", "old_number"])
+def test_reorder_rejects_duplicate_numbers(client, rules):
+    """Two rules on one number would merge their leaves in the commit."""
+    test_client, executed = client
+    resp = _reorder(test_client, rules)
     assert resp.status_code == 422, resp.text
     assert executed == []
 

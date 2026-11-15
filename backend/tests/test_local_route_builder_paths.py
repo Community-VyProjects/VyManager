@@ -180,4 +180,3 @@ def test_capabilities_advertise_match_leaves():
         assert features["protocol_matching"]["supported"] is True
         assert features["source_port_matching"]["supported"] is True
         assert features["destination_port_matching"]["supported"] is True
-
