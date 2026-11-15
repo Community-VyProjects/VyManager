@@ -1,4 +1,4 @@
-"""Firewall groups batch route: dispatch, HTTP 400 paths, empty batch.
+"""Firewall groups routes: batch dispatch, HTTP 400 paths, empty batch.
 
 execute_batch runs through run_in_threadpool (locked in
 test_batch_off_event_loop.py). These tests drive the handler end to end with a
@@ -9,7 +9,7 @@ import inspect
 from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from dispatchable_ops import dispatchable_ops
@@ -35,6 +35,7 @@ def _client(monkeypatch, version):
             executed.append(batch.get_operations())
             return SimpleNamespace(status=200, result="", error=None)
 
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", allow)
     monkeypatch.setattr(f"{ROUTER}.require_write_permission", allow)
     monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: Service())
 
@@ -152,6 +153,25 @@ def test_batch_empty_is_500(client):
     resp = _post(test_client, [])
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
+    assert executed == []
+
+
+@pytest.mark.parametrize("method,path,json", [
+    ("get", "/vyos/firewall/groups/capabilities", None),
+    ("get", "/vyos/firewall/groups/config", None),
+    ("post", "/vyos/firewall/groups/batch", {"group_name": "G1", "operations": [{"op": "set_address_group"}]}),
+])
+def test_routes_pass_an_http_error_through(monkeypatch, method, path, json):
+    """No active instance is the session lookup's 400, not a logged 500."""
+    test_client, executed = _client(monkeypatch, "1.5")
+
+    def no_instance(_req):
+        raise HTTPException(status_code=400, detail="No active instance")
+
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", no_instance)
+    resp = test_client.request(method, path, json=json)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "No active instance"
     assert executed == []
 
 

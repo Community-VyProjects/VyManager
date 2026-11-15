@@ -104,7 +104,7 @@ async def get_groups_capabilities(request: Request):
         return capabilities
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -306,9 +306,9 @@ async def get_groups_config(request: Request, refresh: bool = False):
             by_type=by_type
         )
 
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
