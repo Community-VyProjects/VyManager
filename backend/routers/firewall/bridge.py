@@ -7,7 +7,7 @@ Supports version-aware configuration for VyOS 1.4 and 1.5.
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Optional, Any
 import inspect
 from session_vyos_service import get_session_vyos_service
@@ -774,6 +774,17 @@ class ReorderRequest(BaseModel):
     """Request model for reordering rules."""
     chain: str = Field(..., description="Chain name")
     rules: List[ReorderRuleItem] = Field(..., description="Rules with old and new numbers")
+
+    @model_validator(mode="after")
+    def _numbers_are_unique(self) -> "ReorderRequest":
+        """Two rules on one number would merge their leaves in the commit."""
+        olds = [rule.old_number for rule in self.rules]
+        if len(olds) != len(set(olds)):
+            raise ValueError("old_number values must be unique")
+        news = [rule.new_number for rule in self.rules]
+        if len(news) != len(set(news)):
+            raise ValueError("new_number values must be unique")
+        return self
 
 
 @router.post("/reorder", response_model=VyOSResponse)

@@ -116,6 +116,8 @@ V15_ONLY_CASES = [
     ('set_rule_source_port', ('forward', 10, '443'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'source', 'port', '443']),
     ('set_rule_tcp_flags', ('forward', 10, 'syn'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'tcp', 'flags', 'syn']),
     ('set_rule_tcp_flags_not', ('forward', 10, 'syn'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'tcp', 'flags', 'not', 'syn']),
+    ('delete_rule_tcp_flags', ('forward', 10, 'syn'), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'tcp', 'flags', 'syn']),
+    ('delete_rule_tcp_flags_not', ('forward', 10, 'syn'), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'tcp', 'flags', 'not', 'syn']),
     ('set_rule_tcp_mss', ('forward', 10, '1400'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'tcp', 'mss', '1400']),
     ('set_rule_time_startdate', ('forward', 10, '2025-01-01'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'time', 'startdate', '2025-01-01']),
     ('set_rule_time_starttime', ('forward', 10, '10:00:00'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'time', 'starttime', '10:00:00']),

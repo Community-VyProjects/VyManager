@@ -530,11 +530,13 @@ class BridgeFirewallService {
     }
 
     // TCP flags (1.5+)
-    if (config.tcp_flags) {
-      operations.push({ op: "set_rule_tcp_flags", value: config.tcp_flags });
+    // TCP flags are presence nodes, one op per flag. A comma string is the
+    // modal's list, not one CLI value.
+    for (const flag of (config.tcp_flags || "").split(",").map((item) => item.trim()).filter(Boolean)) {
+      operations.push({ op: "set_rule_tcp_flags", value: flag });
     }
-    if (config.tcp_flags_not) {
-      operations.push({ op: "set_rule_tcp_flags_not", value: config.tcp_flags_not });
+    for (const flag of (config.tcp_flags_not || "").split(",").map((item) => item.trim()).filter(Boolean)) {
+      operations.push({ op: "set_rule_tcp_flags_not", value: flag });
     }
     if (config.tcp_mss) {
       operations.push({ op: "set_rule_tcp_mss", value: config.tcp_mss });
@@ -803,6 +805,41 @@ class BridgeFirewallService {
     handleStringField("icmpv6_type", "set_rule_icmpv6_type", "delete_rule_icmpv6_type");
     handleStringField("icmpv6_code", "set_rule_icmpv6_code", "delete_rule_icmpv6_code");
     handleStringField("icmpv6_type_name", "set_rule_icmpv6_type_name", "delete_rule_icmpv6_type_name");
+
+    const handleFlagSet = (
+      field: "tcp_flags" | "tcp_flags_not",
+      setOp: string,
+      deleteOp: string
+    ) => {
+      const next = new Set(
+        ((newConfig[field] as string | null | undefined) ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      );
+      const prev = new Set(
+        ((currentRule[field] as string | null | undefined) ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      );
+      if (newConfig[field] === undefined) {
+        return;
+      }
+      for (const flag of prev) {
+        if (!next.has(flag)) {
+          operations.push({ op: deleteOp, value: flag });
+        }
+      }
+      for (const flag of next) {
+        if (!prev.has(flag)) {
+          operations.push({ op: setOp, value: flag });
+        }
+      }
+    };
+
+    handleFlagSet("tcp_flags", "set_rule_tcp_flags", "delete_rule_tcp_flags");
+    handleFlagSet("tcp_flags_not", "set_rule_tcp_flags_not", "delete_rule_tcp_flags_not");
 
     // TCP MSS (1.5+)
     handleStringField("tcp_mss", "set_rule_tcp_mss", "delete_rule_tcp_mss");

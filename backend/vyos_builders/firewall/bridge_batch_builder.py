@@ -515,10 +515,20 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_tcp_flags(chain, rule_number, flag)
         return self.add_set(path)
 
+    def delete_rule_tcp_flags(self, chain: str, rule_number: int, flag: str) -> "BridgeFirewallBatchBuilder":
+        """Delete one TCP flag. Each flag is its own presence node."""
+        path = self.mappers[self.mapper_key].get_rule_tcp_flags(chain, rule_number, flag)
+        return self.add_delete(path)
+
     def set_rule_tcp_flags_not(self, chain: str, rule_number: int, flag: str) -> "BridgeFirewallBatchBuilder":
         """Set TCP flag negation for a rule (VyOS 1.5+ only)."""
         path = self.mappers[self.mapper_key].get_rule_tcp_flags_not(chain, rule_number, flag)
         return self.add_set(path)
+
+    def delete_rule_tcp_flags_not(self, chain: str, rule_number: int, flag: str) -> "BridgeFirewallBatchBuilder":
+        """Delete one negated TCP flag."""
+        path = self.mappers[self.mapper_key].get_rule_tcp_flags_not(chain, rule_number, flag)
+        return self.add_delete(path)
 
     def set_rule_tcp_mss(self, chain: str, rule_number: int, mss: str) -> "BridgeFirewallBatchBuilder":
         """Set TCP MSS matching for a rule (VyOS 1.5+ only)."""

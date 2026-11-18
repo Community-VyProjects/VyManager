@@ -119,7 +119,6 @@
     "portPlaceholder": "例如 80、80,443 或 1000-2000",
     "protocol": "协议",
     "tcpFlags": "TCP 标志",
-    "tcpFlagsHelp": "匹配设置了这些 TCP 标志的数据包",
     "icmpTypeName": "ICMP 类型名称",
     "icmpTypes": {
       "echoRequest": "回显请求 (ping)",

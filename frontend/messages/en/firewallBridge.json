@@ -119,7 +119,6 @@
     "portPlaceholder": "e.g., 80 or 80,443 or 1000-2000",
     "protocol": "Protocol",
     "tcpFlags": "TCP Flags",
-    "tcpFlagsHelp": "Match packets with these TCP flags set",
     "icmpTypeName": "ICMP Type Name",
     "icmpTypes": {
       "echoRequest": "Echo Request (ping)",

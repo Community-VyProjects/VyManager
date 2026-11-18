@@ -392,6 +392,7 @@ export function BridgeRuleModal({
         icmp_type: icmpType || null,
         icmp_code: icmpCode || null,
         icmp_type_name: icmpTypeName || null,
+        tcp_flags: [tcpFlagsSyn && "syn", tcpFlagsAck && "ack", tcpFlagsFin && "fin", tcpFlagsRst && "rst"].filter(Boolean).join(","),
         limit_rate: buildLimitRate(),
         limit_burst: limitBurst || null,
         time_starttime: buildTimeString(timeStarttime),
@@ -832,7 +833,6 @@ export function BridgeRuleModal({
               {(protocol === "tcp" || protocol === "tcp_udp") && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">{t("ruleModal.tcpFlags")}</Label>
-                  <p className="text-xs text-muted-foreground mb-2">{t("ruleModal.tcpFlagsHelp")}</p>
                   <div className="flex flex-wrap gap-4">
                     <div className="flex items-center gap-2">
                       <Checkbox id="tcpSyn" checked={tcpFlagsSyn} onCheckedChange={(c) => setTcpFlagsSyn(c === true)} />
