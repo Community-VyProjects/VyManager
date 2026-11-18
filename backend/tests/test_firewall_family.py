@@ -1,6 +1,11 @@
 """Firewall IPv4/IPv6 stacks share one family implementation (issue #662)."""
 
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 
 from vyos_mappers.firewall.family_versions import get_firewall_family_mapper
 from vyos_builders.firewall.family import FirewallFamilyBatchBuilder
@@ -127,3 +132,214 @@ def test_ipv4_ipv6_modules_do_not_reimplement_the_stack():
     ):
         lines = (root / rel).read_text().splitlines()
         assert len(lines) < 20, rel
+
+
+def _family_client(monkeypatch, family, version="1.5"):
+    executed = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return version
+
+        def execute_batch(self, batch):
+            if batch.is_empty():
+                raise ValueError("Cannot execute empty batch")
+            executed.append(batch.get_operations())
+            return SimpleNamespace(status=200, result="", error=None)
+
+    monkeypatch.setattr("routers.firewall.family.require_write_permission", allow)
+    monkeypatch.setattr("routers.firewall.family.require_read_permission", allow)
+    monkeypatch.setattr(
+        "routers.firewall.family.get_session_vyos_service",
+        lambda _req: Service(),
+    )
+    from routers.firewall.family import build_router
+
+    app = FastAPI()
+    app.include_router(build_router(family))
+    return TestClient(app), executed
+
+
+def _batch(client, family, operations, **extra):
+    body = {"chain": "forward", "operations": operations}
+    body.update(extra)
+    return client.post(f"/vyos/firewall/{family}/batch", json=body)
+
+
+@pytest.mark.parametrize("family", ["ipv4", "ipv6"])
+def test_batch_binds_chain_rule_and_value(monkeypatch, family):
+    client, executed = _family_client(monkeypatch, family)
+    resp = _batch(
+        client,
+        family,
+        [
+            {"op": "set_base_chain_rule"},
+            {"op": "set_rule_action", "value": "drop"},
+            {"op": "set_rule_disable"},
+            {"op": "set_custom_chain", "value": "ignored"},
+        ],
+        rule_number=10,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["success"] is True
+    assert resp.json()["error"] is None
+    rule = ["firewall", family, "forward", "filter", "rule", "10"]
+    assert executed == [[
+        {"op": "set", "path": rule},
+        {"op": "set", "path": rule + ["action", "drop"]},
+        {"op": "set", "path": rule + ["disable"]},
+        {"op": "set", "path": ["firewall", family, "name", "forward"]},
+    ]]
+
+
+def test_batch_custom_chain_passes_is_custom(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = _batch(
+        client,
+        "ipv4",
+        [{"op": "set_rule_action", "value": "accept"}],
+        chain="LAN_IN",
+        rule_number=20,
+        is_custom_chain=True,
+    )
+    assert resp.status_code == 200, resp.text
+    assert executed == [[
+        {"op": "set", "path": ["firewall", "ipv4", "name", "LAN_IN", "rule", "20", "action", "accept"]},
+    ]]
+
+
+def test_batch_chain_default_action_needs_no_rule_number(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = _batch(
+        client,
+        "ipv4",
+        [{"op": "set_base_chain_default_action", "value": "drop"}],
+    )
+    assert resp.status_code == 200, resp.text
+    assert executed == [[
+        {"op": "set", "path": ["firewall", "ipv4", "forward", "filter", "default-action", "drop"]},
+    ]]
+
+
+@pytest.mark.parametrize("operation", [
+    {"op": "set_rule_action"},
+    {"op": "set_rule_action", "value": ""},
+    {"op": "set_base_chain_default_action"},
+    {"op": "set_base_chain_default_action", "value": ""},
+])
+def test_batch_missing_value_is_400(monkeypatch, operation):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    extra = {"rule_number": 10} if "rule" in operation["op"] else {}
+    resp = _batch(client, "ipv4", [operation], **extra)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"{operation['op']} requires a value"
+    assert executed == []
+
+
+def test_batch_missing_rule_number_is_400(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = _batch(client, "ipv4", [{"op": "set_rule_action", "value": "drop"}])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "set_rule_action requires a rule number"
+    assert executed == []
+
+
+def test_batch_unknown_op_is_400(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = _batch(client, "ipv4", [{"op": "add_set", "value": "x"}], rule_number=1)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "Invalid operation: add_set"
+    assert executed == []
+
+
+def test_batch_empty_is_500(monkeypatch):
+    """execute_batch raises ValueError for an empty batch; that stays a 500."""
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = _batch(client, "ipv4", [])
+    assert resp.status_code == 500, resp.text
+    assert resp.json()["detail"] == "Internal server error"
+    assert executed == []
+
+
+def test_reorder_deletes_then_recreates(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = client.post(
+        "/vyos/firewall/ipv4/reorder",
+        json={
+            "chain": "forward",
+            "rules": [{
+                "old_number": 10,
+                "new_number": 20,
+                "rule_data": {"action": "accept"},
+            }],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["message"] == "Rules reordered successfully"
+    rule = ["firewall", "ipv4", "forward", "filter", "rule"]
+    assert executed == [[
+        {"op": "delete", "path": rule + ["10"]},
+        {"op": "set", "path": rule + ["20"]},
+        {"op": "set", "path": rule + ["20", "action", "accept"]},
+    ]]
+
+
+def test_reorder_empty_is_500(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = client.post(
+        "/vyos/firewall/ipv4/reorder",
+        json={"chain": "forward", "rules": []},
+    )
+    assert resp.status_code == 500, resp.text
+    assert resp.json()["detail"] == "Internal server error"
+    assert executed == []
+
+
+@pytest.mark.parametrize("method,path,body", [
+    ("get", "/vyos/firewall/ipv4/capabilities", None),
+    ("get", "/vyos/firewall/ipv4/config", None),
+    ("post", "/vyos/firewall/ipv4/batch", {"chain": "forward", "operations": []}),
+    ("post", "/vyos/firewall/ipv4/reorder", {"chain": "forward", "rules": []}),
+])
+def test_family_routes_pass_an_http_error_through(monkeypatch, method, path, body):
+    """No active instance is the session lookup's 400, not a logged 500."""
+    client, executed = _family_client(monkeypatch, "ipv4")
+
+    def no_instance(_req):
+        raise HTTPException(status_code=400, detail="No active instance")
+
+    monkeypatch.setattr("routers.firewall.family.get_session_vyos_service", no_instance)
+    resp = client.request(method, path, json=body)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "No active instance"
+    assert executed == []
+
+
+def test_batch_reports_a_rejected_commit(monkeypatch):
+    client, _executed = _family_client(monkeypatch, "ipv4")
+
+    class Rejecting:
+        def get_version(self):
+            return "1.5"
+
+        def execute_batch(self, _batch):
+            return SimpleNamespace(status=400, result=None, error="Commit failed")
+
+    monkeypatch.setattr(
+        "routers.firewall.family.get_session_vyos_service",
+        lambda _req: Rejecting(),
+    )
+    resp = _batch(
+        client,
+        "ipv4",
+        [{"op": "set_base_chain_default_action", "value": "drop"}],
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {
+        "success": False,
+        "data": {"message": "Firewall configuration updated"},
+        "error": "Commit failed",
+    }

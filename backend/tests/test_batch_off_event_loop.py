@@ -65,6 +65,13 @@ REMAINING_OFFLOADED = [
     ("configure_group_batch", "routers/firewall/groups.py", "execute_batch", 1),
 ]
 
+# Firewall family batch and reorder. Ids include the path so batch_configure
+# does not collide with the same handler name in other files.
+FIREWALL_FAMILY_OFFLOADED = [
+    ("batch_configure", "routers/firewall/family.py", "execute_batch", 1),
+    ("reorder_rules", "routers/firewall/family.py", "execute_batch", 1),
+]
+
 # handler, file, blocking attribute, expected offload count
 CONFIG_OFFLOADED = [
     ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
@@ -140,8 +147,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
@@ -170,11 +177,15 @@ VALUE_ERROR_SCOPED = [
     ("configure_group_batch", "routers/firewall/groups.py"),
 ]
 
+FIREWALL_FAMILY_VALUE_ERROR = [
+    ("batch_configure", "routers/firewall/family.py"),
+    ("reorder_rules", "routers/firewall/family.py"),
+]
 
 @pytest.mark.parametrize(
     "name,rel",
-    VALUE_ERROR_SCOPED,
-    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED],
+    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR,
+    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR],
 )
 def test_value_error_does_not_wrap_execute_batch(name, rel):
     """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""
