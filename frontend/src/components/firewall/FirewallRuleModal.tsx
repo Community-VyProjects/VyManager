@@ -55,6 +55,10 @@ interface FirewallRuleModalProps {
   existing?: FirewallRule | null;
 }
 
+function isIcmpProtocol(protocol: string): boolean {
+  return protocol === "icmp" || protocol === "icmpv6" || protocol === "ipv6-icmp";
+}
+
 export function FirewallRuleModal({
   open,
   onOpenChange,
@@ -356,7 +360,7 @@ export function FirewallRuleModal({
 
   // Auto-clear ICMP type when protocol changes away from ICMP
   useEffect(() => {
-    if (ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp") {
+    if (!isIcmpProtocol(ruleProtocol)) {
       if (icmpTypeName) {
         setIcmpTypeName("");
       }
@@ -1018,12 +1022,12 @@ export function FirewallRuleModal({
       }
 
       // ICMP type - only applicable for ICMP protocol
-      if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && icmpTypeName) {
+      if (isIcmpProtocol(ruleProtocol) && icmpTypeName) {
         config.icmp_type_name = icmpTypeName;
-      } else if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && !icmpTypeName && existing.icmp_type_name) {
+      } else if (isIcmpProtocol(ruleProtocol) && !icmpTypeName && existing.icmp_type_name) {
         // User cleared ICMP type while protocol is still ICMP - delete it
         config.icmp_type_name = null;
-      } else if (ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp" && existing.icmp_type_name) {
+      } else if (!isIcmpProtocol(ruleProtocol) && existing.icmp_type_name) {
         // Protocol changed away from ICMP but existing previously had ICMP type - delete it
         config.icmp_type_name = null;
       }
@@ -1812,6 +1816,7 @@ export function FirewallRuleModal({
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
                     <SelectItem value="icmp">ICMP</SelectItem>
+                    <SelectItem value="icmpv6">ICMPv6</SelectItem>
                     <SelectItem value="ipv6-icmp">IPv6-ICMP</SelectItem>
                     <SelectItem value="esp">ESP</SelectItem>
                     <SelectItem value="ah">AH</SelectItem>
@@ -3067,7 +3072,7 @@ export function FirewallRuleModal({
                   {t("actions.icmpTypeHint")}
                 </p>
               </div>
-              {ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp" && (
+              {!isIcmpProtocol(ruleProtocol) && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
                   <p className="text-sm text-blue-600 dark:text-blue-400">
                     {t("actions.icmpTypeIcmpOnly")}
@@ -3080,12 +3085,12 @@ export function FirewallRuleModal({
                   value={icmpTypeName || undefined}
                   onValueChange={(value) => {
                     // Auto-switch to ICMP protocol when selecting a type
-                    if (value && ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp") {
+                    if (value && !isIcmpProtocol(ruleProtocol)) {
                       setRuleProtocol("icmp");
                     }
                     setIcmpTypeName(value);
                   }}
-                  disabled={ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp"}
+                  disabled={!isIcmpProtocol(ruleProtocol)}
                 >
                   <SelectTrigger id="icmpTypeName" className="flex-1">
                     <SelectValue placeholder={t("actions.selectIcmpType")} />
@@ -3107,7 +3112,7 @@ export function FirewallRuleModal({
                       e.preventDefault();
                       setIcmpTypeName("");
                     }}
-                    disabled={ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp"}
+                    disabled={!isIcmpProtocol(ruleProtocol)}
                     className="shrink-0"
                     title={t("actions.clearIcmpType")}
                   >

@@ -80,12 +80,12 @@ const ICMP_PROTOCOLS = ["icmp", "icmpv6", "ipv6-icmp"];
 
 const IPV4_PROTOCOLS = [
   "all", "tcp", "udp", "tcp_udp", "icmp", "icmpv6", "igmp", "esp", "ah",
-  "gre", "pim", "ospf", "sctp", "bgp", "rsvp",
+  "gre", "pim", "ospf", "sctp", "rsvp",
 ];
 
 const IPV6_PROTOCOLS = [
   "all", "tcp", "udp", "tcp_udp", "icmpv6", "ipv6-icmp", "esp", "ah", "gre",
-  "sctp", "bgp", "ospf",
+  "sctp", "ospf",
 ];
 
 const ICMP_TYPES_V4 = [
