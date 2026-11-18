@@ -35,6 +35,7 @@ import {
   type FirewallRule,
   type FirewallCapabilitiesResponse,
 } from "@/lib/api/firewall-ipv4";
+import { ICMP_TYPE_NAMES_V4, ICMP_TYPE_NAMES_V6, readMulti, showMulti } from "@/lib/api/firewall-family";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallSeparatorsService } from "@/lib/api/firewall-separators";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
@@ -75,30 +76,18 @@ type DstMode = "any" | "address" | "group" | "geoip" | "fqdn" | "mac";
 type PortMode = "any" | "port" | "group";
 
 const TCP_FLAGS = ["syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr"] as const;
+function icmpProtocolsFor(isV6: boolean): readonly string[] {
+  return isV6 ? ["icmpv6", "ipv6-icmp"] : ["icmp"];
+}
 
 const IPV4_PROTOCOLS = [
-  "all", "tcp", "udp", "tcp_udp", "icmp", "icmpv6", "igmp", "esp", "ah",
-  "gre", "pim", "ospf", "sctp", "bgp", "rsvp",
+  "all", "tcp", "udp", "tcp_udp", "icmp", "igmp", "esp", "ah",
+  "gre", "pim", "ospf", "sctp", "rsvp",
 ];
 
 const IPV6_PROTOCOLS = [
   "all", "tcp", "udp", "tcp_udp", "icmpv6", "ipv6-icmp", "esp", "ah", "gre",
-  "sctp", "bgp", "ospf",
-];
-
-const ICMP_TYPES_V4 = [
-  "any", "echo-reply", "destination-unreachable", "source-quench",
-  "redirect", "echo-request", "router-advertisement", "router-solicitation",
-  "time-exceeded", "parameter-problem", "timestamp-request",
-  "timestamp-reply", "address-mask-request", "address-mask-reply",
-];
-
-const ICMP_TYPES_V6 = [
-  "any", "destination-unreachable", "packet-too-big", "time-exceeded",
-  "parameter-problem", "echo-request", "echo-reply",
-  "multicast-listener-query", "multicast-listener-report",
-  "multicast-listener-done", "router-solicitation", "router-advertisement",
-  "neighbor-solicitation", "neighbor-advertisement",
+  "sctp", "ospf",
 ];
 
 // ============================================================================
@@ -539,21 +528,36 @@ export function ZoneRulePanel({
     setStateRelated(r.state?.related ?? false);
     setStateInvalid(r.state?.invalid ?? false);
 
-    // Advanced
-    if (r.tcp_flags && typeof r.tcp_flags === "object" && !Array.isArray(r.tcp_flags)) {
-      setTcpFlags({ ...Object.fromEntries(TCP_FLAGS.map((f) => [f, "disabled"])), ...(r.tcp_flags as Record<string, "disabled" | "enabled" | "not">) });
+    // Advanced. The backend returns tcp flags as ["syn", "not ack"], not an object.
+    const newTcpFlags: Record<string, "disabled" | "enabled" | "not"> = Object.fromEntries(
+      TCP_FLAGS.map((f) => [f, "disabled"])
+    );
+    if (Array.isArray(r.tcp_flags)) {
+      for (const flag of r.tcp_flags) {
+        if (flag.startsWith("not ")) {
+          const name = flag.slice(4);
+          if (name in newTcpFlags) newTcpFlags[name] = "not";
+        } else if (flag in newTcpFlags) {
+          newTcpFlags[flag] = "enabled";
+        }
+      }
+    } else if (r.tcp_flags && typeof r.tcp_flags === "object") {
+      for (const [flag, state] of Object.entries(r.tcp_flags)) {
+        if (flag in newTcpFlags) newTcpFlags[flag] = state as "disabled" | "enabled" | "not";
+      }
     }
+    setTcpFlags(newTcpFlags);
     setIcmpTypeName(r.icmp_type_name ?? "");
     setDscp(r.packet_mods?.dscp ?? "");
     setMark(r.packet_mods?.mark ?? "");
     setTtl(r.packet_mods?.ttl ?? "");
 
     // Matching
-    setConnectionMark(r.connection_mark || "");
+    setConnectionMark(showMulti(r.connection_mark));
     setConnectionStatusNat(r.connection_status?.nat || "");
-    setConntrackHelper(r.conntrack_helper || "");
-    setDscpMatch(r.dscp_match || "");
-    setDscpExclude(r.dscp_exclude || "");
+    setConntrackHelper(showMulti(r.conntrack_helper));
+    setDscpMatch(showMulti(r.dscp_match));
+    setDscpExclude(showMulti(r.dscp_exclude));
     setFragmentMatchFrag(r.fragment?.match_frag || false);
     setFragmentMatchNonFrag(r.fragment?.match_non_frag || false);
     setGreKey(r.gre?.key || "");
@@ -576,8 +580,8 @@ export function ZoneRulePanel({
       else if (r.ipsec.match_none) setIpsecMode("match-none");
     }
     setMarkMatch(r.mark_match || "");
-    setPacketLength(r.packet_length || "");
-    setPacketLengthExclude(r.packet_length_exclude || "");
+    setPacketLength(showMulti(r.packet_length));
+    setPacketLengthExclude(showMulti(r.packet_length_exclude));
     setPacketType(r.packet_type || "");
     setTcpMssMatch(r.tcp_mss || "");
     setTtlEq(r.ttl_match?.eq || "");
@@ -601,7 +605,7 @@ export function ZoneRulePanel({
     setLogOptionsQueueThreshold(r.log_options?.queue_threshold || "");
     setLogOptionsSnapshotLength(r.log_options?.snapshot_length || "");
     setQueueNumber(r.queue_number || "");
-    setQueueOptions(r.queue_options || "");
+    setQueueOptions(showMulti(r.queue_options));
     setSynproxyTcpMss(r.synproxy_config?.tcp_mss || "");
     setSynproxyTcpWindowScale(r.synproxy_config?.tcp_window_scale || "");
     setModSetConnectionMark(r.set_connection_mark || "");
@@ -620,6 +624,7 @@ export function ZoneRulePanel({
     setSelectedDst(destZone ?? "");
 
     if (mode === "edit" && rule) {
+      resetForm();
       loadRuleData(rule);
     } else if (mode === "create" && cloneRule) {
       resetForm();
@@ -663,7 +668,7 @@ export function ZoneRulePanel({
     loadCustomChains();
     loadFlowtables();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, mode, rule, cloneRule]);
 
   // Update chainRules when resolved chain changes
   useEffect(() => {
@@ -695,7 +700,7 @@ export function ZoneRulePanel({
 
   const nonLocalZones = zones.filter((z) => !z.local_zone);
   const protocols = isV6 ? IPV6_PROTOCOLS : IPV4_PROTOCOLS;
-  const icmpTypes = isV6 ? ICMP_TYPES_V6 : ICMP_TYPES_V4;
+  const icmpTypes = ["any", ...(isV6 ? ICMP_TYPE_NAMES_V6 : ICMP_TYPE_NAMES_V4)];
 
   // ── Save handler ──────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -742,13 +747,18 @@ export function ZoneRulePanel({
       const config: Partial<FirewallRule> = { action };
 
       if (description.trim()) config.description = description.trim();
+      else if (mode === "edit" && rule?.description) config.description = null;
       if (ruleProtocol && ruleProtocol !== "all") {
         config.protocol = protocolInvert ? `!${ruleProtocol}` : ruleProtocol;
+      } else if (mode === "edit" && rule?.protocol && rule.protocol !== "all") {
+        config.protocol = null;
       }
       config.log = log;
       config.disable = disable;
       if (action === "jump" && jumpTarget) config.jump_target = jumpTarget;
+      else if (mode === "edit" && rule?.jump_target) config.jump_target = null;
       if (action === "offload" && offloadTarget) config.offload_target = offloadTarget;
+      else if (mode === "edit" && rule?.offload_target) config.offload_target = null;
 
       // Source FQDN (set at top level)
       if (srcMode === "fqdn" && srcFqdn.trim()) {
@@ -826,6 +836,8 @@ export function ZoneRulePanel({
           related: stateRelated || undefined,
           invalid: stateInvalid || undefined,
         };
+      } else if (mode === "edit" && rule?.state) {
+        config.state = null;
       }
 
       // Packet mods
@@ -834,6 +846,8 @@ export function ZoneRulePanel({
         if (dscp) config.packet_mods.dscp = dscp;
         if (mark) config.packet_mods.mark = mark;
         if (ttl) config.packet_mods.ttl = ttl;
+      } else if (mode === "edit" && rule?.packet_mods) {
+        config.packet_mods = null;
       }
 
       // TCP flags
@@ -841,20 +855,32 @@ export function ZoneRulePanel({
         Object.entries(tcpFlags).filter(([, s]) => s !== "disabled")
       );
       if (Object.keys(activeTcpFlags).length > 0) config.tcp_flags = activeTcpFlags;
+      else if (mode === "edit" && rule?.tcp_flags) config.tcp_flags = null;
 
-      if (icmpTypeName && icmpTypeName !== "any") config.icmp_type_name = icmpTypeName;
+      if (icmpProtocolsFor(isV6).includes(ruleProtocol) && icmpTypeName && icmpTypeName !== "any") {
+        config.icmp_type_name = icmpTypeName;
+      } else if (mode === "edit" && rule?.icmp_type_name) {
+        config.icmp_type_name = null;
+      }
 
       // Matching fields
-      if (connectionMark.trim()) config.connection_mark = connectionMark.trim();
+      if (connectionMark.trim()) config.connection_mark = readMulti(connectionMark);
+      else if (mode === "edit" && rule?.connection_mark) config.connection_mark = null;
       if (connectionStatusNat) config.connection_status = { nat: connectionStatusNat };
-      if (conntrackHelper.trim()) config.conntrack_helper = conntrackHelper.trim();
-      if (dscpMatch.trim()) config.dscp_match = dscpMatch.trim();
-      if (dscpExclude.trim()) config.dscp_exclude = dscpExclude.trim();
+      else if (mode === "edit" && rule?.connection_status) config.connection_status = null;
+      if (conntrackHelper.trim()) config.conntrack_helper = readMulti(conntrackHelper);
+      else if (mode === "edit" && rule?.conntrack_helper) config.conntrack_helper = null;
+      if (dscpMatch.trim()) config.dscp_match = readMulti(dscpMatch);
+      else if (mode === "edit" && rule?.dscp_match) config.dscp_match = null;
+      if (dscpExclude.trim()) config.dscp_exclude = readMulti(dscpExclude);
+      else if (mode === "edit" && rule?.dscp_exclude) config.dscp_exclude = null;
       if (fragmentMatchFrag || fragmentMatchNonFrag) {
         config.fragment = {
           match_frag: fragmentMatchFrag || undefined,
           match_non_frag: fragmentMatchNonFrag || undefined,
         };
+      } else if (mode === "edit" && rule?.fragment) {
+        config.fragment = null;
       }
       if (greKey || greVersion || greInnerProto || Object.values(greFlags).some(Boolean)) {
         config.gre = {};
@@ -867,6 +893,8 @@ export function ZoneRulePanel({
         if (greFlags.key_unset) config.gre.flags_key_unset = true;
         if (greFlags.sequence) config.gre.flags_sequence = true;
         if (greFlags.sequence_unset) config.gre.flags_sequence_unset = true;
+      } else if (mode === "edit" && rule?.gre) {
+        config.gre = null;
       }
       const hasIpsec = ipsecMode !== "none" || ipsecInbound !== "none" || ipsecOutbound !== "none";
       if (hasIpsec) {
@@ -877,17 +905,26 @@ export function ZoneRulePanel({
         if (ipsecInbound === "match-none") config.ipsec.match_none_in = true;
         if (ipsecOutbound === "match-ipsec") config.ipsec.match_ipsec_out = true;
         if (ipsecOutbound === "match-none") config.ipsec.match_none_out = true;
+      } else if (mode === "edit" && rule?.ipsec) {
+        config.ipsec = null;
       }
       if (markMatch.trim()) config.mark_match = markMatch.trim();
-      if (packetLength.trim()) config.packet_length = packetLength.trim();
-      if (packetLengthExclude.trim()) config.packet_length_exclude = packetLengthExclude.trim();
+      else if (mode === "edit" && rule?.mark_match) config.mark_match = null;
+      if (packetLength.trim()) config.packet_length = readMulti(packetLength);
+      else if (mode === "edit" && rule?.packet_length) config.packet_length = null;
+      if (packetLengthExclude.trim()) config.packet_length_exclude = readMulti(packetLengthExclude);
+      else if (mode === "edit" && rule?.packet_length_exclude) config.packet_length_exclude = null;
       if (packetType) config.packet_type = packetType;
+      else if (mode === "edit" && rule?.packet_type) config.packet_type = null;
       if (tcpMssMatch.trim()) config.tcp_mss = tcpMssMatch.trim();
+      else if (mode === "edit" && rule?.tcp_mss) config.tcp_mss = null;
       if (ttlEq || ttlGt || ttlLt) {
         config.ttl_match = {};
         if (ttlEq) config.ttl_match.eq = ttlEq;
         if (ttlGt) config.ttl_match.gt = ttlGt;
         if (ttlLt) config.ttl_match.lt = ttlLt;
+      } else if (mode === "edit" && rule?.ttl_match) {
+        config.ttl_match = null;
       }
 
       // Limits & Time
@@ -895,11 +932,15 @@ export function ZoneRulePanel({
         config.limit = {};
         if (limitRate) config.limit.rate = limitRate;
         if (limitBurst) config.limit.burst = limitBurst;
+      } else if (mode === "edit" && rule?.limit) {
+        config.limit = null;
       }
       if (recentCount || recentTime) {
         config.recent = {};
         if (recentCount) config.recent.count = recentCount;
         if (recentTime) config.recent.time = recentTime;
+      } else if (mode === "edit" && rule?.recent) {
+        config.recent = null;
       }
       if (timeStartdate || timeStarttime || timeStopdate || timeStoptime || timeWeekdays) {
         config.time = {};
@@ -908,6 +949,8 @@ export function ZoneRulePanel({
         if (timeStopdate) config.time.stopdate = timeStopdate;
         if (timeStoptime) config.time.stoptime = timeStoptime;
         if (timeWeekdays) config.time.weekdays = timeWeekdays;
+      } else if (mode === "edit" && rule?.time) {
+        config.time = null;
       }
 
       // Actions / modifications
@@ -917,29 +960,47 @@ export function ZoneRulePanel({
         if (logOptionsLevel) config.log_options.level = logOptionsLevel;
         if (logOptionsQueueThreshold) config.log_options.queue_threshold = logOptionsQueueThreshold;
         if (logOptionsSnapshotLength) config.log_options.snapshot_length = logOptionsSnapshotLength;
+      } else if (mode === "edit" && rule?.log_options) {
+        config.log_options = null;
       }
       if (queueNumber) config.queue_number = queueNumber;
-      if (queueOptions) config.queue_options = queueOptions;
+      else if (mode === "edit" && rule?.queue_number) config.queue_number = null;
+      if (queueOptions) config.queue_options = readMulti(queueOptions);
+      else if (mode === "edit" && rule?.queue_options) config.queue_options = null;
       if (synproxyTcpMss || synproxyTcpWindowScale) {
         config.synproxy_config = {};
         if (synproxyTcpMss) config.synproxy_config.tcp_mss = synproxyTcpMss;
         if (synproxyTcpWindowScale) config.synproxy_config.tcp_window_scale = synproxyTcpWindowScale;
+      } else if (mode === "edit" && rule?.synproxy_config) {
+        config.synproxy_config = null;
       }
       if (modSetConnectionMark) config.set_connection_mark = modSetConnectionMark;
+      else if (mode === "edit" && rule?.set_connection_mark) config.set_connection_mark = null;
       if (modSetTcpMss) config.set_tcp_mss = modSetTcpMss;
+      else if (mode === "edit" && rule?.set_tcp_mss) config.set_tcp_mss = null;
       if (addAddrToGroupSrcGroup || addAddrToGroupDstGroup) {
         config.add_address_to_group = {};
         if (addAddrToGroupSrcGroup) config.add_address_to_group.source_address_group = addAddrToGroupSrcGroup;
         if (addAddrToGroupSrcTimeout) config.add_address_to_group.source_timeout = addAddrToGroupSrcTimeout;
         if (addAddrToGroupDstGroup) config.add_address_to_group.destination_address_group = addAddrToGroupDstGroup;
         if (addAddrToGroupDstTimeout) config.add_address_to_group.destination_timeout = addAddrToGroupDstTimeout;
+      } else if (mode === "edit" && rule?.add_address_to_group) {
+        config.add_address_to_group = null;
       }
 
       if (mode === "create") {
         const nextNum = getNextRuleNumber(chainRules);
-        await service.createRule(resolvedChain, nextNum, true, config);
+        const response = await service.createRule(resolvedChain, nextNum, true, config);
+        if (!response.success) {
+          setError(response.error || tc("operationFailed"));
+          return;
+        }
       } else if (mode === "edit" && rule) {
-        await service.updateRule(resolvedChain, rule.rule_number, true, config, rule);
+        const response = await service.updateRule(resolvedChain, rule.rule_number, true, config, rule);
+        if (!response.success) {
+          setError(response.error || tc("operationFailed"));
+          return;
+        }
       }
 
       onOpenChange(false);
@@ -955,6 +1016,7 @@ export function ZoneRulePanel({
   const handleDelete = async () => {
     if (!rule || !resolvedChain) return;
     setDeleteLoading(true);
+    setError(null);
     try {
       const service = ipVersion === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
 
@@ -975,7 +1037,11 @@ export function ZoneRulePanel({
         })),
       ];
 
-      await service.reorderRules({ chain: resolvedChain, is_custom_chain: true, rules: reorderItems });
+      const response = await service.reorderRules({ chain: resolvedChain, is_custom_chain: true, rules: reorderItems });
+      if (!response.success) {
+        setError(response.error || tc("operationFailed"));
+        return;
+      }
 
       // Deleting compacts the chain's rule numbers, so re-anchor its separators
       // to the rules they sat above. The page reloads separators in onSuccess().
@@ -985,13 +1051,13 @@ export function ZoneRulePanel({
         reorderItems.map((it) => ({ old_number: it.old_number, new_number: it.new_number }))
       );
 
+      setConfirmingDelete(false);
       onOpenChange(false);
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("rulePanel.deleteFailed"));
     } finally {
       setDeleteLoading(false);
-      setConfirmingDelete(false);
     }
   };
 
@@ -1000,9 +1066,10 @@ export function ZoneRulePanel({
   const supportsDynamicAddressGroup = capabilities?.features.dynamic_address_group?.supported ?? false;
   const addrGroupTypeOptions = isV6
     ? [
-        { value: "ipv6-address-group", label: t("rulePanel.groupTypes.ipv6AddressGroup") },
-        { value: "ipv6-network-group", label: t("rulePanel.groupTypes.ipv6NetworkGroup") },
+        { value: "address-group", label: t("rulePanel.groupTypes.ipv6AddressGroup") },
+        { value: "network-group", label: t("rulePanel.groupTypes.ipv6NetworkGroup") },
         { value: "domain-group", label: t("rulePanel.groupTypes.domainGroup") },
+        { value: "mac-group", label: t("rulePanel.groupTypes.macGroup") },
         ...(supportsRemoteGroup ? [{ value: "remote-group", label: t("rulePanel.groupTypes.remoteGroup") }] : []),
         ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: t("rulePanel.groupTypes.dynamicAddressGroup") }] : []),
       ]
@@ -1619,14 +1686,14 @@ export function ZoneRulePanel({
                 {/* ICMP Type */}
                 <div className="space-y-2">
                   <Label className="text-xs">{t("rulePanel.icmpType")}</Label>
-                  {!["icmp", "icmpv6", "ipv6-icmp"].includes(ruleProtocol) && (
+                  {!icmpProtocolsFor(isV6).includes(ruleProtocol) && (
                     <p className="text-xs text-muted-foreground">{t("rulePanel.icmpTypeHint")}</p>
                   )}
                   <div className="flex items-center gap-2">
                     <Select
                       value={icmpTypeName || "any"}
                       onValueChange={(v) => setIcmpTypeName(v === "any" ? "" : v)}
-                      disabled={!canEdit || !["icmp", "icmpv6", "ipv6-icmp"].includes(ruleProtocol)}
+                      disabled={!canEdit || !icmpProtocolsFor(isV6).includes(ruleProtocol)}
                     >
                       <SelectTrigger className="h-8 text-xs flex-1">
                         <SelectValue />

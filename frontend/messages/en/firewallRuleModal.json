@@ -247,8 +247,5 @@
     "srcTimeout": "Source Timeout",
     "dstAddressGroup": "Destination Address Group",
     "dstTimeout": "Destination Timeout"
-  },
-  "protocolLabels": {
-    "ethernet": "Ethernet"
   }
 }

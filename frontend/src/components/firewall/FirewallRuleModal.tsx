@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/accordion";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service, type FirewallRule, type FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
+import { ICMP_TYPE_NAMES_V4, ICMP_TYPE_NAMES_V6, readMulti, showMulti } from "@/lib/api/firewall-family";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
@@ -52,6 +53,11 @@ interface FirewallRuleModalProps {
   capabilities?: FirewallCapabilitiesResponse | null;
   cloneRule?: FirewallRule;
   existing?: FirewallRule | null;
+}
+
+function isIcmpProtocol(protocolName: string, family: "ipv4" | "ipv6" | undefined): boolean {
+  if (family === "ipv6") return protocolName === "icmpv6" || protocolName === "ipv6-icmp";
+  return protocolName === "icmp";
 }
 
 export function FirewallRuleModal({
@@ -355,12 +361,12 @@ export function FirewallRuleModal({
 
   // Auto-clear ICMP type when protocol changes away from ICMP
   useEffect(() => {
-    if (ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp") {
+    if (!isIcmpProtocol(ruleProtocol, protocol)) {
       if (icmpTypeName) {
         setIcmpTypeName("");
       }
     }
-  }, [ruleProtocol, icmpTypeName]);
+  }, [ruleProtocol, protocol, icmpTypeName]);
 
   const populateFromClone = (rule: FirewallRule) => {
     setDescription(rule.description || "");
@@ -527,11 +533,11 @@ export function FirewallRuleModal({
 
     if (rule.destination_address_mask) setDestAddressMask(rule.destination_address_mask);
 
-    setConnectionMark(rule.connection_mark || "");
+    setConnectionMark(showMulti(rule.connection_mark));
     setConnectionStatusNat(rule.connection_status?.nat || "");
-    setConntrackHelper(rule.conntrack_helper || "");
-    setDscpMatch(rule.dscp_match || "");
-    setDscpExclude(rule.dscp_exclude || "");
+    setConntrackHelper(showMulti(rule.conntrack_helper));
+    setDscpMatch(showMulti(rule.dscp_match));
+    setDscpExclude(showMulti(rule.dscp_exclude));
     setFragmentMatchFrag(rule.fragment?.match_frag || false);
     setFragmentMatchNonFrag(rule.fragment?.match_non_frag || false);
     setGreKey(rule.gre?.key || "");
@@ -559,8 +565,8 @@ export function FirewallRuleModal({
     }
 
     setMarkMatch(rule.mark_match || "");
-    setPacketLength(rule.packet_length || "");
-    setPacketLengthExclude(rule.packet_length_exclude || "");
+    setPacketLength(showMulti(rule.packet_length));
+    setPacketLengthExclude(showMulti(rule.packet_length_exclude));
     setPacketType(rule.packet_type || "");
     setTcpMssMatch(rule.tcp_mss || "");
     setTtlEq(rule.ttl_match?.eq || "");
@@ -582,7 +588,7 @@ export function FirewallRuleModal({
     setLogOptionsQueueThreshold(rule.log_options?.queue_threshold || "");
     setLogOptionsSnapshotLength(rule.log_options?.snapshot_length || "");
     setQueueNumber(rule.queue_number || "");
-    setQueueOptions(rule.queue_options || "");
+    setQueueOptions(showMulti(rule.queue_options));
     setSynproxyTcpMss(rule.synproxy_config?.tcp_mss || "");
     setSynproxyTcpWindowScale(rule.synproxy_config?.tcp_window_scale || "");
     setModSetConnectionMark(rule.set_connection_mark || "");
@@ -611,9 +617,9 @@ export function FirewallRuleModal({
     if (rule.tcp_flags) {
       if (Array.isArray(rule.tcp_flags)) {
         rule.tcp_flags.forEach((flag: string) => {
-          if (flag.startsWith("!")) {
-            const cleanFlag = flag.substring(1);
-            if (cleanFlag in newTcpFlags) newTcpFlags[cleanFlag] = "not";
+          if (flag.startsWith("not ")) {
+            const name = flag.slice(4);
+            if (name in newTcpFlags) newTcpFlags[name] = "not";
           } else if (flag in newTcpFlags) {
             newTcpFlags[flag] = "enabled";
           }
@@ -1017,12 +1023,12 @@ export function FirewallRuleModal({
       }
 
       // ICMP type - only applicable for ICMP protocol
-      if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && icmpTypeName) {
+      if (isIcmpProtocol(ruleProtocol, protocol) && icmpTypeName) {
         config.icmp_type_name = icmpTypeName;
-      } else if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && !icmpTypeName && existing.icmp_type_name) {
+      } else if (isIcmpProtocol(ruleProtocol, protocol) && !icmpTypeName && existing.icmp_type_name) {
         // User cleared ICMP type while protocol is still ICMP - delete it
         config.icmp_type_name = null;
-      } else if (ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp" && existing.icmp_type_name) {
+      } else if (!isIcmpProtocol(ruleProtocol, protocol) && existing.icmp_type_name) {
         // Protocol changed away from ICMP but existing previously had ICMP type - delete it
         config.icmp_type_name = null;
       }
@@ -1049,7 +1055,7 @@ export function FirewallRuleModal({
 
       // Matching fields
       if (connectionMark.trim()) {
-        config.connection_mark = connectionMark.trim();
+        config.connection_mark = readMulti(connectionMark);
       } else if (existing.connection_mark) {
         config.connection_mark = null;
       }
@@ -1059,17 +1065,17 @@ export function FirewallRuleModal({
         config.connection_status = null;
       }
       if (conntrackHelper.trim()) {
-        config.conntrack_helper = conntrackHelper.trim();
+        config.conntrack_helper = readMulti(conntrackHelper);
       } else if (existing.conntrack_helper) {
         config.conntrack_helper = null;
       }
       if (dscpMatch.trim()) {
-        config.dscp_match = dscpMatch.trim();
+        config.dscp_match = readMulti(dscpMatch);
       } else if (existing.dscp_match) {
         config.dscp_match = null;
       }
       if (dscpExclude.trim()) {
-        config.dscp_exclude = dscpExclude.trim();
+        config.dscp_exclude = readMulti(dscpExclude);
       } else if (existing.dscp_exclude) {
         config.dscp_exclude = null;
       }
@@ -1116,12 +1122,12 @@ export function FirewallRuleModal({
         config.mark_match = null;
       }
       if (packetLength.trim()) {
-        config.packet_length = packetLength.trim();
+        config.packet_length = readMulti(packetLength);
       } else if (existing.packet_length) {
         config.packet_length = null;
       }
       if (packetLengthExclude.trim()) {
-        config.packet_length_exclude = packetLengthExclude.trim();
+        config.packet_length_exclude = readMulti(packetLengthExclude);
       } else if (existing.packet_length_exclude) {
         config.packet_length_exclude = null;
       }
@@ -1186,7 +1192,7 @@ export function FirewallRuleModal({
         config.queue_number = null;
       }
       if (queueOptions) {
-        config.queue_options = queueOptions;
+        config.queue_options = readMulti(queueOptions);
       } else if (existing.queue_options) {
         config.queue_options = null;
       }
@@ -1475,19 +1481,19 @@ export function FirewallRuleModal({
 
       // Matching fields
       if (connectionMark.trim()) {
-        config.connection_mark = connectionMark.trim();
+        config.connection_mark = readMulti(connectionMark);
       }
       if (connectionStatusNat) {
         config.connection_status = { nat: connectionStatusNat };
       }
       if (conntrackHelper.trim()) {
-        config.conntrack_helper = conntrackHelper.trim();
+        config.conntrack_helper = readMulti(conntrackHelper);
       }
       if (dscpMatch.trim()) {
-        config.dscp_match = dscpMatch.trim();
+        config.dscp_match = readMulti(dscpMatch);
       }
       if (dscpExclude.trim()) {
-        config.dscp_exclude = dscpExclude.trim();
+        config.dscp_exclude = readMulti(dscpExclude);
       }
       if (fragmentMatchFrag || fragmentMatchNonFrag) {
         config.fragment = {
@@ -1524,10 +1530,10 @@ export function FirewallRuleModal({
         config.mark_match = markMatch.trim();
       }
       if (packetLength.trim()) {
-        config.packet_length = packetLength.trim();
+        config.packet_length = readMulti(packetLength);
       }
       if (packetLengthExclude.trim()) {
-        config.packet_length_exclude = packetLengthExclude.trim();
+        config.packet_length_exclude = readMulti(packetLengthExclude);
       }
       if (packetType) {
         config.packet_type = packetType;
@@ -1574,7 +1580,7 @@ export function FirewallRuleModal({
         config.queue_number = queueNumber;
       }
       if (queueOptions) {
-        config.queue_options = queueOptions;
+        config.queue_options = readMulti(queueOptions);
       }
       if (synproxyTcpMss || synproxyTcpWindowScale) {
         config.synproxy_config = {};
@@ -1617,22 +1623,7 @@ export function FirewallRuleModal({
 
   const availableTcpFlags = ["syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr"];
 
-  // ICMP Type names (standard ICMPv4 types)
-  const icmpTypeOptions = [
-    "echo-reply",
-    "destination-unreachable",
-    "source-quench",
-    "redirect",
-    "echo-request",
-    "router-advertisement",
-    "router-solicitation",
-    "time-exceeded",
-    "parameter-problem",
-    "timestamp-request",
-    "timestamp-reply",
-    "address-mask-request",
-    "address-mask-reply",
-  ];
+  const icmpTypeOptions = protocol === "ipv6" ? ICMP_TYPE_NAMES_V6 : ICMP_TYPE_NAMES_V4;
 
   const updateTcpFlag = (flag: string, value: "disabled" | "enabled" | "not") => {
     setTcpFlags((prev) => ({ ...prev, [flag]: value }));
@@ -1810,8 +1801,9 @@ export function FirewallRuleModal({
                     <SelectItem value="tcp_udp">{tc("shown.tcpUdp")}</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
-                    <SelectItem value="icmp">ICMP</SelectItem>
-                    <SelectItem value="ipv6-icmp">IPv6-ICMP</SelectItem>
+                    {protocol !== "ipv6" && <SelectItem value="icmp">ICMP</SelectItem>}
+                    {protocol === "ipv6" && <SelectItem value="icmpv6">ICMPv6</SelectItem>}
+                    {protocol === "ipv6" && <SelectItem value="ipv6-icmp">IPv6-ICMP</SelectItem>}
                     <SelectItem value="esp">ESP</SelectItem>
                     <SelectItem value="ah">AH</SelectItem>
                     <SelectItem value="gre">GRE</SelectItem>
@@ -1830,7 +1822,6 @@ export function FirewallRuleModal({
                     <SelectItem value="egp">EGP</SelectItem>
                     <SelectItem value="encap">ENCAP</SelectItem>
                     <SelectItem value="etherip">EtherIP</SelectItem>
-                    <SelectItem value="ethernet">{t("protocolLabels.ethernet")}</SelectItem>
                     <SelectItem value="fc">FC</SelectItem>
                     <SelectItem value="ggp">GGP</SelectItem>
                     <SelectItem value="hip">HIP</SelectItem>
@@ -1855,7 +1846,6 @@ export function FirewallRuleModal({
                     {/* eslint-disable-next-line vymanager/no-untranslated-text -- protocol keyword as written in /etc/protocols */}
                     <SelectItem value="mobility-header">Mobility-Header</SelectItem>
                     <SelectItem value="mpls-in-ip">MPLS-in-IP</SelectItem>
-                    <SelectItem value="mptcp">MPTCP</SelectItem>
                     <SelectItem value="pup">PUP</SelectItem>
                     <SelectItem value="rdp">RDP</SelectItem>
                     <SelectItem value="rohc">ROHC</SelectItem>
@@ -3066,7 +3056,7 @@ export function FirewallRuleModal({
                   {t("actions.icmpTypeHint")}
                 </p>
               </div>
-              {ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp" && (
+              {!isIcmpProtocol(ruleProtocol, protocol) && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
                   <p className="text-sm text-blue-600 dark:text-blue-400">
                     {t("actions.icmpTypeIcmpOnly")}
@@ -3077,14 +3067,8 @@ export function FirewallRuleModal({
                 <Select
                   key={icmpTypeName || "empty"}
                   value={icmpTypeName || undefined}
-                  onValueChange={(value) => {
-                    // Auto-switch to ICMP protocol when selecting a type
-                    if (value && ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp") {
-                      setRuleProtocol("icmp");
-                    }
-                    setIcmpTypeName(value);
-                  }}
-                  disabled={ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp"}
+                  onValueChange={setIcmpTypeName}
+                  disabled={!isIcmpProtocol(ruleProtocol, protocol)}
                 >
                   <SelectTrigger id="icmpTypeName" className="flex-1">
                     <SelectValue placeholder={t("actions.selectIcmpType")} />
@@ -3106,7 +3090,7 @@ export function FirewallRuleModal({
                       e.preventDefault();
                       setIcmpTypeName("");
                     }}
-                    disabled={ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp"}
+                    disabled={!isIcmpProtocol(ruleProtocol, protocol)}
                     className="shrink-0"
                     title={t("actions.clearIcmpType")}
                   >

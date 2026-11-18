@@ -1,5 +1,79 @@
 import { apiClient } from "./client";
 
+function multiValues(value: string | string[] | null | undefined): string[] {
+  if (Array.isArray(value)) return value.map(String).filter((item) => item !== "");
+  if (value == null || value === "") return [];
+  return [value];
+}
+
+export function showMulti(value: string | string[] | null | undefined): string {
+  return multiValues(value).join(", ");
+}
+
+export function readMulti(value: string): string[] | null {
+  const items = value.split(",").map((item) => item.trim()).filter(Boolean);
+  return items.length ? items : null;
+}
+
+/** Lab icmp type-name allowed values. Same on 1.4 and 1.5. */
+export const ICMP_TYPE_NAMES_V4 = [
+  "echo-reply",
+  "destination-unreachable",
+  "source-quench",
+  "redirect",
+  "echo-request",
+  "router-advertisement",
+  "router-solicitation",
+  "time-exceeded",
+  "parameter-problem",
+  "timestamp-request",
+  "timestamp-reply",
+  "info-request",
+  "info-reply",
+  "address-mask-request",
+  "address-mask-reply",
+];
+
+/** Lab icmpv6 type-name allowed values. Same on 1.4 and 1.5. */
+export const ICMP_TYPE_NAMES_V6 = [
+  "destination-unreachable",
+  "packet-too-big",
+  "time-exceeded",
+  "echo-request",
+  "echo-reply",
+  "mld-listener-query",
+  "mld-listener-report",
+  "mld-listener-reduction",
+  "nd-router-solicit",
+  "nd-router-advert",
+  "nd-neighbor-solicit",
+  "nd-neighbor-advert",
+  "nd-redirect",
+  "parameter-problem",
+  "router-renumbering",
+  "ind-neighbor-solicit",
+  "ind-neighbor-advert",
+  "mld2-listener-report",
+];
+
+function tcpFlagTokens(value: FirewallRuleTcpFlags | string[] | null | undefined): string[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).sort();
+  return Object.entries(value)
+    .flatMap(([flag, state]) => (state === "enabled" ? [flag] : state === "not" ? [`not ${flag}`] : []))
+    .sort();
+}
+
+function pushEach(
+  operations: FirewallBatchOperation[],
+  op: string,
+  value: string | string[] | null | undefined,
+) {
+  for (const item of multiValues(value)) {
+    operations.push({ op, value: item });
+  }
+}
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -137,25 +211,27 @@ export interface FirewallRule {
   packet_mods?: FirewallRulePacketMods | null;
   tcp_flags?: FirewallRuleTcpFlags | string[] | null; // Object for updates, array from backend
   icmp_type_name?: string | null;
+  icmp_code?: string | null;
+  icmp_type?: string | null;
   jump_target?: string | null;
   offload_target?: string | null;
   // New matching fields
-  connection_mark?: string | null;
+  connection_mark?: string[] | null;
   connection_status?: FirewallRuleConnectionStatus | null;
-  conntrack_helper?: string | null;
-  dscp_match?: string | null;
-  dscp_exclude?: string | null;
+  conntrack_helper?: string[] | null;
+  dscp_match?: string[] | null;
+  dscp_exclude?: string[] | null;
   fragment?: FirewallRuleFragment | null;
   gre?: FirewallRuleGRE | null;
   ipsec?: FirewallRuleIPsec | null;
   limit?: FirewallRuleLimit | null;
   log_options?: FirewallRuleLogOptions | null;
   mark_match?: string | null;
-  packet_length?: string | null;
-  packet_length_exclude?: string | null;
+  packet_length?: string[] | null;
+  packet_length_exclude?: string[] | null;
   packet_type?: string | null;
   queue_number?: string | null;
-  queue_options?: string | null;
+  queue_options?: string[] | null;
   recent?: FirewallRuleRecent | null;
   synproxy_config?: FirewallRuleSynproxy | null;
   tcp_mss?: string | null;
@@ -520,7 +596,7 @@ export class FirewallFamilyService {
 
     // Connection mark matching
     if (config.connection_mark) {
-      operations.push({ op: "set_rule_connection_mark", value: config.connection_mark });
+      pushEach(operations, "set_rule_connection_mark", config.connection_mark);
     }
 
     // Connection status
@@ -530,15 +606,15 @@ export class FirewallFamilyService {
 
     // Conntrack helper
     if (config.conntrack_helper) {
-      operations.push({ op: "set_rule_conntrack_helper", value: config.conntrack_helper });
+      pushEach(operations, "set_rule_conntrack_helper", config.conntrack_helper);
     }
 
     // DSCP match/exclude
     if (config.dscp_match) {
-      operations.push({ op: "set_rule_dscp", value: config.dscp_match });
+      pushEach(operations, "set_rule_dscp", config.dscp_match);
     }
     if (config.dscp_exclude) {
-      operations.push({ op: "set_rule_dscp_exclude", value: config.dscp_exclude });
+      pushEach(operations, "set_rule_dscp_exclude", config.dscp_exclude);
     }
 
     // Fragment matching
@@ -637,10 +713,10 @@ export class FirewallFamilyService {
 
     // Packet length matching
     if (config.packet_length) {
-      operations.push({ op: "set_rule_packet_length", value: config.packet_length });
+      pushEach(operations, "set_rule_packet_length", config.packet_length);
     }
     if (config.packet_length_exclude) {
-      operations.push({ op: "set_rule_packet_length_exclude", value: config.packet_length_exclude });
+      pushEach(operations, "set_rule_packet_length_exclude", config.packet_length_exclude);
     }
 
     // Packet type
@@ -653,7 +729,7 @@ export class FirewallFamilyService {
       operations.push({ op: "set_rule_queue", value: config.queue_number });
     }
     if (config.queue_options) {
-      operations.push({ op: "set_rule_queue_options", value: config.queue_options });
+      pushEach(operations, "set_rule_queue_options", config.queue_options);
     }
 
     // Recent
@@ -1074,8 +1150,13 @@ export class FirewallFamilyService {
       }
     }
 
-    // Update TCP flags
-    if (hasChanged(config.tcp_flags, currentRule.tcp_flags)) {
+    // Update TCP flags. The UI sends {syn: "enabled", ack: "not"}; the backend
+    // returns ["syn", "not ack"]. Compare those forms so an untouched save
+    // does not delete and re-set the same flags.
+    if (
+      config.tcp_flags !== undefined &&
+      JSON.stringify(tcpFlagTokens(config.tcp_flags)) !== JSON.stringify(tcpFlagTokens(currentRule.tcp_flags))
+    ) {
       // Delete old TCP flags (currentRule.tcp_flags is an array from backend)
       if (currentRule.tcp_flags &&
           ((Array.isArray(currentRule.tcp_flags) && currentRule.tcp_flags.length > 0) ||
@@ -1201,7 +1282,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_connection_mark" });
       }
       if (config.connection_mark) {
-        operations.push({ op: "set_rule_connection_mark", value: config.connection_mark });
+        pushEach(operations, "set_rule_connection_mark", config.connection_mark);
       }
     }
 
@@ -1221,7 +1302,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_conntrack_helper" });
       }
       if (config.conntrack_helper) {
-        operations.push({ op: "set_rule_conntrack_helper", value: config.conntrack_helper });
+        pushEach(operations, "set_rule_conntrack_helper", config.conntrack_helper);
       }
     }
 
@@ -1231,7 +1312,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_dscp" });
       }
       if (config.dscp_match) {
-        operations.push({ op: "set_rule_dscp", value: config.dscp_match });
+        pushEach(operations, "set_rule_dscp", config.dscp_match);
       }
     }
 
@@ -1241,7 +1322,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_dscp_exclude" });
       }
       if (config.dscp_exclude) {
-        operations.push({ op: "set_rule_dscp_exclude", value: config.dscp_exclude });
+        pushEach(operations, "set_rule_dscp_exclude", config.dscp_exclude);
       }
     }
 
@@ -1376,7 +1457,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_packet_length" });
       }
       if (config.packet_length) {
-        operations.push({ op: "set_rule_packet_length", value: config.packet_length });
+        pushEach(operations, "set_rule_packet_length", config.packet_length);
       }
     }
 
@@ -1386,7 +1467,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_packet_length_exclude" });
       }
       if (config.packet_length_exclude) {
-        operations.push({ op: "set_rule_packet_length_exclude", value: config.packet_length_exclude });
+        pushEach(operations, "set_rule_packet_length_exclude", config.packet_length_exclude);
       }
     }
 
@@ -1416,7 +1497,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_queue_options" });
       }
       if (config.queue_options) {
-        operations.push({ op: "set_rule_queue_options", value: config.queue_options });
+        pushEach(operations, "set_rule_queue_options", config.queue_options);
       }
     }
 
