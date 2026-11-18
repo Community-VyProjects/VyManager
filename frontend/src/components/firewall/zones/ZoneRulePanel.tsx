@@ -550,9 +550,6 @@ export function ZoneRulePanel({
         if (flag.startsWith("not ")) {
           const name = flag.slice(4);
           if (name in newTcpFlags) newTcpFlags[name] = "not";
-        } else if (flag.startsWith("!")) {
-          const name = flag.slice(1);
-          if (name in newTcpFlags) newTcpFlags[name] = "not";
         } else if (flag in newTcpFlags) {
           newTcpFlags[flag] = "enabled";
         }

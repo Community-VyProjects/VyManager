@@ -15,6 +15,14 @@ export function readMulti(value: string): string[] | null {
   return items.length ? items : null;
 }
 
+function tcpFlagTokens(value: FirewallRuleTcpFlags | string[] | null | undefined): string[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).sort();
+  return Object.entries(value)
+    .flatMap(([flag, state]) => (state === "enabled" ? [flag] : state === "not" ? [`not ${flag}`] : []))
+    .sort();
+}
+
 function pushEach(
   operations: FirewallBatchOperation[],
   op: string,
@@ -1101,8 +1109,13 @@ export class FirewallFamilyService {
       }
     }
 
-    // Update TCP flags
-    if (hasChanged(config.tcp_flags, currentRule.tcp_flags)) {
+    // Update TCP flags. The UI sends {syn: "enabled", ack: "not"}; the backend
+    // returns ["syn", "not ack"]. Compare those forms so an untouched save
+    // does not delete and re-set the same flags.
+    if (
+      config.tcp_flags !== undefined &&
+      JSON.stringify(tcpFlagTokens(config.tcp_flags)) !== JSON.stringify(tcpFlagTokens(currentRule.tcp_flags))
+    ) {
       // Delete old TCP flags (currentRule.tcp_flags is an array from backend)
       if (currentRule.tcp_flags &&
           ((Array.isArray(currentRule.tcp_flags) && currentRule.tcp_flags.length > 0) ||
