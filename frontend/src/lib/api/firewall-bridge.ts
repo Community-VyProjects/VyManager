@@ -702,6 +702,26 @@ class BridgeFirewallService {
       }
     };
 
+    // A multi: leaf deletes the existing value, not the node. A changed
+    // value deletes the old one so the set does not leave it behind.
+    const handleMultiField = (
+      field: keyof typeof newConfig,
+      setOp: string,
+      deleteOp: string
+    ) => {
+      const newValue = newConfig[field] as string | null | undefined;
+      const currentValue = currentRule[field as keyof BridgeRule] as string | null | undefined;
+      if (newValue === undefined) {
+        return;
+      }
+      if (currentValue && currentValue !== newValue) {
+        operations.push({ op: deleteOp, value: currentValue });
+      }
+      if (newValue) {
+        operations.push({ op: setOp, value: newValue });
+      }
+    };
+
     // Helper function to handle boolean field updates
     const handleBooleanField = (
       field: keyof typeof newConfig,
@@ -797,11 +817,11 @@ class BridgeFirewallService {
 
     // Mark matching (1.5+)
     handleStringField("mark", "set_rule_mark", "delete_rule_mark");
-    handleStringField("connection_mark", "set_rule_connection_mark", "delete_rule_connection_mark");
+    handleMultiField("connection_mark", "set_rule_connection_mark", "delete_rule_connection_mark");
 
     // DSCP matching (1.5+)
-    handleStringField("dscp", "set_rule_dscp", "delete_rule_dscp");
-    handleStringField("dscp_exclude", "set_rule_dscp_exclude", "delete_rule_dscp_exclude");
+    handleMultiField("dscp", "set_rule_dscp", "delete_rule_dscp");
+    handleMultiField("dscp_exclude", "set_rule_dscp_exclude", "delete_rule_dscp_exclude");
 
     // Fragment matching (1.5+)
     handleBooleanField("fragment_match_frag", "set_rule_fragment_match_frag", "delete_rule_fragment_match_frag");
@@ -825,7 +845,7 @@ class BridgeFirewallService {
 
     // Packet type/length (1.5+)
     handleStringField("packet_type", "set_rule_packet_type", "delete_rule_packet_type");
-    handleStringField("packet_length", "set_rule_packet_length", "delete_rule_packet_length");
+    handleMultiField("packet_length", "set_rule_packet_length", "delete_rule_packet_length");
 
     // Time-based rules (1.5+)
     handleStringField("time_startdate", "set_rule_time_startdate", "delete_rule_time_startdate");

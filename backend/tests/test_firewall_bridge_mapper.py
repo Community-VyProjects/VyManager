@@ -8,12 +8,12 @@ device was an invalid path and the commit was rejected.
 
 import pytest
 
-from vyos_mappers.firewall.bridge import BridgeFirewallMapper
+from vyos_mappers.firewall.bridge_versions import get_bridge_firewall_mapper
 
 
-@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("version", ["1.4", "1.5", "2026.09.23-0027-rolling"])
 def test_base_chain_paths_include_filter(version):
-    mapper = BridgeFirewallMapper(version)
+    mapper = get_bridge_firewall_mapper(version)
     assert mapper.get_chain_path("forward") == ["firewall", "bridge", "forward", "filter"]
     assert mapper.get_rule_path("forward", 10) == [
         "firewall", "bridge", "forward", "filter", "rule", "10",
@@ -23,9 +23,9 @@ def test_base_chain_paths_include_filter(version):
     ]
 
 
-@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("version", ["1.4", "1.5", "2026.09.23-0027-rolling"])
 def test_custom_chain_paths_have_no_filter(version):
-    mapper = BridgeFirewallMapper(version)
+    mapper = get_bridge_firewall_mapper(version)
     assert mapper.get_chain_path("MY-CHAIN") == ["firewall", "bridge", "name", "MY-CHAIN"]
     assert mapper.get_rule_path("MY-CHAIN", 5) == [
         "firewall", "bridge", "name", "MY-CHAIN", "rule", "5",
@@ -33,7 +33,8 @@ def test_custom_chain_paths_have_no_filter(version):
 
 
 def test_supported_chains_still_version_gated():
-    assert BridgeFirewallMapper("1.4").get_supported_chains() == ["forward"]
-    assert set(BridgeFirewallMapper("1.5").get_supported_chains()) == {
-        "forward", "input", "output", "prerouting",
-    }
+    assert get_bridge_firewall_mapper("1.4").get_supported_chains() == ["forward"]
+    for version in ("1.5", "2026.09.23-0027-rolling"):
+        assert set(get_bridge_firewall_mapper(version).get_supported_chains()) == {
+            "forward", "input", "output", "prerouting",
+        }

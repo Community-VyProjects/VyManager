@@ -30,6 +30,7 @@ from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
 from .firewall.ipv6_versions import get_firewall_ipv6_mapper
 from .firewall.zones_versions import get_firewall_zones_mapper
+from .firewall.bridge_versions import get_bridge_firewall_mapper
 from .nat import NATMapper
 from .nat.nat_versions import get_nat_mapper
 from .nat64 import NAT64Mapper
@@ -225,8 +226,8 @@ CommandMapperRegistry.register_feature("as_path_list", AsPathListMapper)
 CommandMapperRegistry.register_feature("firewall_global_options", get_firewall_global_options_mapper)
 # WireGuard uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("wireguard", get_wireguard_mapper)
-# Bridge Firewall uses direct class (version checking is internal)
-CommandMapperRegistry.register_feature("firewall_bridge", BridgeFirewallMapper)
+# Bridge Firewall uses a factory: only a string containing 1.4 is 1.4.
+CommandMapperRegistry.register_feature("firewall_bridge", get_bridge_firewall_mapper)
 # Flowtables uses direct class (no version differences)
 CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
 # Firewall Zones uses factory for version-specific mappers

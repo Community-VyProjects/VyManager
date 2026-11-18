@@ -6,7 +6,7 @@ Generated for issue #711; edit the tables directly if the mapper changes.
 
 import pytest
 
-from vyos_builders.firewall.bridge import BridgeFirewallBatchBuilder
+from vyos_builders.firewall.bridge_batch_builder import BridgeFirewallBatchBuilder
 
 
 COMMON_CASES = [
@@ -55,6 +55,9 @@ COMMON_CASES = [
     ('set_rule_source_mac', ('forward', 10, '00:11:22:33:44:55'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'source', 'mac-address', '00:11:22:33:44:55']),
     ('set_rule_vlan_id', ('forward', 10, '100'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'vlan', 'id', '100']),
     ('set_rule_vlan_priority', ('forward', 10, '3'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'vlan', 'priority', '3']),
+    ('delete_rule_queue', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'queue']),
+    ('delete_rule_log_options_level', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'level']),
+    ('delete_rule_log_options_group', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'group']),
 ]
 
 V15_ONLY_CASES = [
@@ -123,6 +126,42 @@ V15_ONLY_CASES = [
     ('set_rule_ttl_gt', ('forward', 10, '5'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ttl', 'gt', '5']),
     ('set_rule_ttl_lt', ('forward', 10, '5'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ttl', 'lt', '5']),
     ('set_rule_vlan_ethernet_type', ('forward', 10, '0x0800'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'vlan', 'ethernet-type', '0x0800']),
+    ('delete_rule_connection_mark', ('forward', 10, '0x10'), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'connection-mark', '0x10']),
+    ('delete_rule_dscp', ('forward', 10, '10'), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'dscp', '10']),
+    ('delete_rule_dscp_exclude', ('forward', 10, '10'), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'dscp-exclude', '10']),
+    ('delete_rule_fragment_match_frag', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'fragment', 'match-frag']),
+    ('delete_rule_fragment_match_non_frag', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'fragment', 'match-non-frag']),
+    ('delete_rule_hop_limit_eq', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'hop-limit', 'eq']),
+    ('delete_rule_hop_limit_gt', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'hop-limit', 'gt']),
+    ('delete_rule_hop_limit_lt', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'hop-limit', 'lt']),
+    ('delete_rule_icmp_code', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'icmp', 'code']),
+    ('delete_rule_icmp_type', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'icmp', 'type']),
+    ('delete_rule_icmp_type_name', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'icmp', 'type-name']),
+    ('delete_rule_icmpv6_code', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'icmpv6', 'code']),
+    ('delete_rule_icmpv6_type', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'icmpv6', 'type']),
+    ('delete_rule_icmpv6_type_name', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'icmpv6', 'type-name']),
+    ('delete_rule_ipsec_match_ipsec_in', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ipsec', 'match-ipsec-in']),
+    ('delete_rule_ipsec_match_ipsec_out', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ipsec', 'match-ipsec-out']),
+    ('delete_rule_ipsec_match_none_in', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ipsec', 'match-none-in']),
+    ('delete_rule_ipsec_match_none_out', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ipsec', 'match-none-out']),
+    ('delete_rule_limit_burst', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'limit', 'burst']),
+    ('delete_rule_limit_rate', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'limit', 'rate']),
+    ('delete_rule_packet_length', ('forward', 10, '100'), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'packet-length', '100']),
+    ('delete_rule_packet_type', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'packet-type']),
+    ('delete_rule_set_connection_mark', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'set', 'connection-mark']),
+    ('delete_rule_set_hop_limit', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'set', 'hop-limit']),
+    ('delete_rule_set_tcp_mss', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'set', 'tcp-mss']),
+    ('delete_rule_set_ttl', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'set', 'ttl']),
+    ('delete_rule_tcp_mss', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'tcp', 'mss']),
+    ('delete_rule_time_startdate', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'time', 'startdate']),
+    ('delete_rule_time_starttime', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'time', 'starttime']),
+    ('delete_rule_time_stopdate', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'time', 'stopdate']),
+    ('delete_rule_time_stoptime', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'time', 'stoptime']),
+    ('delete_rule_time_weekdays', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'time', 'weekdays']),
+    ('delete_rule_ttl_eq', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ttl', 'eq']),
+    ('delete_rule_ttl_gt', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ttl', 'gt']),
+    ('delete_rule_ttl_lt', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'ttl', 'lt']),
+    ('delete_rule_vlan_ethernet_type', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'vlan', 'ethernet-type']),
 ]
 
 

@@ -55,27 +55,22 @@ _V15_ONLY_RULE_NODES: Tuple[Tuple[str, ...], ...] = (
 
 
 class BridgeFirewallMapper(BaseFeatureMapper):
-    """Mapper for bridge firewall operations"""
+    """Mapper for bridge firewall operations.
 
-    def __init__(self, version: str):
-        """Initialize with VyOS version."""
-        super().__init__(version)
-        self._is_v15 = "1.5" in version
+    This class is the 1.4 tree. The 1.5 subclass overrides the three
+    version methods. Path methods stay here and ask ``has_rule_node``.
+    """
 
     def get_supported_chains(self) -> List[str]:
         """Base chains this device has."""
-        return list(_BASE_CHAINS_V15 if self._is_v15 else _BASE_CHAINS_V14)
+        return list(_BASE_CHAINS_V14)
 
     def get_supported_rule_actions(self, chain: str) -> List[str]:
         """Rule actions this device accepts on ``chain`` (base or custom)."""
-        if self._is_v15 and chain == "prerouting":
-            return list(_PREROUTING_RULE_ACTIONS_V15)
         return list(_RULE_ACTIONS)
 
     def has_rule_node(self, *tail: str) -> bool:
         """Whether ``rule <n> <tail...>`` exists on this device."""
-        if self._is_v15:
-            return True
         return not any(tail[:len(prefix)] == prefix for prefix in _V15_ONLY_RULE_NODES)
 
     # ========================================================================
@@ -400,21 +395,42 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for ICMP code (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "icmp", "code", code)
 
+    def get_rule_icmp_code_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_icmp_code."""
+        return self._rule(chain, rule_number, "icmp", "code")
+
     def get_rule_icmp_type_name(self, chain: str, rule_number: int, type_name: str) -> List[str]:
         """Get command path for ICMP type-name (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "icmp", "type-name", type_name)
+
+    def get_rule_icmp_type_name_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_icmp_type_name."""
+        return self._rule(chain, rule_number, "icmp", "type-name")
 
     def get_rule_icmpv6_type(self, chain: str, rule_number: int, icmp_type: str) -> List[str]:
         """Get command path for ICMPv6 type (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "icmpv6", "type", icmp_type)
 
+    def get_rule_icmpv6_type_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_icmpv6_type."""
+        return self._rule(chain, rule_number, "icmpv6", "type")
+
     def get_rule_icmpv6_code(self, chain: str, rule_number: int, code: str) -> List[str]:
         """Get command path for ICMPv6 code (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "icmpv6", "code", code)
 
+    def get_rule_icmpv6_code_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_icmpv6_code."""
+        return self._rule(chain, rule_number, "icmpv6", "code")
+
     def get_rule_icmpv6_type_name(self, chain: str, rule_number: int, type_name: str) -> List[str]:
         """Get command path for ICMPv6 type-name (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "icmpv6", "type-name", type_name)
+
+
+    def get_rule_icmpv6_type_name_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_icmpv6_type_name."""
+        return self._rule(chain, rule_number, "icmpv6", "type-name")
 
     # ========================================================================
     # Rule Properties - TCP Flags (VyOS 1.5+ only)
@@ -432,6 +448,11 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for TCP MSS matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "tcp", "mss", mss)
 
+
+    def get_rule_tcp_mss_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_tcp_mss."""
+        return self._rule(chain, rule_number, "tcp", "mss")
+
     # ========================================================================
     # Rule Properties - Rate Limiting (VyOS 1.5+ only)
     # ========================================================================
@@ -440,9 +461,17 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for rate limit (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "limit", "rate", rate)
 
+    def get_rule_limit_rate_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_limit_rate."""
+        return self._rule(chain, rule_number, "limit", "rate")
+
     def get_rule_limit_burst(self, chain: str, rule_number: int, burst: str) -> List[str]:
         """Get command path for rate limit burst (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "limit", "burst", burst)
+
+    def get_rule_limit_burst_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_limit_burst."""
+        return self._rule(chain, rule_number, "limit", "burst")
 
     def get_rule_limit_path(self, chain: str, rule_number: int) -> List[str]:
         """Get command path for limit (for deletion)."""
@@ -456,9 +485,17 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for log level (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "log-options", "level", level)
 
+    def get_rule_log_options_level_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_log_options_level."""
+        return self._rule(chain, rule_number, "log-options", "level")
+
     def get_rule_log_options_group(self, chain: str, rule_number: int, group: str) -> List[str]:
         """Get command path for log group (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "log-options", "group", group)
+
+    def get_rule_log_options_group_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_log_options_group."""
+        return self._rule(chain, rule_number, "log-options", "group")
 
     def get_rule_log_options_path(self, chain: str, rule_number: int) -> List[str]:
         """Get command path for log-options (for deletion)."""
@@ -532,25 +569,50 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for TTL equal matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "ttl", "eq", value)
 
+    def get_rule_ttl_eq_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_ttl_eq."""
+        return self._rule(chain, rule_number, "ttl", "eq")
+
     def get_rule_ttl_gt(self, chain: str, rule_number: int, value: str) -> List[str]:
         """Get command path for TTL greater-than matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "ttl", "gt", value)
+
+    def get_rule_ttl_gt_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_ttl_gt."""
+        return self._rule(chain, rule_number, "ttl", "gt")
 
     def get_rule_ttl_lt(self, chain: str, rule_number: int, value: str) -> List[str]:
         """Get command path for TTL less-than matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "ttl", "lt", value)
 
+    def get_rule_ttl_lt_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_ttl_lt."""
+        return self._rule(chain, rule_number, "ttl", "lt")
+
     def get_rule_hop_limit_eq(self, chain: str, rule_number: int, value: str) -> List[str]:
         """Get command path for hop-limit equal matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "hop-limit", "eq", value)
+
+    def get_rule_hop_limit_eq_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_hop_limit_eq."""
+        return self._rule(chain, rule_number, "hop-limit", "eq")
 
     def get_rule_hop_limit_gt(self, chain: str, rule_number: int, value: str) -> List[str]:
         """Get command path for hop-limit greater-than matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "hop-limit", "gt", value)
 
+    def get_rule_hop_limit_gt_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_hop_limit_gt."""
+        return self._rule(chain, rule_number, "hop-limit", "gt")
+
     def get_rule_hop_limit_lt(self, chain: str, rule_number: int, value: str) -> List[str]:
         """Get command path for hop-limit less-than matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "hop-limit", "lt", value)
+
+
+    def get_rule_hop_limit_lt_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_hop_limit_lt."""
+        return self._rule(chain, rule_number, "hop-limit", "lt")
 
     # ========================================================================
     # Rule Properties - Packet Type (VyOS 1.5+ only)
@@ -559,6 +621,10 @@ class BridgeFirewallMapper(BaseFeatureMapper):
     def get_rule_packet_type(self, chain: str, rule_number: int, pkt_type: str) -> List[str]:
         """Get command path for packet type matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "packet-type", pkt_type)
+
+    def get_rule_packet_type_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_packet_type."""
+        return self._rule(chain, rule_number, "packet-type")
 
     def get_rule_packet_length(self, chain: str, rule_number: int, length: str) -> List[str]:
         """Get command path for packet length matching (VyOS 1.5+ only)."""
@@ -572,21 +638,41 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for time start date (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "time", "startdate", date)
 
+    def get_rule_time_startdate_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_time_startdate."""
+        return self._rule(chain, rule_number, "time", "startdate")
+
     def get_rule_time_stopdate(self, chain: str, rule_number: int, date: str) -> List[str]:
         """Get command path for time stop date (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "time", "stopdate", date)
+
+    def get_rule_time_stopdate_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_time_stopdate."""
+        return self._rule(chain, rule_number, "time", "stopdate")
 
     def get_rule_time_starttime(self, chain: str, rule_number: int, time: str) -> List[str]:
         """Get command path for time start time (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "time", "starttime", time)
 
+    def get_rule_time_starttime_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_time_starttime."""
+        return self._rule(chain, rule_number, "time", "starttime")
+
     def get_rule_time_stoptime(self, chain: str, rule_number: int, time: str) -> List[str]:
         """Get command path for time stop time (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "time", "stoptime", time)
 
+    def get_rule_time_stoptime_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_time_stoptime."""
+        return self._rule(chain, rule_number, "time", "stoptime")
+
     def get_rule_time_weekdays(self, chain: str, rule_number: int, weekdays: str) -> List[str]:
         """Get command path for time weekdays (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "time", "weekdays", weekdays)
+
+    def get_rule_time_weekdays_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_time_weekdays."""
+        return self._rule(chain, rule_number, "time", "weekdays")
 
     def get_rule_time_path(self, chain: str, rule_number: int) -> List[str]:
         """Get command path for time (for deletion)."""
@@ -600,6 +686,11 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for queue target (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "queue", queue)
 
+
+    def get_rule_queue_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_queue."""
+        return self._rule(chain, rule_number, "queue")
+
     # ========================================================================
     # Rule Properties - VLAN Ethernet Type (VyOS 1.5+ only)
     # ========================================================================
@@ -607,6 +698,11 @@ class BridgeFirewallMapper(BaseFeatureMapper):
     def get_rule_vlan_ethernet_type(self, chain: str, rule_number: int, eth_type: str) -> List[str]:
         """Get command path for VLAN ethernet type matching (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "vlan", "ethernet-type", eth_type)
+
+
+    def get_rule_vlan_ethernet_type_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_vlan_ethernet_type."""
+        return self._rule(chain, rule_number, "vlan", "ethernet-type")
 
     # ========================================================================
     # Rule Properties - Packet Modifications (VyOS 1.5+ only)
@@ -632,17 +728,33 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Get command path for setting connection mark (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "set", "connection-mark", mark)
 
+    def get_rule_set_connection_mark_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_set_connection_mark."""
+        return self._rule(chain, rule_number, "set", "connection-mark")
+
     def get_rule_set_ttl(self, chain: str, rule_number: int, ttl: str) -> List[str]:
         """Get command path for setting TTL (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "set", "ttl", ttl)
+
+    def get_rule_set_ttl_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_set_ttl."""
+        return self._rule(chain, rule_number, "set", "ttl")
 
     def get_rule_set_hop_limit(self, chain: str, rule_number: int, hop_limit: str) -> List[str]:
         """Get command path for setting hop-limit (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "set", "hop-limit", hop_limit)
 
+    def get_rule_set_hop_limit_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_set_hop_limit."""
+        return self._rule(chain, rule_number, "set", "hop-limit")
+
     def get_rule_set_tcp_mss(self, chain: str, rule_number: int, mss: str) -> List[str]:
         """Get command path for setting TCP MSS (VyOS 1.5+ only)."""
         return self._rule(chain, rule_number, "set", "tcp-mss", mss)
+
+    def get_rule_set_tcp_mss_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_set_tcp_mss."""
+        return self._rule(chain, rule_number, "set", "tcp-mss")
 
     def get_rule_set_vlan_priority(self, chain: str, rule_number: int, priority: str) -> List[str]:
         """Get command path for setting VLAN priority (VyOS 1.5+ only)."""

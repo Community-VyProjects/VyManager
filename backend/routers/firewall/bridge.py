@@ -9,7 +9,9 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
+import inspect
 from session_vyos_service import get_session_vyos_service
+from batch_dispatch import resolve_batch_method
 from vyos_builders.firewall import BridgeFirewallBatchBuilder
 from vyos_mappers import CommandMapperRegistry
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
@@ -369,6 +371,8 @@ async def get_bridge_config(request: Request, refresh: bool = False):
             total_rules=total_rules
         )
 
+    except HTTPException:
+        raise
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -688,777 +692,53 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
         # The mapper raises ValueError (400 below) for a base chain this
         # device does not have.
 
-        # Process each operation
-        for operation in request.operations:
-            op_type = operation.op
-            value = operation.value
+        # ValueError is a missing leaf. A short call is a missing value.
+        # Neither wraps execute_batch: an empty batch stays a 500.
+        value_params = (
+            "value", "description", "action", "mac", "vlan_id", "priority",
+            "interface", "group", "eth_type", "target", "dscp", "mark",
+            "protocol", "address", "port", "icmp_type", "code", "type_name",
+            "flag", "mss", "rate", "burst", "level", "pkt_type", "length",
+            "date", "time", "weekdays", "queue", "ttl", "hop_limit",
+        )
+        try:
+            for operation in request.operations:
+                method = resolve_batch_method(batch, operation.op)
+                sig = inspect.signature(method)
+                params = list(sig.parameters.keys())
+                required = [
+                    name
+                    for name, param in sig.parameters.items()
+                    if param.default is inspect.Parameter.empty
+                ]
+                if "rule_number" in required and rule_number is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="rule_number required for rule operations",
+                    )
+                if any(name in required for name in value_params) and not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{operation.op} requires a value",
+                    )
+                args = []
+                if "chain" in params or "chain_name" in params:
+                    args.append(chain)
+                if "rule_number" in params and rule_number is not None:
+                    args.append(rule_number)
+                if operation.value and any(name in params for name in value_params):
+                    args.append(operation.value)
+                try:
+                    method(*args)
+                except TypeError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{operation.op} requires a value",
+                    )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
-            if not op_type:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid operation: {operation}. Must have 'op' key"
-                )
-
-            # Chain operations (don't require rule_number)
-            if op_type == "set_chain":
-                batch.set_chain(chain)
-            elif op_type == "delete_chain":
-                batch.delete_chain(chain)
-            elif op_type == "set_chain_default_action":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_chain_default_action(chain, value)
-            elif op_type == "delete_chain_default_action":
-                batch.delete_chain_default_action(chain)
-            elif op_type == "set_chain_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_chain_description(chain, value)
-            elif op_type == "delete_chain_description":
-                batch.delete_chain_description(chain)
-
-            # Rule operations (require rule_number)
-            elif op_type == "set_rule":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule(chain, rule_number)
-            elif op_type == "delete_rule":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule(chain, rule_number)
-            elif op_type == "set_rule_action":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_action(chain, rule_number, value)
-            elif op_type == "delete_rule_action":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_action(chain, rule_number)
-            elif op_type == "set_rule_description":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_description(chain, rule_number, value)
-            elif op_type == "delete_rule_description":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_description(chain, rule_number)
-            elif op_type == "set_rule_disable":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_disable(chain, rule_number)
-            elif op_type == "delete_rule_disable":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_disable(chain, rule_number)
-            elif op_type == "set_rule_log":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_log(chain, rule_number)
-            elif op_type == "delete_rule_log":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_log(chain, rule_number)
-
-            # Source MAC
-            elif op_type == "set_rule_source_mac":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_source_mac(chain, rule_number, value)
-            elif op_type == "delete_rule_source_mac":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_source_mac(chain, rule_number)
-            elif op_type == "delete_rule_source":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_source(chain, rule_number)
-
-            # Destination MAC
-            elif op_type == "set_rule_destination_mac":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_destination_mac(chain, rule_number, value)
-            elif op_type == "delete_rule_destination_mac":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_destination_mac(chain, rule_number)
-            elif op_type == "delete_rule_destination":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_destination(chain, rule_number)
-
-            # VLAN
-            elif op_type == "set_rule_vlan_id":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_vlan_id(chain, rule_number, value)
-            elif op_type == "delete_rule_vlan_id":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_vlan_id(chain, rule_number)
-            elif op_type == "set_rule_vlan_priority":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_vlan_priority(chain, rule_number, value)
-            elif op_type == "delete_rule_vlan_priority":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_vlan_priority(chain, rule_number)
-            elif op_type == "delete_rule_vlan":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_vlan(chain, rule_number)
-
-            # Interface
-            elif op_type == "set_rule_inbound_interface":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_inbound_interface(chain, rule_number, value)
-            elif op_type == "delete_rule_inbound_interface":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_inbound_interface(chain, rule_number)
-            elif op_type == "set_rule_inbound_interface_group":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_inbound_interface_group(chain, rule_number, value)
-            elif op_type == "delete_rule_inbound_interface_group":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_inbound_interface_group(chain, rule_number)
-            elif op_type == "set_rule_outbound_interface":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_outbound_interface(chain, rule_number, value)
-            elif op_type == "delete_rule_outbound_interface":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_outbound_interface(chain, rule_number)
-            elif op_type == "set_rule_outbound_interface_group":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_outbound_interface_group(chain, rule_number, value)
-            elif op_type == "delete_rule_outbound_interface_group":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_outbound_interface_group(chain, rule_number)
-
-            # Ethernet Type (VyOS 1.5+ only)
-            elif op_type == "set_rule_ethernet_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_ethernet_type(chain, rule_number, value)
-            elif op_type == "delete_rule_ethernet_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_ethernet_type(chain, rule_number)
-
-            # Jump Target
-            elif op_type == "set_rule_jump_target":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_jump_target(chain, rule_number, value)
-            elif op_type == "delete_rule_jump_target":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_jump_target(chain, rule_number)
-
-            # Set options (VyOS 1.5+ only)
-            elif op_type == "set_rule_set_dscp":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_set_dscp(chain, rule_number, value)
-            elif op_type == "delete_rule_set_dscp":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set_dscp(chain, rule_number)
-            elif op_type == "set_rule_set_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_set_mark(chain, rule_number, value)
-            elif op_type == "delete_rule_set_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set_mark(chain, rule_number)
-            elif op_type == "set_rule_set_vlan_priority":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_set_vlan_priority(chain, rule_number, value)
-            elif op_type == "delete_rule_set_vlan_priority":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set_vlan_priority(chain, rule_number)
-            elif op_type == "delete_rule_set":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set(chain, rule_number)
-
-            # Protocol (VyOS 1.5+ only)
-            elif op_type == "set_rule_protocol":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_protocol(chain, rule_number, value)
-            elif op_type == "delete_rule_protocol":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_protocol(chain, rule_number)
-
-            # Source/Destination IP Address (VyOS 1.5+ only)
-            elif op_type == "set_rule_source_address":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_source_address(chain, rule_number, value)
-            elif op_type == "delete_rule_source_address":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_source_address(chain, rule_number)
-            elif op_type == "set_rule_destination_address":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_destination_address(chain, rule_number, value)
-            elif op_type == "delete_rule_destination_address":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_destination_address(chain, rule_number)
-
-            # Source/Destination Port (VyOS 1.5+ only)
-            elif op_type == "set_rule_source_port":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_source_port(chain, rule_number, value)
-            elif op_type == "delete_rule_source_port":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_source_port(chain, rule_number)
-            elif op_type == "set_rule_destination_port":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_destination_port(chain, rule_number, value)
-            elif op_type == "delete_rule_destination_port":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_destination_port(chain, rule_number)
-
-            # Source Groups (VyOS 1.5+ only)
-            elif op_type == "set_rule_source_group_address":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_source_group_address(chain, rule_number, value)
-            elif op_type == "set_rule_source_group_network":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_source_group_network(chain, rule_number, value)
-            elif op_type == "set_rule_source_group_port":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_source_group_port(chain, rule_number, value)
-            elif op_type == "set_rule_source_group_mac":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_source_group_mac(chain, rule_number, value)
-
-            # Destination Groups (VyOS 1.5+ only)
-            elif op_type == "set_rule_destination_group_address":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_destination_group_address(chain, rule_number, value)
-            elif op_type == "set_rule_destination_group_network":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_destination_group_network(chain, rule_number, value)
-            elif op_type == "set_rule_destination_group_port":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_destination_group_port(chain, rule_number, value)
-            elif op_type == "set_rule_destination_group_mac":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_destination_group_mac(chain, rule_number, value)
-
-            # ICMP (VyOS 1.5+ only)
-            elif op_type == "set_rule_icmp_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_icmp_type(chain, rule_number, value)
-            elif op_type == "set_rule_icmp_code":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_icmp_code(chain, rule_number, value)
-            elif op_type == "set_rule_icmp_type_name":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_icmp_type_name(chain, rule_number, value)
-
-            # ICMPv6 (VyOS 1.5+ only)
-            elif op_type == "set_rule_icmpv6_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_icmpv6_type(chain, rule_number, value)
-            elif op_type == "set_rule_icmpv6_code":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_icmpv6_code(chain, rule_number, value)
-            elif op_type == "set_rule_icmpv6_type_name":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_icmpv6_type_name(chain, rule_number, value)
-
-            # TCP Flags (VyOS 1.5+ only)
-            elif op_type == "set_rule_tcp_flags":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_tcp_flags(chain, rule_number, value)
-            elif op_type == "set_rule_tcp_flags_not":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_tcp_flags_not(chain, rule_number, value)
-            elif op_type == "set_rule_tcp_mss":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_tcp_mss(chain, rule_number, value)
-
-            # Rate Limiting (VyOS 1.5+ only)
-            elif op_type == "set_rule_limit_rate":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_limit_rate(chain, rule_number, value)
-            elif op_type == "set_rule_limit_burst":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_limit_burst(chain, rule_number, value)
-            elif op_type == "delete_rule_limit_rate":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_limit(chain, rule_number)
-            elif op_type == "delete_rule_limit_burst":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_limit(chain, rule_number)
-
-            # Log Options (VyOS 1.5+ only)
-            elif op_type == "set_rule_log_options_level":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_log_options_level(chain, rule_number, value)
-            elif op_type == "set_rule_log_options_group":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_log_options_group(chain, rule_number, value)
-            elif op_type == "delete_rule_log_options_level":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_log_options(chain, rule_number)
-            elif op_type == "delete_rule_log_options_group":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_log_options(chain, rule_number)
-
-            # Mark Matching (VyOS 1.5+ only)
-            elif op_type == "set_rule_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_mark(chain, rule_number, value)
-            elif op_type == "delete_rule_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_mark(chain, rule_number)
-            elif op_type == "set_rule_connection_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_connection_mark(chain, rule_number, value)
-            elif op_type == "delete_rule_connection_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_mark(chain, rule_number)
-
-            # DSCP Matching (VyOS 1.5+ only)
-            elif op_type == "set_rule_dscp":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_dscp(chain, rule_number, value)
-            elif op_type == "delete_rule_dscp":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_mark(chain, rule_number)
-            elif op_type == "set_rule_dscp_exclude":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_dscp_exclude(chain, rule_number, value)
-            elif op_type == "delete_rule_dscp_exclude":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_mark(chain, rule_number)
-
-            # Fragment Matching (VyOS 1.5+ only)
-            elif op_type == "set_rule_fragment_match_frag":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_fragment_match_frag(chain, rule_number)
-            elif op_type == "delete_rule_fragment_match_frag":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_fragment_match_frag(chain, rule_number)
-            elif op_type == "set_rule_fragment_match_non_frag":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_fragment_match_non_frag(chain, rule_number)
-            elif op_type == "delete_rule_fragment_match_non_frag":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_fragment_match_non_frag(chain, rule_number)
-
-            # IPsec Matching (VyOS 1.5+ only)
-            elif op_type == "set_rule_ipsec_match_ipsec_in":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_ipsec_in(chain, rule_number)
-            elif op_type == "delete_rule_ipsec_match_ipsec_in":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_ipsec_in(chain, rule_number)
-            elif op_type == "set_rule_ipsec_match_ipsec_out":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_ipsec_out(chain, rule_number)
-            elif op_type == "delete_rule_ipsec_match_ipsec_out":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_ipsec_out(chain, rule_number)
-            elif op_type == "set_rule_ipsec_match_none_in":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_none_in(chain, rule_number)
-            elif op_type == "delete_rule_ipsec_match_none_in":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_none_in(chain, rule_number)
-            elif op_type == "set_rule_ipsec_match_none_out":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_none_out(chain, rule_number)
-            elif op_type == "delete_rule_ipsec_match_none_out":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ipsec_match_none_out(chain, rule_number)
-
-            # TTL/Hop-Limit Matching (VyOS 1.5+ only)
-            elif op_type == "set_rule_ttl_eq":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_ttl_eq(chain, rule_number, value)
-            elif op_type == "delete_rule_ttl_eq":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ttl_eq(chain, rule_number, "0")
-            elif op_type == "set_rule_ttl_gt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_ttl_gt(chain, rule_number, value)
-            elif op_type == "delete_rule_ttl_gt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ttl_gt(chain, rule_number, "0")
-            elif op_type == "set_rule_ttl_lt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_ttl_lt(chain, rule_number, value)
-            elif op_type == "delete_rule_ttl_lt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_ttl_lt(chain, rule_number, "0")
-            elif op_type == "set_rule_hop_limit_eq":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_hop_limit_eq(chain, rule_number, value)
-            elif op_type == "delete_rule_hop_limit_eq":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_hop_limit_eq(chain, rule_number, "0")
-            elif op_type == "set_rule_hop_limit_gt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_hop_limit_gt(chain, rule_number, value)
-            elif op_type == "delete_rule_hop_limit_gt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_hop_limit_gt(chain, rule_number, "0")
-            elif op_type == "set_rule_hop_limit_lt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_hop_limit_lt(chain, rule_number, value)
-            elif op_type == "delete_rule_hop_limit_lt":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_hop_limit_lt(chain, rule_number, "0")
-
-            # Packet Type (VyOS 1.5+ only)
-            elif op_type == "set_rule_packet_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_packet_type(chain, rule_number, value)
-            elif op_type == "delete_rule_packet_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_packet_type(chain, rule_number, "")
-            elif op_type == "set_rule_packet_length":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_packet_length(chain, rule_number, value)
-            elif op_type == "delete_rule_packet_length":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_packet_length(chain, rule_number, "")
-
-            # Time-based Rules (VyOS 1.5+ only)
-            elif op_type == "set_rule_time_startdate":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_time_startdate(chain, rule_number, value)
-            elif op_type == "delete_rule_time_startdate":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_time(chain, rule_number)
-            elif op_type == "set_rule_time_stopdate":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_time_stopdate(chain, rule_number, value)
-            elif op_type == "delete_rule_time_stopdate":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_time(chain, rule_number)
-            elif op_type == "set_rule_time_starttime":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_time_starttime(chain, rule_number, value)
-            elif op_type == "delete_rule_time_starttime":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_time(chain, rule_number)
-            elif op_type == "set_rule_time_stoptime":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_time_stoptime(chain, rule_number, value)
-            elif op_type == "delete_rule_time_stoptime":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_time(chain, rule_number)
-            elif op_type == "set_rule_time_weekdays":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_time_weekdays(chain, rule_number, value)
-            elif op_type == "delete_rule_time_weekdays":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_time(chain, rule_number)
-
-            # Queue Action (VyOS 1.5+ only)
-            elif op_type == "set_rule_queue":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_queue(chain, rule_number, value)
-            elif op_type == "delete_rule_queue":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_queue(chain, rule_number, "")
-
-            # VLAN Ethernet Type (VyOS 1.5+ only)
-            elif op_type == "set_rule_vlan_ethernet_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_vlan_ethernet_type(chain, rule_number, value)
-            elif op_type == "delete_rule_vlan_ethernet_type":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.set_rule_vlan_ethernet_type(chain, rule_number, "")
-
-            # Additional Set operations (VyOS 1.5+ only)
-            elif op_type == "set_rule_set_connection_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_set_connection_mark(chain, rule_number, value)
-            elif op_type == "delete_rule_set_connection_mark":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set(chain, rule_number)
-            elif op_type == "set_rule_set_ttl":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_set_ttl(chain, rule_number, value)
-            elif op_type == "delete_rule_set_ttl":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set(chain, rule_number)
-            elif op_type == "set_rule_set_hop_limit":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_set_hop_limit(chain, rule_number, value)
-            elif op_type == "delete_rule_set_hop_limit":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set(chain, rule_number)
-            elif op_type == "set_rule_set_tcp_mss":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_rule_set_tcp_mss(chain, rule_number, value)
-            elif op_type == "delete_rule_set_tcp_mss":
-                if rule_number is None:
-                    raise HTTPException(status_code=400, detail="rule_number required for rule operations")
-                batch.delete_rule_set(chain, rule_number)
-
-            # Custom chain operations (VyOS 1.5+ only)
-            elif op_type == "set_custom_chain":
-                batch.set_custom_chain(chain)
-            elif op_type == "delete_custom_chain":
-                batch.delete_custom_chain(chain)
-            elif op_type == "set_custom_chain_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_custom_chain_description(chain, value)
-            elif op_type == "delete_custom_chain_description":
-                batch.delete_custom_chain_description(chain)
-            elif op_type == "set_custom_chain_default_action":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_custom_chain_default_action(chain, value)
-            elif op_type == "delete_custom_chain_default_action":
-                batch.delete_custom_chain_default_action(chain)
-
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unsupported operation: {op_type}"
-                )
-
-        # Execute the batch
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         # Handle empty string result
         result_data = response.result
@@ -1477,8 +757,6 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
         raise
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -1517,233 +795,236 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
 
         chain = request.chain
 
-        # Step 1: Delete all rules in reverse order (to preserve indices)
-        rules_to_delete = sorted([item.old_number for item in request.rules], reverse=True)
-        for old_number in rules_to_delete:
-            batch.delete_rule(chain, old_number)
+        try:
+            # Step 1: Delete all rules in reverse order (to preserve indices)
+            rules_to_delete = sorted([item.old_number for item in request.rules], reverse=True)
+            for old_number in rules_to_delete:
+                batch.delete_rule(chain, old_number)
 
-        # Step 2: Recreate rules with new numbers
-        for item in request.rules:
-            rule = item.rule_data
-            new_number = item.new_number
+            # Step 2: Recreate rules with new numbers
+            for item in request.rules:
+                rule = item.rule_data
+                new_number = item.new_number
 
-            # Create the rule
-            batch.set_rule(chain, new_number)
+                # Create the rule
+                batch.set_rule(chain, new_number)
 
-            # Set action
-            if rule.action:
-                batch.set_rule_action(chain, new_number, rule.action)
+                # Set action
+                if rule.action:
+                    batch.set_rule_action(chain, new_number, rule.action)
 
-            # Set description
-            if rule.description:
-                batch.set_rule_description(chain, new_number, rule.description)
+                # Set description
+                if rule.description:
+                    batch.set_rule_description(chain, new_number, rule.description)
 
-            # Set log
-            if rule.log:
-                batch.set_rule_log(chain, new_number)
+                # Set log
+                if rule.log:
+                    batch.set_rule_log(chain, new_number)
 
-            # Set disabled
-            if rule.disabled:
-                batch.set_rule_disable(chain, new_number)
+                # Set disabled
+                if rule.disabled:
+                    batch.set_rule_disable(chain, new_number)
 
-            # Set source MAC
-            if rule.source_mac:
-                batch.set_rule_source_mac(chain, new_number, rule.source_mac)
+                # Set source MAC
+                if rule.source_mac:
+                    batch.set_rule_source_mac(chain, new_number, rule.source_mac)
 
-            # Set destination MAC
-            if rule.destination_mac:
-                batch.set_rule_destination_mac(chain, new_number, rule.destination_mac)
+                # Set destination MAC
+                if rule.destination_mac:
+                    batch.set_rule_destination_mac(chain, new_number, rule.destination_mac)
 
-            # Set VLAN ID
-            if rule.vlan_id:
-                batch.set_rule_vlan_id(chain, new_number, rule.vlan_id)
+                # Set VLAN ID
+                if rule.vlan_id:
+                    batch.set_rule_vlan_id(chain, new_number, rule.vlan_id)
 
-            # Set VLAN priority
-            if rule.vlan_priority:
-                batch.set_rule_vlan_priority(chain, new_number, rule.vlan_priority)
+                # Set VLAN priority
+                if rule.vlan_priority:
+                    batch.set_rule_vlan_priority(chain, new_number, rule.vlan_priority)
 
-            # Set inbound interface
-            if rule.inbound_interface:
-                batch.set_rule_inbound_interface(chain, new_number, rule.inbound_interface)
+                # Set inbound interface
+                if rule.inbound_interface:
+                    batch.set_rule_inbound_interface(chain, new_number, rule.inbound_interface)
 
-            # Set inbound interface group
-            if rule.inbound_interface_group:
-                batch.set_rule_inbound_interface_group(chain, new_number, rule.inbound_interface_group)
+                # Set inbound interface group
+                if rule.inbound_interface_group:
+                    batch.set_rule_inbound_interface_group(chain, new_number, rule.inbound_interface_group)
 
-            # Set outbound interface
-            if rule.outbound_interface:
-                batch.set_rule_outbound_interface(chain, new_number, rule.outbound_interface)
+                # Set outbound interface
+                if rule.outbound_interface:
+                    batch.set_rule_outbound_interface(chain, new_number, rule.outbound_interface)
 
-            # Set outbound interface group
-            if rule.outbound_interface_group:
-                batch.set_rule_outbound_interface_group(chain, new_number, rule.outbound_interface_group)
+                # Set outbound interface group
+                if rule.outbound_interface_group:
+                    batch.set_rule_outbound_interface_group(chain, new_number, rule.outbound_interface_group)
 
-            # Source/Destination addresses (VyOS 1.5+)
-            if rule.source_address:
-                batch.set_rule_source_address(chain, new_number, rule.source_address)
-            if rule.destination_address:
-                batch.set_rule_destination_address(chain, new_number, rule.destination_address)
+                # Source/Destination addresses (VyOS 1.5+)
+                if rule.source_address:
+                    batch.set_rule_source_address(chain, new_number, rule.source_address)
+                if rule.destination_address:
+                    batch.set_rule_destination_address(chain, new_number, rule.destination_address)
 
-            # Source/Destination ports (VyOS 1.5+)
-            if rule.source_port:
-                batch.set_rule_source_port(chain, new_number, rule.source_port)
-            if rule.destination_port:
-                batch.set_rule_destination_port(chain, new_number, rule.destination_port)
+                # Source/Destination ports (VyOS 1.5+)
+                if rule.source_port:
+                    batch.set_rule_source_port(chain, new_number, rule.source_port)
+                if rule.destination_port:
+                    batch.set_rule_destination_port(chain, new_number, rule.destination_port)
 
-            # Source groups (VyOS 1.5+)
-            if rule.source_group_address:
-                batch.set_rule_source_group_address(chain, new_number, rule.source_group_address)
-            if rule.source_group_network:
-                batch.set_rule_source_group_network(chain, new_number, rule.source_group_network)
-            if rule.source_group_port:
-                batch.set_rule_source_group_port(chain, new_number, rule.source_group_port)
-            if rule.source_group_mac:
-                batch.set_rule_source_group_mac(chain, new_number, rule.source_group_mac)
+                # Source groups (VyOS 1.5+)
+                if rule.source_group_address:
+                    batch.set_rule_source_group_address(chain, new_number, rule.source_group_address)
+                if rule.source_group_network:
+                    batch.set_rule_source_group_network(chain, new_number, rule.source_group_network)
+                if rule.source_group_port:
+                    batch.set_rule_source_group_port(chain, new_number, rule.source_group_port)
+                if rule.source_group_mac:
+                    batch.set_rule_source_group_mac(chain, new_number, rule.source_group_mac)
 
-            # Destination groups (VyOS 1.5+)
-            if rule.destination_group_address:
-                batch.set_rule_destination_group_address(chain, new_number, rule.destination_group_address)
-            if rule.destination_group_network:
-                batch.set_rule_destination_group_network(chain, new_number, rule.destination_group_network)
-            if rule.destination_group_port:
-                batch.set_rule_destination_group_port(chain, new_number, rule.destination_group_port)
-            if rule.destination_group_mac:
-                batch.set_rule_destination_group_mac(chain, new_number, rule.destination_group_mac)
+                # Destination groups (VyOS 1.5+)
+                if rule.destination_group_address:
+                    batch.set_rule_destination_group_address(chain, new_number, rule.destination_group_address)
+                if rule.destination_group_network:
+                    batch.set_rule_destination_group_network(chain, new_number, rule.destination_group_network)
+                if rule.destination_group_port:
+                    batch.set_rule_destination_group_port(chain, new_number, rule.destination_group_port)
+                if rule.destination_group_mac:
+                    batch.set_rule_destination_group_mac(chain, new_number, rule.destination_group_mac)
 
-            # VLAN ethernet type
-            if rule.vlan_ethernet_type:
-                batch.set_rule_vlan_ethernet_type(chain, new_number, rule.vlan_ethernet_type)
+                # VLAN ethernet type
+                if rule.vlan_ethernet_type:
+                    batch.set_rule_vlan_ethernet_type(chain, new_number, rule.vlan_ethernet_type)
 
-            # Protocol (VyOS 1.5+)
-            if rule.protocol:
-                batch.set_rule_protocol(chain, new_number, rule.protocol)
+                # Protocol (VyOS 1.5+)
+                if rule.protocol:
+                    batch.set_rule_protocol(chain, new_number, rule.protocol)
 
-            # Ethernet type
-            if rule.ethernet_type:
-                batch.set_rule_ethernet_type(chain, new_number, rule.ethernet_type)
+                # Ethernet type
+                if rule.ethernet_type:
+                    batch.set_rule_ethernet_type(chain, new_number, rule.ethernet_type)
 
-            # ICMP (VyOS 1.5+)
-            if rule.icmp_type:
-                batch.set_rule_icmp_type(chain, new_number, rule.icmp_type)
-            if rule.icmp_code:
-                batch.set_rule_icmp_code(chain, new_number, rule.icmp_code)
-            if rule.icmp_type_name:
-                batch.set_rule_icmp_type_name(chain, new_number, rule.icmp_type_name)
+                # ICMP (VyOS 1.5+)
+                if rule.icmp_type:
+                    batch.set_rule_icmp_type(chain, new_number, rule.icmp_type)
+                if rule.icmp_code:
+                    batch.set_rule_icmp_code(chain, new_number, rule.icmp_code)
+                if rule.icmp_type_name:
+                    batch.set_rule_icmp_type_name(chain, new_number, rule.icmp_type_name)
 
-            # ICMPv6 (VyOS 1.5+)
-            if rule.icmpv6_type:
-                batch.set_rule_icmpv6_type(chain, new_number, rule.icmpv6_type)
-            if rule.icmpv6_code:
-                batch.set_rule_icmpv6_code(chain, new_number, rule.icmpv6_code)
-            if rule.icmpv6_type_name:
-                batch.set_rule_icmpv6_type_name(chain, new_number, rule.icmpv6_type_name)
+                # ICMPv6 (VyOS 1.5+)
+                if rule.icmpv6_type:
+                    batch.set_rule_icmpv6_type(chain, new_number, rule.icmpv6_type)
+                if rule.icmpv6_code:
+                    batch.set_rule_icmpv6_code(chain, new_number, rule.icmpv6_code)
+                if rule.icmpv6_type_name:
+                    batch.set_rule_icmpv6_type_name(chain, new_number, rule.icmpv6_type_name)
 
-            # TCP (VyOS 1.5+)
-            if rule.tcp_flags:
-                batch.set_rule_tcp_flags(chain, new_number, rule.tcp_flags)
-            if rule.tcp_flags_not:
-                batch.set_rule_tcp_flags_not(chain, new_number, rule.tcp_flags_not)
-            if rule.tcp_mss:
-                batch.set_rule_tcp_mss(chain, new_number, rule.tcp_mss)
+                # TCP (VyOS 1.5+)
+                if rule.tcp_flags:
+                    batch.set_rule_tcp_flags(chain, new_number, rule.tcp_flags)
+                if rule.tcp_flags_not:
+                    batch.set_rule_tcp_flags_not(chain, new_number, rule.tcp_flags_not)
+                if rule.tcp_mss:
+                    batch.set_rule_tcp_mss(chain, new_number, rule.tcp_mss)
 
-            # Rate limit (VyOS 1.5+)
-            if rule.limit_rate:
-                batch.set_rule_limit_rate(chain, new_number, rule.limit_rate)
-            if rule.limit_burst:
-                batch.set_rule_limit_burst(chain, new_number, rule.limit_burst)
+                # Rate limit (VyOS 1.5+)
+                if rule.limit_rate:
+                    batch.set_rule_limit_rate(chain, new_number, rule.limit_rate)
+                if rule.limit_burst:
+                    batch.set_rule_limit_burst(chain, new_number, rule.limit_burst)
 
-            # Time-based rules (VyOS 1.5+)
-            if rule.time_startdate:
-                batch.set_rule_time_startdate(chain, new_number, rule.time_startdate)
-            if rule.time_stopdate:
-                batch.set_rule_time_stopdate(chain, new_number, rule.time_stopdate)
-            if rule.time_starttime:
-                batch.set_rule_time_starttime(chain, new_number, rule.time_starttime)
-            if rule.time_stoptime:
-                batch.set_rule_time_stoptime(chain, new_number, rule.time_stoptime)
-            if rule.time_weekdays:
-                batch.set_rule_time_weekdays(chain, new_number, rule.time_weekdays)
+                # Time-based rules (VyOS 1.5+)
+                if rule.time_startdate:
+                    batch.set_rule_time_startdate(chain, new_number, rule.time_startdate)
+                if rule.time_stopdate:
+                    batch.set_rule_time_stopdate(chain, new_number, rule.time_stopdate)
+                if rule.time_starttime:
+                    batch.set_rule_time_starttime(chain, new_number, rule.time_starttime)
+                if rule.time_stoptime:
+                    batch.set_rule_time_stoptime(chain, new_number, rule.time_stoptime)
+                if rule.time_weekdays:
+                    batch.set_rule_time_weekdays(chain, new_number, rule.time_weekdays)
 
-            # Mark matching (VyOS 1.5+)
-            if rule.mark:
-                batch.set_rule_mark(chain, new_number, rule.mark)
-            if rule.connection_mark:
-                batch.set_rule_connection_mark(chain, new_number, rule.connection_mark)
+                # Mark matching (VyOS 1.5+)
+                if rule.mark:
+                    batch.set_rule_mark(chain, new_number, rule.mark)
+                if rule.connection_mark:
+                    batch.set_rule_connection_mark(chain, new_number, rule.connection_mark)
 
-            # DSCP matching (VyOS 1.5+)
-            if rule.dscp:
-                batch.set_rule_dscp(chain, new_number, rule.dscp)
-            if rule.dscp_exclude:
-                batch.set_rule_dscp_exclude(chain, new_number, rule.dscp_exclude)
+                # DSCP matching (VyOS 1.5+)
+                if rule.dscp:
+                    batch.set_rule_dscp(chain, new_number, rule.dscp)
+                if rule.dscp_exclude:
+                    batch.set_rule_dscp_exclude(chain, new_number, rule.dscp_exclude)
 
-            # TTL/Hop-limit (VyOS 1.5+)
-            if rule.ttl_eq:
-                batch.set_rule_ttl_eq(chain, new_number, rule.ttl_eq)
-            if rule.ttl_gt:
-                batch.set_rule_ttl_gt(chain, new_number, rule.ttl_gt)
-            if rule.ttl_lt:
-                batch.set_rule_ttl_lt(chain, new_number, rule.ttl_lt)
-            if rule.hop_limit_eq:
-                batch.set_rule_hop_limit_eq(chain, new_number, rule.hop_limit_eq)
-            if rule.hop_limit_gt:
-                batch.set_rule_hop_limit_gt(chain, new_number, rule.hop_limit_gt)
-            if rule.hop_limit_lt:
-                batch.set_rule_hop_limit_lt(chain, new_number, rule.hop_limit_lt)
+                # TTL/Hop-limit (VyOS 1.5+)
+                if rule.ttl_eq:
+                    batch.set_rule_ttl_eq(chain, new_number, rule.ttl_eq)
+                if rule.ttl_gt:
+                    batch.set_rule_ttl_gt(chain, new_number, rule.ttl_gt)
+                if rule.ttl_lt:
+                    batch.set_rule_ttl_lt(chain, new_number, rule.ttl_lt)
+                if rule.hop_limit_eq:
+                    batch.set_rule_hop_limit_eq(chain, new_number, rule.hop_limit_eq)
+                if rule.hop_limit_gt:
+                    batch.set_rule_hop_limit_gt(chain, new_number, rule.hop_limit_gt)
+                if rule.hop_limit_lt:
+                    batch.set_rule_hop_limit_lt(chain, new_number, rule.hop_limit_lt)
 
-            # Packet fields (VyOS 1.5+)
-            if rule.packet_type:
-                batch.set_rule_packet_type(chain, new_number, rule.packet_type)
-            if rule.packet_length:
-                batch.set_rule_packet_length(chain, new_number, rule.packet_length)
+                # Packet fields (VyOS 1.5+)
+                if rule.packet_type:
+                    batch.set_rule_packet_type(chain, new_number, rule.packet_type)
+                if rule.packet_length:
+                    batch.set_rule_packet_length(chain, new_number, rule.packet_length)
 
-            # Fragment matching (VyOS 1.5+)
-            if rule.fragment_match_frag:
-                batch.set_rule_fragment_match_frag(chain, new_number)
-            if rule.fragment_match_non_frag:
-                batch.set_rule_fragment_match_non_frag(chain, new_number)
+                # Fragment matching (VyOS 1.5+)
+                if rule.fragment_match_frag:
+                    batch.set_rule_fragment_match_frag(chain, new_number)
+                if rule.fragment_match_non_frag:
+                    batch.set_rule_fragment_match_non_frag(chain, new_number)
 
-            # IPsec matching (VyOS 1.5+)
-            if rule.ipsec_match_ipsec_in:
-                batch.set_rule_ipsec_match_ipsec_in(chain, new_number)
-            if rule.ipsec_match_ipsec_out:
-                batch.set_rule_ipsec_match_ipsec_out(chain, new_number)
-            if rule.ipsec_match_none_in:
-                batch.set_rule_ipsec_match_none_in(chain, new_number)
-            if rule.ipsec_match_none_out:
-                batch.set_rule_ipsec_match_none_out(chain, new_number)
+                # IPsec matching (VyOS 1.5+)
+                if rule.ipsec_match_ipsec_in:
+                    batch.set_rule_ipsec_match_ipsec_in(chain, new_number)
+                if rule.ipsec_match_ipsec_out:
+                    batch.set_rule_ipsec_match_ipsec_out(chain, new_number)
+                if rule.ipsec_match_none_in:
+                    batch.set_rule_ipsec_match_none_in(chain, new_number)
+                if rule.ipsec_match_none_out:
+                    batch.set_rule_ipsec_match_none_out(chain, new_number)
 
-            # Log options (VyOS 1.5+)
-            if rule.log_options_level:
-                batch.set_rule_log_options_level(chain, new_number, rule.log_options_level)
-            if rule.log_options_group:
-                batch.set_rule_log_options_group(chain, new_number, rule.log_options_group)
+                # Log options (VyOS 1.5+)
+                if rule.log_options_level:
+                    batch.set_rule_log_options_level(chain, new_number, rule.log_options_level)
+                if rule.log_options_group:
+                    batch.set_rule_log_options_group(chain, new_number, rule.log_options_group)
 
-            # Jump target
-            if rule.jump_target:
-                batch.set_rule_jump_target(chain, new_number, rule.jump_target)
+                # Jump target
+                if rule.jump_target:
+                    batch.set_rule_jump_target(chain, new_number, rule.jump_target)
 
-            # Queue (VyOS 1.5+)
-            if rule.queue:
-                batch.set_rule_queue(chain, new_number, rule.queue)
+                # Queue (VyOS 1.5+)
+                if rule.queue:
+                    batch.set_rule_queue(chain, new_number, rule.queue)
 
-            # Set options (VyOS 1.5+)
-            if rule.set_dscp:
-                batch.set_rule_set_dscp(chain, new_number, rule.set_dscp)
-            if rule.set_mark:
-                batch.set_rule_set_mark(chain, new_number, rule.set_mark)
-            if rule.set_vlan_priority:
-                batch.set_rule_set_vlan_priority(chain, new_number, rule.set_vlan_priority)
-            if rule.set_connection_mark:
-                batch.set_rule_set_connection_mark(chain, new_number, rule.set_connection_mark)
-            if rule.set_ttl:
-                batch.set_rule_set_ttl(chain, new_number, rule.set_ttl)
-            if rule.set_hop_limit:
-                batch.set_rule_set_hop_limit(chain, new_number, rule.set_hop_limit)
-            if rule.set_tcp_mss:
-                batch.set_rule_set_tcp_mss(chain, new_number, rule.set_tcp_mss)
+                # Set options (VyOS 1.5+)
+                if rule.set_dscp:
+                    batch.set_rule_set_dscp(chain, new_number, rule.set_dscp)
+                if rule.set_mark:
+                    batch.set_rule_set_mark(chain, new_number, rule.set_mark)
+                if rule.set_vlan_priority:
+                    batch.set_rule_set_vlan_priority(chain, new_number, rule.set_vlan_priority)
+                if rule.set_connection_mark:
+                    batch.set_rule_set_connection_mark(chain, new_number, rule.set_connection_mark)
+                if rule.set_ttl:
+                    batch.set_rule_set_ttl(chain, new_number, rule.set_ttl)
+                if rule.set_hop_limit:
+                    batch.set_rule_set_hop_limit(chain, new_number, rule.set_hop_limit)
+                if rule.set_tcp_mss:
+                    batch.set_rule_set_tcp_mss(chain, new_number, rule.set_tcp_mss)
 
-        # Execute the batch
-        response = service.execute_batch(batch)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -1752,8 +1033,6 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
 
     except HTTPException:
         raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
