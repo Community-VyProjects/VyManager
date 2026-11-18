@@ -35,6 +35,7 @@ import {
   type FirewallRule,
   type FirewallCapabilitiesResponse,
 } from "@/lib/api/firewall-ipv4";
+import { readMulti, showMulti } from "@/lib/api/firewall-family";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallSeparatorsService } from "@/lib/api/firewall-separators";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
@@ -549,11 +550,11 @@ export function ZoneRulePanel({
     setTtl(r.packet_mods?.ttl ?? "");
 
     // Matching
-    setConnectionMark(r.connection_mark || "");
+    setConnectionMark(showMulti(r.connection_mark));
     setConnectionStatusNat(r.connection_status?.nat || "");
-    setConntrackHelper(r.conntrack_helper || "");
-    setDscpMatch(r.dscp_match || "");
-    setDscpExclude(r.dscp_exclude || "");
+    setConntrackHelper(showMulti(r.conntrack_helper));
+    setDscpMatch(showMulti(r.dscp_match));
+    setDscpExclude(showMulti(r.dscp_exclude));
     setFragmentMatchFrag(r.fragment?.match_frag || false);
     setFragmentMatchNonFrag(r.fragment?.match_non_frag || false);
     setGreKey(r.gre?.key || "");
@@ -576,8 +577,8 @@ export function ZoneRulePanel({
       else if (r.ipsec.match_none) setIpsecMode("match-none");
     }
     setMarkMatch(r.mark_match || "");
-    setPacketLength(r.packet_length || "");
-    setPacketLengthExclude(r.packet_length_exclude || "");
+    setPacketLength(showMulti(r.packet_length));
+    setPacketLengthExclude(showMulti(r.packet_length_exclude));
     setPacketType(r.packet_type || "");
     setTcpMssMatch(r.tcp_mss || "");
     setTtlEq(r.ttl_match?.eq || "");
@@ -601,7 +602,7 @@ export function ZoneRulePanel({
     setLogOptionsQueueThreshold(r.log_options?.queue_threshold || "");
     setLogOptionsSnapshotLength(r.log_options?.snapshot_length || "");
     setQueueNumber(r.queue_number || "");
-    setQueueOptions(r.queue_options || "");
+    setQueueOptions(showMulti(r.queue_options));
     setSynproxyTcpMss(r.synproxy_config?.tcp_mss || "");
     setSynproxyTcpWindowScale(r.synproxy_config?.tcp_window_scale || "");
     setModSetConnectionMark(r.set_connection_mark || "");
@@ -845,11 +846,11 @@ export function ZoneRulePanel({
       if (icmpTypeName && icmpTypeName !== "any") config.icmp_type_name = icmpTypeName;
 
       // Matching fields
-      if (connectionMark.trim()) config.connection_mark = connectionMark.trim();
+      if (connectionMark.trim()) config.connection_mark = readMulti(connectionMark);
       if (connectionStatusNat) config.connection_status = { nat: connectionStatusNat };
-      if (conntrackHelper.trim()) config.conntrack_helper = conntrackHelper.trim();
-      if (dscpMatch.trim()) config.dscp_match = dscpMatch.trim();
-      if (dscpExclude.trim()) config.dscp_exclude = dscpExclude.trim();
+      if (conntrackHelper.trim()) config.conntrack_helper = readMulti(conntrackHelper);
+      if (dscpMatch.trim()) config.dscp_match = readMulti(dscpMatch);
+      if (dscpExclude.trim()) config.dscp_exclude = readMulti(dscpExclude);
       if (fragmentMatchFrag || fragmentMatchNonFrag) {
         config.fragment = {
           match_frag: fragmentMatchFrag || undefined,
@@ -879,8 +880,8 @@ export function ZoneRulePanel({
         if (ipsecOutbound === "match-none") config.ipsec.match_none_out = true;
       }
       if (markMatch.trim()) config.mark_match = markMatch.trim();
-      if (packetLength.trim()) config.packet_length = packetLength.trim();
-      if (packetLengthExclude.trim()) config.packet_length_exclude = packetLengthExclude.trim();
+      if (packetLength.trim()) config.packet_length = readMulti(packetLength);
+      if (packetLengthExclude.trim()) config.packet_length_exclude = readMulti(packetLengthExclude);
       if (packetType) config.packet_type = packetType;
       if (tcpMssMatch.trim()) config.tcp_mss = tcpMssMatch.trim();
       if (ttlEq || ttlGt || ttlLt) {
@@ -919,7 +920,7 @@ export function ZoneRulePanel({
         if (logOptionsSnapshotLength) config.log_options.snapshot_length = logOptionsSnapshotLength;
       }
       if (queueNumber) config.queue_number = queueNumber;
-      if (queueOptions) config.queue_options = queueOptions;
+      if (queueOptions) config.queue_options = readMulti(queueOptions);
       if (synproxyTcpMss || synproxyTcpWindowScale) {
         config.synproxy_config = {};
         if (synproxyTcpMss) config.synproxy_config.tcp_mss = synproxyTcpMss;

@@ -23,6 +23,19 @@ def prerouting_section(firewall_config: dict) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def multi_text(raw) -> Optional[List[str]]:
+    """A multi: leaf. VyOS JSON is a dict of values, a list, or one string."""
+    if raw is None or raw == "" or raw == {}:
+        return None
+    if isinstance(raw, dict):
+        values = [str(key) for key in raw if key not in (None, "")]
+    elif isinstance(raw, list):
+        values = [str(item) for item in raw if item not in (None, "")]
+    else:
+        values = [str(raw)]
+    return values or None
+
+
 
 # ========================================================================
 # Pydantic Models
@@ -180,22 +193,22 @@ class FirewallRule(BaseModel):
     jump_target: Optional[str] = None
     offload_target: Optional[str] = None
     # New matching fields
-    connection_mark: Optional[str] = None
+    connection_mark: Optional[List[str]] = None
     connection_status: Optional[FirewallRuleConnectionStatus] = None
-    conntrack_helper: Optional[str] = None
-    dscp_match: Optional[str] = None  # match dscp (vs set dscp)
-    dscp_exclude: Optional[str] = None
+    conntrack_helper: Optional[List[str]] = None
+    dscp_match: Optional[List[str]] = None  # match dscp (vs set dscp)
+    dscp_exclude: Optional[List[str]] = None
     fragment: Optional[FirewallRuleFragment] = None
     gre: Optional[FirewallRuleGRE] = None
     ipsec: Optional[FirewallRuleIPsec] = None
     limit: Optional[FirewallRuleLimit] = None
     log_options: Optional[FirewallRuleLogOptions] = None
     mark_match: Optional[str] = None  # match mark (vs set mark)
-    packet_length: Optional[str] = None
-    packet_length_exclude: Optional[str] = None
+    packet_length: Optional[List[str]] = None
+    packet_length_exclude: Optional[List[str]] = None
     packet_type: Optional[str] = None
     queue_number: Optional[str] = None
-    queue_options: Optional[str] = None
+    queue_options: Optional[List[str]] = None
     recent: Optional[FirewallRuleRecent] = None
     synproxy_config: Optional[FirewallRuleSynproxy] = None
     tcp_mss: Optional[str] = None  # match tcp mss
@@ -531,7 +544,7 @@ def build_router(family: str) -> APIRouter:
                         icmp_type = str(numeric_type)
 
                 # Parse connection mark
-                connection_mark = rule_data.get("connection-mark")
+                connection_mark = multi_text(rule_data.get("connection-mark"))
 
                 # Parse connection status
                 connection_status = None
@@ -542,11 +555,11 @@ def build_router(family: str) -> APIRouter:
                     )
 
                 # Parse conntrack helper
-                conntrack_helper = rule_data.get("conntrack-helper")
+                conntrack_helper = multi_text(rule_data.get("conntrack-helper"))
 
                 # Parse DSCP match
-                dscp_match = rule_data.get("dscp")
-                dscp_exclude = rule_data.get("dscp-exclude")
+                dscp_match = multi_text(rule_data.get("dscp"))
+                dscp_exclude = multi_text(rule_data.get("dscp-exclude"))
 
                 # Parse fragment
                 fragment = None
@@ -613,15 +626,15 @@ def build_router(family: str) -> APIRouter:
                 mark_match = rule_data.get("mark")
 
                 # Parse packet length
-                packet_length = rule_data.get("packet-length")
-                packet_length_exclude = rule_data.get("packet-length-exclude")
+                packet_length = multi_text(rule_data.get("packet-length"))
+                packet_length_exclude = multi_text(rule_data.get("packet-length-exclude"))
 
                 # Parse packet type
                 packet_type = rule_data.get("packet-type")
 
                 # Parse queue
                 queue_number = rule_data.get("queue")
-                queue_options_val = rule_data.get("queue-options")
+                queue_options_val = multi_text(rule_data.get("queue-options"))
 
                 # Parse recent
                 recent = None
@@ -1136,8 +1149,8 @@ def build_router(family: str) -> APIRouter:
                         builder.set_rule_log(request.chain, new_number, request.is_custom_chain)
 
                     # Connection mark
-                    if rule_data.get("connection_mark"):
-                        builder.set_rule_connection_mark(request.chain, new_number, rule_data["connection_mark"], request.is_custom_chain)
+                    for value in multi_text(rule_data.get("connection_mark")) or []:
+                        builder.set_rule_connection_mark(request.chain, new_number, value, request.is_custom_chain)
 
                     # Connection status
                     if rule_data.get("connection_status"):
@@ -1146,14 +1159,14 @@ def build_router(family: str) -> APIRouter:
                             builder.set_rule_connection_status_nat(request.chain, new_number, cs["nat"], request.is_custom_chain)
 
                     # Conntrack helper
-                    if rule_data.get("conntrack_helper"):
-                        builder.set_rule_conntrack_helper(request.chain, new_number, rule_data["conntrack_helper"], request.is_custom_chain)
+                    for value in multi_text(rule_data.get("conntrack_helper")) or []:
+                        builder.set_rule_conntrack_helper(request.chain, new_number, value, request.is_custom_chain)
 
                     # DSCP match
-                    if rule_data.get("dscp_match"):
-                        builder.set_rule_dscp(request.chain, new_number, rule_data["dscp_match"], request.is_custom_chain)
-                    if rule_data.get("dscp_exclude"):
-                        builder.set_rule_dscp_exclude(request.chain, new_number, rule_data["dscp_exclude"], request.is_custom_chain)
+                    for value in multi_text(rule_data.get("dscp_match")) or []:
+                        builder.set_rule_dscp(request.chain, new_number, value, request.is_custom_chain)
+                    for value in multi_text(rule_data.get("dscp_exclude")) or []:
+                        builder.set_rule_dscp_exclude(request.chain, new_number, value, request.is_custom_chain)
 
                     # Fragment
                     if rule_data.get("fragment"):
@@ -1226,10 +1239,10 @@ def build_router(family: str) -> APIRouter:
                         builder.set_rule_mark(request.chain, new_number, rule_data["mark_match"], request.is_custom_chain)
 
                     # Packet length
-                    if rule_data.get("packet_length"):
-                        builder.set_rule_packet_length(request.chain, new_number, rule_data["packet_length"], request.is_custom_chain)
-                    if rule_data.get("packet_length_exclude"):
-                        builder.set_rule_packet_length_exclude(request.chain, new_number, rule_data["packet_length_exclude"], request.is_custom_chain)
+                    for value in multi_text(rule_data.get("packet_length")) or []:
+                        builder.set_rule_packet_length(request.chain, new_number, value, request.is_custom_chain)
+                    for value in multi_text(rule_data.get("packet_length_exclude")) or []:
+                        builder.set_rule_packet_length_exclude(request.chain, new_number, value, request.is_custom_chain)
 
                     # Packet type
                     if rule_data.get("packet_type"):
@@ -1238,8 +1251,8 @@ def build_router(family: str) -> APIRouter:
                     # Queue
                     if rule_data.get("queue_number"):
                         builder.set_rule_queue(request.chain, new_number, rule_data["queue_number"], request.is_custom_chain)
-                    if rule_data.get("queue_options"):
-                        builder.set_rule_queue_options(request.chain, new_number, rule_data["queue_options"], request.is_custom_chain)
+                    for value in multi_text(rule_data.get("queue_options")) or []:
+                        builder.set_rule_queue_options(request.chain, new_number, value, request.is_custom_chain)
 
                     # Recent
                     if rule_data.get("recent"):
@@ -1320,7 +1333,7 @@ def build_router(family: str) -> APIRouter:
                     # ICMP code and type (numeric)
                     if rule_data.get("icmp_code"):
                         builder.set_rule_icmp_code(request.chain, new_number, rule_data["icmp_code"], request.is_custom_chain)
-                    icmp_type = rule_data.get("icmp_type") or rule_data.get("icmpv6_type")
+                    icmp_type = rule_data.get("icmp_type")
                     if icmp_type:
                         builder.set_rule_icmp_type(request.chain, new_number, icmp_type, request.is_custom_chain)
 

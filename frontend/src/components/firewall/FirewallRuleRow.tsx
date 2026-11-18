@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { FirewallRule } from "@/lib/api/firewall-ipv4";
+import { showMulti } from "@/lib/api/firewall-family";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import type { ColumnDef } from "@/hooks/useColumnVisibility";
 import { cn } from "@/lib/utils";
@@ -468,9 +469,9 @@ export function FirewallRuleRow({
       case "mark":
         return (
           <TableCell key="mark">
-            {rule.connection_mark || rule.mark_match ? (
+            {showMulti(rule.connection_mark) || rule.mark_match ? (
               <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-                {rule.connection_mark || rule.mark_match}
+                {showMulti(rule.connection_mark) || rule.mark_match}
               </code>
             ) : (
               <span className="text-sm text-muted-foreground">-</span>
@@ -481,8 +482,8 @@ export function FirewallRuleRow({
       case "packetLength":
         return (
           <TableCell key="packetLength">
-            {rule.packet_length ? (
-              <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{rule.packet_length}</code>
+            {showMulti(rule.packet_length) ? (
+              <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{showMulti(rule.packet_length)}</code>
             ) : (
               <span className="text-sm text-muted-foreground">-</span>
             )}

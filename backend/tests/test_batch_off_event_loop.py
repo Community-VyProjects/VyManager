@@ -182,6 +182,7 @@ FIREWALL_FAMILY_VALUE_ERROR = [
     ("reorder_rules", "routers/firewall/family.py"),
 ]
 
+
 @pytest.mark.parametrize(
     "name,rel",
     VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR,

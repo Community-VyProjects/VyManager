@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/accordion";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service, type FirewallRule, type FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
+import { readMulti, showMulti } from "@/lib/api/firewall-family";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
@@ -527,11 +528,11 @@ export function FirewallRuleModal({
 
     if (rule.destination_address_mask) setDestAddressMask(rule.destination_address_mask);
 
-    setConnectionMark(rule.connection_mark || "");
+    setConnectionMark(showMulti(rule.connection_mark));
     setConnectionStatusNat(rule.connection_status?.nat || "");
-    setConntrackHelper(rule.conntrack_helper || "");
-    setDscpMatch(rule.dscp_match || "");
-    setDscpExclude(rule.dscp_exclude || "");
+    setConntrackHelper(showMulti(rule.conntrack_helper));
+    setDscpMatch(showMulti(rule.dscp_match));
+    setDscpExclude(showMulti(rule.dscp_exclude));
     setFragmentMatchFrag(rule.fragment?.match_frag || false);
     setFragmentMatchNonFrag(rule.fragment?.match_non_frag || false);
     setGreKey(rule.gre?.key || "");
@@ -559,8 +560,8 @@ export function FirewallRuleModal({
     }
 
     setMarkMatch(rule.mark_match || "");
-    setPacketLength(rule.packet_length || "");
-    setPacketLengthExclude(rule.packet_length_exclude || "");
+    setPacketLength(showMulti(rule.packet_length));
+    setPacketLengthExclude(showMulti(rule.packet_length_exclude));
     setPacketType(rule.packet_type || "");
     setTcpMssMatch(rule.tcp_mss || "");
     setTtlEq(rule.ttl_match?.eq || "");
@@ -582,7 +583,7 @@ export function FirewallRuleModal({
     setLogOptionsQueueThreshold(rule.log_options?.queue_threshold || "");
     setLogOptionsSnapshotLength(rule.log_options?.snapshot_length || "");
     setQueueNumber(rule.queue_number || "");
-    setQueueOptions(rule.queue_options || "");
+    setQueueOptions(showMulti(rule.queue_options));
     setSynproxyTcpMss(rule.synproxy_config?.tcp_mss || "");
     setSynproxyTcpWindowScale(rule.synproxy_config?.tcp_window_scale || "");
     setModSetConnectionMark(rule.set_connection_mark || "");
@@ -1049,7 +1050,7 @@ export function FirewallRuleModal({
 
       // Matching fields
       if (connectionMark.trim()) {
-        config.connection_mark = connectionMark.trim();
+        config.connection_mark = readMulti(connectionMark);
       } else if (existing.connection_mark) {
         config.connection_mark = null;
       }
@@ -1059,17 +1060,17 @@ export function FirewallRuleModal({
         config.connection_status = null;
       }
       if (conntrackHelper.trim()) {
-        config.conntrack_helper = conntrackHelper.trim();
+        config.conntrack_helper = readMulti(conntrackHelper);
       } else if (existing.conntrack_helper) {
         config.conntrack_helper = null;
       }
       if (dscpMatch.trim()) {
-        config.dscp_match = dscpMatch.trim();
+        config.dscp_match = readMulti(dscpMatch);
       } else if (existing.dscp_match) {
         config.dscp_match = null;
       }
       if (dscpExclude.trim()) {
-        config.dscp_exclude = dscpExclude.trim();
+        config.dscp_exclude = readMulti(dscpExclude);
       } else if (existing.dscp_exclude) {
         config.dscp_exclude = null;
       }
@@ -1116,12 +1117,12 @@ export function FirewallRuleModal({
         config.mark_match = null;
       }
       if (packetLength.trim()) {
-        config.packet_length = packetLength.trim();
+        config.packet_length = readMulti(packetLength);
       } else if (existing.packet_length) {
         config.packet_length = null;
       }
       if (packetLengthExclude.trim()) {
-        config.packet_length_exclude = packetLengthExclude.trim();
+        config.packet_length_exclude = readMulti(packetLengthExclude);
       } else if (existing.packet_length_exclude) {
         config.packet_length_exclude = null;
       }
@@ -1186,7 +1187,7 @@ export function FirewallRuleModal({
         config.queue_number = null;
       }
       if (queueOptions) {
-        config.queue_options = queueOptions;
+        config.queue_options = readMulti(queueOptions);
       } else if (existing.queue_options) {
         config.queue_options = null;
       }
@@ -1475,19 +1476,19 @@ export function FirewallRuleModal({
 
       // Matching fields
       if (connectionMark.trim()) {
-        config.connection_mark = connectionMark.trim();
+        config.connection_mark = readMulti(connectionMark);
       }
       if (connectionStatusNat) {
         config.connection_status = { nat: connectionStatusNat };
       }
       if (conntrackHelper.trim()) {
-        config.conntrack_helper = conntrackHelper.trim();
+        config.conntrack_helper = readMulti(conntrackHelper);
       }
       if (dscpMatch.trim()) {
-        config.dscp_match = dscpMatch.trim();
+        config.dscp_match = readMulti(dscpMatch);
       }
       if (dscpExclude.trim()) {
-        config.dscp_exclude = dscpExclude.trim();
+        config.dscp_exclude = readMulti(dscpExclude);
       }
       if (fragmentMatchFrag || fragmentMatchNonFrag) {
         config.fragment = {
@@ -1524,10 +1525,10 @@ export function FirewallRuleModal({
         config.mark_match = markMatch.trim();
       }
       if (packetLength.trim()) {
-        config.packet_length = packetLength.trim();
+        config.packet_length = readMulti(packetLength);
       }
       if (packetLengthExclude.trim()) {
-        config.packet_length_exclude = packetLengthExclude.trim();
+        config.packet_length_exclude = readMulti(packetLengthExclude);
       }
       if (packetType) {
         config.packet_type = packetType;
@@ -1574,7 +1575,7 @@ export function FirewallRuleModal({
         config.queue_number = queueNumber;
       }
       if (queueOptions) {
-        config.queue_options = queueOptions;
+        config.queue_options = readMulti(queueOptions);
       }
       if (synproxyTcpMss || synproxyTcpWindowScale) {
         config.synproxy_config = {};

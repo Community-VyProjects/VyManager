@@ -455,3 +455,54 @@ def test_reorder_rejects_duplicate_numbers(monkeypatch):
     )
     assert duplicate_old.status_code == 422, duplicate_old.text
     assert executed == []
+
+
+def test_config_and_reorder_keep_every_multi_value(monkeypatch):
+    """dscp and the other multi leaves are lists on both labs, not one string."""
+    client, executed = _family_client(monkeypatch, "ipv4", full_config={
+        "firewall": {
+            "ipv4": {
+                "forward": {
+                    "filter": {
+                        "rule": {
+                            "10": {
+                                "dscp": {"10": {}, "20": {}},
+                                "packet-length": ["64", "128"],
+                                "connection-mark": "100",
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+    loaded = client.get("/vyos/firewall/ipv4/config")
+    assert loaded.status_code == 200, loaded.text
+    rule = loaded.json()["forward"]["rules"][0]
+    assert rule["dscp_match"] == ["10", "20"]
+    assert rule["packet_length"] == ["64", "128"]
+    assert rule["connection_mark"] == ["100"]
+
+    resp = client.post(
+        "/vyos/firewall/ipv4/reorder",
+        json={
+            "chain": "forward",
+            "rules": [{
+                "old_number": 10,
+                "new_number": 20,
+                "rule_data": {
+                    "dscp_match": rule["dscp_match"],
+                    "packet_length": rule["packet_length"],
+                    "connection_mark": rule["connection_mark"],
+                },
+            }],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    paths = [op["path"] for op in executed[0]]
+    base = ["firewall", "ipv4", "forward", "filter", "rule", "20"]
+    assert base + ["dscp", "10"] in paths
+    assert base + ["dscp", "20"] in paths
+    assert base + ["packet-length", "64"] in paths
+    assert base + ["packet-length", "128"] in paths
+    assert base + ["connection-mark", "100"] in paths

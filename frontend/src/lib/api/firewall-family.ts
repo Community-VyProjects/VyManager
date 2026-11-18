@@ -1,5 +1,30 @@
 import { apiClient } from "./client";
 
+function multiValues(value: string | string[] | null | undefined): string[] {
+  if (Array.isArray(value)) return value.map(String).filter((item) => item !== "");
+  if (value == null || value === "") return [];
+  return [value];
+}
+
+export function showMulti(value: string | string[] | null | undefined): string {
+  return multiValues(value).join(", ");
+}
+
+export function readMulti(value: string): string[] | null {
+  const items = value.split(",").map((item) => item.trim()).filter(Boolean);
+  return items.length ? items : null;
+}
+
+function pushEach(
+  operations: FirewallBatchOperation[],
+  op: string,
+  value: string | string[] | null | undefined,
+) {
+  for (const item of multiValues(value)) {
+    operations.push({ op, value: item });
+  }
+}
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -142,22 +167,22 @@ export interface FirewallRule {
   jump_target?: string | null;
   offload_target?: string | null;
   // New matching fields
-  connection_mark?: string | null;
+  connection_mark?: string[] | null;
   connection_status?: FirewallRuleConnectionStatus | null;
-  conntrack_helper?: string | null;
-  dscp_match?: string | null;
-  dscp_exclude?: string | null;
+  conntrack_helper?: string[] | null;
+  dscp_match?: string[] | null;
+  dscp_exclude?: string[] | null;
   fragment?: FirewallRuleFragment | null;
   gre?: FirewallRuleGRE | null;
   ipsec?: FirewallRuleIPsec | null;
   limit?: FirewallRuleLimit | null;
   log_options?: FirewallRuleLogOptions | null;
   mark_match?: string | null;
-  packet_length?: string | null;
-  packet_length_exclude?: string | null;
+  packet_length?: string[] | null;
+  packet_length_exclude?: string[] | null;
   packet_type?: string | null;
   queue_number?: string | null;
-  queue_options?: string | null;
+  queue_options?: string[] | null;
   recent?: FirewallRuleRecent | null;
   synproxy_config?: FirewallRuleSynproxy | null;
   tcp_mss?: string | null;
@@ -522,7 +547,7 @@ export class FirewallFamilyService {
 
     // Connection mark matching
     if (config.connection_mark) {
-      operations.push({ op: "set_rule_connection_mark", value: config.connection_mark });
+      pushEach(operations, "set_rule_connection_mark", config.connection_mark);
     }
 
     // Connection status
@@ -532,15 +557,15 @@ export class FirewallFamilyService {
 
     // Conntrack helper
     if (config.conntrack_helper) {
-      operations.push({ op: "set_rule_conntrack_helper", value: config.conntrack_helper });
+      pushEach(operations, "set_rule_conntrack_helper", config.conntrack_helper);
     }
 
     // DSCP match/exclude
     if (config.dscp_match) {
-      operations.push({ op: "set_rule_dscp", value: config.dscp_match });
+      pushEach(operations, "set_rule_dscp", config.dscp_match);
     }
     if (config.dscp_exclude) {
-      operations.push({ op: "set_rule_dscp_exclude", value: config.dscp_exclude });
+      pushEach(operations, "set_rule_dscp_exclude", config.dscp_exclude);
     }
 
     // Fragment matching
@@ -639,10 +664,10 @@ export class FirewallFamilyService {
 
     // Packet length matching
     if (config.packet_length) {
-      operations.push({ op: "set_rule_packet_length", value: config.packet_length });
+      pushEach(operations, "set_rule_packet_length", config.packet_length);
     }
     if (config.packet_length_exclude) {
-      operations.push({ op: "set_rule_packet_length_exclude", value: config.packet_length_exclude });
+      pushEach(operations, "set_rule_packet_length_exclude", config.packet_length_exclude);
     }
 
     // Packet type
@@ -655,7 +680,7 @@ export class FirewallFamilyService {
       operations.push({ op: "set_rule_queue", value: config.queue_number });
     }
     if (config.queue_options) {
-      operations.push({ op: "set_rule_queue_options", value: config.queue_options });
+      pushEach(operations, "set_rule_queue_options", config.queue_options);
     }
 
     // Recent
@@ -1203,7 +1228,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_connection_mark" });
       }
       if (config.connection_mark) {
-        operations.push({ op: "set_rule_connection_mark", value: config.connection_mark });
+        pushEach(operations, "set_rule_connection_mark", config.connection_mark);
       }
     }
 
@@ -1223,7 +1248,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_conntrack_helper" });
       }
       if (config.conntrack_helper) {
-        operations.push({ op: "set_rule_conntrack_helper", value: config.conntrack_helper });
+        pushEach(operations, "set_rule_conntrack_helper", config.conntrack_helper);
       }
     }
 
@@ -1233,7 +1258,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_dscp" });
       }
       if (config.dscp_match) {
-        operations.push({ op: "set_rule_dscp", value: config.dscp_match });
+        pushEach(operations, "set_rule_dscp", config.dscp_match);
       }
     }
 
@@ -1243,7 +1268,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_dscp_exclude" });
       }
       if (config.dscp_exclude) {
-        operations.push({ op: "set_rule_dscp_exclude", value: config.dscp_exclude });
+        pushEach(operations, "set_rule_dscp_exclude", config.dscp_exclude);
       }
     }
 
@@ -1378,7 +1403,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_packet_length" });
       }
       if (config.packet_length) {
-        operations.push({ op: "set_rule_packet_length", value: config.packet_length });
+        pushEach(operations, "set_rule_packet_length", config.packet_length);
       }
     }
 
@@ -1388,7 +1413,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_packet_length_exclude" });
       }
       if (config.packet_length_exclude) {
-        operations.push({ op: "set_rule_packet_length_exclude", value: config.packet_length_exclude });
+        pushEach(operations, "set_rule_packet_length_exclude", config.packet_length_exclude);
       }
     }
 
@@ -1418,7 +1443,7 @@ export class FirewallFamilyService {
         operations.push({ op: "delete_rule_queue_options" });
       }
       if (config.queue_options) {
-        operations.push({ op: "set_rule_queue_options", value: config.queue_options });
+        pushEach(operations, "set_rule_queue_options", config.queue_options);
       }
     }
 
