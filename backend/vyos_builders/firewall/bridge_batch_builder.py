@@ -5,8 +5,9 @@ Provides batch operations for bridge (layer 2) firewall configuration.
 Version-aware for VyOS 1.4 and 1.5 differences.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall.bridge import BridgeFirewallMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -281,16 +282,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
     def delete_rule_set_mark(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete packet mark for a rule (VyOS 1.5+ only)."""
         path = self.mappers[self.mapper_key].get_rule_set_mark_path(chain, rule_number)
-        return self.add_delete(path)
-
-    def set_rule_set_vlan_priority(self, chain: str, rule_number: int, priority: str) -> "BridgeFirewallBatchBuilder":
-        """Set VLAN priority modification for a rule (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_set_vlan_priority(chain, rule_number, priority)
-        return self.add_set(path)
-
-    def delete_rule_set_vlan_priority(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
-        """Delete VLAN priority modification for a rule (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_set_vlan_priority_path(chain, rule_number)
         return self.add_delete(path)
 
     def delete_rule_set(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
@@ -945,7 +936,7 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         Returns:
             Dictionary of supported features and operations
         """
-        mapper = self.mappers[self.mapper_key]
+        mapper = cast(BridgeFirewallMapper, self.mappers[self.mapper_key])
         chains = mapper.get_supported_chains()
         chain_actions = {chain: mapper.get_supported_rule_actions(chain) for chain in chains}
         # Actions every base chain takes (custom chains take this set too).
@@ -1000,11 +991,18 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
                 "ipsec_matching": flag(node("ipsec"), "Match IPsec encapsulated packets"),
                 "ttl_matching": flag(node("ttl") and node("hop-limit"), "Match by TTL/hop-limit"),
                 "packet_type": flag(node("packet-type"), "Match by packet type (broadcast, multicast, etc.)"),
+                "packet_length": flag(node("packet-length"), "Match by packet length"),
                 "log_options": flag(node("log-options"), "Advanced logging options"),
             },
             "supported_chains": chains,
             "supported_actions": actions,
             "chain_actions": chain_actions,
+            "tcp_flag_names": mapper.tcp_flag_names(),
+            "packet_type_values": mapper.packet_type_values(),
+            "ethernet_type_values": mapper.ethernet_type_values(),
+            "icmp_type_names": mapper.icmp_type_names(),
+            "icmpv6_type_names": mapper.icmpv6_type_names(),
+            "log_level_values": mapper.log_level_values(),
             "matching_criteria": {
                 "source_mac": flag(node("source", "mac-address"), "Match by source MAC address"),
                 "destination_mac": flag(

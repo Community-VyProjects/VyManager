@@ -387,21 +387,6 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
                 )}
               </TableCell>
             );
-          case "connectionState":
-            return (
-              <TableCell key="connectionState">
-                {rule.connection_status_established || rule.connection_status_new || rule.connection_status_related || rule.connection_status_invalid ? (
-                  <div className="flex flex-wrap gap-1">
-                    {rule.connection_status_established && <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">{t("ruleRow.connEstablished")}</Badge>}
-                    {rule.connection_status_new && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">{t("ruleRow.connNew")}</Badge>}
-                    {rule.connection_status_related && <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">{t("ruleRow.connRelated")}</Badge>}
-                    {rule.connection_status_invalid && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">{t("ruleRow.connInvalid")}</Badge>}
-                  </div>
-                ) : (
-                  <span className="text-sm text-muted-foreground">-</span>
-                )}
-              </TableCell>
-            );
           case "limit":
             return (
               <TableCell key="limit">

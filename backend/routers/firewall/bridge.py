@@ -14,6 +14,7 @@ from session_vyos_service import get_session_vyos_service
 from batch_dispatch import resolve_batch_method
 from vyos_builders.firewall import BridgeFirewallBatchBuilder
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall.bridge import TCP_FLAG_NAMES
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import logging
 logger = logging.getLogger(__name__)
@@ -144,7 +145,6 @@ class BridgeRule(BaseModel):
     # Set options (action modifications)
     set_dscp: Optional[str] = None
     set_mark: Optional[str] = None
-    set_vlan_priority: Optional[str] = None
     set_connection_mark: Optional[str] = None
     set_ttl: Optional[str] = None
     set_hop_limit: Optional[str] = None
@@ -465,6 +465,12 @@ def parse_rule(rule_number: int, rule_config: dict) -> BridgeRule:
     tcp_flags = tcp_opts.get("flags", {})
     if not isinstance(tcp_flags, dict):
         tcp_flags = {}
+    flag_names = TCP_FLAG_NAMES
+    not_flags = tcp_flags.get("not", {})
+    if not isinstance(not_flags, dict):
+        not_flags = {}
+    tcp_flag_list = ",".join(flag for flag in flag_names if flag in tcp_flags) or None
+    tcp_flag_not_list = ",".join(flag for flag in flag_names if flag in not_flags) or None
 
     # Handle fragment
     fragment_opts = rule_config.get("fragment", {})
@@ -532,9 +538,9 @@ def parse_rule(rule_number: int, rule_config: dict) -> BridgeRule:
         icmpv6_type=icmpv6_opts.get("type"),
         icmpv6_code=icmpv6_opts.get("code"),
         icmpv6_type_name=icmpv6_opts.get("type-name"),
-        # TCP fields
-        tcp_flags=tcp_flags.get("set") if isinstance(tcp_flags.get("set"), str) else None,
-        tcp_flags_not=tcp_flags.get("not") if isinstance(tcp_flags.get("not"), str) else None,
+        # TCP fields. Each flag is a presence node; "not" is a dict of the same.
+        tcp_flags=tcp_flag_list,
+        tcp_flags_not=tcp_flag_not_list,
         tcp_mss=tcp_opts.get("mss"),
         # Rate limit fields
         limit_rate=limit_opts.get("rate"),
@@ -578,7 +584,6 @@ def parse_rule(rule_number: int, rule_config: dict) -> BridgeRule:
         # Set options
         set_dscp=set_opts.get("dscp"),
         set_mark=set_opts.get("mark"),
-        set_vlan_priority=set_opts.get("vlan-priority"),
         set_connection_mark=set_opts.get("connection-mark"),
         set_ttl=set_opts.get("ttl"),
         set_hop_limit=set_opts.get("hop-limit"),
@@ -663,8 +668,6 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     | `delete_rule_set_dscp` | No | Remove DSCP modification |
     | `set_rule_set_mark` | Yes | Set packet mark |
     | `delete_rule_set_mark` | No | Remove packet mark |
-    | `set_rule_set_vlan_priority` | Yes | Set VLAN priority (0-7) |
-    | `delete_rule_set_vlan_priority` | No | Remove VLAN priority modification |
 
     **Custom Chain Operations:**
 
@@ -930,9 +933,13 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
 
                 # TCP (VyOS 1.5+)
                 if rule.tcp_flags:
-                    batch.set_rule_tcp_flags(chain, new_number, rule.tcp_flags)
+                    for flag in rule.tcp_flags.split(","):
+                        if flag.strip():
+                            batch.set_rule_tcp_flags(chain, new_number, flag.strip())
                 if rule.tcp_flags_not:
-                    batch.set_rule_tcp_flags_not(chain, new_number, rule.tcp_flags_not)
+                    for flag in rule.tcp_flags_not.split(","):
+                        if flag.strip():
+                            batch.set_rule_tcp_flags_not(chain, new_number, flag.strip())
                 if rule.tcp_mss:
                     batch.set_rule_tcp_mss(chain, new_number, rule.tcp_mss)
 
@@ -1021,8 +1028,6 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
                     batch.set_rule_set_dscp(chain, new_number, rule.set_dscp)
                 if rule.set_mark:
                     batch.set_rule_set_mark(chain, new_number, rule.set_mark)
-                if rule.set_vlan_priority:
-                    batch.set_rule_set_vlan_priority(chain, new_number, rule.set_vlan_priority)
                 if rule.set_connection_mark:
                     batch.set_rule_set_connection_mark(chain, new_number, rule.set_connection_mark)
                 if rule.set_ttl:

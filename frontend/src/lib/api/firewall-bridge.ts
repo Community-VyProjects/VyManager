@@ -99,11 +99,6 @@ export interface BridgeRule {
   time_starttime?: string | null;
   time_stoptime?: string | null;
   time_weekdays?: string | null;
-  // Connection status (1.5+)
-  connection_status_new?: boolean;
-  connection_status_established?: boolean;
-  connection_status_related?: boolean;
-  connection_status_invalid?: boolean;
   // Set options (1.5+)
   set_dscp?: string | null;
   set_mark?: string | null;
@@ -111,7 +106,6 @@ export interface BridgeRule {
   set_ttl?: string | null;
   set_hop_limit?: string | null;
   set_tcp_mss?: string | null;
-  set_vlan_priority?: string | null;
 }
 
 export interface BridgeChain {
@@ -160,11 +154,18 @@ export interface BridgeCapabilities {
     ipsec_matching: { supported: boolean; description: string };
     ttl_matching: { supported: boolean; description: string };
     packet_type: { supported: boolean; description: string };
+    packet_length: { supported: boolean; description: string };
     log_options: { supported: boolean; description: string };
   };
   supported_chains: string[];
   supported_actions: string[];
   chain_actions: Record<string, string[]>;
+  tcp_flag_names: string[];
+  packet_type_values: string[];
+  ethernet_type_values: string[];
+  icmp_type_names: string[];
+  icmpv6_type_names: string[];
+  log_level_values: string[];
   matching_criteria: {
     source_mac: MatchingCriteria;
     destination_mac: MatchingCriteria;
@@ -381,11 +382,6 @@ class BridgeFirewallService {
       time_starttime?: string;
       time_stoptime?: string;
       time_weekdays?: string;
-      // Connection status (1.5+)
-      connection_status_new?: boolean;
-      connection_status_established?: boolean;
-      connection_status_related?: boolean;
-      connection_status_invalid?: boolean;
       // Set options (1.5+)
       set_dscp?: string;
       set_mark?: string;
@@ -393,7 +389,6 @@ class BridgeFirewallService {
       set_ttl?: string;
       set_hop_limit?: string;
       set_tcp_mss?: string;
-      set_vlan_priority?: string;
     }
   ): Promise<VyOSResponse> {
     const operations: BridgeBatchOperation[] = [{ op: "set_rule" }];
@@ -643,9 +638,6 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_time_weekdays", value: config.time_weekdays });
     }
 
-    // Connection status (1.5+) - commented out as builder methods would need to be added
-    // These are typically set operations, not value operations
-
     // Set options (1.5+)
     if (config.set_dscp) {
       operations.push({ op: "set_rule_set_dscp", value: config.set_dscp });
@@ -664,9 +656,6 @@ class BridgeFirewallService {
     }
     if (config.set_tcp_mss) {
       operations.push({ op: "set_rule_set_tcp_mss", value: config.set_tcp_mss });
-    }
-    if (config.set_vlan_priority) {
-      operations.push({ op: "set_rule_set_vlan_priority", value: config.set_vlan_priority });
     }
 
     return this.batchConfigure({
@@ -811,6 +800,9 @@ class BridgeFirewallService {
       setOp: string,
       deleteOp: string
     ) => {
+      if (newConfig[field] === undefined) {
+        return;
+      }
       const next = new Set(
         ((newConfig[field] as string | null | undefined) ?? "")
           .split(",")
@@ -823,9 +815,6 @@ class BridgeFirewallService {
           .map((item) => item.trim())
           .filter(Boolean)
       );
-      if (newConfig[field] === undefined) {
-        return;
-      }
       for (const flag of prev) {
         if (!next.has(flag)) {
           operations.push({ op: deleteOp, value: flag });
@@ -891,12 +880,6 @@ class BridgeFirewallService {
     handleStringField("time_stoptime", "set_rule_time_stoptime", "delete_rule_time_stoptime");
     handleStringField("time_weekdays", "set_rule_time_weekdays", "delete_rule_time_weekdays");
 
-    // Connection status (1.5+)
-    handleBooleanField("connection_status_new", "set_rule_connection_status_new", "delete_rule_connection_status_new");
-    handleBooleanField("connection_status_established", "set_rule_connection_status_established", "delete_rule_connection_status_established");
-    handleBooleanField("connection_status_related", "set_rule_connection_status_related", "delete_rule_connection_status_related");
-    handleBooleanField("connection_status_invalid", "set_rule_connection_status_invalid", "delete_rule_connection_status_invalid");
-
     // Set options (1.5+)
     handleStringField("set_dscp", "set_rule_set_dscp", "delete_rule_set_dscp");
     handleStringField("set_mark", "set_rule_set_mark", "delete_rule_set_mark");
@@ -904,7 +887,6 @@ class BridgeFirewallService {
     handleStringField("set_ttl", "set_rule_set_ttl", "delete_rule_set_ttl");
     handleStringField("set_hop_limit", "set_rule_set_hop_limit", "delete_rule_set_hop_limit");
     handleStringField("set_tcp_mss", "set_rule_set_tcp_mss", "delete_rule_set_tcp_mss");
-    handleStringField("set_vlan_priority", "set_rule_set_vlan_priority", "delete_rule_set_vlan_priority");
 
     if (operations.length === 0) {
       return { success: true, data: { message: "No changes" } };

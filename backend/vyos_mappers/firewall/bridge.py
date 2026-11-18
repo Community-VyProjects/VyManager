@@ -53,12 +53,55 @@ _V15_ONLY_RULE_NODES: Tuple[Tuple[str, ...], ...] = (
     ("set",),
 )
 
+# Presence-node names under tcp flags and tcp flags not. 1.4 has no tcp node.
+TCP_FLAG_NAMES = ("syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr")
+PACKET_TYPE_VALUES = ("broadcast", "host", "multicast", "other")
+ETHERNET_TYPE_VALUES = ("802.1q", "802.1ad", "arp", "ipv4", "ipv6")
+LOG_LEVEL_VALUES = ("emerg", "alert", "crit", "err", "warn", "notice", "info", "debug")
+ICMP_TYPE_NAMES = (
+    "echo-reply",
+    "destination-unreachable",
+    "source-quench",
+    "redirect",
+    "echo-request",
+    "router-advertisement",
+    "router-solicitation",
+    "time-exceeded",
+    "parameter-problem",
+    "timestamp-request",
+    "timestamp-reply",
+    "info-request",
+    "info-reply",
+    "address-mask-request",
+    "address-mask-reply",
+)
+ICMPV6_TYPE_NAMES = (
+    "destination-unreachable",
+    "packet-too-big",
+    "time-exceeded",
+    "parameter-problem",
+    "echo-request",
+    "echo-reply",
+    "mld-listener-query",
+    "mld-listener-report",
+    "mld-listener-reduction",
+    "nd-router-solicit",
+    "nd-router-advert",
+    "nd-neighbor-solicit",
+    "nd-neighbor-advert",
+    "nd-redirect",
+    "router-renumbering",
+    "ind-neighbor-solicit",
+    "ind-neighbor-advert",
+    "mld2-listener-report",
+)
+
 
 class BridgeFirewallMapper(BaseFeatureMapper):
     """Mapper for bridge firewall operations.
 
-    This class is the 1.4 tree. The 1.5 subclass overrides the three
-    version methods. Path methods stay here and ask ``has_rule_node``.
+    This class is the 1.4 tree. The 1.5 subclass overrides the version
+    methods. Path methods stay here and ask ``has_rule_node``.
     """
 
     def get_supported_chains(self) -> List[str]:
@@ -72,6 +115,30 @@ class BridgeFirewallMapper(BaseFeatureMapper):
     def has_rule_node(self, *tail: str) -> bool:
         """Whether ``rule <n> <tail...>`` exists on this device."""
         return not any(tail[:len(prefix)] == prefix for prefix in _V15_ONLY_RULE_NODES)
+
+    def tcp_flag_names(self) -> List[str]:
+        """TCP flag names. 1.4 has no tcp flags node."""
+        return []
+
+    def packet_type_values(self) -> List[str]:
+        """packet-type allowed values. 1.4 has no packet-type node."""
+        return []
+
+    def ethernet_type_values(self) -> List[str]:
+        """ethernet-type allowed values. 1.4 has no ethernet-type node."""
+        return []
+
+    def icmp_type_names(self) -> List[str]:
+        """icmp type-name allowed values. 1.4 has no icmp node."""
+        return []
+
+    def icmpv6_type_names(self) -> List[str]:
+        """icmpv6 type-name allowed values. 1.4 has no icmpv6 node."""
+        return []
+
+    def log_level_values(self) -> List[str]:
+        """log-options level allowed values. Both labs use the same list."""
+        return list(LOG_LEVEL_VALUES)
 
     # ========================================================================
     # Chain Operations
@@ -756,14 +823,6 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         """Delete path for rule_set_tcp_mss."""
         return self._rule(chain, rule_number, "set", "tcp-mss")
 
-    def get_rule_set_vlan_priority(self, chain: str, rule_number: int, priority: str) -> List[str]:
-        """Get command path for setting VLAN priority (VyOS 1.5+ only)."""
-        return self._rule(chain, rule_number, "set", "vlan-priority", priority)
-
-    def get_rule_set_vlan_priority_path(self, chain: str, rule_number: int) -> List[str]:
-        """Get command path for set VLAN priority (for deletion) (VyOS 1.5+ only)."""
-        return self._rule(chain, rule_number, "set", "vlan-priority")
-
     def get_rule_set_path(self, chain: str, rule_number: int) -> List[str]:
         """Get command path for entire set node (for deletion)."""
         return self._rule(chain, rule_number, "set")
@@ -878,15 +937,12 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         # Handle hop-limit (1.5+)
         hop_limit = rule_config.get("hop-limit", {})
 
-        # Handle connection-status (1.5+)
-        connection_status = rule_config.get("connection-status", {})
-
         # Convert TCP flags dict to list of enabled flags
         enabled_tcp_flags = []
         disabled_tcp_flags = []
         if isinstance(tcp_flags, dict):
             not_flags = tcp_flags.get("not", {})
-            for flag in ["syn", "ack", "fin", "rst", "urg", "psh"]:
+            for flag in TCP_FLAG_NAMES:
                 if flag in tcp_flags:
                     enabled_tcp_flags.append(flag)
                 if isinstance(not_flags, dict) and flag in not_flags:
@@ -982,11 +1038,6 @@ class BridgeFirewallMapper(BaseFeatureMapper):
             "time_starttime": time_opts.get("starttime") if isinstance(time_opts, dict) else None,
             "time_stoptime": time_opts.get("stoptime") if isinstance(time_opts, dict) else None,
             "time_weekdays": time_opts.get("weekdays") if isinstance(time_opts, dict) else None,
-            # Connection status (1.5+)
-            "connection_status_new": "new" in connection_status if isinstance(connection_status, dict) else False,
-            "connection_status_established": "established" in connection_status if isinstance(connection_status, dict) else False,
-            "connection_status_related": "related" in connection_status if isinstance(connection_status, dict) else False,
-            "connection_status_invalid": "invalid" in connection_status if isinstance(connection_status, dict) else False,
             # Set options (1.5+)
             "set_dscp": set_opts.get("dscp") if isinstance(set_opts, dict) else None,
             "set_mark": set_opts.get("mark") if isinstance(set_opts, dict) else None,
@@ -994,5 +1045,4 @@ class BridgeFirewallMapper(BaseFeatureMapper):
             "set_ttl": set_opts.get("ttl") if isinstance(set_opts, dict) else None,
             "set_hop_limit": set_opts.get("hop-limit") if isinstance(set_opts, dict) else None,
             "set_tcp_mss": set_opts.get("tcp-mss") if isinstance(set_opts, dict) else None,
-            "set_vlan_priority": set_opts.get("vlan-priority") if isinstance(set_opts, dict) else None,
         }

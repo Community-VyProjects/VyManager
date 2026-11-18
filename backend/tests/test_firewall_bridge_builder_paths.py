@@ -192,8 +192,6 @@ UNPINNED_CASES = [
     ('set_rule_source_group_network', ('forward', 10, 'G1')),
     ('set_rule_destination_group_address', ('forward', 10, 'G1')),
     ('set_rule_destination_group_network', ('forward', 10, 'G1')),
-    ('set_rule_set_vlan_priority', ('forward', 10, '3')),
-    ('delete_rule_set_vlan_priority', ('forward', 10)),
 ]
 
 ARGS = {method: args for method, args, *_ in COMMON_CASES + V15_ONLY_CASES}

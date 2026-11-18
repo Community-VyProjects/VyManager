@@ -103,6 +103,34 @@ def test_missing_value_is_400(monkeypatch):
     assert executed == []
 
 
+def test_reorder_rejects_duplicate_numbers(monkeypatch):
+    client, executed = _client(monkeypatch)
+    rule = {"rule_number": 1, "action": "accept"}
+    duplicate_old = client.post(
+        "/vyos/firewall/bridge/reorder",
+        json={
+            "chain": "forward",
+            "rules": [
+                {"old_number": 1, "new_number": 2, "rule_data": rule},
+                {"old_number": 1, "new_number": 3, "rule_data": rule},
+            ],
+        },
+    )
+    assert duplicate_old.status_code == 422, duplicate_old.text
+    duplicate_new = client.post(
+        "/vyos/firewall/bridge/reorder",
+        json={
+            "chain": "forward",
+            "rules": [
+                {"old_number": 1, "new_number": 2, "rule_data": rule},
+                {"old_number": 3, "new_number": 2, "rule_data": rule},
+            ],
+        },
+    )
+    assert duplicate_new.status_code == 422, duplicate_new.text
+    assert executed == []
+
+
 def test_empty_batch_stays_500(monkeypatch):
     client, _executed = _client(monkeypatch)
     resp = _batch(client, [])
