@@ -612,9 +612,9 @@ export function FirewallRuleModal({
     if (rule.tcp_flags) {
       if (Array.isArray(rule.tcp_flags)) {
         rule.tcp_flags.forEach((flag: string) => {
-          if (flag.startsWith("!")) {
-            const cleanFlag = flag.substring(1);
-            if (cleanFlag in newTcpFlags) newTcpFlags[cleanFlag] = "not";
+          if (flag.startsWith("not ")) {
+            const name = flag.slice(4);
+            if (name in newTcpFlags) newTcpFlags[name] = "not";
           } else if (flag in newTcpFlags) {
             newTcpFlags[flag] = "enabled";
           }
