@@ -6,7 +6,7 @@ One implementation parameterized by family (ipv4 or ipv6).
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.firewall.family import FirewallFamilyBatchBuilder
@@ -175,6 +175,8 @@ class FirewallRule(BaseModel):
     packet_mods: Optional[FirewallRulePacketMods] = None
     tcp_flags: Optional[List[str]] = None
     icmp_type_name: Optional[str] = None
+    icmp_code: Optional[str] = None
+    icmp_type: Optional[str] = None
     jump_target: Optional[str] = None
     offload_target: Optional[str] = None
     # New matching fields
@@ -249,6 +251,17 @@ class ReorderFirewallRequest(BaseModel):
     chain: str = Field(..., description="Chain name")
     is_custom_chain: bool = Field(False, description="Whether this is a custom chain")
     rules: List[ReorderRuleItem] = Field(..., description="List of rules with their old and new numbers")
+
+    @model_validator(mode="after")
+    def _numbers_are_unique(self) -> "ReorderFirewallRequest":
+        """Two rules on one number would merge their leaves in the commit."""
+        olds = [rule.old_number for rule in self.rules]
+        if len(olds) != len(set(olds)):
+            raise ValueError("old_number values must be unique")
+        news = [rule.new_number for rule in self.rules if rule.new_number is not None]
+        if len(news) != len(set(news)):
+            raise ValueError("new_number values must be unique")
+        return self
 
 
 class BaseChainConfig(BaseModel):
@@ -505,9 +518,17 @@ def build_router(family: str) -> APIRouter:
 
                 # Parse ICMP
                 icmp_type_name = None
-                icmp_data = rule_data.get(icmp_leaf, {})
-                if icmp_data:
-                    icmp_type_name = icmp_data.get("type-name")
+                icmp_code = None
+                icmp_type = None
+                icmp_data = rule_data.get(icmp_leaf) or {}
+                if isinstance(icmp_data, dict) and icmp_data:
+                    icmp_type_name = icmp_data.get("type-name") or None
+                    code = icmp_data.get("code")
+                    if code not in (None, ""):
+                        icmp_code = str(code)
+                    numeric_type = icmp_data.get("type")
+                    if numeric_type not in (None, ""):
+                        icmp_type = str(numeric_type)
 
                 # Parse connection mark
                 connection_mark = rule_data.get("connection-mark")
@@ -688,6 +709,8 @@ def build_router(family: str) -> APIRouter:
                     packet_mods=packet_mods,
                     tcp_flags=tcp_flags,
                     icmp_type_name=icmp_type_name,
+                    icmp_code=icmp_code,
+                    icmp_type=icmp_type,
                     jump_target=rule_data.get("jump-target"),
                     offload_target=rule_data.get("offload-target"),
                     connection_mark=connection_mark,
@@ -1007,7 +1030,9 @@ def build_router(family: str) -> APIRouter:
                         if source.get("group"):
                             group = source["group"]
                             for group_type, group_name in group.items():
-                                if "address" in group_type:
+                                if group_type == "dynamic-address-group":
+                                    builder.set_rule_source_group_dynamic_address(request.chain, new_number, group_name, request.is_custom_chain)
+                                elif "address" in group_type:
                                     builder.set_rule_source_group_address(request.chain, new_number, group_name, request.is_custom_chain)
                                 elif "network" in group_type:
                                     builder.set_rule_source_group_network(request.chain, new_number, group_name, request.is_custom_chain)
@@ -1036,7 +1061,9 @@ def build_router(family: str) -> APIRouter:
                         if dest.get("group"):
                             group = dest["group"]
                             for group_type, group_name in group.items():
-                                if "address" in group_type:
+                                if group_type == "dynamic-address-group":
+                                    builder.set_rule_destination_group_dynamic_address(request.chain, new_number, group_name, request.is_custom_chain)
+                                elif "address" in group_type:
                                     builder.set_rule_destination_group_address(request.chain, new_number, group_name, request.is_custom_chain)
                                 elif "network" in group_type:
                                     builder.set_rule_destination_group_network(request.chain, new_number, group_name, request.is_custom_chain)
@@ -1066,8 +1093,12 @@ def build_router(family: str) -> APIRouter:
                         interface = rule_data["interface"]
                         if interface.get("inbound"):
                             builder.set_rule_inbound_interface(request.chain, new_number, interface["inbound"], request.is_custom_chain)
+                        if interface.get("inbound_group"):
+                            builder.set_rule_inbound_interface_group(request.chain, new_number, interface["inbound_group"], request.is_custom_chain)
                         if interface.get("outbound"):
                             builder.set_rule_outbound_interface(request.chain, new_number, interface["outbound"], request.is_custom_chain)
+                        if interface.get("outbound_group"):
+                            builder.set_rule_outbound_interface_group(request.chain, new_number, interface["outbound_group"], request.is_custom_chain)
 
                     # Packet modifications
                     if rule_data.get("packet_mods"):

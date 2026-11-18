@@ -137,6 +137,8 @@ export interface FirewallRule {
   packet_mods?: FirewallRulePacketMods | null;
   tcp_flags?: FirewallRuleTcpFlags | string[] | null; // Object for updates, array from backend
   icmp_type_name?: string | null;
+  icmp_code?: string | null;
+  icmp_type?: string | null;
   jump_target?: string | null;
   offload_target?: string | null;
   // New matching fields

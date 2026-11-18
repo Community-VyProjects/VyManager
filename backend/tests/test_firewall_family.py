@@ -134,7 +134,7 @@ def test_ipv4_ipv6_modules_do_not_reimplement_the_stack():
         assert len(lines) < 20, rel
 
 
-def _family_client(monkeypatch, family, version="1.5"):
+def _family_client(monkeypatch, family, version="1.5", full_config=None):
     executed = []
 
     async def allow(*_args, **_kwargs):
@@ -143,6 +143,9 @@ def _family_client(monkeypatch, family, version="1.5"):
     class Service:
         def get_version(self):
             return version
+
+        def get_full_config(self, refresh=False):
+            return full_config if full_config is not None else {"firewall": {}}
 
         def execute_batch(self, batch):
             if batch.is_empty():
@@ -247,11 +250,14 @@ def test_batch_missing_rule_number_is_400(monkeypatch):
     assert executed == []
 
 
-def test_batch_unknown_op_is_400(monkeypatch):
+def test_batch_rejects_names_that_are_not_rule_ops(monkeypatch):
     client, executed = _family_client(monkeypatch, "ipv4")
-    resp = _batch(client, "ipv4", [{"op": "add_set", "value": "x"}], rule_number=1)
-    assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "Invalid operation: add_set"
+    blocked = _batch(client, "ipv4", [{"op": "add_set", "value": "x"}], rule_number=1)
+    assert blocked.status_code == 400, blocked.text
+    assert blocked.json()["detail"] == "Invalid operation: add_set"
+    unknown = _batch(client, "ipv4", [{"op": "no_such_op", "value": "x"}], rule_number=1)
+    assert unknown.status_code == 400, unknown.text
+    assert unknown.json()["detail"] == "Unknown operation: no_such_op"
     assert executed == []
 
 
@@ -343,3 +349,98 @@ def test_batch_reports_a_rejected_commit(monkeypatch):
         "data": {"message": "Firewall configuration updated"},
         "error": "Commit failed",
     }
+
+
+def test_reorder_keeps_interface_groups_and_dynamic_address_groups(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = client.post(
+        "/vyos/firewall/ipv4/reorder",
+        json={
+            "chain": "forward",
+            "rules": [{
+                "old_number": 10,
+                "new_number": 20,
+                "rule_data": {
+                    "interface": {
+                        "inbound_group": "LAN_IFS",
+                        "outbound_group": "WAN_IFS",
+                    },
+                    "source": {"group": {
+                        "dynamic-address-group": "DYN",
+                        "address-group": "LAN",
+                    }},
+                    "destination": {"group": {"dynamic-address-group": "DYN2"}},
+                },
+            }],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    rule = ["firewall", "ipv4", "forward", "filter", "rule", "20"]
+    paths = [op["path"] for op in executed[0]]
+    assert rule + ["inbound-interface", "group", "LAN_IFS"] in paths
+    assert rule + ["outbound-interface", "group", "WAN_IFS"] in paths
+    assert rule + ["source", "group", "dynamic-address-group", "DYN"] in paths
+    assert rule + ["source", "group", "address-group", "LAN"] in paths
+    assert rule + ["destination", "group", "dynamic-address-group", "DYN2"] in paths
+    assert rule + ["source", "group", "address-group", "DYN"] not in paths
+
+
+@pytest.mark.parametrize("family,leaf", [("ipv4", "icmp"), ("ipv6", "icmpv6")])
+def test_config_and_reorder_keep_icmp_code_and_type(monkeypatch, family, leaf):
+    client, executed = _family_client(monkeypatch, family, full_config={
+        "firewall": {
+            family: {
+                "forward": {
+                    "filter": {
+                        "rule": {
+                            "10": {leaf: {"code": 0, "type": 8, "type-name": "echo-request"}},
+                        }
+                    }
+                }
+            }
+        }
+    })
+    loaded = client.get(f"/vyos/firewall/{family}/config")
+    assert loaded.status_code == 200, loaded.text
+    rule = loaded.json()["forward"]["rules"][0]
+    assert rule["icmp_code"] == "0"
+    assert rule["icmp_type"] == "8"
+    assert rule["icmp_type_name"] == "echo-request"
+
+    resp = client.post(
+        f"/vyos/firewall/{family}/reorder",
+        json={
+            "chain": "forward",
+            "rules": [{
+                "old_number": 10,
+                "new_number": 20,
+                "rule_data": {
+                    "icmp_code": rule["icmp_code"],
+                    "icmp_type": rule["icmp_type"],
+                    "icmp_type_name": rule["icmp_type_name"],
+                },
+            }],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    paths = [op["path"] for op in executed[0]]
+    base = ["firewall", family, "forward", "filter", "rule", "20", leaf]
+    assert base + ["code", "0"] in paths
+    assert base + ["type", "8"] in paths
+    assert base + ["type-name", "echo-request"] in paths
+
+
+def test_reorder_rejects_duplicate_numbers(monkeypatch):
+    client, executed = _family_client(monkeypatch, "ipv4")
+    resp = client.post(
+        "/vyos/firewall/ipv4/reorder",
+        json={
+            "chain": "forward",
+            "rules": [
+                {"old_number": 10, "new_number": 20, "rule_data": {}},
+                {"old_number": 30, "new_number": 20, "rule_data": {}},
+            ],
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    assert executed == []
