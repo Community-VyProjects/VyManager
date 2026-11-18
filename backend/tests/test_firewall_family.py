@@ -432,7 +432,7 @@ def test_config_and_reorder_keep_icmp_code_and_type(monkeypatch, family, leaf):
 
 def test_reorder_rejects_duplicate_numbers(monkeypatch):
     client, executed = _family_client(monkeypatch, "ipv4")
-    resp = client.post(
+    duplicate_new = client.post(
         "/vyos/firewall/ipv4/reorder",
         json={
             "chain": "forward",
@@ -442,5 +442,16 @@ def test_reorder_rejects_duplicate_numbers(monkeypatch):
             ],
         },
     )
-    assert resp.status_code == 422, resp.text
+    assert duplicate_new.status_code == 422, duplicate_new.text
+    duplicate_old = client.post(
+        "/vyos/firewall/ipv4/reorder",
+        json={
+            "chain": "forward",
+            "rules": [
+                {"old_number": 10, "new_number": 20, "rule_data": {}},
+                {"old_number": 10, "new_number": 30, "rule_data": {}},
+            ],
+        },
+    )
+    assert duplicate_old.status_code == 422, duplicate_old.text
     assert executed == []
