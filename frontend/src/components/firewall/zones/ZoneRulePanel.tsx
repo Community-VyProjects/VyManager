@@ -76,10 +76,12 @@ type DstMode = "any" | "address" | "group" | "geoip" | "fqdn" | "mac";
 type PortMode = "any" | "port" | "group";
 
 const TCP_FLAGS = ["syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr"] as const;
-const ICMP_PROTOCOLS = ["icmp", "icmpv6", "ipv6-icmp"];
+function icmpProtocolsFor(isV6: boolean): readonly string[] {
+  return isV6 ? ["icmpv6", "ipv6-icmp"] : ["icmp"];
+}
 
 const IPV4_PROTOCOLS = [
-  "all", "tcp", "udp", "tcp_udp", "icmp", "icmpv6", "igmp", "esp", "ah",
+  "all", "tcp", "udp", "tcp_udp", "icmp", "igmp", "esp", "ah",
   "gre", "pim", "ospf", "sctp", "rsvp",
 ];
 
@@ -855,7 +857,7 @@ export function ZoneRulePanel({
       if (Object.keys(activeTcpFlags).length > 0) config.tcp_flags = activeTcpFlags;
       else if (mode === "edit" && rule?.tcp_flags) config.tcp_flags = null;
 
-      if (ICMP_PROTOCOLS.includes(ruleProtocol) && icmpTypeName && icmpTypeName !== "any") {
+      if (icmpProtocolsFor(isV6).includes(ruleProtocol) && icmpTypeName && icmpTypeName !== "any") {
         config.icmp_type_name = icmpTypeName;
       } else if (mode === "edit" && rule?.icmp_type_name) {
         config.icmp_type_name = null;
@@ -1684,14 +1686,14 @@ export function ZoneRulePanel({
                 {/* ICMP Type */}
                 <div className="space-y-2">
                   <Label className="text-xs">{t("rulePanel.icmpType")}</Label>
-                  {!ICMP_PROTOCOLS.includes(ruleProtocol) && (
+                  {!icmpProtocolsFor(isV6).includes(ruleProtocol) && (
                     <p className="text-xs text-muted-foreground">{t("rulePanel.icmpTypeHint")}</p>
                   )}
                   <div className="flex items-center gap-2">
                     <Select
                       value={icmpTypeName || "any"}
                       onValueChange={(v) => setIcmpTypeName(v === "any" ? "" : v)}
-                      disabled={!canEdit || !ICMP_PROTOCOLS.includes(ruleProtocol)}
+                      disabled={!canEdit || !icmpProtocolsFor(isV6).includes(ruleProtocol)}
                     >
                       <SelectTrigger className="h-8 text-xs flex-1">
                         <SelectValue />
