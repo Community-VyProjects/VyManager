@@ -1079,9 +1079,10 @@ export function ZoneRulePanel({
   const supportsDynamicAddressGroup = capabilities?.features.dynamic_address_group?.supported ?? false;
   const addrGroupTypeOptions = isV6
     ? [
-        { value: "ipv6-address-group", label: t("rulePanel.groupTypes.ipv6AddressGroup") },
-        { value: "ipv6-network-group", label: t("rulePanel.groupTypes.ipv6NetworkGroup") },
+        { value: "address-group", label: t("rulePanel.groupTypes.ipv6AddressGroup") },
+        { value: "network-group", label: t("rulePanel.groupTypes.ipv6NetworkGroup") },
         { value: "domain-group", label: t("rulePanel.groupTypes.domainGroup") },
+        { value: "mac-group", label: t("rulePanel.groupTypes.macGroup") },
         ...(supportsRemoteGroup ? [{ value: "remote-group", label: t("rulePanel.groupTypes.remoteGroup") }] : []),
         ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: t("rulePanel.groupTypes.dynamicAddressGroup") }] : []),
       ]
