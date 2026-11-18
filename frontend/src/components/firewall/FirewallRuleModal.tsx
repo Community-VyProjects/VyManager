@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/accordion";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service, type FirewallRule, type FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
-import { readMulti, showMulti } from "@/lib/api/firewall-family";
+import { ICMP_TYPE_NAMES_V4, ICMP_TYPE_NAMES_V6, readMulti, showMulti } from "@/lib/api/firewall-family";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
@@ -1622,22 +1622,7 @@ export function FirewallRuleModal({
 
   const availableTcpFlags = ["syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr"];
 
-  // ICMP Type names (standard ICMPv4 types)
-  const icmpTypeOptions = [
-    "echo-reply",
-    "destination-unreachable",
-    "source-quench",
-    "redirect",
-    "echo-request",
-    "router-advertisement",
-    "router-solicitation",
-    "time-exceeded",
-    "parameter-problem",
-    "timestamp-request",
-    "timestamp-reply",
-    "address-mask-request",
-    "address-mask-reply",
-  ];
+  const icmpTypeOptions = protocol === "ipv6" ? ICMP_TYPE_NAMES_V6 : ICMP_TYPE_NAMES_V4;
 
   const updateTcpFlag = (flag: string, value: "disabled" | "enabled" | "not") => {
     setTcpFlags((prev) => ({ ...prev, [flag]: value }));
@@ -1815,9 +1800,9 @@ export function FirewallRuleModal({
                     <SelectItem value="tcp_udp">{tc("shown.tcpUdp")}</SelectItem>
                     <SelectItem value="tcp">TCP</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
-                    <SelectItem value="icmp">ICMP</SelectItem>
+                    {protocol !== "ipv6" && <SelectItem value="icmp">ICMP</SelectItem>}
                     <SelectItem value="icmpv6">ICMPv6</SelectItem>
-                    <SelectItem value="ipv6-icmp">IPv6-ICMP</SelectItem>
+                    {protocol === "ipv6" && <SelectItem value="ipv6-icmp">IPv6-ICMP</SelectItem>}
                     <SelectItem value="esp">ESP</SelectItem>
                     <SelectItem value="ah">AH</SelectItem>
                     <SelectItem value="gre">GRE</SelectItem>
@@ -3083,13 +3068,7 @@ export function FirewallRuleModal({
                 <Select
                   key={icmpTypeName || "empty"}
                   value={icmpTypeName || undefined}
-                  onValueChange={(value) => {
-                    // Auto-switch to ICMP protocol when selecting a type
-                    if (value && !isIcmpProtocol(ruleProtocol)) {
-                      setRuleProtocol("icmp");
-                    }
-                    setIcmpTypeName(value);
-                  }}
+                  onValueChange={setIcmpTypeName}
                   disabled={!isIcmpProtocol(ruleProtocol)}
                 >
                   <SelectTrigger id="icmpTypeName" className="flex-1">

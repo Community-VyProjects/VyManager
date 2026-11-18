@@ -15,6 +15,47 @@ export function readMulti(value: string): string[] | null {
   return items.length ? items : null;
 }
 
+/** Lab icmp type-name allowed values. Same on 1.4 and 1.5. */
+export const ICMP_TYPE_NAMES_V4 = [
+  "echo-reply",
+  "destination-unreachable",
+  "source-quench",
+  "redirect",
+  "echo-request",
+  "router-advertisement",
+  "router-solicitation",
+  "time-exceeded",
+  "parameter-problem",
+  "timestamp-request",
+  "timestamp-reply",
+  "info-request",
+  "info-reply",
+  "address-mask-request",
+  "address-mask-reply",
+];
+
+/** Lab icmpv6 type-name allowed values. Same on 1.4 and 1.5. */
+export const ICMP_TYPE_NAMES_V6 = [
+  "destination-unreachable",
+  "packet-too-big",
+  "time-exceeded",
+  "echo-request",
+  "echo-reply",
+  "mld-listener-query",
+  "mld-listener-report",
+  "mld-listener-reduction",
+  "nd-router-solicit",
+  "nd-router-advert",
+  "nd-neighbor-solicit",
+  "nd-neighbor-advert",
+  "nd-redirect",
+  "parameter-problem",
+  "router-renumbering",
+  "ind-neighbor-solicit",
+  "ind-neighbor-advert",
+  "mld2-listener-report",
+];
+
 function tcpFlagTokens(value: FirewallRuleTcpFlags | string[] | null | undefined): string[] {
   if (value == null) return [];
   if (Array.isArray(value)) return value.filter(Boolean).sort();

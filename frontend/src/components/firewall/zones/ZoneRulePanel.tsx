@@ -35,7 +35,7 @@ import {
   type FirewallRule,
   type FirewallCapabilitiesResponse,
 } from "@/lib/api/firewall-ipv4";
-import { readMulti, showMulti } from "@/lib/api/firewall-family";
+import { ICMP_TYPE_NAMES_V4, ICMP_TYPE_NAMES_V6, readMulti, showMulti } from "@/lib/api/firewall-family";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallSeparatorsService } from "@/lib/api/firewall-separators";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
@@ -86,21 +86,6 @@ const IPV4_PROTOCOLS = [
 const IPV6_PROTOCOLS = [
   "all", "tcp", "udp", "tcp_udp", "icmpv6", "ipv6-icmp", "esp", "ah", "gre",
   "sctp", "ospf",
-];
-
-const ICMP_TYPES_V4 = [
-  "any", "echo-reply", "destination-unreachable", "source-quench",
-  "redirect", "echo-request", "router-advertisement", "router-solicitation",
-  "time-exceeded", "parameter-problem", "timestamp-request",
-  "timestamp-reply", "address-mask-request", "address-mask-reply",
-];
-
-const ICMP_TYPES_V6 = [
-  "any", "destination-unreachable", "packet-too-big", "time-exceeded",
-  "parameter-problem", "echo-request", "echo-reply",
-  "multicast-listener-query", "multicast-listener-report",
-  "multicast-listener-done", "router-solicitation", "router-advertisement",
-  "neighbor-solicitation", "neighbor-advertisement",
 ];
 
 // ============================================================================
@@ -713,7 +698,7 @@ export function ZoneRulePanel({
 
   const nonLocalZones = zones.filter((z) => !z.local_zone);
   const protocols = isV6 ? IPV6_PROTOCOLS : IPV4_PROTOCOLS;
-  const icmpTypes = isV6 ? ICMP_TYPES_V6 : ICMP_TYPES_V4;
+  const icmpTypes = ["any", ...(isV6 ? ICMP_TYPE_NAMES_V6 : ICMP_TYPE_NAMES_V4)];
 
   // ── Save handler ──────────────────────────────────────────────────────────
   const handleSubmit = async () => {
