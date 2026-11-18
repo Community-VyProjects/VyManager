@@ -76,6 +76,7 @@ type DstMode = "any" | "address" | "group" | "geoip" | "fqdn" | "mac";
 type PortMode = "any" | "port" | "group";
 
 const TCP_FLAGS = ["syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr"] as const;
+const ICMP_PROTOCOLS = ["icmp", "icmpv6", "ipv6-icmp"];
 
 const IPV4_PROTOCOLS = [
   "all", "tcp", "udp", "tcp_udp", "icmp", "icmpv6", "igmp", "esp", "ah",
@@ -540,10 +541,28 @@ export function ZoneRulePanel({
     setStateRelated(r.state?.related ?? false);
     setStateInvalid(r.state?.invalid ?? false);
 
-    // Advanced
-    if (r.tcp_flags && typeof r.tcp_flags === "object" && !Array.isArray(r.tcp_flags)) {
-      setTcpFlags({ ...Object.fromEntries(TCP_FLAGS.map((f) => [f, "disabled"])), ...(r.tcp_flags as Record<string, "disabled" | "enabled" | "not">) });
+    // Advanced. The backend returns tcp flags as ["syn", "not ack"], not an object.
+    const newTcpFlags: Record<string, "disabled" | "enabled" | "not"> = Object.fromEntries(
+      TCP_FLAGS.map((f) => [f, "disabled"])
+    );
+    if (Array.isArray(r.tcp_flags)) {
+      for (const flag of r.tcp_flags) {
+        if (flag.startsWith("not ")) {
+          const name = flag.slice(4);
+          if (name in newTcpFlags) newTcpFlags[name] = "not";
+        } else if (flag.startsWith("!")) {
+          const name = flag.slice(1);
+          if (name in newTcpFlags) newTcpFlags[name] = "not";
+        } else if (flag in newTcpFlags) {
+          newTcpFlags[flag] = "enabled";
+        }
+      }
+    } else if (r.tcp_flags && typeof r.tcp_flags === "object") {
+      for (const [flag, state] of Object.entries(r.tcp_flags)) {
+        if (flag in newTcpFlags) newTcpFlags[flag] = state as "disabled" | "enabled" | "not";
+      }
     }
+    setTcpFlags(newTcpFlags);
     setIcmpTypeName(r.icmp_type_name ?? "");
     setDscp(r.packet_mods?.dscp ?? "");
     setMark(r.packet_mods?.mark ?? "");
@@ -747,7 +766,7 @@ export function ZoneRulePanel({
       else if (mode === "edit" && rule?.description) config.description = null;
       if (ruleProtocol && ruleProtocol !== "all") {
         config.protocol = protocolInvert ? `!${ruleProtocol}` : ruleProtocol;
-      } else if (mode === "edit" && rule?.protocol) {
+      } else if (mode === "edit" && rule?.protocol && rule.protocol !== "all") {
         config.protocol = null;
       }
       config.log = log;
@@ -854,7 +873,7 @@ export function ZoneRulePanel({
       if (Object.keys(activeTcpFlags).length > 0) config.tcp_flags = activeTcpFlags;
       else if (mode === "edit" && rule?.tcp_flags) config.tcp_flags = null;
 
-      if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && icmpTypeName && icmpTypeName !== "any") {
+      if (ICMP_PROTOCOLS.includes(ruleProtocol) && icmpTypeName && icmpTypeName !== "any") {
         config.icmp_type_name = icmpTypeName;
       } else if (mode === "edit" && rule?.icmp_type_name) {
         config.icmp_type_name = null;
@@ -1682,14 +1701,14 @@ export function ZoneRulePanel({
                 {/* ICMP Type */}
                 <div className="space-y-2">
                   <Label className="text-xs">{t("rulePanel.icmpType")}</Label>
-                  {!["icmp", "icmpv6", "ipv6-icmp"].includes(ruleProtocol) && (
+                  {!ICMP_PROTOCOLS.includes(ruleProtocol) && (
                     <p className="text-xs text-muted-foreground">{t("rulePanel.icmpTypeHint")}</p>
                   )}
                   <div className="flex items-center gap-2">
                     <Select
                       value={icmpTypeName || "any"}
                       onValueChange={(v) => setIcmpTypeName(v === "any" ? "" : v)}
-                      disabled={!canEdit || !["icmp", "icmpv6", "ipv6-icmp"].includes(ruleProtocol)}
+                      disabled={!canEdit || !ICMP_PROTOCOLS.includes(ruleProtocol)}
                     >
                       <SelectTrigger className="h-8 text-xs flex-1">
                         <SelectValue />
@@ -2130,17 +2149,14 @@ export function ZoneRulePanel({
         {/* Sticky footer */}
         <div className="px-6 py-3 border-t bg-background shrink-0">
           {confirmingDelete ? (
-            <div className="space-y-2">
-              {error && <p className="text-xs text-destructive">{error}</p>}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-destructive flex-1">{t("rulePanel.deleteConfirm", { number: String(rule?.rule_number) })}</span>
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmingDelete(false)} disabled={deleteLoading}>
-                  {tc("cancel")}
-                </Button>
-                <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={handleDelete} disabled={deleteLoading}>
-                  {deleteLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : t("editZone.confirmDelete")}
-                </Button>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-destructive flex-1">{t("rulePanel.deleteConfirm", { number: String(rule?.rule_number) })}</span>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmingDelete(false)} disabled={deleteLoading}>
+                {tc("cancel")}
+              </Button>
+              <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={handleDelete} disabled={deleteLoading}>
+                {deleteLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : t("editZone.confirmDelete")}
+              </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
