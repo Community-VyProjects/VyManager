@@ -141,6 +141,9 @@ export function BgpContent() {
   const [deletingBmpTarget, setDeletingBmpTarget] = useState<string | null>(null);
   const [bmpEdits, setBmpEdits] = useState<Record<string, { address?: string; port?: string; min_retry?: string; max_retry?: string }>>({});
   const [bmpConfirm, setBmpConfirm] = useState<null | (() => Promise<void>)>(null);
+  const [pageConfirm, setPageConfirm] = useState<null | { label: string; run: () => Promise<boolean> }>(null);
+  const [pageConfirmError, setPageConfirmError] = useState<string | null>(null);
+  const [pageConfirmSaving, setPageConfirmSaving] = useState(false);
   const [editParams, setEditParams] = useState<BgpParameters | null>(null);
 
   const loadData = useCallback(async (refresh = false) => {
@@ -312,11 +315,16 @@ export function BgpContent() {
       const message = failedSaveMessage(result, t("content.evpnFlagFailed"));
       if (message) {
         setAfError(message);
-        return;
+        setPageConfirmError(message);
+        return false;
       }
       await loadData(true);
+      return true;
     } catch (err) {
-      setAfError(thrownMessage(err, t("content.evpnFlagFailed")));
+      const message = thrownMessage(err, t("content.evpnFlagFailed"));
+      setAfError(message);
+      setPageConfirmError(message);
+      return false;
     } finally {
       setAfSaving(false);
     }
@@ -351,11 +359,16 @@ export function BgpContent() {
       const message = failedSaveMessage(result, t("content.deleteNetworkFailed"));
       if (message) {
         setAfError(message);
-        return;
+        setPageConfirmError(message);
+        return false;
       }
       await loadData(true);
+      return true;
     } catch (err) {
-      setAfError(thrownMessage(err, t("content.deleteNetworkFailed")));
+      const message = thrownMessage(err, t("content.deleteNetworkFailed"));
+      setAfError(message);
+      setPageConfirmError(message);
+      return false;
     } finally {
       setAfSaving(false);
     }
@@ -367,8 +380,9 @@ export function BgpContent() {
     setAfError(null);
     try {
       const result = await bgpService.addRedistribute(selectedAfi, afRedistProto, afRedistRouteMap.trim() || undefined, afRedistMetric.trim() || undefined);
-      if (!result.success) {
-        setAfError(result.error ?? t("content.addRedistributeFailed"));
+      const message = failedSaveMessage(result, t("content.addRedistributeFailed"));
+      if (message) {
+        setAfError(message);
         return;
       }
       setAfRedistProto("");
@@ -389,13 +403,19 @@ export function BgpContent() {
       const result = protocol === "table" && table
         ? await bgpService.deleteRedistributeTable(selectedAfi, table)
         : await bgpService.deleteRedistribute(selectedAfi, protocol);
-      if (!result.success) {
-        setAfError(result.error ?? t("content.deleteRedistributeFailed"));
-        return;
+      const message = failedSaveMessage(result, t("content.deleteRedistributeFailed"));
+      if (message) {
+        setAfError(message);
+        setPageConfirmError(message);
+        return false;
       }
       await loadData(true);
+      return true;
     } catch (err) {
-      setAfError(thrownMessage(err, t("content.deleteRedistributeFailed")));
+      const message = thrownMessage(err, t("content.deleteRedistributeFailed"));
+      setAfError(message);
+      setPageConfirmError(message);
+      return false;
     } finally {
       setAfSaving(false);
     }
@@ -432,11 +452,16 @@ export function BgpContent() {
       const message = failedSaveMessage(result, t("content.deleteAggregateFailed"));
       if (message) {
         setAfError(message);
-        return;
+        setPageConfirmError(message);
+        return false;
       }
       await loadData(true);
+      return true;
     } catch (err) {
-      setAfError(thrownMessage(err, t("content.deleteAggregateFailed")));
+      const message = thrownMessage(err, t("content.deleteAggregateFailed"));
+      setAfError(message);
+      setPageConfirmError(message);
+      return false;
     } finally {
       setAfSaving(false);
     }
@@ -1091,7 +1116,13 @@ export function BgpContent() {
                                     id={`evpn-flag-${flag}`}
                                     checked={checked}
                                     disabled={afSaving}
-                                    onCheckedChange={(c) => handleToggleEvpnFlag(flag, c === true)}
+                                    onCheckedChange={(c) => {
+                                      setPageConfirmError(null);
+                                      setPageConfirm({
+                                        label: flag,
+                                        run: () => handleToggleEvpnFlag(flag, c === true),
+                                      });
+                                    }}
                                   />
                                   <Label htmlFor={`evpn-flag-${flag}`} className="text-sm cursor-pointer">
                                     {flag.replace(/-/g, " ")}
@@ -1133,7 +1164,10 @@ export function BgpContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => handleDeleteNetwork(net.prefix)}
+                                      onClick={() => {
+                                        setPageConfirmError(null);
+                                        setPageConfirm({ label: net.prefix, run: () => handleDeleteNetwork(net.prefix) });
+                                      }}
                                       disabled={afSaving}
                                     >
                                       <Trash2 className="h-4 w-4" />
@@ -1206,7 +1240,13 @@ export function BgpContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => handleDeleteRedistribute(rd.protocol, rd.table ?? undefined)}
+                                      onClick={() => {
+                                        setPageConfirmError(null);
+                                        setPageConfirm({
+                                          label: rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol,
+                                          run: () => handleDeleteRedistribute(rd.protocol, rd.table ?? undefined),
+                                        });
+                                      }}
                                       disabled={afSaving}
                                     >
                                       <Trash2 className="h-4 w-4" />
@@ -1279,8 +1319,9 @@ export function BgpContent() {
                                     afRedistRouteMap.trim() || undefined,
                                     afRedistMetric.trim() || undefined,
                                   );
-                                  if (!result.success) {
-                                    setAfError(result.error ?? t("content.addRedistributeFailed"));
+                                  const message = failedSaveMessage(result, t("content.addRedistributeFailed"));
+                                  if (message) {
+                                    setAfError(message);
                                     return;
                                   }
                                   setAfRedistTable("");
@@ -1332,7 +1373,10 @@ export function BgpContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => handleDeleteAggregate(agg.prefix)}
+                                      onClick={() => {
+                                        setPageConfirmError(null);
+                                        setPageConfirm({ label: agg.prefix, run: () => handleDeleteAggregate(agg.prefix) });
+                                      }}
                                       disabled={afSaving}
                                     >
                                       <Trash2 className="h-4 w-4" />
@@ -1751,15 +1795,15 @@ export function BgpContent() {
                 </div>
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-[140px] space-y-1">
-                    <Label className="text-xs">{t("content.bmp.name")}</Label>
+                    <Label className="text-xs">{tc("name")}</Label>
                     <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" />
                   </div>
                   <div className="w-[160px] space-y-1">
-                    <Label className="text-xs">{t("content.bmp.address")}</Label>
+                    <Label className="text-xs">{t("content.address")}</Label>
                     <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" />
                   </div>
                   <div className="w-[100px] space-y-1">
-                    <Label className="text-xs">{t("content.bmp.port")}</Label>
+                    <Label className="text-xs">{t("neighborModal.port")}</Label>
                     <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
                   </div>
                   <div className="w-[100px] space-y-1">
@@ -1823,8 +1867,8 @@ export function BgpContent() {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {([
-                          ["address", t("content.bmp.address"), target.address ?? ""],
-                          ["port", t("content.bmp.port"), target.port ?? ""],
+                          ["address", t("content.address"), target.address ?? ""],
+                          ["port", t("neighborModal.port"), target.port ?? ""],
                           ["min_retry", t("content.bmp.minRetry"), target.min_retry ?? ""],
                           ["max_retry", t("content.bmp.maxRetry"), target.max_retry ?? ""],
                         ] as const).map(([key, label, current]) => (
@@ -2029,11 +2073,40 @@ export function BgpContent() {
         onConfirm={handleDeletePeerGroup}
       />
 
+      <AlertDialog open={!!pageConfirm} onOpenChange={(open) => { if (!open) { setPageConfirm(null); setPageConfirmError(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("content.bmp.applyChange")}</AlertDialogTitle>
+            <AlertDialogDescription>{pageConfirm?.label}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {pageConfirmError && <p className="text-sm text-destructive">{pageConfirmError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pageConfirmSaving}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pageConfirmSaving}
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!pageConfirm) return;
+                setPageConfirmSaving(true);
+                setPageConfirmError(null);
+                const ok = await pageConfirm.run();
+                setPageConfirmSaving(false);
+                if (ok) {
+                  setPageConfirm(null);
+                  setPageConfirmError(null);
+                }
+              }}
+            >
+              {tc("save")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!bmpConfirm} onOpenChange={(open) => { if (!open) setBmpConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.bmp.applyChange")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("content.bmp.applyChange")}</AlertDialogDescription>
           </AlertDialogHeader>
           {bmpError && <p className="text-sm text-destructive">{bmpError}</p>}
           <AlertDialogFooter>

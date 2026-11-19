@@ -494,7 +494,7 @@ function diffPeerGroupAf(
   flag(original.route_reflector_client, updated.route_reflector_client, "set_peer_group_af_route_reflector_client", "delete_peer_group_af_route_reflector_client");
 }
 
-export class BgpService {
+class BgpService {
   async getCapabilities(): Promise<BgpCapabilities> {
     return apiClient.get<BgpCapabilities>("/vyos/bgp/capabilities");
   }
@@ -624,7 +624,7 @@ export class BgpService {
 
     for (const [afi, afConfig] of Object.entries(neighbor.address_families)) {
       operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
-      this._addNeighborAfOps(operations, addr, afi, afConfig);
+      diffNeighborAf(operations, addr, afi, BLANK_NEIGHBOR_AF, afConfig);
     }
 
     return this.batchConfigure({ operations });
@@ -780,10 +780,6 @@ export class BgpService {
     return this.batchConfigure({ operations: [{ op: "delete_neighbor", value: address }] });
   }
 
-  private _addNeighborAfOps(operations: BgpBatchOperation[], neighbor: string, afi: string, af: BgpNeighborAddressFamilyConfig): void {
-    diffNeighborAf(operations, neighbor, afi, BLANK_NEIGHBOR_AF, af);
-  }
-
   // ==========================================================================
   // Peer Group Operations
   // ==========================================================================
@@ -831,11 +827,7 @@ export class BgpService {
 
     for (const [afi, afConfig] of Object.entries(pg.address_families)) {
       operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
-      if (afConfig.route_map_import) operations.push({ op: "set_peer_group_af_route_map_import", value: `${name},${afi},${afConfig.route_map_import}` });
-      if (afConfig.route_map_export) operations.push({ op: "set_peer_group_af_route_map_export", value: `${name},${afi},${afConfig.route_map_export}` });
-      if (afConfig.soft_reconfiguration_inbound) operations.push({ op: "set_peer_group_af_soft_reconfiguration_inbound", value: `${name},${afi}` });
-      if (afConfig.nexthop_self) operations.push({ op: "set_peer_group_af_nexthop_self", value: `${name},${afi}` });
-      if (afConfig.route_reflector_client) operations.push({ op: "set_peer_group_af_route_reflector_client", value: `${name},${afi}` });
+      diffPeerGroupAf(operations, name, afi, BLANK_NEIGHBOR_AF, afConfig);
     }
 
     return this.batchConfigure({ operations });
@@ -910,10 +902,9 @@ export class BgpService {
     const updAFs = new Set(Object.keys(updated.address_families));
     for (const afi of origAFs) { if (!updAFs.has(afi)) operations.push({ op: "delete_peer_group_af", value: `${name},${afi}` }); }
     for (const afi of updAFs) {
-      const blank = { ...BLANK_NEIGHBOR_AF };
       if (!origAFs.has(afi)) {
         operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
-        diffPeerGroupAf(operations, name, afi, blank, updated.address_families[afi]);
+        diffPeerGroupAf(operations, name, afi, BLANK_NEIGHBOR_AF, updated.address_families[afi]);
       } else {
         diffPeerGroupAf(operations, name, afi, original.address_families[afi], updated.address_families[afi]);
       }

@@ -556,7 +556,7 @@ export function BgpPeerGroupModal({
                       onCheckedChange={(checked) => setSolo(checked === true)}
                     />
                     <Label htmlFor="bgp-pg-solo" className="cursor-pointer">
-                      {t("peerGroupModal.solo")}
+                      {t("form.solo")}
                     </Label>
                   </div>
                 )}
@@ -568,7 +568,7 @@ export function BgpPeerGroupModal({
                       onCheckedChange={(checked) => setLinkState(checked === true)}
                     />
                     <Label htmlFor="bgp-pg-link-state" className="cursor-pointer">
-                      {t("peerGroupModal.linkState")}
+                      {t("form.linkState")}
                     </Label>
                   </div>
                 )}
@@ -720,12 +720,12 @@ export function BgpPeerGroupModal({
                             onCheckedChange={(checked) => setBfdStrict(checked === true)}
                           />
                           <Label htmlFor="bgp-pg-bfd-strict" className="cursor-pointer">
-                            {t("peerGroupModal.bfdStrict")}
+                            {t("form.bfdStrict")}
                           </Label>
                         </div>
                         {bfdStrict && (
                           <div className="space-y-1">
-                            <Label htmlFor="bgp-pg-bfd-hold">{t("peerGroupModal.bfdStrictHoldTime")}</Label>
+                            <Label htmlFor="bgp-pg-bfd-hold">{t("form.bfdStrictHoldTime")}</Label>
                             <Input
                               id="bgp-pg-bfd-hold"
                               type="number"

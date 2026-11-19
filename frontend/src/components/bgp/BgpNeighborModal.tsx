@@ -620,7 +620,7 @@ export function BgpNeighborModal({
                       htmlFor="bgp-neighbor-solo"
                       className="cursor-pointer"
                     >
-                      {t("neighborModal.solo")}
+                      {t("form.solo")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {t("neighborModal.soloHelp")}
@@ -636,7 +636,7 @@ export function BgpNeighborModal({
                       onCheckedChange={(checked) => setLinkState(checked === true)}
                     />
                     <Label htmlFor="bgp-neighbor-link-state" className="cursor-pointer">
-                      {t("neighborModal.linkState")}
+                      {t("form.linkState")}
                     </Label>
                   </div>
                 )}
@@ -818,12 +818,12 @@ export function BgpNeighborModal({
                             onCheckedChange={(checked) => setBfdStrict(checked === true)}
                           />
                           <Label htmlFor="bgp-neighbor-bfd-strict" className="cursor-pointer">
-                            {t("neighborModal.bfdStrict")}
+                            {t("form.bfdStrict")}
                           </Label>
                         </div>
                         {bfdStrict && (
                           <div className="space-y-1">
-                            <Label htmlFor="bgp-neighbor-bfd-hold">{t("neighborModal.bfdStrictHoldTime")}</Label>
+                            <Label htmlFor="bgp-neighbor-bfd-hold">{t("form.bfdStrictHoldTime")}</Label>
                             <Input
                               id="bgp-neighbor-bfd-hold"
                               type="number"

@@ -26,6 +26,7 @@ export const BGP_TABS = [
   "peer-groups",
   "address-families",
   "parameters",
+  "bmp",
 ] as const;
 
 export type BgpTab = (typeof BGP_TABS)[number];

@@ -43,6 +43,7 @@ describe("bgpTabFromSearch", () => {
   it("reads tab as nav emits it", () => {
     assert.equal(bgpTabFromSearch(params({ tab: "neighbors" })), "neighbors");
     assert.equal(bgpTabFromSearch(params({ tab: "peer-groups" })), "peer-groups");
+    assert.equal(bgpTabFromSearch(params({ tab: "bmp" })), "bmp");
   });
 
   it("does not treat section as a BGP tab", () => {
