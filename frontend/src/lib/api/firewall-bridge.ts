@@ -65,9 +65,11 @@ export interface BridgeRule {
   // Rate limiting (1.5+)
   limit_rate?: string | null;
   limit_burst?: string | null;
-  // Log options (1.5+)
+  // Log options
   log_options_level?: string | null;
   log_options_group?: string | null;
+  log_options_queue_threshold?: string | null;
+  log_options_snapshot_length?: string | null;
   // Mark matching (1.5+)
   mark?: string | null;
   connection_mark?: string | null;
@@ -99,11 +101,6 @@ export interface BridgeRule {
   time_starttime?: string | null;
   time_stoptime?: string | null;
   time_weekdays?: string | null;
-  // Connection status (1.5+)
-  connection_status_new?: boolean;
-  connection_status_established?: boolean;
-  connection_status_related?: boolean;
-  connection_status_invalid?: boolean;
   // Set options (1.5+)
   set_dscp?: string | null;
   set_mark?: string | null;
@@ -111,12 +108,12 @@ export interface BridgeRule {
   set_ttl?: string | null;
   set_hop_limit?: string | null;
   set_tcp_mss?: string | null;
-  set_vlan_priority?: string | null;
 }
 
 export interface BridgeChain {
   name: string;
   default_action?: string | null;
+  default_log?: boolean;
   description?: string | null;
   rules: BridgeRule[];
   rule_count: number;
@@ -142,6 +139,7 @@ export interface BridgeCapabilities {
     output_chain: { supported: boolean; description: string };
     prerouting_chain: { supported: boolean; description: string };
     custom_chains: { supported: boolean; description: string };
+    chain_default_log: { supported: boolean; description: string };
     rule_description: { supported: boolean; description: string };
     ethernet_type_matching: { supported: boolean; description: string };
     packet_modifications: { supported: boolean; description: string };
@@ -160,16 +158,26 @@ export interface BridgeCapabilities {
     ipsec_matching: { supported: boolean; description: string };
     ttl_matching: { supported: boolean; description: string };
     packet_type: { supported: boolean; description: string };
+    packet_length: { supported: boolean; description: string };
     log_options: { supported: boolean; description: string };
   };
   supported_chains: string[];
   supported_actions: string[];
   chain_actions: Record<string, string[]>;
+  base_default_actions: string[];
+  custom_default_actions: string[];
+  tcp_flag_names: string[];
+  packet_type_values: string[];
+  ethernet_type_values: string[];
+  icmp_type_names: string[];
+  icmpv6_type_names: string[];
+  log_level_values: string[];
   matching_criteria: {
     source_mac: MatchingCriteria;
     destination_mac: MatchingCriteria;
     vlan_id: MatchingCriteria;
     vlan_priority: MatchingCriteria;
+    vlan_ethernet_type: MatchingCriteria;
     inbound_interface: MatchingCriteria;
     outbound_interface: MatchingCriteria;
     ethernet_type: MatchingCriteria;
@@ -272,6 +280,27 @@ class BridgeFirewallService {
     });
   }
 
+  async setChainDefaultLog(chain: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      chain,
+      operations: [{ op: "set_chain_default_log" }],
+    });
+  }
+
+  async deleteChainDefaultLog(chain: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      chain,
+      operations: [{ op: "delete_chain_default_log" }],
+    });
+  }
+
+  async deleteChainDescription(chain: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      chain,
+      operations: [{ op: "delete_chain_description" }],
+    });
+  }
+
   /**
    * Set chain description
    */
@@ -347,9 +376,11 @@ class BridgeFirewallService {
       // Rate limiting (1.5+)
       limit_rate?: string;
       limit_burst?: string;
-      // Log options (1.5+)
+      // Log options
       log_options_level?: string;
       log_options_group?: string;
+      log_options_queue_threshold?: string;
+      log_options_snapshot_length?: string;
       // Mark matching (1.5+)
       mark?: string;
       connection_mark?: string;
@@ -381,11 +412,6 @@ class BridgeFirewallService {
       time_starttime?: string;
       time_stoptime?: string;
       time_weekdays?: string;
-      // Connection status (1.5+)
-      connection_status_new?: boolean;
-      connection_status_established?: boolean;
-      connection_status_related?: boolean;
-      connection_status_invalid?: boolean;
       // Set options (1.5+)
       set_dscp?: string;
       set_mark?: string;
@@ -393,7 +419,6 @@ class BridgeFirewallService {
       set_ttl?: string;
       set_hop_limit?: string;
       set_tcp_mss?: string;
-      set_vlan_priority?: string;
     }
   ): Promise<VyOSResponse> {
     const operations: BridgeBatchOperation[] = [{ op: "set_rule" }];
@@ -530,11 +555,13 @@ class BridgeFirewallService {
     }
 
     // TCP flags (1.5+)
-    if (config.tcp_flags) {
-      operations.push({ op: "set_rule_tcp_flags", value: config.tcp_flags });
+    // TCP flags are presence nodes, one op per flag. A comma string is the
+    // modal's list, not one CLI value.
+    for (const flag of (config.tcp_flags || "").split(",").map((item) => item.trim()).filter(Boolean)) {
+      operations.push({ op: "set_rule_tcp_flags", value: flag });
     }
-    if (config.tcp_flags_not) {
-      operations.push({ op: "set_rule_tcp_flags_not", value: config.tcp_flags_not });
+    for (const flag of (config.tcp_flags_not || "").split(",").map((item) => item.trim()).filter(Boolean)) {
+      operations.push({ op: "set_rule_tcp_flags_not", value: flag });
     }
     if (config.tcp_mss) {
       operations.push({ op: "set_rule_tcp_mss", value: config.tcp_mss });
@@ -548,12 +575,18 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_limit_burst", value: config.limit_burst });
     }
 
-    // Log options (1.5+)
+    // Log options
     if (config.log_options_level) {
       operations.push({ op: "set_rule_log_options_level", value: config.log_options_level });
     }
     if (config.log_options_group) {
       operations.push({ op: "set_rule_log_options_group", value: config.log_options_group });
+    }
+    if (config.log_options_queue_threshold) {
+      operations.push({ op: "set_rule_log_options_queue_threshold", value: config.log_options_queue_threshold });
+    }
+    if (config.log_options_snapshot_length) {
+      operations.push({ op: "set_rule_log_options_snapshot_length", value: config.log_options_snapshot_length });
     }
 
     // Mark matching (1.5+)
@@ -641,9 +674,6 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_time_weekdays", value: config.time_weekdays });
     }
 
-    // Connection status (1.5+) - commented out as builder methods would need to be added
-    // These are typically set operations, not value operations
-
     // Set options (1.5+)
     if (config.set_dscp) {
       operations.push({ op: "set_rule_set_dscp", value: config.set_dscp });
@@ -662,9 +692,6 @@ class BridgeFirewallService {
     }
     if (config.set_tcp_mss) {
       operations.push({ op: "set_rule_set_tcp_mss", value: config.set_tcp_mss });
-    }
-    if (config.set_vlan_priority) {
-      operations.push({ op: "set_rule_set_vlan_priority", value: config.set_vlan_priority });
     }
 
     return this.batchConfigure({
@@ -699,6 +726,26 @@ class BridgeFirewallService {
         } else if (currentValue) {
           operations.push({ op: deleteOp });
         }
+      }
+    };
+
+    // A multi: leaf deletes the existing value, not the node. A changed
+    // value deletes the old one so the set does not leave it behind.
+    const handleMultiField = (
+      field: keyof typeof newConfig,
+      setOp: string,
+      deleteOp: string
+    ) => {
+      const newValue = newConfig[field] as string | null | undefined;
+      const currentValue = currentRule[field as keyof BridgeRule] as string | null | undefined;
+      if (newValue === undefined) {
+        return;
+      }
+      if (currentValue && currentValue !== newValue) {
+        operations.push({ op: deleteOp, value: currentValue });
+      }
+      if (newValue) {
+        operations.push({ op: setOp, value: newValue });
       }
     };
 
@@ -784,6 +831,41 @@ class BridgeFirewallService {
     handleStringField("icmpv6_code", "set_rule_icmpv6_code", "delete_rule_icmpv6_code");
     handleStringField("icmpv6_type_name", "set_rule_icmpv6_type_name", "delete_rule_icmpv6_type_name");
 
+    const handleFlagSet = (
+      field: "tcp_flags" | "tcp_flags_not",
+      setOp: string,
+      deleteOp: string
+    ) => {
+      if (newConfig[field] === undefined) {
+        return;
+      }
+      const next = new Set(
+        ((newConfig[field] as string | null | undefined) ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      );
+      const prev = new Set(
+        ((currentRule[field] as string | null | undefined) ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      );
+      for (const flag of prev) {
+        if (!next.has(flag)) {
+          operations.push({ op: deleteOp, value: flag });
+        }
+      }
+      for (const flag of next) {
+        if (!prev.has(flag)) {
+          operations.push({ op: setOp, value: flag });
+        }
+      }
+    };
+
+    handleFlagSet("tcp_flags", "set_rule_tcp_flags", "delete_rule_tcp_flags");
+    handleFlagSet("tcp_flags_not", "set_rule_tcp_flags_not", "delete_rule_tcp_flags_not");
+
     // TCP MSS (1.5+)
     handleStringField("tcp_mss", "set_rule_tcp_mss", "delete_rule_tcp_mss");
 
@@ -791,17 +873,19 @@ class BridgeFirewallService {
     handleStringField("limit_rate", "set_rule_limit_rate", "delete_rule_limit_rate");
     handleStringField("limit_burst", "set_rule_limit_burst", "delete_rule_limit_burst");
 
-    // Log options (1.5+)
+    // Log options
     handleStringField("log_options_level", "set_rule_log_options_level", "delete_rule_log_options_level");
     handleStringField("log_options_group", "set_rule_log_options_group", "delete_rule_log_options_group");
+    handleStringField("log_options_queue_threshold", "set_rule_log_options_queue_threshold", "delete_rule_log_options_queue_threshold");
+    handleStringField("log_options_snapshot_length", "set_rule_log_options_snapshot_length", "delete_rule_log_options_snapshot_length");
 
     // Mark matching (1.5+)
     handleStringField("mark", "set_rule_mark", "delete_rule_mark");
-    handleStringField("connection_mark", "set_rule_connection_mark", "delete_rule_connection_mark");
+    handleMultiField("connection_mark", "set_rule_connection_mark", "delete_rule_connection_mark");
 
     // DSCP matching (1.5+)
-    handleStringField("dscp", "set_rule_dscp", "delete_rule_dscp");
-    handleStringField("dscp_exclude", "set_rule_dscp_exclude", "delete_rule_dscp_exclude");
+    handleMultiField("dscp", "set_rule_dscp", "delete_rule_dscp");
+    handleMultiField("dscp_exclude", "set_rule_dscp_exclude", "delete_rule_dscp_exclude");
 
     // Fragment matching (1.5+)
     handleBooleanField("fragment_match_frag", "set_rule_fragment_match_frag", "delete_rule_fragment_match_frag");
@@ -825,7 +909,7 @@ class BridgeFirewallService {
 
     // Packet type/length (1.5+)
     handleStringField("packet_type", "set_rule_packet_type", "delete_rule_packet_type");
-    handleStringField("packet_length", "set_rule_packet_length", "delete_rule_packet_length");
+    handleMultiField("packet_length", "set_rule_packet_length", "delete_rule_packet_length");
 
     // Time-based rules (1.5+)
     handleStringField("time_startdate", "set_rule_time_startdate", "delete_rule_time_startdate");
@@ -834,12 +918,6 @@ class BridgeFirewallService {
     handleStringField("time_stoptime", "set_rule_time_stoptime", "delete_rule_time_stoptime");
     handleStringField("time_weekdays", "set_rule_time_weekdays", "delete_rule_time_weekdays");
 
-    // Connection status (1.5+)
-    handleBooleanField("connection_status_new", "set_rule_connection_status_new", "delete_rule_connection_status_new");
-    handleBooleanField("connection_status_established", "set_rule_connection_status_established", "delete_rule_connection_status_established");
-    handleBooleanField("connection_status_related", "set_rule_connection_status_related", "delete_rule_connection_status_related");
-    handleBooleanField("connection_status_invalid", "set_rule_connection_status_invalid", "delete_rule_connection_status_invalid");
-
     // Set options (1.5+)
     handleStringField("set_dscp", "set_rule_set_dscp", "delete_rule_set_dscp");
     handleStringField("set_mark", "set_rule_set_mark", "delete_rule_set_mark");
@@ -847,7 +925,6 @@ class BridgeFirewallService {
     handleStringField("set_ttl", "set_rule_set_ttl", "delete_rule_set_ttl");
     handleStringField("set_hop_limit", "set_rule_set_hop_limit", "delete_rule_set_hop_limit");
     handleStringField("set_tcp_mss", "set_rule_set_tcp_mss", "delete_rule_set_tcp_mss");
-    handleStringField("set_vlan_priority", "set_rule_set_vlan_priority", "delete_rule_set_vlan_priority");
 
     if (operations.length === 0) {
       return { success: true, data: { message: "No changes" } };
@@ -914,7 +991,7 @@ class BridgeFirewallService {
   }
 
   // ==========================================================================
-  // Custom Chain Operations (VyOS 1.5+ only)
+  // Custom Chain Operations
   // ==========================================================================
 
   /**
