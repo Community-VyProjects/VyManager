@@ -32,11 +32,20 @@ export function DeleteBgpPeerGroupModal({
   const t = useTranslations("bgp");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       await onConfirm();
+      onOpenChange(false);
+    } catch (err) {
+      const message = err && typeof err === "object" && "message" in err && typeof (err as { message?: unknown }).message === "string"
+        ? (err as { message: string }).message
+        : t("content.saveFailed");
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -63,7 +72,7 @@ export function DeleteBgpPeerGroupModal({
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
-
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction

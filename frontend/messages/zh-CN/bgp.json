@@ -21,7 +21,18 @@
     "overviewTab": "概览",
     "parametersTab": "参数",
     "bmpTab": "BMP",
-    "bmp": { "sourceInterface": "源接口" },
+    "bmp": {
+      "sourceInterface": "源接口",
+      "address": "地址",
+      "port": "端口",
+      "minRetry": "最小重试",
+      "maxRetry": "最大重试",
+      "mirror": "镜像",
+      "mirrorBufferLimit": "镜像缓冲限制",
+      "name": "名称",
+      "deleteTarget": "删除目标",
+      "applyChange": "应用更改"
+    },
     "defaultValue": "{value}（默认）",
     "address": "地址",
     "remoteAs": "远端 AS",
@@ -91,8 +102,7 @@
       "outputQueueLimit": "输出队列限制",
       "updateDelayEstablishWait": "建立等待",
       "updateDelayMaxDelay": "最大延迟",
-      "bandwidth": "带宽",
-      "med": "MED",
+      "sessionTitle": "AS 表示法与队列",
       "distanceTitle": "管理距离",
       "flags": {
         "log_neighbor_changes": { "label": "记录邻居变化", "desc": "记录邻居 up/down 及重置原因" },
@@ -111,7 +121,7 @@
         "suppress_fib_pending": { "label": "抑制 FIB 待定路由", "desc": "不通告尚未安装到 FIB 的路由" },
         "no_suppress_duplicates": { "label": "不抑制重复路由", "desc": "不抑制重复的 BGP 路由" },
         "no_ipv6_auto_ra": { "label": "禁用 IPv6 自动 RA", "desc": "禁用 IPv6 自动路由器通告" },
-        "no_hard_administrative_reset": { "label": "不做硬管理重置", "desc": "管理变更时不重置会话" },
+        "no_hard_administrative_reset": { "label": "不做硬管理重置", "desc": "管理重置时不发送 Hard Reset 通知" },
         "shutdown": { "label": "关闭", "desc": "以管理方式关闭 BGP" }
       },
       "bestpath": {
@@ -151,6 +161,7 @@
     "shutdown": "关闭",
     "passive": "被动",
     "overrideCapability": "覆盖能力",
+    "strictCapabilityMatch": "严格能力匹配",
     "overrideCapabilityHelp": "覆盖能力协商结果。",
     "disableCapNeg": "禁用能力协商",
     "disableConnectedCheck": "禁用直连检查",

@@ -123,3 +123,56 @@ def test_ipv6_redistribute_protocols_match_the_lab():
     assert "rip" not in mapper.redistribute_ipv6_protocols()
     with pytest.raises(ValueError, match="not supported"):
         mapper.get_af_redistribute("ipv6-unicast", "ospf")
+
+
+def test_parse_config_masks_password_and_reads_new_leaves():
+    from routers.bgp.bgp import BgpBmpTarget, BgpConfig
+
+    tree = {
+        "protocols": {
+            "bgp": {
+                "parameters": {
+                    "as-notation": "asdot",
+                    "input-queue-limit": "100",
+                    "update-delay": {"establish-wait": "30", "max-delay": "60"},
+                },
+                "neighbor": {
+                    "192.0.2.1": {
+                        "password": "secret",
+                        "solo": {},
+                        "bfd": {"strict": {"hold-time": "5"}},
+                        "address-family": {"link-state": {}},
+                    }
+                },
+                "peer-group": {
+                    "UPSTREAM": {"password": "group-secret", "solo": {}},
+                },
+                "bmp": {
+                    "mirror-buffer-limit": "4096",
+                    "target": {
+                        "T1": {
+                            "address": "192.0.2.9",
+                            "port": "5000",
+                            "min-retry": "10",
+                            "max-retry": "60",
+                            "mirror": {},
+                            "source-interface": "eth0",
+                            "monitor": {"ipv4-unicast": {"local-rib": {}}},
+                        }
+                    },
+                },
+            }
+        }
+    }
+    parsed = get_bgp_mapper("2026.09.23-rolling").parse_config(tree)
+    assert parsed["neighbors"][0]["password"] == "***"
+    assert parsed["peer_groups"][0]["password"] == "***"
+    assert parsed["neighbors"][0]["link_state"] is True
+    assert parsed["neighbors"][0]["bfd"]["strict"] is True
+    assert parsed["neighbors"][0]["bfd"]["strict_hold_time"] == 5
+    assert parsed["parameters"]["as_notation"] == "asdot"
+    assert parsed["bmp"]["targets"][0]["min_retry"] == 10
+    assert parsed["bmp"]["targets"][0]["max_retry"] == 60
+    assert parsed["bmp"]["mirror_buffer_limit"] == 4096
+    BgpConfig(**parsed)
+    BgpBmpTarget(**parsed["bmp"]["targets"][0])

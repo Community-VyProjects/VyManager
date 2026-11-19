@@ -55,6 +55,9 @@ class BgpMapperV1_5(BgpMapper):
         return self._peer_group(name) + ["solo"]
 
     def get_parameters_as_notation(self, value: str) -> List[str]:
+        if value not in self.as_notation_values():
+            raise ValueError(
+                f"as-notation {value} is not supported on this device")
         return self._bgp() + ["parameters", "as-notation", value]
 
     def get_parameters_as_notation_delete(self) -> List[str]:

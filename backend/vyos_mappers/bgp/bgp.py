@@ -224,6 +224,9 @@ class BgpMapper(BaseFeatureMapper):
         return self._bgp() + ["parameters", "bestpath", "as-path", option]
 
     def get_parameters_bestpath_bandwidth(self, value: str) -> List[str]:
+        if value not in self.bestpath_bandwidth_values():
+            raise ValueError(
+                f"bestpath bandwidth {value} is not supported on this device")
         return self._bgp() + ["parameters", "bestpath", "bandwidth", value]
 
     def get_parameters_bestpath_bandwidth_delete(self) -> List[str]:
@@ -233,6 +236,9 @@ class BgpMapper(BaseFeatureMapper):
         return self._bgp() + ["parameters", "bestpath", "compare-routerid"]
 
     def get_parameters_bestpath_med(self, option: str) -> List[str]:
+        if option not in self.bestpath_med_values():
+            raise ValueError(
+                f"bestpath med {option} is not supported on this device")
         return self._bgp() + ["parameters", "bestpath", "med", option]
 
     def get_parameters_bestpath_peer_type_multipath_relax(self) -> List[str]:
@@ -402,6 +408,9 @@ class BgpMapper(BaseFeatureMapper):
     def get_neighbor_bfd_profile(self, neighbor: str, value: str) -> List[str]:
         return self._neighbor(neighbor) + ["bfd", "profile", value]
 
+    def get_neighbor_bfd_profile_delete(self, neighbor: str) -> List[str]:
+        return self._neighbor(neighbor) + ["bfd", "profile"]
+
     def get_neighbor_bfd_delete(self, neighbor: str) -> List[str]:
         return self._neighbor(neighbor) + ["bfd"]
 
@@ -507,6 +516,12 @@ class BgpMapper(BaseFeatureMapper):
     def get_neighbor_af_route_map_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["route-map"]
 
+    def get_neighbor_af_route_map_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["route-map", "import"]
+
+    def get_neighbor_af_route_map_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["route-map", "export"]
+
     def get_neighbor_af_prefix_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["prefix-list", "export", value]
 
@@ -515,6 +530,12 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_neighbor_af_prefix_list_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["prefix-list"]
+
+    def get_neighbor_af_prefix_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["prefix-list", "import"]
+
+    def get_neighbor_af_prefix_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["prefix-list", "export"]
 
     def get_neighbor_af_filter_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["filter-list", "export", value]
@@ -525,6 +546,12 @@ class BgpMapper(BaseFeatureMapper):
     def get_neighbor_af_filter_list_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["filter-list"]
 
+    def get_neighbor_af_filter_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["filter-list", "import"]
+
+    def get_neighbor_af_filter_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["filter-list", "export"]
+
     def get_neighbor_af_distribute_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["distribute-list", "export", value]
 
@@ -533,6 +560,12 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_neighbor_af_distribute_list_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["distribute-list"]
+
+    def get_neighbor_af_distribute_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["distribute-list", "import"]
+
+    def get_neighbor_af_distribute_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["distribute-list", "export"]
 
     def get_neighbor_af_soft_reconfiguration_inbound(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["soft-reconfiguration", "inbound"]
@@ -581,6 +614,9 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_neighbor_af_default_originate_route_map(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["default-originate", "route-map", value]
+
+    def get_neighbor_af_default_originate_route_map_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["default-originate", "route-map"]
 
     def get_neighbor_af_default_originate_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["default-originate"]
@@ -720,6 +756,9 @@ class BgpMapper(BaseFeatureMapper):
     def get_peer_group_bfd_profile(self, name: str, value: str) -> List[str]:
         return self._peer_group(name) + ["bfd", "profile", value]
 
+    def get_peer_group_bfd_profile_delete(self, name: str) -> List[str]:
+        return self._peer_group(name) + ["bfd", "profile"]
+
     def get_peer_group_bfd_delete(self, name: str) -> List[str]:
         return self._peer_group(name) + ["bfd"]
 
@@ -786,6 +825,12 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_peer_group_af_route_map_delete(self, name: str, afi: str) -> List[str]:
         return self._peer_group_af(name, afi) + ["route-map"]
+
+    def get_peer_group_af_route_map_import_delete(self, name: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, afi) + ["route-map", "import"]
+
+    def get_peer_group_af_route_map_export_delete(self, name: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, afi) + ["route-map", "export"]
 
     def get_peer_group_af_prefix_list_export(self, name: str, afi: str, value: str) -> List[str]:
         return self._peer_group_af(name, afi) + ["prefix-list", "export", value]
@@ -1195,6 +1240,21 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_bmp_target_delete(self, name: str) -> List[str]:
         return self._bgp() + ["bmp", "target", name]
+
+    def get_bmp_target_address_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "address"]
+
+    def get_bmp_target_port_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "port"]
+
+    def get_bmp_target_min_retry_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "min-retry"]
+
+    def get_bmp_target_max_retry_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "max-retry"]
+
+    def get_bmp_target_mirror_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "mirror"]
 
     # ========================================================================
     # SID / SRv6

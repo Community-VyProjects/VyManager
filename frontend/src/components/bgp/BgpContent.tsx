@@ -49,6 +49,7 @@ import {
   BgpPeerGroup,
   BgpAddressFamily,
   BgpParameters,
+  BgpBmpTarget,
 } from "@/lib/api/bgp";
 import { routeMapService } from "@/lib/api/route-map";
 import { bfdService } from "@/lib/api/bfd";
@@ -56,7 +57,33 @@ import { BgpNeighborModal } from "./BgpNeighborModal";
 import { BgpPeerGroupModal } from "./BgpPeerGroupModal";
 import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
 import { DeleteBgpPeerGroupModal } from "./DeleteBgpPeerGroupModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { afiNameKey, formatUnknownAfi } from "./afi-name";
+
+function failedSaveMessage(
+  result: { success: boolean; error?: string | null } | null | undefined,
+  fallback: string,
+): string | null {
+  if (!result || result.success !== false) return null;
+  return result.error || fallback;
+}
+
+function thrownMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return fallback;
+}
 
 export function BgpContent() {
   const t = useTranslations("bgp");
@@ -110,6 +137,17 @@ export function BgpContent() {
   const [paramsEditing, setParamsEditing] = useState(false);
   const [paramsSaving, setParamsSaving] = useState(false);
   const [paramsError, setParamsError] = useState<string | null>(null);
+  const [bmpError, setBmpError] = useState<string | null>(null);
+  const [bmpSaving, setBmpSaving] = useState(false);
+  const [bmpName, setBmpName] = useState("");
+  const [bmpAddress, setBmpAddress] = useState("");
+  const [bmpPort, setBmpPort] = useState("");
+  const [bmpMinRetry, setBmpMinRetry] = useState("");
+  const [bmpMaxRetry, setBmpMaxRetry] = useState("");
+  const [bmpBuffer, setBmpBuffer] = useState("");
+  const [deletingBmpTarget, setDeletingBmpTarget] = useState<string | null>(null);
+  const [bmpEdits, setBmpEdits] = useState<Record<string, { address?: string; port?: string; min_retry?: string; max_retry?: string }>>({});
+  const [bmpConfirm, setBmpConfirm] = useState<null | (() => Promise<void>)>(null);
   const [editParams, setEditParams] = useState<BgpParameters | null>(null);
 
   const loadData = useCallback(async (refresh = false) => {
@@ -142,11 +180,15 @@ export function BgpContent() {
         setSelectedAfi(capData.address_family_types.global[0]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
+      setError(thrownMessage(err, t("content.loadFailed")));
     } finally {
       setLoading(false);
     }
   }, [selectedAfi, t]);
+
+  useEffect(() => {
+    setAfRedistProto("");
+  }, [selectedAfi]);
 
   useEffect(() => {
     loadData();
@@ -179,7 +221,7 @@ export function BgpContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : t("content.saveOverviewFailed"));
+      setOverviewError(thrownMessage(err, t("content.saveOverviewFailed")));
     } finally {
       setOverviewSaving(false);
     }
@@ -201,20 +243,26 @@ export function BgpContent() {
   // ==========================================================================
 
   const handleCreateNeighbor = async (neighbor: BgpNeighbor) => {
-    await bgpService.createNeighbor(neighbor);
+    const result = await bgpService.createNeighbor(neighbor);
+    const message = failedSaveMessage(result, t("content.saveFailed"));
+    if (message) throw new Error(message);
     await loadData(true);
   };
 
   const handleUpdateNeighbor = async (neighbor: BgpNeighbor) => {
     if (!editingNeighbor) return;
-    await bgpService.updateNeighbor(editingNeighbor, neighbor);
+    const result = await bgpService.updateNeighbor(editingNeighbor, neighbor);
+    const message = failedSaveMessage(result, t("content.saveFailed"));
+    if (message) throw new Error(message);
     setEditingNeighbor(null);
     await loadData(true);
   };
 
   const handleDeleteNeighbor = async () => {
     if (!deletingNeighbor) return;
-    await bgpService.deleteNeighbor(deletingNeighbor);
+    const result = await bgpService.deleteNeighbor(deletingNeighbor);
+    const message = failedSaveMessage(result, t("content.saveFailed"));
+    if (message) throw new Error(message);
     setDeletingNeighbor(null);
     await loadData(true);
   };
@@ -224,20 +272,26 @@ export function BgpContent() {
   // ==========================================================================
 
   const handleCreatePeerGroup = async (pg: BgpPeerGroup) => {
-    await bgpService.createPeerGroup(pg);
+    const result = await bgpService.createPeerGroup(pg);
+    const message = failedSaveMessage(result, t("content.saveFailed"));
+    if (message) throw new Error(message);
     await loadData(true);
   };
 
   const handleUpdatePeerGroup = async (pg: BgpPeerGroup) => {
     if (!editingPeerGroup) return;
-    await bgpService.updatePeerGroup(editingPeerGroup, pg);
+    const result = await bgpService.updatePeerGroup(editingPeerGroup, pg);
+    const message = failedSaveMessage(result, t("content.saveFailed"));
+    if (message) throw new Error(message);
     setEditingPeerGroup(null);
     await loadData(true);
   };
 
   const handleDeletePeerGroup = async () => {
     if (!deletingPeerGroup) return;
-    await bgpService.deletePeerGroup(deletingPeerGroup.name);
+    const result = await bgpService.deletePeerGroup(deletingPeerGroup.name);
+    const message = failedSaveMessage(result, t("content.saveFailed"));
+    if (message) throw new Error(message);
     setDeletingPeerGroup(null);
     await loadData(true);
   };
@@ -257,10 +311,15 @@ export function BgpContent() {
     setAfSaving(true);
     setAfError(null);
     try {
-      await bgpService.setL2vpnEvpnFlag(flag, enabled);
+      const result = await bgpService.setL2vpnEvpnFlag(flag, enabled);
+      const message = failedSaveMessage(result, t("content.evpnFlagFailed"));
+      if (message) {
+        setAfError(message);
+        return;
+      }
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : t("content.evpnFlagFailed"));
+      setAfError(thrownMessage(err, t("content.evpnFlagFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -271,12 +330,17 @@ export function BgpContent() {
     setAfSaving(true);
     setAfError(null);
     try {
-      await bgpService.addNetwork(selectedAfi, afNetworkPrefix.trim(), afNetworkRouteMap.trim() || undefined);
+      const result = await bgpService.addNetwork(selectedAfi, afNetworkPrefix.trim(), afNetworkRouteMap.trim() || undefined);
+      const message = failedSaveMessage(result, t("content.addNetworkFailed"));
+      if (message) {
+        setAfError(message);
+        return;
+      }
       setAfNetworkPrefix("");
       setAfNetworkRouteMap("");
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : t("content.addNetworkFailed"));
+      setAfError(thrownMessage(err, t("content.addNetworkFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -286,10 +350,15 @@ export function BgpContent() {
     setAfSaving(true);
     setAfError(null);
     try {
-      await bgpService.deleteNetwork(selectedAfi, prefix);
+      const result = await bgpService.deleteNetwork(selectedAfi, prefix);
+      const message = failedSaveMessage(result, t("content.deleteNetworkFailed"));
+      if (message) {
+        setAfError(message);
+        return;
+      }
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : t("content.deleteNetworkFailed"));
+      setAfError(thrownMessage(err, t("content.deleteNetworkFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -300,13 +369,17 @@ export function BgpContent() {
     setAfSaving(true);
     setAfError(null);
     try {
-      await bgpService.addRedistribute(selectedAfi, afRedistProto, afRedistRouteMap.trim() || undefined, afRedistMetric.trim() || undefined);
+      const result = await bgpService.addRedistribute(selectedAfi, afRedistProto, afRedistRouteMap.trim() || undefined, afRedistMetric.trim() || undefined);
+      if (!result.success) {
+        setAfError(result.error ?? t("content.addRedistributeFailed"));
+        return;
+      }
       setAfRedistProto("");
       setAfRedistRouteMap("");
       setAfRedistMetric("");
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : t("content.addRedistributeFailed"));
+      setAfError(thrownMessage(err, t("content.addRedistributeFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -325,7 +398,7 @@ export function BgpContent() {
       }
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : t("content.deleteRedistributeFailed"));
+      setAfError(thrownMessage(err, t("content.deleteRedistributeFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -336,14 +409,19 @@ export function BgpContent() {
     setAfSaving(true);
     setAfError(null);
     try {
-      await bgpService.addAggregateAddress(selectedAfi, afAggPrefix.trim(), afAggAsSet, afAggSummaryOnly, afAggRouteMap.trim() || undefined);
+      const result = await bgpService.addAggregateAddress(selectedAfi, afAggPrefix.trim(), afAggAsSet, afAggSummaryOnly, afAggRouteMap.trim() || undefined);
+      const message = failedSaveMessage(result, t("content.addAggregateFailed"));
+      if (message) {
+        setAfError(message);
+        return;
+      }
       setAfAggPrefix("");
       setAfAggAsSet(false);
       setAfAggSummaryOnly(false);
       setAfAggRouteMap("");
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : t("content.addAggregateFailed"));
+      setAfError(thrownMessage(err, t("content.addAggregateFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -353,10 +431,15 @@ export function BgpContent() {
     setAfSaving(true);
     setAfError(null);
     try {
-      await bgpService.deleteAggregateAddress(selectedAfi, prefix);
+      const result = await bgpService.deleteAggregateAddress(selectedAfi, prefix);
+      const message = failedSaveMessage(result, t("content.deleteAggregateFailed"));
+      if (message) {
+        setAfError(message);
+        return;
+      }
       await loadData(true);
     } catch (err) {
-      setAfError(err instanceof Error ? err.message : t("content.deleteAggregateFailed"));
+      setAfError(thrownMessage(err, t("content.deleteAggregateFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -384,7 +467,7 @@ export function BgpContent() {
       await loadData(true);
       setParamsEditing(false);
     } catch (err) {
-      setParamsError(err instanceof Error ? err.message : t("content.saveParamsFailed"));
+      setParamsError(thrownMessage(err, t("content.saveParamsFailed")));
     } finally {
       setParamsSaving(false);
     }
@@ -1118,7 +1201,7 @@ export function BgpContent() {
                             <TableBody>
                               {currentAf.redistribute.map((rd) => (
                                 <TableRow key={`${rd.protocol}-${rd.table ?? ""}`}>
-                                  <TableCell className="font-mono">{rd.protocol === "table" ? rd.table : rd.protocol}</TableCell>
+                                  <TableCell className="font-mono">{rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol}</TableCell>
                                   <TableCell>{rd.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
                                   <TableCell className="font-mono">{rd.metric || <span className="text-muted-foreground">-</span>}</TableCell>
                                   <TableCell className="text-right">
@@ -1184,7 +1267,7 @@ export function BgpContent() {
                           <div className="flex items-end gap-3 mt-4">
                             <div className="w-[160px] space-y-1">
                               <Label className="text-xs">{t("content.af.table")}</Label>
-                              <Input value={afRedistTable} onChange={(e) => setAfRedistTable(e.target.value)} className="h-9" />
+                              <Input type="number" value={afRedistTable} onChange={(e) => setAfRedistTable(e.target.value)} className="h-9" />
                             </div>
                             <Button
                               size="sm"
@@ -1193,7 +1276,12 @@ export function BgpContent() {
                                 setAfSaving(true);
                                 setAfError(null);
                                 try {
-                                  const result = await bgpService.addRedistributeTable(selectedAfi, afRedistTable.trim());
+                                  const result = await bgpService.addRedistributeTable(
+                                    selectedAfi,
+                                    afRedistTable.trim(),
+                                    afRedistRouteMap.trim() || undefined,
+                                    afRedistMetric.trim() || undefined,
+                                  );
                                   if (!result.success) {
                                     setAfError(result.error ?? t("content.addRedistributeFailed"));
                                     return;
@@ -1201,7 +1289,7 @@ export function BgpContent() {
                                   setAfRedistTable("");
                                   await loadData(true);
                                 } catch (err) {
-                                  setAfError(err instanceof Error ? err.message : t("content.addRedistributeFailed"));
+                                  setAfError(thrownMessage(err, t("content.addRedistributeFailed")));
                                 } finally {
                                   setAfSaving(false);
                                 }
@@ -1505,9 +1593,11 @@ export function BgpContent() {
 
                 {(capabilities?.features.as_notation?.supported
                   || capabilities?.features.input_queue_limit?.supported
+                  || capabilities?.features.output_queue_limit?.supported
                   || capabilities?.features.update_delay?.supported) && (
                   <Card>
                     <CardContent className="p-6">
+                      <h3 className="text-sm font-medium mb-4">{t("content.params.sessionTitle")}</h3>
                       <div className="grid grid-cols-2 gap-4">
                         {capabilities?.features.as_notation?.supported && (
                           <div className="space-y-2">
@@ -1621,51 +1711,256 @@ export function BgpContent() {
 
             <TabsContent value="bmp">
               <div className="space-y-4">
+                {bmpError && (
+                  <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">{bmpError}</div>
+                )}
+                <div className="flex items-end gap-3">
+                  <div className="w-[180px] space-y-1">
+                    <Label className="text-xs">{t("content.bmp.mirrorBufferLimit")}</Label>
+                    <Input
+                      type="number"
+                      value={bmpBuffer || (config?.bmp?.mirror_buffer_limit ?? "")}
+                      onChange={(e) => setBmpBuffer(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={bmpSaving}
+                    onClick={async () => {
+                      setBmpSaving(true);
+                      setBmpError(null);
+                      try {
+                        const raw = bmpBuffer || (config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "");
+                        const result = await bgpService.setBmpMirrorBufferLimit(raw.trim() ? Number(raw) : null);
+                        const message = failedSaveMessage(result, t("content.saveFailed"));
+                        if (message) {
+                          setBmpError(message);
+                          return;
+                        }
+                        setBmpBuffer("");
+                        await loadData(true);
+                      } catch (err) {
+                        setBmpError(thrownMessage(err, t("content.saveFailed")));
+                      } finally {
+                        setBmpSaving(false);
+                      }
+                    }}
+                  >
+                    {tc("save")}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-[140px] space-y-1">
+                    <Label className="text-xs">{t("content.bmp.name")}</Label>
+                    <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="w-[160px] space-y-1">
+                    <Label className="text-xs">{t("content.bmp.address")}</Label>
+                    <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="w-[100px] space-y-1">
+                    <Label className="text-xs">{t("content.bmp.port")}</Label>
+                    <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="w-[100px] space-y-1">
+                    <Label className="text-xs">{t("content.bmp.minRetry")}</Label>
+                    <Input type="number" value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="w-[100px] space-y-1">
+                    <Label className="text-xs">{t("content.bmp.maxRetry")}</Label>
+                    <Input type="number" value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" />
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={bmpSaving || !bmpName.trim()}
+                    onClick={async () => {
+                      setBmpSaving(true);
+                      setBmpError(null);
+                      try {
+                        const created: BgpBmpTarget = {
+                          name: bmpName.trim(),
+                          address: bmpAddress.trim() || null,
+                          port: bmpPort.trim() ? Number(bmpPort) : null,
+                          min_retry: bmpMinRetry.trim() ? Number(bmpMinRetry) : null,
+                          max_retry: bmpMaxRetry.trim() ? Number(bmpMaxRetry) : null,
+                          mirror: false,
+                          source_interface: null,
+                          monitors: [],
+                        };
+                        const result = await bgpService.saveBmpTarget(null, created);
+                        const message = failedSaveMessage(result, t("content.saveFailed"));
+                        if (message) {
+                          setBmpError(message);
+                          return;
+                        }
+                        setBmpName("");
+                        setBmpAddress("");
+                        setBmpPort("");
+                        setBmpMinRetry("");
+                        setBmpMaxRetry("");
+                        await loadData(true);
+                      } catch (err) {
+                        setBmpError(thrownMessage(err, t("content.saveFailed")));
+                      } finally {
+                        setBmpSaving(false);
+                      }
+                    }}
+                  >
+                    {tc("add")}
+                  </Button>
+                </div>
                 {(config?.bmp?.targets ?? []).length === 0 && (
                   <p className="text-sm text-muted-foreground">{tc("notSet")}</p>
                 )}
                 {(config?.bmp?.targets ?? []).map((target) => (
                   <Card key={target.name}>
                     <CardContent className="p-6 space-y-3">
-                      <p className="text-sm font-mono">{target.name}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-mono">{target.name}</p>
+                        <Button size="sm" variant="ghost" onClick={() => setDeletingBmpTarget(target.name)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {([
+                          ["address", t("content.bmp.address"), target.address ?? ""],
+                          ["port", t("content.bmp.port"), target.port ?? ""],
+                          ["min_retry", t("content.bmp.minRetry"), target.min_retry ?? ""],
+                          ["max_retry", t("content.bmp.maxRetry"), target.max_retry ?? ""],
+                        ] as const).map(([key, label, current]) => (
+                          <div key={key} className="space-y-1">
+                            <Label className="text-xs">{label}</Label>
+                            <Input
+                              type={key === "address" ? "text" : "number"}
+                              value={String((bmpEdits[target.name]?.[key] ?? current) ?? "")}
+                              onChange={(e) => setBmpEdits((prev) => ({
+                                ...prev,
+                                [target.name]: { ...prev[target.name], [key]: e.target.value },
+                              }))}
+                              className="h-9"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={bmpSaving}
+                        onClick={async () => {
+                          setBmpSaving(true);
+                          setBmpError(null);
+                          try {
+                            const draft = bmpEdits[target.name] ?? {};
+                            const num = (raw: string | number | null | undefined, fallback: number | null) => {
+                              if (raw == null || raw === "") return null;
+                              return Number(raw);
+                            };
+                            const updated: BgpBmpTarget = {
+                              ...target,
+                              address: draft.address != null ? (String(draft.address).trim() || null) : target.address,
+                              port: draft.port != null ? num(draft.port, target.port) : target.port,
+                              min_retry: draft.min_retry != null ? num(draft.min_retry, target.min_retry) : target.min_retry,
+                              max_retry: draft.max_retry != null ? num(draft.max_retry, target.max_retry) : target.max_retry,
+                            };
+                            const result = await bgpService.saveBmpTarget(target, updated);
+                            const message = failedSaveMessage(result, t("content.saveFailed"));
+                            if (message) {
+                              setBmpError(message);
+                              return;
+                            }
+                            setBmpEdits((prev) => {
+                              const next = { ...prev };
+                              delete next[target.name];
+                              return next;
+                            });
+                            await loadData(true);
+                          } catch (err) {
+                            setBmpError(thrownMessage(err, t("content.saveFailed")));
+                          } finally {
+                            setBmpSaving(false);
+                          }
+                        }}
+                      >
+                        {tc("save")}
+                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`bmp-mirror-${target.name}`}
+                          checked={target.mirror}
+                          onCheckedChange={(checked) => {
+                            setBmpConfirm(() => async () => {
+                              setBmpSaving(true);
+                              setBmpError(null);
+                              try {
+                                const result = await bgpService.saveBmpTarget(target, { ...target, mirror: checked === true });
+                                const message = failedSaveMessage(result, t("content.saveFailed"));
+                                if (message) {
+                                  setBmpError(message);
+                                  return;
+                                }
+                                await loadData(true);
+                                setBmpConfirm(null);
+                              } catch (err) {
+                                setBmpError(thrownMessage(err, t("content.saveFailed")));
+                              } finally {
+                                setBmpSaving(false);
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor={`bmp-mirror-${target.name}`}>{t("content.bmp.mirror")}</Label>
+                      </div>
                       {capabilities?.features.bmp?.source_interface && (
                         <div className="space-y-1">
                           <Label className="text-xs">{t("content.bmp.sourceInterface")}</Label>
                           <InterfaceSelect
                             value={target.source_interface || ""}
                             noneOption={{ label: tc("none"), value: "" }}
-                            onValueChange={async (value) => {
-                              const result = await bgpService.setBmpSourceInterface(target.name, value || null);
-                              if (!result.success) {
-                                setParamsError(result.error ?? t("content.saveFailed"));
-                                return;
-                              }
-                              await loadData(true);
+                            onValueChange={(value) => {
+                              setBmpConfirm(() => async () => {
+                                setBmpError(null);
+                                try {
+                                  const result = await bgpService.setBmpSourceInterface(target.name, value || null);
+                                  const message = failedSaveMessage(result, t("content.saveFailed"));
+                                  if (message) {
+                                    setBmpError(message);
+                                    return;
+                                  }
+                                  await loadData(true);
+                                  setBmpConfirm(null);
+                                } catch (err) {
+                                  setBmpError(thrownMessage(err, t("content.saveFailed")));
+                                }
+                              });
                             }}
                           />
                         </div>
                       )}
                       {["ipv4-unicast", "ipv6-unicast"].map((afi) => (
                         <div key={afi} className="space-y-2">
-                          <p className="text-xs text-muted-foreground">{afi}</p>
+                          <p className="text-xs text-muted-foreground">{formatAfi(afi)}</p>
                           <div className="flex flex-wrap gap-4">
                             {(capabilities?.features.bmp?.monitor_policies ?? []).map((policy) => (
                               <div key={`${afi}-${policy}`} className="flex items-center space-x-2">
                                 <Checkbox
                                   id={`bmp-${target.name}-${afi}-${policy}`}
                                   checked={target.monitors.some((item) => item.afi === afi && item.policy === policy)}
-                                  onCheckedChange={async (checked) => {
-                                    const result = await bgpService.setBmpMonitor(
-                                      target.name,
-                                      afi,
-                                      policy,
-                                      checked === true,
-                                    );
-                                    if (!result.success) {
-                                      setParamsError(result.error ?? t("content.saveFailed"));
-                                      return;
-                                    }
-                                    await loadData(true);
+                                  onCheckedChange={(checked) => {
+                                    setBmpConfirm(() => async () => {
+                                      setBmpError(null);
+                                      try {
+                                        const result = await bgpService.setBmpMonitor(target.name, afi, policy, checked === true);
+                                        const message = failedSaveMessage(result, t("content.saveFailed"));
+                                        if (message) {
+                                          setBmpError(message);
+                                          return;
+                                        }
+                                        await loadData(true);
+                                        setBmpConfirm(null);
+                                      } catch (err) {
+                                        setBmpError(thrownMessage(err, t("content.saveFailed")));
+                                      }
+                                    });
                                   }}
                                 />
                                 <Label htmlFor={`bmp-${target.name}-${afi}-${policy}`}>{policy}</Label>
@@ -1725,6 +2020,68 @@ export function BgpContent() {
         memberCount={deletingPeerGroup?.members ?? 0}
         onConfirm={handleDeletePeerGroup}
       />
+
+      <AlertDialog open={!!bmpConfirm} onOpenChange={(open) => { if (!open) setBmpConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("content.bmp.applyChange")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("content.bmp.applyChange")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {bmpError && <p className="text-sm text-destructive">{bmpError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bmpSaving}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bmpSaving}
+              onClick={async (event) => {
+                event.preventDefault();
+                const run = bmpConfirm;
+                if (!run) return;
+                await run();
+              }}
+            >
+              {tc("save")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!deletingBmpTarget} onOpenChange={(open) => { if (!open) setDeletingBmpTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("content.bmp.deleteTarget")}</AlertDialogTitle>
+            <AlertDialogDescription>{deletingBmpTarget}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {bmpError && <p className="text-sm text-destructive">{bmpError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bmpSaving}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bmpSaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!deletingBmpTarget) return;
+                setBmpSaving(true);
+                setBmpError(null);
+                try {
+                  const result = await bgpService.deleteBmpTarget(deletingBmpTarget);
+                  const message = failedSaveMessage(result, t("content.saveFailed"));
+                  if (message) {
+                    setBmpError(message);
+                    return;
+                  }
+                  setDeletingBmpTarget(null);
+                  await loadData(true);
+                } catch (err) {
+                  setBmpError(thrownMessage(err, t("content.saveFailed")));
+                } finally {
+                  setBmpSaving(false);
+                }
+              }}
+            >
+              {tc("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

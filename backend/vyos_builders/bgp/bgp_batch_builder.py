@@ -504,6 +504,12 @@ class BgpBatchBuilder(BatchBuilder):
     def set_neighbor_bfd_profile(self, neighbor: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_bfd_profile(neighbor, value))
 
+    def delete_neighbor_bfd_profile(self, neighbor: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_bfd_profile_delete(neighbor))
+
+    def delete_neighbor_bfd_check_control_plane_failure(self, neighbor: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_bfd_check_control_plane_failure(neighbor))
+
     def delete_neighbor_bfd(self, neighbor: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_bfd_delete(neighbor))
 
@@ -650,6 +656,12 @@ class BgpBatchBuilder(BatchBuilder):
     def delete_neighbor_af_route_map(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_route_map_delete(neighbor, afi))
 
+    def delete_neighbor_af_route_map_import(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_route_map_import_delete(neighbor, afi))
+
+    def delete_neighbor_af_route_map_export(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_route_map_export_delete(neighbor, afi))
+
     def set_neighbor_af_prefix_list_export(self, neighbor: str, afi: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_prefix_list_export(neighbor, afi, value))
 
@@ -658,6 +670,12 @@ class BgpBatchBuilder(BatchBuilder):
 
     def delete_neighbor_af_prefix_list(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_prefix_list_delete(neighbor, afi))
+
+    def delete_neighbor_af_prefix_list_import(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_prefix_list_import_delete(neighbor, afi))
+
+    def delete_neighbor_af_prefix_list_export(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_prefix_list_export_delete(neighbor, afi))
 
     def set_neighbor_af_filter_list_export(self, neighbor: str, afi: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_filter_list_export(neighbor, afi, value))
@@ -668,6 +686,12 @@ class BgpBatchBuilder(BatchBuilder):
     def delete_neighbor_af_filter_list(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_filter_list_delete(neighbor, afi))
 
+    def delete_neighbor_af_filter_list_import(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_filter_list_import_delete(neighbor, afi))
+
+    def delete_neighbor_af_filter_list_export(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_filter_list_export_delete(neighbor, afi))
+
     def set_neighbor_af_distribute_list_export(self, neighbor: str, afi: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_distribute_list_export(neighbor, afi, value))
 
@@ -676,6 +700,12 @@ class BgpBatchBuilder(BatchBuilder):
 
     def delete_neighbor_af_distribute_list(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_distribute_list_delete(neighbor, afi))
+
+    def delete_neighbor_af_distribute_list_import(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_distribute_list_import_delete(neighbor, afi))
+
+    def delete_neighbor_af_distribute_list_export(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_distribute_list_export_delete(neighbor, afi))
 
     def set_neighbor_af_soft_reconfiguration_inbound(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_soft_reconfiguration_inbound(neighbor, afi))
@@ -700,6 +730,9 @@ class BgpBatchBuilder(BatchBuilder):
 
     def set_neighbor_af_nexthop_self_force(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_nexthop_self_force(neighbor, afi))
+
+    def delete_neighbor_af_nexthop_self_force(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_nexthop_self_force(neighbor, afi))
 
     def delete_neighbor_af_nexthop_self(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_nexthop_self(neighbor, afi))
@@ -737,6 +770,15 @@ class BgpBatchBuilder(BatchBuilder):
     def set_neighbor_af_attribute_unchanged_next_hop(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_attribute_unchanged_next_hop(neighbor, afi))
 
+    def delete_neighbor_af_attribute_unchanged_as_path(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_attribute_unchanged_as_path(neighbor, afi))
+
+    def delete_neighbor_af_attribute_unchanged_med(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_attribute_unchanged_med(neighbor, afi))
+
+    def delete_neighbor_af_attribute_unchanged_next_hop(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_attribute_unchanged_next_hop(neighbor, afi))
+
     def delete_neighbor_af_attribute_unchanged(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_attribute_unchanged_delete(neighbor, afi))
 
@@ -745,6 +787,9 @@ class BgpBatchBuilder(BatchBuilder):
 
     def set_neighbor_af_default_originate_route_map(self, neighbor: str, afi: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_default_originate_route_map(neighbor, afi, value))
+
+    def delete_neighbor_af_default_originate_route_map(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_default_originate_route_map_delete(neighbor, afi))
 
     def delete_neighbor_af_default_originate(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_default_originate_delete(neighbor, afi))
@@ -767,6 +812,9 @@ class BgpBatchBuilder(BatchBuilder):
     def set_neighbor_af_remove_private_as_all(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_remove_private_as_all(neighbor, afi))
 
+    def delete_neighbor_af_remove_private_as_all(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_remove_private_as_all(neighbor, afi))
+
     def delete_neighbor_af_remove_private_as(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_remove_private_as_delete(neighbor, afi))
 
@@ -775,6 +823,12 @@ class BgpBatchBuilder(BatchBuilder):
 
     def set_neighbor_af_disable_send_community_standard(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_neighbor_af_disable_send_community_standard(neighbor, afi))
+
+    def delete_neighbor_af_disable_send_community_extended(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_disable_send_community_extended(neighbor, afi))
+
+    def delete_neighbor_af_disable_send_community_standard(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_af_disable_send_community_standard(neighbor, afi))
 
     def delete_neighbor_af_disable_send_community(self, neighbor: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_neighbor_af_disable_send_community_delete(neighbor, afi))
@@ -894,6 +948,12 @@ class BgpBatchBuilder(BatchBuilder):
     def set_peer_group_bfd_profile(self, name: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_peer_group_bfd_profile(name, value))
 
+    def delete_peer_group_bfd_profile(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_bfd_profile_delete(name))
+
+    def delete_peer_group_bfd_check_control_plane_failure(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_bfd_check_control_plane_failure(name))
+
     def set_peer_group_bfd_check_control_plane_failure(self, name: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_peer_group_bfd_check_control_plane_failure(name))
 
@@ -1003,6 +1063,12 @@ class BgpBatchBuilder(BatchBuilder):
 
     def delete_peer_group_af_route_map(self, name: str, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_peer_group_af_route_map_delete(name, afi))
+
+    def delete_peer_group_af_route_map_import(self, name: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_af_route_map_import_delete(name, afi))
+
+    def delete_peer_group_af_route_map_export(self, name: str, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_af_route_map_export_delete(name, afi))
 
     def set_peer_group_af_soft_reconfiguration_inbound(self, name: str, afi: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_peer_group_af_soft_reconfiguration_inbound(name, afi))
@@ -1258,6 +1324,21 @@ class BgpBatchBuilder(BatchBuilder):
     def delete_bmp_target(self, name: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_bmp_target_delete(name))
 
+    def delete_bmp_target_address(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_bmp_target_address_delete(name))
+
+    def delete_bmp_target_port(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_bmp_target_port_delete(name))
+
+    def delete_bmp_target_min_retry(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_bmp_target_min_retry_delete(name))
+
+    def delete_bmp_target_max_retry(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_bmp_target_max_retry_delete(name))
+
+    def delete_bmp_target_mirror(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_bmp_target_mirror_delete(name))
+
     def set_bmp_target_source_interface(self, name: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self._versioned_path(
             "bmp source-interface", "get_bmp_target_source_interface", name, value))
@@ -1362,8 +1443,6 @@ class BgpBatchBuilder(BatchBuilder):
                 "ipv6-unicast": sorted(self.m.redistribute_ipv6_protocols()),
             },
             "redistribute_table_afis": sorted(self.m.redistribute_table_afis()),
-            "bestpath_bandwidth_values": self.m.bestpath_bandwidth_values(),
-            "bestpath_med_values": self.m.bestpath_med_values(),
             "address_family_types": {
                 "neighbor": [
                     "ipv4-unicast", "ipv6-unicast",

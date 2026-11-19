@@ -284,6 +284,8 @@ class BgpBmpTarget(BaseModel):
     name: str
     address: Optional[str] = None
     port: Optional[int] = None
+    min_retry: Optional[int] = None
+    max_retry: Optional[int] = None
     mirror: bool = False
     source_interface: Optional[str] = None
     monitors: List[BgpBmpMonitor] = []

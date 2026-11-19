@@ -2,6 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+
+function thrownMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return fallback;
+}
+
 import {
   Dialog,
   DialogContent,
@@ -344,7 +353,7 @@ export function BgpPeerGroupModal({
         const af = afConfigs[afi] || defaultAfState();
         const base = emptyAfConfig();
         addressFamilies[afi] = {
-          ...base,
+          ...(existingPeerGroup?.address_families[afi] ?? base),
           route_map_import: af.route_map_import.trim() || null,
           route_map_export: af.route_map_export.trim() || null,
           soft_reconfiguration_inbound: af.soft_reconfiguration_inbound,
@@ -390,7 +399,7 @@ export function BgpPeerGroupModal({
             bfdEnabled && bfdProfile.trim() ? bfdProfile.trim() : null,
           strict: bfdEnabled && bfdStrict,
           strict_hold_time:
-            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim()
+            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim() && Number.isFinite(Number(bfdStrictHoldTime))
               ? parseInt(bfdStrictHoldTime.trim(), 10)
               : null,
         },
@@ -408,8 +417,7 @@ export function BgpPeerGroupModal({
       await onSubmit(peerGroup);
       handleClose();
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : tc("operationFailed");
+      const message = thrownMessage(err, tc("operationFailed"));
       setError(message);
     } finally {
       setLoading(false);
@@ -723,12 +731,18 @@ export function BgpPeerGroupModal({
                           </Label>
                         </div>
                         {bfdStrict && (
-                          <Input
-                            value={bfdStrictHoldTime}
-                            onChange={(e) => setBfdStrictHoldTime(e.target.value)}
-                            placeholder={t("peerGroupModal.bfdStrictHoldTime")}
-                            className="h-9"
-                          />
+                          <div className="space-y-1">
+                            <Label htmlFor="bgp-pg-bfd-hold">{t("peerGroupModal.bfdStrictHoldTime")}</Label>
+                            <Input
+                              id="bgp-pg-bfd-hold"
+                              type="number"
+                              min={1}
+                              max={4294967295}
+                              value={bfdStrictHoldTime}
+                              onChange={(e) => setBfdStrictHoldTime(e.target.value)}
+                              className="h-9"
+                            />
+                          </div>
                         )}
                       </div>
                     )}

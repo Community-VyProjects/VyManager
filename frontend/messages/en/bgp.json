@@ -21,7 +21,18 @@
     "overviewTab": "Overview",
     "parametersTab": "Parameters",
     "bmpTab": "BMP",
-    "bmp": { "sourceInterface": "Source interface" },
+    "bmp": {
+      "sourceInterface": "Source interface",
+      "address": "Address",
+      "port": "Port",
+      "minRetry": "Min retry",
+      "maxRetry": "Max retry",
+      "mirror": "Mirror",
+      "mirrorBufferLimit": "Mirror buffer limit",
+      "name": "Name",
+      "deleteTarget": "Delete target",
+      "applyChange": "Apply change"
+    },
     "defaultValue": "{value} (default)",
     "address": "Address",
     "remoteAs": "Remote AS",
@@ -91,8 +102,7 @@
       "outputQueueLimit": "Output queue limit",
       "updateDelayEstablishWait": "Establish wait",
       "updateDelayMaxDelay": "Max delay",
-      "bandwidth": "Bandwidth",
-      "med": "MED",
+      "sessionTitle": "AS notation and queues",
       "distanceTitle": "Administrative Distance",
       "flags": {
         "log_neighbor_changes": { "label": "Log Neighbor Changes", "desc": "Log neighbor up/down and reset reason" },
@@ -111,7 +121,7 @@
         "suppress_fib_pending": { "label": "Suppress FIB Pending", "desc": "Do not advertise routes pending FIB installation" },
         "no_suppress_duplicates": { "label": "No Suppress Duplicates", "desc": "Do not suppress duplicate BGP routes" },
         "no_ipv6_auto_ra": { "label": "No IPv6 Auto RA", "desc": "Disable automatic IPv6 router advertisements" },
-        "no_hard_administrative_reset": { "label": "No hard administrative reset", "desc": "Do not reset sessions on an administrative change" },
+        "no_hard_administrative_reset": { "label": "No hard administrative reset", "desc": "Do not send a Hard Reset notification on an administrative reset" },
         "shutdown": { "label": "Shutdown", "desc": "Administratively shut down BGP" }
       },
       "bestpath": {
@@ -151,6 +161,7 @@
     "shutdown": "Shutdown",
     "passive": "Passive",
     "overrideCapability": "Override Capability",
+    "strictCapabilityMatch": "Strict capability match",
     "overrideCapabilityHelp": "Override capability negotiation result.",
     "disableCapNeg": "Disable Capability Negotiation",
     "disableConnectedCheck": "Disable Connected Check",
