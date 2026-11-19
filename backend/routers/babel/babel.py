@@ -128,7 +128,9 @@ async def get_babel_capabilities(request: Request):
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -148,6 +150,8 @@ async def get_babel_config(http_request: Request, refresh: bool = False):
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
         mapper = CommandMapperRegistry.get_mapper("babel", service.get_version())
         return BabelConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -168,33 +172,40 @@ async def babel_batch_configure(http_request: Request, body: BabelBatchRequest):
         version = service.get_version()
         builder = BabelBatchBuilder(version=version)
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        # ValueError is an unsupported redistribute. It does not wrap
+        # execute_batch: an empty batch stays a 500.
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1 and operation.value:
-                method(operation.value)
-            elif len(params) == 2 and operation.value:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value)
-            elif len(params) == 0:
-                method()
+                if count == 0:
+                    method()
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                parts = operation.value.split(",", count - 1)
+                if len(parts) != count or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {count} values",
+                    )
+                method(*parts)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Babel configuration updated"},
-            error=response.error if response.error else None
+            error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
