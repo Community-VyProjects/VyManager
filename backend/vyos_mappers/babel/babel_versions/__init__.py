@@ -1,7 +1,11 @@
-"""Factory for version-specific Babel protocol mappers."""
+"""Factory for Babel protocol mappers.
+
+The shared class is returned directly on 1.4. ``protocols babel redistribute
+ipv4 nhrp`` and ``ipv6 nhrp`` exist only on 1.5, so that version gets the
+subclass.
+"""
 
 from ..babel import BabelMapper
-from .v1_4 import BabelMapperV1_4
 from .v1_5 import BabelMapperV1_5
 
 
@@ -11,5 +15,5 @@ def get_babel_mapper(version: str) -> BabelMapper:
     A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
     """
     if "1.4" in version:
-        return BabelMapperV1_4(version)
+        return BabelMapper(version)
     return BabelMapperV1_5(version)
