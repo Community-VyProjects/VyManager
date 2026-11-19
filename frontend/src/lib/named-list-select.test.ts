@@ -75,7 +75,8 @@ describe("named list select", () => {
 
   it("keeps the lab default value on the RIP passive-interface picker", () => {
     const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
-    assert.match(src, /noneOption=\{\{ label: "default", value: "default" \}\}/);
+    assert.match(src, /label: "default", value: "default"/);
+    assert.match(src, /items\.includes\("default"\)/);
   });
 
   it("does not send OSPF area authentication none as a set value", () => {

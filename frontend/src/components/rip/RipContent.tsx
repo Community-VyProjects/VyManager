@@ -480,7 +480,7 @@ export function RipContent() {
                 placeholder={inputPlaceholder}
                 className="flex-1"
                 filter={(item) => !items.includes(item.name)}
-                noneOption={{ label: "default", value: "default" }}
+                noneOption={items.includes("default") ? undefined : { label: "default", value: "default" }}
               />
             ) : (
               <Input
