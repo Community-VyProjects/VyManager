@@ -1730,13 +1730,14 @@ export function BgpContent() {
                       setBmpSaving(true);
                       setBmpError(null);
                       try {
+                        const loaded = config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "";
+                        if (bmpBuffer.trim() === loaded) return;
                         const result = await bgpService.setBmpMirrorBufferLimit(bmpBuffer.trim() ? Number(bmpBuffer) : null);
                         const message = failedSaveMessage(result, t("content.saveFailed"));
                         if (message) {
                           setBmpError(message);
                           return;
                         }
-                        setBmpBuffer("");
                         await loadData(true);
                       } catch (err) {
                         setBmpError(thrownMessage(err, t("content.saveFailed")));
