@@ -182,34 +182,46 @@ def test_capabilities_read_mapper_allowlist():
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
-def test_bgp_rejects_bmp_monitor_local_rib(version):
-    # local-rib is not a real CLI node on 1.4 or 1.5.
+def test_bgp_14_rejects_bmp_monitor_local_rib_and_15_accepts_it(version):
+    """local-rib exists only on 1.5 (100.64.64.5). 1.4 has pre-policy and post-policy."""
     mapper = get_bgp_mapper(version)
-    with pytest.raises(ValueError, match="not supported"):
-        mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "local-rib")
-    builder = BgpBatchBuilder(version=version)
-    with pytest.raises(ValueError, match="not supported"):
-        builder.set_bmp_target_monitor("T1", "ipv4-unicast", "local-rib")
-    # real policies still pass through
+    if version == "1.4":
+        with pytest.raises(ValueError, match="not supported"):
+            mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "local-rib")
+        builder = BgpBatchBuilder(version=version)
+        with pytest.raises(ValueError, match="not supported"):
+            builder.set_bmp_target_monitor("T1", "ipv4-unicast", "local-rib")
+    else:
+        assert mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "local-rib")[-1] == "local-rib"
     assert mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "pre-policy")[-1] == "pre-policy"
     assert mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "post-policy")[-1] == "post-policy"
 
 
-def test_bgp_capabilities_drop_bmp_local_rib():
-    for version in ("1.4", "1.5"):
-        caps = BgpBatchBuilder(version=version).get_capabilities()
-        assert "bmp_local_rib" not in caps["features"]
+def test_bgp_capabilities_gate_local_rib_on_the_monitor_allowlist():
+    caps_14 = BgpBatchBuilder(version="1.4").get_capabilities()
+    caps_15 = BgpBatchBuilder(version="1.5").get_capabilities()
+    assert "local-rib" not in caps_14["features"]["bmp"]["monitor_policies"]
+    assert "local-rib" in caps_15["features"]["bmp"]["monitor_policies"]
+    assert "pre-policy" in caps_14["features"]["bmp"]["monitor_policies"]
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
-def test_vrf_bgp_rejects_bmp_monitor_local_rib(version):
+def test_vrf_bgp_builder_follows_global_bmp_allowlist(version):
+    """VRF batch ops reuse the global BGP builder, so 1.5 local-rib is accepted.
+
+    The VRF mapper itself still excludes local-rib. That hole is a separate
+    issue; this test only locks the builder the VRF page calls.
+    """
     mapper = VrfBgpMapper(version)
     with pytest.raises(ValueError, match="not supported"):
         mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")
     builder = VrfBatchBuilder(version=version)
-    with pytest.raises(ValueError, match="not supported"):
+    if "1.4" in version:
+        with pytest.raises(ValueError, match="not supported"):
+            builder.set_vrf_bgp_bmp_target_monitor("blue", "T1,ipv4-unicast,local-rib")
+    else:
         builder.set_vrf_bgp_bmp_target_monitor("blue", "T1,ipv4-unicast,local-rib")
-    # real policy still passes through
+        assert builder.get_operations()[0]["path"][-1] == "local-rib"
     assert mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "pre-policy")[-1] == "pre-policy"
 
 

@@ -104,6 +104,11 @@ class BgpParameters(BaseModel):
     graceful_restart_stalepath_time: Optional[int] = None
     conditional_advertisement_timer: Optional[int] = None
     tcp_keepalive: BgpTcpKeepalive = BgpTcpKeepalive()
+    as_notation: Optional[str] = None
+    input_queue_limit: Optional[int] = None
+    output_queue_limit: Optional[int] = None
+    update_delay_establish_wait: Optional[int] = None
+    update_delay_max_delay: Optional[int] = None
 
 
 class BgpNeighborBfd(BaseModel):
@@ -111,6 +116,8 @@ class BgpNeighborBfd(BaseModel):
     enabled: bool = False
     check_control_plane_failure: bool = False
     profile: Optional[str] = None
+    strict: bool = False
+    strict_hold_time: Optional[int] = None
 
 
 class BgpNeighborCapability(BaseModel):
@@ -191,6 +198,7 @@ class BgpNeighbor(BaseModel):
     local_role: Optional[str] = None
     local_role_strict: bool = False
     bfd: BgpNeighborBfd = BgpNeighborBfd()
+    link_state: bool = False
     capability: BgpNeighborCapability = BgpNeighborCapability()
     timers: BgpNeighborTimers = BgpNeighborTimers()
     ttl_security_hops: Optional[int] = None
@@ -206,6 +214,7 @@ class BgpPeerGroup(BaseModel):
     password: Optional[str] = None
     shutdown: bool = False
     passive: bool = False
+    solo: bool = False
     override_capability: bool = False
     disable_capability_negotiation: bool = False
     disable_connected_check: bool = False
@@ -215,6 +224,7 @@ class BgpPeerGroup(BaseModel):
     local_role: Optional[str] = None
     local_role_strict: bool = False
     bfd: BgpNeighborBfd = BgpNeighborBfd()
+    link_state: bool = False
     capability: BgpNeighborCapability = BgpNeighborCapability()
     ttl_security_hops: Optional[int] = None
     address_families: Dict[str, BgpNeighborAddressFamilyConfig] = {}
@@ -263,6 +273,30 @@ class BgpListenRange(BaseModel):
     peer_group: Optional[str] = None
 
 
+class BgpBmpMonitor(BaseModel):
+    """One BMP monitor policy on a target."""
+    afi: str
+    policy: str
+
+
+class BgpBmpTarget(BaseModel):
+    """One BGP BMP target."""
+    name: str
+    address: Optional[str] = None
+    port: Optional[int] = None
+    min_retry: Optional[int] = None
+    max_retry: Optional[int] = None
+    mirror: bool = False
+    source_interface: Optional[str] = None
+    monitors: List[BgpBmpMonitor] = []
+
+
+class BgpBmp(BaseModel):
+    """BGP Monitoring Protocol configuration."""
+    mirror_buffer_limit: Optional[int] = None
+    targets: List[BgpBmpTarget] = []
+
+
 class BgpListen(BaseModel):
     """BGP listen (dynamic neighbors) configuration."""
     limit: Optional[int] = None
@@ -278,6 +312,7 @@ class BgpConfig(BaseModel):
     peer_groups: List[BgpPeerGroup] = []
     address_families: List[BgpAddressFamily] = []
     listen: BgpListen = BgpListen()
+    bmp: BgpBmp = BgpBmp()
     srv6_locator: Optional[str] = None
     sid_vpn_per_vrf_export: Optional[str] = None
 
@@ -320,7 +355,9 @@ async def get_bgp_capabilities(request: Request):
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -340,6 +377,8 @@ async def get_bgp_config(http_request: Request, refresh: bool = False):
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
         mapper = CommandMapperRegistry.get_mapper("bgp", service.get_version())
         return BgpConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -360,29 +399,30 @@ async def bgp_batch_configure(http_request: Request, body: BgpBatchRequest):
         version = service.get_version()
         builder = BgpBatchBuilder(version=version)
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1 and operation.value:
-                method(operation.value)
-            elif len(params) == 2 and operation.value:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value)
-            elif len(params) == 3 and operation.value:
-                values = operation.value.split(",", 2)
-                if len(values) == 3:
-                    method(values[0], values[1], values[2])
-                elif len(values) == 2:
-                    method(values[0], values[1])
+                if count == 0:
+                    method()
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                parts = operation.value.split(",", count - 1)
+                if len(parts) != count or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {count} values",
+                    )
+                method(*parts)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -391,10 +431,6 @@ async def bgp_batch_configure(http_request: Request, body: BgpBatchRequest):
         )
     except HTTPException:
         raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

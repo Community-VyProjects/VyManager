@@ -20,6 +20,16 @@
     "addressFamilies": "Address Families",
     "overviewTab": "Overview",
     "parametersTab": "Parameters",
+    "bmpTab": "BMP",
+    "bmp": {
+      "sourceInterface": "Source interface",
+      "minRetry": "Min retry",
+      "maxRetry": "Max retry",
+      "mirror": "Mirror",
+      "mirrorBufferLimit": "Mirror buffer limit",
+      "deleteTarget": "Delete target",
+      "applyChange": "Apply change"
+    },
     "defaultValue": "{value} (default)",
     "address": "Address",
     "remoteAs": "Remote AS",
@@ -74,7 +84,8 @@
       "aggregateHelp": "Summarize multiple routes into a single advertisement",
       "asSet": "AS Set",
       "summaryOnly": "Summary Only",
-      "maximumPaths": "Maximum Paths"
+      "maximumPaths": "Maximum Paths",
+      "table": "Table"
     },
     "params": {
       "description": "Advanced BGP parameters and behavior settings",
@@ -83,6 +94,12 @@
       "defaultLocalPref": "Default Local Preference",
       "behaviorFlags": "Behavior Flags",
       "bestpathTitle": "Bestpath Selection",
+      "asNotation": "AS notation",
+      "inputQueueLimit": "Input queue limit",
+      "outputQueueLimit": "Output queue limit",
+      "updateDelayEstablishWait": "Establish wait",
+      "updateDelayMaxDelay": "Max delay",
+      "sessionTitle": "AS notation and queues",
       "distanceTitle": "Administrative Distance",
       "flags": {
         "log_neighbor_changes": { "label": "Log Neighbor Changes", "desc": "Log neighbor up/down and reset reason" },
@@ -101,6 +118,7 @@
         "suppress_fib_pending": { "label": "Suppress FIB Pending", "desc": "Do not advertise routes pending FIB installation" },
         "no_suppress_duplicates": { "label": "No Suppress Duplicates", "desc": "Do not suppress duplicate BGP routes" },
         "no_ipv6_auto_ra": { "label": "No IPv6 Auto RA", "desc": "Disable automatic IPv6 router advertisements" },
+        "no_hard_administrative_reset": { "label": "No hard administrative reset", "desc": "Do not send a Hard Reset notification on an administrative reset" },
         "shutdown": { "label": "Shutdown", "desc": "Administratively shut down BGP" }
       },
       "bestpath": {
@@ -140,6 +158,11 @@
     "shutdown": "Shutdown",
     "passive": "Passive",
     "overrideCapability": "Override Capability",
+    "strictCapabilityMatch": "Strict capability match",
+    "solo": "Solo",
+    "linkState": "Link state",
+    "bfdStrict": "BFD strict",
+    "bfdStrictHoldTime": "Hold time",
     "overrideCapabilityHelp": "Override capability negotiation result.",
     "disableCapNeg": "Disable Capability Negotiation",
     "disableConnectedCheck": "Disable Connected Check",
@@ -192,7 +215,6 @@
     "updateSourceHelp": "Source address or interface for BGP sessions.",
     "shutdownHelp": "Administratively disable this neighbor.",
     "passiveHelp": "Do not initiate a session; wait for remote peer.",
-    "solo": "Solo",
     "soloHelp": "Solo peer (single adjacency in a group).",
     "enforceFirstAs": "Enforce First AS",
     "enforceFirstAsHelp": "Enforce the first AS in the AS path from this neighbor.",

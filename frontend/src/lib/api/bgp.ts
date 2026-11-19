@@ -74,12 +74,19 @@ export interface BgpParameters {
   graceful_restart_stalepath_time: number | null;
   conditional_advertisement_timer: number | null;
   tcp_keepalive: BgpTcpKeepalive;
+  as_notation: string | null;
+  input_queue_limit: number | null;
+  output_queue_limit: number | null;
+  update_delay_establish_wait: number | null;
+  update_delay_max_delay: number | null;
 }
 
 export interface BgpNeighborBfd {
   enabled: boolean;
   check_control_plane_failure: boolean;
   profile: string | null;
+  strict: boolean;
+  strict_hold_time: number | null;
 }
 
 export interface BgpNeighborCapability {
@@ -155,6 +162,7 @@ export interface BgpNeighbor {
   local_role: string | null;
   local_role_strict: boolean;
   bfd: BgpNeighborBfd;
+  link_state: boolean;
   capability: BgpNeighborCapability;
   timers: BgpNeighborTimers;
   ttl_security_hops: number | null;
@@ -169,6 +177,7 @@ export interface BgpPeerGroup {
   password: string | null;
   shutdown: boolean;
   passive: boolean;
+  solo: boolean;
   override_capability: boolean;
   disable_capability_negotiation: boolean;
   disable_connected_check: boolean;
@@ -178,6 +187,7 @@ export interface BgpPeerGroup {
   local_role: string | null;
   local_role_strict: boolean;
   bfd: BgpNeighborBfd;
+  link_state: boolean;
   capability: BgpNeighborCapability;
   ttl_security_hops: number | null;
   address_families: Record<string, BgpNeighborAddressFamilyConfig>;
@@ -234,8 +244,30 @@ export interface BgpConfig {
   peer_groups: BgpPeerGroup[];
   address_families: BgpAddressFamily[];
   listen: BgpListen;
+  bmp: BgpBmp;
   srv6_locator: string | null;
   sid_vpn_per_vrf_export: string | null;
+}
+
+export interface BgpBmpMonitor {
+  afi: string;
+  policy: string;
+}
+
+export interface BgpBmpTarget {
+  name: string;
+  address: string | null;
+  port: number | null;
+  min_retry: number | null;
+  max_retry: number | null;
+  mirror: boolean;
+  source_interface: string | null;
+  monitors: BgpBmpMonitor[];
+}
+
+export interface BgpBmp {
+  mirror_buffer_limit: number | null;
+  targets: BgpBmpTarget[];
 }
 
 export interface BgpCapabilities {
@@ -245,21 +277,36 @@ export interface BgpCapabilities {
     peer_groups: { supported: boolean; description: string };
     address_families: { supported: boolean; description: string };
     listen_ranges: { supported: boolean; description: string };
-    bmp: { supported: boolean; description: string };
+    bmp: {
+      supported: boolean;
+      description: string;
+      monitor_policies: string[];
+      source_interface: boolean;
+    };
     srv6: { supported: boolean; description: string };
     local_role: { supported: boolean; description: string };
     path_attribute: { supported: boolean; description: string };
     redistribute_nhrp: { supported: boolean; description: string };
     l2vpn_evpn_control_flags: { supported: boolean; flags: string[]; description: string };
+    neighbor_link_state: { supported: boolean };
+    peer_group_link_state: { supported: boolean };
+    neighbor_bfd_strict: { supported: boolean };
+    peer_group_bfd_strict: { supported: boolean };
+    peer_group_solo: { supported: boolean };
+    as_notation: { supported: boolean; values: string[] };
+    input_queue_limit: { supported: boolean };
+    output_queue_limit: { supported: boolean };
+    update_delay: { supported: boolean };
   };
+  redistribute_protocols: {
+    "ipv4-unicast": string[];
+    "ipv6-unicast": string[];
+  };
+  redistribute_table_afis: string[];
   address_family_types: {
     neighbor: string[];
     peer_group: string[];
     global: string[];
-  };
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
   };
   instance_name?: string;
   instance_id?: string;
@@ -283,6 +330,169 @@ export interface VyOSResponse {
 // ============================================================================
 // API Service
 // ============================================================================
+
+const MASKED_SECRET = "***";
+
+const BLANK_NEIGHBOR_AF: BgpNeighborAddressFamilyConfig = {
+  route_map_export: null,
+  route_map_import: null,
+  prefix_list_export: null,
+  prefix_list_import: null,
+  filter_list_export: null,
+  filter_list_import: null,
+  distribute_list_export: null,
+  distribute_list_import: null,
+  soft_reconfiguration_inbound: false,
+  route_reflector_client: false,
+  route_server_client: false,
+  nexthop_self: false,
+  nexthop_self_force: false,
+  addpath_tx_all: false,
+  addpath_tx_per_as: false,
+  allowas_in_number: null,
+  as_override: false,
+  attribute_unchanged_as_path: false,
+  attribute_unchanged_med: false,
+  attribute_unchanged_next_hop: false,
+  default_originate: false,
+  default_originate_route_map: null,
+  maximum_prefix: null,
+  maximum_prefix_out: null,
+  remove_private_as: false,
+  remove_private_as_all: false,
+  disable_send_community_extended: false,
+  disable_send_community_standard: false,
+  weight: null,
+  unsuppress_map: null,
+};
+
+function pushBfdOps(
+  operations: BgpBatchOperation[],
+  kind: "neighbor" | "peer_group",
+  name: string,
+  original: BgpNeighborBfd,
+  updated: BgpNeighborBfd,
+) {
+  if (updated.enabled !== original.enabled && !updated.enabled) {
+    operations.push({ op: `delete_${kind}_bfd`, value: name });
+    return;
+  }
+  if (updated.enabled && !original.enabled) {
+    operations.push({ op: `set_${kind}_bfd`, value: name });
+  }
+  if (!updated.enabled) return;
+  if (updated.check_control_plane_failure !== original.check_control_plane_failure) {
+    operations.push({
+      op: updated.check_control_plane_failure
+        ? `set_${kind}_bfd_check_control_plane_failure`
+        : `delete_${kind}_bfd_check_control_plane_failure`,
+      value: name,
+    });
+  }
+  if (updated.profile !== original.profile) {
+    operations.push(updated.profile
+      ? { op: `set_${kind}_bfd_profile`, value: `${name},${updated.profile}` }
+      : { op: `delete_${kind}_bfd_profile`, value: name });
+  }
+  if (updated.strict !== original.strict) {
+    operations.push({
+      op: updated.strict ? `set_${kind}_bfd_strict` : `delete_${kind}_bfd_strict`,
+      value: name,
+    });
+  }
+  if (updated.strict && updated.strict_hold_time !== original.strict_hold_time) {
+    if (updated.strict_hold_time != null) {
+      operations.push({ op: `set_${kind}_bfd_strict_hold_time`, value: `${name},${updated.strict_hold_time}` });
+    } else if (original.strict_hold_time != null) {
+      operations.push({ op: `delete_${kind}_bfd_strict_hold_time`, value: name });
+    }
+  }
+}
+
+function diffNeighborAf(
+  operations: BgpBatchOperation[],
+  neighbor: string,
+  afi: string,
+  original: BgpNeighborAddressFamilyConfig,
+  updated: BgpNeighborAddressFamilyConfig,
+) {
+  const v = `${neighbor},${afi}`;
+  const flag = (before: boolean, after: boolean, setOp: string, deleteOp: string) => {
+    if (before !== after) operations.push({ op: after ? setOp : deleteOp, value: v });
+  };
+  const text = (before: string | null, after: string | null, setOp: string, deleteOp: string) => {
+    if (before === after) return;
+    operations.push(after ? { op: setOp, value: `${v},${after}` } : { op: deleteOp, value: v });
+  };
+  const num = (before: number | null, after: number | null, setOp: string, deleteOp: string) => {
+    if (before === after) return;
+    operations.push(after != null ? { op: setOp, value: `${v},${after}` } : { op: deleteOp, value: v });
+  };
+  text(original.route_map_import, updated.route_map_import, "set_neighbor_af_route_map_import", "delete_neighbor_af_route_map_import");
+  text(original.route_map_export, updated.route_map_export, "set_neighbor_af_route_map_export", "delete_neighbor_af_route_map_export");
+  text(original.prefix_list_import, updated.prefix_list_import, "set_neighbor_af_prefix_list_import", "delete_neighbor_af_prefix_list_import");
+  text(original.prefix_list_export, updated.prefix_list_export, "set_neighbor_af_prefix_list_export", "delete_neighbor_af_prefix_list_export");
+  text(original.filter_list_import, updated.filter_list_import, "set_neighbor_af_filter_list_import", "delete_neighbor_af_filter_list_import");
+  text(original.filter_list_export, updated.filter_list_export, "set_neighbor_af_filter_list_export", "delete_neighbor_af_filter_list_export");
+  text(original.distribute_list_import, updated.distribute_list_import, "set_neighbor_af_distribute_list_import", "delete_neighbor_af_distribute_list_import");
+  text(original.distribute_list_export, updated.distribute_list_export, "set_neighbor_af_distribute_list_export", "delete_neighbor_af_distribute_list_export");
+  flag(original.soft_reconfiguration_inbound, updated.soft_reconfiguration_inbound, "set_neighbor_af_soft_reconfiguration_inbound", "delete_neighbor_af_soft_reconfiguration_inbound");
+  flag(original.route_reflector_client, updated.route_reflector_client, "set_neighbor_af_route_reflector_client", "delete_neighbor_af_route_reflector_client");
+  flag(original.route_server_client, updated.route_server_client, "set_neighbor_af_route_server_client", "delete_neighbor_af_route_server_client");
+  if (!updated.nexthop_self && original.nexthop_self) {
+    operations.push({ op: "delete_neighbor_af_nexthop_self", value: v });
+  } else if (updated.nexthop_self) {
+    if (!original.nexthop_self) operations.push({ op: "set_neighbor_af_nexthop_self", value: v });
+    flag(original.nexthop_self_force, updated.nexthop_self_force, "set_neighbor_af_nexthop_self_force", "delete_neighbor_af_nexthop_self_force");
+  }
+  flag(original.addpath_tx_all, updated.addpath_tx_all, "set_neighbor_af_addpath_tx_all", "delete_neighbor_af_addpath_tx_all");
+  flag(original.addpath_tx_per_as, updated.addpath_tx_per_as, "set_neighbor_af_addpath_tx_per_as", "delete_neighbor_af_addpath_tx_per_as");
+  num(original.allowas_in_number, updated.allowas_in_number, "set_neighbor_af_allowas_in_number", "delete_neighbor_af_allowas_in");
+  flag(original.as_override, updated.as_override, "set_neighbor_af_as_override", "delete_neighbor_af_as_override");
+  flag(original.attribute_unchanged_as_path, updated.attribute_unchanged_as_path, "set_neighbor_af_attribute_unchanged_as_path", "delete_neighbor_af_attribute_unchanged_as_path");
+  flag(original.attribute_unchanged_med, updated.attribute_unchanged_med, "set_neighbor_af_attribute_unchanged_med", "delete_neighbor_af_attribute_unchanged_med");
+  flag(original.attribute_unchanged_next_hop, updated.attribute_unchanged_next_hop, "set_neighbor_af_attribute_unchanged_next_hop", "delete_neighbor_af_attribute_unchanged_next_hop");
+  if (!updated.default_originate && original.default_originate) {
+    operations.push({ op: "delete_neighbor_af_default_originate", value: v });
+  } else if (updated.default_originate) {
+    if (!original.default_originate) operations.push({ op: "set_neighbor_af_default_originate", value: v });
+    text(original.default_originate_route_map, updated.default_originate_route_map, "set_neighbor_af_default_originate_route_map", "delete_neighbor_af_default_originate_route_map");
+  }
+  num(original.maximum_prefix, updated.maximum_prefix, "set_neighbor_af_maximum_prefix", "delete_neighbor_af_maximum_prefix");
+  num(original.maximum_prefix_out, updated.maximum_prefix_out, "set_neighbor_af_maximum_prefix_out", "delete_neighbor_af_maximum_prefix_out");
+  if (!updated.remove_private_as && original.remove_private_as) {
+    operations.push({ op: "delete_neighbor_af_remove_private_as", value: v });
+  } else if (updated.remove_private_as) {
+    if (!original.remove_private_as) operations.push({ op: "set_neighbor_af_remove_private_as", value: v });
+    flag(original.remove_private_as_all, updated.remove_private_as_all, "set_neighbor_af_remove_private_as_all", "delete_neighbor_af_remove_private_as_all");
+  }
+  flag(original.disable_send_community_extended, updated.disable_send_community_extended, "set_neighbor_af_disable_send_community_extended", "delete_neighbor_af_disable_send_community_extended");
+  flag(original.disable_send_community_standard, updated.disable_send_community_standard, "set_neighbor_af_disable_send_community_standard", "delete_neighbor_af_disable_send_community_standard");
+  num(original.weight, updated.weight, "set_neighbor_af_weight", "delete_neighbor_af_weight");
+  text(original.unsuppress_map, updated.unsuppress_map, "set_neighbor_af_unsuppress_map", "delete_neighbor_af_unsuppress_map");
+}
+
+function diffPeerGroupAf(
+  operations: BgpBatchOperation[],
+  name: string,
+  afi: string,
+  original: BgpNeighborAddressFamilyConfig,
+  updated: BgpNeighborAddressFamilyConfig,
+) {
+  const v = `${name},${afi}`;
+  const text = (before: string | null, after: string | null, setOp: string, deleteOp: string) => {
+    if (before === after) return;
+    operations.push(after ? { op: setOp, value: `${v},${after}` } : { op: deleteOp, value: v });
+  };
+  const flag = (before: boolean, after: boolean, setOp: string, deleteOp: string) => {
+    if (before !== after) operations.push({ op: after ? setOp : deleteOp, value: v });
+  };
+  text(original.route_map_import, updated.route_map_import, "set_peer_group_af_route_map_import", "delete_peer_group_af_route_map_import");
+  text(original.route_map_export, updated.route_map_export, "set_peer_group_af_route_map_export", "delete_peer_group_af_route_map_export");
+  flag(original.soft_reconfiguration_inbound, updated.soft_reconfiguration_inbound, "set_peer_group_af_soft_reconfiguration_inbound", "delete_peer_group_af_soft_reconfiguration_inbound");
+  flag(original.nexthop_self, updated.nexthop_self, "set_peer_group_af_nexthop_self", "delete_peer_group_af_nexthop_self");
+  flag(original.route_reflector_client, updated.route_reflector_client, "set_peer_group_af_route_reflector_client", "delete_peer_group_af_route_reflector_client");
+}
 
 class BgpService {
   async getCapabilities(): Promise<BgpCapabilities> {
@@ -367,11 +577,12 @@ class BgpService {
     if (neighbor.description) operations.push({ op: "set_neighbor_description", value: `${addr},${neighbor.description}` });
     if (neighbor.peer_group) operations.push({ op: "set_neighbor_peer_group", value: `${addr},${neighbor.peer_group}` });
     if (neighbor.update_source) operations.push({ op: "set_neighbor_update_source", value: `${addr},${neighbor.update_source}` });
-    if (neighbor.password) operations.push({ op: "set_neighbor_password", value: `${addr},${neighbor.password}` });
+    if (neighbor.password && neighbor.password !== MASKED_SECRET) operations.push({ op: "set_neighbor_password", value: `${addr},${neighbor.password}` });
     if (neighbor.port != null) operations.push({ op: "set_neighbor_port", value: `${addr},${neighbor.port}` });
     if (neighbor.shutdown) operations.push({ op: "set_neighbor_shutdown", value: addr });
     if (neighbor.passive) operations.push({ op: "set_neighbor_passive", value: addr });
     if (neighbor.solo) operations.push({ op: "set_neighbor_solo", value: addr });
+    if (neighbor.link_state) operations.push({ op: "set_neighbor_link_state", value: addr });
     if (neighbor.enforce_first_as) operations.push({ op: "set_neighbor_enforce_first_as", value: addr });
     if (neighbor.override_capability) operations.push({ op: "set_neighbor_override_capability", value: addr });
     if (neighbor.disable_capability_negotiation) operations.push({ op: "set_neighbor_disable_capability_negotiation", value: addr });
@@ -385,6 +596,12 @@ class BgpService {
       operations.push({ op: "set_neighbor_bfd", value: addr });
       if (neighbor.bfd.check_control_plane_failure) operations.push({ op: "set_neighbor_bfd_check_control_plane_failure", value: addr });
       if (neighbor.bfd.profile) operations.push({ op: "set_neighbor_bfd_profile", value: `${addr},${neighbor.bfd.profile}` });
+      if (neighbor.bfd.strict) {
+        operations.push({ op: "set_neighbor_bfd_strict", value: addr });
+        if (neighbor.bfd.strict_hold_time != null) {
+          operations.push({ op: "set_neighbor_bfd_strict_hold_time", value: `${addr},${neighbor.bfd.strict_hold_time}` });
+        }
+      }
     }
 
     if (neighbor.capability.dynamic) operations.push({ op: "set_neighbor_capability_dynamic", value: addr });
@@ -407,7 +624,7 @@ class BgpService {
 
     for (const [afi, afConfig] of Object.entries(neighbor.address_families)) {
       operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
-      this._addNeighborAfOps(operations, addr, afi, afConfig);
+      diffNeighborAf(operations, addr, afi, BLANK_NEIGHBOR_AF, afConfig);
     }
 
     return this.batchConfigure({ operations });
@@ -426,6 +643,7 @@ class BgpService {
       { key: "password", setOp: "set_neighbor_password", deleteOp: "delete_neighbor_password" },
     ];
     for (const field of valueFields) {
+      if (field.key === "password" && updated.password === MASKED_SECRET) continue;
       if (updated[field.key] !== original[field.key]) {
         if (updated[field.key]) {
           operations.push({ op: field.setOp, value: `${addr},${updated[field.key]}` });
@@ -463,6 +681,7 @@ class BgpService {
       { key: "shutdown", setOp: "set_neighbor_shutdown", deleteOp: "delete_neighbor_shutdown" },
       { key: "passive", setOp: "set_neighbor_passive", deleteOp: "delete_neighbor_passive" },
       { key: "solo", setOp: "set_neighbor_solo", deleteOp: "delete_neighbor_solo" },
+      { key: "link_state", setOp: "set_neighbor_link_state", deleteOp: "delete_neighbor_link_state" },
       { key: "enforce_first_as", setOp: "set_neighbor_enforce_first_as", deleteOp: "delete_neighbor_enforce_first_as" },
       { key: "override_capability", setOp: "set_neighbor_override_capability", deleteOp: "delete_neighbor_override_capability" },
       { key: "disable_capability_negotiation", setOp: "set_neighbor_disable_capability_negotiation", deleteOp: "delete_neighbor_disable_capability_negotiation" },
@@ -475,24 +694,8 @@ class BgpService {
       }
     }
 
-    // BFD (delete-and-recreate pattern since there's only delete_neighbor_bfd for the whole subtree)
-    const bfdChanged = updated.bfd.enabled !== original.bfd.enabled ||
-      updated.bfd.profile !== original.bfd.profile ||
-      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure;
-    if (bfdChanged) {
-      if (original.bfd.enabled) {
-        operations.push({ op: "delete_neighbor_bfd", value: addr });
-      }
-      if (updated.bfd.enabled) {
-        operations.push({ op: "set_neighbor_bfd", value: addr });
-        if (updated.bfd.check_control_plane_failure) {
-          operations.push({ op: "set_neighbor_bfd_check_control_plane_failure", value: addr });
-        }
-        if (updated.bfd.profile) {
-          operations.push({ op: "set_neighbor_bfd_profile", value: `${addr},${updated.bfd.profile}` });
-        }
-      }
-    }
+    // BFD leaves. Disabling BFD deletes the node; otherwise only the changed leaf is sent.
+    pushBfdOps(operations, "neighbor", addr, original.bfd, updated.bfd);
 
     // Capability
     if (updated.capability.dynamic !== original.capability.dynamic) {
@@ -562,18 +765,10 @@ class BgpService {
     }
     for (const afi of updAFs) {
       if (!origAFs.has(afi)) {
-        // New AF - add it with all settings
         operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
-        this._addNeighborAfOps(operations, addr, afi, updated.address_families[afi]);
+        diffNeighborAf(operations, addr, afi, BLANK_NEIGHBOR_AF, updated.address_families[afi]);
       } else {
-        // Existing AF - check if fields changed, delete and re-create
-        const origAf = JSON.stringify(original.address_families[afi]);
-        const updAf = JSON.stringify(updated.address_families[afi]);
-        if (origAf !== updAf) {
-          operations.push({ op: "delete_neighbor_af", value: `${addr},${afi}` });
-          operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
-          this._addNeighborAfOps(operations, addr, afi, updated.address_families[afi]);
-        }
+        diffNeighborAf(operations, addr, afi, original.address_families[afi], updated.address_families[afi]);
       }
     }
 
@@ -583,32 +778,6 @@ class BgpService {
 
   async deleteNeighbor(address: string): Promise<VyOSResponse> {
     return this.batchConfigure({ operations: [{ op: "delete_neighbor", value: address }] });
-  }
-
-  private _addNeighborAfOps(operations: BgpBatchOperation[], neighbor: string, afi: string, af: BgpNeighborAddressFamilyConfig): void {
-    const v = `${neighbor},${afi}`;
-    if (af.route_map_import) operations.push({ op: "set_neighbor_af_route_map_import", value: `${v},${af.route_map_import}` });
-    if (af.route_map_export) operations.push({ op: "set_neighbor_af_route_map_export", value: `${v},${af.route_map_export}` });
-    if (af.soft_reconfiguration_inbound) operations.push({ op: "set_neighbor_af_soft_reconfiguration_inbound", value: v });
-    if (af.nexthop_self) {
-      operations.push({ op: "set_neighbor_af_nexthop_self", value: v });
-      if (af.nexthop_self_force) operations.push({ op: "set_neighbor_af_nexthop_self_force", value: v });
-    }
-    if (af.route_reflector_client) operations.push({ op: "set_neighbor_af_route_reflector_client", value: v });
-    if (af.default_originate) {
-      operations.push({ op: "set_neighbor_af_default_originate", value: v });
-      if (af.default_originate_route_map) operations.push({ op: "set_neighbor_af_default_originate_route_map", value: `${v},${af.default_originate_route_map}` });
-    }
-    if (af.as_override) operations.push({ op: "set_neighbor_af_as_override", value: v });
-    if (af.remove_private_as) {
-      operations.push({ op: "set_neighbor_af_remove_private_as", value: v });
-      if (af.remove_private_as_all) operations.push({ op: "set_neighbor_af_remove_private_as_all", value: v });
-    }
-    if (af.maximum_prefix != null) operations.push({ op: "set_neighbor_af_maximum_prefix", value: `${v},${af.maximum_prefix}` });
-    if (af.prefix_list_import) operations.push({ op: "set_neighbor_af_prefix_list_import", value: `${v},${af.prefix_list_import}` });
-    if (af.prefix_list_export) operations.push({ op: "set_neighbor_af_prefix_list_export", value: `${v},${af.prefix_list_export}` });
-    if (af.allowas_in_number != null) operations.push({ op: "set_neighbor_af_allowas_in_number", value: `${v},${af.allowas_in_number}` });
-    if (af.weight != null) operations.push({ op: "set_neighbor_af_weight", value: `${v},${af.weight}` });
   }
 
   // ==========================================================================
@@ -622,9 +791,11 @@ class BgpService {
     if (pg.remote_as) operations.push({ op: "set_peer_group_remote_as", value: `${name},${pg.remote_as}` });
     if (pg.description) operations.push({ op: "set_peer_group_description", value: `${name},${pg.description}` });
     if (pg.update_source) operations.push({ op: "set_peer_group_update_source", value: `${name},${pg.update_source}` });
-    if (pg.password) operations.push({ op: "set_peer_group_password", value: `${name},${pg.password}` });
+    if (pg.password && pg.password !== MASKED_SECRET) operations.push({ op: "set_peer_group_password", value: `${name},${pg.password}` });
     if (pg.shutdown) operations.push({ op: "set_peer_group_shutdown", value: name });
     if (pg.passive) operations.push({ op: "set_peer_group_passive", value: name });
+    if (pg.solo) operations.push({ op: "set_peer_group_solo", value: name });
+    if (pg.link_state) operations.push({ op: "set_peer_group_link_state", value: name });
     if (pg.override_capability) operations.push({ op: "set_peer_group_override_capability", value: name });
     if (pg.disable_capability_negotiation) operations.push({ op: "set_peer_group_disable_capability_negotiation", value: name });
     if (pg.disable_connected_check) operations.push({ op: "set_peer_group_disable_connected_check", value: name });
@@ -633,6 +804,12 @@ class BgpService {
       operations.push({ op: "set_peer_group_bfd", value: name });
       if (pg.bfd.check_control_plane_failure) operations.push({ op: "set_peer_group_bfd_check_control_plane_failure", value: name });
       if (pg.bfd.profile) operations.push({ op: "set_peer_group_bfd_profile", value: `${name},${pg.bfd.profile}` });
+      if (pg.bfd.strict) {
+        operations.push({ op: "set_peer_group_bfd_strict", value: name });
+        if (pg.bfd.strict_hold_time != null) {
+          operations.push({ op: "set_peer_group_bfd_strict_hold_time", value: `${name},${pg.bfd.strict_hold_time}` });
+        }
+      }
     }
     if (pg.capability.dynamic) operations.push({ op: "set_peer_group_capability_dynamic", value: name });
     if (pg.capability.extended_nexthop) operations.push({ op: "set_peer_group_capability_extended_nexthop", value: name });
@@ -650,11 +827,7 @@ class BgpService {
 
     for (const [afi, afConfig] of Object.entries(pg.address_families)) {
       operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
-      if (afConfig.route_map_import) operations.push({ op: "set_peer_group_af_route_map_import", value: `${name},${afi},${afConfig.route_map_import}` });
-      if (afConfig.route_map_export) operations.push({ op: "set_peer_group_af_route_map_export", value: `${name},${afi},${afConfig.route_map_export}` });
-      if (afConfig.soft_reconfiguration_inbound) operations.push({ op: "set_peer_group_af_soft_reconfiguration_inbound", value: `${name},${afi}` });
-      if (afConfig.nexthop_self) operations.push({ op: "set_peer_group_af_nexthop_self", value: `${name},${afi}` });
-      if (afConfig.route_reflector_client) operations.push({ op: "set_peer_group_af_route_reflector_client", value: `${name},${afi}` });
+      diffPeerGroupAf(operations, name, afi, BLANK_NEIGHBOR_AF, afConfig);
     }
 
     return this.batchConfigure({ operations });
@@ -673,7 +846,7 @@ class BgpService {
     if (updated.update_source !== original.update_source) {
       operations.push(updated.update_source ? { op: "set_peer_group_update_source", value: `${name},${updated.update_source}` } : { op: "delete_peer_group_update_source", value: name });
     }
-    if (updated.password !== original.password) {
+    if (updated.password !== MASKED_SECRET && updated.password !== original.password) {
       operations.push(updated.password ? { op: "set_peer_group_password", value: `${name},${updated.password}` } : { op: "delete_peer_group_password", value: name });
     }
     if (updated.ebgp_multihop !== original.ebgp_multihop) {
@@ -681,28 +854,13 @@ class BgpService {
     }
     if (updated.shutdown !== original.shutdown) operations.push({ op: updated.shutdown ? "set_peer_group_shutdown" : "delete_peer_group_shutdown", value: name });
     if (updated.passive !== original.passive) operations.push({ op: updated.passive ? "set_peer_group_passive" : "delete_peer_group_passive", value: name });
+    if (updated.solo !== original.solo) operations.push({ op: updated.solo ? "set_peer_group_solo" : "delete_peer_group_solo", value: name });
+    if (updated.link_state !== original.link_state) operations.push({ op: updated.link_state ? "set_peer_group_link_state" : "delete_peer_group_link_state", value: name });
     if (updated.override_capability !== original.override_capability) operations.push({ op: updated.override_capability ? "set_peer_group_override_capability" : "delete_peer_group_override_capability", value: name });
     if (updated.disable_capability_negotiation !== original.disable_capability_negotiation) operations.push({ op: updated.disable_capability_negotiation ? "set_peer_group_disable_capability_negotiation" : "delete_peer_group_disable_capability_negotiation", value: name });
     if (updated.disable_connected_check !== original.disable_connected_check) operations.push({ op: updated.disable_connected_check ? "set_peer_group_disable_connected_check" : "delete_peer_group_disable_connected_check", value: name });
 
-    // BFD (delete-and-recreate pattern since there's only delete_peer_group_bfd for the whole subtree)
-    const pgBfdChanged = updated.bfd.enabled !== original.bfd.enabled ||
-      updated.bfd.profile !== original.bfd.profile ||
-      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure;
-    if (pgBfdChanged) {
-      if (original.bfd.enabled) {
-        operations.push({ op: "delete_peer_group_bfd", value: name });
-      }
-      if (updated.bfd.enabled) {
-        operations.push({ op: "set_peer_group_bfd", value: name });
-        if (updated.bfd.check_control_plane_failure) {
-          operations.push({ op: "set_peer_group_bfd_check_control_plane_failure", value: name });
-        }
-        if (updated.bfd.profile) {
-          operations.push({ op: "set_peer_group_bfd_profile", value: `${name},${updated.bfd.profile}` });
-        }
-      }
-    }
+    pushBfdOps(operations, "peer_group", name, original.bfd, updated.bfd);
 
     // Capability
     if (updated.capability.dynamic !== original.capability.dynamic) operations.push({ op: updated.capability.dynamic ? "set_peer_group_capability_dynamic" : "delete_peer_group_capability_dynamic", value: name });
@@ -744,26 +902,11 @@ class BgpService {
     const updAFs = new Set(Object.keys(updated.address_families));
     for (const afi of origAFs) { if (!updAFs.has(afi)) operations.push({ op: "delete_peer_group_af", value: `${name},${afi}` }); }
     for (const afi of updAFs) {
-      const addPeerGroupAfOps = (af: BgpNeighborAddressFamilyConfig) => {
-        if (af.route_map_import) operations.push({ op: "set_peer_group_af_route_map_import", value: `${name},${afi},${af.route_map_import}` });
-        if (af.route_map_export) operations.push({ op: "set_peer_group_af_route_map_export", value: `${name},${afi},${af.route_map_export}` });
-        if (af.soft_reconfiguration_inbound) operations.push({ op: "set_peer_group_af_soft_reconfiguration_inbound", value: `${name},${afi}` });
-        if (af.nexthop_self) operations.push({ op: "set_peer_group_af_nexthop_self", value: `${name},${afi}` });
-        if (af.route_reflector_client) operations.push({ op: "set_peer_group_af_route_reflector_client", value: `${name},${afi}` });
-      };
       if (!origAFs.has(afi)) {
-        // New AF - add it with all settings
         operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
-        addPeerGroupAfOps(updated.address_families[afi]);
+        diffPeerGroupAf(operations, name, afi, BLANK_NEIGHBOR_AF, updated.address_families[afi]);
       } else {
-        // Existing AF - check if fields changed, delete and re-create
-        const origAf = JSON.stringify(original.address_families[afi]);
-        const updAf = JSON.stringify(updated.address_families[afi]);
-        if (origAf !== updAf) {
-          operations.push({ op: "delete_peer_group_af", value: `${name},${afi}` });
-          operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
-          addPeerGroupAfOps(updated.address_families[afi]);
-        }
+        diffPeerGroupAf(operations, name, afi, original.address_families[afi], updated.address_families[afi]);
       }
     }
 
@@ -807,6 +950,7 @@ class BgpService {
       { key: "shutdown", op: "parameters_shutdown" },
       { key: "no_suppress_duplicates", op: "parameters_no_suppress_duplicates" },
       { key: "no_ipv6_auto_ra", op: "parameters_no_ipv6_auto_ra" },
+      { key: "no_hard_administrative_reset", op: "parameters_no_hard_administrative_reset" },
     ];
 
     for (const flag of flags) {
@@ -821,6 +965,31 @@ class BgpService {
     if (updated.bestpath.as_path_multipath_relax !== current.bestpath.as_path_multipath_relax) operations.push({ op: updated.bestpath.as_path_multipath_relax ? "set_parameters_bestpath_as_path_multipath_relax" : "delete_parameters_bestpath_as_path_multipath_relax" });
     if (updated.bestpath.compare_routerid !== current.bestpath.compare_routerid) operations.push({ op: updated.bestpath.compare_routerid ? "set_parameters_bestpath_compare_routerid" : "delete_parameters_bestpath_compare_routerid" });
     if (updated.bestpath.peer_type_multipath_relax !== current.bestpath.peer_type_multipath_relax) operations.push({ op: updated.bestpath.peer_type_multipath_relax ? "set_parameters_bestpath_peer_type_multipath_relax" : "delete_parameters_bestpath_peer_type_multipath_relax" });
+    if (updated.as_notation !== current.as_notation) {
+      operations.push(updated.as_notation
+        ? { op: "set_parameters_as_notation", value: updated.as_notation }
+        : { op: "delete_parameters_as_notation" });
+    }
+    if (updated.input_queue_limit !== current.input_queue_limit) {
+      operations.push(updated.input_queue_limit != null
+        ? { op: "set_parameters_input_queue_limit", value: String(updated.input_queue_limit) }
+        : { op: "delete_parameters_input_queue_limit" });
+    }
+    if (updated.output_queue_limit !== current.output_queue_limit) {
+      operations.push(updated.output_queue_limit != null
+        ? { op: "set_parameters_output_queue_limit", value: String(updated.output_queue_limit) }
+        : { op: "delete_parameters_output_queue_limit" });
+    }
+    if (updated.update_delay_establish_wait !== current.update_delay_establish_wait) {
+      operations.push(updated.update_delay_establish_wait != null
+        ? { op: "set_parameters_update_delay_establish_wait", value: String(updated.update_delay_establish_wait) }
+        : { op: "delete_parameters_update_delay_establish_wait" });
+    }
+    if (updated.update_delay_max_delay !== current.update_delay_max_delay) {
+      operations.push(updated.update_delay_max_delay != null
+        ? { op: "set_parameters_update_delay_max_delay", value: String(updated.update_delay_max_delay) }
+        : { op: "delete_parameters_update_delay_max_delay" });
+    }
 
     // Distance
     const dg = updated.distance_global;
@@ -861,6 +1030,17 @@ class BgpService {
     return this.batchConfigure({ operations: [{ op: "delete_af_redistribute", value: `${afi},${protocol}` }] });
   }
 
+  async addRedistributeTable(afi: string, table: string, routeMap?: string, metric?: string): Promise<VyOSResponse> {
+    const operations: BgpBatchOperation[] = [{ op: "set_af_redistribute_table", value: `${afi},${table}` }];
+    if (routeMap) operations.push({ op: "set_af_redistribute_table_route_map", value: `${afi},${table},${routeMap}` });
+    if (metric) operations.push({ op: "set_af_redistribute_table_metric", value: `${afi},${table},${metric}` });
+    return this.batchConfigure({ operations });
+  }
+
+  async deleteRedistributeTable(afi: string, table: string): Promise<VyOSResponse> {
+    return this.batchConfigure({ operations: [{ op: "delete_af_redistribute_table", value: `${afi},${table}` }] });
+  }
+
   async addAggregateAddress(afi: string, prefix: string, asSet: boolean, summaryOnly: boolean, routeMap?: string): Promise<VyOSResponse> {
     const operations: BgpBatchOperation[] = [{ op: "set_af_aggregate_address", value: `${afi},${prefix}` }];
     if (asSet) operations.push({ op: "set_af_aggregate_address_as_set", value: `${afi},${prefix}` });
@@ -877,6 +1057,58 @@ class BgpService {
     const name = flag.replace(/-/g, "_");
     const op = `${enabled ? "set" : "delete"}_af_l2vpn_evpn_${name}`;
     return this.batchConfigure({ operations: [{ op }] });
+  }
+
+  async setBmpSourceInterface(name: string, iface: string | null): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      operations: [iface
+        ? { op: "set_bmp_target_source_interface", value: `${name},${iface}` }
+        : { op: "delete_bmp_target_source_interface", value: name }],
+    });
+  }
+
+  async setBmpMonitor(name: string, afi: string, policy: string, enabled: boolean): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      operations: [{
+        op: enabled ? "set_bmp_target_monitor" : "delete_bmp_target_monitor",
+        value: `${name},${afi},${policy}`,
+      }],
+    });
+  }
+
+  async saveBmpTarget(original: BgpBmpTarget | null, updated: BgpBmpTarget): Promise<VyOSResponse> {
+    const operations: BgpBatchOperation[] = [];
+    const name = updated.name;
+    if (!original) operations.push({ op: "set_bmp_target", value: name });
+    const text = (before: string | null, after: string | null, setOp: string, deleteOp: string) => {
+      if (before === after) return;
+      operations.push(after ? { op: setOp, value: `${name},${after}` } : { op: deleteOp, value: name });
+    };
+    const num = (before: number | null, after: number | null, setOp: string, deleteOp: string) => {
+      if (before === after) return;
+      operations.push(after != null ? { op: setOp, value: `${name},${after}` } : { op: deleteOp, value: name });
+    };
+    text(original?.address ?? null, updated.address, "set_bmp_target_address", "delete_bmp_target_address");
+    num(original?.port ?? null, updated.port, "set_bmp_target_port", "delete_bmp_target_port");
+    num(original?.min_retry ?? null, updated.min_retry, "set_bmp_target_min_retry", "delete_bmp_target_min_retry");
+    num(original?.max_retry ?? null, updated.max_retry, "set_bmp_target_max_retry", "delete_bmp_target_max_retry");
+    if ((original?.mirror ?? false) !== updated.mirror) {
+      operations.push({ op: updated.mirror ? "set_bmp_target_mirror" : "delete_bmp_target_mirror", value: name });
+    }
+    if (operations.length === 0) return { success: true, data: { message: "No changes" } };
+    return this.batchConfigure({ operations });
+  }
+
+  async deleteBmpTarget(name: string): Promise<VyOSResponse> {
+    return this.batchConfigure({ operations: [{ op: "delete_bmp_target", value: name }] });
+  }
+
+  async setBmpMirrorBufferLimit(value: number | null): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      operations: [value != null
+        ? { op: "set_bmp_mirror_buffer_limit", value: String(value) }
+        : { op: "delete_bmp_mirror_buffer_limit" }],
+    });
   }
 }
 

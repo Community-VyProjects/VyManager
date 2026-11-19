@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { thrownMessage } from "@/lib/api-error";
 
 interface DeleteBgpPeerGroupModalProps {
   open: boolean;
@@ -32,11 +33,21 @@ export function DeleteBgpPeerGroupModal({
   const t = useTranslations("bgp");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  useEffect(() => {
+    if (!open) setError(null);
+  }, [open]);
+
+  const handleConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       await onConfirm();
+      onOpenChange(false);
+    } catch (err) {
+      setError(thrownMessage(err, t("content.saveFailed")));
     } finally {
       setLoading(false);
     }
@@ -63,7 +74,7 @@ export function DeleteBgpPeerGroupModal({
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
-
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
           <AlertDialogAction

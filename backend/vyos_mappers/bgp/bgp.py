@@ -8,22 +8,46 @@ listen ranges, BMP, SID, SRv6, and interface MPLS settings.
 Version-specific logic is in version-specific files.
 """
 
-from typing import FrozenSet, List
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class BgpMapper(BaseFeatureMapper):
-    """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
+    """Shared BGP commands. 1.5-only path methods live on the subclass."""
 
-    _REDIST = (
-        "connected", "kernel", "ospf", "rip", "static", "babel", "isis",
+    # protocols bgp address-family ipv4-unicast redistribute (both labs).
+    _REDIST_IPV4 = (
+        "babel", "connected", "isis", "kernel", "ospf", "rip", "static",
+    )
+    # protocols bgp address-family ipv6-unicast redistribute (both labs).
+    _REDIST_IPV6 = (
+        "babel", "connected", "isis", "kernel", "ospfv3", "ripng", "static",
     )
 
-    # BMP monitor policies that exist as CLI nodes. local-rib is not a real
-    # node on 1.4 or 1.5, so it is excluded on every version.
+    # ipv4-unicast redistribute table exists on both labs. ipv6 table is 1.5.
+    _TABLE_AFIS = ("ipv4-unicast",)
+
+    # BMP monitor policies on both labs. local-rib is 1.5-only.
     _BMP_MONITOR_POLICIES = (
         "pre-policy", "post-policy",
     )
+
+    # Leaves only 1.5 has, mapped to the path method the subclass defines.
+    _VERSIONED_NODES = {
+        "neighbor link-state": "get_neighbor_link_state",
+        "peer-group link-state": "get_peer_group_link_state",
+        "neighbor bfd strict": "get_neighbor_bfd_strict",
+        "neighbor bfd strict hold-time": "get_neighbor_bfd_strict_hold_time",
+        "peer-group bfd strict": "get_peer_group_bfd_strict",
+        "peer-group bfd strict hold-time": "get_peer_group_bfd_strict_hold_time",
+        "peer-group solo": "get_peer_group_solo",
+        "as-notation": "get_parameters_as_notation",
+        "input-queue-limit": "get_parameters_input_queue_limit",
+        "output-queue-limit": "get_parameters_output_queue_limit",
+        "update-delay establish-wait": "get_parameters_update_delay_establish_wait",
+        "update-delay max-delay": "get_parameters_update_delay_max_delay",
+        "bmp source-interface": "get_bmp_target_source_interface",
+    }
 
     # Valueless control leaves under address-family l2vpn-evpn. Present on
     # both 1.4 and 1.5 (global and VRF).
@@ -37,18 +61,61 @@ class BgpMapper(BaseFeatureMapper):
         "disable-ead-evi-tx",
     )
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
+        return frozenset(self._REDIST_IPV4)
 
-    def redistribute_protocols(self) -> FrozenSet[str]:
-        if "1.4" in self.version:
-            return frozenset(self._REDIST)
-        return frozenset(self._REDIST) | {"nhrp"}
+    def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
+        return frozenset(self._REDIST_IPV6)
 
-    def _require_redistribute(self, protocol: str) -> None:
-        if protocol not in self.redistribute_protocols():
+    def redistribute_protocols(self, afi: str) -> FrozenSet[str]:
+        if afi == "ipv6-unicast":
+            return self.redistribute_ipv6_protocols()
+        if afi == "ipv4-unicast":
+            return self.redistribute_ipv4_protocols()
+        return frozenset()
+
+    def _require_redistribute(self, afi: str, protocol: str) -> None:
+        if protocol not in self.redistribute_protocols(afi):
             raise ValueError(
                 f"redistribute {protocol} is not supported on this device")
+
+    def redistribute_table_afis(self) -> FrozenSet[str]:
+        return frozenset(self._TABLE_AFIS)
+
+    def _require_redistribute_table(self, afi: str) -> None:
+        if afi not in self.redistribute_table_afis():
+            raise ValueError(
+                f"redistribute table is not supported for {afi} on this device")
+
+    def as_notation_values(self) -> List[str]:
+        return []
+
+    def bestpath_bandwidth_values(self) -> List[str]:
+        return ["default-weight-for-missing", "ignore", "skip-missing"]
+
+    def bestpath_med_values(self) -> List[str]:
+        return ["confed", "missing-as-worst"]
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only leaves this device has.
+
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"{node} is not supported on this device")
+
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_bgp_config
+
+        return parse_bgp_config(self, full_config)
 
     def bmp_monitor_policies(self) -> FrozenSet[str]:
         return frozenset(self._BMP_MONITOR_POLICIES)
@@ -157,6 +224,9 @@ class BgpMapper(BaseFeatureMapper):
         return self._bgp() + ["parameters", "bestpath", "as-path", option]
 
     def get_parameters_bestpath_bandwidth(self, value: str) -> List[str]:
+        if value not in self.bestpath_bandwidth_values():
+            raise ValueError(
+                f"bestpath bandwidth {value} is not supported on this device")
         return self._bgp() + ["parameters", "bestpath", "bandwidth", value]
 
     def get_parameters_bestpath_bandwidth_delete(self) -> List[str]:
@@ -166,6 +236,9 @@ class BgpMapper(BaseFeatureMapper):
         return self._bgp() + ["parameters", "bestpath", "compare-routerid"]
 
     def get_parameters_bestpath_med(self, option: str) -> List[str]:
+        if option not in self.bestpath_med_values():
+            raise ValueError(
+                f"bestpath med {option} is not supported on this device")
         return self._bgp() + ["parameters", "bestpath", "med", option]
 
     def get_parameters_bestpath_peer_type_multipath_relax(self) -> List[str]:
@@ -335,6 +408,9 @@ class BgpMapper(BaseFeatureMapper):
     def get_neighbor_bfd_profile(self, neighbor: str, value: str) -> List[str]:
         return self._neighbor(neighbor) + ["bfd", "profile", value]
 
+    def get_neighbor_bfd_profile_delete(self, neighbor: str) -> List[str]:
+        return self._neighbor(neighbor) + ["bfd", "profile"]
+
     def get_neighbor_bfd_delete(self, neighbor: str) -> List[str]:
         return self._neighbor(neighbor) + ["bfd"]
 
@@ -440,6 +516,12 @@ class BgpMapper(BaseFeatureMapper):
     def get_neighbor_af_route_map_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["route-map"]
 
+    def get_neighbor_af_route_map_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["route-map", "import"]
+
+    def get_neighbor_af_route_map_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["route-map", "export"]
+
     def get_neighbor_af_prefix_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["prefix-list", "export", value]
 
@@ -448,6 +530,12 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_neighbor_af_prefix_list_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["prefix-list"]
+
+    def get_neighbor_af_prefix_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["prefix-list", "import"]
+
+    def get_neighbor_af_prefix_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["prefix-list", "export"]
 
     def get_neighbor_af_filter_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["filter-list", "export", value]
@@ -458,6 +546,12 @@ class BgpMapper(BaseFeatureMapper):
     def get_neighbor_af_filter_list_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["filter-list"]
 
+    def get_neighbor_af_filter_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["filter-list", "import"]
+
+    def get_neighbor_af_filter_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["filter-list", "export"]
+
     def get_neighbor_af_distribute_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["distribute-list", "export", value]
 
@@ -466,6 +560,12 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_neighbor_af_distribute_list_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["distribute-list"]
+
+    def get_neighbor_af_distribute_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["distribute-list", "import"]
+
+    def get_neighbor_af_distribute_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["distribute-list", "export"]
 
     def get_neighbor_af_soft_reconfiguration_inbound(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["soft-reconfiguration", "inbound"]
@@ -514,6 +614,9 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_neighbor_af_default_originate_route_map(self, neighbor: str, afi: str, value: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["default-originate", "route-map", value]
+
+    def get_neighbor_af_default_originate_route_map_delete(self, neighbor: str, afi: str) -> List[str]:
+        return self._neighbor_af(neighbor, afi) + ["default-originate", "route-map"]
 
     def get_neighbor_af_default_originate_delete(self, neighbor: str, afi: str) -> List[str]:
         return self._neighbor_af(neighbor, afi) + ["default-originate"]
@@ -653,6 +756,9 @@ class BgpMapper(BaseFeatureMapper):
     def get_peer_group_bfd_profile(self, name: str, value: str) -> List[str]:
         return self._peer_group(name) + ["bfd", "profile", value]
 
+    def get_peer_group_bfd_profile_delete(self, name: str) -> List[str]:
+        return self._peer_group(name) + ["bfd", "profile"]
+
     def get_peer_group_bfd_delete(self, name: str) -> List[str]:
         return self._peer_group(name) + ["bfd"]
 
@@ -719,6 +825,12 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_peer_group_af_route_map_delete(self, name: str, afi: str) -> List[str]:
         return self._peer_group_af(name, afi) + ["route-map"]
+
+    def get_peer_group_af_route_map_import_delete(self, name: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, afi) + ["route-map", "import"]
+
+    def get_peer_group_af_route_map_export_delete(self, name: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, afi) + ["route-map", "export"]
 
     def get_peer_group_af_prefix_list_export(self, name: str, afi: str, value: str) -> List[str]:
         return self._peer_group_af(name, afi) + ["prefix-list", "export", value]
@@ -879,25 +991,32 @@ class BgpMapper(BaseFeatureMapper):
 
     # Redistribute
     def get_af_redistribute(self, afi: str, protocol: str) -> List[str]:
-        self._require_redistribute(protocol)
+        self._require_redistribute(afi, protocol)
         return self._af(afi) + ["redistribute", protocol]
 
     def get_af_redistribute_metric(self, afi: str, protocol: str, value: str) -> List[str]:
-        self._require_redistribute(protocol)
+        self._require_redistribute(afi, protocol)
         return self._af(afi) + ["redistribute", protocol, "metric", value]
 
     def get_af_redistribute_route_map(self, afi: str, protocol: str, value: str) -> List[str]:
-        self._require_redistribute(protocol)
+        self._require_redistribute(afi, protocol)
         return self._af(afi) + ["redistribute", protocol, "route-map", value]
 
     def get_af_redistribute_table(self, afi: str, table: str) -> List[str]:
+        self._require_redistribute_table(afi)
         return self._af(afi) + ["redistribute", "table", table]
 
     def get_af_redistribute_table_metric(self, afi: str, table: str, value: str) -> List[str]:
+        self._require_redistribute_table(afi)
         return self._af(afi) + ["redistribute", "table", table, "metric", value]
 
     def get_af_redistribute_table_route_map(self, afi: str, table: str, value: str) -> List[str]:
+        self._require_redistribute_table(afi)
         return self._af(afi) + ["redistribute", "table", table, "route-map", value]
+
+    def get_af_redistribute_table_delete(self, afi: str, table: str) -> List[str]:
+        self._require_redistribute_table(afi)
+        return self._af(afi) + ["redistribute", "table", table]
 
     def get_af_redistribute_delete(self, afi: str, protocol: str) -> List[str]:
         return self._af(afi) + ["redistribute", protocol]
@@ -1121,6 +1240,21 @@ class BgpMapper(BaseFeatureMapper):
 
     def get_bmp_target_delete(self, name: str) -> List[str]:
         return self._bgp() + ["bmp", "target", name]
+
+    def get_bmp_target_address_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "address"]
+
+    def get_bmp_target_port_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "port"]
+
+    def get_bmp_target_min_retry_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "min-retry"]
+
+    def get_bmp_target_max_retry_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "max-retry"]
+
+    def get_bmp_target_mirror_delete(self, name: str) -> List[str]:
+        return self._bgp() + ["bmp", "target", name, "mirror"]
 
     # ========================================================================
     # SID / SRv6
