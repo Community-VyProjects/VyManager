@@ -312,6 +312,8 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     | `delete_rule_disable` | No | Enable rule |
     | `set_rule_log` | No | Enable logging |
     | `delete_rule_log` | No | Disable logging |
+    | `set_rule_jump_target` | Yes | Set jump target chain |
+    | `delete_rule_jump_target` | No | Remove jump target |
 
     **Source/Destination MAC:**
 
@@ -343,8 +345,6 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     | `delete_rule_outbound_interface` | No | Remove outbound interface filter |
     | `set_rule_outbound_interface_group` | Yes | Match outbound interface group |
     | `delete_rule_outbound_interface_group` | No | Remove outbound interface group |
-    | `set_rule_jump_target` | Yes | Set jump target chain |
-    | `delete_rule_jump_target` | No | Remove jump target |
 
     **VyOS 1.5+ Only:**
 

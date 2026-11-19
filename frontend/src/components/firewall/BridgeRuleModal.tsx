@@ -1399,18 +1399,14 @@ export function BridgeRuleModal({
                       onChange={(e) => setTimeStoptime(e.target.value)}
                     />
                   </div>
-                  {showTime && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="timeStartdate">{t("ruleModal.startDate")}</Label>
-                        <Input id="timeStartdate" type="date" value={timeStartdate} onChange={(e) => setTimeStartdate(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="timeStopdate">{t("ruleModal.stopDate")}</Label>
-                        <Input id="timeStopdate" type="date" value={timeStopdate} onChange={(e) => setTimeStopdate(e.target.value)} />
-                      </div>
-                    </>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="timeStartdate">{t("ruleModal.startDate")}</Label>
+                    <Input id="timeStartdate" type="date" value={timeStartdate} onChange={(e) => setTimeStartdate(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="timeStopdate">{t("ruleModal.stopDate")}</Label>
+                    <Input id="timeStopdate" type="date" value={timeStopdate} onChange={(e) => setTimeStopdate(e.target.value)} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>{t("ruleModal.activeDays")}</Label>
@@ -1458,22 +1454,18 @@ export function BridgeRuleModal({
                       onChange={(e) => setModifyMark(e.target.value)}
                     />
                   </div>
-                  {showMods && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="setConnectionMark">{t("ruleModal.setConnectionMark")}</Label>
-                        <Input id="setConnectionMark" value={setConnectionMarkValue} onChange={(e) => setSetConnectionMarkValue(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="setTtl">{t("ruleModal.setTtl")}</Label>
-                        <Input id="setTtl" value={setTtl} onChange={(e) => setSetTtl(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="setHopLimit">{t("ruleModal.setHopLimit")}</Label>
-                        <Input id="setHopLimit" value={setHopLimit} onChange={(e) => setSetHopLimit(e.target.value)} />
-                      </div>
-                    </>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="setConnectionMark">{t("ruleModal.setConnectionMark")}</Label>
+                    <Input id="setConnectionMark" value={setConnectionMarkValue} onChange={(e) => setSetConnectionMarkValue(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="setTtl">{t("ruleModal.setTtl")}</Label>
+                    <Input id="setTtl" value={setTtl} onChange={(e) => setSetTtl(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="setHopLimit">{t("ruleModal.setHopLimit")}</Label>
+                    <Input id="setHopLimit" value={setHopLimit} onChange={(e) => setSetHopLimit(e.target.value)} />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="modifyTcpMss">{t("ruleModal.setTcpMss")}</Label>
                     <Select
