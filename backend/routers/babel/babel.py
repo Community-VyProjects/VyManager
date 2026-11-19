@@ -172,8 +172,8 @@ async def babel_batch_configure(http_request: Request, body: BabelBatchRequest):
         version = service.get_version()
         builder = BabelBatchBuilder(version=version)
 
-        # ValueError is an unsupported redistribute. A short call is a missing
-        # value. Neither wraps execute_batch: an empty batch stays a 500.
+        # ValueError is an unsupported redistribute. It does not wrap
+        # execute_batch: an empty batch stays a 500.
         try:
             for operation in body.operations:
                 method = resolve_batch_method(builder, operation.op)
@@ -193,13 +193,7 @@ async def babel_batch_configure(http_request: Request, body: BabelBatchRequest):
                         status_code=400,
                         detail=f"Operation {operation.op} requires {count} values",
                     )
-                try:
-                    method(*parts)
-                except TypeError:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
+                method(*parts)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
