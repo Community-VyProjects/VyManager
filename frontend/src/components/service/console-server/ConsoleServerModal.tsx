@@ -23,7 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
-import { ConsoleDevice } from "@/lib/api/console-server";
+import {
+  consoleServerService,
+  ConsoleDevice,
+  ConsoleServerCapabilities,
+} from "@/lib/api/console-server";
 
 interface ConsoleServerModalProps {
   open: boolean;
@@ -32,10 +36,67 @@ interface ConsoleServerModalProps {
   onSubmit: (updated: ConsoleDevice) => Promise<void>;
 }
 
-const SPEED_OPTIONS = ["300", "1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"];
-const DATA_BITS_OPTIONS = ["7", "8"];
-const PARITY_OPTIONS = ["none", "even", "odd"];
-const STOP_BITS_OPTIONS = ["1", "2"];
+const NONE = "__none__";
+
+function featureOptions(
+  capabilities: ConsoleServerCapabilities | null,
+  key: string,
+  current: string,
+): string[] {
+  const feature = capabilities?.features[key];
+  const raw =
+    feature && typeof feature === "object" && "options" in feature
+      ? (feature as { options?: unknown }).options
+      : undefined;
+  const options = Array.isArray(raw)
+    ? raw.filter((value): value is string => typeof value === "string" && value !== "" && value !== NONE)
+    : [];
+  if (current && !options.includes(current)) return [...options, current];
+  return options;
+}
+
+function sshPortNumber(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return Number(trimmed);
+}
+
+function OptionSelect({
+  id,
+  label,
+  value,
+  options,
+  noneLabel,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: string[];
+  noneLabel: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs">
+        {label}
+      </Label>
+      <Select value={value || NONE} onValueChange={(next) => onChange(next === NONE ? "" : next)}>
+        <SelectTrigger id={id}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NONE}>{noneLabel}</SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option} value={option} className="font-mono">
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleServerModalProps) {
   const t = useTranslations("consoleServer");
@@ -44,6 +105,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<ConsoleServerCapabilities | null>(null);
 
   // Device Identity
   const [deviceName, setDeviceName] = useState("");
@@ -62,6 +124,12 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
   useEffect(() => {
     if (!open) return;
     setError(null);
+    let cancelled = false;
+    consoleServerService.getCapabilities().then((caps) => {
+      if (!cancelled) setCapabilities(caps);
+    }).catch(() => {
+      if (!cancelled) setError(t("modal.capabilitiesFailed"));
+    });
 
     if (device) {
       setDeviceName(device.name);
@@ -82,17 +150,25 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
       setStopBits("");
       setSshPort("");
     }
-  }, [open, device]);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, device, t]);
 
   function validate(): string | null {
     if (!deviceName.trim()) return t("modal.nameRequired");
-    if (alias.length > 128) return t("modal.aliasTooLong");
+    if (!isEditing && !/^(ttyS\d+|usb\d+b.*p.*)$/.test(deviceName.trim())) {
+      return t("modal.deviceNameInvalid");
+    }
+    const trimmedAlias = alias.trim();
+    if (trimmedAlias.length > 128) return t("modal.aliasTooLong");
+    if (trimmedAlias && !/^[-_a-zA-Z0-9.]+$/.test(trimmedAlias)) {
+      return t("modal.aliasInvalid");
+    }
     if (description.length > 255) return t("modal.descriptionTooLong");
-    if (sshPort) {
-      const port = parseInt(sshPort, 10);
-      if (isNaN(port) || port < 1 || port > 65535) {
-        return t("modal.sshPortRange");
-      }
+    const port = sshPort.trim();
+    if (port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535)) {
+      return t("modal.sshPortRange");
     }
     return null;
   }
@@ -106,7 +182,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
     setError(null);
     setLoading(true);
     try {
-      const sshPortNum = sshPort ? parseInt(sshPort, 10) : null;
+      const port = sshPortNumber(sshPort);
       const updated: ConsoleDevice = {
         name: deviceName.trim(),
         alias: alias.trim() || null,
@@ -115,15 +191,18 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
         data_bits: dataBits || null,
         parity: parity || null,
         stop_bits: stopBits || null,
-        ssh: sshPortNum != null ? { port: sshPortNum } : null,
+        ssh: port != null ? { port } : null,
       };
       await onSubmit(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("modal.unexpectedError"));
+      const message = err instanceof Error ? err.message : "";
+      setError(message || t("modal.unexpectedError"));
     } finally {
       setLoading(false);
     }
   }
+
+  const noneLabel = tc("notSet");
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -153,11 +232,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                   disabled={isEditing}
                   className="font-mono"
                 />
-                {isEditing && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("modal.deviceNameLocked")}
-                  </p>
-                )}
               </div>
 
               <div className="space-y-1.5">
@@ -191,77 +265,42 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
             {/* Serial Parameters */}
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">{t("modal.serialParameters")}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("modal.serialParametersHint")}
-                </p>
-              </div>
+              <p className="text-sm font-medium">{t("modal.serialParameters")}</p>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">{t("modal.speed")}</Label>
-                <Select value={speed} onValueChange={setSpeed}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("modal.defaultValue", { value: "9600" })} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SPEED_OPTIONS.map((s) => (
-                      <SelectItem key={s} value={s} className="font-mono">
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <OptionSelect
+                id="device-speed"
+                label={t("modal.speed")}
+                value={speed}
+                options={featureOptions(capabilities, "speed", speed)}
+                noneLabel={noneLabel}
+                onChange={setSpeed}
+              />
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t("modal.dataBits")}</Label>
-                  <Select value={dataBits} onValueChange={setDataBits}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("modal.defaultValue", { value: "8" })} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DATA_BITS_OPTIONS.map((b) => (
-                        <SelectItem key={b} value={b} className="font-mono">
-                          {b}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t("modal.parity")}</Label>
-                  <Select value={parity} onValueChange={setParity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("modal.defaultValue", { value: "none" })} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PARITY_OPTIONS.map((p) => (
-                        <SelectItem key={p} value={p} className="font-mono">
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t("modal.stopBits")}</Label>
-                  <Select value={stopBits} onValueChange={setStopBits}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("modal.defaultValue", { value: "1" })} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STOP_BITS_OPTIONS.map((b) => (
-                        <SelectItem key={b} value={b} className="font-mono">
-                          {b}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <OptionSelect
+                  id="device-data-bits"
+                  label={t("modal.dataBits")}
+                  value={dataBits}
+                  options={featureOptions(capabilities, "data_bits", dataBits)}
+                  noneLabel={noneLabel}
+                  onChange={setDataBits}
+                />
+                <OptionSelect
+                  id="device-parity"
+                  label={t("modal.parity")}
+                  value={parity}
+                  options={featureOptions(capabilities, "parity", parity)}
+                  noneLabel={noneLabel}
+                  onChange={setParity}
+                />
+                <OptionSelect
+                  id="device-stop-bits"
+                  label={t("modal.stopBits")}
+                  value={stopBits}
+                  options={featureOptions(capabilities, "stop_bits", stopBits)}
+                  noneLabel={noneLabel}
+                  onChange={setStopBits}
+                />
               </div>
             </div>
 
@@ -269,12 +308,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
             {/* Remote Access */}
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">{t("modal.remoteAccess")}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("modal.remoteAccessHint")}
-                </p>
-              </div>
+              <p className="text-sm font-medium">{t("modal.remoteAccess")}</p>
 
               <div className="space-y-1.5">
                 <Label htmlFor="ssh-port" className="text-xs">
@@ -289,9 +323,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                   value={sshPort}
                   onChange={(e) => setSshPort(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {t("modal.sshPortHint")}
-                </p>
               </div>
             </div>
           </div>
