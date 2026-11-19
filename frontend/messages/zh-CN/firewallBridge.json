@@ -98,6 +98,7 @@
     "actionRequired": "动作 *",
     "jumpTarget": "跳转目标链 *",
     "jumpTargetRequired": "请选择跳转目标链",
+    "logGroupRequired": "设置队列阈值或快照长度前请先设置日志组",
     "queueNumber": "队列编号",
     "queuePlaceholder": "队列编号 (0-65535)",
     "descriptionPlaceholder": "规则描述",

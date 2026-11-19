@@ -209,7 +209,7 @@ async def get_bridge_capabilities(request: Request):
         return capabilities
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -304,7 +304,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     |-----------|----------------|-------------|
     | `set_rule` | No | Create rule |
     | `delete_rule` | No | Delete rule |
-    | `set_rule_action` | Yes | Set action (accept, drop, continue, jump, notrack) |
+    | `set_rule_action` | Yes | Set action (accept, drop, continue, jump, return, queue, reject, notrack) |
     | `delete_rule_action` | No | Delete action |
     | `set_rule_description` | Yes | Set rule description |
     | `delete_rule_description` | No | Delete rule description |
@@ -343,6 +343,8 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     | `delete_rule_outbound_interface` | No | Remove outbound interface filter |
     | `set_rule_outbound_interface_group` | Yes | Match outbound interface group |
     | `delete_rule_outbound_interface_group` | No | Remove outbound interface group |
+    | `set_rule_jump_target` | Yes | Set jump target chain |
+    | `delete_rule_jump_target` | No | Remove jump target |
 
     **VyOS 1.5+ Only:**
 
@@ -350,8 +352,6 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     |-----------|----------------|-------------|
     | `set_rule_ethernet_type` | Yes | Match ethernet type (arp, ipv4, ipv6, 802.1q) |
     | `delete_rule_ethernet_type` | No | Remove ethernet type filter |
-    | `set_rule_jump_target` | Yes | Set jump target chain |
-    | `delete_rule_jump_target` | No | Remove jump target |
     | `set_rule_set_dscp` | Yes | Set DSCP value (0-63) |
     | `delete_rule_set_dscp` | No | Remove DSCP modification |
     | `set_rule_set_mark` | Yes | Set packet mark |
@@ -446,9 +446,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
 
     except HTTPException:
         raise
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -741,6 +739,6 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

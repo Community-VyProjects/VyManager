@@ -98,6 +98,7 @@
     "actionRequired": "Action *",
     "jumpTarget": "Jump Target Chain *",
     "jumpTargetRequired": "Select a jump target chain",
+    "logGroupRequired": "Set a log group before queue threshold or snapshot length",
     "queueNumber": "Queue Number",
     "queuePlaceholder": "Queue number (0-65535)",
     "descriptionPlaceholder": "Rule description",

@@ -324,7 +324,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_set_tcp_mss(chain, rule_number, mss)
         return self.add_set(path)
 
-
     def delete_rule_set_tcp_mss(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_set_tcp_mss leaf."""
         path = self.mappers[self.mapper_key].get_rule_set_tcp_mss_path(chain, rule_number)
@@ -491,7 +490,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_icmpv6_type_name(chain, rule_number, type_name)
         return self.add_set(path)
 
-
     def delete_rule_icmpv6_type_name(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_icmpv6_type_name leaf."""
         path = self.mappers[self.mapper_key].get_rule_icmpv6_type_name_path(chain, rule_number)
@@ -525,7 +523,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         """Set TCP MSS matching for a rule (VyOS 1.5+ only)."""
         path = self.mappers[self.mapper_key].get_rule_tcp_mss(chain, rule_number, mss)
         return self.add_set(path)
-
 
     def delete_rule_tcp_mss(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_tcp_mss leaf."""
@@ -629,7 +626,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_connection_mark(chain, rule_number, mark)
         return self.add_set(path)
 
-
     def delete_rule_connection_mark(self, chain: str, rule_number: int, mark: str) -> "BridgeFirewallBatchBuilder":
         """Delete one connection-mark value. The leaf is multi."""
         path = self.mappers[self.mapper_key].get_rule_connection_mark(chain, rule_number, mark)
@@ -654,7 +650,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_dscp_exclude(chain, rule_number, dscp)
         return self.add_set(path)
 
-
     def delete_rule_dscp_exclude(self, chain: str, rule_number: int, dscp: str) -> "BridgeFirewallBatchBuilder":
         """Delete one DSCP-exclude value. The leaf is multi."""
         path = self.mappers[self.mapper_key].get_rule_dscp_exclude(chain, rule_number, dscp)
@@ -678,7 +673,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         """Set non-fragment matching for a rule (VyOS 1.5+ only)."""
         path = self.mappers[self.mapper_key].get_rule_fragment_match_non_frag(chain, rule_number)
         return self.add_set(path)
-
 
     def delete_rule_fragment_match_non_frag(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_fragment_match_non_frag leaf."""
@@ -723,7 +717,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         """Set non-IPsec outbound matching for a rule (VyOS 1.5+ only)."""
         path = self.mappers[self.mapper_key].get_rule_ipsec_match_none_out(chain, rule_number)
         return self.add_set(path)
-
 
     def delete_rule_ipsec_match_none_out(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_ipsec_match_none_out leaf."""
@@ -789,7 +782,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_hop_limit_lt(chain, rule_number, value)
         return self.add_set(path)
 
-
     def delete_rule_hop_limit_lt(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_hop_limit_lt leaf."""
         path = self.mappers[self.mapper_key].get_rule_hop_limit_lt_path(chain, rule_number)
@@ -813,7 +805,6 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         """Set packet length matching for a rule (VyOS 1.5+ only)."""
         path = self.mappers[self.mapper_key].get_rule_packet_length(chain, rule_number, length)
         return self.add_set(path)
-
 
     def delete_rule_packet_length(self, chain: str, rule_number: int, length: str) -> "BridgeFirewallBatchBuilder":
         """Delete one packet-length value. The leaf is multi."""
@@ -902,43 +893,42 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_rule_vlan_ethernet_type(chain, rule_number, eth_type)
         return self.add_set(path)
 
-
     def delete_rule_vlan_ethernet_type(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_vlan_ethernet_type leaf."""
         path = self.mappers[self.mapper_key].get_rule_vlan_ethernet_type_path(chain, rule_number)
         return self.add_delete(path)
 
     # ========================================================================
-    # Custom Chain Operations (VyOS 1.5+ only)
+    # Custom Chain Operations
     # ========================================================================
 
     def set_custom_chain(self, chain_name: str) -> "BridgeFirewallBatchBuilder":
-        """Create a custom chain (VyOS 1.5+ only)."""
+        """Create a custom chain."""
         path = self.mappers[self.mapper_key].get_custom_chain(chain_name)
         return self.add_set(path)
 
     def delete_custom_chain(self, chain_name: str) -> "BridgeFirewallBatchBuilder":
-        """Delete a custom chain (VyOS 1.5+ only)."""
+        """Delete a custom chain."""
         path = self.mappers[self.mapper_key].get_custom_chain_path(chain_name)
         return self.add_delete(path)
 
     def set_custom_chain_description(self, chain_name: str, description: str) -> "BridgeFirewallBatchBuilder":
-        """Set description for a custom chain (VyOS 1.5+ only)."""
+        """Set description for a custom chain."""
         path = self.mappers[self.mapper_key].get_custom_chain_description(chain_name, description)
         return self.add_set(path)
 
     def delete_custom_chain_description(self, chain_name: str) -> "BridgeFirewallBatchBuilder":
-        """Delete description for a custom chain (VyOS 1.5+ only)."""
+        """Delete description for a custom chain."""
         path = self.mappers[self.mapper_key].get_custom_chain_description_path(chain_name)
         return self.add_delete(path)
 
     def set_custom_chain_default_action(self, chain_name: str, action: str) -> "BridgeFirewallBatchBuilder":
-        """Set default action for a custom chain (VyOS 1.5+ only)."""
+        """Set default action for a custom chain."""
         path = self.mappers[self.mapper_key].get_custom_chain_default_action(chain_name, action)
         return self.add_set(path)
 
     def delete_custom_chain_default_action(self, chain_name: str) -> "BridgeFirewallBatchBuilder":
-        """Delete default action for a custom chain (VyOS 1.5+ only)."""
+        """Delete default action for a custom chain."""
         path = self.mappers[self.mapper_key].get_custom_chain_default_action_path(chain_name)
         return self.add_delete(path)
 

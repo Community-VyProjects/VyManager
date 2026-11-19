@@ -263,6 +263,7 @@ export function BridgeRuleModal({
   const showVlanEthernetType = capabilities?.matching_criteria?.vlan_ethernet_type?.supported === true;
   const showRuleDescription = firewallFeatureSupported(capabilities, "rule_description");
   const showLogOptions = firewallFeatureSupported(capabilities, "log_options");
+  const showRate = firewallFeatureSupported(capabilities, "rate_limiting");
   const showTcp = firewallFeatureSupported(capabilities, "tcp_flags");
   const showMark = firewallFeatureSupported(capabilities, "mark_matching");
   const showDscp = firewallFeatureSupported(capabilities, "dscp_matching");
@@ -458,6 +459,10 @@ export function BridgeRuleModal({
       setError(t("ruleModal.jumpTargetRequired"));
       return;
     }
+    if (log && (logQueueThreshold.trim() || logSnapshotLength.trim()) && !logGroup.trim()) {
+      setError(t("ruleModal.logGroupRequired"));
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -483,7 +488,7 @@ export function BridgeRuleModal({
         protocol: protocol || null,
         ethernet_type: ethernetType || null,
         jump_target: action === "jump" ? jumpTarget || "" : "",
-        queue: queue || null,
+        queue: action === "queue" ? queue || "" : "",
         icmp_type: protocol === "icmp" ? icmpType || null : null,
         icmp_code: protocol === "icmp" ? icmpCode || null : null,
         icmp_type_name: protocol === "icmp" ? icmpTypeName || null : null,
@@ -492,7 +497,7 @@ export function BridgeRuleModal({
         icmpv6_type_name: protocol === "icmpv6" ? icmpTypeName || null : null,
         tcp_flags: protocol === "tcp" ? tcpFlags.join(",") : "",
         tcp_flags_not: protocol === "tcp" ? tcpFlagsNot.join(",") : "",
-        tcp_mss: protocol === "tcp" || protocol === "tcp_udp" ? tcpMss || null : null,
+        tcp_mss: protocol === "tcp" ? tcpMss || "" : "",
         mark: mark || null,
         connection_mark: connectionMark || null,
         dscp: dscp || null,
@@ -511,10 +516,10 @@ export function BridgeRuleModal({
         ipsec_match_ipsec_out: ipsecOut,
         ipsec_match_none_in: ipsecNoneIn,
         ipsec_match_none_out: ipsecNoneOut,
-        log_options_level: logLevel || null,
-        log_options_group: logGroup || null,
-        log_options_queue_threshold: logQueueThreshold || null,
-        log_options_snapshot_length: logSnapshotLength || null,
+        log_options_level: log ? logLevel || "" : "",
+        log_options_group: log ? logGroup || "" : "",
+        log_options_queue_threshold: log ? logQueueThreshold || "" : "",
+        log_options_snapshot_length: log ? logSnapshotLength || "" : "",
         limit_rate: buildLimitRate(),
         limit_burst: limitBurst || null,
         time_startdate: timeStartdate || null,
@@ -552,6 +557,10 @@ export function BridgeRuleModal({
       setError(t("ruleModal.jumpTargetRequired"));
       return;
     }
+    if (log && (logQueueThreshold.trim() || logSnapshotLength.trim()) && !logGroup.trim()) {
+      setError(t("ruleModal.logGroupRequired"));
+      return;
+    }
 
     const ruleNum = getNextRuleNumber();
 
@@ -581,7 +590,7 @@ export function BridgeRuleModal({
         protocol: protocol || undefined,
         ethernet_type: ethernetType || undefined,
         jump_target: action === "jump" ? jumpTarget || undefined : undefined,
-        queue: queue || undefined,
+        queue: action === "queue" ? queue || undefined : undefined,
         icmp_type: protocol === "icmp" ? icmpType || undefined : undefined,
         icmp_code: protocol === "icmp" ? icmpCode || undefined : undefined,
         icmp_type_name: protocol === "icmp" ? icmpTypeName || undefined : undefined,
@@ -590,7 +599,7 @@ export function BridgeRuleModal({
         icmpv6_type_name: protocol === "icmpv6" ? icmpTypeName || undefined : undefined,
         tcp_flags: tcpOn && tcpFlags.length > 0 ? tcpFlags.join(",") : undefined,
         tcp_flags_not: tcpOn && tcpFlagsNot.length > 0 ? tcpFlagsNot.join(",") : undefined,
-        tcp_mss: tcpOn ? tcpMss || undefined : undefined,
+        tcp_mss: protocol === "tcp" ? tcpMss || undefined : undefined,
         mark: mark || undefined,
         connection_mark: connectionMark || undefined,
         dscp: dscp || undefined,
@@ -609,10 +618,10 @@ export function BridgeRuleModal({
         ipsec_match_ipsec_out: ipsecOut || undefined,
         ipsec_match_none_in: ipsecNoneIn || undefined,
         ipsec_match_none_out: ipsecNoneOut || undefined,
-        log_options_level: logLevel || undefined,
-        log_options_group: logGroup || undefined,
-        log_options_queue_threshold: logQueueThreshold || undefined,
-        log_options_snapshot_length: logSnapshotLength || undefined,
+        log_options_level: log ? logLevel || undefined : undefined,
+        log_options_group: log ? logGroup || undefined : undefined,
+        log_options_queue_threshold: log ? logQueueThreshold || undefined : undefined,
+        log_options_snapshot_length: log ? logSnapshotLength || undefined : undefined,
         limit_rate: buildLimitRate() || undefined,
         limit_burst: limitBurst || undefined,
         time_startdate: timeStartdate || undefined,
@@ -783,7 +792,7 @@ export function BridgeRuleModal({
               </div>
             </div>
 
-            {showLogOptions && (
+            {showLogOptions && log && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="logLevel">{t("ruleModal.logLevel")}</Label>
@@ -1322,6 +1331,7 @@ export function BridgeRuleModal({
                 </div>
               )}
               {/* Rate Limiting */}
+              {showRate && (
               <div className="space-y-4">
                 <h4 className="text-sm font-medium">{t("ruleModal.rateLimiting")}</h4>
                 <div className="grid grid-cols-3 gap-4">
@@ -1364,8 +1374,10 @@ export function BridgeRuleModal({
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Time-based Rules */}
+              {showTime && (
               <div className="space-y-4">
                 <h4 className="text-sm font-medium">{t("ruleModal.timeBasedRules")}</h4>
                 <div className="grid grid-cols-2 gap-4">
@@ -1418,8 +1430,10 @@ export function BridgeRuleModal({
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Packet Modifications */}
+              {showMods && (
               <div className="space-y-4">
                 <h4 className="text-sm font-medium">{t("ruleModal.packetModifications")}</h4>
                 <div className="grid grid-cols-2 gap-4">
@@ -1481,6 +1495,7 @@ export function BridgeRuleModal({
                   </div>
                 </div>
               </div>
+              )}
             </TabsContent>
           )}
         </Tabs>

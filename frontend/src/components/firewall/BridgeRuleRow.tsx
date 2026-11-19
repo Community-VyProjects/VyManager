@@ -439,7 +439,7 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
                 {rule.tcp_flags || rule.tcp_flags_not ? (
                   <div className="flex flex-col gap-0.5">
                     {rule.tcp_flags && <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{rule.tcp_flags}</code>}
-                    {rule.tcp_flags_not && <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{rule.tcp_flags_not}</code>}
+                    {rule.tcp_flags_not && <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">!{rule.tcp_flags_not}</code>}
                   </div>
                 ) : (
                   <span className="text-sm text-muted-foreground">-</span>
