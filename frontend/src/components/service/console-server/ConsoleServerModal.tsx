@@ -23,21 +23,108 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
-import { ConsoleDevice } from "@/lib/api/console-server";
+import { thrownMessage } from "@/lib/api-error";
+import {
+  ConsoleDevice,
+  ConsoleServerCapabilities,
+} from "@/lib/api/console-server";
+import {
+  fromNamedListValue,
+  listedNames,
+  NONE_SENTINEL,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface ConsoleServerModalProps {
   open: boolean;
   device: ConsoleDevice | null;
+  devices: ConsoleDevice[];
+  capabilities: ConsoleServerCapabilities;
   onClose: () => void;
   onSubmit: (updated: ConsoleDevice) => Promise<void>;
 }
 
-const SPEED_OPTIONS = ["300", "1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"];
-const DATA_BITS_OPTIONS = ["7", "8"];
-const PARITY_OPTIONS = ["none", "even", "odd"];
-const STOP_BITS_OPTIONS = ["1", "2"];
+function featureOptions(capabilities: ConsoleServerCapabilities, key: string): string[] {
+  const feature = capabilities.features[key];
+  if (!feature || typeof feature !== "object" || !("options" in feature)) return [];
+  const raw = (feature as { options?: unknown }).options;
+  return Array.isArray(raw)
+    ? raw.filter((value): value is string => typeof value === "string" && value !== "")
+    : [];
+}
 
-export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleServerModalProps) {
+function sshPortNumber(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return Number(trimmed);
+}
+
+function OptionSelect({
+  id,
+  label,
+  value,
+  options,
+  noneLabel,
+  required = false,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: string[];
+  noneLabel?: string;
+  required?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const choices = listedNames(options, value);
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs">
+        {label} {required && <span className="text-destructive">*</span>}
+      </Label>
+      {required ? (
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger id={id}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {choices.map((option) => (
+              <SelectItem key={option} value={option} className="font-mono">
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Select
+          value={toNamedListValue(value)}
+          onValueChange={(next) => onChange(fromNamedListValue(next))}
+        >
+          <SelectTrigger id={id}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE_SENTINEL}>{noneLabel}</SelectItem>
+            {choices.map((option) => (
+              <SelectItem key={option} value={option} className="font-mono">
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+}
+
+export function ConsoleServerModal({
+  open,
+  device,
+  devices,
+  capabilities,
+  onClose,
+  onSubmit,
+}: ConsoleServerModalProps) {
   const t = useTranslations("consoleServer");
   const tc = useTranslations("common");
   const isEditing = device !== null;
@@ -45,24 +132,18 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Device Identity
   const [deviceName, setDeviceName] = useState("");
   const [alias, setAlias] = useState("");
   const [description, setDescription] = useState("");
-
-  // Serial Parameters
   const [speed, setSpeed] = useState("");
   const [dataBits, setDataBits] = useState("");
   const [parity, setParity] = useState("");
   const [stopBits, setStopBits] = useState("");
-
-  // Remote Access
   const [sshPort, setSshPort] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setError(null);
-
     if (device) {
       setDeviceName(device.name);
       setAlias(device.alias ?? "");
@@ -84,15 +165,35 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
     }
   }, [open, device]);
 
+  function others(): ConsoleDevice[] {
+    return devices.filter((item) => item.name !== device?.name);
+  }
+
   function validate(): string | null {
-    if (!deviceName.trim()) return t("modal.nameRequired");
-    if (alias.length > 128) return t("modal.aliasTooLong");
-    if (description.length > 255) return t("modal.descriptionTooLong");
-    if (sshPort) {
-      const port = parseInt(sshPort, 10);
-      if (isNaN(port) || port < 1 || port > 65535) {
-        return t("modal.sshPortRange");
-      }
+    const name = deviceName.trim();
+    if (!name) return t("modal.nameRequired");
+    if (!isEditing && !/^(ttyS\d+|usb\d+b.*p.*)$/.test(name)) {
+      return t("modal.deviceNameInvalid");
+    }
+    if (!isEditing && devices.some((item) => item.name === name)) {
+      return t("modal.deviceExists");
+    }
+    const trimmedAlias = alias.trim();
+    if (trimmedAlias.length > 128) return t("modal.aliasTooLong");
+    if (trimmedAlias && !/^[-_a-zA-Z0-9.]+$/.test(trimmedAlias)) {
+      return t("modal.aliasInvalid");
+    }
+    if (trimmedAlias && others().some((item) => (item.alias ?? "").trim() === trimmedAlias)) {
+      return t("modal.aliasInUse");
+    }
+    if (description.trim().length > 255) return t("modal.descriptionTooLong");
+    if (!speed) return t("modal.speedRequired");
+    const port = sshPort.trim();
+    if (port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535)) {
+      return t("modal.sshPortRange");
+    }
+    if (port && others().some((item) => item.ssh?.port === Number(port))) {
+      return t("modal.sshPortInUse");
     }
     return null;
   }
@@ -106,24 +207,26 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
     setError(null);
     setLoading(true);
     try {
-      const sshPortNum = sshPort ? parseInt(sshPort, 10) : null;
+      const port = sshPortNumber(sshPort);
       const updated: ConsoleDevice = {
         name: deviceName.trim(),
         alias: alias.trim() || null,
         description: description.trim() || null,
-        speed: speed || null,
+        speed,
         data_bits: dataBits || null,
         parity: parity || null,
         stop_bits: stopBits || null,
-        ssh: sshPortNum != null ? { port: sshPortNum } : null,
+        ssh: port != null ? { port } : null,
       };
       await onSubmit(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("modal.unexpectedError"));
+      setError(thrownMessage(err, t("modal.unexpectedError")));
     } finally {
       setLoading(false);
     }
   }
+
+  const noneLabel = tc("notSet");
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -137,7 +240,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
         <ScrollArea className="flex-1 pr-4 min-h-0">
           <div className="space-y-6 py-2">
-            {/* Device Identity */}
             <div className="space-y-4">
               <p className="text-sm font-medium">{t("modal.deviceIdentity")}</p>
 
@@ -153,11 +255,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                   disabled={isEditing}
                   className="font-mono"
                 />
-                {isEditing && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("modal.deviceNameLocked")}
-                  </p>
-                )}
               </div>
 
               <div className="space-y-1.5">
@@ -189,92 +286,50 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
             <Separator />
 
-            {/* Serial Parameters */}
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">{t("modal.serialParameters")}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("modal.serialParametersHint")}
-                </p>
-              </div>
+              <p className="text-sm font-medium">{t("modal.serialParameters")}</p>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">{t("modal.speed")}</Label>
-                <Select value={speed} onValueChange={setSpeed}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("modal.defaultValue", { value: "9600" })} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SPEED_OPTIONS.map((s) => (
-                      <SelectItem key={s} value={s} className="font-mono">
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <OptionSelect
+                id="device-speed"
+                label={t("modal.speed")}
+                value={speed}
+                options={featureOptions(capabilities, "speed")}
+                required
+                onChange={setSpeed}
+              />
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t("modal.dataBits")}</Label>
-                  <Select value={dataBits} onValueChange={setDataBits}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("modal.defaultValue", { value: "8" })} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DATA_BITS_OPTIONS.map((b) => (
-                        <SelectItem key={b} value={b} className="font-mono">
-                          {b}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t("modal.parity")}</Label>
-                  <Select value={parity} onValueChange={setParity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("modal.defaultValue", { value: "none" })} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PARITY_OPTIONS.map((p) => (
-                        <SelectItem key={p} value={p} className="font-mono">
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t("modal.stopBits")}</Label>
-                  <Select value={stopBits} onValueChange={setStopBits}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("modal.defaultValue", { value: "1" })} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STOP_BITS_OPTIONS.map((b) => (
-                        <SelectItem key={b} value={b} className="font-mono">
-                          {b}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <OptionSelect
+                  id="device-data-bits"
+                  label={t("modal.dataBits")}
+                  value={dataBits}
+                  options={featureOptions(capabilities, "data_bits")}
+                  noneLabel={noneLabel}
+                  onChange={setDataBits}
+                />
+                <OptionSelect
+                  id="device-parity"
+                  label={t("modal.parity")}
+                  value={parity}
+                  options={featureOptions(capabilities, "parity")}
+                  noneLabel={noneLabel}
+                  onChange={setParity}
+                />
+                <OptionSelect
+                  id="device-stop-bits"
+                  label={t("modal.stopBits")}
+                  value={stopBits}
+                  options={featureOptions(capabilities, "stop_bits")}
+                  noneLabel={noneLabel}
+                  onChange={setStopBits}
+                />
               </div>
             </div>
 
             <Separator />
 
-            {/* Remote Access */}
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">{t("modal.remoteAccess")}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("modal.remoteAccessHint")}
-                </p>
-              </div>
+              <p className="text-sm font-medium">{t("modal.remoteAccess")}</p>
 
               <div className="space-y-1.5">
                 <Label htmlFor="ssh-port" className="text-xs">
@@ -289,9 +344,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                   value={sshPort}
                   onChange={(e) => setSshPort(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {t("modal.sshPortHint")}
-                </p>
               </div>
             </div>
           </div>

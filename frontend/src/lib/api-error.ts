@@ -1,5 +1,5 @@
-/** Thrown API failures are plain objects, not Error. */
-export function thrownMessage(err: unknown): string {
+/** Thrown API failures are plain objects, not Error. Pass a translated fallback when the caller shows it. */
+export function thrownMessage(err: unknown, fallback = "Command failed"): string {
   if (err instanceof Error && err.message) {
     return err.message;
   }
@@ -9,7 +9,7 @@ export function thrownMessage(err: unknown): string {
       return message;
     }
   }
-  return "Command failed";
+  return fallback;
 }
 
 export function isDisconnectError(err: unknown): boolean {

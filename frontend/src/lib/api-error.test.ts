@@ -17,6 +17,11 @@ describe("thrownMessage", () => {
       "Failed to proxy request to backend",
     );
   });
+
+  it("uses the caller fallback when the throw has no message", () => {
+    assert.equal(thrownMessage(null, "translated"), "translated");
+    assert.equal(thrownMessage({ message: "" }, "translated"), "translated");
+  });
 });
 
 describe("isDisconnectError", () => {
