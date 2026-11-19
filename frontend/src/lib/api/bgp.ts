@@ -1090,11 +1090,11 @@ export class BgpService {
     const name = updated.name;
     if (!original) operations.push({ op: "set_bmp_target", value: name });
     const text = (before: string | null, after: string | null, setOp: string, deleteOp: string) => {
-      if ((original ? before : null) === after) return;
+      if (before === after) return;
       operations.push(after ? { op: setOp, value: `${name},${after}` } : { op: deleteOp, value: name });
     };
     const num = (before: number | null, after: number | null, setOp: string, deleteOp: string) => {
-      if ((original ? before : null) === after) return;
+      if (before === after) return;
       operations.push(after != null ? { op: setOp, value: `${name},${after}` } : { op: deleteOp, value: name });
     };
     text(original?.address ?? null, updated.address, "set_bmp_target_address", "delete_bmp_target_address");

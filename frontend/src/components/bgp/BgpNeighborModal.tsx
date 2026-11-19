@@ -2,14 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-
-function thrownMessage(err: unknown, fallback: string): string {
-  if (err && typeof err === "object" && "message" in err) {
-    const message = (err as { message?: unknown }).message;
-    if (typeof message === "string" && message) return message;
-  }
-  return fallback;
-}
+import { thrownMessage } from "@/lib/api-error";
 
 import {
   Dialog,

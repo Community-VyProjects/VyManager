@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { thrownMessage } from "@/lib/api-error";
 
 interface DeleteBgpNeighborModalProps {
   open: boolean;
@@ -32,6 +33,10 @@ export function DeleteBgpNeighborModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open) setError(null);
+  }, [open]);
+
   const handleConfirm = async (event: React.MouseEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -40,10 +45,7 @@ export function DeleteBgpNeighborModal({
       await onConfirm();
       onOpenChange(false);
     } catch (err) {
-      const message = err && typeof err === "object" && "message" in err && typeof (err as { message?: unknown }).message === "string"
-        ? (err as { message: string }).message
-        : t("content.saveFailed");
-      setError(message);
+      setError(thrownMessage(err, t("content.saveFailed")));
     } finally {
       setLoading(false);
     }

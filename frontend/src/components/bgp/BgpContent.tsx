@@ -68,6 +68,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { afiNameKey, formatUnknownAfi } from "./afi-name";
+import { thrownMessage } from "@/lib/api-error";
 
 function failedSaveMessage(
   result: { success: boolean; error?: string | null } | null | undefined,
@@ -75,14 +76,6 @@ function failedSaveMessage(
 ): string | null {
   if (!result || result.success !== false) return null;
   return result.error || fallback;
-}
-
-function thrownMessage(err: unknown, fallback: string): string {
-  if (err && typeof err === "object" && "message" in err) {
-    const message = (err as { message?: unknown }).message;
-    if (typeof message === "string" && message) return message;
-  }
-  return fallback;
 }
 
 export function BgpContent() {
@@ -189,6 +182,10 @@ export function BgpContent() {
   useEffect(() => {
     setAfRedistProto("");
   }, [selectedAfi]);
+
+  useEffect(() => {
+    setBmpBuffer(config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "");
+  }, [config?.bmp?.mirror_buffer_limit]);
 
   useEffect(() => {
     loadData();
@@ -1287,6 +1284,8 @@ export function BgpContent() {
                                     return;
                                   }
                                   setAfRedistTable("");
+                                  setAfRedistRouteMap("");
+                                  setAfRedistMetric("");
                                   await loadData(true);
                                 } catch (err) {
                                   setAfError(thrownMessage(err, t("content.addRedistributeFailed")));
@@ -1719,7 +1718,7 @@ export function BgpContent() {
                     <Label className="text-xs">{t("content.bmp.mirrorBufferLimit")}</Label>
                     <Input
                       type="number"
-                      value={bmpBuffer || (config?.bmp?.mirror_buffer_limit ?? "")}
+                      value={bmpBuffer}
                       onChange={(e) => setBmpBuffer(e.target.value)}
                       className="h-9"
                     />
@@ -1731,8 +1730,7 @@ export function BgpContent() {
                       setBmpSaving(true);
                       setBmpError(null);
                       try {
-                        const raw = bmpBuffer || (config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "");
-                        const result = await bgpService.setBmpMirrorBufferLimit(raw.trim() ? Number(raw) : null);
+                        const result = await bgpService.setBmpMirrorBufferLimit(bmpBuffer.trim() ? Number(bmpBuffer) : null);
                         const message = failedSaveMessage(result, t("content.saveFailed"));
                         if (message) {
                           setBmpError(message);
@@ -1818,7 +1816,7 @@ export function BgpContent() {
                     <CardContent className="p-6 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-mono">{target.name}</p>
-                        <Button size="sm" variant="ghost" onClick={() => setDeletingBmpTarget(target.name)}>
+                        <Button size="sm" variant="ghost" onClick={() => { setBmpError(null); setDeletingBmpTarget(target.name); }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1851,16 +1849,16 @@ export function BgpContent() {
                           setBmpError(null);
                           try {
                             const draft = bmpEdits[target.name] ?? {};
-                            const num = (raw: string | number | null | undefined, fallback: number | null) => {
+                            const num = (raw: string | number | null | undefined) => {
                               if (raw == null || raw === "") return null;
                               return Number(raw);
                             };
                             const updated: BgpBmpTarget = {
                               ...target,
                               address: draft.address != null ? (String(draft.address).trim() || null) : target.address,
-                              port: draft.port != null ? num(draft.port, target.port) : target.port,
-                              min_retry: draft.min_retry != null ? num(draft.min_retry, target.min_retry) : target.min_retry,
-                              max_retry: draft.max_retry != null ? num(draft.max_retry, target.max_retry) : target.max_retry,
+                              port: draft.port != null ? num(draft.port) : target.port,
+                              min_retry: draft.min_retry != null ? num(draft.min_retry) : target.min_retry,
+                              max_retry: draft.max_retry != null ? num(draft.max_retry) : target.max_retry,
                             };
                             const result = await bgpService.saveBmpTarget(target, updated);
                             const message = failedSaveMessage(result, t("content.saveFailed"));
@@ -1888,6 +1886,7 @@ export function BgpContent() {
                           id={`bmp-mirror-${target.name}`}
                           checked={target.mirror}
                           onCheckedChange={(checked) => {
+                            setBmpError(null);
                             setBmpConfirm(() => async () => {
                               setBmpSaving(true);
                               setBmpError(null);
@@ -1917,7 +1916,9 @@ export function BgpContent() {
                             value={target.source_interface || ""}
                             noneOption={{ label: tc("none"), value: "" }}
                             onValueChange={(value) => {
+                              setBmpError(null);
                               setBmpConfirm(() => async () => {
+                                setBmpSaving(true);
                                 setBmpError(null);
                                 try {
                                   const result = await bgpService.setBmpSourceInterface(target.name, value || null);
@@ -1930,6 +1931,8 @@ export function BgpContent() {
                                   setBmpConfirm(null);
                                 } catch (err) {
                                   setBmpError(thrownMessage(err, t("content.saveFailed")));
+                                } finally {
+                                  setBmpSaving(false);
                                 }
                               });
                             }}
@@ -1946,7 +1949,9 @@ export function BgpContent() {
                                   id={`bmp-${target.name}-${afi}-${policy}`}
                                   checked={target.monitors.some((item) => item.afi === afi && item.policy === policy)}
                                   onCheckedChange={(checked) => {
+                                    setBmpError(null);
                                     setBmpConfirm(() => async () => {
+                                      setBmpSaving(true);
                                       setBmpError(null);
                                       try {
                                         const result = await bgpService.setBmpMonitor(target.name, afi, policy, checked === true);
@@ -1959,6 +1964,8 @@ export function BgpContent() {
                                         setBmpConfirm(null);
                                       } catch (err) {
                                         setBmpError(thrownMessage(err, t("content.saveFailed")));
+                                      } finally {
+                                        setBmpSaving(false);
                                       }
                                     });
                                   }}
