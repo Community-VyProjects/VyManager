@@ -35,18 +35,13 @@
     "globalSettings": "Global Settings",
     "version": "Version",
     "defaultDistance": "Default Distance",
-    "defaultDistanceHelp": "Administrative distance (1-255)",
     "defaultMetric": "Default Metric",
-    "defaultMetricHelp": "Metric for redistributed routes (1-16)",
     "routeMap": "Route Map",
     "originate": "Default Information Originate",
     "timers": "Timers",
     "updateInterval": "Update Interval (seconds)",
-    "updateHelp": "How often to send routing updates (default: 30)",
     "timeoutInterval": "Timeout Interval (seconds)",
-    "timeoutHelp": "Time before a route is marked invalid (default: 180)",
-    "garbageCollection": "Garbage Collection (seconds)",
-    "gcHelp": "Time before a stale route is removed (default: 120)"
+    "garbageCollection": "Garbage Collection (seconds)"
   },
   "networks": {
     "description": "Configure RIP networks, neighbors, static routes, and passive interfaces",
@@ -54,7 +49,6 @@
     "neighbors": "Neighbors",
     "staticRoutes": "Static Routes",
     "passiveInterfaces": "Passive Interfaces",
-    "selectOrTypeInterface": "Select or type interface",
     "noneConfigured": "None configured"
   },
   "interfaces": {

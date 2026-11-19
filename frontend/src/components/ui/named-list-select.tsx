@@ -9,17 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-/** Radix Select cannot use an empty-string value. */
-const NONE_SENTINEL = "__none__";
-
-function listedNames(names: string[], current: string): string[] {
-  const cleaned = names.filter((name) => name && name !== NONE_SENTINEL);
-  if (current && current !== NONE_SENTINEL && !cleaned.includes(current)) {
-    return [current, ...cleaned];
-  }
-  return cleaned;
-}
+import {
+  fromNamedListValue,
+  listedNames,
+  NONE_SENTINEL,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 export interface NamedListSelectProps {
   id?: string;
@@ -57,8 +52,8 @@ export function NamedListSelect({
   }
   return (
     <Select
-      value={value || NONE_SENTINEL}
-      onValueChange={(next) => onValueChange(next === NONE_SENTINEL ? "" : next)}
+      value={toNamedListValue(value)}
+      onValueChange={(next) => onValueChange(fromNamedListValue(next))}
     >
       <SelectTrigger id={id}>
         <SelectValue placeholder={tc("none")} />

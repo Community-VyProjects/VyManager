@@ -22,6 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NamedListSelect } from "@/components/ui/named-list-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { OspfArea } from "@/lib/api/ospf";
 import { useTranslations } from "next-intl";
@@ -71,6 +72,8 @@ export function OspfAreaModal({
         setShortcut(existingArea.shortcut || "");
         setExportList(existingArea.export_list || "");
         setImportList(existingArea.import_list || "");
+        setNewNetwork("");
+        setError(null);
       } else {
         resetForm();
       }
@@ -108,8 +111,8 @@ export function OspfAreaModal({
     setError(null);
   };
 
-  const removeNetwork = (idx: number) => {
-    setNetworks(networks.filter((_, i) => i !== idx));
+  const removeNetwork = (net: string) => {
+    setNetworks(networks.filter((item) => item !== net));
   };
 
   const validateForm = (): string | null => {
@@ -137,8 +140,8 @@ export function OspfAreaModal({
         ranges: existingArea?.ranges || [],
         authentication: authentication || null,
         shortcut: shortcut || null,
-        export_list: exportList.trim() || null,
-        import_list: importList.trim() || null,
+        export_list: exportList || null,
+        import_list: importList || null,
         virtual_links: existingArea?.virtual_links || [],
       };
 
@@ -155,7 +158,7 @@ export function OspfAreaModal({
   const showStubNssaOptions = areaType === "stub" || areaType === "nssa";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -181,9 +184,6 @@ export function OspfAreaModal({
                 disabled={isEditMode}
                 className={isEditMode ? "bg-muted" : ""}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("areaModal.areaIdHelp")}
-              </p>
             </div>
 
             {/* Area Type */}
@@ -244,30 +244,30 @@ export function OspfAreaModal({
               </div>
               {networks.length > 0 && (
                 <div className="space-y-1 mt-2">
-                  {networks.map((net, idx) => (
-                    <div key={idx} className="flex items-center justify-between rounded-md border px-3 py-1.5">
+                  {networks.map((net) => (
+                    <div key={net} className="flex items-center justify-between rounded-md border px-3 py-1.5">
                       <span className="text-sm font-mono">{net}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeNetwork(idx)}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeNetwork(net)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                {t("areaModal.networksHelp")}
-              </p>
             </div>
 
             {/* Authentication */}
             <div className="space-y-2">
               <Label htmlFor="ospf-area-auth">{t("fields.authentication")}</Label>
-              <Select value={authentication} onValueChange={setAuthentication}>
+              <Select
+                value={authentication || NONE_SENTINEL}
+                onValueChange={(v) => setAuthentication(v === NONE_SENTINEL ? "" : v)}
+              >
                 <SelectTrigger id="ospf-area-auth">
                   <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{tc("none")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                   <SelectItem value="plaintext-password">{t("fields.plaintextPassword")}</SelectItem>
                   <SelectItem value="md5">MD5</SelectItem>
                 </SelectContent>

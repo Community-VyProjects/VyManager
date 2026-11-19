@@ -23,7 +23,6 @@ interface RipDistributeListInterfaceModalProps {
   onSubmit: (entry: RipDistributeListInterface) => Promise<void>;
   existingEntry?: RipDistributeListInterface | null;
   existingInterfaces: string[];
-  availableInterfaces: string[];
   accessListNames: string[];
   prefixListNames: string[];
 }
@@ -34,7 +33,6 @@ export function RipDistributeListInterfaceModal({
   onSubmit,
   existingEntry,
   existingInterfaces,
-  availableInterfaces,
   accessListNames,
   prefixListNames,
 }: RipDistributeListInterfaceModalProps) {
@@ -51,10 +49,6 @@ export function RipDistributeListInterfaceModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectableInterfaces = isEditMode
-    ? availableInterfaces
-    : availableInterfaces.filter((i) => !existingInterfaces.includes(i));
-
   useEffect(() => {
     if (!open) return;
     if (existingEntry) {
@@ -63,6 +57,7 @@ export function RipDistributeListInterfaceModal({
       setAclOut(existingEntry.access_list_out || "");
       setPlIn(existingEntry.prefix_list_in || "");
       setPlOut(existingEntry.prefix_list_out || "");
+      setError(null);
     } else {
       setIface("");
       setAclIn("");
@@ -116,7 +111,7 @@ export function RipDistributeListInterfaceModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -138,7 +133,7 @@ export function RipDistributeListInterfaceModal({
               disabled={isEditMode}
               className={isEditMode ? "bg-muted" : ""}
               placeholder={tc("selectInterface")}
-              interfaces={selectableInterfaces.map((name) => ({ name, type: "", description: null }))}
+              filter={(item) => isEditMode || !existingInterfaces.includes(item.name)}
             />
           </div>
 

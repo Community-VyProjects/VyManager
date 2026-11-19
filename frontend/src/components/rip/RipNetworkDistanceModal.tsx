@@ -51,6 +51,7 @@ export function RipNetworkDistanceModal({
       setPrefix(existingEntry.prefix);
       setDistance(existingEntry.distance != null ? String(existingEntry.distance) : "");
       setAccessList(existingEntry.access_list || "");
+      setError(null);
     } else {
       setPrefix("");
       setDistance("");
@@ -104,7 +105,7 @@ export function RipNetworkDistanceModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -130,8 +131,9 @@ export function RipNetworkDistanceModal({
 
           {/* Distance */}
           <div className="space-y-2">
-            <Label>{t("filters.distance")} <span className="text-muted-foreground text-xs">(1-255)</span></Label>
+            <Label htmlFor="rip-nd-distance">{t("filters.distance")}</Label>
             <Input
+              id="rip-nd-distance"
               type="number"
               min={1}
               max={255}
@@ -143,8 +145,9 @@ export function RipNetworkDistanceModal({
 
           {/* Access List */}
           <div className="space-y-2">
-            <Label>{t("filters.accessList")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
+            <Label htmlFor="rip-nd-acl">{t("filters.accessList")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
             <NamedListSelect
+              id="rip-nd-acl"
               value={accessList}
               names={accessListNames}
               onValueChange={setAccessList}
