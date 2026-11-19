@@ -14,7 +14,7 @@ from session_vyos_service import get_session_vyos_service
 from batch_dispatch import resolve_batch_method
 from vyos_builders.firewall import BridgeFirewallBatchBuilder
 from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.firewall.bridge import TCP_FLAG_NAMES
+from vyos_mappers.firewall.bridge import BridgeFirewallMapper
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import logging
 logger = logging.getLogger(__name__)
@@ -138,6 +138,8 @@ class BridgeRule(BaseModel):
     # Log options
     log_options_level: Optional[str] = None
     log_options_group: Optional[str] = None
+    log_options_queue_threshold: Optional[str] = None
+    log_options_snapshot_length: Optional[str] = None
     # Jump target
     jump_target: Optional[str] = None
     # Queue
@@ -227,87 +229,16 @@ async def get_available_interfaces(request: Request):
     try:
         service = get_session_vyos_service(request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=False)
-
-        interfaces_config = full_config.get("interfaces", {})
-        interfaces: List[InterfaceOption] = []
-
-        # All VyOS interface types
-        interface_types = [
-            "bonding",          # Bonding Interface/Link Aggregation
-            "bridge",           # Bridge Interface
-            "dummy",            # Dummy Interface
-            "ethernet",         # Ethernet Interface
-            "geneve",           # Generic Network Virtualization Encapsulation (GENEVE)
-            "input",            # Input Functional Block (IFB)
-            "l2tpv3",           # Layer 2 Tunnel Protocol Version 3
-            "loopback",         # Loopback Interface
-            "macsec",           # MACsec Interface (802.1ae)
-            "openvpn",          # OpenVPN Tunnel Interface
-            "pppoe",            # Point-to-Point Protocol over Ethernet
-            "pseudo-ethernet",  # Pseudo Ethernet Interface (Macvlan)
-            "sstpc",            # Secure Socket Tunneling Protocol (SSTP) client
-            "tunnel",           # Tunnel interface
-            "virtual-ethernet", # Virtual Ethernet (veth)
-            "vti",              # Virtual Tunnel Interface (XFRM)
-            "vxlan",            # Virtual Extensible LAN (VXLAN)
-            "wireguard",        # WireGuard Interface
-            "wireless",         # Wireless (WiFi/WLAN)
-            "wwan",             # Wireless Modem (WWAN)
-        ]
-
-        # Parse all interface types from config
-        for iface_type in interface_types:
-            type_config = interfaces_config.get(iface_type, {})
-            if not isinstance(type_config, dict):
-                continue
-
-            for iface_name, iface_data in type_config.items():
-                description = iface_data.get("description") if isinstance(iface_data, dict) else None
-                interfaces.append(InterfaceOption(name=iface_name, type=iface_type, description=description))
-
-                # Add VLAN sub-interfaces (vif) for interface types that support them
-                if isinstance(iface_data, dict) and "vif" in iface_data:
-                    vif_config = iface_data["vif"]
-                    if isinstance(vif_config, dict):
-                        for vlan_id, vlan_data in vif_config.items():
-                            vlan_desc = vlan_data.get("description") if isinstance(vlan_data, dict) else None
-                            interfaces.append(InterfaceOption(
-                                name=f"{iface_name}.{vlan_id}",
-                                type=iface_type,
-                                description=vlan_desc or f"VLAN {vlan_id}"
-                            ))
-
-                # Add QinQ service VLANs (vif-s) and customer VLANs (vif-c)
-                if isinstance(iface_data, dict) and "vif-s" in iface_data:
-                    vif_s_config = iface_data["vif-s"]
-                    if isinstance(vif_s_config, dict):
-                        for s_vlan_id, s_vlan_data in vif_s_config.items():
-                            s_vlan_desc = s_vlan_data.get("description") if isinstance(s_vlan_data, dict) else None
-                            interfaces.append(InterfaceOption(
-                                name=f"{iface_name}.{s_vlan_id}",
-                                type=iface_type,
-                                description=s_vlan_desc or f"Service VLAN {s_vlan_id}"
-                            ))
-                            # Check for customer VLANs within service VLAN
-                            if isinstance(s_vlan_data, dict) and "vif-c" in s_vlan_data:
-                                vif_c_config = s_vlan_data["vif-c"]
-                                if isinstance(vif_c_config, dict):
-                                    for c_vlan_id, c_vlan_data in vif_c_config.items():
-                                        c_vlan_desc = c_vlan_data.get("description") if isinstance(c_vlan_data, dict) else None
-                                        interfaces.append(InterfaceOption(
-                                            name=f"{iface_name}.{s_vlan_id}.{c_vlan_id}",
-                                            type=iface_type,
-                                            description=c_vlan_desc or f"Customer VLAN {c_vlan_id}"
-                                        ))
-
-        # Sort by name
-        interfaces.sort(key=lambda x: x.name)
-
+        mapper = CommandMapperRegistry.get_mapper("firewall_bridge", service.get_version())
+        if not isinstance(mapper, BridgeFirewallMapper):
+            raise HTTPException(status_code=500, detail="Internal server error")
+        rows = mapper.interface_options(full_config)
+        interfaces = [InterfaceOption(**row) for row in rows]
         return InterfaceListResponse(interfaces=interfaces, total=len(interfaces))
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -331,264 +262,23 @@ async def get_bridge_config(request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        if not full_config or "firewall" not in full_config or "bridge" not in full_config["firewall"]:
-            return BridgeConfigResponse(total_rules=0)
-
-        bridge_config = full_config["firewall"]["bridge"]
-        version = service.get_version()
-        base_chain_names = CommandMapperRegistry.get_mapper(
-            "firewall_bridge", version
-        ).get_supported_chains()
-
-        chains = []
-        total_rules = 0
-
-        # Parse base chains
-        for chain_name in base_chain_names:
-            if chain_name in bridge_config:
-                raw_chain_data = bridge_config[chain_name]
-                # Base chains nest under the filter table on both 1.4 and 1.5
-                if isinstance(raw_chain_data, dict) and "filter" in raw_chain_data:
-                    chain_data = raw_chain_data["filter"]
-                else:
-                    chain_data = raw_chain_data
-                chain = parse_chain(chain_name, chain_data)
-                chains.append(chain)
-                total_rules += chain.rule_count
-
-        # Parse custom chains (both VyOS 1.4 and 1.5)
-        custom_chains = []
-        if "name" in bridge_config:
-            for chain_name, chain_data in bridge_config["name"].items():
-                chain = parse_chain(chain_name, chain_data)
-                custom_chains.append(chain)
-                total_rules += chain.rule_count
-
+        mapper = CommandMapperRegistry.get_mapper("firewall_bridge", service.get_version())
+        if not isinstance(mapper, BridgeFirewallMapper):
+            raise HTTPException(status_code=500, detail="Internal server error")
+        parsed = mapper.parse_config(full_config)
         return BridgeConfigResponse(
-            chains=chains,
-            custom_chains=custom_chains,
-            total_rules=total_rules
+            chains=[BridgeChain(**row) for row in parsed["chains"]],
+            custom_chains=[BridgeChain(**row) for row in parsed["custom_chains"]],
+            total_rules=parsed["total_rules"],
         )
 
     except HTTPException:
         raise
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-def parse_chain(chain_name: str, chain_data: dict) -> BridgeChain:
-    """Parse a chain configuration from VyOS config."""
-    rules = []
-
-    rules_config = chain_data.get("rule", {})
-    if isinstance(rules_config, dict):
-        for rule_num, rule_config in rules_config.items():
-            rule = parse_rule(int(rule_num), rule_config)
-            rules.append(rule)
-
-    # Sort rules by rule number
-    rules.sort(key=lambda r: r.rule_number)
-
-    return BridgeChain(
-        name=chain_name,
-        default_action=chain_data.get("default-action"),
-        description=chain_data.get("description"),
-        rules=rules,
-        rule_count=len(rules)
-    )
-
-
-def parse_rule(rule_number: int, rule_config: dict) -> BridgeRule:
-    """Parse a rule configuration from VyOS config."""
-    # Handle source
-    source = rule_config.get("source", {})
-    if not isinstance(source, dict):
-        source = {}
-    source_group = source.get("group", {})
-    if not isinstance(source_group, dict):
-        source_group = {}
-
-    # Handle destination
-    destination = rule_config.get("destination", {})
-    if not isinstance(destination, dict):
-        destination = {}
-    dest_group = destination.get("group", {})
-    if not isinstance(dest_group, dict):
-        dest_group = {}
-
-    # Handle VLAN
-    vlan = rule_config.get("vlan", {})
-    if not isinstance(vlan, dict):
-        vlan = {}
-
-    # Handle interfaces
-    inbound = rule_config.get("inbound-interface", {})
-    if not isinstance(inbound, dict):
-        inbound = {}
-    outbound = rule_config.get("outbound-interface", {})
-    if not isinstance(outbound, dict):
-        outbound = {}
-
-    # Handle set options
-    set_opts = rule_config.get("set", {})
-    if not isinstance(set_opts, dict):
-        set_opts = {}
-
-    # Handle time options
-    time_opts = rule_config.get("time", {})
-    if not isinstance(time_opts, dict):
-        time_opts = {}
-
-    # Handle limit options
-    limit_opts = rule_config.get("limit", {})
-    if not isinstance(limit_opts, dict):
-        limit_opts = {}
-
-    # Handle ICMP
-    icmp_opts = rule_config.get("icmp", {})
-    if not isinstance(icmp_opts, dict):
-        icmp_opts = {}
-
-    # Handle ICMPv6
-    icmpv6_opts = rule_config.get("icmpv6", {})
-    if not isinstance(icmpv6_opts, dict):
-        icmpv6_opts = {}
-
-    # Handle TCP
-    tcp_opts = rule_config.get("tcp", {})
-    if not isinstance(tcp_opts, dict):
-        tcp_opts = {}
-    tcp_flags = tcp_opts.get("flags", {})
-    if not isinstance(tcp_flags, dict):
-        tcp_flags = {}
-    flag_names = TCP_FLAG_NAMES
-    not_flags = tcp_flags.get("not", {})
-    if not isinstance(not_flags, dict):
-        not_flags = {}
-    tcp_flag_list = ",".join(flag for flag in flag_names if flag in tcp_flags) or None
-    tcp_flag_not_list = ",".join(flag for flag in flag_names if flag in not_flags) or None
-
-    # Handle fragment
-    fragment_opts = rule_config.get("fragment", {})
-    if not isinstance(fragment_opts, dict):
-        fragment_opts = {}
-
-    # Handle ipsec
-    ipsec_opts = rule_config.get("ipsec", {})
-    if not isinstance(ipsec_opts, dict):
-        ipsec_opts = {}
-
-    # Handle TTL
-    ttl_opts = rule_config.get("ttl", {})
-    if not isinstance(ttl_opts, dict):
-        ttl_opts = {}
-
-    # Handle hop-limit
-    hop_limit_opts = rule_config.get("hop-limit", {})
-    if not isinstance(hop_limit_opts, dict):
-        hop_limit_opts = {}
-
-    # Handle log options
-    log_opts = rule_config.get("log-options", {})
-    if not isinstance(log_opts, dict):
-        log_opts = {}
-
-    return BridgeRule(
-        rule_number=rule_number,
-        action=rule_config.get("action"),
-        description=rule_config.get("description"),
-        disabled="disable" in rule_config,
-        log="log" in rule_config,
-        # Source fields
-        source_mac=source.get("mac-address"),
-        source_address=source.get("address"),
-        source_port=source.get("port"),
-        source_group_address=source_group.get("address-group"),
-        source_group_network=source_group.get("network-group"),
-        source_group_port=source_group.get("port-group"),
-        source_group_mac=source_group.get("mac-group"),
-        # Destination fields
-        destination_mac=destination.get("mac-address"),
-        destination_address=destination.get("address"),
-        destination_port=destination.get("port"),
-        destination_group_address=dest_group.get("address-group"),
-        destination_group_network=dest_group.get("network-group"),
-        destination_group_port=dest_group.get("port-group"),
-        destination_group_mac=dest_group.get("mac-group"),
-        # VLAN fields
-        vlan_id=vlan.get("id"),
-        vlan_priority=vlan.get("priority"),
-        vlan_ethernet_type=vlan.get("ethernet-type"),
-        # Interface fields
-        inbound_interface=inbound.get("name"),
-        inbound_interface_group=inbound.get("group"),
-        outbound_interface=outbound.get("name"),
-        outbound_interface_group=outbound.get("group"),
-        # Protocol fields
-        protocol=rule_config.get("protocol"),
-        ethernet_type=rule_config.get("ethernet-type"),
-        # ICMP fields
-        icmp_type=icmp_opts.get("type"),
-        icmp_code=icmp_opts.get("code"),
-        icmp_type_name=icmp_opts.get("type-name"),
-        icmpv6_type=icmpv6_opts.get("type"),
-        icmpv6_code=icmpv6_opts.get("code"),
-        icmpv6_type_name=icmpv6_opts.get("type-name"),
-        # TCP fields. Each flag is a presence node; "not" is a dict of the same.
-        tcp_flags=tcp_flag_list,
-        tcp_flags_not=tcp_flag_not_list,
-        tcp_mss=tcp_opts.get("mss"),
-        # Rate limit fields
-        limit_rate=limit_opts.get("rate"),
-        limit_burst=limit_opts.get("burst"),
-        # Time fields
-        time_startdate=time_opts.get("startdate"),
-        time_stopdate=time_opts.get("stopdate"),
-        time_starttime=time_opts.get("starttime"),
-        time_stoptime=time_opts.get("stoptime"),
-        time_weekdays=time_opts.get("weekdays"),
-        # Mark/DSCP matching fields
-        mark=rule_config.get("mark"),
-        connection_mark=rule_config.get("connection-mark"),
-        dscp=rule_config.get("dscp"),
-        dscp_exclude=rule_config.get("dscp-exclude"),
-        # TTL/Hop-Limit fields
-        ttl_eq=ttl_opts.get("eq"),
-        ttl_gt=ttl_opts.get("gt"),
-        ttl_lt=ttl_opts.get("lt"),
-        hop_limit_eq=hop_limit_opts.get("eq"),
-        hop_limit_gt=hop_limit_opts.get("gt"),
-        hop_limit_lt=hop_limit_opts.get("lt"),
-        # Packet fields
-        packet_type=rule_config.get("packet-type"),
-        packet_length=rule_config.get("packet-length"),
-        # Fragment matching
-        fragment_match_frag="match-frag" in fragment_opts,
-        fragment_match_non_frag="match-non-frag" in fragment_opts,
-        # IPsec matching
-        ipsec_match_ipsec_in="match-ipsec-in" in ipsec_opts,
-        ipsec_match_ipsec_out="match-ipsec-out" in ipsec_opts,
-        ipsec_match_none_in="match-none-in" in ipsec_opts,
-        ipsec_match_none_out="match-none-out" in ipsec_opts,
-        # Log options
-        log_options_level=log_opts.get("level"),
-        log_options_group=log_opts.get("group"),
-        # Jump target
-        jump_target=rule_config.get("jump-target"),
-        # Queue
-        queue=rule_config.get("queue"),
-        # Set options
-        set_dscp=set_opts.get("dscp"),
-        set_mark=set_opts.get("mark"),
-        set_connection_mark=set_opts.get("connection-mark"),
-        set_ttl=set_opts.get("ttl"),
-        set_hop_limit=set_opts.get("hop-limit"),
-        set_tcp_mss=set_opts.get("tcp-mss"),
-    )
 
 
 @router.post("/batch", response_model=VyOSResponse)
@@ -1014,6 +704,10 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
                     batch.set_rule_log_options_level(chain, new_number, rule.log_options_level)
                 if rule.log_options_group:
                     batch.set_rule_log_options_group(chain, new_number, rule.log_options_group)
+                if rule.log_options_queue_threshold:
+                    batch.set_rule_log_options_queue_threshold(chain, new_number, rule.log_options_queue_threshold)
+                if rule.log_options_snapshot_length:
+                    batch.set_rule_log_options_snapshot_length(chain, new_number, rule.log_options_snapshot_length)
 
                 # Jump target
                 if rule.jump_target:

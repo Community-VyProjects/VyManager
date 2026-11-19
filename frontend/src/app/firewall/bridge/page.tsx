@@ -22,6 +22,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Plus,
   Search,
   RefreshCw,
@@ -59,6 +66,49 @@ import {
 import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
 import { cn } from "@/lib/utils";
 import { BridgeRuleModal } from "@/components/firewall/BridgeRuleModal";
+
+function actionOptionKey(action: string):
+  | "actionOptions.accept"
+  | "actionOptions.continue"
+  | "actionOptions.drop"
+  | "actionOptions.jump"
+  | "actionOptions.queue"
+  | "actionOptions.reject"
+  | "actionOptions.return"
+  | "actionOptions.notrack"
+  | "actionOptions.notSet"
+  | null {
+  switch (action) {
+    case "accept":
+      return "actionOptions.accept";
+    case "continue":
+      return "actionOptions.continue";
+    case "drop":
+      return "actionOptions.drop";
+    case "jump":
+      return "actionOptions.jump";
+    case "queue":
+      return "actionOptions.queue";
+    case "reject":
+      return "actionOptions.reject";
+    case "return":
+      return "actionOptions.return";
+    case "notrack":
+      return "actionOptions.notrack";
+    case "not_set":
+      return "actionOptions.notSet";
+    default:
+      return null;
+  }
+}
+
+function failedSaveMessage(
+  result: { success?: boolean; error?: string | null } | null | undefined,
+  fallback: string,
+): string | null {
+  if (!result || result.success !== false) return null;
+  return result.error || fallback;
+}
 import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleModal";
 import { CreateCustomBridgeChainModal } from "@/components/firewall/CreateCustomBridgeChainModal";
 import { DeleteCustomBridgeChainModal } from "@/components/firewall/DeleteCustomBridgeChainModal";
@@ -91,6 +141,7 @@ export default function BridgeFirewallPage() {
   const [config, setConfig] = useState<BridgeConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<BridgeCapabilities | null>(null);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
+  const [interfaceGroupNames, setInterfaceGroupNames] = useState<string[]>([]);
   const [selectedChain, setSelectedChain] = useState<string>("forward");
   const [isCustomChain, setIsCustomChain] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -107,6 +158,12 @@ export default function BridgeFirewallPage() {
 
   // Default action save state
   const [savingDefaultAction, setSavingDefaultAction] = useState(false);
+  const [pendingDefaultAction, setPendingDefaultAction] = useState<string | null>(null);
+  const [defaultActionError, setDefaultActionError] = useState<string | null>(null);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
+  const [savingDescription, setSavingDescription] = useState(false);
 
   // Reorder state
   const [reorderedRules, setReorderedRules] = useState<BridgeRule[]>([]);
@@ -166,6 +223,7 @@ export default function BridgeFirewallPage() {
         ...groupsConfig.mac_groups,
         ...groupsConfig.domain_groups,
       ]);
+      setInterfaceGroupNames(groupsConfig.interface_groups.map((group) => group.name));
       // Reset reorder state when data is loaded
       setHasChanges(false);
       setReorderedRules([]);
@@ -245,23 +303,65 @@ export default function BridgeFirewallPage() {
     setIsCustomChain(custom);
   };
 
-  const handleDefaultActionChange = async (action: string) => {
-    if (!selectedChain || action === "not_set") return;
+  const requestDefaultAction = (action: string) => {
+    const current = currentChain?.default_action || "not_set";
+    if (!selectedChain || action === current) return;
+    setDefaultActionError(null);
+    setPendingDefaultAction(action);
+  };
 
+  const applyDefaultAction = async () => {
+    if (!selectedChain || !pendingDefaultAction) return;
     setSavingDefaultAction(true);
+    setDefaultActionError(null);
     try {
-      const response = await bridgeFirewallService.setChainDefaultAction(selectedChain, action);
-      if (response.success) {
-        setSuccessMessage(t("page.defaultActionUpdated"));
-        await loadData(true);
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setError(response.error || t("page.updateDefaultActionFailed"));
+      const response = pendingDefaultAction === "not_set"
+        ? await bridgeFirewallService.deleteChainDefaultAction(selectedChain)
+        : await bridgeFirewallService.setChainDefaultAction(selectedChain, pendingDefaultAction);
+      const message = failedSaveMessage(response, t("page.updateDefaultActionFailed"));
+      if (message) {
+        setDefaultActionError(message);
+        return;
       }
+      setPendingDefaultAction(null);
+      setSuccessMessage(t("page.defaultActionUpdated"));
+      await loadData(true);
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.updateDefaultActionFailed"));
+      setDefaultActionError(err instanceof Error ? err.message : t("page.updateDefaultActionFailed"));
     } finally {
       setSavingDefaultAction(false);
+    }
+  };
+
+  const openDescription = () => {
+    setDescriptionDraft(currentChain?.description || "");
+    setDescriptionError(null);
+    setDescriptionOpen(true);
+  };
+
+  const applyDescription = async () => {
+    if (!selectedChain) return;
+    setSavingDescription(true);
+    setDescriptionError(null);
+    try {
+      const next = descriptionDraft.trim();
+      const response = next
+        ? await bridgeFirewallService.setChainDescription(selectedChain, next)
+        : await bridgeFirewallService.deleteChainDescription(selectedChain);
+      const message = failedSaveMessage(response, t("page.updateDescriptionFailed"));
+      if (message) {
+        setDescriptionError(message);
+        return;
+      }
+      setDescriptionOpen(false);
+      setSuccessMessage(t("page.descriptionUpdated"));
+      await loadData(true);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setDescriptionError(err instanceof Error ? err.message : t("page.updateDescriptionFailed"));
+    } finally {
+      setSavingDescription(false);
     }
   };
 
@@ -707,18 +807,25 @@ export default function BridgeFirewallPage() {
                 <span className="text-sm text-muted-foreground">{t("page.defaultActionLabel")}</span>
                 <Select
                   value={currentChain?.default_action || "not_set"}
-                  onValueChange={handleDefaultActionChange}
+                  onValueChange={requestDefaultAction}
                   disabled={savingDefaultAction || hasChanges}
                 >
-                  <SelectTrigger className="w-[120px]">
+                  <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder={t("actionOptions.notSet")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="not_set">{t("actionOptions.notSet")}</SelectItem>
-                    <SelectItem value="accept">{t("actionOptions.accept")}</SelectItem>
-                    <SelectItem value="drop">{t("actionOptions.drop")}</SelectItem>
+                    {(isCustomChain ? capabilities?.custom_default_actions : capabilities?.base_default_actions)?.map((action) => {
+                      const key = actionOptionKey(action);
+                      return (
+                        <SelectItem key={action} value={action}>{key ? t(key) : action}</SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
+                <Button variant="outline" size="sm" onClick={openDescription} disabled={hasChanges}>
+                  {t("columns.description")}
+                </Button>
               </div>
             </div>
           </div>
@@ -814,6 +921,8 @@ export default function BridgeFirewallPage() {
         chain={editingRule ? editingRule.chain : selectedChain}
         capabilities={capabilities}
         existingRuleNumbers={existingRuleNumbers}
+        interfaceGroupNames={interfaceGroupNames}
+        customChainNames={customChains.map((chain) => chain.name)}
         onSuccess={editingRule ? handleEditSuccess : handleCreateSuccess}
         existing={editingRule?.rule ?? null}
       />
@@ -842,6 +951,68 @@ export default function BridgeFirewallPage() {
           onSuccess={handleDeleteChainSuccess}
         />
       )}
+
+      <Dialog
+        open={pendingDefaultAction !== null}
+        onOpenChange={(open) => {
+          if (!open && !savingDefaultAction) {
+            setPendingDefaultAction(null);
+            setDefaultActionError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("page.defaultActionLabel")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">
+            {(() => {
+              if (!pendingDefaultAction) return "";
+              const key = actionOptionKey(pendingDefaultAction);
+              return key ? t(key) : pendingDefaultAction;
+            })()}
+          </p>
+          {defaultActionError && <p className="text-sm text-destructive">{defaultActionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDefaultAction(null)} disabled={savingDefaultAction}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={applyDefaultAction} disabled={savingDefaultAction}>
+              {t("page.apply")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={descriptionOpen}
+        onOpenChange={(open) => {
+          if (!open && !savingDescription) {
+            setDescriptionOpen(false);
+            setDescriptionError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("columns.description")}</DialogTitle>
+          </DialogHeader>
+          <Input
+            id="chainDescription"
+            value={descriptionDraft}
+            onChange={(event) => setDescriptionDraft(event.target.value)}
+          />
+          {descriptionError && <p className="text-sm text-destructive">{descriptionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDescriptionOpen(false)} disabled={savingDescription}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={applyDescription} disabled={savingDescription}>
+              {t("page.apply")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

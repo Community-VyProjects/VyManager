@@ -49,6 +49,8 @@ COMMON_CASES = [
     ('set_rule_log', ('forward', 10), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log']),
     ('set_rule_log_options_group', ('forward', 10, 'G1'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'group', 'G1']),
     ('set_rule_log_options_level', ('forward', 10, 'info'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'level', 'info']),
+    ('set_rule_log_options_queue_threshold', ('forward', 10, '10'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'queue-threshold', '10']),
+    ('set_rule_log_options_snapshot_length', ('forward', 10, '64'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'snapshot-length', '64']),
     ('set_rule_outbound_interface', ('forward', 10, 'eth1'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'outbound-interface', 'name', 'eth1']),
     ('set_rule_outbound_interface_group', ('forward', 10, 'G1'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'outbound-interface', 'group', 'G1']),
     ('set_rule_queue', ('forward', 10, '0'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'queue', '0']),
@@ -57,6 +59,8 @@ COMMON_CASES = [
     ('set_rule_vlan_priority', ('forward', 10, '3'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'vlan', 'priority', '3']),
     ('delete_rule_queue', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'queue']),
     ('delete_rule_log_options_level', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'level']),
+    ('delete_rule_log_options_queue_threshold', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'queue-threshold']),
+    ('delete_rule_log_options_snapshot_length', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'snapshot-length']),
     ('delete_rule_log_options_group', ('forward', 10), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'rule', '10', 'log-options', 'group']),
 ]
 
@@ -240,7 +244,7 @@ FEATURE_METHODS = {
         'set_rule_hop_limit_eq', 'set_rule_hop_limit_gt', 'set_rule_hop_limit_lt',
     ],
     'packet_type': ['set_rule_packet_type'],
-    'log_options': ['set_rule_log_options_level', 'set_rule_log_options_group', 'delete_rule_log_options'],
+    'log_options': ['set_rule_log_options_level', 'set_rule_log_options_group', 'set_rule_log_options_queue_threshold', 'set_rule_log_options_snapshot_length', 'delete_rule_log_options'],
 }
 
 CRITERIA_METHODS = {
@@ -516,4 +520,47 @@ def test_bridge_batch_and_reorder_reject_ethernet_type_on_v1_4(monkeypatch):
     assert vlan.status_code == 400, vlan.text
     assert "not supported" in vlan.json()["detail"]
     assert executed == []
+
+
+def test_bridge_parse_config_feeds_router_models():
+    """A sample tree goes through parse_config into the router models."""
+    from routers.firewall.bridge import BridgeChain, BridgeRule
+    from vyos_mappers.firewall.bridge_versions import get_bridge_firewall_mapper
+
+    tree = {
+        "firewall": {
+            "bridge": {
+                "forward": {
+                    "filter": {
+                        "default-action": "drop",
+                        "description": "edge",
+                        "rule": {
+                            "10": {
+                                "action": "accept",
+                                "tcp": {"flags": {"syn": {}, "not": {"ack": {}}}},
+                                "log-options": {
+                                    "level": "info",
+                                    "queue-threshold": "10",
+                                    "snapshot-length": "64",
+                                },
+                            }
+                        },
+                    }
+                },
+                "name": {"CUSTOM": {"description": "named", "rule": {}}},
+            }
+        }
+    }
+    parsed = get_bridge_firewall_mapper("1.5").parse_config(tree)
+    chain = BridgeChain(**parsed["chains"][0])
+    rule = chain.rules[0]
+    assert isinstance(rule, BridgeRule)
+    assert chain.default_action == "drop"
+    assert chain.description == "edge"
+    assert rule.tcp_flags == "syn"
+    assert rule.tcp_flags_not == "ack"
+    assert rule.log_options_queue_threshold == "10"
+    assert rule.log_options_snapshot_length == "64"
+    assert BridgeChain(**parsed["custom_chains"][0]).description == "named"
+    assert parsed["total_rules"] == 1
 

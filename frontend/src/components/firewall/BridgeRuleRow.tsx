@@ -366,9 +366,9 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
           case "vlan":
             return (
               <TableCell key="vlan">
-                {rule.vlan_id ? (
+                {rule.vlan_id || rule.vlan_priority || rule.vlan_ethernet_type ? (
                   <div className="flex flex-col gap-0.5 text-xs">
-                    <code className="bg-muted/50 px-2 py-1 rounded font-mono">{rule.vlan_id}</code>
+                    {rule.vlan_id && <code className="bg-muted/50 px-2 py-1 rounded font-mono">{rule.vlan_id}</code>}
                     {rule.vlan_priority && <span className="text-muted-foreground">{t("ruleRow.vlanPriority", { priority: rule.vlan_priority })}</span>}
                     {rule.vlan_ethernet_type && <span className="text-muted-foreground">{rule.vlan_ethernet_type}</span>}
                   </div>
@@ -402,8 +402,13 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
           case "time":
             return (
               <TableCell key="time">
-                {rule.time_starttime || rule.time_stoptime || rule.time_weekdays ? (
+                {rule.time_startdate || rule.time_stopdate || rule.time_starttime || rule.time_stoptime || rule.time_weekdays ? (
                   <div className="flex flex-col gap-0.5 text-xs">
+                    {(rule.time_startdate || rule.time_stopdate) && (
+                      <span className="font-mono text-muted-foreground">
+                        {rule.time_startdate || ""}–{rule.time_stopdate || ""}
+                      </span>
+                    )}
                     {(rule.time_starttime || rule.time_stoptime) && (
                       <span className="font-mono text-muted-foreground">
                         {rule.time_starttime || "00:00"}–{rule.time_stoptime || "23:59"}
@@ -431,8 +436,11 @@ export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrd
           case "tcpFlags":
             return (
               <TableCell key="tcpFlags">
-                {rule.tcp_flags ? (
-                  <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{rule.tcp_flags}</code>
+                {rule.tcp_flags || rule.tcp_flags_not ? (
+                  <div className="flex flex-col gap-0.5">
+                    {rule.tcp_flags && <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{rule.tcp_flags}</code>}
+                    {rule.tcp_flags_not && <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{rule.tcp_flags_not}</code>}
+                  </div>
                 ) : (
                   <span className="text-sm text-muted-foreground">-</span>
                 )}

@@ -24,7 +24,6 @@ import {
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, AlertCircle, Loader2 } from "lucide-react";
-import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import {
   bridgeFirewallService,
   type BridgeCapabilities,
@@ -42,6 +41,8 @@ interface BridgeRuleModalProps {
   chain: string;
   capabilities: BridgeCapabilities | null;
   existingRuleNumbers: number[];
+  interfaceGroupNames: string[];
+  customChainNames: string[];
   onSuccess: () => void;
   existing?: BridgeRule | null;
 }
@@ -64,6 +65,9 @@ const WEEKDAYS = [
   { value: "Saturday" },
   { value: "Sunday" },
 ] as const;
+
+const FRAGMENT_MATCHES = ["match-frag", "match-non-frag"] as const;
+const IPSEC_DIRECTIONS = ["match-ipsec", "match-none"] as const;
 
 const parseRateLimit = (rate: string | null | undefined): { value: string; unit: string } => {
   if (!rate) return { value: "", unit: "minute" };
@@ -102,6 +106,8 @@ export function BridgeRuleModal({
   chain,
   capabilities,
   existingRuleNumbers,
+  interfaceGroupNames,
+  customChainNames,
   onSuccess,
   existing,
 }: BridgeRuleModalProps) {
@@ -111,15 +117,11 @@ export function BridgeRuleModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceOption[]>([]);
-  const [interfaceGroups, setInterfaceGroups] = useState<string[]>([]);
   const [loadingInterfaces, setLoadingInterfaces] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     loadInterfaces();
-    firewallGroupsService.getConfig()
-      .then((config) => setInterfaceGroups(config.interface_groups.map((group) => group.name)))
-      .catch(() => setInterfaceGroups([]));
     if (existing) {
       populateForm(existing);
     } else {
@@ -220,6 +222,8 @@ export function BridgeRuleModal({
   const [ipsecNoneOut, setIpsecNoneOut] = useState(false);
   const [logLevel, setLogLevel] = useState("");
   const [logGroup, setLogGroup] = useState("");
+  const [logQueueThreshold, setLogQueueThreshold] = useState("");
+  const [logSnapshotLength, setLogSnapshotLength] = useState("");
 
   // Rate limiting (1.5+) - split into number and unit
   const [limitRateValue, setLimitRateValue] = useState("");
@@ -256,6 +260,7 @@ export function BridgeRuleModal({
     firewallFeatureSupported(capabilities, "ipsec_matching") ||
     firewallFeatureSupported(capabilities, "ttl_matching");
   const showEthernetType = firewallFeatureSupported(capabilities, "ethernet_type_matching");
+  const showVlanEthernetType = capabilities?.matching_criteria?.vlan_ethernet_type?.supported === true;
   const showRuleDescription = firewallFeatureSupported(capabilities, "rule_description");
   const showLogOptions = firewallFeatureSupported(capabilities, "log_options");
   const showTcp = firewallFeatureSupported(capabilities, "tcp_flags");
@@ -319,6 +324,8 @@ export function BridgeRuleModal({
     setIpsecNoneOut(false);
     setLogLevel("");
     setLogGroup("");
+    setLogQueueThreshold("");
+    setLogSnapshotLength("");
     setLimitRateValue("");
     setLimitRateUnit("minute");
     setLimitBurst("");
@@ -391,6 +398,8 @@ export function BridgeRuleModal({
     setIpsecNoneOut(rule.ipsec_match_none_out || false);
     setLogLevel(rule.log_options_level || "");
     setLogGroup(rule.log_options_group || "");
+    setLogQueueThreshold(rule.log_options_queue_threshold || "");
+    setLogSnapshotLength(rule.log_options_snapshot_length || "");
     setLimitRateValue(newRate.value);
     setLimitRateUnit(newRate.unit);
     setLimitBurst(rule.limit_burst || "");
@@ -469,7 +478,7 @@ export function BridgeRuleModal({
         outbound_interface_group: outboundInterfaceGroup || null,
         protocol: protocol || null,
         ethernet_type: ethernetType || null,
-        jump_target: jumpTarget || null,
+        jump_target: action === "jump" ? jumpTarget || "" : "",
         queue: queue || null,
         icmp_type: protocol === "icmp" ? icmpType || null : null,
         icmp_code: protocol === "icmp" ? icmpCode || null : null,
@@ -477,8 +486,8 @@ export function BridgeRuleModal({
         icmpv6_type: protocol === "icmpv6" ? icmpType || null : null,
         icmpv6_code: protocol === "icmpv6" ? icmpCode || null : null,
         icmpv6_type_name: protocol === "icmpv6" ? icmpTypeName || null : null,
-        tcp_flags: protocol === "tcp" || protocol === "tcp_udp" ? tcpFlags.join(",") : "",
-        tcp_flags_not: protocol === "tcp" || protocol === "tcp_udp" ? tcpFlagsNot.join(",") : "",
+        tcp_flags: protocol === "tcp" ? tcpFlags.join(",") : "",
+        tcp_flags_not: protocol === "tcp" ? tcpFlagsNot.join(",") : "",
         tcp_mss: protocol === "tcp" || protocol === "tcp_udp" ? tcpMss || null : null,
         mark: mark || null,
         connection_mark: connectionMark || null,
@@ -500,6 +509,8 @@ export function BridgeRuleModal({
         ipsec_match_none_out: ipsecNoneOut,
         log_options_level: logLevel || null,
         log_options_group: logGroup || null,
+        log_options_queue_threshold: logQueueThreshold || null,
+        log_options_snapshot_length: logSnapshotLength || null,
         limit_rate: buildLimitRate(),
         limit_burst: limitBurst || null,
         time_startdate: timeStartdate || null,
@@ -537,7 +548,7 @@ export function BridgeRuleModal({
 
     setSaving(true);
     setError(null);
-    const tcpOn = protocol === "tcp" || protocol === "tcp_udp";
+    const tcpOn = protocol === "tcp";
 
     try {
       const response = await bridgeFirewallService.createRule(chain, ruleNum, {
@@ -560,7 +571,7 @@ export function BridgeRuleModal({
         outbound_interface_group: outboundInterfaceGroup || undefined,
         protocol: protocol || undefined,
         ethernet_type: ethernetType || undefined,
-        jump_target: jumpTarget || undefined,
+        jump_target: action === "jump" ? jumpTarget || undefined : undefined,
         queue: queue || undefined,
         icmp_type: protocol === "icmp" ? icmpType || undefined : undefined,
         icmp_code: protocol === "icmp" ? icmpCode || undefined : undefined,
@@ -591,6 +602,8 @@ export function BridgeRuleModal({
         ipsec_match_none_out: ipsecNoneOut || undefined,
         log_options_level: logLevel || undefined,
         log_options_group: logGroup || undefined,
+        log_options_queue_threshold: logQueueThreshold || undefined,
+        log_options_snapshot_length: logSnapshotLength || undefined,
         limit_rate: buildLimitRate() || undefined,
         limit_burst: limitBurst || undefined,
         time_startdate: timeStartdate || undefined,
@@ -691,6 +704,9 @@ export function BridgeRuleModal({
                   {firewallActionSupported(capabilities, "queue", chain) && (
                     <SelectItem value="queue">{t("actionOptions.queue")}</SelectItem>
                   )}
+                  {firewallActionSupported(capabilities, "reject", chain) && (
+                    <SelectItem value="reject">{t("actionOptions.reject")}</SelectItem>
+                  )}
                   {firewallActionSupported(capabilities, "notrack", chain) && (
                     <SelectItem value="notrack">{t("actionOptions.notrack")}</SelectItem>
                   )}
@@ -701,12 +717,18 @@ export function BridgeRuleModal({
             {action === "jump" && (
               <div className="space-y-2">
                 <Label htmlFor="jumpTarget">{t("ruleModal.jumpTarget")}</Label>
-                <Input
-                  id="jumpTarget"
-                  placeholder={t("ruleModal.jumpTargetPlaceholder")}
-                  value={jumpTarget}
-                  onChange={(e) => setJumpTarget(e.target.value)}
-                />
+                <Select value={jumpTarget || "_none_"} onValueChange={(value) => setJumpTarget(value === "_none_" ? "" : value)}>
+                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none_">{tc("none")}</SelectItem>
+                    {(jumpTarget && !customChainNames.includes(jumpTarget)
+                      ? [jumpTarget, ...customChainNames]
+                      : customChainNames
+                    ).map((name) => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -774,6 +796,14 @@ export function BridgeRuleModal({
                   <Label htmlFor="logGroup">{t("ruleModal.logGroup")}</Label>
                   <Input id="logGroup" value={logGroup} onChange={(e) => setLogGroup(e.target.value)} />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="logQueueThreshold">{t("ruleModal.logQueueThreshold")}</Label>
+                  <Input id="logQueueThreshold" value={logQueueThreshold} onChange={(e) => setLogQueueThreshold(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="logSnapshotLength">{t("ruleModal.logSnapshotLength")}</Label>
+                  <Input id="logSnapshotLength" value={logSnapshotLength} onChange={(e) => setLogSnapshotLength(e.target.value)} />
+                </div>
               </div>
             )}
           </TabsContent>
@@ -805,7 +835,7 @@ export function BridgeRuleModal({
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-medium">{t("ruleModal.vlan")}</h4>
+              <h4 className="text-sm font-medium">{t("columns.vlan")}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="vlanId">{t("ruleModal.vlanId")}</Label>
@@ -827,7 +857,7 @@ export function BridgeRuleModal({
                     onChange={(e) => setVlanPriorityValue(e.target.value)}
                   />
                 </div>
-                {showEthernetType && (
+                {showVlanEthernetType && (
                   <div className="space-y-2">
                     <Label htmlFor="vlanEthernetType">{t("ruleModal.vlanEthernetType")}</Label>
                     <Select value={vlanEthernetType || "_any_"} onValueChange={(v) => setVlanEthernetType(v === "_any_" ? "" : v)}>
@@ -861,7 +891,11 @@ export function BridgeRuleModal({
                     <Label htmlFor="inboundInterface">{t("ruleModal.inboundInterface")}</Label>
                     <InterfaceSelect
                       value={inboundInterface || "_none_"}
-                      onValueChange={(v) => setInboundInterface(v === "_none_" ? "" : v)}
+                      onValueChange={(v) => {
+                        const next = v === "_none_" ? "" : v;
+                        setInboundInterface(next);
+                        if (next) setInboundInterfaceGroup("");
+                      }}
                       interfaces={availableInterfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
                       noneOption={{ label: tc("none"), value: "_none_" }}
                       placeholder={tc("none")}
@@ -871,7 +905,11 @@ export function BridgeRuleModal({
                     <Label htmlFor="outboundInterface">{t("ruleModal.outboundInterface")}</Label>
                     <InterfaceSelect
                       value={outboundInterface || "_none_"}
-                      onValueChange={(v) => setOutboundInterface(v === "_none_" ? "" : v)}
+                      onValueChange={(v) => {
+                        const next = v === "_none_" ? "" : v;
+                        setOutboundInterface(next);
+                        if (next) setOutboundInterfaceGroup("");
+                      }}
                       interfaces={availableInterfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
                       noneOption={{ label: tc("none"), value: "_none_" }}
                       placeholder={tc("none")}
@@ -881,13 +919,17 @@ export function BridgeRuleModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="inboundInterfaceGroup">{t("ruleModal.inboundInterfaceGroup")}</Label>
-                    <Select value={inboundInterfaceGroup || "_any_"} onValueChange={(v) => setInboundInterfaceGroup(v === "_any_" ? "" : v)}>
+                    <Select value={inboundInterfaceGroup || "_any_"} onValueChange={(v) => {
+                      const next = v === "_any_" ? "" : v;
+                      setInboundInterfaceGroup(next);
+                      if (next) setInboundInterface("");
+                    }}>
                       <SelectTrigger><SelectValue placeholder={t("any")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_any_">{t("any")}</SelectItem>
-                        {(inboundInterfaceGroup && !interfaceGroups.includes(inboundInterfaceGroup)
-                          ? [inboundInterfaceGroup, ...interfaceGroups]
-                          : interfaceGroups
+                        {(inboundInterfaceGroup && !interfaceGroupNames.includes(inboundInterfaceGroup)
+                          ? [inboundInterfaceGroup, ...interfaceGroupNames]
+                          : interfaceGroupNames
                         ).map((name) => (
                           <SelectItem key={name} value={name}>{name}</SelectItem>
                         ))}
@@ -896,13 +938,17 @@ export function BridgeRuleModal({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="outboundInterfaceGroup">{t("ruleModal.outboundInterfaceGroup")}</Label>
-                    <Select value={outboundInterfaceGroup || "_any_"} onValueChange={(v) => setOutboundInterfaceGroup(v === "_any_" ? "" : v)}>
+                    <Select value={outboundInterfaceGroup || "_any_"} onValueChange={(v) => {
+                      const next = v === "_any_" ? "" : v;
+                      setOutboundInterfaceGroup(next);
+                      if (next) setOutboundInterface("");
+                    }}>
                       <SelectTrigger><SelectValue placeholder={t("any")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_any_">{t("any")}</SelectItem>
-                        {(outboundInterfaceGroup && !interfaceGroups.includes(outboundInterfaceGroup)
-                          ? [outboundInterfaceGroup, ...interfaceGroups]
-                          : interfaceGroups
+                        {(outboundInterfaceGroup && !interfaceGroupNames.includes(outboundInterfaceGroup)
+                          ? [outboundInterfaceGroup, ...interfaceGroupNames]
+                          : interfaceGroupNames
                         ).map((name) => (
                           <SelectItem key={`out-${name}`} value={name}>{name}</SelectItem>
                         ))}
@@ -1035,7 +1081,7 @@ export function BridgeRuleModal({
                 </Select>
               </div>
 
-              {showTcp && (protocol === "tcp" || protocol === "tcp_udp") && (
+              {showTcp && protocol === "tcp" && (
                 <div className="space-y-3">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">{t("ruleModal.tcpFlags")}</Label>
@@ -1045,7 +1091,10 @@ export function BridgeRuleModal({
                           <Checkbox
                             id={`tcp-${flag}`}
                             checked={tcpFlags.includes(flag)}
-                            onCheckedChange={(checked) => setTcpFlags((prev) => checked === true ? (prev.includes(flag) ? prev : [...prev, flag]) : prev.filter((item) => item !== flag))}
+                            onCheckedChange={(checked) => {
+                              setTcpFlags((prev) => checked === true ? (prev.includes(flag) ? prev : [...prev, flag]) : prev.filter((item) => item !== flag));
+                              if (checked === true) setTcpFlagsNot((prev) => prev.filter((item) => item !== flag));
+                            }}
                           />
                           <Label htmlFor={`tcp-${flag}`} className="font-normal">{flag}</Label>
                         </div>
@@ -1060,7 +1109,10 @@ export function BridgeRuleModal({
                           <Checkbox
                             id={`tcp-not-${flag}`}
                             checked={tcpFlagsNot.includes(flag)}
-                            onCheckedChange={(checked) => setTcpFlagsNot((prev) => checked === true ? (prev.includes(flag) ? prev : [...prev, flag]) : prev.filter((item) => item !== flag))}
+                            onCheckedChange={(checked) => {
+                              setTcpFlagsNot((prev) => checked === true ? (prev.includes(flag) ? prev : [...prev, flag]) : prev.filter((item) => item !== flag));
+                              if (checked === true) setTcpFlags((prev) => prev.filter((item) => item !== flag));
+                            }}
                           />
                           <Label htmlFor={`tcp-not-${flag}`} className="font-normal">{flag}</Label>
                         </div>
@@ -1200,34 +1252,62 @@ export function BridgeRuleModal({
                     </>
                   )}
                   {showFragment && (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="fragmentFrag" checked={fragmentFrag} onCheckedChange={(c) => setFragmentFrag(c === true)} />
-                        <Label htmlFor="fragmentFrag" className="font-normal">{t("ruleModal.fragmentFrag")}</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="fragmentNonFrag" checked={fragmentNonFrag} onCheckedChange={(c) => setFragmentNonFrag(c === true)} />
-                        <Label htmlFor="fragmentNonFrag" className="font-normal">{t("ruleModal.fragmentNonFrag")}</Label>
-                      </div>
-                    </>
+                    <div className="space-y-2">
+                      <Label htmlFor="fragmentMatch">{t("ruleModal.fragmentMatch")}</Label>
+                      <Select
+                        value={fragmentFrag ? "match-frag" : fragmentNonFrag ? "match-non-frag" : "_any_"}
+                        onValueChange={(value) => {
+                          setFragmentFrag(value === "match-frag");
+                          setFragmentNonFrag(value === "match-non-frag");
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder={t("any")} /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_any_">{t("any")}</SelectItem>
+                          {FRAGMENT_MATCHES.map((value) => (
+                            <SelectItem key={value} value={value}>{value}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
                   {showIpsec && (
                     <>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="ipsecIn" checked={ipsecIn} onCheckedChange={(c) => setIpsecIn(c === true)} />
-                        <Label htmlFor="ipsecIn" className="font-normal">{t("ruleModal.ipsecIn")}</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="ipsecIn">{t("ruleModal.ipsecIn")}</Label>
+                        <Select
+                          value={ipsecIn ? "match-ipsec" : ipsecNoneIn ? "match-none" : "_any_"}
+                          onValueChange={(value) => {
+                            setIpsecIn(value === "match-ipsec");
+                            setIpsecNoneIn(value === "match-none");
+                          }}
+                        >
+                          <SelectTrigger><SelectValue placeholder={t("any")} /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_any_">{t("any")}</SelectItem>
+                            {IPSEC_DIRECTIONS.map((value) => (
+                              <SelectItem key={value} value={value}>{value}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="ipsecOut" checked={ipsecOut} onCheckedChange={(c) => setIpsecOut(c === true)} />
-                        <Label htmlFor="ipsecOut" className="font-normal">{t("ruleModal.ipsecOut")}</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="ipsecNoneIn" checked={ipsecNoneIn} onCheckedChange={(c) => setIpsecNoneIn(c === true)} />
-                        <Label htmlFor="ipsecNoneIn" className="font-normal">{t("ruleModal.ipsecNoneIn")}</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="ipsecNoneOut" checked={ipsecNoneOut} onCheckedChange={(c) => setIpsecNoneOut(c === true)} />
-                        <Label htmlFor="ipsecNoneOut" className="font-normal">{t("ruleModal.ipsecNoneOut")}</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="ipsecOut">{t("ruleModal.ipsecOut")}</Label>
+                        <Select
+                          value={ipsecOut ? "match-ipsec" : ipsecNoneOut ? "match-none" : "_any_"}
+                          onValueChange={(value) => {
+                            setIpsecOut(value === "match-ipsec");
+                            setIpsecNoneOut(value === "match-none");
+                          }}
+                        >
+                          <SelectTrigger><SelectValue placeholder={t("any")} /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_any_">{t("any")}</SelectItem>
+                            {IPSEC_DIRECTIONS.map((value) => (
+                              <SelectItem key={value} value={value}>{value}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </>
                   )}
@@ -1328,13 +1408,6 @@ export function BridgeRuleModal({
                       </Button>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedWeekdays.length === 0
-                      ? t("ruleModal.noDaysSelected")
-                      : selectedWeekdays.length === 7
-                        ? t("ruleModal.activeEveryDay")
-                        : t("ruleModal.activeOn", { days: selectedWeekdays.join(", ") })}
-                  </p>
                 </div>
               </div>
 

@@ -562,11 +562,11 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     # ========================================================================
-    # Rule Log Options (VyOS 1.5+ only)
+    # Rule Log Options (both labs)
     # ========================================================================
 
     def set_rule_log_options_level(self, chain: str, rule_number: int, level: str) -> "BridgeFirewallBatchBuilder":
-        """Set log level for a rule (VyOS 1.5+ only)."""
+        """Set log level for a rule. Both labs have this leaf."""
         path = self.mappers[self.mapper_key].get_rule_log_options_level(chain, rule_number, level)
         return self.add_set(path)
 
@@ -576,13 +576,33 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     def set_rule_log_options_group(self, chain: str, rule_number: int, group: str) -> "BridgeFirewallBatchBuilder":
-        """Set log group for a rule (VyOS 1.5+ only)."""
+        """Set log group for a rule. Both labs have this leaf."""
         path = self.mappers[self.mapper_key].get_rule_log_options_group(chain, rule_number, group)
         return self.add_set(path)
 
     def delete_rule_log_options_group(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
         """Delete the rule_log_options_group leaf."""
         path = self.mappers[self.mapper_key].get_rule_log_options_group_path(chain, rule_number)
+        return self.add_delete(path)
+
+    def set_rule_log_options_queue_threshold(self, chain: str, rule_number: int, value: str) -> "BridgeFirewallBatchBuilder":
+        """Set log queue-threshold. Both labs have this leaf."""
+        path = self.mappers[self.mapper_key].get_rule_log_options_queue_threshold(chain, rule_number, value)
+        return self.add_set(path)
+
+    def delete_rule_log_options_queue_threshold(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
+        """Delete the rule_log_options_queue_threshold leaf."""
+        path = self.mappers[self.mapper_key].get_rule_log_options_queue_threshold_path(chain, rule_number)
+        return self.add_delete(path)
+
+    def set_rule_log_options_snapshot_length(self, chain: str, rule_number: int, value: str) -> "BridgeFirewallBatchBuilder":
+        """Set log snapshot-length. Both labs have this leaf."""
+        path = self.mappers[self.mapper_key].get_rule_log_options_snapshot_length(chain, rule_number, value)
+        return self.add_set(path)
+
+    def delete_rule_log_options_snapshot_length(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
+        """Delete the rule_log_options_snapshot_length leaf."""
+        path = self.mappers[self.mapper_key].get_rule_log_options_snapshot_length_path(chain, rule_number)
         return self.add_delete(path)
 
     def delete_rule_log_options(self, chain: str, rule_number: int) -> "BridgeFirewallBatchBuilder":
@@ -860,11 +880,11 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     # ========================================================================
-    # Rule Queue Action (VyOS 1.5+ only)
+    # Rule Queue Action (both labs)
     # ========================================================================
 
     def set_rule_queue(self, chain: str, rule_number: int, queue: str) -> "BridgeFirewallBatchBuilder":
-        """Set queue target for a rule (VyOS 1.5+ only)."""
+        """Set queue target for a rule. Both labs have this leaf."""
         path = self.mappers[self.mapper_key].get_rule_queue(chain, rule_number, queue)
         return self.add_set(path)
 
@@ -997,6 +1017,8 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
             "supported_chains": chains,
             "supported_actions": actions,
             "chain_actions": chain_actions,
+            "base_default_actions": mapper.base_default_actions(),
+            "custom_default_actions": mapper.custom_default_actions(),
             "tcp_flag_names": mapper.tcp_flag_names(),
             "packet_type_values": mapper.packet_type_values(),
             "ethernet_type_values": mapper.ethernet_type_values(),
@@ -1010,6 +1032,7 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
                 ),
                 "vlan_id": flag(node("vlan", "id"), "Match by VLAN ID"),
                 "vlan_priority": flag(node("vlan", "priority"), "Match by VLAN priority (0-7)"),
+                "vlan_ethernet_type": flag(node("vlan", "ethernet-type"), "Match by VLAN ethernet type"),
                 "inbound_interface": flag(node("inbound-interface"), "Match by inbound interface"),
                 "outbound_interface": flag(node("outbound-interface"), "Match by outbound interface"),
                 "ethernet_type": flag(node("ethernet-type"), "Match by ethernet type"),

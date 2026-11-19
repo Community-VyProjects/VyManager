@@ -68,6 +68,8 @@ export interface BridgeRule {
   // Log options (1.5+)
   log_options_level?: string | null;
   log_options_group?: string | null;
+  log_options_queue_threshold?: string | null;
+  log_options_snapshot_length?: string | null;
   // Mark matching (1.5+)
   mark?: string | null;
   connection_mark?: string | null;
@@ -160,6 +162,8 @@ export interface BridgeCapabilities {
   supported_chains: string[];
   supported_actions: string[];
   chain_actions: Record<string, string[]>;
+  base_default_actions: string[];
+  custom_default_actions: string[];
   tcp_flag_names: string[];
   packet_type_values: string[];
   ethernet_type_values: string[];
@@ -171,6 +175,7 @@ export interface BridgeCapabilities {
     destination_mac: MatchingCriteria;
     vlan_id: MatchingCriteria;
     vlan_priority: MatchingCriteria;
+    vlan_ethernet_type: MatchingCriteria;
     inbound_interface: MatchingCriteria;
     outbound_interface: MatchingCriteria;
     ethernet_type: MatchingCriteria;
@@ -273,6 +278,13 @@ class BridgeFirewallService {
     });
   }
 
+  async deleteChainDescription(chain: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      chain,
+      operations: [{ op: "delete_chain_description" }],
+    });
+  }
+
   /**
    * Set chain description
    */
@@ -351,6 +363,8 @@ class BridgeFirewallService {
       // Log options (1.5+)
       log_options_level?: string;
       log_options_group?: string;
+      log_options_queue_threshold?: string;
+      log_options_snapshot_length?: string;
       // Mark matching (1.5+)
       mark?: string;
       connection_mark?: string;
@@ -551,6 +565,12 @@ class BridgeFirewallService {
     }
     if (config.log_options_group) {
       operations.push({ op: "set_rule_log_options_group", value: config.log_options_group });
+    }
+    if (config.log_options_queue_threshold) {
+      operations.push({ op: "set_rule_log_options_queue_threshold", value: config.log_options_queue_threshold });
+    }
+    if (config.log_options_snapshot_length) {
+      operations.push({ op: "set_rule_log_options_snapshot_length", value: config.log_options_snapshot_length });
     }
 
     // Mark matching (1.5+)
@@ -840,6 +860,8 @@ class BridgeFirewallService {
     // Log options (1.5+)
     handleStringField("log_options_level", "set_rule_log_options_level", "delete_rule_log_options_level");
     handleStringField("log_options_group", "set_rule_log_options_group", "delete_rule_log_options_group");
+    handleStringField("log_options_queue_threshold", "set_rule_log_options_queue_threshold", "delete_rule_log_options_queue_threshold");
+    handleStringField("log_options_snapshot_length", "set_rule_log_options_snapshot_length", "delete_rule_log_options_snapshot_length");
 
     // Mark matching (1.5+)
     handleStringField("mark", "set_rule_mark", "delete_rule_mark");

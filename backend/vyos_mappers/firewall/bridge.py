@@ -7,7 +7,7 @@ path it emits is checked against those tables, and the builder's
 capabilities payload reads the same tables.
 """
 
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 from ..base import BaseFeatureMapper
 
 _BASE_CHAINS = ("forward", "input", "output", "prerouting")
@@ -139,6 +139,28 @@ class BridgeFirewallMapper(BaseFeatureMapper):
     def log_level_values(self) -> List[str]:
         """log-options level allowed values. Both labs use the same list."""
         return list(LOG_LEVEL_VALUES)
+
+    def base_default_actions(self) -> List[str]:
+        """default-action on a base chain. Both labs allow drop and accept."""
+        return ["drop", "accept"]
+
+    def custom_default_actions(self) -> List[str]:
+        """default-action values a named chain can set alone.
+
+        jump is a lab value, but the commit rejects it without
+        default-jump-target. That pair is a separate control.
+        """
+        return ["drop", "reject", "return", "accept", "continue"]
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_bridge_config
+
+        return parse_bridge_config(self, full_config)
+
+    def interface_options(self, full_config: Dict[str, Any]) -> List[Dict[str, Any]]:
+        from .config_parse import interface_options as parse_interface_options
+
+        return parse_interface_options(full_config)
 
     # ========================================================================
     # Chain Operations
@@ -545,11 +567,11 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         return self._rule(chain, rule_number, "limit")
 
     # ========================================================================
-    # Rule Properties - Log Options (VyOS 1.5+ only)
+    # Rule Properties - Log Options (both labs)
     # ========================================================================
 
     def get_rule_log_options_level(self, chain: str, rule_number: int, level: str) -> List[str]:
-        """Get command path for log level (VyOS 1.5+ only)."""
+        """Get command path for log level. Both labs have this leaf."""
         return self._rule(chain, rule_number, "log-options", "level", level)
 
     def get_rule_log_options_level_path(self, chain: str, rule_number: int) -> List[str]:
@@ -557,12 +579,28 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         return self._rule(chain, rule_number, "log-options", "level")
 
     def get_rule_log_options_group(self, chain: str, rule_number: int, group: str) -> List[str]:
-        """Get command path for log group (VyOS 1.5+ only)."""
+        """Get command path for log group. Both labs have this leaf."""
         return self._rule(chain, rule_number, "log-options", "group", group)
 
     def get_rule_log_options_group_path(self, chain: str, rule_number: int) -> List[str]:
         """Delete path for rule_log_options_group."""
         return self._rule(chain, rule_number, "log-options", "group")
+
+    def get_rule_log_options_queue_threshold(self, chain: str, rule_number: int, value: str) -> List[str]:
+        """log-options queue-threshold. Both labs have this leaf."""
+        return self._rule(chain, rule_number, "log-options", "queue-threshold", value)
+
+    def get_rule_log_options_queue_threshold_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_log_options_queue_threshold."""
+        return self._rule(chain, rule_number, "log-options", "queue-threshold")
+
+    def get_rule_log_options_snapshot_length(self, chain: str, rule_number: int, value: str) -> List[str]:
+        """log-options snapshot-length. Both labs have this leaf."""
+        return self._rule(chain, rule_number, "log-options", "snapshot-length", value)
+
+    def get_rule_log_options_snapshot_length_path(self, chain: str, rule_number: int) -> List[str]:
+        """Delete path for rule_log_options_snapshot_length."""
+        return self._rule(chain, rule_number, "log-options", "snapshot-length")
 
     def get_rule_log_options_path(self, chain: str, rule_number: int) -> List[str]:
         """Get command path for log-options (for deletion)."""
@@ -746,11 +784,11 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         return self._rule(chain, rule_number, "time")
 
     # ========================================================================
-    # Rule Properties - Queue Action (VyOS 1.5+ only)
+    # Rule Properties - Queue Action (both labs)
     # ========================================================================
 
     def get_rule_queue(self, chain: str, rule_number: int, queue: str) -> List[str]:
-        """Get command path for queue target (VyOS 1.5+ only)."""
+        """Get command path for queue target. Both labs have this leaf."""
         return self._rule(chain, rule_number, "queue", queue)
 
 
@@ -858,191 +896,3 @@ class BridgeFirewallMapper(BaseFeatureMapper):
     def get_custom_chain_rule_path(self, chain_name: str, rule_number: int) -> List[str]:
         """Get command path for a rule in a custom chain."""
         return ["firewall", "bridge", "name", chain_name, "rule", str(rule_number)]
-
-    # ========================================================================
-    # Config Parsing Helpers
-    # ========================================================================
-
-    def parse_chain_config(self, chain_name: str, chain_config: dict) -> dict:
-        """Parse a chain configuration from VyOS config."""
-        result = {
-            "name": chain_name,
-            "default_action": chain_config.get("default-action"),
-            "description": chain_config.get("description"),
-            "rules": [],
-        }
-
-        rules_config = chain_config.get("rule", {})
-        if isinstance(rules_config, dict):
-            for rule_num, rule_config in rules_config.items():
-                result["rules"].append(self.parse_rule_config(rule_num, rule_config))
-
-        return result
-
-    def parse_rule_config(self, rule_number: str, rule_config: dict) -> dict:
-        """Parse a rule configuration from VyOS config."""
-        # Handle source
-        source = rule_config.get("source", {})
-        source_mac = source.get("mac-address") if isinstance(source, dict) else None
-        source_address = source.get("address") if isinstance(source, dict) else None
-        source_port = source.get("port") if isinstance(source, dict) else None
-        source_group = source.get("group", {}) if isinstance(source, dict) else {}
-
-        # Handle destination
-        destination = rule_config.get("destination", {})
-        dest_mac = destination.get("mac-address") if isinstance(destination, dict) else None
-        dest_address = destination.get("address") if isinstance(destination, dict) else None
-        dest_port = destination.get("port") if isinstance(destination, dict) else None
-        dest_group = destination.get("group", {}) if isinstance(destination, dict) else {}
-
-        # Handle VLAN
-        vlan = rule_config.get("vlan", {})
-        vlan_id = vlan.get("id") if isinstance(vlan, dict) else None
-        vlan_priority = vlan.get("priority") if isinstance(vlan, dict) else None
-        vlan_ethernet_type = vlan.get("ethernet-type") if isinstance(vlan, dict) else None
-
-        # Handle interfaces
-        inbound = rule_config.get("inbound-interface", {})
-        outbound = rule_config.get("outbound-interface", {})
-
-        # Handle set options (1.5+)
-        set_opts = rule_config.get("set", {})
-
-        # Handle ICMP (1.5+)
-        icmp = rule_config.get("icmp", {})
-        icmpv6 = rule_config.get("icmpv6", {})
-
-        # Handle TCP (1.5+)
-        tcp = rule_config.get("tcp", {})
-        tcp_flags = tcp.get("flags", {}) if isinstance(tcp, dict) else {}
-
-        # Handle limit (1.5+)
-        limit = rule_config.get("limit", {})
-
-        # Handle log options (1.5+)
-        log_options = rule_config.get("log-options", {})
-
-        # Handle time (1.5+)
-        time_opts = rule_config.get("time", {})
-
-        # Handle fragment (1.5+)
-        fragment = rule_config.get("fragment", {})
-
-        # Handle ipsec (1.5+)
-        ipsec = rule_config.get("ipsec", {})
-
-        # Handle ttl (1.5+)
-        ttl = rule_config.get("ttl", {})
-
-        # Handle hop-limit (1.5+)
-        hop_limit = rule_config.get("hop-limit", {})
-
-        # Convert TCP flags dict to list of enabled flags
-        enabled_tcp_flags = []
-        disabled_tcp_flags = []
-        if isinstance(tcp_flags, dict):
-            not_flags = tcp_flags.get("not", {})
-            for flag in TCP_FLAG_NAMES:
-                if flag in tcp_flags:
-                    enabled_tcp_flags.append(flag)
-                if isinstance(not_flags, dict) and flag in not_flags:
-                    disabled_tcp_flags.append(flag)
-
-        return {
-            "rule_number": int(rule_number),
-            "action": rule_config.get("action"),
-            "description": rule_config.get("description"),
-            "disabled": "disable" in rule_config,
-            "log": "log" in rule_config,
-            # MAC addresses (1.4+)
-            "source_mac": source_mac,
-            "destination_mac": dest_mac,
-            # IP addresses (1.5+)
-            "source_address": source_address,
-            "destination_address": dest_address,
-            # Ports (1.5+)
-            "source_port": source_port,
-            "destination_port": dest_port,
-            # Source groups (1.5+)
-            "source_group_address": source_group.get("address-group") if isinstance(source_group, dict) else None,
-            "source_group_network": source_group.get("network-group") if isinstance(source_group, dict) else None,
-            "source_group_port": source_group.get("port-group") if isinstance(source_group, dict) else None,
-            "source_group_mac": source_group.get("mac-group") if isinstance(source_group, dict) else None,
-            # Destination groups (1.5+)
-            "destination_group_address": dest_group.get("address-group") if isinstance(dest_group, dict) else None,
-            "destination_group_network": dest_group.get("network-group") if isinstance(dest_group, dict) else None,
-            "destination_group_port": dest_group.get("port-group") if isinstance(dest_group, dict) else None,
-            "destination_group_mac": dest_group.get("mac-group") if isinstance(dest_group, dict) else None,
-            # VLAN (1.4+)
-            "vlan_id": vlan_id,
-            "vlan_priority": vlan_priority,
-            "vlan_ethernet_type": vlan_ethernet_type,
-            # Interfaces (1.4+)
-            "inbound_interface": inbound.get("name") if isinstance(inbound, dict) else None,
-            "inbound_interface_group": inbound.get("group") if isinstance(inbound, dict) else None,
-            "outbound_interface": outbound.get("name") if isinstance(outbound, dict) else None,
-            "outbound_interface_group": outbound.get("group") if isinstance(outbound, dict) else None,
-            # Protocol (1.5+)
-            "protocol": rule_config.get("protocol"),
-            # Ethernet type (1.5+)
-            "ethernet_type": rule_config.get("ethernet-type"),
-            # Jump target
-            "jump_target": rule_config.get("jump-target"),
-            "queue": rule_config.get("queue"),
-            # ICMP (1.5+)
-            "icmp_type": icmp.get("type") if isinstance(icmp, dict) else None,
-            "icmp_code": icmp.get("code") if isinstance(icmp, dict) else None,
-            "icmp_type_name": icmp.get("type-name") if isinstance(icmp, dict) else None,
-            # ICMPv6 (1.5+)
-            "icmpv6_type": icmpv6.get("type") if isinstance(icmpv6, dict) else None,
-            "icmpv6_code": icmpv6.get("code") if isinstance(icmpv6, dict) else None,
-            "icmpv6_type_name": icmpv6.get("type-name") if isinstance(icmpv6, dict) else None,
-            # TCP (1.5+)
-            "tcp_flags": enabled_tcp_flags if enabled_tcp_flags else None,
-            "tcp_flags_not": disabled_tcp_flags if disabled_tcp_flags else None,
-            "tcp_mss": tcp.get("mss") if isinstance(tcp, dict) else None,
-            # Rate limiting (1.5+)
-            "limit_rate": limit.get("rate") if isinstance(limit, dict) else None,
-            "limit_burst": limit.get("burst") if isinstance(limit, dict) else None,
-            # Log options (1.5+)
-            "log_level": log_options.get("level") if isinstance(log_options, dict) else None,
-            "log_group": log_options.get("group") if isinstance(log_options, dict) else None,
-            # Mark matching (1.5+)
-            "mark": rule_config.get("mark"),
-            "connection_mark": rule_config.get("connection-mark"),
-            # DSCP matching (1.5+)
-            "dscp": rule_config.get("dscp"),
-            "dscp_exclude": rule_config.get("dscp-exclude"),
-            # Fragment matching (1.5+)
-            "fragment_match_frag": "match-frag" in fragment if isinstance(fragment, dict) else False,
-            "fragment_match_non_frag": "match-non-frag" in fragment if isinstance(fragment, dict) else False,
-            # IPsec matching (1.5+)
-            "ipsec_match_ipsec_in": "match-ipsec-in" in ipsec if isinstance(ipsec, dict) else False,
-            "ipsec_match_ipsec_out": "match-ipsec-out" in ipsec if isinstance(ipsec, dict) else False,
-            "ipsec_match_none_in": "match-none-in" in ipsec if isinstance(ipsec, dict) else False,
-            "ipsec_match_none_out": "match-none-out" in ipsec if isinstance(ipsec, dict) else False,
-            # TTL matching (1.5+)
-            "ttl_eq": ttl.get("eq") if isinstance(ttl, dict) else None,
-            "ttl_gt": ttl.get("gt") if isinstance(ttl, dict) else None,
-            "ttl_lt": ttl.get("lt") if isinstance(ttl, dict) else None,
-            # Hop-limit matching (1.5+)
-            "hop_limit_eq": hop_limit.get("eq") if isinstance(hop_limit, dict) else None,
-            "hop_limit_gt": hop_limit.get("gt") if isinstance(hop_limit, dict) else None,
-            "hop_limit_lt": hop_limit.get("lt") if isinstance(hop_limit, dict) else None,
-            # Packet type/length (1.5+)
-            "packet_type": rule_config.get("packet-type"),
-            "packet_length": rule_config.get("packet-length"),
-            # Time-based rules (1.5+)
-            "time_startdate": time_opts.get("startdate") if isinstance(time_opts, dict) else None,
-            "time_stopdate": time_opts.get("stopdate") if isinstance(time_opts, dict) else None,
-            "time_starttime": time_opts.get("starttime") if isinstance(time_opts, dict) else None,
-            "time_stoptime": time_opts.get("stoptime") if isinstance(time_opts, dict) else None,
-            "time_weekdays": time_opts.get("weekdays") if isinstance(time_opts, dict) else None,
-            # Set options (1.5+)
-            "set_dscp": set_opts.get("dscp") if isinstance(set_opts, dict) else None,
-            "set_mark": set_opts.get("mark") if isinstance(set_opts, dict) else None,
-            "set_connection_mark": set_opts.get("connection-mark") if isinstance(set_opts, dict) else None,
-            "set_ttl": set_opts.get("ttl") if isinstance(set_opts, dict) else None,
-            "set_hop_limit": set_opts.get("hop-limit") if isinstance(set_opts, dict) else None,
-            "set_tcp_mss": set_opts.get("tcp-mss") if isinstance(set_opts, dict) else None,
-        }
