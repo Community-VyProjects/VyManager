@@ -27,6 +27,10 @@ import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { useTranslations } from "next-intl";
 
+const NONE = "__none__";
+const INTERFACE_TYPES = ["auto", "wired", "wireless"] as const;
+const SPLIT_HORIZON_VALUES = ["default", "enable", "disable"] as const;
+
 interface BabelInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -289,27 +293,27 @@ export function BabelInterfaceModal({
                   className={isEditMode ? "bg-muted" : ""}
                   interfaces={availableInterfaces}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {t("interfaceModal.interfaceHelp")}
-                </p>
               </div>
 
               {/* Type */}
               <div className="space-y-2">
                 <Label htmlFor="babel-iface-type">{t("fields.type")}</Label>
-                <Select value={type} onValueChange={setType}>
+                <Select
+                  value={type || NONE}
+                  onValueChange={(value) => setType(value === NONE ? "" : value)}
+                >
                   <SelectTrigger id="babel-iface-type">
-                    <SelectValue placeholder={t("interfaceModal.typePlaceholder")} />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="auto">{t("interfaceModal.typeAuto")}</SelectItem>
-                    <SelectItem value="wired">{t("interfaceModal.typeWired")}</SelectItem>
-                    <SelectItem value="wireless">{t("interfaceModal.typeWireless")}</SelectItem>
+                    <SelectItem value={NONE}>{tc("default")}</SelectItem>
+                    {INTERFACE_TYPES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  {t("interfaceModal.typeHelp")}
-                </p>
               </div>
 
               {/* Channel */}
@@ -321,27 +325,29 @@ export function BabelInterfaceModal({
                   onChange={(e) => setChannel(e.target.value)}
                   placeholder={t("interfaceModal.channelPlaceholder")}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {t("interfaceModal.channelHelp")}
-                </p>
               </div>
 
               {/* Split Horizon */}
               <div className="space-y-2">
                 <Label htmlFor="babel-iface-split-horizon">{t("fields.splitHorizon")}</Label>
-                <Select value={splitHorizon} onValueChange={setSplitHorizon}>
+                <Select
+                  value={splitHorizon || NONE}
+                  onValueChange={(value) =>
+                    setSplitHorizon(value === NONE ? "" : value)
+                  }
+                >
                   <SelectTrigger id="babel-iface-split-horizon">
-                    <SelectValue placeholder={t("interfaceModal.splitHorizonPlaceholder")} />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">{tc("default")}</SelectItem>
-                    <SelectItem value="enable">{t("interfaceModal.enable")}</SelectItem>
-                    <SelectItem value="disable">{t("interfaceModal.disable")}</SelectItem>
+                    <SelectItem value={NONE}>{tc("default")}</SelectItem>
+                    {SPLIT_HORIZON_VALUES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  {t("interfaceModal.splitHorizonHelp")}
-                </p>
               </div>
 
               {/* Enable Timestamps */}
@@ -353,17 +359,12 @@ export function BabelInterfaceModal({
                     setEnableTimestamps(checked === true)
                   }
                 />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="babel-iface-timestamps"
-                    className="cursor-pointer"
-                  >
-                    {t("interfaceModal.enableTimestamps")}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t("interfaceModal.timestampsHelp")}
-                  </p>
-                </div>
+                <Label
+                  htmlFor="babel-iface-timestamps"
+                  className="cursor-pointer"
+                >
+                  {t("interfaceModal.enableTimestamps")}
+                </Label>
               </div>
             </div>
 
