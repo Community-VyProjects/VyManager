@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
+import { thrownMessage } from "@/lib/api-error";
 import {
   ConsoleDevice,
   ConsoleServerCapabilities,
@@ -33,7 +34,6 @@ import {
   NONE_SENTINEL,
   toNamedListValue,
 } from "@/lib/named-list-select-options";
-import { shownError } from "./shown-error";
 
 interface ConsoleServerModalProps {
   open: boolean;
@@ -220,7 +220,7 @@ export function ConsoleServerModal({
       };
       await onSubmit(updated);
     } catch (err) {
-      setError(shownError(err, t("modal.unexpectedError")));
+      setError(thrownMessage(err, t("modal.unexpectedError")));
     } finally {
       setLoading(false);
     }

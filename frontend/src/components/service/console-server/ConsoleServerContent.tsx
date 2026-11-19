@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import {
   ConsoleServerConfig,
 } from "@/lib/api/console-server";
 import { ConsoleServerModal } from "./ConsoleServerModal";
-import { shownError } from "./shown-error";
+import { thrownMessage } from "@/lib/api-error";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import {
@@ -62,6 +62,7 @@ export function ConsoleServerContent() {
 
   const [config, setConfig] = useState<ConsoleServerConfig>(EMPTY_CONFIG);
   const [capabilities, setCapabilities] = useState<ConsoleServerCapabilities | null>(null);
+  const capabilitiesRef = useRef<ConsoleServerCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,19 +84,19 @@ export function ConsoleServerContent() {
     try {
       setLoading(true);
       setError(null);
+      const cached = capabilitiesRef.current;
       const [data, caps] = await Promise.all([
         consoleServerService.getConfig(refresh),
-        capabilities ? Promise.resolve(capabilities) : consoleServerService.getCapabilities(),
+        cached ? Promise.resolve(cached) : consoleServerService.getCapabilities(),
       ]);
+      capabilitiesRef.current = caps;
       setConfig(data);
       setCapabilities(caps);
     } catch (err) {
-      setError(shownError(err, t("content.loadFailed")));
+      setError(thrownMessage(err, t("content.loadFailed")));
     } finally {
       setLoading(false);
     }
-    // capabilities fetched once; a refresh must not depend on that state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
   useEffect(() => {
@@ -132,7 +133,7 @@ export function ConsoleServerContent() {
       setDeleteTarget(null);
       await loadData(true);
     } catch (err) {
-      setDeleteDeviceError(shownError(err, t("content.deleteDeviceFailed")));
+      setDeleteDeviceError(thrownMessage(err, t("content.deleteDeviceFailed")));
     } finally {
       setDeleteDeviceLoading(false);
     }
@@ -146,7 +147,7 @@ export function ConsoleServerContent() {
       setDeleteAllOpen(false);
       await loadData(true);
     } catch (err) {
-      setDeleteAllError(shownError(err, t("content.removeAllFailed")));
+      setDeleteAllError(thrownMessage(err, t("content.removeAllFailed")));
     } finally {
       setDeleteAllLoading(false);
     }
