@@ -97,6 +97,7 @@
     "willBeCreatedAs": "规则将创建为 <num>#{number}</num>",
     "actionRequired": "动作 *",
     "jumpTarget": "跳转目标链 *",
+    "jumpTargetRequired": "请选择跳转目标链",
     "queueNumber": "队列编号",
     "queuePlaceholder": "队列编号 (0-65535)",
     "descriptionPlaceholder": "规则描述",

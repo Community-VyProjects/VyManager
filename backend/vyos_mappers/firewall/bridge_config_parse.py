@@ -34,9 +34,9 @@ def _dict(value: Any) -> dict:
     return value if isinstance(value, dict) else {}
 
 
-def parse_rule(rule_number: int, rule_config: dict) -> Dict[str, Any]:
+def parse_rule(mapper, rule_number: int, rule_config: dict) -> Dict[str, Any]:
     """Parse one bridge rule into the router model's field names."""
-    from vyos_mappers.firewall.bridge import TCP_FLAG_NAMES
+    flag_names = mapper.tcp_flag_names()
 
     source = _dict(rule_config.get("source"))
     source_group = _dict(source.get("group"))
@@ -58,8 +58,8 @@ def parse_rule(rule_number: int, rule_config: dict) -> Dict[str, Any]:
     ttl_opts = _dict(rule_config.get("ttl"))
     hop_limit_opts = _dict(rule_config.get("hop-limit"))
     log_opts = _dict(rule_config.get("log-options"))
-    tcp_flag_list = ",".join(flag for flag in TCP_FLAG_NAMES if flag in tcp_flags) or None
-    tcp_flag_not_list = ",".join(flag for flag in TCP_FLAG_NAMES if flag in not_flags) or None
+    tcp_flag_list = ",".join(flag for flag in flag_names if flag in tcp_flags) or None
+    tcp_flag_not_list = ",".join(flag for flag in flag_names if flag in not_flags) or None
 
     return {
         "rule_number": rule_number,
@@ -139,12 +139,12 @@ def parse_rule(rule_number: int, rule_config: dict) -> Dict[str, Any]:
     }
 
 
-def parse_chain(chain_name: str, chain_data: dict) -> Dict[str, Any]:
+def parse_chain(mapper, chain_name: str, chain_data: dict) -> Dict[str, Any]:
     """Parse one chain, including its rules, into plain dicts."""
     rules = []
     for rule_num, rule_config in _dict(chain_data.get("rule")).items():
         if isinstance(rule_config, dict):
-            rules.append(parse_rule(int(rule_num), rule_config))
+            rules.append(parse_rule(mapper, int(rule_num), rule_config))
     rules.sort(key=lambda row: row["rule_number"])
     return {
         "name": chain_name,
@@ -168,7 +168,7 @@ def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(raw, dict):
             continue
         chain_data = raw["filter"] if isinstance(raw.get("filter"), dict) else raw
-        chain = parse_chain(chain_name, chain_data)
+        chain = parse_chain(mapper, chain_name, chain_data)
         chains.append(chain)
         total_rules += chain["rule_count"]
 
@@ -176,7 +176,7 @@ def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     for chain_name, chain_data in _dict(bridge.get("name")).items():
         if not isinstance(chain_data, dict):
             continue
-        chain = parse_chain(str(chain_name), chain_data)
+        chain = parse_chain(mapper, str(chain_name), chain_data)
         custom_chains.append(chain)
         total_rules += chain["rule_count"]
 

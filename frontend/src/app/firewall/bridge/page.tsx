@@ -66,6 +66,14 @@ import {
 import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
 import { cn } from "@/lib/utils";
 import { BridgeRuleModal } from "@/components/firewall/BridgeRuleModal";
+import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleModal";
+import { CreateCustomBridgeChainModal } from "@/components/firewall/CreateCustomBridgeChainModal";
+import { DeleteCustomBridgeChainModal } from "@/components/firewall/DeleteCustomBridgeChainModal";
+import { BridgeRuleRow } from "@/components/firewall/BridgeRuleRow";
+import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
+import { BridgeReorderBanner } from "@/components/firewall/BridgeReorderBanner";
+import { ColumnToggleButton } from "@/components/firewall/ColumnToggleButton";
+import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
 
 function actionOptionKey(action: string):
   | "actionOptions.accept"
@@ -109,14 +117,6 @@ function failedSaveMessage(
   if (!result || result.success !== false) return null;
   return result.error || fallback;
 }
-import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleModal";
-import { CreateCustomBridgeChainModal } from "@/components/firewall/CreateCustomBridgeChainModal";
-import { DeleteCustomBridgeChainModal } from "@/components/firewall/DeleteCustomBridgeChainModal";
-import { BridgeRuleRow } from "@/components/firewall/BridgeRuleRow";
-import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
-import { BridgeReorderBanner } from "@/components/firewall/BridgeReorderBanner";
-import { ColumnToggleButton } from "@/components/firewall/ColumnToggleButton";
-import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
 
 const BRIDGE_COLUMNS: ColumnDef[] = [
   { id: "source",          label: "Source" },
@@ -472,6 +472,10 @@ export default function BridgeFirewallPage() {
   };
 
   const currentChain = getCurrentChain();
+  const listedDefaultActions = (isCustomChain ? capabilities?.custom_default_actions : capabilities?.base_default_actions) ?? [];
+  const defaultActions = currentChain?.default_action && !listedDefaultActions.includes(currentChain.default_action)
+    ? [currentChain.default_action, ...listedDefaultActions]
+    : listedDefaultActions;
   const filteredRules = getFilteredRules();
   const customChains = config?.custom_chains || [];
   const totalRules = config?.total_rules || 0;
@@ -815,7 +819,7 @@ export default function BridgeFirewallPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="not_set">{t("actionOptions.notSet")}</SelectItem>
-                    {(isCustomChain ? capabilities?.custom_default_actions : capabilities?.base_default_actions)?.map((action) => {
+                    {defaultActions.map((action) => {
                       const key = actionOptionKey(action);
                       return (
                         <SelectItem key={action} value={action}>{key ? t(key) : action}</SelectItem>

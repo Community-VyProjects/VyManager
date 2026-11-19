@@ -188,7 +188,7 @@ export function BridgeRuleModal({
   // Jump target
   const [jumpTarget, setJumpTarget] = useState("");
 
-  // Queue (1.5+)
+  // Queue
   const [queue, setQueue] = useState("");
 
   // ICMP (1.5+)
@@ -454,6 +454,10 @@ export function BridgeRuleModal({
 
   const submitUpdate = async () => {
     if (!existing) return;
+    if (action === "jump" && !jumpTarget.trim()) {
+      setError(t("ruleModal.jumpTargetRequired"));
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -541,6 +545,11 @@ export function BridgeRuleModal({
   const handleSubmit = async () => {
     if (isEdit) {
       await submitUpdate();
+      return;
+    }
+
+    if (action === "jump" && !jumpTarget.trim()) {
+      setError(t("ruleModal.jumpTargetRequired"));
       return;
     }
 
@@ -717,10 +726,9 @@ export function BridgeRuleModal({
             {action === "jump" && (
               <div className="space-y-2">
                 <Label htmlFor="jumpTarget">{t("ruleModal.jumpTarget")}</Label>
-                <Select value={jumpTarget || "_none_"} onValueChange={(value) => setJumpTarget(value === "_none_" ? "" : value)}>
-                  <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
+                <Select value={jumpTarget || undefined} onValueChange={setJumpTarget}>
+                  <SelectTrigger><SelectValue placeholder={t("ruleModal.jumpTargetRequired")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none_">{tc("none")}</SelectItem>
                     {(jumpTarget && !customChainNames.includes(jumpTarget)
                       ? [jumpTarget, ...customChainNames]
                       : customChainNames

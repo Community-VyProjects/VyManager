@@ -97,6 +97,7 @@
     "willBeCreatedAs": "Rule will be created as <num>#{number}</num>",
     "actionRequired": "Action *",
     "jumpTarget": "Jump Target Chain *",
+    "jumpTargetRequired": "Select a jump target chain",
     "queueNumber": "Queue Number",
     "queuePlaceholder": "Queue number (0-65535)",
     "descriptionPlaceholder": "Rule description",

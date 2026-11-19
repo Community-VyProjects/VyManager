@@ -274,8 +274,6 @@ async def get_bridge_config(request: Request, refresh: bool = False):
 
     except HTTPException:
         raise
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -699,7 +697,7 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
                 if rule.ipsec_match_none_out:
                     batch.set_rule_ipsec_match_none_out(chain, new_number)
 
-                # Log options (VyOS 1.5+)
+                # Log options
                 if rule.log_options_level:
                     batch.set_rule_log_options_level(chain, new_number, rule.log_options_level)
                 if rule.log_options_group:
@@ -713,7 +711,7 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
                 if rule.jump_target:
                     batch.set_rule_jump_target(chain, new_number, rule.jump_target)
 
-                # Queue (VyOS 1.5+)
+                # Queue
                 if rule.queue:
                     batch.set_rule_queue(chain, new_number, rule.queue)
 

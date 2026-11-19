@@ -65,7 +65,7 @@ export interface BridgeRule {
   // Rate limiting (1.5+)
   limit_rate?: string | null;
   limit_burst?: string | null;
-  // Log options (1.5+)
+  // Log options
   log_options_level?: string | null;
   log_options_group?: string | null;
   log_options_queue_threshold?: string | null;
@@ -360,7 +360,7 @@ class BridgeFirewallService {
       // Rate limiting (1.5+)
       limit_rate?: string;
       limit_burst?: string;
-      // Log options (1.5+)
+      // Log options
       log_options_level?: string;
       log_options_group?: string;
       log_options_queue_threshold?: string;
@@ -559,7 +559,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_limit_burst", value: config.limit_burst });
     }
 
-    // Log options (1.5+)
+    // Log options
     if (config.log_options_level) {
       operations.push({ op: "set_rule_log_options_level", value: config.log_options_level });
     }
@@ -857,7 +857,7 @@ class BridgeFirewallService {
     handleStringField("limit_rate", "set_rule_limit_rate", "delete_rule_limit_rate");
     handleStringField("limit_burst", "set_rule_limit_burst", "delete_rule_limit_burst");
 
-    // Log options (1.5+)
+    // Log options
     handleStringField("log_options_level", "set_rule_log_options_level", "delete_rule_log_options_level");
     handleStringField("log_options_group", "set_rule_log_options_group", "delete_rule_log_options_group");
     handleStringField("log_options_queue_threshold", "set_rule_log_options_queue_threshold", "delete_rule_log_options_queue_threshold");

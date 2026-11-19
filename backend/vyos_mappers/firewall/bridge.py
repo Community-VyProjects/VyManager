@@ -153,12 +153,12 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         return ["drop", "reject", "return", "accept", "continue"]
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
-        from .config_parse import parse_config as parse_bridge_config
+        from .bridge_config_parse import parse_config as parse_bridge_config
 
         return parse_bridge_config(self, full_config)
 
     def interface_options(self, full_config: Dict[str, Any]) -> List[Dict[str, Any]]:
-        from .config_parse import interface_options as parse_interface_options
+        from .bridge_config_parse import interface_options as parse_interface_options
 
         return parse_interface_options(full_config)
 
