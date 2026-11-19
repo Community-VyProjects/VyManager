@@ -48,7 +48,7 @@ import {
   BabelDistributeListInterfaceModal,
   type BabelDistributeListInterfaceDraft,
 } from "./BabelDistributeListInterfaceModal";
-import { BabelListSelect } from "./BabelListSelect";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { useTranslations } from "next-intl";
@@ -301,16 +301,18 @@ export function BabelContent() {
     saved: DistributeListFilter | undefined,
     names: string[],
     setDraft: (next: DistributeListFilter) => void,
+    id: string,
   ) => {
     const value = (editingDistList ? draft?.[field] : saved?.[field]) ?? "";
     return (
       <div>
-        <Label className="text-sm">{label}</Label>
-        <BabelListSelect
+        <Label htmlFor={id} className="text-sm">{label}</Label>
+        <NamedListSelect
+          id={id}
           value={value}
           names={names}
           disabled={!editingDistList || !draft}
-          onChange={(next) => {
+          onValueChange={(next) => {
             if (draft) setDraft({ ...draft, [field]: next || null });
           }}
         />
@@ -610,8 +612,9 @@ export function BabelContent() {
                         <Label htmlFor="diversity">{t("parameters.enableDiversity")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("parameters.diversityFactor")}</Label>
+                        <Label htmlFor="babel-diversity-factor" className="text-sm">{t("parameters.diversityFactor")}</Label>
                         <Input
+                          id="babel-diversity-factor"
                           type="number"
                           min={1}
                           max={256}
@@ -635,8 +638,9 @@ export function BabelContent() {
                     <h3 className="font-semibold mb-4">{t("parameters.timing")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">{t("parameters.resendDelay")}</Label>
+                        <Label htmlFor="babel-resend-delay" className="text-sm">{t("parameters.resendDelay")}</Label>
                         <Input
+                          id="babel-resend-delay"
                           type="number"
                           min={20}
                           max={655340}
@@ -652,8 +656,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">{t("parameters.smoothingHalfLife")}</Label>
+                        <Label htmlFor="babel-smoothing-half-life" className="text-sm">{t("parameters.smoothingHalfLife")}</Label>
                         <Input
+                          id="babel-smoothing-half-life"
                           type="number"
                           min={0}
                           max={65534}
@@ -788,10 +793,10 @@ export function BabelContent() {
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-4">{t("distributeList.ipv4Global")}</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      {renderGlobalFilter(t("distributeList.accessListIn"), "access_list_in", distListIpv4Draft, config?.distribute_list.ipv4, accessListNames.ipv4, setDistListIpv4Draft)}
-                      {renderGlobalFilter(t("distributeList.accessListOut"), "access_list_out", distListIpv4Draft, config?.distribute_list.ipv4, accessListNames.ipv4, setDistListIpv4Draft)}
-                      {renderGlobalFilter(t("distributeList.prefixListIn"), "prefix_list_in", distListIpv4Draft, config?.distribute_list.ipv4, prefixListNames.ipv4, setDistListIpv4Draft)}
-                      {renderGlobalFilter(t("distributeList.prefixListOut"), "prefix_list_out", distListIpv4Draft, config?.distribute_list.ipv4, prefixListNames.ipv4, setDistListIpv4Draft)}
+                      {renderGlobalFilter(t("distributeList.accessListIn"), "access_list_in", distListIpv4Draft, config?.distribute_list.ipv4, accessListNames.ipv4, setDistListIpv4Draft, "babel-dl-v4-acl-in")}
+                      {renderGlobalFilter(t("distributeList.accessListOut"), "access_list_out", distListIpv4Draft, config?.distribute_list.ipv4, accessListNames.ipv4, setDistListIpv4Draft, "babel-dl-v4-acl-out")}
+                      {renderGlobalFilter(t("distributeList.prefixListIn"), "prefix_list_in", distListIpv4Draft, config?.distribute_list.ipv4, prefixListNames.ipv4, setDistListIpv4Draft, "babel-dl-v4-pl-in")}
+                      {renderGlobalFilter(t("distributeList.prefixListOut"), "prefix_list_out", distListIpv4Draft, config?.distribute_list.ipv4, prefixListNames.ipv4, setDistListIpv4Draft, "babel-dl-v4-pl-out")}
                     </div>
                   </CardContent>
                 </Card>
@@ -800,10 +805,10 @@ export function BabelContent() {
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-4">{t("distributeList.ipv6Global")}</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      {renderGlobalFilter(t("distributeList.accessListIn"), "access_list_in", distListIpv6Draft, config?.distribute_list.ipv6, accessListNames.ipv6, setDistListIpv6Draft)}
-                      {renderGlobalFilter(t("distributeList.accessListOut"), "access_list_out", distListIpv6Draft, config?.distribute_list.ipv6, accessListNames.ipv6, setDistListIpv6Draft)}
-                      {renderGlobalFilter(t("distributeList.prefixListIn"), "prefix_list_in", distListIpv6Draft, config?.distribute_list.ipv6, prefixListNames.ipv6, setDistListIpv6Draft)}
-                      {renderGlobalFilter(t("distributeList.prefixListOut"), "prefix_list_out", distListIpv6Draft, config?.distribute_list.ipv6, prefixListNames.ipv6, setDistListIpv6Draft)}
+                      {renderGlobalFilter(t("distributeList.accessListIn"), "access_list_in", distListIpv6Draft, config?.distribute_list.ipv6, accessListNames.ipv6, setDistListIpv6Draft, "babel-dl-v6-acl-in")}
+                      {renderGlobalFilter(t("distributeList.accessListOut"), "access_list_out", distListIpv6Draft, config?.distribute_list.ipv6, accessListNames.ipv6, setDistListIpv6Draft, "babel-dl-v6-acl-out")}
+                      {renderGlobalFilter(t("distributeList.prefixListIn"), "prefix_list_in", distListIpv6Draft, config?.distribute_list.ipv6, prefixListNames.ipv6, setDistListIpv6Draft, "babel-dl-v6-pl-in")}
+                      {renderGlobalFilter(t("distributeList.prefixListOut"), "prefix_list_out", distListIpv6Draft, config?.distribute_list.ipv6, prefixListNames.ipv6, setDistListIpv6Draft, "babel-dl-v6-pl-out")}
                     </div>
                   </CardContent>
                 </Card>

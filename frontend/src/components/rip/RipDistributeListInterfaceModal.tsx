@@ -11,13 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipDistributeListInterface } from "@/lib/api/rip";
@@ -28,7 +23,6 @@ interface RipDistributeListInterfaceModalProps {
   onSubmit: (entry: RipDistributeListInterface) => Promise<void>;
   existingEntry?: RipDistributeListInterface | null;
   existingInterfaces: string[];
-  availableInterfaces: string[];
   accessListNames: string[];
   prefixListNames: string[];
 }
@@ -39,7 +33,6 @@ export function RipDistributeListInterfaceModal({
   onSubmit,
   existingEntry,
   existingInterfaces,
-  availableInterfaces,
   accessListNames,
   prefixListNames,
 }: RipDistributeListInterfaceModalProps) {
@@ -56,10 +49,6 @@ export function RipDistributeListInterfaceModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectableInterfaces = isEditMode
-    ? availableInterfaces
-    : availableInterfaces.filter((i) => !existingInterfaces.includes(i));
-
   useEffect(() => {
     if (!open) return;
     if (existingEntry) {
@@ -68,6 +57,7 @@ export function RipDistributeListInterfaceModal({
       setAclOut(existingEntry.access_list_out || "");
       setPlIn(existingEntry.prefix_list_in || "");
       setPlOut(existingEntry.prefix_list_out || "");
+      setError(null);
     } else {
       setIface("");
       setAclIn("");
@@ -120,36 +110,8 @@ export function RipDistributeListInterfaceModal({
     }
   };
 
-  const renderAclSelect = (value: string, onChange: (v: string) => void, id: string) => (
-    <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
-      <SelectTrigger id={id}>
-        <SelectValue placeholder={tc("none")} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">{tc("none")}</SelectItem>
-        {accessListNames.map((al) => (
-          <SelectItem key={al} value={al} className="font-mono">{al}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  const renderPlSelect = (value: string, onChange: (v: string) => void, id: string) => (
-    <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
-      <SelectTrigger id={id}>
-        <SelectValue placeholder={tc("none")} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">{tc("none")}</SelectItem>
-        {prefixListNames.map((pl) => (
-          <SelectItem key={pl} value={pl} className="font-mono">{pl}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -163,35 +125,34 @@ export function RipDistributeListInterfaceModal({
         <div className="space-y-4">
           {/* Interface */}
           <div className="space-y-2">
-            <Label>{t("interfaces.interface")}</Label>
-            <Select value={iface} onValueChange={setIface} disabled={isEditMode}>
-              <SelectTrigger className={isEditMode ? "bg-muted" : ""}>
-                <SelectValue placeholder={tc("selectInterface")} />
-              </SelectTrigger>
-              <SelectContent>
-                {selectableInterfaces.map((i) => (
-                  <SelectItem key={i} value={i}>{i}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="rip-dl-iface">{t("interfaces.interface")}</Label>
+            <InterfaceSelect
+              id="rip-dl-iface"
+              value={iface}
+              onValueChange={setIface}
+              disabled={isEditMode}
+              className={isEditMode ? "bg-muted" : ""}
+              placeholder={tc("selectInterface")}
+              filter={(item) => isEditMode || !existingInterfaces.includes(item.name)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="rip-dl-acl-in">{t("filters.accessListIn")}</Label>
-              {renderAclSelect(aclIn, setAclIn, "rip-dl-acl-in")}
+              <NamedListSelect id="rip-dl-acl-in" value={aclIn} names={accessListNames} onValueChange={setAclIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rip-dl-acl-out">{t("filters.accessListOut")}</Label>
-              {renderAclSelect(aclOut, setAclOut, "rip-dl-acl-out")}
+              <NamedListSelect id="rip-dl-acl-out" value={aclOut} names={accessListNames} onValueChange={setAclOut} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rip-dl-pl-in">{t("filters.prefixListIn")}</Label>
-              {renderPlSelect(plIn, setPlIn, "rip-dl-pl-in")}
+              <NamedListSelect id="rip-dl-pl-in" value={plIn} names={prefixListNames} onValueChange={setPlIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rip-dl-pl-out">{t("filters.prefixListOut")}</Label>
-              {renderPlSelect(plOut, setPlOut, "rip-dl-pl-out")}
+              <NamedListSelect id="rip-dl-pl-out" value={plOut} names={prefixListNames} onValueChange={setPlOut} />
             </div>
           </div>
         </div>

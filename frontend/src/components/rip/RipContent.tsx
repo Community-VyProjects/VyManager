@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import {
   Table,
   TableBody,
@@ -54,7 +56,6 @@ import {
 import { routeMapService } from "@/lib/api/route-map";
 import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
-import { showService } from "@/lib/api/show";
 import { RipInterfaceModal } from "./RipInterfaceModal";
 import { RipRedistributeModal } from "./RipRedistributeModal";
 import { RipNetworkDistanceModal } from "./RipNetworkDistanceModal";
@@ -78,7 +79,6 @@ export function RipContent() {
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
   const [accessListNames, setAccessListNames] = useState<string[]>([]);
   const [prefixListNames, setPrefixListNames] = useState<string[]>([]);
-  const [systemInterfaces, setSystemInterfaces] = useState<string[]>([]);
 
   // ============================================================
   // Overview / Timers editing
@@ -151,21 +151,19 @@ export function RipContent() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capData, routeMaps, accessLists, prefixLists, interfaces] =
+      const [configData, capData, routeMaps, accessLists, prefixLists] =
         await Promise.all([
           ripService.getConfig(refresh),
           ripService.getCapabilities(),
           routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => [] as string[]),
           accessListService.getConfig().then((c) => c.ipv4_lists.map((al) => al.number)).catch(() => [] as string[]),
           prefixListService.getConfig().then((c) => c.ipv4_lists.map((pl) => pl.name)).catch(() => [] as string[]),
-          showService.getAllInterfaces().then((r) => r.interfaces.map((i) => i.name)).catch(() => [] as string[]),
         ]);
       setConfig(configData);
       setCapabilities(capData);
       setRouteMapNames(routeMaps);
       setAccessListNames(accessLists);
       setPrefixListNames(prefixLists);
-      setSystemInterfaces(interfaces);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.loadFailed"));
     } finally {
@@ -469,25 +467,21 @@ export function RipContent() {
     err: string | null,
     inputPlaceholder: string,
     isDropdown?: boolean,
-    dropdownOptions?: string[]
   ) => (
     <Card>
       <CardContent className="p-4">
         <h3 className="font-semibold mb-3 text-sm">{title}</h3>
         {hasWritePermission && (
           <div className="flex gap-2 mb-3">
-            {isDropdown && dropdownOptions ? (
-              <Select value={inputValue} onValueChange={onInputChange}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder={inputPlaceholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">{tc("shown.default")}</SelectItem>
-                  {dropdownOptions.map((o) => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {isDropdown ? (
+              <InterfaceSelect
+                value={inputValue}
+                onValueChange={onInputChange}
+                placeholder={inputPlaceholder}
+                className="flex-1"
+                filter={(item) => !items.includes(item.name)}
+                noneOption={items.includes("default") ? undefined : { label: "default", value: "default" }}
+              />
             ) : (
               <Input
                 placeholder={inputPlaceholder}
@@ -703,13 +697,13 @@ export function RipContent() {
                     <div className="space-y-4">
                       {/* Version */}
                       <div className="space-y-2">
-                        <Label>{t("overview.version")}</Label>
+                        <Label htmlFor="rip-version">{t("overview.version")}</Label>
                         <Select
                           value={overviewEditing ? (ovVersion || "unset") : (config?.version || "unset")}
                           onValueChange={(v) => setOvVersion(v === "unset" ? "" : v)}
                           disabled={!overviewEditing}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="rip-version">
                             <SelectValue placeholder={tc("default")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -722,9 +716,9 @@ export function RipContent() {
 
                       {/* Default Distance */}
                       <div className="space-y-2">
-                        <Label>{t("overview.defaultDistance")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.defaultDistanceHelp")}</p>
+                        <Label htmlFor="rip-default-distance">{t("overview.defaultDistance")}</Label>
                         <Input
+                          id="rip-default-distance"
                           type="number"
                           min={1}
                           max={255}
@@ -737,9 +731,9 @@ export function RipContent() {
 
                       {/* Default Metric */}
                       <div className="space-y-2">
-                        <Label>{t("overview.defaultMetric")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.defaultMetricHelp")}</p>
+                        <Label htmlFor="rip-default-metric">{t("overview.defaultMetric")}</Label>
                         <Input
+                          id="rip-default-metric"
                           type="number"
                           min={1}
                           max={16}
@@ -752,27 +746,14 @@ export function RipContent() {
 
                       {/* Route Map */}
                       <div className="space-y-2">
-                        <Label>{t("overview.routeMap")}</Label>
-                        {overviewEditing ? (
-                          <Select value={ovRouteMap || "none"} onValueChange={(v) => setOvRouteMap(v === "none" ? "" : v)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={tc("none")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">{tc("none")}</SelectItem>
-                              {routeMapNames.map((rm) => (
-                                <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={config?.route_map ?? ""}
-                            disabled
-                            placeholder={tc("none")}
-                            className="font-mono"
-                          />
-                        )}
+                        <Label htmlFor="rip-route-map">{t("overview.routeMap")}</Label>
+                        <NamedListSelect
+                          id="rip-route-map"
+                          value={overviewEditing ? ovRouteMap : (config?.route_map ?? "")}
+                          names={routeMapNames}
+                          disabled={!overviewEditing}
+                          onValueChange={setOvRouteMap}
+                        />
                       </div>
 
                       {/* Default Information Originate */}
@@ -796,9 +777,9 @@ export function RipContent() {
                     <h3 className="font-semibold mb-4">{t("overview.timers")}</h3>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label>{t("overview.updateInterval")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.updateHelp")}</p>
+                        <Label htmlFor="rip-update-interval">{t("overview.updateInterval")}</Label>
                         <Input
+                          id="rip-update-interval"
                           type="number"
                           min={5}
                           max={2147483647}
@@ -809,9 +790,9 @@ export function RipContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("overview.timeoutInterval")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.timeoutHelp")}</p>
+                        <Label htmlFor="rip-timeout-interval">{t("overview.timeoutInterval")}</Label>
                         <Input
+                          id="rip-timeout-interval"
                           type="number"
                           min={5}
                           max={2147483647}
@@ -822,9 +803,9 @@ export function RipContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("overview.garbageCollection")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.gcHelp")}</p>
+                        <Label htmlFor="rip-gc-interval">{t("overview.garbageCollection")}</Label>
                         <Input
+                          id="rip-gc-interval"
                           type="number"
                           min={5}
                           max={2147483647}
@@ -886,9 +867,8 @@ export function RipContent() {
                   handleAddPassiveIface,
                   handleRemovePassiveIface,
                   passiveIfaceError,
-                  t("networks.selectOrTypeInterface"),
+                  tc("selectInterface"),
                   true,
-                  systemInterfaces
                 )}
               </div>
             </TabsContent>
@@ -1133,30 +1113,14 @@ export function RipContent() {
 
                             return (
                               <div key={field} className="space-y-2">
-                                <Label>{label}</Label>
-                                {dlGlobalEditing ? (
-                                  <Select
-                                    value={(dlGlobalDraft[field] ?? "") || "none"}
-                                    onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v === "none" ? null : v })}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={tc("none")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">{tc("none")}</SelectItem>
-                                      {names.map((n) => (
-                                        <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={currentVal}
-                                    disabled
-                                    placeholder={tc("none")}
-                                    className="font-mono"
-                                  />
-                                )}
+                                <Label htmlFor={`rip-dl-${field}`}>{label}</Label>
+                                <NamedListSelect
+                                  id={`rip-dl-${field}`}
+                                  value={currentVal}
+                                  names={names}
+                                  disabled={!dlGlobalEditing}
+                                  onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v || null })}
+                                />
                               </div>
                             );
                           })}
@@ -1380,7 +1344,6 @@ export function RipContent() {
         }}
         existingEntry={editingDlIface}
         existingInterfaces={config?.distribute_list.interface_filters.map((f) => f.interface) ?? []}
-        availableInterfaces={systemInterfaces}
         accessListNames={accessListNames}
         prefixListNames={prefixListNames}
         onSubmit={editingDlIface ? handleUpdateDlIface : handleCreateDlIface}
