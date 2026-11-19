@@ -2,7 +2,7 @@
 
 The shared class is returned directly on 1.4. ``protocols babel redistribute
 ipv4 nhrp`` and ``ipv6 nhrp`` exist only on 1.5, so that version gets the
-subclass. There is no empty 1.4 file.
+subclass.
 """
 
 from ..babel import BabelMapper

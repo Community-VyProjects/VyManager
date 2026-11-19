@@ -3,7 +3,7 @@
 validateTmplPath: ``protocols babel redistribute ipv4 nhrp`` and
 ``ipv6 nhrp`` are absent on VyOS 1.4 (100.64.64.4) and present on 1.5
 (100.64.64.5). Shared redistribute protocols stay on the base class.
-The factory returns that shared class for 1.4. There is no empty 1.4 file.
+The factory returns that shared class for 1.4.
 """
 
 from pathlib import Path
