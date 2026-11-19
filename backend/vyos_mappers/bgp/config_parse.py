@@ -56,6 +56,7 @@ def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
             bgp_config.get("address-family", {}), mapper
         ),
         "listen": parse_listen(bgp_config.get("listen", {})),
+        "bmp": parse_bmp(bgp_config.get("bmp", {})),
         "srv6_locator": srv6.get("locator") if srv6 else None,
         "sid_vpn_per_vrf_export": _deep_get(
             bgp_config, "sid", "vpn", "per-vrf", "export"
@@ -167,6 +168,15 @@ def parse_parameters(raw: dict) -> Dict[str, Any]:
             "interval": _safe_int(tcp_raw.get("interval")),
             "probes": _safe_int(tcp_raw.get("probes")),
         },
+        "as_notation": raw.get("as-notation"),
+        "input_queue_limit": _safe_int(raw.get("input-queue-limit")),
+        "output_queue_limit": _safe_int(raw.get("output-queue-limit")),
+        "update_delay_establish_wait": _safe_int(
+            _deep_get(raw, "update-delay", "establish-wait")
+        ),
+        "update_delay_max_delay": _safe_int(
+            _deep_get(raw, "update-delay", "max-delay")
+        ),
     }
 
 
@@ -238,14 +248,43 @@ def parse_neighbor_af_config(af_raw: dict) -> Dict[str, Any]:
     }
 
 
+def _bfd(config: dict) -> Dict[str, Any]:
+    bfd_raw = config.get("bfd", {}) or {}
+    if not isinstance(bfd_raw, dict):
+        bfd_raw = {}
+    strict_raw = bfd_raw.get("strict")
+    return {
+        "enabled": bool(bfd_raw) or "bfd" in config,
+        "check_control_plane_failure": "check-control-plane-failure" in bfd_raw,
+        "profile": bfd_raw.get("profile"),
+        "strict": "strict" in bfd_raw,
+        "strict_hold_time": (
+            _safe_int(strict_raw.get("hold-time"))
+            if isinstance(strict_raw, dict)
+            else None
+        ),
+    }
+
+
+def _link_state(config: dict) -> bool:
+    af_raw = config.get("address-family") or {}
+    return isinstance(af_raw, dict) and "link-state" in af_raw
+
+
 def parse_neighbor_address_families(neighbor_config: dict) -> Dict[str, Dict[str, Any]]:
-    """Parse all address-families for a neighbor or peer-group."""
+    """Parse address-families for a neighbor or peer-group.
+
+    ``link-state`` is a valueless 1.5 node, not a configured family. It is
+    reported as ``link_state`` on the parent.
+    """
     af_raw = neighbor_config.get("address-family", {})
     if not af_raw:
         return {}
 
     result = {}
     for afi, afi_config in af_raw.items():
+        if afi == "link-state":
+            continue
         if afi_config is None:
             afi_config = {}
         result[afi] = parse_neighbor_af_config(afi_config)
@@ -260,7 +299,6 @@ def parse_neighbors(raw: dict) -> List[Dict[str, Any]]:
         if config is None:
             config = {}
 
-        bfd_raw = config.get("bfd", {}) or {}
         cap_raw = config.get("capability", {}) or {}
         timers_raw = config.get("timers", {}) or {}
         local_as_raw = config.get("local-as", {}) or {}
@@ -317,15 +355,8 @@ def parse_neighbors(raw: dict) -> List[Dict[str, Any]]:
                 },
                 "local_role": local_role_value,
                 "local_role_strict": local_role_strict,
-                "bfd": {
-                    "enabled": bool(bfd_raw) or "bfd" in config,
-                    "check_control_plane_failure": (
-                        "check-control-plane-failure" in bfd_raw
-                        if isinstance(bfd_raw, dict)
-                        else False
-                    ),
-                    "profile": bfd_raw.get("profile") if isinstance(bfd_raw, dict) else None,
-                },
+                "bfd": _bfd(config),
+                "link_state": _link_state(config),
                 "capability": {
                     "dynamic": (
                         "dynamic" in cap_raw if isinstance(cap_raw, dict) else False
@@ -362,7 +393,6 @@ def parse_peer_groups(raw: dict) -> List[Dict[str, Any]]:
         if config is None:
             config = {}
 
-        bfd_raw = config.get("bfd", {}) or {}
         cap_raw = config.get("capability", {}) or {}
         local_as_raw = config.get("local-as", {}) or {}
         local_role_raw = config.get("local-role", {}) or {}
@@ -399,6 +429,7 @@ def parse_peer_groups(raw: dict) -> List[Dict[str, Any]]:
                 "password": config.get("password"),
                 "shutdown": "shutdown" in config,
                 "passive": "passive" in config,
+                "solo": "solo" in config,
                 "override_capability": "override-capability" in config,
                 "disable_capability_negotiation": "disable-capability-negotiation" in config,
                 "disable_connected_check": "disable-connected-check" in config,
@@ -410,15 +441,8 @@ def parse_peer_groups(raw: dict) -> List[Dict[str, Any]]:
                 },
                 "local_role": local_role_value,
                 "local_role_strict": local_role_strict,
-                "bfd": {
-                    "enabled": bool(bfd_raw) or "bfd" in config,
-                    "check_control_plane_failure": (
-                        "check-control-plane-failure" in bfd_raw
-                        if isinstance(bfd_raw, dict)
-                        else False
-                    ),
-                    "profile": bfd_raw.get("profile") if isinstance(bfd_raw, dict) else None,
-                },
+                "bfd": _bfd(config),
+                "link_state": _link_state(config),
                 "capability": {
                     "dynamic": (
                         "dynamic" in cap_raw if isinstance(cap_raw, dict) else False
@@ -554,4 +578,40 @@ def parse_listen(raw: dict) -> Dict[str, Any]:
     return {
         "limit": _safe_int(raw.get("limit")),
         "ranges": ranges,
+    }
+
+
+def parse_bmp(raw: dict) -> Dict[str, Any]:
+    """Parse BGP BMP targets. Absent node is an empty target list."""
+    if not raw:
+        return {"mirror_buffer_limit": None, "targets": []}
+
+    targets = []
+    for name, target_raw in (raw.get("target") or {}).items():
+        if target_raw is None:
+            target_raw = {}
+        if not isinstance(target_raw, dict):
+            target_raw = {}
+        monitors = []
+        monitor_raw = target_raw.get("monitor") or {}
+        if isinstance(monitor_raw, dict):
+            for afi, policies in monitor_raw.items():
+                if isinstance(policies, dict):
+                    for policy in policies:
+                        monitors.append({"afi": afi, "policy": policy})
+                elif policies:
+                    monitors.append({"afi": afi, "policy": str(policies)})
+        targets.append(
+            {
+                "name": name,
+                "address": target_raw.get("address"),
+                "port": _safe_int(target_raw.get("port")),
+                "mirror": "mirror" in target_raw,
+                "source_interface": target_raw.get("source-interface"),
+                "monitors": monitors,
+            }
+        )
+    return {
+        "mirror_buffer_limit": _safe_int(raw.get("mirror-buffer-limit")),
+        "targets": targets,
     }

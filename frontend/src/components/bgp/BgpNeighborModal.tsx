@@ -114,6 +114,7 @@ export function BgpNeighborModal({
   const [shutdown, setShutdown] = useState(false);
   const [passive, setPassive] = useState(false);
   const [solo, setSolo] = useState(false);
+  const [linkState, setLinkState] = useState(false);
   const [enforceFirstAs, setEnforceFirstAs] = useState(false);
   const [overrideCapability, setOverrideCapability] = useState(false);
   const [disableCapabilityNegotiation, setDisableCapabilityNegotiation] =
@@ -126,6 +127,8 @@ export function BgpNeighborModal({
   const [bfdEnabled, setBfdEnabled] = useState(false);
   const [bfdCheckControlPlane, setBfdCheckControlPlane] = useState(false);
   const [bfdProfile, setBfdProfile] = useState("");
+  const [bfdStrict, setBfdStrict] = useState(false);
+  const [bfdStrictHoldTime, setBfdStrictHoldTime] = useState("");
 
   // --------------------------------------------------------------------------
   // Capability
@@ -190,6 +193,7 @@ export function BgpNeighborModal({
         setShutdown(existingNeighbor.shutdown);
         setPassive(existingNeighbor.passive);
         setSolo(existingNeighbor.solo);
+        setLinkState(existingNeighbor.link_state);
         setEnforceFirstAs(existingNeighbor.enforce_first_as);
         setOverrideCapability(existingNeighbor.override_capability);
         setDisableCapabilityNegotiation(
@@ -202,6 +206,12 @@ export function BgpNeighborModal({
           existingNeighbor.bfd.check_control_plane_failure
         );
         setBfdProfile(existingNeighbor.bfd.profile || "");
+        setBfdStrict(existingNeighbor.bfd.strict);
+        setBfdStrictHoldTime(
+          existingNeighbor.bfd.strict_hold_time != null
+            ? String(existingNeighbor.bfd.strict_hold_time)
+            : ""
+        );
 
         setCapDynamic(existingNeighbor.capability.dynamic);
         setCapExtendedNexthop(existingNeighbor.capability.extended_nexthop);
@@ -268,6 +278,7 @@ export function BgpNeighborModal({
     setShutdown(false);
     setPassive(false);
     setSolo(false);
+    setLinkState(false);
     setEnforceFirstAs(false);
     setOverrideCapability(false);
     setDisableCapabilityNegotiation(false);
@@ -276,6 +287,8 @@ export function BgpNeighborModal({
     setBfdEnabled(false);
     setBfdCheckControlPlane(false);
     setBfdProfile("");
+    setBfdStrict(false);
+    setBfdStrictHoldTime("");
 
     setCapDynamic(false);
     setCapExtendedNexthop(false);
@@ -373,6 +386,7 @@ export function BgpNeighborModal({
         shutdown,
         passive,
         solo,
+        link_state: linkState,
         enforce_first_as: enforceFirstAs,
         override_capability: overrideCapability,
         strict_capability_match: false,
@@ -399,6 +413,11 @@ export function BgpNeighborModal({
           enabled: bfdEnabled,
           check_control_plane_failure: bfdCheckControlPlane,
           profile: bfdProfile.trim() || null,
+          strict: bfdEnabled && bfdStrict,
+          strict_hold_time:
+            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim()
+              ? parseInt(bfdStrictHoldTime.trim(), 10)
+              : null,
         },
         capability: {
           dynamic: capDynamic,
@@ -605,6 +624,19 @@ export function BgpNeighborModal({
                   </div>
                 </div>
 
+                {capabilities?.features.neighbor_link_state?.supported && (
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="bgp-neighbor-link-state"
+                      checked={linkState}
+                      onCheckedChange={(checked) => setLinkState(checked === true)}
+                    />
+                    <Label htmlFor="bgp-neighbor-link-state" className="cursor-pointer">
+                      {t("neighborModal.linkState")}
+                    </Label>
+                  </div>
+                )}
+
                 {/* Enforce First AS */}
                 <div className="flex items-center space-x-3">
                   <Checkbox
@@ -762,6 +794,28 @@ export function BgpNeighborModal({
                         </SelectContent>
                       </Select>
                     </div>
+                    {capabilities?.features.neighbor_bfd_strict?.supported && (
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <Checkbox
+                            id="bgp-neighbor-bfd-strict"
+                            checked={bfdStrict}
+                            onCheckedChange={(checked) => setBfdStrict(checked === true)}
+                          />
+                          <Label htmlFor="bgp-neighbor-bfd-strict" className="cursor-pointer">
+                            {t("neighborModal.bfdStrict")}
+                          </Label>
+                        </div>
+                        {bfdStrict && (
+                          <Input
+                            value={bfdStrictHoldTime}
+                            onChange={(e) => setBfdStrictHoldTime(e.target.value)}
+                            placeholder={t("neighborModal.bfdStrictHoldTime")}
+                            className="h-9"
+                          />
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

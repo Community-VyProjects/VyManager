@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -93,6 +94,7 @@ export function BgpContent() {
   const [afRedistProto, setAfRedistProto] = useState("");
   const [afRedistRouteMap, setAfRedistRouteMap] = useState("");
   const [afRedistMetric, setAfRedistMetric] = useState("");
+  const [afRedistTable, setAfRedistTable] = useState("");
   const [afAggPrefix, setAfAggPrefix] = useState("");
   const [afAggAsSet, setAfAggAsSet] = useState(false);
   const [afAggSummaryOnly, setAfAggSummaryOnly] = useState(false);
@@ -310,11 +312,17 @@ export function BgpContent() {
     }
   };
 
-  const handleDeleteRedistribute = async (protocol: string) => {
+  const handleDeleteRedistribute = async (protocol: string, table?: string) => {
     setAfSaving(true);
     setAfError(null);
     try {
-      await bgpService.deleteRedistribute(selectedAfi, protocol);
+      const result = protocol === "table" && table
+        ? await bgpService.deleteRedistributeTable(selectedAfi, table)
+        : await bgpService.deleteRedistribute(selectedAfi, protocol);
+      if (!result.success) {
+        setAfError(result.error ?? t("content.deleteRedistributeFailed"));
+        return;
+      }
       await loadData(true);
     } catch (err) {
       setAfError(err instanceof Error ? err.message : t("content.deleteRedistributeFailed"));
@@ -407,9 +415,12 @@ export function BgpContent() {
     return formatUnknownAfi(afi);
   };
 
-  const redistributeProtocols = [
-    "connected", "kernel", "ospf", "rip", "static", "babel", "isis", "table",
-  ];
+  const redistributeProtocols =
+    (selectedAfi === "ipv6-unicast"
+      ? capabilities?.redistribute_protocols?.["ipv6-unicast"]
+      : selectedAfi === "ipv4-unicast"
+        ? capabilities?.redistribute_protocols?.["ipv4-unicast"]
+        : []) ?? [];
 
   // ==========================================================================
   // Render
@@ -546,6 +557,7 @@ export function BgpContent() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="parameters">{t("content.parametersTab")}</TabsTrigger>
+              <TabsTrigger value="bmp">{t("content.bmpTab")}</TabsTrigger>
             </TabsList>
 
             {/* ============================================================ */}
@@ -1105,8 +1117,8 @@ export function BgpContent() {
                             </TableHeader>
                             <TableBody>
                               {currentAf.redistribute.map((rd) => (
-                                <TableRow key={rd.protocol}>
-                                  <TableCell className="font-mono">{rd.protocol}</TableCell>
+                                <TableRow key={`${rd.protocol}-${rd.table ?? ""}`}>
+                                  <TableCell className="font-mono">{rd.protocol === "table" ? rd.table : rd.protocol}</TableCell>
                                   <TableCell>{rd.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
                                   <TableCell className="font-mono">{rd.metric || <span className="text-muted-foreground">-</span>}</TableCell>
                                   <TableCell className="text-right">
@@ -1114,7 +1126,7 @@ export function BgpContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => handleDeleteRedistribute(rd.protocol)}
+                                      onClick={() => handleDeleteRedistribute(rd.protocol, rd.table ?? undefined)}
                                       disabled={afSaving}
                                     >
                                       <Trash2 className="h-4 w-4" />
@@ -1168,6 +1180,37 @@ export function BgpContent() {
                             {tc("add")}
                           </Button>
                         </div>
+                        {(capabilities?.redistribute_table_afis ?? []).includes(selectedAfi) && (
+                          <div className="flex items-end gap-3 mt-4">
+                            <div className="w-[160px] space-y-1">
+                              <Label className="text-xs">{t("content.af.table")}</Label>
+                              <Input value={afRedistTable} onChange={(e) => setAfRedistTable(e.target.value)} className="h-9" />
+                            </div>
+                            <Button
+                              size="sm"
+                              disabled={afSaving || !afRedistTable.trim()}
+                              onClick={async () => {
+                                setAfSaving(true);
+                                setAfError(null);
+                                try {
+                                  const result = await bgpService.addRedistributeTable(selectedAfi, afRedistTable.trim());
+                                  if (!result.success) {
+                                    setAfError(result.error ?? t("content.addRedistributeFailed"));
+                                    return;
+                                  }
+                                  setAfRedistTable("");
+                                  await loadData(true);
+                                } catch (err) {
+                                  setAfError(err instanceof Error ? err.message : t("content.addRedistributeFailed"));
+                                } finally {
+                                  setAfSaving(false);
+                                }
+                              }}
+                            >
+                              {tc("add")}
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
 
@@ -1385,6 +1428,7 @@ export function BgpContent() {
                         { key: "suppress_fib_pending" as const },
                         { key: "no_suppress_duplicates" as const },
                         { key: "no_ipv6_auto_ra" as const },
+                        { key: "no_hard_administrative_reset" as const },
                         { key: "shutdown" as const, destructive: true },
                       ] as const).map((item) => {
                         const { key } = item;
@@ -1459,6 +1503,78 @@ export function BgpContent() {
                   </CardContent>
                 </Card>
 
+                {(capabilities?.features.as_notation?.supported
+                  || capabilities?.features.input_queue_limit?.supported
+                  || capabilities?.features.update_delay?.supported) && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        {capabilities?.features.as_notation?.supported && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("content.params.asNotation")}</Label>
+                            {paramsEditing && editParams ? (
+                              <Select
+                                value={editParams.as_notation || "__none__"}
+                                onValueChange={(v) => updateParam("as_notation", v === "__none__" ? null : v)}
+                              >
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
+                                  {(capabilities.features.as_notation.values || []).map((value) => (
+                                    <SelectItem key={value} value={value}>{value}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.as_notation || tc("notSet")}</p>
+                            )}
+                          </div>
+                        )}
+                        {capabilities?.features.input_queue_limit?.supported && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("content.params.inputQueueLimit")}</Label>
+                            {paramsEditing && editParams ? (
+                              <Input type="number" className="h-9" value={editParams.input_queue_limit ?? ""} onChange={(e) => updateParam("input_queue_limit", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                            ) : (
+                              <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.input_queue_limit ?? tc("notSet")}</p>
+                            )}
+                          </div>
+                        )}
+                        {capabilities?.features.output_queue_limit?.supported && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("content.params.outputQueueLimit")}</Label>
+                            {paramsEditing && editParams ? (
+                              <Input type="number" className="h-9" value={editParams.output_queue_limit ?? ""} onChange={(e) => updateParam("output_queue_limit", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                            ) : (
+                              <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.output_queue_limit ?? tc("notSet")}</p>
+                            )}
+                          </div>
+                        )}
+                        {capabilities?.features.update_delay?.supported && (
+                          <>
+                            <div className="space-y-2">
+                              <Label className="text-xs">{t("content.params.updateDelayEstablishWait")}</Label>
+                              {paramsEditing && editParams ? (
+                                <Input type="number" className="h-9" value={editParams.update_delay_establish_wait ?? ""} onChange={(e) => updateParam("update_delay_establish_wait", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                              ) : (
+                                <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.update_delay_establish_wait ?? tc("notSet")}</p>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs">{t("content.params.updateDelayMaxDelay")}</Label>
+                              {paramsEditing && editParams ? (
+                                <Input type="number" className="h-9" value={editParams.update_delay_max_delay ?? ""} onChange={(e) => updateParam("update_delay_max_delay", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                              ) : (
+                                <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.update_delay_max_delay ?? tc("notSet")}</p>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Administrative Distance */}
                 <Card>
                   <CardContent className="p-6">
@@ -1500,6 +1616,67 @@ export function BgpContent() {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="bmp">
+              <div className="space-y-4">
+                {(config?.bmp?.targets ?? []).length === 0 && (
+                  <p className="text-sm text-muted-foreground">{tc("notSet")}</p>
+                )}
+                {(config?.bmp?.targets ?? []).map((target) => (
+                  <Card key={target.name}>
+                    <CardContent className="p-6 space-y-3">
+                      <p className="text-sm font-mono">{target.name}</p>
+                      {capabilities?.features.bmp?.source_interface && (
+                        <div className="space-y-1">
+                          <Label className="text-xs">{t("content.bmp.sourceInterface")}</Label>
+                          <InterfaceSelect
+                            value={target.source_interface || ""}
+                            noneOption={{ label: tc("none"), value: "" }}
+                            onValueChange={async (value) => {
+                              const result = await bgpService.setBmpSourceInterface(target.name, value || null);
+                              if (!result.success) {
+                                setParamsError(result.error ?? t("content.saveFailed"));
+                                return;
+                              }
+                              await loadData(true);
+                            }}
+                          />
+                        </div>
+                      )}
+                      {["ipv4-unicast", "ipv6-unicast"].map((afi) => (
+                        <div key={afi} className="space-y-2">
+                          <p className="text-xs text-muted-foreground">{afi}</p>
+                          <div className="flex flex-wrap gap-4">
+                            {(capabilities?.features.bmp?.monitor_policies ?? []).map((policy) => (
+                              <div key={`${afi}-${policy}`} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`bmp-${target.name}-${afi}-${policy}`}
+                                  checked={target.monitors.some((item) => item.afi === afi && item.policy === policy)}
+                                  onCheckedChange={async (checked) => {
+                                    const result = await bgpService.setBmpMonitor(
+                                      target.name,
+                                      afi,
+                                      policy,
+                                      checked === true,
+                                    );
+                                    if (!result.success) {
+                                      setParamsError(result.error ?? t("content.saveFailed"));
+                                      return;
+                                    }
+                                    await loadData(true);
+                                  }}
+                                />
+                                <Label htmlFor={`bmp-${target.name}-${afi}-${policy}`}>{policy}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </TabsContent>
           </Tabs>

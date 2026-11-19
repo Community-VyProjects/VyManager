@@ -74,12 +74,19 @@ export interface BgpParameters {
   graceful_restart_stalepath_time: number | null;
   conditional_advertisement_timer: number | null;
   tcp_keepalive: BgpTcpKeepalive;
+  as_notation: string | null;
+  input_queue_limit: number | null;
+  output_queue_limit: number | null;
+  update_delay_establish_wait: number | null;
+  update_delay_max_delay: number | null;
 }
 
 export interface BgpNeighborBfd {
   enabled: boolean;
   check_control_plane_failure: boolean;
   profile: string | null;
+  strict: boolean;
+  strict_hold_time: number | null;
 }
 
 export interface BgpNeighborCapability {
@@ -155,6 +162,7 @@ export interface BgpNeighbor {
   local_role: string | null;
   local_role_strict: boolean;
   bfd: BgpNeighborBfd;
+  link_state: boolean;
   capability: BgpNeighborCapability;
   timers: BgpNeighborTimers;
   ttl_security_hops: number | null;
@@ -169,6 +177,7 @@ export interface BgpPeerGroup {
   password: string | null;
   shutdown: boolean;
   passive: boolean;
+  solo: boolean;
   override_capability: boolean;
   disable_capability_negotiation: boolean;
   disable_connected_check: boolean;
@@ -178,6 +187,7 @@ export interface BgpPeerGroup {
   local_role: string | null;
   local_role_strict: boolean;
   bfd: BgpNeighborBfd;
+  link_state: boolean;
   capability: BgpNeighborCapability;
   ttl_security_hops: number | null;
   address_families: Record<string, BgpNeighborAddressFamilyConfig>;
@@ -234,8 +244,28 @@ export interface BgpConfig {
   peer_groups: BgpPeerGroup[];
   address_families: BgpAddressFamily[];
   listen: BgpListen;
+  bmp: BgpBmp;
   srv6_locator: string | null;
   sid_vpn_per_vrf_export: string | null;
+}
+
+export interface BgpBmpMonitor {
+  afi: string;
+  policy: string;
+}
+
+export interface BgpBmpTarget {
+  name: string;
+  address: string | null;
+  port: number | null;
+  mirror: boolean;
+  source_interface: string | null;
+  monitors: BgpBmpMonitor[];
+}
+
+export interface BgpBmp {
+  mirror_buffer_limit: number | null;
+  targets: BgpBmpTarget[];
 }
 
 export interface BgpCapabilities {
@@ -245,21 +275,38 @@ export interface BgpCapabilities {
     peer_groups: { supported: boolean; description: string };
     address_families: { supported: boolean; description: string };
     listen_ranges: { supported: boolean; description: string };
-    bmp: { supported: boolean; description: string };
+    bmp: {
+      supported: boolean;
+      description: string;
+      monitor_policies: string[];
+      source_interface: boolean;
+    };
     srv6: { supported: boolean; description: string };
     local_role: { supported: boolean; description: string };
     path_attribute: { supported: boolean; description: string };
     redistribute_nhrp: { supported: boolean; description: string };
     l2vpn_evpn_control_flags: { supported: boolean; flags: string[]; description: string };
+    neighbor_link_state: { supported: boolean };
+    peer_group_link_state: { supported: boolean };
+    neighbor_bfd_strict: { supported: boolean };
+    peer_group_bfd_strict: { supported: boolean };
+    peer_group_solo: { supported: boolean };
+    as_notation: { supported: boolean; values: string[] };
+    input_queue_limit: { supported: boolean };
+    output_queue_limit: { supported: boolean };
+    update_delay: { supported: boolean };
   };
+  redistribute_protocols: {
+    "ipv4-unicast": string[];
+    "ipv6-unicast": string[];
+  };
+  redistribute_table_afis: string[];
+  bestpath_bandwidth_values: string[];
+  bestpath_med_values: string[];
   address_family_types: {
     neighbor: string[];
     peer_group: string[];
     global: string[];
-  };
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
   };
   instance_name?: string;
   instance_id?: string;
@@ -372,6 +419,7 @@ class BgpService {
     if (neighbor.shutdown) operations.push({ op: "set_neighbor_shutdown", value: addr });
     if (neighbor.passive) operations.push({ op: "set_neighbor_passive", value: addr });
     if (neighbor.solo) operations.push({ op: "set_neighbor_solo", value: addr });
+    if (neighbor.link_state) operations.push({ op: "set_neighbor_link_state", value: addr });
     if (neighbor.enforce_first_as) operations.push({ op: "set_neighbor_enforce_first_as", value: addr });
     if (neighbor.override_capability) operations.push({ op: "set_neighbor_override_capability", value: addr });
     if (neighbor.disable_capability_negotiation) operations.push({ op: "set_neighbor_disable_capability_negotiation", value: addr });
@@ -385,6 +433,12 @@ class BgpService {
       operations.push({ op: "set_neighbor_bfd", value: addr });
       if (neighbor.bfd.check_control_plane_failure) operations.push({ op: "set_neighbor_bfd_check_control_plane_failure", value: addr });
       if (neighbor.bfd.profile) operations.push({ op: "set_neighbor_bfd_profile", value: `${addr},${neighbor.bfd.profile}` });
+      if (neighbor.bfd.strict) {
+        operations.push({ op: "set_neighbor_bfd_strict", value: addr });
+        if (neighbor.bfd.strict_hold_time != null) {
+          operations.push({ op: "set_neighbor_bfd_strict_hold_time", value: `${addr},${neighbor.bfd.strict_hold_time}` });
+        }
+      }
     }
 
     if (neighbor.capability.dynamic) operations.push({ op: "set_neighbor_capability_dynamic", value: addr });
@@ -463,6 +517,7 @@ class BgpService {
       { key: "shutdown", setOp: "set_neighbor_shutdown", deleteOp: "delete_neighbor_shutdown" },
       { key: "passive", setOp: "set_neighbor_passive", deleteOp: "delete_neighbor_passive" },
       { key: "solo", setOp: "set_neighbor_solo", deleteOp: "delete_neighbor_solo" },
+      { key: "link_state", setOp: "set_neighbor_link_state", deleteOp: "delete_neighbor_link_state" },
       { key: "enforce_first_as", setOp: "set_neighbor_enforce_first_as", deleteOp: "delete_neighbor_enforce_first_as" },
       { key: "override_capability", setOp: "set_neighbor_override_capability", deleteOp: "delete_neighbor_override_capability" },
       { key: "disable_capability_negotiation", setOp: "set_neighbor_disable_capability_negotiation", deleteOp: "delete_neighbor_disable_capability_negotiation" },
@@ -478,7 +533,9 @@ class BgpService {
     // BFD (delete-and-recreate pattern since there's only delete_neighbor_bfd for the whole subtree)
     const bfdChanged = updated.bfd.enabled !== original.bfd.enabled ||
       updated.bfd.profile !== original.bfd.profile ||
-      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure;
+      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure ||
+      updated.bfd.strict !== original.bfd.strict ||
+      updated.bfd.strict_hold_time !== original.bfd.strict_hold_time;
     if (bfdChanged) {
       if (original.bfd.enabled) {
         operations.push({ op: "delete_neighbor_bfd", value: addr });
@@ -490,6 +547,12 @@ class BgpService {
         }
         if (updated.bfd.profile) {
           operations.push({ op: "set_neighbor_bfd_profile", value: `${addr},${updated.bfd.profile}` });
+        }
+        if (updated.bfd.strict) {
+          operations.push({ op: "set_neighbor_bfd_strict", value: addr });
+          if (updated.bfd.strict_hold_time != null) {
+            operations.push({ op: "set_neighbor_bfd_strict_hold_time", value: `${addr},${updated.bfd.strict_hold_time}` });
+          }
         }
       }
     }
@@ -625,6 +688,8 @@ class BgpService {
     if (pg.password) operations.push({ op: "set_peer_group_password", value: `${name},${pg.password}` });
     if (pg.shutdown) operations.push({ op: "set_peer_group_shutdown", value: name });
     if (pg.passive) operations.push({ op: "set_peer_group_passive", value: name });
+    if (pg.solo) operations.push({ op: "set_peer_group_solo", value: name });
+    if (pg.link_state) operations.push({ op: "set_peer_group_link_state", value: name });
     if (pg.override_capability) operations.push({ op: "set_peer_group_override_capability", value: name });
     if (pg.disable_capability_negotiation) operations.push({ op: "set_peer_group_disable_capability_negotiation", value: name });
     if (pg.disable_connected_check) operations.push({ op: "set_peer_group_disable_connected_check", value: name });
@@ -633,6 +698,12 @@ class BgpService {
       operations.push({ op: "set_peer_group_bfd", value: name });
       if (pg.bfd.check_control_plane_failure) operations.push({ op: "set_peer_group_bfd_check_control_plane_failure", value: name });
       if (pg.bfd.profile) operations.push({ op: "set_peer_group_bfd_profile", value: `${name},${pg.bfd.profile}` });
+      if (pg.bfd.strict) {
+        operations.push({ op: "set_peer_group_bfd_strict", value: name });
+        if (pg.bfd.strict_hold_time != null) {
+          operations.push({ op: "set_peer_group_bfd_strict_hold_time", value: `${name},${pg.bfd.strict_hold_time}` });
+        }
+      }
     }
     if (pg.capability.dynamic) operations.push({ op: "set_peer_group_capability_dynamic", value: name });
     if (pg.capability.extended_nexthop) operations.push({ op: "set_peer_group_capability_extended_nexthop", value: name });
@@ -681,6 +752,8 @@ class BgpService {
     }
     if (updated.shutdown !== original.shutdown) operations.push({ op: updated.shutdown ? "set_peer_group_shutdown" : "delete_peer_group_shutdown", value: name });
     if (updated.passive !== original.passive) operations.push({ op: updated.passive ? "set_peer_group_passive" : "delete_peer_group_passive", value: name });
+    if (updated.solo !== original.solo) operations.push({ op: updated.solo ? "set_peer_group_solo" : "delete_peer_group_solo", value: name });
+    if (updated.link_state !== original.link_state) operations.push({ op: updated.link_state ? "set_peer_group_link_state" : "delete_peer_group_link_state", value: name });
     if (updated.override_capability !== original.override_capability) operations.push({ op: updated.override_capability ? "set_peer_group_override_capability" : "delete_peer_group_override_capability", value: name });
     if (updated.disable_capability_negotiation !== original.disable_capability_negotiation) operations.push({ op: updated.disable_capability_negotiation ? "set_peer_group_disable_capability_negotiation" : "delete_peer_group_disable_capability_negotiation", value: name });
     if (updated.disable_connected_check !== original.disable_connected_check) operations.push({ op: updated.disable_connected_check ? "set_peer_group_disable_connected_check" : "delete_peer_group_disable_connected_check", value: name });
@@ -688,7 +761,9 @@ class BgpService {
     // BFD (delete-and-recreate pattern since there's only delete_peer_group_bfd for the whole subtree)
     const pgBfdChanged = updated.bfd.enabled !== original.bfd.enabled ||
       updated.bfd.profile !== original.bfd.profile ||
-      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure;
+      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure ||
+      updated.bfd.strict !== original.bfd.strict ||
+      updated.bfd.strict_hold_time !== original.bfd.strict_hold_time;
     if (pgBfdChanged) {
       if (original.bfd.enabled) {
         operations.push({ op: "delete_peer_group_bfd", value: name });
@@ -700,6 +775,12 @@ class BgpService {
         }
         if (updated.bfd.profile) {
           operations.push({ op: "set_peer_group_bfd_profile", value: `${name},${updated.bfd.profile}` });
+        }
+        if (updated.bfd.strict) {
+          operations.push({ op: "set_peer_group_bfd_strict", value: name });
+          if (updated.bfd.strict_hold_time != null) {
+            operations.push({ op: "set_peer_group_bfd_strict_hold_time", value: `${name},${updated.bfd.strict_hold_time}` });
+          }
         }
       }
     }
@@ -807,6 +888,7 @@ class BgpService {
       { key: "shutdown", op: "parameters_shutdown" },
       { key: "no_suppress_duplicates", op: "parameters_no_suppress_duplicates" },
       { key: "no_ipv6_auto_ra", op: "parameters_no_ipv6_auto_ra" },
+      { key: "no_hard_administrative_reset", op: "parameters_no_hard_administrative_reset" },
     ];
 
     for (const flag of flags) {
@@ -821,6 +903,44 @@ class BgpService {
     if (updated.bestpath.as_path_multipath_relax !== current.bestpath.as_path_multipath_relax) operations.push({ op: updated.bestpath.as_path_multipath_relax ? "set_parameters_bestpath_as_path_multipath_relax" : "delete_parameters_bestpath_as_path_multipath_relax" });
     if (updated.bestpath.compare_routerid !== current.bestpath.compare_routerid) operations.push({ op: updated.bestpath.compare_routerid ? "set_parameters_bestpath_compare_routerid" : "delete_parameters_bestpath_compare_routerid" });
     if (updated.bestpath.peer_type_multipath_relax !== current.bestpath.peer_type_multipath_relax) operations.push({ op: updated.bestpath.peer_type_multipath_relax ? "set_parameters_bestpath_peer_type_multipath_relax" : "delete_parameters_bestpath_peer_type_multipath_relax" });
+    if (updated.bestpath.bandwidth !== current.bestpath.bandwidth) {
+      operations.push(updated.bestpath.bandwidth
+        ? { op: "set_parameters_bestpath_bandwidth", value: updated.bestpath.bandwidth }
+        : { op: "delete_parameters_bestpath_bandwidth" });
+    }
+    const oldMed = current.bestpath.med ?? [];
+    const newMed = updated.bestpath.med ?? [];
+    for (const value of oldMed) {
+      if (!newMed.includes(value)) operations.push({ op: "delete_parameters_bestpath_med", value });
+    }
+    for (const value of newMed) {
+      if (!oldMed.includes(value)) operations.push({ op: "set_parameters_bestpath_med", value });
+    }
+    if (updated.as_notation !== current.as_notation) {
+      operations.push(updated.as_notation
+        ? { op: "set_parameters_as_notation", value: updated.as_notation }
+        : { op: "delete_parameters_as_notation" });
+    }
+    if (updated.input_queue_limit !== current.input_queue_limit) {
+      operations.push(updated.input_queue_limit != null
+        ? { op: "set_parameters_input_queue_limit", value: String(updated.input_queue_limit) }
+        : { op: "delete_parameters_input_queue_limit" });
+    }
+    if (updated.output_queue_limit !== current.output_queue_limit) {
+      operations.push(updated.output_queue_limit != null
+        ? { op: "set_parameters_output_queue_limit", value: String(updated.output_queue_limit) }
+        : { op: "delete_parameters_output_queue_limit" });
+    }
+    if (updated.update_delay_establish_wait !== current.update_delay_establish_wait) {
+      operations.push(updated.update_delay_establish_wait != null
+        ? { op: "set_parameters_update_delay_establish_wait", value: String(updated.update_delay_establish_wait) }
+        : { op: "delete_parameters_update_delay_establish_wait" });
+    }
+    if (updated.update_delay_max_delay !== current.update_delay_max_delay) {
+      operations.push(updated.update_delay_max_delay != null
+        ? { op: "set_parameters_update_delay_max_delay", value: String(updated.update_delay_max_delay) }
+        : { op: "delete_parameters_update_delay_max_delay" });
+    }
 
     // Distance
     const dg = updated.distance_global;
@@ -861,6 +981,40 @@ class BgpService {
     return this.batchConfigure({ operations: [{ op: "delete_af_redistribute", value: `${afi},${protocol}` }] });
   }
 
+  async addRedistributeTable(afi: string, table: string, routeMap?: string, metric?: string): Promise<VyOSResponse> {
+    const operations: BgpBatchOperation[] = [{ op: "set_af_redistribute_table", value: `${afi},${table}` }];
+    if (routeMap) operations.push({ op: "set_af_redistribute_table_route_map", value: `${afi},${table},${routeMap}` });
+    if (metric) operations.push({ op: "set_af_redistribute_table_metric", value: `${afi},${table},${metric}` });
+    return this.batchConfigure({ operations });
+  }
+
+  async deleteRedistributeTable(afi: string, table: string): Promise<VyOSResponse> {
+    return this.batchConfigure({ operations: [{ op: "delete_af_redistribute_table", value: `${afi},${table}` }] });
+  }
+
+  async saveMaximumPaths(afi: string, ebgp: number | null, ibgp: number | null, originalEbgp: number | null, originalIbgp: number | null): Promise<VyOSResponse> {
+    const operations: BgpBatchOperation[] = [];
+    if (ebgp === originalEbgp && ibgp === originalIbgp) {
+      return { success: true, data: { message: "No changes" } };
+    }
+    const cleared = (ebgp == null && originalEbgp != null) || (ibgp == null && originalIbgp != null);
+    if (ebgp == null && ibgp == null) {
+      operations.push({ op: "delete_af_maximum_paths", value: afi });
+    } else if (cleared) {
+      operations.push({ op: "delete_af_maximum_paths", value: afi });
+      if (ebgp != null) operations.push({ op: "set_af_maximum_paths_ebgp", value: `${afi},${ebgp}` });
+      if (ibgp != null) operations.push({ op: "set_af_maximum_paths_ibgp", value: `${afi},${ibgp}` });
+    } else {
+      if (ebgp !== originalEbgp && ebgp != null) {
+        operations.push({ op: "set_af_maximum_paths_ebgp", value: `${afi},${ebgp}` });
+      }
+      if (ibgp !== originalIbgp && ibgp != null) {
+        operations.push({ op: "set_af_maximum_paths_ibgp", value: `${afi},${ibgp}` });
+      }
+    }
+    return this.batchConfigure({ operations });
+  }
+
   async addAggregateAddress(afi: string, prefix: string, asSet: boolean, summaryOnly: boolean, routeMap?: string): Promise<VyOSResponse> {
     const operations: BgpBatchOperation[] = [{ op: "set_af_aggregate_address", value: `${afi},${prefix}` }];
     if (asSet) operations.push({ op: "set_af_aggregate_address_as_set", value: `${afi},${prefix}` });
@@ -877,6 +1031,23 @@ class BgpService {
     const name = flag.replace(/-/g, "_");
     const op = `${enabled ? "set" : "delete"}_af_l2vpn_evpn_${name}`;
     return this.batchConfigure({ operations: [{ op }] });
+  }
+
+  async setBmpSourceInterface(name: string, iface: string | null): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      operations: [iface
+        ? { op: "set_bmp_target_source_interface", value: `${name},${iface}` }
+        : { op: "delete_bmp_target_source_interface", value: name }],
+    });
+  }
+
+  async setBmpMonitor(name: string, afi: string, policy: string, enabled: boolean): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      operations: [{
+        op: enabled ? "set_bmp_target_monitor" : "delete_bmp_target_monitor",
+        value: `${name},${afi},${policy}`,
+      }],
+    });
   }
 }
 

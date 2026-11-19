@@ -110,6 +110,8 @@ export function BgpPeerGroupModal({
   // --- Status & Options ---
   const [shutdown, setShutdown] = useState(false);
   const [passive, setPassive] = useState(false);
+  const [solo, setSolo] = useState(false);
+  const [linkState, setLinkState] = useState(false);
   const [overrideCapability, setOverrideCapability] = useState(false);
   const [disableCapabilityNegotiation, setDisableCapabilityNegotiation] =
     useState(false);
@@ -120,6 +122,8 @@ export function BgpPeerGroupModal({
   const [bfdCheckControlPlaneFailure, setBfdCheckControlPlaneFailure] =
     useState(false);
   const [bfdProfile, setBfdProfile] = useState("");
+  const [bfdStrict, setBfdStrict] = useState(false);
+  const [bfdStrictHoldTime, setBfdStrictHoldTime] = useState("");
 
   // --- Capability ---
   const [capDynamic, setCapDynamic] = useState(false);
@@ -160,6 +164,8 @@ export function BgpPeerGroupModal({
         setUpdateSource(existingPeerGroup.update_source || "");
         setShutdown(existingPeerGroup.shutdown);
         setPassive(existingPeerGroup.passive);
+        setSolo(existingPeerGroup.solo);
+        setLinkState(existingPeerGroup.link_state);
         setOverrideCapability(existingPeerGroup.override_capability);
         setDisableCapabilityNegotiation(
           existingPeerGroup.disable_capability_negotiation
@@ -170,6 +176,12 @@ export function BgpPeerGroupModal({
           existingPeerGroup.bfd.check_control_plane_failure
         );
         setBfdProfile(existingPeerGroup.bfd.profile || "");
+        setBfdStrict(existingPeerGroup.bfd.strict);
+        setBfdStrictHoldTime(
+          existingPeerGroup.bfd.strict_hold_time != null
+            ? String(existingPeerGroup.bfd.strict_hold_time)
+            : ""
+        );
         setCapDynamic(existingPeerGroup.capability.dynamic);
         setCapExtendedNexthop(existingPeerGroup.capability.extended_nexthop);
         setCapSoftwareVersion(existingPeerGroup.capability.software_version);
@@ -222,12 +234,16 @@ export function BgpPeerGroupModal({
     setUpdateSource("");
     setShutdown(false);
     setPassive(false);
+    setSolo(false);
+    setLinkState(false);
     setOverrideCapability(false);
     setDisableCapabilityNegotiation(false);
     setDisableConnectedCheck(false);
     setBfdEnabled(false);
     setBfdCheckControlPlaneFailure(false);
     setBfdProfile("");
+    setBfdStrict(false);
+    setBfdStrictHoldTime("");
     setCapDynamic(false);
     setCapExtendedNexthop(false);
     setCapSoftwareVersion(false);
@@ -350,6 +366,8 @@ export function BgpPeerGroupModal({
         password: password.trim() || null,
         shutdown,
         passive,
+        solo,
+        link_state: linkState,
         override_capability: overrideCapability,
         disable_capability_negotiation: disableCapabilityNegotiation,
         disable_connected_check: disableConnectedCheck,
@@ -370,6 +388,11 @@ export function BgpPeerGroupModal({
             : false,
           profile:
             bfdEnabled && bfdProfile.trim() ? bfdProfile.trim() : null,
+          strict: bfdEnabled && bfdStrict,
+          strict_hold_time:
+            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim()
+              ? parseInt(bfdStrictHoldTime.trim(), 10)
+              : null,
         },
         capability: {
           dynamic: capDynamic,
@@ -524,6 +547,31 @@ export function BgpPeerGroupModal({
                   </div>
                 </div>
 
+                {capabilities?.features.peer_group_solo?.supported && (
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="bgp-pg-solo"
+                      checked={solo}
+                      onCheckedChange={(checked) => setSolo(checked === true)}
+                    />
+                    <Label htmlFor="bgp-pg-solo" className="cursor-pointer">
+                      {t("peerGroupModal.solo")}
+                    </Label>
+                  </div>
+                )}
+                {capabilities?.features.peer_group_link_state?.supported && (
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="bgp-pg-link-state"
+                      checked={linkState}
+                      onCheckedChange={(checked) => setLinkState(checked === true)}
+                    />
+                    <Label htmlFor="bgp-pg-link-state" className="cursor-pointer">
+                      {t("peerGroupModal.linkState")}
+                    </Label>
+                  </div>
+                )}
+
                 {/* Override Capability */}
                 <div className="flex items-center space-x-3">
                   <Checkbox
@@ -662,6 +710,28 @@ export function BgpPeerGroupModal({
                         {t("peerGroupModal.bfdProfileHelp")}
                       </p>
                     </div>
+                    {capabilities?.features.peer_group_bfd_strict?.supported && (
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <Checkbox
+                            id="bgp-pg-bfd-strict"
+                            checked={bfdStrict}
+                            onCheckedChange={(checked) => setBfdStrict(checked === true)}
+                          />
+                          <Label htmlFor="bgp-pg-bfd-strict" className="cursor-pointer">
+                            {t("peerGroupModal.bfdStrict")}
+                          </Label>
+                        </div>
+                        {bfdStrict && (
+                          <Input
+                            value={bfdStrictHoldTime}
+                            onChange={(e) => setBfdStrictHoldTime(e.target.value)}
+                            placeholder={t("peerGroupModal.bfdStrictHoldTime")}
+                            className="h-9"
+                          />
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
