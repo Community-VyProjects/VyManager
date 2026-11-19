@@ -119,8 +119,9 @@ export function RipNetworkDistanceModal({
         <div className="space-y-4">
           {/* Prefix */}
           <div className="space-y-2">
-            <Label>{t("filters.networkPrefix")}</Label>
+            <Label htmlFor="rip-nd-prefix">{t("filters.networkPrefix")}</Label>
             <Input
+              id="rip-nd-prefix"
               placeholder={t("example", { value: "10.0.0.0/8" })}
               value={prefix}
               onChange={(e) => setPrefix(e.target.value)}

@@ -230,9 +230,10 @@ export function OspfAreaModal({
 
             {/* Networks */}
             <div className="space-y-2">
-              <Label>{t("fields.networks")}</Label>
+              <Label htmlFor="ospf-area-network">{t("fields.networks")}</Label>
               <div className="flex gap-2">
                 <Input
+                  id="ospf-area-network"
                   value={newNetwork}
                   onChange={(e) => setNewNetwork(e.target.value)}
                   placeholder={t("areaModal.networkPlaceholder")}

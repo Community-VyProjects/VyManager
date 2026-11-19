@@ -477,9 +477,10 @@ export function RipContent() {
               <InterfaceSelect
                 value={inputValue}
                 onValueChange={onInputChange}
-                placeholder={tc("selectInterface")}
+                placeholder={inputPlaceholder}
                 className="flex-1"
                 filter={(item) => !items.includes(item.name)}
+                noneOption={{ label: "default", value: "default" }}
               />
             ) : (
               <Input
@@ -696,13 +697,13 @@ export function RipContent() {
                     <div className="space-y-4">
                       {/* Version */}
                       <div className="space-y-2">
-                        <Label>{t("overview.version")}</Label>
+                        <Label htmlFor="rip-version">{t("overview.version")}</Label>
                         <Select
                           value={overviewEditing ? (ovVersion || "unset") : (config?.version || "unset")}
                           onValueChange={(v) => setOvVersion(v === "unset" ? "" : v)}
                           disabled={!overviewEditing}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="rip-version">
                             <SelectValue placeholder={tc("default")} />
                           </SelectTrigger>
                           <SelectContent>
