@@ -612,8 +612,9 @@ export function BabelContent() {
                         <Label htmlFor="diversity">{t("parameters.enableDiversity")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("parameters.diversityFactor")}</Label>
+                        <Label htmlFor="babel-diversity-factor" className="text-sm">{t("parameters.diversityFactor")}</Label>
                         <Input
+                          id="babel-diversity-factor"
                           type="number"
                           min={1}
                           max={256}
@@ -637,8 +638,9 @@ export function BabelContent() {
                     <h3 className="font-semibold mb-4">{t("parameters.timing")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">{t("parameters.resendDelay")}</Label>
+                        <Label htmlFor="babel-resend-delay" className="text-sm">{t("parameters.resendDelay")}</Label>
                         <Input
+                          id="babel-resend-delay"
                           type="number"
                           min={20}
                           max={655340}
@@ -654,8 +656,9 @@ export function BabelContent() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">{t("parameters.smoothingHalfLife")}</Label>
+                        <Label htmlFor="babel-smoothing-half-life" className="text-sm">{t("parameters.smoothingHalfLife")}</Label>
                         <Input
+                          id="babel-smoothing-half-life"
                           type="number"
                           min={0}
                           max={65534}

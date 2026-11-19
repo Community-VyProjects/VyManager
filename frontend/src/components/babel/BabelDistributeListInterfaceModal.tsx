@@ -154,13 +154,13 @@ export function BabelDistributeListInterfaceModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("distributeList.addressFamily")}</Label>
+            <Label htmlFor="babel-dl-family">{t("distributeList.addressFamily")}</Label>
             <Select
               value={family}
               onValueChange={(next) => handleFamilyChange(next as BabelAddressFamily)}
               disabled={isEditMode}
             >
-              <SelectTrigger className={isEditMode ? "bg-muted" : ""}>
+              <SelectTrigger id="babel-dl-family" className={isEditMode ? "bg-muted" : ""}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
