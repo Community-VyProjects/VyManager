@@ -26,9 +26,11 @@ import {
 import {
   consoleServerService,
   ConsoleDevice,
+  ConsoleServerCapabilities,
   ConsoleServerConfig,
 } from "@/lib/api/console-server";
 import { ConsoleServerModal } from "./ConsoleServerModal";
+import { shownError } from "./shown-error";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import {
@@ -59,6 +61,7 @@ export function ConsoleServerContent() {
   const hasWritePermission = canWrite(FeatureGroup.CONSOLE_SERVER);
 
   const [config, setConfig] = useState<ConsoleServerConfig>(EMPTY_CONFIG);
+  const [capabilities, setCapabilities] = useState<ConsoleServerCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,13 +83,19 @@ export function ConsoleServerContent() {
     try {
       setLoading(true);
       setError(null);
-      const data = await consoleServerService.getConfig(refresh);
+      const [data, caps] = await Promise.all([
+        consoleServerService.getConfig(refresh),
+        capabilities ? Promise.resolve(capabilities) : consoleServerService.getCapabilities(),
+      ]);
       setConfig(data);
+      setCapabilities(caps);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
+      setError(shownError(err, t("content.loadFailed")));
     } finally {
       setLoading(false);
     }
+    // capabilities fetched once; a refresh must not depend on that state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
   useEffect(() => {
@@ -123,7 +132,7 @@ export function ConsoleServerContent() {
       setDeleteTarget(null);
       await loadData(true);
     } catch (err) {
-      setDeleteDeviceError(err instanceof Error ? err.message : t("content.deleteDeviceFailed"));
+      setDeleteDeviceError(shownError(err, t("content.deleteDeviceFailed")));
     } finally {
       setDeleteDeviceLoading(false);
     }
@@ -137,7 +146,7 @@ export function ConsoleServerContent() {
       setDeleteAllOpen(false);
       await loadData(true);
     } catch (err) {
-      setDeleteAllError(err instanceof Error ? err.message : t("content.removeAllFailed"));
+      setDeleteAllError(shownError(err, t("content.removeAllFailed")));
     } finally {
       setDeleteAllLoading(false);
     }
@@ -163,6 +172,8 @@ export function ConsoleServerContent() {
       </div>
     );
   }
+
+  if (!capabilities) return null;
 
   return (
     <>
@@ -270,7 +281,7 @@ export function ConsoleServerContent() {
                       </TableCell>
                       <TableCell>
                         <span className="font-mono text-sm">
-                          {device.speed ?? <span className="text-muted-foreground text-xs">9600</span>}
+                          {device.speed ?? <span className="text-muted-foreground text-xs">—</span>}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -325,6 +336,8 @@ export function ConsoleServerContent() {
       <ConsoleServerModal
         open={modalOpen}
         device={editingDevice}
+        devices={config.devices}
+        capabilities={capabilities}
         onClose={() => setModalOpen(false)}
         onSubmit={handleSave}
       />

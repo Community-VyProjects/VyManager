@@ -24,35 +24,33 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
 import {
-  consoleServerService,
   ConsoleDevice,
   ConsoleServerCapabilities,
 } from "@/lib/api/console-server";
+import {
+  fromNamedListValue,
+  listedNames,
+  NONE_SENTINEL,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
+import { shownError } from "./shown-error";
 
 interface ConsoleServerModalProps {
   open: boolean;
   device: ConsoleDevice | null;
+  devices: ConsoleDevice[];
+  capabilities: ConsoleServerCapabilities;
   onClose: () => void;
   onSubmit: (updated: ConsoleDevice) => Promise<void>;
 }
 
-const NONE = "__none__";
-
-function featureOptions(
-  capabilities: ConsoleServerCapabilities | null,
-  key: string,
-  current: string,
-): string[] {
-  const feature = capabilities?.features[key];
-  const raw =
-    feature && typeof feature === "object" && "options" in feature
-      ? (feature as { options?: unknown }).options
-      : undefined;
-  const options = Array.isArray(raw)
-    ? raw.filter((value): value is string => typeof value === "string" && value !== "" && value !== NONE)
+function featureOptions(capabilities: ConsoleServerCapabilities, key: string): string[] {
+  const feature = capabilities.features[key];
+  if (!feature || typeof feature !== "object" || !("options" in feature)) return [];
+  const raw = (feature as { options?: unknown }).options;
+  return Array.isArray(raw)
+    ? raw.filter((value): value is string => typeof value === "string" && value !== "")
     : [];
-  if (current && !options.includes(current)) return [...options, current];
-  return options;
 }
 
 function sshPortNumber(raw: string): number | null {
@@ -67,70 +65,85 @@ function OptionSelect({
   value,
   options,
   noneLabel,
+  required = false,
   onChange,
 }: {
   id: string;
   label: string;
   value: string;
   options: string[];
-  noneLabel: string;
+  noneLabel?: string;
+  required?: boolean;
   onChange: (value: string) => void;
 }) {
+  const choices = listedNames(options, value);
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-xs">
-        {label}
+        {label} {required && <span className="text-destructive">*</span>}
       </Label>
-      <Select value={value || NONE} onValueChange={(next) => onChange(next === NONE ? "" : next)}>
-        <SelectTrigger id={id}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE}>{noneLabel}</SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option} value={option} className="font-mono">
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {required ? (
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger id={id}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {choices.map((option) => (
+              <SelectItem key={option} value={option} className="font-mono">
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Select
+          value={toNamedListValue(value)}
+          onValueChange={(next) => onChange(fromNamedListValue(next))}
+        >
+          <SelectTrigger id={id}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE_SENTINEL}>{noneLabel}</SelectItem>
+            {choices.map((option) => (
+              <SelectItem key={option} value={option} className="font-mono">
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </div>
   );
 }
 
-export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleServerModalProps) {
+export function ConsoleServerModal({
+  open,
+  device,
+  devices,
+  capabilities,
+  onClose,
+  onSubmit,
+}: ConsoleServerModalProps) {
   const t = useTranslations("consoleServer");
   const tc = useTranslations("common");
   const isEditing = device !== null;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [capabilities, setCapabilities] = useState<ConsoleServerCapabilities | null>(null);
 
-  // Device Identity
   const [deviceName, setDeviceName] = useState("");
   const [alias, setAlias] = useState("");
   const [description, setDescription] = useState("");
-
-  // Serial Parameters
   const [speed, setSpeed] = useState("");
   const [dataBits, setDataBits] = useState("");
   const [parity, setParity] = useState("");
   const [stopBits, setStopBits] = useState("");
-
-  // Remote Access
   const [sshPort, setSshPort] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setError(null);
-    let cancelled = false;
-    consoleServerService.getCapabilities().then((caps) => {
-      if (!cancelled) setCapabilities(caps);
-    }).catch(() => {
-      if (!cancelled) setError(t("modal.capabilitiesFailed"));
-    });
-
     if (device) {
       setDeviceName(device.name);
       setAlias(device.alias ?? "");
@@ -150,25 +163,37 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
       setStopBits("");
       setSshPort("");
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [open, device, t]);
+  }, [open, device]);
+
+  function others(): ConsoleDevice[] {
+    return devices.filter((item) => item.name !== device?.name);
+  }
 
   function validate(): string | null {
-    if (!deviceName.trim()) return t("modal.nameRequired");
-    if (!isEditing && !/^(ttyS\d+|usb\d+b.*p.*)$/.test(deviceName.trim())) {
+    const name = deviceName.trim();
+    if (!name) return t("modal.nameRequired");
+    if (!isEditing && !/^(ttyS\d+|usb\d+b.*p.*)$/.test(name)) {
       return t("modal.deviceNameInvalid");
+    }
+    if (!isEditing && devices.some((item) => item.name === name)) {
+      return t("modal.deviceExists");
     }
     const trimmedAlias = alias.trim();
     if (trimmedAlias.length > 128) return t("modal.aliasTooLong");
     if (trimmedAlias && !/^[-_a-zA-Z0-9.]+$/.test(trimmedAlias)) {
       return t("modal.aliasInvalid");
     }
-    if (description.length > 255) return t("modal.descriptionTooLong");
+    if (trimmedAlias && others().some((item) => (item.alias ?? "").trim() === trimmedAlias)) {
+      return t("modal.aliasInUse");
+    }
+    if (description.trim().length > 255) return t("modal.descriptionTooLong");
+    if (!speed) return t("modal.speedRequired");
     const port = sshPort.trim();
     if (port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535)) {
       return t("modal.sshPortRange");
+    }
+    if (port && others().some((item) => item.ssh?.port === Number(port))) {
+      return t("modal.sshPortInUse");
     }
     return null;
   }
@@ -187,7 +212,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
         name: deviceName.trim(),
         alias: alias.trim() || null,
         description: description.trim() || null,
-        speed: speed || null,
+        speed,
         data_bits: dataBits || null,
         parity: parity || null,
         stop_bits: stopBits || null,
@@ -195,8 +220,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
       };
       await onSubmit(updated);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      setError(message || t("modal.unexpectedError"));
+      setError(shownError(err, t("modal.unexpectedError")));
     } finally {
       setLoading(false);
     }
@@ -216,7 +240,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
         <ScrollArea className="flex-1 pr-4 min-h-0">
           <div className="space-y-6 py-2">
-            {/* Device Identity */}
             <div className="space-y-4">
               <p className="text-sm font-medium">{t("modal.deviceIdentity")}</p>
 
@@ -263,7 +286,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
             <Separator />
 
-            {/* Serial Parameters */}
             <div className="space-y-4">
               <p className="text-sm font-medium">{t("modal.serialParameters")}</p>
 
@@ -271,8 +293,8 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                 id="device-speed"
                 label={t("modal.speed")}
                 value={speed}
-                options={featureOptions(capabilities, "speed", speed)}
-                noneLabel={noneLabel}
+                options={featureOptions(capabilities, "speed")}
+                required
                 onChange={setSpeed}
               />
 
@@ -281,7 +303,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                   id="device-data-bits"
                   label={t("modal.dataBits")}
                   value={dataBits}
-                  options={featureOptions(capabilities, "data_bits", dataBits)}
+                  options={featureOptions(capabilities, "data_bits")}
                   noneLabel={noneLabel}
                   onChange={setDataBits}
                 />
@@ -289,7 +311,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                   id="device-parity"
                   label={t("modal.parity")}
                   value={parity}
-                  options={featureOptions(capabilities, "parity", parity)}
+                  options={featureOptions(capabilities, "parity")}
                   noneLabel={noneLabel}
                   onChange={setParity}
                 />
@@ -297,7 +319,7 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
                   id="device-stop-bits"
                   label={t("modal.stopBits")}
                   value={stopBits}
-                  options={featureOptions(capabilities, "stop_bits", stopBits)}
+                  options={featureOptions(capabilities, "stop_bits")}
                   noneLabel={noneLabel}
                   onChange={setStopBits}
                 />
@@ -306,7 +328,6 @@ export function ConsoleServerModal({ open, device, onClose, onSubmit }: ConsoleS
 
             <Separator />
 
-            {/* Remote Access */}
             <div className="space-y-4">
               <p className="text-sm font-medium">{t("modal.remoteAccess")}</p>
 
