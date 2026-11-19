@@ -39,7 +39,7 @@
     "description": "Configure a serial console device for remote out-of-band access.",
     "deviceIdentity": "Device Identity",
     "deviceName": "Device Name",
-    "deviceNamePlaceholder": "e.g. ttyS0",
+    "deviceNamePlaceholder": "e.g. ttyS1",
     "deviceNameInvalid": "Device name must be a ttyS port or a USB serial bus path.",
     "alias": "Alias",
     "optionalSuffix": "(optional)",

@@ -39,7 +39,7 @@
     "description": "配置用于远程带外访问的串口控制台设备。",
     "deviceIdentity": "设备标识",
     "deviceName": "设备名称",
-    "deviceNamePlaceholder": "例如 ttyS0",
+    "deviceNamePlaceholder": "例如 ttyS1",
     "deviceNameInvalid": "设备名称必须是 ttyS 端口或 USB 串口总线路径。",
     "alias": "别名",
     "optionalSuffix": "（可选）",
