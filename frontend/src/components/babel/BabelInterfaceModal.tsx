@@ -31,6 +31,21 @@ const NONE = "__none__";
 const INTERFACE_TYPES = ["auto", "wired", "wireless"] as const;
 const SPLIT_HORIZON_VALUES = ["default", "enable", "disable"] as const;
 
+function channelValue(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed === "interfering" || trimmed === "non-interfering") return trimmed;
+  return String(Number(trimmed));
+}
+
+function isOptionalWholeInt(raw: string, min: number, max: number): boolean {
+  const trimmed = raw.trim();
+  if (trimmed === "") return true;
+  if (!/^\d+$/.test(trimmed)) return false;
+  const value = Number(trimmed);
+  return value >= min && value <= max;
+}
+
 interface BabelInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -80,6 +95,7 @@ export function BabelInterfaceModal({
   // Populate form when editing or when modal opens
   useEffect(() => {
     if (open) {
+      setError(null);
       loadInterfaces();
       if (existingInterface) {
         setName(existingInterface.name);
@@ -156,64 +172,39 @@ export function BabelInterfaceModal({
 
     if (channel.trim()) {
       const channelVal = channel.trim();
-      if (
-        channelVal !== "interfering" &&
-        channelVal !== "non-interfering"
-      ) {
-        const num = parseInt(channelVal, 10);
-        if (isNaN(num) || num < 1 || num > 254) {
+      if (channelVal !== "interfering" && channelVal !== "non-interfering") {
+        if (!isOptionalWholeInt(channelVal, 1, 254)) {
           return t("interfaceModal.channelInvalid");
         }
       }
     }
 
-    if (helloInterval.trim()) {
-      const val = parseInt(helloInterval.trim(), 10);
-      if (isNaN(val) || val < 20 || val > 655340) {
-        return t("interfaceModal.helloIntervalRange");
-      }
+    if (!isOptionalWholeInt(helloInterval, 20, 655340)) {
+      return t("interfaceModal.helloIntervalRange");
     }
 
-    if (updateInterval.trim()) {
-      const val = parseInt(updateInterval.trim(), 10);
-      if (isNaN(val) || val < 20 || val > 655340) {
-        return t("interfaceModal.updateIntervalRange");
-      }
+    if (!isOptionalWholeInt(updateInterval, 20, 655340)) {
+      return t("interfaceModal.updateIntervalRange");
     }
 
-    if (rxcost.trim()) {
-      const val = parseInt(rxcost.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65534) {
-        return t("interfaceModal.rxCostRange");
-      }
+    if (!isOptionalWholeInt(rxcost, 1, 65534)) {
+      return t("interfaceModal.rxCostRange");
     }
 
-    if (maxRttPenalty.trim()) {
-      const val = parseInt(maxRttPenalty.trim(), 10);
-      if (isNaN(val) || val < 0 || val > 65535) {
-        return t("interfaceModal.maxRttPenaltyRange");
-      }
+    if (!isOptionalWholeInt(maxRttPenalty, 0, 65535)) {
+      return t("interfaceModal.maxRttPenaltyRange");
     }
 
-    if (rttDecay.trim()) {
-      const val = parseInt(rttDecay.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 256) {
-        return t("interfaceModal.rttDecayRange");
-      }
+    if (!isOptionalWholeInt(rttDecay, 1, 256)) {
+      return t("interfaceModal.rttDecayRange");
     }
 
-    if (rttMin.trim()) {
-      const val = parseInt(rttMin.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65535) {
-        return t("interfaceModal.rttMinRange");
-      }
+    if (!isOptionalWholeInt(rttMin, 1, 65535)) {
+      return t("interfaceModal.rttMinRange");
     }
 
-    if (rttMax.trim()) {
-      const val = parseInt(rttMax.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65535) {
-        return t("interfaceModal.rttMaxRange");
-      }
+    if (!isOptionalWholeInt(rttMax, 1, 65535)) {
+      return t("interfaceModal.rttMaxRange");
     }
 
     return null;
@@ -233,7 +224,7 @@ export function BabelInterfaceModal({
       const config: BabelInterface = {
         name: name.trim(),
         type: type || null,
-        channel: channel.trim() || null,
+        channel: channelValue(channel),
         split_horizon: splitHorizon || null,
         enable_timestamps: enableTimestamps,
         hello_interval: helloInterval.trim()
@@ -265,7 +256,13 @@ export function BabelInterfaceModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) resetForm();
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -306,7 +303,7 @@ export function BabelInterfaceModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>{tc("default")}</SelectItem>
+                    <SelectItem value={NONE}>{tc("notSet")}</SelectItem>
                     {INTERFACE_TYPES.map((value) => (
                       <SelectItem key={value} value={value}>
                         {value}
@@ -340,7 +337,7 @@ export function BabelInterfaceModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>{tc("default")}</SelectItem>
+                    <SelectItem value={NONE}>{tc("notSet")}</SelectItem>
                     {SPLIT_HORIZON_VALUES.map((value) => (
                       <SelectItem key={value} value={value}>
                         {value}
