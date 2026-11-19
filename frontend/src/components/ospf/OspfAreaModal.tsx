@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { OspfArea } from "@/lib/api/ospf";
 import { useTranslations } from "next-intl";
@@ -292,37 +293,21 @@ export function OspfAreaModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ospf-area-export">{t("areaModal.exportList")}</Label>
-                <Select
+                <NamedListSelect
+                  id="ospf-area-export"
                   value={exportList}
-                  onValueChange={(v) => setExportList(v === "__none__" ? "" : v)}
-                >
-                  <SelectTrigger id="ospf-area-export">
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{tc("none")}</SelectItem>
-                    {accessListNames.map((name) => (
-                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  names={accessListNames}
+                  onValueChange={setExportList}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ospf-area-import">{t("areaModal.importList")}</Label>
-                <Select
+                <NamedListSelect
+                  id="ospf-area-import"
                   value={importList}
-                  onValueChange={(v) => setImportList(v === "__none__" ? "" : v)}
-                >
-                  <SelectTrigger id="ospf-area-import">
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{tc("none")}</SelectItem>
-                    {accessListNames.map((name) => (
-                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  names={accessListNames}
+                  onValueChange={setImportList}
+                />
               </div>
             </div>
           </div>

@@ -12,13 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNetworkDistance } from "@/lib/api/rip";
@@ -150,17 +144,11 @@ export function RipNetworkDistanceModal({
           {/* Access List */}
           <div className="space-y-2">
             <Label>{t("filters.accessList")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
-            <Select value={accessList || "none"} onValueChange={(v) => setAccessList(v === "none" ? "" : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder={tc("none")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{tc("none")}</SelectItem>
-                {accessListNames.map((al) => (
-                  <SelectItem key={al} value={al} className="font-mono">{al}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NamedListSelect
+              value={accessList}
+              names={accessListNames}
+              onValueChange={setAccessList}
+            />
           </div>
         </div>
 

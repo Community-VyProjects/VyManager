@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import {
   Table,
   TableBody,
@@ -753,26 +754,12 @@ export function RipContent() {
                       {/* Route Map */}
                       <div className="space-y-2">
                         <Label>{t("overview.routeMap")}</Label>
-                        {overviewEditing ? (
-                          <Select value={ovRouteMap || "none"} onValueChange={(v) => setOvRouteMap(v === "none" ? "" : v)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={tc("none")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">{tc("none")}</SelectItem>
-                              {routeMapNames.map((rm) => (
-                                <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={config?.route_map ?? ""}
-                            disabled
-                            placeholder={tc("none")}
-                            className="font-mono"
-                          />
-                        )}
+                        <NamedListSelect
+                          value={overviewEditing ? ovRouteMap : (config?.route_map ?? "")}
+                          names={routeMapNames}
+                          disabled={!overviewEditing}
+                          onValueChange={setOvRouteMap}
+                        />
                       </div>
 
                       {/* Default Information Originate */}
@@ -1134,29 +1121,12 @@ export function RipContent() {
                             return (
                               <div key={field} className="space-y-2">
                                 <Label>{label}</Label>
-                                {dlGlobalEditing ? (
-                                  <Select
-                                    value={(dlGlobalDraft[field] ?? "") || "none"}
-                                    onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v === "none" ? null : v })}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={tc("none")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">{tc("none")}</SelectItem>
-                                      {names.map((n) => (
-                                        <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={currentVal}
-                                    disabled
-                                    placeholder={tc("none")}
-                                    className="font-mono"
-                                  />
-                                )}
+                                <NamedListSelect
+                                  value={currentVal}
+                                  names={names}
+                                  disabled={!dlGlobalEditing}
+                                  onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v || null })}
+                                />
                               </div>
                             );
                           })}

@@ -48,7 +48,7 @@ import {
   BabelDistributeListInterfaceModal,
   type BabelDistributeListInterfaceDraft,
 } from "./BabelDistributeListInterfaceModal";
-import { BabelListSelect } from "./BabelListSelect";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { useTranslations } from "next-intl";
@@ -306,11 +306,11 @@ export function BabelContent() {
     return (
       <div>
         <Label className="text-sm">{label}</Label>
-        <BabelListSelect
+        <NamedListSelect
           value={value}
           names={names}
           disabled={!editingDistList || !draft}
-          onChange={(next) => {
+          onValueChange={(next) => {
             if (draft) setDraft({ ...draft, [field]: next || null });
           }}
         />

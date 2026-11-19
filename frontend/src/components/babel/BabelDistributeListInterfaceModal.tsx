@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InterfaceSelect } from "@/components/ui/interface-select";
-import { BabelListSelect } from "./BabelListSelect";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { DistributeListInterfaceFilter } from "@/lib/api/babel";
@@ -186,19 +186,19 @@ export function BabelDistributeListInterfaceModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="babel-dl-acl-in">{t("distributeList.accessListIn")}</Label>
-              <BabelListSelect id="babel-dl-acl-in" value={aclIn} names={aclNames} onChange={setAclIn} />
+              <NamedListSelect id="babel-dl-acl-in" value={aclIn} names={aclNames} onValueChange={setAclIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="babel-dl-acl-out">{t("distributeList.accessListOut")}</Label>
-              <BabelListSelect id="babel-dl-acl-out" value={aclOut} names={aclNames} onChange={setAclOut} />
+              <NamedListSelect id="babel-dl-acl-out" value={aclOut} names={aclNames} onValueChange={setAclOut} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="babel-dl-pl-in">{t("distributeList.prefixListIn")}</Label>
-              <BabelListSelect id="babel-dl-pl-in" value={plIn} names={plNames} onChange={setPlIn} />
+              <NamedListSelect id="babel-dl-pl-in" value={plIn} names={plNames} onValueChange={setPlIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="babel-dl-pl-out">{t("distributeList.prefixListOut")}</Label>
-              <BabelListSelect id="babel-dl-pl-out" value={plOut} names={plNames} onChange={setPlOut} />
+              <NamedListSelect id="babel-dl-pl-out" value={plOut} names={plNames} onValueChange={setPlOut} />
             </div>
           </div>
         </div>
