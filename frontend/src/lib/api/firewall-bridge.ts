@@ -113,6 +113,7 @@ export interface BridgeRule {
 export interface BridgeChain {
   name: string;
   default_action?: string | null;
+  default_log?: boolean;
   description?: string | null;
   rules: BridgeRule[];
   rule_count: number;
@@ -138,6 +139,7 @@ export interface BridgeCapabilities {
     output_chain: { supported: boolean; description: string };
     prerouting_chain: { supported: boolean; description: string };
     custom_chains: { supported: boolean; description: string };
+    chain_default_log: { supported: boolean; description: string };
     rule_description: { supported: boolean; description: string };
     ethernet_type_matching: { supported: boolean; description: string };
     packet_modifications: { supported: boolean; description: string };
@@ -275,6 +277,20 @@ class BridgeFirewallService {
     return this.batchConfigure({
       chain,
       operations: [{ op: "delete_chain_default_action" }],
+    });
+  }
+
+  async setChainDefaultLog(chain: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      chain,
+      operations: [{ op: "set_chain_default_log" }],
+    });
+  }
+
+  async deleteChainDefaultLog(chain: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      chain,
+      operations: [{ op: "delete_chain_default_log" }],
     });
   }
 

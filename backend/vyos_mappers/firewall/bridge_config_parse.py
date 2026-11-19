@@ -149,6 +149,7 @@ def parse_chain(mapper, chain_name: str, chain_data: dict) -> Dict[str, Any]:
     return {
         "name": chain_name,
         "default_action": chain_data.get("default-action"),
+        "default_log": "default-log" in chain_data,
         "description": chain_data.get("description"),
         "rules": rules,
         "rule_count": len(rules),

@@ -13,6 +13,7 @@ COMMON_CASES = [
     ('delete_chain', ('forward',), 'delete', ['firewall', 'bridge', 'forward', 'filter']),
     ('delete_chain_default_action', ('forward',), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'default-action']),
     ('delete_chain_description', ('forward',), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'description']),
+    ('delete_chain_default_log', ('forward',), 'delete', ['firewall', 'bridge', 'forward', 'filter', 'default-log']),
     ('delete_custom_chain', ('MYCHAIN',), 'delete', ['firewall', 'bridge', 'name', 'MYCHAIN']),
     ('delete_custom_chain_default_action', ('MYCHAIN',), 'delete', ['firewall', 'bridge', 'name', 'MYCHAIN', 'default-action']),
     ('delete_custom_chain_description', ('MYCHAIN',), 'delete', ['firewall', 'bridge', 'name', 'MYCHAIN', 'description']),
@@ -36,6 +37,7 @@ COMMON_CASES = [
     ('set_chain', ('forward',), 'set', ['firewall', 'bridge', 'forward', 'filter']),
     ('set_chain_default_action', ('forward', 'accept'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'default-action', 'accept']),
     ('set_chain_description', ('forward', 'd'), 'set', ['firewall', 'bridge', 'forward', 'filter', 'description', 'd']),
+    ('set_chain_default_log', ('forward',), 'set', ['firewall', 'bridge', 'forward', 'filter', 'default-log']),
     ('set_custom_chain', ('MYCHAIN',), 'set', ['firewall', 'bridge', 'name', 'MYCHAIN']),
     ('set_custom_chain_default_action', ('MYCHAIN', 'accept'), 'set', ['firewall', 'bridge', 'name', 'MYCHAIN', 'default-action', 'accept']),
     ('set_custom_chain_description', ('MYCHAIN', 'd'), 'set', ['firewall', 'bridge', 'name', 'MYCHAIN', 'description', 'd']),
@@ -202,6 +204,7 @@ ARGS = {method: args for method, args, *_ in COMMON_CASES + V15_ONLY_CASES}
 
 # Capability flag -> builder methods that emit the paths it advertises.
 FEATURE_METHODS = {
+    'chain_default_log': ['set_chain_default_log', 'delete_chain_default_log'],
     'rule_description': ['set_rule_description', 'delete_rule_description'],
     'ethernet_type_matching': ['set_rule_ethernet_type', 'delete_rule_ethernet_type', 'set_rule_vlan_ethernet_type'],
     'packet_modifications': [
@@ -533,6 +536,7 @@ def test_bridge_parse_config_feeds_router_models():
                 "forward": {
                     "filter": {
                         "default-action": "drop",
+                        "default-log": {},
                         "description": "edge",
                         "rule": {
                             "10": {
@@ -556,11 +560,13 @@ def test_bridge_parse_config_feeds_router_models():
     rule = chain.rules[0]
     assert isinstance(rule, BridgeRule)
     assert chain.default_action == "drop"
+    assert chain.default_log is True
     assert chain.description == "edge"
     assert rule.tcp_flags == "syn"
     assert rule.tcp_flags_not == "ack"
     assert rule.log_options_queue_threshold == "10"
     assert rule.log_options_snapshot_length == "64"
     assert BridgeChain(**parsed["custom_chains"][0]).description == "named"
+    assert BridgeChain(**parsed["custom_chains"][0]).default_log is False
     assert parsed["total_rules"] == 1
 

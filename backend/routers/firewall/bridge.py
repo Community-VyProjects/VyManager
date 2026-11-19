@@ -157,6 +157,7 @@ class BridgeChain(BaseModel):
     """Bridge firewall chain configuration."""
     name: str
     default_action: Optional[str] = None
+    default_log: bool = False
     description: Optional[str] = None
     rules: List[BridgeRule] = []
     rule_count: int = 0
@@ -297,6 +298,8 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     | `delete_chain_default_action` | No | Delete default action |
     | `set_chain_description` | Yes | Set chain description |
     | `delete_chain_description` | No | Delete chain description |
+    | `set_chain_default_log` | No | Log packets that hit the default action |
+    | `delete_chain_default_log` | No | Stop logging the default action |
 
     **Rule Operations (require rule_number):**
 

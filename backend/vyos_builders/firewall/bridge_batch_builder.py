@@ -67,6 +67,16 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_chain_description_path(chain)
         return self.add_delete(path)
 
+    def set_chain_default_log(self, chain: str) -> "BridgeFirewallBatchBuilder":
+        """Enable default-log on a base or named chain."""
+        path = self.mappers[self.mapper_key].get_chain_default_log(chain)
+        return self.add_set(path)
+
+    def delete_chain_default_log(self, chain: str) -> "BridgeFirewallBatchBuilder":
+        """Disable default-log on a base or named chain."""
+        path = self.mappers[self.mapper_key].get_chain_default_log_path(chain)
+        return self.add_delete(path)
+
     # ========================================================================
     # Rule Operations
     # ========================================================================
@@ -967,6 +977,7 @@ class BridgeFirewallBatchBuilder(BatchBuilder):
                 "output_chain": flag("output" in chains, "Output chain"),
                 "prerouting_chain": flag("prerouting" in chains, "Prerouting chain"),
                 "custom_chains": flag(True, "Custom named chains"),
+                "chain_default_log": flag(True, "Log packets that hit the chain default action"),
                 "rule_description": flag(node("description"), "Rule description"),
                 "ethernet_type_matching": flag(node("ethernet-type"), "Match by ethernet type"),
                 "packet_modifications": flag(

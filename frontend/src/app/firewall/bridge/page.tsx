@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -160,6 +161,9 @@ export default function BridgeFirewallPage() {
   const [savingDefaultAction, setSavingDefaultAction] = useState(false);
   const [pendingDefaultAction, setPendingDefaultAction] = useState<string | null>(null);
   const [defaultActionError, setDefaultActionError] = useState<string | null>(null);
+  const [pendingDefaultLog, setPendingDefaultLog] = useState<boolean | null>(null);
+  const [savingDefaultLog, setSavingDefaultLog] = useState(false);
+  const [defaultLogError, setDefaultLogError] = useState<string | null>(null);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
@@ -331,6 +335,36 @@ export default function BridgeFirewallPage() {
       setDefaultActionError(err instanceof Error ? err.message : t("page.updateDefaultActionFailed"));
     } finally {
       setSavingDefaultAction(false);
+    }
+  };
+
+  const requestDefaultLog = (enabled: boolean) => {
+    if (!selectedChain || enabled === (currentChain?.default_log === true)) return;
+    setDefaultLogError(null);
+    setPendingDefaultLog(enabled);
+  };
+
+  const applyDefaultLog = async () => {
+    if (!selectedChain || pendingDefaultLog === null) return;
+    setSavingDefaultLog(true);
+    setDefaultLogError(null);
+    try {
+      const response = pendingDefaultLog
+        ? await bridgeFirewallService.setChainDefaultLog(selectedChain)
+        : await bridgeFirewallService.deleteChainDefaultLog(selectedChain);
+      const message = failedSaveMessage(response, t("page.updateDefaultLogFailed"));
+      if (message) {
+        setDefaultLogError(message);
+        return;
+      }
+      setPendingDefaultLog(null);
+      setSuccessMessage(t("page.defaultLogUpdated"));
+      await loadData(true);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setDefaultLogError(err instanceof Error ? err.message : t("page.updateDefaultLogFailed"));
+    } finally {
+      setSavingDefaultLog(false);
     }
   };
 
@@ -827,6 +861,17 @@ export default function BridgeFirewallPage() {
                     })}
                   </SelectContent>
                 </Select>
+                {capabilities?.features.chain_default_log?.supported && (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="chain-default-log"
+                      checked={currentChain?.default_log === true}
+                      onCheckedChange={(checked) => requestDefaultLog(checked === true)}
+                      disabled={savingDefaultLog || hasChanges}
+                    />
+                    <span className="text-sm text-muted-foreground">{t("page.defaultLogLabel")}</span>
+                  </div>
+                )}
                 <Button variant="outline" size="sm" onClick={openDescription} disabled={hasChanges}>
                   {t("columns.description")}
                 </Button>
@@ -982,6 +1027,34 @@ export default function BridgeFirewallPage() {
               {tc("cancel")}
             </Button>
             <Button onClick={applyDefaultAction} disabled={savingDefaultAction}>
+              {t("page.apply")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pendingDefaultLog !== null}
+        onOpenChange={(open) => {
+          if (!open && !savingDefaultLog) {
+            setPendingDefaultLog(null);
+            setDefaultLogError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("page.defaultLogLabel")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">
+            {pendingDefaultLog ? t("page.defaultLogOn") : t("page.defaultLogOff")}
+          </p>
+          {defaultLogError && <p className="text-sm text-destructive">{defaultLogError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDefaultLog(null)} disabled={savingDefaultLog}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={applyDefaultLog} disabled={savingDefaultLog}>
               {t("page.apply")}
             </Button>
           </DialogFooter>
