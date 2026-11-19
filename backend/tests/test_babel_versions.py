@@ -3,6 +3,7 @@
 validateTmplPath: ``protocols babel redistribute ipv4 nhrp`` and
 ``ipv6 nhrp`` are absent on VyOS 1.4 (100.64.64.4) and present on 1.5
 (100.64.64.5). Shared redistribute protocols stay on the base class.
+The factory returns that shared class for 1.4. There is no empty 1.4 file.
 """
 
 from pathlib import Path
@@ -12,7 +13,6 @@ import pytest
 from vyos_builders.babel.babel_batch_builder import BabelBatchBuilder
 from vyos_mappers.babel.babel import BabelMapper
 from vyos_mappers.babel.babel_versions import get_babel_mapper
-from vyos_mappers.babel.babel_versions.v1_4 import BabelMapperV1_4
 from vyos_mappers.babel.babel_versions.v1_5 import BabelMapperV1_5
 
 
@@ -25,15 +25,17 @@ FACTORY = (
 )
 
 
-def test_factory_returns_subclasses():
-    assert isinstance(get_babel_mapper("1.4"), BabelMapperV1_4)
-    assert isinstance(get_babel_mapper("1.4.3"), BabelMapperV1_4)
+def test_factory_returns_shared_on_1_4_and_subclass_on_1_5():
+    assert type(get_babel_mapper("1.4")) is BabelMapper
+    assert type(get_babel_mapper("1.4.3")) is BabelMapper
     assert isinstance(get_babel_mapper("1.5"), BabelMapperV1_5)
     assert isinstance(get_babel_mapper("2026.09.23-rolling"), BabelMapperV1_5)
     assert isinstance(get_babel_mapper("latest"), BabelMapperV1_5)
     factory = FACTORY.read_text()
     assert "__getattr__" not in factory
     assert "MergedMapper" not in factory
+    assert "v1_4" not in factory
+    assert not (FACTORY.parent / "v1_4.py").exists()
 
 
 def test_base_allowlist_does_not_read_version():
@@ -45,9 +47,9 @@ def test_base_allowlist_does_not_read_version():
     assert "nhrp" not in on_15.redistribute_ipv6_protocols()
 
 
-def test_v14_subclass_does_not_gain_nhrp():
-    mapper = BabelMapperV1_4("1.5-rolling")
-    assert isinstance(mapper, BabelMapper)
+def test_v14_mapper_does_not_gain_nhrp():
+    mapper = get_babel_mapper("1.4.3")
+    assert type(mapper) is BabelMapper
     assert "nhrp" not in mapper.redistribute_ipv4_protocols()
     assert "nhrp" not in mapper.redistribute_ipv6_protocols()
     with pytest.raises(ValueError, match="not supported"):
