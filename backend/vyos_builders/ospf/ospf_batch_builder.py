@@ -411,6 +411,15 @@ class OspfBatchBuilder(BatchBuilder):
     def set_redistribute_route_map(self, protocol: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_redistribute_route_map(protocol, value))
 
+    def delete_redistribute_metric(self, protocol: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_metric_delete(protocol))
+
+    def delete_redistribute_metric_type(self, protocol: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_metric_type_delete(protocol))
+
+    def delete_redistribute_route_map(self, protocol: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_route_map_delete(protocol))
+
     def delete_redistribute(self, protocol: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_redistribute_delete(protocol))
 
@@ -425,6 +434,15 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_redistribute_table_route_map(self, table: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_redistribute_table_route_map(table, value))
+
+    def delete_redistribute_table_metric(self, table: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_table_metric_delete(table))
+
+    def delete_redistribute_table_metric_type(self, table: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_table_metric_type_delete(table))
+
+    def delete_redistribute_table_route_map(self, table: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_table_route_map_delete(table))
 
     def delete_redistribute_table(self, table: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_redistribute_table_delete(table))
@@ -447,6 +465,18 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_default_information_originate_route_map(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_default_information_originate_route_map(value))
+
+    def delete_default_information_originate_always(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_default_information_originate_always())
+
+    def delete_default_information_originate_metric(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_default_information_originate_metric_delete())
+
+    def delete_default_information_originate_metric_type(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_default_information_originate_metric_type_delete())
+
+    def delete_default_information_originate_route_map(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_default_information_originate_route_map_delete())
 
     def delete_default_information_originate(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_default_information_originate_delete())
@@ -480,6 +510,15 @@ class OspfBatchBuilder(BatchBuilder):
     def set_distance_ospf_intra_area(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_distance_ospf_intra_area(value))
 
+    def delete_distance_ospf_external(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_distance_ospf_external_delete())
+
+    def delete_distance_ospf_inter_area(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_distance_ospf_inter_area_delete())
+
+    def delete_distance_ospf_intra_area(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_distance_ospf_intra_area_delete())
+
     def delete_distance_ospf(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_distance_ospf_delete())
 
@@ -495,6 +534,15 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_timers_throttle_spf_max_holdtime(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_timers_throttle_spf_max_holdtime(value))
+
+    def delete_timers_throttle_spf_delay(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_timers_throttle_spf_delay_delete())
+
+    def delete_timers_throttle_spf_initial_holdtime(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_timers_throttle_spf_initial_holdtime_delete())
+
+    def delete_timers_throttle_spf_max_holdtime(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_timers_throttle_spf_max_holdtime_delete())
 
     def delete_timers_throttle_spf(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_timers_throttle_spf_delete())
@@ -512,6 +560,15 @@ class OspfBatchBuilder(BatchBuilder):
     def set_max_metric_router_lsa_on_startup(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_max_metric_router_lsa_on_startup(value))
 
+    def delete_max_metric_router_lsa_administrative(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_max_metric_router_lsa_administrative())
+
+    def delete_max_metric_router_lsa_on_shutdown(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_max_metric_router_lsa_on_shutdown_delete())
+
+    def delete_max_metric_router_lsa_on_startup(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_max_metric_router_lsa_on_startup_delete())
+
     def delete_max_metric_router_lsa(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_max_metric_router_lsa_delete())
 
@@ -525,8 +582,14 @@ class OspfBatchBuilder(BatchBuilder):
     def set_graceful_restart_grace_period(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_grace_period(value))
 
+    def delete_graceful_restart_grace_period(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_graceful_restart_grace_period_delete())
+
     def set_graceful_restart_helper_enable(self) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_helper_enable())
+
+    def delete_graceful_restart_helper_enable(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_graceful_restart_helper_enable())
 
     def set_graceful_restart_helper_enable_router_id(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_helper_enable_router_id(value))
@@ -537,11 +600,20 @@ class OspfBatchBuilder(BatchBuilder):
     def set_graceful_restart_helper_no_strict_lsa_checking(self) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_helper_no_strict_lsa_checking())
 
+    def delete_graceful_restart_helper_no_strict_lsa_checking(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_graceful_restart_helper_no_strict_lsa_checking())
+
     def set_graceful_restart_helper_planned_only(self) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_helper_planned_only())
 
+    def delete_graceful_restart_helper_planned_only(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_graceful_restart_helper_planned_only())
+
     def set_graceful_restart_helper_supported_grace_time(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_helper_supported_grace_time(value))
+
+    def delete_graceful_restart_helper_supported_grace_time(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_graceful_restart_helper_supported_grace_time_delete())
 
     def delete_graceful_restart(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_graceful_restart_delete())
@@ -604,6 +676,9 @@ class OspfBatchBuilder(BatchBuilder):
     def set_log_adjacency_changes_detail(self) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_log_adjacency_changes_detail())
 
+    def delete_log_adjacency_changes_detail(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_log_adjacency_changes_detail())
+
     def delete_log_adjacency_changes(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_log_adjacency_changes_delete())
 
@@ -646,6 +721,12 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_mpls_te_router_address(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_mpls_te_router_address(value))
+
+    def delete_mpls_te_enable(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_mpls_te_enable())
+
+    def delete_mpls_te_router_address(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_mpls_te_router_address_delete())
 
     def delete_mpls_te(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_mpls_te_delete())

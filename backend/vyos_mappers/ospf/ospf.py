@@ -439,6 +439,15 @@ class OspfMapper(BaseFeatureMapper):
         self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["route-map", value]
 
+    def get_redistribute_metric_delete(self, protocol: str) -> List[str]:
+        return self._redistribute(protocol) + ["metric"]
+
+    def get_redistribute_metric_type_delete(self, protocol: str) -> List[str]:
+        return self._redistribute(protocol) + ["metric-type"]
+
+    def get_redistribute_route_map_delete(self, protocol: str) -> List[str]:
+        return self._redistribute(protocol) + ["route-map"]
+
     def get_redistribute_delete(self, protocol: str) -> List[str]:
         return self._redistribute(protocol)
 
@@ -453,6 +462,15 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_redistribute_table_route_map(self, table: str, value: str) -> List[str]:
         return self._ospf() + ["redistribute", "table", table, "route-map", value]
+
+    def get_redistribute_table_metric_delete(self, table: str) -> List[str]:
+        return self._ospf() + ["redistribute", "table", table, "metric"]
+
+    def get_redistribute_table_metric_type_delete(self, table: str) -> List[str]:
+        return self._ospf() + ["redistribute", "table", table, "metric-type"]
+
+    def get_redistribute_table_route_map_delete(self, table: str) -> List[str]:
+        return self._ospf() + ["redistribute", "table", table, "route-map"]
 
     def get_redistribute_table_delete(self, table: str) -> List[str]:
         return self._ospf() + ["redistribute", "table", table]
@@ -475,6 +493,15 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_default_information_originate_route_map(self, value: str) -> List[str]:
         return self._ospf() + ["default-information", "originate", "route-map", value]
+
+    def get_default_information_originate_metric_delete(self) -> List[str]:
+        return self._ospf() + ["default-information", "originate", "metric"]
+
+    def get_default_information_originate_metric_type_delete(self) -> List[str]:
+        return self._ospf() + ["default-information", "originate", "metric-type"]
+
+    def get_default_information_originate_route_map_delete(self) -> List[str]:
+        return self._ospf() + ["default-information", "originate", "route-map"]
 
     def get_default_information_originate_delete(self) -> List[str]:
         return self._ospf() + ["default-information", "originate"]
@@ -508,6 +535,15 @@ class OspfMapper(BaseFeatureMapper):
     def get_distance_ospf_intra_area(self, value: str) -> List[str]:
         return self._ospf() + ["distance", "ospf", "intra-area", value]
 
+    def get_distance_ospf_external_delete(self) -> List[str]:
+        return self._ospf() + ["distance", "ospf", "external"]
+
+    def get_distance_ospf_inter_area_delete(self) -> List[str]:
+        return self._ospf() + ["distance", "ospf", "inter-area"]
+
+    def get_distance_ospf_intra_area_delete(self) -> List[str]:
+        return self._ospf() + ["distance", "ospf", "intra-area"]
+
     def get_distance_ospf_delete(self) -> List[str]:
         return self._ospf() + ["distance", "ospf"]
 
@@ -523,6 +559,15 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_timers_throttle_spf_max_holdtime(self, value: str) -> List[str]:
         return self._ospf() + ["timers", "throttle", "spf", "max-holdtime", value]
+
+    def get_timers_throttle_spf_delay_delete(self) -> List[str]:
+        return self._ospf() + ["timers", "throttle", "spf", "delay"]
+
+    def get_timers_throttle_spf_initial_holdtime_delete(self) -> List[str]:
+        return self._ospf() + ["timers", "throttle", "spf", "initial-holdtime"]
+
+    def get_timers_throttle_spf_max_holdtime_delete(self) -> List[str]:
+        return self._ospf() + ["timers", "throttle", "spf", "max-holdtime"]
 
     def get_timers_throttle_spf_delete(self) -> List[str]:
         return self._ospf() + ["timers", "throttle", "spf"]
@@ -540,6 +585,12 @@ class OspfMapper(BaseFeatureMapper):
     def get_max_metric_router_lsa_on_startup(self, value: str) -> List[str]:
         return self._ospf() + ["max-metric", "router-lsa", "on-startup", value]
 
+    def get_max_metric_router_lsa_on_shutdown_delete(self) -> List[str]:
+        return self._ospf() + ["max-metric", "router-lsa", "on-shutdown"]
+
+    def get_max_metric_router_lsa_on_startup_delete(self) -> List[str]:
+        return self._ospf() + ["max-metric", "router-lsa", "on-startup"]
+
     def get_max_metric_router_lsa_delete(self) -> List[str]:
         return self._ospf() + ["max-metric", "router-lsa"]
 
@@ -552,6 +603,9 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_graceful_restart_grace_period(self, value: str) -> List[str]:
         return self._ospf() + ["graceful-restart", "grace-period", value]
+
+    def get_graceful_restart_grace_period_delete(self) -> List[str]:
+        return self._ospf() + ["graceful-restart", "grace-period"]
 
     def get_graceful_restart_helper_enable(self) -> List[str]:
         return self._ospf() + ["graceful-restart", "helper", "enable"]
@@ -570,6 +624,9 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_graceful_restart_helper_supported_grace_time(self, value: str) -> List[str]:
         return self._ospf() + ["graceful-restart", "helper", "supported-grace-time", value]
+
+    def get_graceful_restart_helper_supported_grace_time_delete(self) -> List[str]:
+        return self._ospf() + ["graceful-restart", "helper", "supported-grace-time"]
 
     def get_graceful_restart_delete(self) -> List[str]:
         return self._ospf() + ["graceful-restart"]
@@ -674,6 +731,9 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_mpls_te_router_address(self, value: str) -> List[str]:
         return self._ospf() + ["mpls-te", "router-address", value]
+
+    def get_mpls_te_router_address_delete(self) -> List[str]:
+        return self._ospf() + ["mpls-te", "router-address"]
 
     def get_mpls_te_delete(self) -> List[str]:
         return self._ospf() + ["mpls-te"]
