@@ -90,6 +90,8 @@ def test_capability_reads_the_mapper(monkeypatch):
         "listen_address_accept_proxy",
         "backend_rule_wildcard_domain",
         "wan_rule_groups",
+        "global_timeout",
+        "service_timeout",
     ):
         assert caps["features"][key]["supported"] is False
     builder = LoadBalancingBatchBuilder(version="1.5")
@@ -103,6 +105,8 @@ def test_rolling_capabilities_do_not_read_a_version_string():
     assert caps["rp_key"] == "haproxy"
     assert caps["features"]["http_compression"]["supported"] is True
     assert caps["features"]["wan_rule_groups"]["supported"] is True
+    assert caps["features"]["global_timeout"]["supported"] is True
+    assert caps["features"]["service_timeout"]["supported"] is True
     text = BUILDER.read_text()
     assert '"1.5"' not in text
     assert '"1.4"' not in text

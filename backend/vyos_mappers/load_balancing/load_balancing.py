@@ -2,7 +2,6 @@ from typing import Any, Dict, FrozenSet, List, Optional
 
 from ..base import BaseFeatureMapper
 
-
 class LoadBalancingMapper(BaseFeatureMapper):
     """Shared load-balancing commands.
 
@@ -162,7 +161,6 @@ class LoadBalancingMapper(BaseFeatureMapper):
     def get_rp_backend_server_check_path(self, name: str, server: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["server", server, "check"]
 
-
     def get_rp_backend_server_send_proxy_path(self, name: str, server: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["server", server, "send-proxy"]
 
@@ -175,7 +173,6 @@ class LoadBalancingMapper(BaseFeatureMapper):
 
     def get_rp_backend_rule_domain_name_path(self, name: str, rule_id: str, domain: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["rule", rule_id, "domain-name", domain]
-
 
     def get_rp_backend_rule_ssl_path(self, name: str, rule_id: str, value: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["rule", rule_id, "ssl", value]
@@ -247,10 +244,8 @@ class LoadBalancingMapper(BaseFeatureMapper):
     def get_rp_service_tcp_request_path(self, name: str) -> List[str]:
         return self.get_rp_service_path(name) + ["tcp-request"]
 
-
     def get_rp_service_listen_address_path(self, name: str, address: str) -> List[str]:
         return self.get_rp_service_path(name) + ["listen-address", address]
-
 
     # Service Rules
     def get_rp_service_rule_path(self, name: str, rule_id: str) -> List[str]:
@@ -258,7 +253,6 @@ class LoadBalancingMapper(BaseFeatureMapper):
 
     def get_rp_service_rule_domain_name_path(self, name: str, rule_id: str, domain: str) -> List[str]:
         return self.get_rp_service_path(name) + ["rule", rule_id, "domain-name", domain]
-
 
     def get_rp_service_rule_ssl_path(self, name: str, rule_id: str, value: str) -> List[str]:
         return self.get_rp_service_path(name) + ["rule", rule_id, "ssl", value]
@@ -404,11 +398,9 @@ class LoadBalancingMapper(BaseFeatureMapper):
     def get_wan_rule_destination_path(self, rule_id: str) -> List[str]:
         return self.get_wan_base() + ["rule", rule_id, "destination"]
 
-
     # =========================================================================
     # Config Parsing
     # =========================================================================
-
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         lb_config = full_config.get("load-balancing", {})

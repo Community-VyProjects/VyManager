@@ -64,9 +64,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_global_logging_facility_level(self, _name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'facility|level'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_global_logging_facility_level_path(parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_global_logging_facility_level_path(parts[0], parts[1]))
 
     def delete_rp_global_logging_facility(self, _name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_global_logging_facility_path(value))
@@ -161,9 +161,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_backend_http_response_header(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'header|value'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_http_response_header_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_http_response_header_path(name, parts[0], parts[1]))
 
     def delete_rp_backend_http_response_header(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_backend_http_response_header_key_path(name, value))
@@ -171,9 +171,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_backend_logging_facility_level(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'facility|level'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_logging_facility_level_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_logging_facility_level_path(name, parts[0], parts[1]))
 
     def delete_rp_backend_logging_facility(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_backend_logging_facility_path(name, value))
@@ -222,16 +222,16 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_backend_server_address(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'server_name|address'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_server_address_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_server_address_path(name, parts[0], parts[1]))
 
     def set_rp_backend_server_port(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'server_name|port'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_server_port_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_server_port_path(name, parts[0], parts[1]))
 
     def delete_rp_backend_server_port(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_backend_server_path(name, value) + ["port"])
@@ -250,12 +250,11 @@ class LoadBalancingBatchBuilder(BatchBuilder):
 
     def set_rp_backend_server_check_port(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'server_name|port'"""
-        self._m().require_node("server check port")
         parts = value.split("|", 1)
-        if len(parts) == 2 and all(parts):
-            return self.add_set(self._versioned_path(
-                "server check port", "get_rp_backend_server_check_port_path", name, parts[0], parts[1]))
-        raise ValueError("server check port requires server|port")
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("server check port requires server|port")
+        return self.add_set(self._versioned_path(
+            "server check port", "get_rp_backend_server_check_port_path", name, parts[0], parts[1]))
 
     def delete_rp_backend_server_check_port(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._versioned_path(
@@ -284,16 +283,16 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_backend_rule_domain_name(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|domain'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_domain_name_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_rule_domain_name_path(name, parts[0], parts[1]))
 
     def delete_rp_backend_rule_domain_name(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|domain'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_delete(self._m().get_rp_backend_rule_domain_name_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_delete(self._m().get_rp_backend_rule_domain_name_path(name, parts[0], parts[1]))
 
     def set_rp_backend_rule_wildcard_domain(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value is the rule id. wildcard-domain is a presence node."""
@@ -307,9 +306,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_backend_rule_ssl(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|ssl_option'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_ssl_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_rule_ssl_path(name, parts[0], parts[1]))
 
     def delete_rp_backend_rule_ssl(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_backend_rule_path(name, value) + ["ssl"])
@@ -317,23 +316,23 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_backend_rule_url_path_begin(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|path'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_url_path_begin_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_rule_url_path_begin_path(name, parts[0], parts[1]))
 
     def set_rp_backend_rule_url_path_end(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|path'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_url_path_end_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_rule_url_path_end_path(name, parts[0], parts[1]))
 
     def set_rp_backend_rule_url_path_exact(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|path'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_url_path_exact_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_rule_url_path_exact_path(name, parts[0], parts[1]))
 
     def delete_rp_backend_rule_url_path(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_backend_rule_url_path_path(name, value))
@@ -341,16 +340,16 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_backend_rule_set_redirect_location(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|url'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_set_redirect_location_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_rule_set_redirect_location_path(name, parts[0], parts[1]))
 
     def set_rp_backend_rule_set_server(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|server_name'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_backend_rule_set_server_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_backend_rule_set_server_path(name, parts[0], parts[1]))
 
     def delete_rp_backend_rule_set(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_backend_rule_set_path(name, value))
@@ -422,9 +421,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_service_http_response_header(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'header|value'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_http_response_header_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_http_response_header_path(name, parts[0], parts[1]))
 
     def delete_rp_service_http_response_header(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_service_http_response_header_key_path(name, value))
@@ -432,9 +431,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_service_logging_facility_level(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'facility|level'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_logging_facility_level_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_logging_facility_level_path(name, parts[0], parts[1]))
 
     def delete_rp_service_logging_facility(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_service_logging_facility_path(name, value))
@@ -485,16 +484,16 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_service_rule_domain_name(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|domain'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_domain_name_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_rule_domain_name_path(name, parts[0], parts[1]))
 
     def delete_rp_service_rule_domain_name(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|domain'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_delete(self._m().get_rp_service_rule_domain_name_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_delete(self._m().get_rp_service_rule_domain_name_path(name, parts[0], parts[1]))
 
     def set_rp_service_rule_wildcard_domain(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value is the rule id. wildcard-domain is a presence node."""
@@ -508,9 +507,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_service_rule_ssl(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|ssl_option'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_ssl_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_rule_ssl_path(name, parts[0], parts[1]))
 
     def delete_rp_service_rule_ssl(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_service_rule_path(name, value) + ["ssl"])
@@ -518,23 +517,23 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_service_rule_url_path_begin(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|path'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_url_path_begin_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_rule_url_path_begin_path(name, parts[0], parts[1]))
 
     def set_rp_service_rule_url_path_end(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|path'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_url_path_end_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_rule_url_path_end_path(name, parts[0], parts[1]))
 
     def set_rp_service_rule_url_path_exact(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|path'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_url_path_exact_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_rule_url_path_exact_path(name, parts[0], parts[1]))
 
     def delete_rp_service_rule_url_path(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_service_rule_url_path_path(name, value))
@@ -542,16 +541,16 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_rp_service_rule_set_backend(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|backend_name'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_set_backend_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_rule_set_backend_path(name, parts[0], parts[1]))
 
     def set_rp_service_rule_set_redirect_location(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'rule_id|url'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_rp_service_rule_set_redirect_location_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_rp_service_rule_set_redirect_location_path(name, parts[0], parts[1]))
 
     def delete_rp_service_rule_set(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_rp_service_rule_set_path(name, value))
@@ -586,6 +585,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
 
     def set_wan_sticky_connections_inbound(self, _name: str) -> "LoadBalancingBatchBuilder":
         return self.add_set(self._m().get_wan_sticky_connections_inbound_path())
+
+    def delete_wan_sticky_connections_inbound(self, _name: str) -> "LoadBalancingBatchBuilder":
+        return self.add_delete(self._m().get_wan_sticky_connections_inbound_path())
 
     def delete_wan_sticky_connections(self, _name: str) -> "LoadBalancingBatchBuilder":
         return self.add_delete(self._m().get_wan_sticky_connections_path())
@@ -629,37 +631,37 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_wan_interface_health_test_type(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'test_id|type'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_wan_interface_health_test_type_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_wan_interface_health_test_type_path(name, parts[0], parts[1]))
 
     def set_wan_interface_health_test_target(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'test_id|target_ip'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_wan_interface_health_test_target_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_wan_interface_health_test_target_path(name, parts[0], parts[1]))
 
     def set_wan_interface_health_test_resp_time(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'test_id|seconds'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_wan_interface_health_test_resp_time_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_wan_interface_health_test_resp_time_path(name, parts[0], parts[1]))
 
     def set_wan_interface_health_test_ttl_limit(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'test_id|limit'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_wan_interface_health_test_ttl_limit_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_wan_interface_health_test_ttl_limit_path(name, parts[0], parts[1]))
 
     def set_wan_interface_health_test_script(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'test_id|script_path'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_wan_interface_health_test_script_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_wan_interface_health_test_script_path(name, parts[0], parts[1]))
 
     # =========================================================================
     # WAN — Rules  (item_name = rule_id)
@@ -717,9 +719,9 @@ class LoadBalancingBatchBuilder(BatchBuilder):
     def set_wan_rule_interface_weight(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         """value format: 'interface|weight'"""
         parts = value.split("|", 1)
-        if len(parts) == 2:
-            return self.add_set(self._m().get_wan_rule_interface_weight_path(name, parts[0], parts[1]))
-        return self
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("value requires two |-separated parts")
+        return self.add_set(self._m().get_wan_rule_interface_weight_path(name, parts[0], parts[1]))
 
     def set_wan_rule_limit_burst(self, name: str, value: str) -> "LoadBalancingBatchBuilder":
         return self.add_set(self._m().get_wan_rule_limit_burst_path(name, value))
@@ -844,6 +846,14 @@ class LoadBalancingBatchBuilder(BatchBuilder):
                 "wan_rule_groups": {
                     "supported": "wan rule group" in nodes,
                     "description": "Firewall group matching in WAN rules",
+                },
+                "global_timeout": {
+                    "supported": "timeout" in nodes,
+                    "description": "Global HAProxy timeouts",
+                },
+                "service_timeout": {
+                    "supported": "service timeout" in nodes,
+                    "description": "Per-service client timeout",
                 },
             },
         }
