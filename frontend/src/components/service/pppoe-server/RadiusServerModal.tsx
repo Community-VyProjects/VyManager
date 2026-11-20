@@ -77,9 +77,7 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
     setError(null);
 
     try {
-      if (isEdit) await pppoeServerService.deleteRadiusServer(existingServer!.address);
-
-      const result = await pppoeServerService.createRadiusServer(address.trim(), {
+      const opts = {
         key: key || undefined,
         port: port || undefined,
         acct_port: acctPort || undefined,
@@ -88,7 +86,18 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
         disabled,
         backup,
         disable_accounting: disableAccounting,
-      });
+      };
+
+      let result;
+      if (isEdit && existingServer!.address === address.trim()) {
+        result = await pppoeServerService.updateRadiusServer(existingServer!, opts);
+      } else {
+        result = await pppoeServerService.createRadiusServer(address.trim(), opts);
+        // Address changed: remove the old server only once the new one is committed
+        if (isEdit && result.success) {
+          result = await pppoeServerService.deleteRadiusServer(existingServer!.address);
+        }
+      }
 
       if (result.success) {
         onOpenChange(false);
