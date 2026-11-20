@@ -750,7 +750,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                           placeholder={expirationRange.default != null ? t("content.withDefault", { value: String(expirationRange.default) }) : undefined}
                           value={graphqlExpiration}
                           onChange={(e) => setGraphqlExpiration(e.target.value)}
-                          disabled={!graphqlEnabled}
                         />
                       </div>
                       <div className="space-y-2">
@@ -763,7 +762,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                           placeholder={secretLengthRange.default != null ? t("content.withDefault", { value: String(secretLengthRange.default) }) : undefined}
                           value={graphqlSecretLength}
                           onChange={(e) => setGraphqlSecretLength(e.target.value)}
-                          disabled={!graphqlEnabled}
                         />
                       </div>
                     </>

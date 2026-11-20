@@ -15,6 +15,9 @@ class HTTPSMapper(BaseFeatureMapper):
     # service https tls-version allowed values (same on both labs).
     _TLS_VERSIONS = ("1.2", "1.3")
 
+    # tls-version node.def help on both labs: "(default: 1.2, 1.3)".
+    _TLS_VERSION_DEFAULTS = ("1.2", "1.3")
+
     # service https api graphql authentication type allowed values (both labs).
     _GRAPHQL_AUTH_TYPES = ("key", "token")
 
@@ -48,7 +51,7 @@ class HTTPSMapper(BaseFeatureMapper):
 
     def tls_version_defaults(self) -> List[str]:
         """TLS versions the lab uses when tls-version is unset (both labs)."""
-        return list(self._TLS_VERSIONS)
+        return list(self._TLS_VERSION_DEFAULTS)
 
     def graphql_auth_types(self) -> List[str]:
         return list(self._GRAPHQL_AUTH_TYPES)
