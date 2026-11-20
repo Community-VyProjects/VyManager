@@ -86,6 +86,11 @@ BGP_OFFLOADED = [
     ("bgp_batch_configure", "routers/bgp/bgp.py", "execute_batch", 1),
 ]
 
+CONNTRACK_SYNC_OFFLOADED = [
+    ("get_conntrack_sync_config", "routers/conntrack_sync/conntrack_sync.py", "get_full_config", 1),
+    ("conntrack_sync_batch_configure", "routers/conntrack_sync/conntrack_sync.py", "execute_batch", 1),
+]
+
 # handler, file, blocking attribute, expected offload count
 CONFIG_OFFLOADED = [
     ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
@@ -161,8 +166,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
