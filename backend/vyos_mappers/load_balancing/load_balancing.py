@@ -1,30 +1,57 @@
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, FrozenSet, List, Optional
+
+from ..base import BaseFeatureMapper
 
 
-class LoadBalancingMapper:
+class LoadBalancingMapper(BaseFeatureMapper):
+    """Shared load-balancing commands.
+
+    The 1.4 tree is ``load-balancing reverse-proxy``. 1.5 uses ``haproxy``
+    and owns leaves that 1.4 does not have. Those path methods live on the
+    subclass. WAN is ``load-balancing wan`` on both.
     """
-    Mapper for load-balancing configuration.
 
-    VyOS 1.5 uses:  load-balancing haproxy ...
-    VyOS 1.4 uses:  load-balancing reverse-proxy ...
-    WAN path is identical on both versions: load-balancing wan ...
-    """
+    _rp_key = "reverse-proxy"
 
-    def __init__(self, version: str):
-        self.version = version
-        self._base = ["load-balancing"]
-        # Version-specific key for the reverse-proxy/haproxy section
-        self._rp_key = "reverse-proxy" if "1.4" in version else "haproxy"
+    # Leaves only 1.5 has, mapped to the path method the subclass defines.
+    _VERSIONED_NODES = {
+        "timeout": "get_rp_timeout_base",
+        "service timeout": "get_rp_service_timeout_path",
+        "http-compression": "get_rp_service_http_compression_path",
+        "server check port": "get_rp_backend_server_check_port_path",
+        "listen-address accept-proxy": "get_rp_service_listen_address_accept_proxy_path",
+        "wildcard-domain": "get_rp_backend_rule_wildcard_domain_path",
+        "wan rule group": "get_wan_rule_source_group_address_path",
+    }
+
+    def rp_section(self) -> str:
+        return self._rp_key
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only leaves this device has.
+
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"{node} is not supported on this device")
 
     # =========================================================================
     # Helper path builders
     # =========================================================================
 
     def get_rp_base(self) -> List[str]:
-        return self._base + [self._rp_key]
+        return ["load-balancing", self._rp_key]
 
     def get_wan_base(self) -> List[str]:
-        return self._base + ["wan"]
+        return ["load-balancing", "wan"]
 
     # =========================================================================
     # Reverse Proxy — Global Parameters
@@ -47,25 +74,6 @@ class LoadBalancingMapper:
 
     def get_rp_global_logging_facility_path(self, facility: str) -> List[str]:
         return self.get_rp_global_params_path() + ["logging", "facility", facility]
-
-    # =========================================================================
-    # Reverse Proxy — Global Timeouts
-    # =========================================================================
-
-    def get_rp_timeout_base(self) -> List[str]:
-        return self.get_rp_base() + ["timeout"]
-
-    def get_rp_timeout_check_path(self, value: str) -> List[str]:
-        return self.get_rp_timeout_base() + ["check", value]
-
-    def get_rp_timeout_client_path(self, value: str) -> List[str]:
-        return self.get_rp_timeout_base() + ["client", value]
-
-    def get_rp_timeout_connect_path(self, value: str) -> List[str]:
-        return self.get_rp_timeout_base() + ["connect", value]
-
-    def get_rp_timeout_server_path(self, value: str) -> List[str]:
-        return self.get_rp_timeout_base() + ["server", value]
 
     # =========================================================================
     # Reverse Proxy — VRF
@@ -154,12 +162,6 @@ class LoadBalancingMapper:
     def get_rp_backend_server_check_path(self, name: str, server: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["server", server, "check"]
 
-    def get_rp_backend_server_check_port_path(self, name: str, server: str, port: str) -> List[str]:
-        return self.get_rp_backend_path(name) + ["server", server, "check", "port", port]
-
-    def get_rp_backend_server_check_port_delete_path(self, name: str, server: str) -> List[str]:
-        return self.get_rp_backend_server_check_path(name, server) + ["port"]
-
     def get_rp_backend_server_send_proxy_path(self, name: str, server: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["server", server, "send-proxy"]
 
@@ -172,9 +174,6 @@ class LoadBalancingMapper:
 
     def get_rp_backend_rule_domain_name_path(self, name: str, rule_id: str, domain: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["rule", rule_id, "domain-name", domain]
-
-    def get_rp_backend_rule_wildcard_domain_path(self, name: str, rule_id: str) -> List[str]:
-        return self.get_rp_backend_path(name) + ["rule", rule_id, "wildcard-domain"]
 
     def get_rp_backend_rule_ssl_path(self, name: str, rule_id: str, value: str) -> List[str]:
         return self.get_rp_backend_path(name) + ["rule", rule_id, "ssl", value]
@@ -246,28 +245,8 @@ class LoadBalancingMapper:
     def get_rp_service_tcp_request_path(self, name: str) -> List[str]:
         return self.get_rp_service_path(name) + ["tcp-request"]
 
-    def get_rp_service_timeout_client_path(self, name: str, value: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["timeout", "client", value]
-
-    def get_rp_service_timeout_path(self, name: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["timeout"]
-
-    # Service listen-address: in 1.5 it's a tag node; in 1.4 it's multi
     def get_rp_service_listen_address_path(self, name: str, address: str) -> List[str]:
         return self.get_rp_service_path(name) + ["listen-address", address]
-
-    def get_rp_service_listen_address_accept_proxy_path(self, name: str, address: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["listen-address", address, "accept-proxy"]
-
-    # Service http-compression (1.5 only — path added in version mapper)
-    def get_rp_service_http_compression_algorithm_path(self, name: str, value: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["http-compression", "algorithm", value]
-
-    def get_rp_service_http_compression_mime_type_path(self, name: str, mime: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["http-compression", "mime-type", mime]
-
-    def get_rp_service_http_compression_path(self, name: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["http-compression"]
 
     # Service Rules
     def get_rp_service_rule_path(self, name: str, rule_id: str) -> List[str]:
@@ -275,9 +254,6 @@ class LoadBalancingMapper:
 
     def get_rp_service_rule_domain_name_path(self, name: str, rule_id: str, domain: str) -> List[str]:
         return self.get_rp_service_path(name) + ["rule", rule_id, "domain-name", domain]
-
-    def get_rp_service_rule_wildcard_domain_path(self, name: str, rule_id: str) -> List[str]:
-        return self.get_rp_service_path(name) + ["rule", rule_id, "wildcard-domain"]
 
     def get_rp_service_rule_ssl_path(self, name: str, rule_id: str, value: str) -> List[str]:
         return self.get_rp_service_path(name) + ["rule", rule_id, "ssl", value]
@@ -423,55 +399,9 @@ class LoadBalancingMapper:
     def get_wan_rule_destination_path(self, rule_id: str) -> List[str]:
         return self.get_wan_base() + ["rule", rule_id, "destination"]
 
-    # WAN Rule — source/destination groups (1.5 only, but paths defined here)
-    def get_wan_rule_source_group_address_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "source", "group", "address-group", grp]
-
-    def get_wan_rule_source_group_network_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "source", "group", "network-group", grp]
-
-    def get_wan_rule_source_group_domain_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "source", "group", "domain-group", grp]
-
-    def get_wan_rule_source_group_port_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "source", "group", "port-group", grp]
-
-    def get_wan_rule_destination_group_address_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "destination", "group", "address-group", grp]
-
-    def get_wan_rule_destination_group_network_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "destination", "group", "network-group", grp]
-
-    def get_wan_rule_destination_group_domain_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "destination", "group", "domain-group", grp]
-
-    def get_wan_rule_destination_group_port_path(self, rule_id: str, grp: str) -> List[str]:
-        return self.get_wan_base() + ["rule", rule_id, "destination", "group", "port-group", grp]
-
-    def get_wan_rule_source_group_delete_path(self, rule_id: str) -> List[str]:
-        return self.get_wan_rule_source_path(rule_id) + ["group"]
-
-    def get_wan_rule_destination_group_delete_path(self, rule_id: str) -> List[str]:
-        return self.get_wan_rule_destination_path(rule_id) + ["group"]
-
     # =========================================================================
     # Config Parsing
     # =========================================================================
-
-    def supports_http_compression(self) -> bool:
-        return True
-
-    def supports_server_check_port(self) -> bool:
-        return True
-
-    def supports_listen_address_accept_proxy(self) -> bool:
-        return True
-
-    def supports_wildcard_domain(self) -> bool:
-        return True
-
-    def supports_wan_rule_groups(self) -> bool:
-        return True
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         lb_config = full_config.get("load-balancing", {})

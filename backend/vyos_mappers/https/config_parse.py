@@ -1,11 +1,13 @@
 """Read-model for HTTPS config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version keys come from the mapper (MergedMapper), not from
-hardcoded version branches here.
+the tree. Version keys come from the mapper (the 1.5 subclass), not from
+hardcoded version branches here. API keys are secrets and load masked.
 """
 
 from typing import Any, Dict, List, Optional
+
+MASKED_SECRET = "***"
 
 
 def _parse_multi(value: Any) -> List[str]:
@@ -84,12 +86,12 @@ def _empty() -> Dict[str, Any]:
 
 def _cors_under_graphql(mapper) -> bool:
     """True when the mapper places CORS under the graphql node."""
-    return "graphql" in mapper.get_api_cors_allow_origins_delete()
+    return mapper.cors_scope() == "graphql"
 
 
 def _rest_is_container(mapper) -> bool:
     """True when debug and strict live under an api/rest container."""
-    return bool(mapper.get_api_rest())
+    return "api rest" in mapper.versioned_nodes()
 
 
 def _parse_certificates(raw: Any) -> Dict[str, Any]:
@@ -111,17 +113,16 @@ def _parse_api_keys(raw: Any) -> List[Dict[str, str]]:
     result = []
     for key_id, attrs in sorted(id_map.items()):
         key_val = ""
-        if isinstance(attrs, dict):
-            key_val = _parse_scalar(attrs.get("key")) or ""
+        if isinstance(attrs, dict) and _parse_scalar(attrs.get("key")):
+            key_val = MASKED_SECRET
         result.append({"id": key_id, "key": key_val})
     return result
 
 
 def _parse_graphql(raw: dict, cors_under_graphql: bool) -> Dict[str, Any]:
-    if not raw or not isinstance(raw, dict):
-        return _empty_graphql()
-
-    auth_raw = raw.get("authentication", {}) or {}
+    """Parse a present ``api graphql`` node; an empty node is still enabled."""
+    auth_node = raw.get("authentication")
+    auth_raw = auth_node if isinstance(auth_node, dict) else {}
     auth = {
         "auth_type": _parse_scalar(auth_raw.get("type")),
         "expiration": _parse_int(auth_raw.get("expiration")),
@@ -148,15 +149,16 @@ def _parse_api(raw: dict, mapper) -> Dict[str, Any]:
 
     cors_under_graphql = _cors_under_graphql(mapper)
     keys = _parse_api_keys(raw.get("keys", {}))
-    graphql_raw = raw.get("graphql", {}) or {}
-    if graphql_raw:
+    # Presence is key membership: a bare `api graphql` node enables GraphQL.
+    if "graphql" in raw:
+        graphql_raw = raw["graphql"] if isinstance(raw["graphql"], dict) else {}
         graphql = _parse_graphql(graphql_raw, cors_under_graphql)
     else:
         graphql = _empty_graphql()
 
     if not cors_under_graphql:
-        # 1.4 CORS is an api child, not a graphql child. Keep it when graphql
-        # is absent so a delete-and-rebuild save does not drop it.
+        # 1.4 CORS is an api child, not a graphql child. Read it even when
+        # graphql is absent.
         cors_raw = raw.get("cors")
         if isinstance(cors_raw, dict):
             cors_origins = _parse_multi(cors_raw.get("allow-origin"))

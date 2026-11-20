@@ -85,6 +85,9 @@
       "asSet": "AS Set",
       "summaryOnly": "Summary Only",
       "maximumPaths": "Maximum Paths",
+      "ebgp": "eBGP",
+      "ibgp": "iBGP",
+      "maximumPathsRange": "Maximum paths must be an integer from 1 to 256",
       "table": "Table"
     },
     "params": {
@@ -126,7 +129,9 @@
         "as_path_ignore": { "label": "AS-Path Ignore", "desc": "Ignore AS-path length in best path selection" },
         "as_path_multipath_relax": { "label": "AS-Path Multipath Relax", "desc": "Allow load sharing across providers with different AS paths" },
         "compare_routerid": { "label": "Compare Router ID", "desc": "Compare router-id for identical eBGP paths" },
-        "peer_type_multipath_relax": { "label": "Peer Type Multipath Relax", "desc": "Allow load sharing across iBGP and eBGP paths" }
+        "peer_type_multipath_relax": { "label": "Peer Type Multipath Relax", "desc": "Allow load sharing across iBGP and eBGP paths" },
+        "bandwidth": { "label": "Bandwidth" },
+        "med": { "label": "MED" }
       },
       "distance": {
         "external": "External",

@@ -1,0 +1,18 @@
+# Build context for Dockerfile.backend / Dockerfile.frontend (context: repo root).
+# Keep local secrets and host-built artifacts out of the images.
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/.next
+**/__pycache__
+**/*.pyc
+**/venv
+**/.venv
+backend/bin
+backend/lib
+backend/lib64
+backend/include
+backend/pyvenv.cfg
+**/.pytest_cache
+.git

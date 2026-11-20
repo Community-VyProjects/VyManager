@@ -3,10 +3,19 @@
 import pytest
 
 from vyos_builders.suricata import SuricataBatchBuilder
-from routers.suricata.suricata import parse_suricata_config
+from routers.suricata.suricata import SuricataConfig
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.suricata import SuricataMapper
 
 
 BASE = ["service", "suricata"]
+
+
+def parse_suricata_config(node):
+    """Feed a ``service suricata`` node through the mapper into the router model."""
+    mapper = CommandMapperRegistry.get_mapper("suricata", "1.5")
+    full_config = {} if node is None else {"service": {"suricata": node}}
+    return SuricataConfig(**mapper.parse_config(full_config))
 
 CASES = [
     ("delete_suricata", (), "delete", BASE),
@@ -190,3 +199,11 @@ def test_parse_bare_eve_node_is_logging_on():
     assert typed.log.types_set is True
     assert typed.log.types == ["alert", "dns"]
     assert typed.log.filename is None
+
+
+def test_registry_mapper_parses_on_both_versions():
+    tree = {"service": {"suricata": {"interface": "eth0"}}}
+    for version in ("1.4", "1.5"):
+        mapper = CommandMapperRegistry.get_mapper("suricata", version)
+        assert SuricataConfig(**mapper.parse_config(tree)).interfaces == ["eth0"]
+    assert SuricataMapper("1.5").parse_config({}) == {"configured": False}
