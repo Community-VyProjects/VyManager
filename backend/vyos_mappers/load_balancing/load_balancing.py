@@ -2,6 +2,7 @@ from typing import Any, Dict, FrozenSet, List, Optional
 
 from ..base import BaseFeatureMapper
 
+
 class LoadBalancingMapper(BaseFeatureMapper):
     """Shared load-balancing commands.
 
