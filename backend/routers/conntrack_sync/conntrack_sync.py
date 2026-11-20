@@ -101,6 +101,8 @@ async def get_conntrack_sync_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_conntrack_sync_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -120,6 +122,8 @@ async def get_conntrack_sync_config(http_request: Request, refresh: bool = False
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
         mapper = CommandMapperRegistry.get_mapper("conntrack_sync", service.get_version())
         return ConntrackSyncConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_conntrack_sync_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -140,26 +144,30 @@ async def conntrack_sync_batch_configure(
         service = get_session_vyos_service(http_request)
         builder = ConntrackSyncBatchBuilder(version=service.get_version())
 
+        # The mapper does not raise ValueError. Do not catch it around this
+        # loop: execute_batch raises ValueError for an empty batch, and that
+        # stays a 500.
         for operation in body.operations:
             method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+            count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
+            if count == 0:
                 method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
-                    method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
+                continue
+            if not operation.value:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} requires a value",
+                )
+            parts = operation.value.split(",", count - 1)
+            if len(parts) != count or not all(parts):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} requires {count} values",
+                )
+            method(*parts)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Conntrack-Sync configuration updated"},
@@ -167,8 +175,6 @@ async def conntrack_sync_batch_configure(
         )
     except HTTPException:
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in conntrack_sync_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
