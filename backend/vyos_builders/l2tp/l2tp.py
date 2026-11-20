@@ -169,6 +169,18 @@ class L2TPBatchBuilder(BatchBuilder):
     def set_radius_server_disable(self, _unused: str, server: str) -> "L2TPBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_radius_server_disable_path(server))
 
+    def delete_radius_server_port(self, _unused: str, server: str) -> "L2TPBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_port_delete_path(server))
+
+    def delete_radius_server_acct_port(self, _unused: str, server: str) -> "L2TPBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_acct_port_delete_path(server))
+
+    def delete_radius_server_priority(self, _unused: str, server: str) -> "L2TPBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_priority_delete_path(server))
+
+    def delete_radius_server_fail_time(self, _unused: str, server: str) -> "L2TPBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_fail_time_delete_path(server))
+
     def delete_radius_server_disable(self, _unused: str, server: str) -> "L2TPBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_radius_server_disable_path(server))
 

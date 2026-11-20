@@ -25,6 +25,17 @@ export interface L2TPRadiusServer {
   disable_accounting?: boolean;
 }
 
+export type L2TPRadiusServerInput = {
+  key?: string;
+  port?: string;
+  acct_port?: string;
+  priority?: string;
+  fail_time?: string;
+  disabled?: boolean;
+  backup?: boolean;
+  disable_accounting?: boolean;
+};
+
 export interface L2TPRadiusDynamicAuthor {
   server?: string | null;
   port?: string | null;
@@ -457,16 +468,11 @@ class L2TPService {
   // RADIUS Server Operations
   // ==========================================================================
 
-  async createRadiusServer(address: string, config: {
-    key?: string;
-    port?: string;
-    acct_port?: string;
-    priority?: string;
-    fail_time?: string;
-    disabled?: boolean;
-    backup?: boolean;
-    disable_accounting?: boolean;
-  }): Promise<VyOSResponse> {
+  async createRadiusServer(address: string, config: L2TPRadiusServerInput): Promise<VyOSResponse> {
+    return this.batchConfigure("l2tp", this.radiusServerCreateOps(address, config));
+  }
+
+  private radiusServerCreateOps(address: string, config: L2TPRadiusServerInput): BatchOperation[] {
     const ops: BatchOperation[] = [{ op: "create_radius_server", value: address }];
     if (config.key) ops.push({ op: "set_radius_server_key", value: `${address}|${config.key}` });
     if (config.port) ops.push({ op: "set_radius_server_port", value: `${address}|${config.port}` });
@@ -476,6 +482,42 @@ class L2TPService {
     if (config.disabled) ops.push({ op: "set_radius_server_disable", value: address });
     if (config.backup) ops.push({ op: "set_radius_server_backup", value: address });
     if (config.disable_accounting) ops.push({ op: "set_radius_server_disable_accounting", value: address });
+    return ops;
+  }
+
+  // Edit in one commit. A new address creates the new server and deletes the
+  // old one in the same batch; otherwise only the changed fields are sent.
+  // An empty key keeps the stored one (the form never shows it).
+  async updateRadiusServer(
+    current: L2TPRadiusServer,
+    address: string,
+    config: L2TPRadiusServerInput,
+  ): Promise<VyOSResponse> {
+    if (address !== current.address) {
+      return this.batchConfigure("l2tp", [
+        ...this.radiusServerCreateOps(address, config),
+        { op: "delete_radius_server", value: current.address },
+      ]);
+    }
+
+    const ops: BatchOperation[] = [];
+    if (config.key) ops.push({ op: "set_radius_server_key", value: `${address}|${config.key}` });
+    for (const field of ["port", "acct_port", "priority", "fail_time"] as const) {
+      const next = config[field];
+      const prev = current[field];
+      if (next && next !== prev) ops.push({ op: `set_radius_server_${field}`, value: `${address}|${next}` });
+      else if (!next && prev) ops.push({ op: `delete_radius_server_${field}`, value: address });
+    }
+    const flags = [
+      ["disabled", "disable"],
+      ["backup", "backup"],
+      ["disable_accounting", "disable_accounting"],
+    ] as const;
+    for (const [field, op] of flags) {
+      if (config[field] && !current[field]) ops.push({ op: `set_radius_server_${op}`, value: address });
+      else if (!config[field] && current[field]) ops.push({ op: `delete_radius_server_${op}`, value: address });
+    }
+    if (ops.length === 0) return { success: true };
     return this.batchConfigure("l2tp", ops);
   }
 

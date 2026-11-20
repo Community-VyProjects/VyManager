@@ -82,9 +82,7 @@ export function RadiusServerModal({
     setError(null);
 
     try {
-      if (isEdit) await l2tpService.deleteRadiusServer(existingServer!.address);
-
-      const result = await l2tpService.createRadiusServer(address.trim(), {
+      const config = {
         key: key || undefined,
         port: port || undefined,
         acct_port: acctPort || undefined,
@@ -93,7 +91,10 @@ export function RadiusServerModal({
         disabled,
         backup,
         disable_accounting: disableAccounting,
-      });
+      };
+      const result = isEdit
+        ? await l2tpService.updateRadiusServer(existingServer!, address.trim(), config)
+        : await l2tpService.createRadiusServer(address.trim(), config);
 
       if (result.success) {
         onOpenChange(false);

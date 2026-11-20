@@ -151,6 +151,18 @@ class L2TPMapper:
     def get_radius_server_fail_time_path(self, server: str, time: str) -> List[str]:
         return ["vpn", "l2tp", "remote-access", "authentication", "radius", "server", server, "fail-time", time]
 
+    def get_radius_server_port_delete_path(self, server: str) -> List[str]:
+        return ["vpn", "l2tp", "remote-access", "authentication", "radius", "server", server, "port"]
+
+    def get_radius_server_acct_port_delete_path(self, server: str) -> List[str]:
+        return ["vpn", "l2tp", "remote-access", "authentication", "radius", "server", server, "acct-port"]
+
+    def get_radius_server_priority_delete_path(self, server: str) -> List[str]:
+        return ["vpn", "l2tp", "remote-access", "authentication", "radius", "server", server, "priority"]
+
+    def get_radius_server_fail_time_delete_path(self, server: str) -> List[str]:
+        return ["vpn", "l2tp", "remote-access", "authentication", "radius", "server", server, "fail-time"]
+
     def get_radius_server_disable_path(self, server: str) -> List[str]:
         return ["vpn", "l2tp", "remote-access", "authentication", "radius", "server", server, "disable"]
 
