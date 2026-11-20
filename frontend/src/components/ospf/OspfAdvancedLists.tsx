@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,8 +24,6 @@ import type {
   OspfSummaryAddress,
 } from "@/lib/api/ospf";
 import { ospfPrefixFlag, type OspfPrefixFlag } from "@/lib/api/ospf-save-ops";
-
-const NONE = "__none__";
 
 const toInt = (value: string) => (value.trim() ? parseInt(value.trim(), 10) : null);
 const toText = (value: number | null | undefined) => (value == null ? "" : String(value));
@@ -277,10 +276,10 @@ export function OspfAdvancedLists({
                 onChange={(e) => setPrefix(idx, { index_value: toInt(e.target.value) })}
               />
               <Select
-                value={ospfPrefixFlag(p) || NONE}
+                value={ospfPrefixFlag(p) || NONE_SENTINEL}
                 disabled={!editing}
                 onValueChange={(v) => {
-                  const next = (v === NONE ? "" : v) as OspfPrefixFlag;
+                  const next = (v === NONE_SENTINEL ? "" : v) as OspfPrefixFlag;
                   setPrefix(idx, { explicit_null: next === "explicit-null", no_php_flag: next === "no-php-flag" });
                 }}
               >
@@ -288,7 +287,7 @@ export function OspfAdvancedLists({
                   <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>{tc("none")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                   {prefixFlags.map((f) => (
                     <SelectItem key={f} value={f}>{f}</SelectItem>
                   ))}

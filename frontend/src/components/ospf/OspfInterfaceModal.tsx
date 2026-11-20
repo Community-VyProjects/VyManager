@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -39,8 +40,6 @@ import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { OspfAuthFields } from "./OspfAuthFields";
 import { useTranslations } from "next-intl";
-
-const NONE = "__none__";
 
 interface OspfInterfaceModalProps {
   open: boolean;
@@ -255,12 +254,12 @@ export function OspfInterfaceModal({
 
               <div className="space-y-2">
                 <Label htmlFor="ospf-iface-network">{t("fields.networkType")}</Label>
-                <Select value={network || NONE} onValueChange={(v) => setNetwork(v === NONE ? "" : v)}>
+                <Select value={network || NONE_SENTINEL} onValueChange={(v) => setNetwork(v === NONE_SENTINEL ? "" : v)}>
                   <SelectTrigger id="ospf-iface-network">
                     <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>{tc("default")}</SelectItem>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                     {networkTypes.map((nt) => (
                       <SelectItem key={nt} value={nt}>{nt}</SelectItem>
                     ))}
@@ -302,12 +301,12 @@ export function OspfInterfaceModal({
               <h4 className="text-sm font-medium">{t("fields.options")}</h4>
               <div className="space-y-2">
                 <Label htmlFor="ospf-iface-passive">{t("fields.passive")}</Label>
-                <Select value={passive || NONE} onValueChange={(v) => setPassive(v === NONE ? "" : (v as OspfPassiveMode))}>
+                <Select value={passive || NONE_SENTINEL} onValueChange={(v) => setPassive(v === NONE_SENTINEL ? "" : (v as OspfPassiveMode))}>
                   <SelectTrigger id="ospf-iface-passive">
                     <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>{tc("default")}</SelectItem>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                     <SelectItem value="passive">{t("fields.passive")}</SelectItem>
                     <SelectItem value="disable">{t("interfaceModal.passiveDisable")}</SelectItem>
                   </SelectContent>

@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -24,8 +25,6 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import type { OspfRedistribute, OspfCapabilities } from "@/lib/api/ospf";
 import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
-
-const NONE = "__none__";
 
 interface OspfRedistributeModalProps {
   open: boolean;
@@ -164,12 +163,12 @@ export function OspfRedistributeModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="ospf-redist-metric-type">{t("fields.metricType")}</Label>
-              <Select value={metricType || NONE} onValueChange={(v) => setMetricType(v === NONE ? "" : v)}>
+              <Select value={metricType || NONE_SENTINEL} onValueChange={(v) => setMetricType(v === NONE_SENTINEL ? "" : v)}>
                 <SelectTrigger id="ospf-redist-metric-type">
                   <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>{tc("default")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                   {metricTypes.map((mt) => (
                     <SelectItem key={mt} value={mt}>{t("values.type", { type: mt })}</SelectItem>
                   ))}

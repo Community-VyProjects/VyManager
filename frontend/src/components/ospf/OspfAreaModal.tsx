@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -35,8 +36,6 @@ import {
 import type { ApiError } from "@/lib/types/api";
 import { OspfAuthFields } from "./OspfAuthFields";
 import { useTranslations } from "next-intl";
-
-const NONE = "__none__";
 
 interface OspfAreaModalProps {
   open: boolean;
@@ -239,12 +238,12 @@ export function OspfAreaModal({
     values: string[],
     noneLabel: string,
   ) => (
-    <Select value={value || NONE} onValueChange={(v) => setValue(v === NONE ? "" : v)}>
+    <Select value={value || NONE_SENTINEL} onValueChange={(v) => setValue(v === NONE_SENTINEL ? "" : v)}>
       <SelectTrigger id={id}>
         <SelectValue placeholder={noneLabel} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE}>{noneLabel}</SelectItem>
+        <SelectItem value={NONE_SENTINEL}>{noneLabel}</SelectItem>
         {values.map((v) => (
           <SelectItem key={v} value={v}>{v}</SelectItem>
         ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +14,6 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { OspfAuthDraft, OspfAuthMode } from "@/lib/api/ospf-save-ops";
-
-const NONE = "__none__";
 
 interface OspfAuthFieldsProps {
   idPrefix: string;
@@ -40,14 +39,14 @@ export function OspfAuthFields({ idPrefix, draft, onChange, modes }: OspfAuthFie
       <div className="space-y-2">
         <Label htmlFor={`${idPrefix}-auth-mode`}>{t("fields.authentication")}</Label>
         <Select
-          value={draft.mode || NONE}
-          onValueChange={(v) => onChange({ ...draft, mode: (v === NONE ? "" : v) as OspfAuthMode })}
+          value={draft.mode || NONE_SENTINEL}
+          onValueChange={(v) => onChange({ ...draft, mode: (v === NONE_SENTINEL ? "" : v) as OspfAuthMode })}
         >
           <SelectTrigger id={`${idPrefix}-auth-mode`}>
             <SelectValue placeholder={tc("none")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>{tc("none")}</SelectItem>
+            <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
             {options.map((mode) => (
               <SelectItem key={mode} value={mode}>{mode}</SelectItem>
             ))}

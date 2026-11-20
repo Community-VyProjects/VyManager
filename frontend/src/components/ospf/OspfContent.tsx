@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -698,15 +699,15 @@ export function OspfContent() {
                       <div>
                         <Label className="text-sm">{t("overview.abrType")}</Label>
                         <Select
-                          value={(overviewEditing ? abrType : config?.parameters.abr_type) || "__none__"}
-                          onValueChange={(v) => setAbrType(v === "__none__" ? "" : v)}
+                          value={(overviewEditing ? abrType : config?.parameters.abr_type) || NONE_SENTINEL}
+                          onValueChange={(v) => setAbrType(v === NONE_SENTINEL ? "" : v)}
                           disabled={!overviewEditing}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={tc("default")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">{tc("default")}</SelectItem>
+                            <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                             {(capabilities?.features?.parameters?.abr_types || []).map((abr) => (
                               <SelectItem key={abr} value={abr}>{abr}</SelectItem>
                             ))}
@@ -860,15 +861,15 @@ export function OspfContent() {
                       <div>
                         <Label className="text-sm">{t("fields.metricType")}</Label>
                         <Select
-                          value={(diEditing ? diMetricType : (config?.default_information.metric_type != null ? String(config.default_information.metric_type) : "")) || "__none__"}
-                          onValueChange={(v) => setDiMetricType(v === "__none__" ? "" : v)}
+                          value={(diEditing ? diMetricType : (config?.default_information.metric_type != null ? String(config.default_information.metric_type) : "")) || NONE_SENTINEL}
+                          onValueChange={(v) => setDiMetricType(v === NONE_SENTINEL ? "" : v)}
                           disabled={!diEditing || !diEnabled}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={tc("default")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">{tc("default")}</SelectItem>
+                            <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                             {(capabilities?.features?.default_information?.metric_types || []).map((mt) => (
                               <SelectItem key={mt} value={mt}>{t("values.type", { type: mt })}</SelectItem>
                             ))}
