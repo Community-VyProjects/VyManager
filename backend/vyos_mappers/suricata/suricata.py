@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from typing import List
+from typing import Any, Dict, List
 
 from ..base import BaseFeatureMapper
 
@@ -99,6 +99,11 @@ class SuricataMapper(BaseFeatureMapper):
                 },
             },
         }
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_suricata_config
+
+        return parse_suricata_config(self, full_config)
 
     # ------------------------------------------------------------------
     # Service
