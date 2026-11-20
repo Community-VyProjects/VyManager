@@ -238,7 +238,7 @@ async def router_advert_batch_configure(http_request: Request, body: RouterAdver
         return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
     try:
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

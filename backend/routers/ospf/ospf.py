@@ -314,7 +314,7 @@ async def ospf_batch_configure(http_request: Request, body: OspfBatchRequest):
                 elif len(values) == 2:
                     method(values[0], values[1])
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

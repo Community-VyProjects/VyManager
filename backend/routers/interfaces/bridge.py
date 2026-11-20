@@ -453,7 +453,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
             else:
                 raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
 
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         result_data = response.result
         if result_data == "" or result_data is None:

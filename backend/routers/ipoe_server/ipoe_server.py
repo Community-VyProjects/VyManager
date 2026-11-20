@@ -163,7 +163,7 @@ async def ipoe_batch_configure(http_request: Request, body: IPoEBatchRequest):
         if builder.is_empty():
             return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "IPoE server configuration updated"},

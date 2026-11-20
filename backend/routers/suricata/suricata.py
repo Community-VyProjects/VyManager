@@ -209,7 +209,7 @@ async def suricata_batch_configure(http_request: Request, body: SuricataBatchReq
         if builder.is_empty():
             return VyOSResponse(success=True, data={"message": "No Suricata changes"})
 
-        response = service.execute_batch(builder)  # type: ignore[arg-type]
+        response = await run_in_threadpool(service.execute_batch, builder)  # type: ignore[arg-type]
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Suricata configuration updated"} if response.status == 200 else None,

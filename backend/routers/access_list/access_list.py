@@ -368,7 +368,7 @@ async def access_list_batch_configure(http_request: Request, body: AccessListBat
             method(*args)
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -497,7 +497,7 @@ async def reorder_access_list_rules(http_request: Request, body: ReorderAccessLi
                 # NOTE: IPv6 access-lists do NOT have destination fields
         
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         
         return VyOSResponse(
             success=response.status == 200,

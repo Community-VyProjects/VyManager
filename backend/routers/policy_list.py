@@ -164,7 +164,7 @@ def build_router(kind: str) -> APIRouter:
                             args.append(operation.value)
                             break
                 method(*args)
-            response = service.execute_batch(builder)
+            response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
                 data={"message": "Configuration updated"},
@@ -198,7 +198,7 @@ def build_router(kind: str) -> APIRouter:
                     builder.set_rule_description(list_name, str(new_number), rule_data.description)
                 if rule_data.regex:
                     builder.set_rule_regex(list_name, str(new_number), rule_data.regex)
-            response = service.execute_batch(builder)
+            response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
                 data={"message": f"Successfully reordered {len(body.rules)} rules in {label} {list_name}"},

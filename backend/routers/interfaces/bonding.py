@@ -425,7 +425,7 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
             else:
                 raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
 
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         return VyOSResponse(
             success=response.status == 200,

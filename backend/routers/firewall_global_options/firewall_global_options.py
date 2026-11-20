@@ -341,7 +341,7 @@ async def firewall_global_options_batch_configure(http_request: Request, body: G
             method(*args)
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -399,7 +399,7 @@ async def update_firewall_global_options(http_request: Request, config: Firewall
             )
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

@@ -2909,7 +2909,7 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 )
 
         # Execute the batch
-        response = service.execute_batch(batch)
+        response = await run_in_threadpool(service.execute_batch, batch)
 
         # Handle empty string result (convert to None for Pydantic validation)
         result_data = response.result

@@ -309,7 +309,7 @@ async def prefix_list_batch_configure(http_request: Request, body: PrefixListBat
             method(*args)
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -410,7 +410,7 @@ async def reorder_prefix_list_rules(http_request: Request, body: ReorderPrefixLi
                     builder.set_rule6_le(body.name, rule_str, str(rule.le))
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

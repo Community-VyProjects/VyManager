@@ -159,7 +159,7 @@ async def conntrack_sync_batch_configure(
                 elif operation.value:
                     method(operation.value)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Conntrack-Sync configuration updated"},

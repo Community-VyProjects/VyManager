@@ -213,7 +213,7 @@ async def reboot_system(request: Request, body: PowerActionRequest):
 
     # Execute VyOS command
     try:
-        response = service.device.reboot(path=path)
+        response = await run_in_threadpool(service.device.reboot, path=path)
 
         if response.status != 200:
             raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
@@ -372,7 +372,7 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
 
     # Execute VyOS command
     try:
-        response = service.device.poweroff(path=path)
+        response = await run_in_threadpool(service.device.poweroff, path=path)
         print(f"[Power] VyOS response status: {response.status}")
         print(f"[Power] VyOS response.result type: {type(response.result)}")
         print(f"[Power] VyOS response.result: {response.result}")
@@ -532,7 +532,7 @@ async def get_power_status(request: Request):
             # Get VyOS timezone for proper time conversion
             vyos_timezone = await get_vyos_timezone(service)
 
-            response = service.device.show(path=["reboot"])
+            response = await run_in_threadpool(service.device.show, path=["reboot"])
 
             if response.status != 200:
                 raise Exception(f"VyOS command failed: {response.error}")
