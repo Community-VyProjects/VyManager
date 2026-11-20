@@ -78,6 +78,19 @@ function failedSaveMessage(
   return result.error || fallback;
 }
 
+function bandwidthOptions(values: string[], loaded: string | null | undefined): string[] {
+  if (loaded && !values.includes(loaded)) return [loaded, ...values];
+  return values;
+}
+
+function medOptions(values: string[], loaded: string[] | null | undefined): string[] {
+  const options = [...values];
+  for (const value of loaded || []) {
+    if (value && !options.includes(value)) options.push(value);
+  }
+  return options;
+}
+
 /** null clears the leaf. undefined is not an integer from 1 to 256. */
 function maximumPathCount(raw: string): number | null | undefined {
   const text = raw.trim();
@@ -534,7 +547,11 @@ export function BgpContent() {
     setParamsError(null);
     try {
       const result = await bgpService.saveParameters(config.parameters, editParams);
-      if (!result.success) throw new Error(result.error || t("content.saveFailed"));
+      const message = failedSaveMessage(result, t("content.saveParamsFailed"));
+      if (message) {
+        setParamsError(message);
+        return;
+      }
       await loadData(true);
       setParamsEditing(false);
     } catch (err) {
@@ -1705,6 +1722,78 @@ export function BgpContent() {
                         );
                       })}
                     </div>
+                    {(capabilities?.features.bestpath_bandwidth?.supported
+                      || capabilities?.features.bestpath_med?.supported) && (
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        {capabilities?.features.bestpath_bandwidth?.supported && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("content.params.bestpath.bandwidth.label")}</Label>
+                            {paramsEditing && editParams ? (
+                              <Select
+                                value={editParams.bestpath.bandwidth || "__none__"}
+                                onValueChange={(v) => {
+                                  setEditParams({
+                                    ...editParams,
+                                    bestpath: {
+                                      ...editParams.bestpath,
+                                      bandwidth: v === "__none__" ? null : v,
+                                    },
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
+                                  {bandwidthOptions(capabilities.features.bestpath_bandwidth.values || [], editParams.bestpath.bandwidth).map((value) => (
+                                    <SelectItem key={value} value={value}>{value}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <p className="text-sm font-mono p-2 bg-muted rounded-md">
+                                {config?.parameters.bestpath.bandwidth || <span className="text-muted-foreground">{tc("notSet")}</span>}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {capabilities?.features.bestpath_med?.supported && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("content.params.bestpath.med.label")}</Label>
+                            <div className="space-y-2 rounded-lg border p-4">
+                              {medOptions(
+                                capabilities.features.bestpath_med.values || [],
+                                paramsEditing ? editParams?.bestpath.med : config?.parameters.bestpath.med,
+                              ).map((value) => {
+                                const selected = new Set((paramsEditing ? editParams?.bestpath.med : config?.parameters.bestpath.med) || []);
+                                return (
+                                  <div key={value} className="flex items-center space-x-3">
+                                    <Checkbox
+                                      id={`bp-med-${value}`}
+                                      checked={selected.has(value)}
+                                      disabled={!paramsEditing}
+                                      onCheckedChange={(c) => {
+                                        if (!paramsEditing || !editParams) return;
+                                        const next = new Set(editParams.bestpath.med || []);
+                                        if (c === true) next.add(value);
+                                        else next.delete(value);
+                                        setEditParams({
+                                          ...editParams,
+                                          bestpath: {
+                                            ...editParams.bestpath,
+                                            med: next.size ? [...next] : null,
+                                          },
+                                        });
+                                      }}
+                                    />
+                                    <Label htmlFor={`bp-med-${value}`} className="cursor-pointer text-sm">{value}</Label>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 

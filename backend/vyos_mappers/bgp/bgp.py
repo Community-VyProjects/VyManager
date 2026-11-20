@@ -257,6 +257,9 @@ class BgpMapper(BaseFeatureMapper):
     def get_parameters_bestpath_peer_type_multipath_relax(self) -> List[str]:
         return self._bgp() + ["parameters", "bestpath", "peer-type", "multipath-relax"]
 
+    def get_parameters_bestpath_delete(self) -> List[str]:
+        return self._bgp() + ["parameters", "bestpath"]
+
     # Confederation
     def get_parameters_confederation_identifier(self, value: str) -> List[str]:
         return self._bgp() + ["parameters", "confederation", "identifier", value]

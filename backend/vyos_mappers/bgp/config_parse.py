@@ -29,13 +29,15 @@ def _safe_int(value) -> Optional[int]:
 
 
 def _to_list(value) -> List[str]:
-    """Convert VyOS config value to list (handles string or list)."""
+    """Convert a VyOS config value to a list (string, list, or multi dict)."""
     if value is None:
         return []
     if isinstance(value, list):
         return value
     if isinstance(value, str):
         return [value]
+    if isinstance(value, dict):
+        return list(value.keys())
     return []
 
 

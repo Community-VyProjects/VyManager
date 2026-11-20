@@ -294,6 +294,8 @@ export interface BgpCapabilities {
     peer_group_bfd_strict: { supported: boolean };
     peer_group_solo: { supported: boolean };
     as_notation: { supported: boolean; values: string[] };
+    bestpath_bandwidth: { supported: boolean; values: string[] };
+    bestpath_med: { supported: boolean; values: string[] };
     input_queue_limit: { supported: boolean };
     output_queue_limit: { supported: boolean };
     update_delay: { supported: boolean };
@@ -960,12 +962,47 @@ class BgpService {
       }
     }
 
-    // Bestpath
-    if (updated.bestpath.as_path_confed !== current.bestpath.as_path_confed) operations.push({ op: updated.bestpath.as_path_confed ? "set_parameters_bestpath_as_path_confed" : "delete_parameters_bestpath_as_path_confed" });
-    if (updated.bestpath.as_path_ignore !== current.bestpath.as_path_ignore) operations.push({ op: updated.bestpath.as_path_ignore ? "set_parameters_bestpath_as_path_ignore" : "delete_parameters_bestpath_as_path_ignore" });
-    if (updated.bestpath.as_path_multipath_relax !== current.bestpath.as_path_multipath_relax) operations.push({ op: updated.bestpath.as_path_multipath_relax ? "set_parameters_bestpath_as_path_multipath_relax" : "delete_parameters_bestpath_as_path_multipath_relax" });
-    if (updated.bestpath.compare_routerid !== current.bestpath.compare_routerid) operations.push({ op: updated.bestpath.compare_routerid ? "set_parameters_bestpath_compare_routerid" : "delete_parameters_bestpath_compare_routerid" });
-    if (updated.bestpath.peer_type_multipath_relax !== current.bestpath.peer_type_multipath_relax) operations.push({ op: updated.bestpath.peer_type_multipath_relax ? "set_parameters_bestpath_peer_type_multipath_relax" : "delete_parameters_bestpath_peer_type_multipath_relax" });
+    const leaf = (raw: string | null | undefined): string | null => {
+      const text = (raw ?? "").trim();
+      return text || null;
+    };
+    const medValues = (raw: string[] | null | undefined): string[] =>
+      [...new Set((raw || []).map((item) => item.trim()).filter(Boolean))].sort();
+    const currentBestpath = {
+      ...current.bestpath,
+      bandwidth: leaf(current.bestpath.bandwidth),
+      med: medValues(current.bestpath.med),
+    };
+    const updatedBestpath = {
+      ...updated.bestpath,
+      bandwidth: leaf(updated.bestpath.bandwidth),
+      med: medValues(updated.bestpath.med),
+    };
+    const bestpathEmpty = (bp: typeof currentBestpath) =>
+      !bp.as_path_confed && !bp.as_path_ignore && !bp.as_path_multipath_relax
+      && !bp.compare_routerid && !bp.peer_type_multipath_relax
+      && !bp.bandwidth && bp.med.length === 0;
+
+    if (bestpathEmpty(updatedBestpath) && !bestpathEmpty(currentBestpath)) {
+      operations.push({ op: "delete_parameters_bestpath" });
+    } else {
+      if (updatedBestpath.as_path_confed !== currentBestpath.as_path_confed) operations.push({ op: updatedBestpath.as_path_confed ? "set_parameters_bestpath_as_path_confed" : "delete_parameters_bestpath_as_path_confed" });
+      if (updatedBestpath.as_path_ignore !== currentBestpath.as_path_ignore) operations.push({ op: updatedBestpath.as_path_ignore ? "set_parameters_bestpath_as_path_ignore" : "delete_parameters_bestpath_as_path_ignore" });
+      if (updatedBestpath.as_path_multipath_relax !== currentBestpath.as_path_multipath_relax) operations.push({ op: updatedBestpath.as_path_multipath_relax ? "set_parameters_bestpath_as_path_multipath_relax" : "delete_parameters_bestpath_as_path_multipath_relax" });
+      if (updatedBestpath.compare_routerid !== currentBestpath.compare_routerid) operations.push({ op: updatedBestpath.compare_routerid ? "set_parameters_bestpath_compare_routerid" : "delete_parameters_bestpath_compare_routerid" });
+      if (updatedBestpath.peer_type_multipath_relax !== currentBestpath.peer_type_multipath_relax) operations.push({ op: updatedBestpath.peer_type_multipath_relax ? "set_parameters_bestpath_peer_type_multipath_relax" : "delete_parameters_bestpath_peer_type_multipath_relax" });
+      if (updatedBestpath.bandwidth !== currentBestpath.bandwidth) {
+        operations.push(updatedBestpath.bandwidth
+          ? { op: "set_parameters_bestpath_bandwidth", value: updatedBestpath.bandwidth }
+          : { op: "delete_parameters_bestpath_bandwidth" });
+      }
+      for (const value of currentBestpath.med) {
+        if (!updatedBestpath.med.includes(value)) operations.push({ op: "delete_parameters_bestpath_med", value });
+      }
+      for (const value of updatedBestpath.med) {
+        if (!currentBestpath.med.includes(value)) operations.push({ op: "set_parameters_bestpath_med", value });
+      }
+    }
     if (updated.as_notation !== current.as_notation) {
       operations.push(updated.as_notation
         ? { op: "set_parameters_as_notation", value: updated.as_notation }
