@@ -27,6 +27,11 @@ class BgpMapper(BaseFeatureMapper):
     # ipv4-unicast redistribute table exists on both labs. ipv6 table is 1.5.
     _TABLE_AFIS = ("ipv4-unicast",)
 
+    # maximum-paths ebgp/ibgp on both labs. ipv6-labeled-unicast has no node.
+    _MAXIMUM_PATHS_AFIS = (
+        "ipv4-unicast", "ipv6-unicast", "ipv4-labeled-unicast",
+    )
+
     # BMP monitor policies on both labs. local-rib is 1.5-only.
     _BMP_MONITOR_POLICIES = (
         "pre-policy", "post-policy",
@@ -86,6 +91,14 @@ class BgpMapper(BaseFeatureMapper):
         if afi not in self.redistribute_table_afis():
             raise ValueError(
                 f"redistribute table is not supported for {afi} on this device")
+
+    def maximum_paths_afis(self) -> FrozenSet[str]:
+        return frozenset(self._MAXIMUM_PATHS_AFIS)
+
+    def _require_maximum_paths(self, afi: str) -> None:
+        if afi not in self.maximum_paths_afis():
+            raise ValueError(
+                f"maximum-paths is not supported for {afi} on this device")
 
     def as_notation_values(self) -> List[str]:
         return []
@@ -981,12 +994,23 @@ class BgpMapper(BaseFeatureMapper):
 
     # Maximum paths
     def get_af_maximum_paths_ebgp(self, afi: str, value: str) -> List[str]:
+        self._require_maximum_paths(afi)
         return self._af(afi) + ["maximum-paths", "ebgp", value]
 
     def get_af_maximum_paths_ibgp(self, afi: str, value: str) -> List[str]:
+        self._require_maximum_paths(afi)
         return self._af(afi) + ["maximum-paths", "ibgp", value]
 
+    def get_af_maximum_paths_ebgp_delete(self, afi: str) -> List[str]:
+        self._require_maximum_paths(afi)
+        return self._af(afi) + ["maximum-paths", "ebgp"]
+
+    def get_af_maximum_paths_ibgp_delete(self, afi: str) -> List[str]:
+        self._require_maximum_paths(afi)
+        return self._af(afi) + ["maximum-paths", "ibgp"]
+
     def get_af_maximum_paths_delete(self, afi: str) -> List[str]:
+        self._require_maximum_paths(afi)
         return self._af(afi) + ["maximum-paths"]
 
     # Redistribute

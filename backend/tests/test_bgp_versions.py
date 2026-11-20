@@ -125,6 +125,26 @@ def test_ipv6_redistribute_protocols_match_the_lab():
         mapper.get_af_redistribute("ipv6-unicast", "ospf")
 
 
+def test_maximum_paths_afis_match_both_labs():
+    """ipv4-unicast, ipv6-unicast, and ipv4-labeled-unicast on 1.4 and 1.5.
+    ipv6-labeled-unicast has no maximum-paths node.
+    """
+    for version in ("1.4.3", "2026.09.23-rolling"):
+        mapper = get_bgp_mapper(version)
+        assert mapper.maximum_paths_afis() == frozenset({
+            "ipv4-unicast", "ipv6-unicast", "ipv4-labeled-unicast",
+        })
+        assert mapper.get_af_maximum_paths_ebgp("ipv6-unicast", "4")[-2:] == ["ebgp", "4"]
+        with pytest.raises(ValueError, match="not supported"):
+            mapper.get_af_maximum_paths_ebgp("ipv6-labeled-unicast", "4")
+        with pytest.raises(ValueError, match="not supported"):
+            mapper.get_af_maximum_paths_ibgp_delete("l2vpn-evpn")
+    caps = BgpBatchBuilder(version="1.4").get_capabilities()
+    assert caps["maximum_paths_afis"] == [
+        "ipv4-labeled-unicast", "ipv4-unicast", "ipv6-unicast",
+    ]
+
+
 def test_parse_config_masks_password_and_reads_new_leaves():
     from routers.bgp.bgp import BgpBmpTarget, BgpConfig
 

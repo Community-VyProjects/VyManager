@@ -61,6 +61,11 @@ CASES = [
     ("delete_peer_group_af_route_map_export", ("UPSTREAM", AFI), "delete", ["protocols", "bgp", "peer-group", "UPSTREAM", "address-family", AFI, "route-map", "export"]),
     ("set_af_redistribute_table", (AFI, "10"), "set", ["protocols", "bgp", "address-family", AFI, "redistribute", "table", "10"]),
     ("delete_af_redistribute_table", (AFI, "10"), "delete", ["protocols", "bgp", "address-family", AFI, "redistribute", "table", "10"]),
+    ("set_af_maximum_paths_ebgp", (AFI, "4"), "set", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ebgp", "4"]),
+    ("set_af_maximum_paths_ibgp", (AFI, "8"), "set", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ibgp", "8"]),
+    ("delete_af_maximum_paths_ebgp", (AFI,), "delete", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ebgp"]),
+    ("delete_af_maximum_paths_ibgp", (AFI,), "delete", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ibgp"]),
+    ("delete_af_maximum_paths", (AFI,), "delete", ["protocols", "bgp", "address-family", AFI, "maximum-paths"]),
 ]
 
 ONLY_15 = [

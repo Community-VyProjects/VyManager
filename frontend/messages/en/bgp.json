@@ -85,6 +85,9 @@
       "asSet": "AS Set",
       "summaryOnly": "Summary Only",
       "maximumPaths": "Maximum Paths",
+      "ebgp": "eBGP",
+      "ibgp": "iBGP",
+      "maximumPathsRange": "Maximum paths must be an integer from 1 to 256",
       "table": "Table"
     },
     "params": {

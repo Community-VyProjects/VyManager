@@ -303,6 +303,7 @@ export interface BgpCapabilities {
     "ipv6-unicast": string[];
   };
   redistribute_table_afis: string[];
+  maximum_paths_afis: string[];
   address_family_types: {
     neighbor: string[];
     peer_group: string[];
@@ -1051,6 +1052,35 @@ class BgpService {
 
   async deleteAggregateAddress(afi: string, prefix: string): Promise<VyOSResponse> {
     return this.batchConfigure({ operations: [{ op: "delete_af_aggregate_address", value: `${afi},${prefix}` }] });
+  }
+
+  async saveMaximumPaths(
+    afi: string,
+    originalEbgp: number | null,
+    originalIbgp: number | null,
+    ebgp: number | null,
+    ibgp: number | null,
+  ): Promise<VyOSResponse> {
+    const operations: BgpBatchOperation[] = [];
+    // Last leaf delete leaves an empty maximum-paths node on both labs.
+    if (ebgp == null && ibgp == null) {
+      if (originalEbgp != null || originalIbgp != null) {
+        operations.push({ op: "delete_af_maximum_paths", value: afi });
+      }
+    } else {
+      if (ebgp !== originalEbgp) {
+        operations.push(ebgp != null
+          ? { op: "set_af_maximum_paths_ebgp", value: `${afi},${ebgp}` }
+          : { op: "delete_af_maximum_paths_ebgp", value: afi });
+      }
+      if (ibgp !== originalIbgp) {
+        operations.push(ibgp != null
+          ? { op: "set_af_maximum_paths_ibgp", value: `${afi},${ibgp}` }
+          : { op: "delete_af_maximum_paths_ibgp", value: afi });
+      }
+    }
+    if (operations.length === 0) return { success: true };
+    return this.batchConfigure({ operations });
   }
 
   async setL2vpnEvpnFlag(flag: string, enabled: boolean): Promise<VyOSResponse> {
