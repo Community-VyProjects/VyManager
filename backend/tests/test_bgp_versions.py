@@ -115,6 +115,18 @@ def test_capabilities_do_not_read_a_version_string():
     assert '"1.4"' not in text
 
 
+def test_bestpath_capability_lists_read_the_mapper(monkeypatch):
+    """A handwritten list in get_capabilities() would ignore this."""
+    monkeypatch.setattr(BgpMapper, "bestpath_bandwidth_values", lambda self: ["ignore"])
+    monkeypatch.setattr(BgpMapper, "bestpath_med_values", lambda self: ["confed"])
+    for version in ("1.4.3", "2026.09.23-rolling"):
+        features = BgpBatchBuilder(version=version).get_capabilities()["features"]
+        assert features["bestpath_bandwidth"]["supported"] is True
+        assert features["bestpath_bandwidth"]["values"] == ["ignore"]
+        assert features["bestpath_med"]["supported"] is True
+        assert features["bestpath_med"]["values"] == ["confed"]
+
+
 def test_ipv6_redistribute_protocols_match_the_lab():
     mapper = get_bgp_mapper("1.4")
     assert "ospfv3" in mapper.redistribute_ipv6_protocols()

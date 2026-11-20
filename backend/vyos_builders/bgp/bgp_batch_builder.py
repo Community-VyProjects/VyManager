@@ -293,6 +293,9 @@ class BgpBatchBuilder(BatchBuilder):
     def delete_parameters_bestpath_peer_type_multipath_relax(self) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_parameters_bestpath_peer_type_multipath_relax())
 
+    def delete_parameters_bestpath(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_parameters_bestpath_delete())
+
     # ========================================================================
     # Parameters - Confederation
     # ========================================================================
@@ -1439,6 +1442,14 @@ class BgpBatchBuilder(BatchBuilder):
                 "as_notation": {
                     "supported": "as-notation" in nodes,
                     "values": self.m.as_notation_values(),
+                },
+                "bestpath_bandwidth": {
+                    "supported": True,
+                    "values": self.m.bestpath_bandwidth_values(),
+                },
+                "bestpath_med": {
+                    "supported": True,
+                    "values": self.m.bestpath_med_values(),
                 },
                 "input_queue_limit": {"supported": "input-queue-limit" in nodes},
                 "output_queue_limit": {"supported": "output-queue-limit" in nodes},
