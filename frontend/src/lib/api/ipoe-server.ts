@@ -438,6 +438,39 @@ class IPoEServerService {
     return this.batchConfigure(address, ops);
   }
 
+  // Edit in place, in one commit: only the changed fields, and an empty key
+  // keeps the stored one (the form never shows it).
+  async updateRadiusServer(current: IPoERadiusServer, opts: {
+    key?: string;
+    port?: string;
+    acct_port?: string;
+    priority?: string;
+    fail_time?: string;
+    disabled?: boolean;
+    backup?: boolean;
+    disable_accounting?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [];
+    if (opts.key) ops.push({ op: "set_radius_server_key", value: opts.key });
+    for (const field of ["port", "acct_port", "priority", "fail_time"] as const) {
+      const next = opts[field];
+      const prev = current[field];
+      if (next && next !== prev) ops.push({ op: `set_radius_server_${field}`, value: next });
+      else if (!next && prev) ops.push({ op: `delete_radius_server_${field}` });
+    }
+    const flags = [
+      ["disabled", "disable"],
+      ["backup", "backup"],
+      ["disable_accounting", "disable_accounting"],
+    ] as const;
+    for (const [field, op] of flags) {
+      if (opts[field] && !current[field]) ops.push({ op: `set_radius_server_${op}` });
+      else if (!opts[field] && current[field]) ops.push({ op: `delete_radius_server_${op}` });
+    }
+    if (ops.length === 0) return { success: true };
+    return this.batchConfigure(current.address, ops);
+  }
+
   async deleteRadiusServer(address: string): Promise<VyOSResponse> {
     return this.batchConfigure(address, [{ op: "delete_radius_server" }]);
   }
