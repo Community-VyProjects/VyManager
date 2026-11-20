@@ -57,6 +57,8 @@ export interface OspfVirtualLink {
 
 export interface OspfArea {
   area_id: string;
+  /** False for an area that only an interface names; it has no area node to delete. */
+  configured?: boolean;
   area_type?: string | null;
   area_type_no_summary: boolean;
   area_type_default_cost?: number | null;
@@ -288,14 +290,11 @@ class OspfService {
     });
   }
 
-  async refreshConfig(): Promise<VyOSResponse> {
-    return apiClient.post<VyOSResponse>("/vyos/config/refresh");
-  }
-
   /**
    * POST one batch. A rejected commit comes back as HTTP 200 with
    * ``success: false``; that throws an ApiError carrying the device error so
-   * the caller stays open and shows it. An empty batch is not sent.
+   * the caller stays open and shows it. An empty batch is not sent. Callers
+   * reload with getConfig(true), which re-reads the device.
    */
   async batchConfigure(operations: OspfBatchOperation[]): Promise<VyOSResponse> {
     if (operations.length === 0) return NO_CHANGES;
@@ -304,7 +303,6 @@ class OspfService {
       const error: ApiError = { message: result.error || "" };
       throw error;
     }
-    await this.refreshConfig();
     return result;
   }
 

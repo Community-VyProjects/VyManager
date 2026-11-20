@@ -35,6 +35,8 @@ interface OspfRedistributeModalProps {
   existingProtocols: string[];
   existingEntry?: OspfRedistribute | null;
   routeMapNames?: string[];
+  /** Static routing table IDs (protocols static table) not yet redistributed. */
+  tableIds: string[];
 }
 
 export function OspfRedistributeModal({
@@ -45,6 +47,7 @@ export function OspfRedistributeModal({
   existingProtocols,
   existingEntry,
   routeMapNames = [],
+  tableIds,
 }: OspfRedistributeModalProps) {
   const t = useTranslations("ospf");
   const tc = useTranslations("common");
@@ -138,12 +141,11 @@ export function OspfRedistributeModal({
           {protocol === "table" && (
             <div className="space-y-2">
               <Label htmlFor="ospf-redist-table">{t("fields.tableId")}</Label>
-              <Input
+              <NamedListSelect
                 id="ospf-redist-table"
-                type="number"
                 value={tableId}
-                onChange={(e) => setTableId(e.target.value)}
-                placeholder={t("redistributeModal.tableIdPlaceholder")}
+                names={tableIds}
+                onValueChange={setTableId}
                 disabled={isEditMode}
               />
             </div>

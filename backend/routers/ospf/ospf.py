@@ -65,6 +65,7 @@ class OspfVirtualLink(BaseModel):
 class OspfArea(BaseModel):
     """OSPF area configuration."""
     area_id: str
+    configured: bool = True
     area_type: Optional[str] = None
     area_type_no_summary: bool = False
     area_type_default_cost: Optional[int] = None

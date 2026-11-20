@@ -20,7 +20,7 @@ import type {
   OspfVirtualLink,
 } from "./ospf";
 
-/** Secrets load from GET /config as this mask. It is never sent back. */
+/** Secrets load from GET /config as this mask. ospfAuthOps never sends it back. */
 export const MASKED_SECRET = "***";
 
 type Op = OspfBatchOperation;
@@ -238,14 +238,17 @@ export function ospfAuthOps(
     }
     for (const [id, [, raw]] of afterKeys) {
       const value = ospfText(raw);
-      if (value === MASKED_SECRET && before === "md5" && beforeKeys.has(id)) continue;
+      // A masked key is kept as stored; a mask on a new key is blocked by ospfAuthProblem.
+      if (value === MASKED_SECRET || value === "") continue;
       setKey(id, value);
     }
   }
   if (after === "plaintext-password") {
     const password = ospfText(updated.plaintext_password);
-    const unchanged = before === after && (password === MASKED_SECRET || password === ospfText(original?.plaintext_password));
-    if (!unchanged) ops.push({ op: `set_${p}_authentication_plaintext_password`, value: `${target},${password}` });
+    const unchanged = before === after && password === ospfText(original?.plaintext_password);
+    if (password !== MASKED_SECRET && password !== "" && !unchanged) {
+      ops.push({ op: `set_${p}_authentication_plaintext_password`, value: `${target},${password}` });
+    }
   }
   if (after === "null" && before !== "null") {
     ops.push({ op: `set_${p}_authentication_null`, value: target });
@@ -618,10 +621,11 @@ export function ospfGracefulRestartOps(original: OspfGracefulRestart, updated: O
   return ops;
 }
 
+/** enable and router-address are independent leaves; both cleared deletes mpls-te. */
 export function ospfMplsTeOps(original: OspfMplsTe, updated: OspfMplsTe): Op[] {
   const ops: Op[] = [];
   const set = (m: OspfMplsTe) => !!m.enable || ospfNum(m.router_address) !== null;
-  if (!updated.enable) {
+  if (!set(updated)) {
     if (set(original)) ops.push({ op: "delete_mpls_te" });
     return ops;
   }

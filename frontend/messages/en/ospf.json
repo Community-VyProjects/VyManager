@@ -21,7 +21,8 @@
     "addRedistribute": "Add Redistribute",
     "adding": "Adding...",
     "prefix": "Prefix",
-    "address": "Address"
+    "address": "Address",
+    "bfd": "BFD"
   },
   "values": {
     "auto": "auto",
@@ -146,11 +147,13 @@
     "summaryDuplicate": "Each summary prefix can only be used once",
     "srPrefixRequired": "Each prefix SID needs a prefix",
     "srPrefixDuplicate": "Each prefix SID prefix can only be used once",
-    "summaryTagNoAdvertise": "A summary address cannot have both a tag and do not advertise",
+    "summaryTagNoAdvertise": "A summary address cannot have both a tag and no-advertise",
     "srIndexRequired": "Each prefix SID needs an index",
     "srBlockPair": "Set both the low and high label value of a block",
     "srBlockOrder": "The low label value must not be above the high label value",
-    "srLocalNeedsGlobal": "A local block needs a global block"
+    "srLocalNeedsGlobal": "A local block needs a global block",
+    "routerIdInvalid": "Enter a router ID in IPv4 dotted form",
+    "routerIdDuplicate": "This router ID is already listed"
   },
   "delete": {
     "title": "Delete OSPF {itemType}",
@@ -160,7 +163,7 @@
     "itemInterface": "Interface",
     "itemRedistribute": "Redistribute",
     "tableSuffix": " (table {table})",
-    "itemOspf": "OSPF configuration"
+    "allDescription": "This removes all OSPF configuration from the router."
   },
   "areaModal": {
     "titleEdit": "Edit OSPF Area",
@@ -186,14 +189,14 @@
     "rangePrefixRequired": "Each range needs a prefix",
     "rangeDuplicate": "Each range prefix can only be used once",
     "virtualLinkAddressRequired": "Each virtual link needs an address",
-    "virtualLinkDuplicate": "Each virtual link address can only be used once"
+    "virtualLinkDuplicate": "Each virtual link address can only be used once",
+    "areaIdExists": "This area already exists"
   },
   "interfaceModal": {
     "titleEdit": "Edit OSPF Interface",
     "titleAdd": "Add OSPF Interface",
     "descriptionEdit": "Modify OSPF settings for {name}.",
     "descriptionAdd": "Configure OSPF on a network interface.",
-    "areaPlaceholder": "e.g. 0.0.0.0 or 0",
     "costAndPriority": "Cost & Priority",
     "bandwidth": "Bandwidth",
     "bandwidthPlaceholder": "Bandwidth (Kbps)",
@@ -216,9 +219,7 @@
     "priorityRange": "Priority must be between 0 and 255",
     "ldpSyncHolddownRange": "LDP sync holddown must be between 0 and 10000",
     "helloMultiplier": "Hello Multiplier",
-    "passiveOn": "Passive",
     "passiveDisable": "Not passive",
-    "bfd": "BFD",
     "bfdProfile": "BFD Profile",
     "helloMultiplierDeadInterval": "Hello multiplier and dead interval cannot both be set",
     "md5Keys": "MD5 Keys",
@@ -228,7 +229,6 @@
     "title": "Add Route Redistribution",
     "description": "Redistribute routes from another protocol into OSPF.",
     "selectProtocol": "Select protocol",
-    "tableIdPlaceholder": "Routing table number",
     "metricPlaceholder": "Metric value",
     "selectProtocolError": "Please select a protocol",
     "tableIdRequired": "Table ID is required",

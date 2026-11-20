@@ -448,15 +448,19 @@ class OspfMapper(BaseFeatureMapper):
         return self._redistribute(protocol) + ["route-map", value]
 
     def get_redistribute_metric_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["metric"]
 
     def get_redistribute_metric_type_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["metric-type"]
 
     def get_redistribute_route_map_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["route-map"]
 
     def get_redistribute_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._redistribute(protocol)
 
     def get_redistribute_table(self, table: str) -> List[str]:
@@ -672,9 +676,6 @@ class OspfMapper(BaseFeatureMapper):
         return self._ospf() + ["access-list", acl]
 
     def get_access_list_export(self, acl: str, value: str) -> List[str]:
-        return self._ospf() + ["access-list", acl, "export", value]
-
-    def get_access_list_export_delete(self, acl: str, value: str) -> List[str]:
         return self._ospf() + ["access-list", acl, "export", value]
 
     def get_access_list_delete(self, acl: str) -> List[str]:

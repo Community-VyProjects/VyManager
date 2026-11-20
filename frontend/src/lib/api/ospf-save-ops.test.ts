@@ -25,6 +25,7 @@ import {
   ospfSummaryAddressOps,
   ospfTimersOps,
 } from "./ospf-save-ops";
+import { apiClient } from "./client";
 import {
   ospfService,
   type OspfArea,
@@ -377,5 +378,43 @@ describe("service", () => {
       [{ op: "delete_segment_routing_prefix_explicit_null", value: "10.0.0.1/32" }],
       [{ op: "delete_segment_routing" }],
     ]);
+  });
+});
+
+describe("batchConfigure", () => {
+  it("throws the device error on success:false and skips an empty batch", async () => {
+    const posts: unknown[] = [];
+    const original = apiClient.post;
+    apiClient.post = (async (endpoint: string, body?: unknown) => {
+      posts.push([endpoint, body]);
+      return { success: false, error: "Commit failed" };
+    }) as typeof apiClient.post;
+    try {
+      assert.deepEqual(await ospfService.batchConfigure([]), { success: true, data: null });
+      assert.equal(posts.length, 0);
+      await assert.rejects(ospfService.batchConfigure([{ op: "delete_ospf" }]), { message: "Commit failed" });
+      assert.deepEqual(posts, [["/vyos/ospf/batch", { operations: [{ op: "delete_ospf" }] }]]);
+    } finally {
+      apiClient.post = original;
+    }
+  });
+});
+
+describe("independent leaves and the mask", () => {
+  it("mpls-te router-address stays when only enable is cleared", () => {
+    assert.deepEqual(ospfMplsTeOps({ enable: true, router_address: "10.0.0.1" }, { enable: false, router_address: "10.0.0.1" }), [
+      { op: "delete_mpls_te_enable" },
+    ]);
+    assert.deepEqual(ospfMplsTeOps({ enable: false, router_address: "10.0.0.1" }, { enable: false }), [
+      { op: "delete_mpls_te" },
+    ]);
+  });
+
+  it("never emits the mask as a secret, even on a mode change", () => {
+    const masked = { md5_key_ids: { "1": MASKED_SECRET }, plaintext_password: null, null: false };
+    const ops = ospfAuthOps("interface", "eth0", null, masked);
+    assert.ok(ops.every((op) => !(op.value || "").includes(MASKED_SECRET)));
+    const plain = ospfAuthOps("interface", "eth0", masked, { md5_key_ids: {}, plaintext_password: MASKED_SECRET, null: false });
+    assert.deepEqual(plain, [{ op: "delete_interface_authentication_md5", value: "eth0" }]);
   });
 });

@@ -21,7 +21,8 @@
     "addRedistribute": "添加重分发",
     "adding": "正在添加...",
     "prefix": "前缀",
-    "address": "地址"
+    "address": "地址",
+    "bfd": "BFD"
   },
   "values": {
     "auto": "自动",
@@ -146,11 +147,13 @@
     "summaryDuplicate": "每个汇总前缀只能使用一次",
     "srPrefixRequired": "每个前缀 SID 都需要前缀",
     "srPrefixDuplicate": "每个前缀 SID 的前缀只能使用一次",
-    "summaryTagNoAdvertise": "汇总地址不能同时设置标签和不通告",
+    "summaryTagNoAdvertise": "汇总地址不能同时设置标签和 no-advertise",
     "srIndexRequired": "每个前缀 SID 都需要索引",
     "srBlockPair": "请同时设置块的下限和上限标签值",
     "srBlockOrder": "下限标签值不能大于上限标签值",
-    "srLocalNeedsGlobal": "本地块需要先配置全局块"
+    "srLocalNeedsGlobal": "本地块需要先配置全局块",
+    "routerIdInvalid": "请输入点分十进制 IPv4 格式的路由器 ID",
+    "routerIdDuplicate": "该路由器 ID 已在列表中"
   },
   "delete": {
     "title": "删除 OSPF {itemType}",
@@ -160,7 +163,7 @@
     "itemInterface": "接口",
     "itemRedistribute": "重分发",
     "tableSuffix": "（表 {table}）",
-    "itemOspf": "OSPF 配置"
+    "allDescription": "这将从路由器中删除所有 OSPF 配置。"
   },
   "areaModal": {
     "titleEdit": "编辑 OSPF 区域",
@@ -186,14 +189,14 @@
     "rangePrefixRequired": "每个范围都需要前缀",
     "rangeDuplicate": "每个范围前缀只能使用一次",
     "virtualLinkAddressRequired": "每条虚链路都需要地址",
-    "virtualLinkDuplicate": "每个虚链路地址只能使用一次"
+    "virtualLinkDuplicate": "每个虚链路地址只能使用一次",
+    "areaIdExists": "该区域已存在"
   },
   "interfaceModal": {
     "titleEdit": "编辑 OSPF 接口",
     "titleAdd": "添加 OSPF 接口",
     "descriptionEdit": "修改 {name} 的 OSPF 设置。",
     "descriptionAdd": "在网络接口上配置 OSPF。",
-    "areaPlaceholder": "例如 0.0.0.0 或 0",
     "costAndPriority": "开销与优先级",
     "bandwidth": "带宽",
     "bandwidthPlaceholder": "带宽 (Kbps)",
@@ -216,9 +219,7 @@
     "priorityRange": "优先级必须介于 0 到 255 之间",
     "ldpSyncHolddownRange": "LDP 同步保持时间必须介于 0 到 10000 之间",
     "helloMultiplier": "Hello 倍数",
-    "passiveOn": "被动",
     "passiveDisable": "非被动",
-    "bfd": "BFD",
     "bfdProfile": "BFD 配置文件",
     "helloMultiplierDeadInterval": "Hello 倍数和失效间隔不能同时设置",
     "md5Keys": "MD5 密钥",
@@ -228,7 +229,6 @@
     "title": "添加路由重分发",
     "description": "将其他协议的路由重分发到 OSPF。",
     "selectProtocol": "选择协议",
-    "tableIdPlaceholder": "路由表编号",
     "metricPlaceholder": "度量值",
     "selectProtocolError": "请选择协议",
     "tableIdRequired": "表 ID 为必填项",

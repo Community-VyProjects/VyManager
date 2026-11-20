@@ -87,7 +87,7 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     known_area_ids = {area["area_id"] for area in areas}
     for iface in interfaces:
         if iface.get("area") and iface["area"] not in known_area_ids:
-            areas.append({"area_id": iface["area"]})
+            areas.append({"area_id": iface["area"], "configured": False})
             known_area_ids.add(iface["area"])
 
     log_adj = ospf_config.get("log-adjacency-changes")
@@ -220,6 +220,7 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
         areas.append(
             {
                 "area_id": area_id,
+                "configured": True,
                 "area_type": area_type,
                 "area_type_no_summary": area_type_no_summary,
                 "area_type_default_cost": area_type_default_cost,

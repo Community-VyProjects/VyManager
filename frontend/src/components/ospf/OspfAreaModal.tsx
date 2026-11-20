@@ -44,6 +44,8 @@ interface OspfAreaModalProps {
   existingArea?: OspfArea | null;
   accessListNames?: string[];
   capabilities?: OspfCapabilities | null;
+  /** Area IDs that already have an area node; Add rejects them. */
+  existingAreaIds: string[];
 }
 
 interface RangeRow {
@@ -80,6 +82,7 @@ export function OspfAreaModal({
   existingArea,
   accessListNames = [],
   capabilities,
+  existingAreaIds,
 }: OspfAreaModalProps) {
   const t = useTranslations("ospf");
   const tc = useTranslations("common");
@@ -189,6 +192,10 @@ export function OspfAreaModal({
   const handleSubmit = async () => {
     if (!areaId.trim()) {
       setError(t("areaModal.areaIdRequired"));
+      return;
+    }
+    if (!isEditMode && existingAreaIds.includes(areaId.trim())) {
+      setError(t("areaModal.areaIdExists"));
       return;
     }
     const area = buildArea();

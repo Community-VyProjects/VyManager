@@ -48,6 +48,10 @@ interface OspfInterfaceModalProps {
   existingInterface?: OspfInterface | null;
   capabilities?: OspfCapabilities | null;
   bfdProfileNames: string[];
+  /** Area IDs the area leaf can name (protocols ospf area). */
+  areaIds: string[];
+  /** Interfaces already under protocols ospf; Add does not offer them. */
+  configuredInterfaces: string[];
 }
 
 const toText = (value: number | string | null | undefined) => (value == null ? "" : String(value));
@@ -60,6 +64,8 @@ export function OspfInterfaceModal({
   existingInterface,
   capabilities,
   bfdProfileNames,
+  areaIds,
+  configuredInterfaces,
 }: OspfInterfaceModalProps) {
   const t = useTranslations("ospf");
   const tc = useTranslations("common");
@@ -217,18 +223,17 @@ export function OspfInterfaceModal({
                   disabled={isEditMode}
                   id="ospf-iface-name"
                   className={isEditMode ? "bg-muted" : ""}
-                  interfaces={availableInterfaces}
+                  interfaces={
+                    isEditMode
+                      ? availableInterfaces
+                      : availableInterfaces.filter((i) => !configuredInterfaces.includes(i.name))
+                  }
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="ospf-iface-area">{t("fields.area")}</Label>
-                <Input
-                  id="ospf-iface-area"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  placeholder={t("interfaceModal.areaPlaceholder")}
-                />
+                <NamedListSelect id="ospf-iface-area" value={area} names={areaIds} onValueChange={setArea} />
               </div>
 
               <div className="space-y-2">
@@ -289,7 +294,7 @@ export function OspfInterfaceModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>{tc("default")}</SelectItem>
-                    <SelectItem value="passive">{t("interfaceModal.passiveOn")}</SelectItem>
+                    <SelectItem value="passive">{t("fields.passive")}</SelectItem>
                     <SelectItem value="disable">{t("interfaceModal.passiveDisable")}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -297,7 +302,7 @@ export function OspfInterfaceModal({
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
                   <Checkbox id="ospf-iface-bfd" checked={bfd} onCheckedChange={(checked) => setBfd(checked === true)} />
-                  <Label htmlFor="ospf-iface-bfd" className="cursor-pointer text-sm">{t("interfaceModal.bfd")}</Label>
+                  <Label htmlFor="ospf-iface-bfd" className="cursor-pointer text-sm">{t("fields.bfd")}</Label>
                 </div>
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
                   <Checkbox id="ospf-iface-mtu-ignore" checked={mtuIgnore} onCheckedChange={(checked) => setMtuIgnore(checked === true)} />

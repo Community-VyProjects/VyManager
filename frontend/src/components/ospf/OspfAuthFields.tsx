@@ -61,6 +61,7 @@ export function OspfAuthFields({ idPrefix, draft, onChange, modes }: OspfAuthFie
           <Input
             id={`${idPrefix}-auth-plaintext`}
             type="password"
+            autoComplete="new-password"
             value={draft.password}
             onChange={(e) => onChange({ ...draft, password: e.target.value })}
             maxLength={8}
@@ -97,6 +98,7 @@ export function OspfAuthFields({ idPrefix, draft, onChange, modes }: OspfAuthFie
               <Input
                 aria-label={t("interfaceModal.md5Key")}
                 type="password"
+                autoComplete="new-password"
                 value={row.value}
                 onChange={(e) => setRow(idx, "value", e.target.value)}
                 placeholder={t("interfaceModal.md5Key")}

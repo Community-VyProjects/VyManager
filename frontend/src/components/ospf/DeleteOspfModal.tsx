@@ -21,6 +21,8 @@ interface DeleteOspfModalProps {
   itemType: string;
   itemName: string;
   onConfirm: () => Promise<void>;
+  /** Removes every OSPF leaf instead of one named item. */
+  wholeProtocol?: boolean;
 }
 
 export function DeleteOspfModal({
@@ -29,6 +31,7 @@ export function DeleteOspfModal({
   itemType,
   itemName,
   onConfirm,
+  wholeProtocol = false,
 }: DeleteOspfModalProps) {
   const t = useTranslations("ospf");
   const tc = useTranslations("common");
@@ -59,13 +62,17 @@ export function DeleteOspfModal({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("delete.title", { itemType })}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {wholeProtocol ? t("overview.deleteOspf") : t("delete.title", { itemType })}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            {t.rich("delete.description", {
-              itemType: itemType.toLowerCase(),
-              name: itemName,
-              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
-            })}
+            {wholeProtocol
+              ? t("delete.allDescription")
+              : t.rich("delete.description", {
+                  itemType: itemType.toLowerCase(),
+                  name: itemName,
+                  mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+                })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -88,6 +95,8 @@ export function DeleteOspfModal({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {tc("deleting")}
               </>
+            ) : wholeProtocol ? (
+              t("overview.deleteOspf")
             ) : (
               t("delete.confirm", { itemType })
             )}

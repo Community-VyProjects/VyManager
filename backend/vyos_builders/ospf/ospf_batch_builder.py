@@ -77,27 +77,28 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_area_type_stub_no_summary(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_type_stub_no_summary(area_id))
+
     def delete_area_type_stub_no_summary(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_type_stub_no_summary(area_id))
 
-
     def set_area_type_stub_default_cost(self, area_id: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_type_stub_default_cost(area_id, value))
+
     def delete_area_type_stub_default_cost(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_type_stub_default_cost_delete(area_id))
-
 
     def set_area_type_nssa(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_type_nssa(area_id))
 
     def set_area_type_nssa_no_summary(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_type_nssa_no_summary(area_id))
+
     def delete_area_type_nssa_no_summary(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_type_nssa_no_summary(area_id))
 
-
     def set_area_type_nssa_default_cost(self, area_id: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_type_nssa_default_cost(area_id, value))
+
     def delete_area_type_nssa_default_cost(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_type_nssa_default_cost_delete(area_id))
 
@@ -106,7 +107,6 @@ class OspfBatchBuilder(BatchBuilder):
 
     def delete_area_type_nssa_translate(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_type_nssa_translate_delete(area_id))
-
 
     def set_area_type_normal(self, area_id: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_type_normal(area_id))
@@ -125,21 +125,21 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_area_range_cost(self, area_id: str, prefix: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_range_cost(area_id, prefix, value))
+
     def delete_area_range_cost(self, area_id: str, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_range_cost_delete(area_id, prefix))
 
-
     def set_area_range_not_advertise(self, area_id: str, prefix: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_range_not_advertise(area_id, prefix))
+
     def delete_area_range_not_advertise(self, area_id: str, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_range_not_advertise(area_id, prefix))
 
-
     def set_area_range_substitute(self, area_id: str, prefix: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_range_substitute(area_id, prefix, value))
+
     def delete_area_range_substitute(self, area_id: str, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_range_substitute_delete(area_id, prefix))
-
 
     def delete_area_range(self, area_id: str, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_area_range_delete(area_id, prefix))
@@ -324,12 +324,12 @@ class OspfBatchBuilder(BatchBuilder):
 
     def delete_interface_bfd(self, iface: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_interface_bfd_delete(iface))
+
     def set_interface_bfd_profile(self, iface: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_interface_bfd_profile(iface, value))
 
     def delete_interface_bfd_profile(self, iface: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_interface_bfd_profile_delete(iface))
-
 
     def set_interface_mtu_ignore(self, iface: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_interface_mtu_ignore(iface))
@@ -636,12 +636,12 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_neighbor_priority(self, address: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_neighbor_priority(address, value))
+
     def delete_neighbor_poll_interval(self, address: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_neighbor_poll_interval_delete(address))
 
     def delete_neighbor_priority(self, address: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_neighbor_priority_delete(address))
-
 
     def delete_neighbor(self, address: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_neighbor_delete(address))
@@ -655,9 +655,9 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_access_list_export(self, acl: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_access_list_export(acl, value))
-    def delete_access_list_export(self, acl: str, value: str) -> "OspfBatchBuilder":
-        return self.add_delete(self.m.get_access_list_export_delete(acl, value))
 
+    def delete_access_list_export(self, acl: str, value: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_access_list_export(acl, value))
 
     def delete_access_list(self, acl: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_access_list_delete(acl))
@@ -746,15 +746,15 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_summary_address_no_advertise(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_summary_address_no_advertise(prefix))
+
     def delete_summary_address_no_advertise(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_summary_address_no_advertise(prefix))
 
-
     def set_summary_address_tag(self, prefix: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_summary_address_tag(prefix, value))
+
     def delete_summary_address_tag(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_summary_address_tag_delete(prefix))
-
 
     def delete_summary_address(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_summary_address_delete(prefix))
@@ -784,36 +784,36 @@ class OspfBatchBuilder(BatchBuilder):
 
     def set_segment_routing_local_block_high(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_segment_routing_local_block_high(value))
+
     def delete_segment_routing_global_block(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_segment_routing_global_block_delete())
 
     def delete_segment_routing_local_block(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_segment_routing_local_block_delete())
 
-
     def set_segment_routing_maximum_label_depth(self, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_segment_routing_maximum_label_depth(value))
+
     def delete_segment_routing_maximum_label_depth(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_segment_routing_maximum_label_depth_delete())
-
 
     def set_segment_routing_prefix(self, prefix: str, index_value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_segment_routing_prefix(prefix, index_value))
 
     def set_segment_routing_prefix_explicit_null(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_segment_routing_prefix_explicit_null(prefix))
+
     def delete_segment_routing_prefix_explicit_null(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_segment_routing_prefix_explicit_null(prefix))
 
-
     def set_segment_routing_prefix_no_php_flag(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_segment_routing_prefix_no_php_flag(prefix))
+
     def delete_segment_routing_prefix_no_php_flag(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_segment_routing_prefix_no_php_flag(prefix))
 
     def delete_segment_routing_prefix(self, prefix: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_segment_routing_prefix_delete(prefix))
-
 
     def delete_segment_routing(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_segment_routing_delete())

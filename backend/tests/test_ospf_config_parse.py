@@ -127,7 +127,8 @@ def test_parse_nested_ospf_config():
     assert area0["ranges"][0]["cost"] == 10
     assert area0["virtual_links"][0]["retransmit_window"] == 8
     synthesized = next(area for area in parsed["areas"] if area["area_id"] == "1")
-    assert set(synthesized) == {"area_id"}
+    assert synthesized == {"area_id": "1", "configured": False}
+    assert area0["configured"] is True
     eth0 = next(iface for iface in parsed["interfaces"] if iface["name"] == "eth0")
     assert eth0["cost"] == 10
     assert eth0["ldp_sync"] is True

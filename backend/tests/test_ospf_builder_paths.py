@@ -167,7 +167,7 @@ BOTH_CASES = [
     ("set_default_information_originate", (), "set", ["default-information", "originate"]),
     ("set_default_information_originate_always", (), "set", ["default-information", "originate", "always"]),
     ("set_default_information_originate_metric", ("10",), "set", ["default-information", "originate", "metric", "10"]),
-    ("set_default_information_originate_metric_type", ("10",), "set", ["default-information", "originate", "metric-type", "10"]),
+    ("set_default_information_originate_metric_type", ("2",), "set", ["default-information", "originate", "metric-type", "2"]),
     ("set_default_information_originate_route_map", ("RM",), "set", ["default-information", "originate", "route-map", "RM"]),
     ("set_default_metric", ("10",), "set", ["default-metric", "10"]),
     ("set_distance_global", ("10",), "set", ["distance", "global", "10"]),
@@ -219,11 +219,11 @@ BOTH_CASES = [
     ("set_passive_interface_default", (), "set", ["passive-interface", "default"]),
     ("set_redistribute", ("connected",), "set", ["redistribute", "connected"]),
     ("set_redistribute_metric", ("connected", "10"), "set", ["redistribute", "connected", "metric", "10"]),
-    ("set_redistribute_metric_type", ("connected", "10"), "set", ["redistribute", "connected", "metric-type", "10"]),
+    ("set_redistribute_metric_type", ("connected", "2"), "set", ["redistribute", "connected", "metric-type", "2"]),
     ("set_redistribute_route_map", ("connected", "RM"), "set", ["redistribute", "connected", "route-map", "RM"]),
     ("set_redistribute_table", ("100",), "set", ["redistribute", "table", "100"]),
     ("set_redistribute_table_metric", ("100", "10"), "set", ["redistribute", "table", "100", "metric", "10"]),
-    ("set_redistribute_table_metric_type", ("100", "10"), "set", ["redistribute", "table", "100", "metric-type", "10"]),
+    ("set_redistribute_table_metric_type", ("100", "2"), "set", ["redistribute", "table", "100", "metric-type", "2"]),
     ("set_redistribute_table_route_map", ("100", "RM"), "set", ["redistribute", "table", "100", "route-map", "RM"]),
     ("set_refresh_timers", ("10",), "set", ["refresh", "timers", "10"]),
     ("set_rfc1583_compatibility", (), "set", ["parameters", "rfc1583-compatibility"]),
@@ -348,3 +348,16 @@ def test_redistribute_nhrp_is_15_only():
     with pytest.raises(ValueError, match="not supported"):
         OspfBatchBuilder(version="1.4").set_redistribute("nhrp")
     assert _run("1.5", "set_redistribute", ("nhrp",)) == [("set", BASE + ["redistribute", "nhrp"])]
+
+
+@pytest.mark.parametrize("method", [
+    "delete_redistribute", "delete_redistribute_metric", "delete_redistribute_metric_type", "delete_redistribute_route_map",
+])
+def test_redistribute_deletes_reject_table_and_14_nhrp(method):
+    """table has its own ops; nhrp is 1.5-only. Neither may reach the device as a protocol."""
+    for version, protocol in (("1.5", "table"), ("1.4", "table"), ("1.4", "nhrp")):
+        builder = OspfBatchBuilder(version=version)
+        with pytest.raises(ValueError, match="not supported"):
+            getattr(builder, method)(protocol)
+        assert builder.is_empty()
+    assert _run("1.5", method, ("nhrp",))[0][1][:4] == BASE + ["redistribute", "nhrp"]
