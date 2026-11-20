@@ -9,4 +9,10 @@
 **/*.pyc
 **/venv
 **/.venv
+backend/bin
+backend/lib
+backend/lib64
+backend/include
+backend/pyvenv.cfg
+**/.pytest_cache
 .git

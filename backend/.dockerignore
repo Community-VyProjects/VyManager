@@ -7,4 +7,9 @@ __pycache__
 **/*.pyc
 venv
 .venv
+bin
+lib
+lib64
+include
+pyvenv.cfg
 .pytest_cache
