@@ -1,7 +1,6 @@
 """Conntrack-Sync Service Router.
 
 API endpoints for managing VyOS Connection Tracking Synchronization configuration.
-The template structure is identical between VyOS 1.4 and 1.5.
 
 Endpoints:
   GET  /vyos/conntrack-sync/capabilities  — version-aware feature flags
@@ -170,7 +169,7 @@ async def conntrack_sync_batch_configure(
         response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Conntrack-Sync configuration updated"},
+            data={"message": "Conntrack-Sync configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:

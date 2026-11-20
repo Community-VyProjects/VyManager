@@ -59,6 +59,7 @@ def test_batch_splits_values_onto_builder_args(client):
     ])
     assert resp.status_code == 200, resp.text
     assert resp.json()["success"] is True
+    assert resp.json()["data"]["message"] == "Conntrack-Sync configuration updated"
     assert executed == [[
         {"op": "set", "path": BASE + ["disable-external-cache"]},
         {"op": "delete", "path": BASE},
@@ -108,3 +109,54 @@ def test_batch_empty_is_500(client):
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
     assert executed == []
+
+
+def test_batch_failed_commit_omits_updated_message(monkeypatch):
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return "1.4"
+
+        def execute_batch(self, batch):
+            return SimpleNamespace(status=400, result="", error="commit failed")
+
+    monkeypatch.setattr(f"{ROUTER}.require_write_permission", allow)
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: Service())
+
+    from routers.conntrack_sync.conntrack_sync import router
+
+    app = FastAPI()
+    app.include_router(router)
+    resp = TestClient(app).post(
+        "/vyos/conntrack-sync/batch",
+        json={"operations": [{"op": "set_disable_external_cache"}]},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["success"] is False
+    assert body["data"] is None
+    assert body["error"] == "commit failed"
+
+
+@pytest.mark.parametrize("path", ["/vyos/conntrack-sync/capabilities", "/vyos/conntrack-sync/config"])
+def test_session_http_exception_is_not_swallowed(monkeypatch, path):
+    from fastapi import HTTPException
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    def boom(_req):
+        raise HTTPException(status_code=503, detail="session down")
+
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", allow)
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", boom)
+
+    from routers.conntrack_sync.conntrack_sync import router
+
+    app = FastAPI()
+    app.include_router(router)
+    resp = TestClient(app).get(path)
+    assert resp.status_code == 503, resp.text
+    assert resp.json()["detail"] == "session down"
