@@ -85,6 +85,10 @@ class OspfMapper(BaseFeatureMapper):
     def nssa_translate_values(self) -> List[str]:
         return ["always", "candidate", "never"]
 
+    def metric_types(self) -> List[str]:
+        """External metric-type (val_help 1-2) for redistribute and originate."""
+        return ["1", "2"]
+
     def access_list_export_values(self) -> List[str]:
         return ["bgp", "connected", "kernel", "rip", "static"]
 
@@ -627,6 +631,9 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_graceful_restart_helper_supported_grace_time_delete(self) -> List[str]:
         return self._ospf() + ["graceful-restart", "helper", "supported-grace-time"]
+
+    def get_graceful_restart_helper_delete(self) -> List[str]:
+        return self._ospf() + ["graceful-restart", "helper"]
 
     def get_graceful_restart_delete(self) -> List[str]:
         return self._ospf() + ["graceful-restart"]

@@ -99,12 +99,12 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
         "interfaces": interfaces,
         "redistribute": parse_redistribute(ospf_config.get("redistribute", {})),
         "default_information": parse_default_information(
-            ospf_config.get("default-information", {})
+            ospf_config.get("default-information")
         ),
         "distance": parse_distance(ospf_config),
         "timers_throttle_spf": parse_timers_throttle_spf(ospf_config),
         "max_metric_router_lsa": parse_max_metric(ospf_config),
-        "graceful_restart": parse_graceful_restart(ospf_config.get("graceful-restart", {})),
+        "graceful_restart": parse_graceful_restart(ospf_config),
         "neighbors": parse_neighbors(ospf_config.get("neighbor", {})),
         "access_lists": parse_access_lists(ospf_config.get("access-list")),
         "default_metric": _safe_int(ospf_config.get("default-metric")),
@@ -343,14 +343,12 @@ def parse_redistribute(raw: dict) -> List[Dict[str, Any]]:
     return redistribute
 
 
-def parse_default_information(raw: dict) -> Dict[str, Any]:
-    if not raw:
+def parse_default_information(raw: Any) -> Dict[str, Any]:
+    # A bare ``default-information originate`` commits and parses as {}.
+    if not isinstance(raw, dict) or "originate" not in raw:
         return {}
 
-    originate = raw.get("originate", {})
-    if not originate:
-        return {}
-
+    originate = raw.get("originate")
     if not isinstance(originate, dict):
         return {"enabled": True}
 
@@ -410,14 +408,16 @@ def _helper_router_ids(enable_raw) -> List[str]:
     return _to_list(rid_raw)
 
 
-def parse_graceful_restart(raw: dict) -> Dict[str, Any]:
-    if not raw:
+def parse_graceful_restart(ospf_config: dict) -> Dict[str, Any]:
+    # A bare ``graceful-restart`` commits and parses as {}.
+    if "graceful-restart" not in ospf_config:
         return {}
 
+    raw = ospf_config.get("graceful-restart") or {}
     helper_raw = raw.get("helper", {}) or {}
     enable_raw = helper_raw.get("enable")
     return {
-        "enabled": bool(raw),
+        "enabled": True,
         "grace_period": _safe_int(raw.get("grace-period")),
         "helper": {
             "enable": "enable" in helper_raw,

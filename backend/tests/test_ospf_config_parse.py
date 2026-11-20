@@ -233,6 +233,16 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     ]
 
 
+def test_bare_graceful_restart_and_originate_parse_as_enabled():
+    """Both bare nodes commit on 1.4 and 1.5 and come back as {}."""
+    parsed = get_ospf_mapper("1.4").parse_config({
+        "protocols": {"ospf": {"graceful-restart": {}, "default-information": {"originate": {}}}}
+    })
+    assert parsed["graceful_restart"]["enabled"] is True
+    assert parsed["default_information"]["enabled"] is True
+    assert parsed["default_information"]["always"] is False
+
+
 def test_null_authentication_parses_by_key_membership():
     parsed = get_ospf_mapper("1.5").parse_config({
         "protocols": {"ospf": {"interface": {"eth0": {"authentication": {"null": {}}}}}}

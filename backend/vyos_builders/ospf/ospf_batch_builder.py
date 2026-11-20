@@ -615,6 +615,9 @@ class OspfBatchBuilder(BatchBuilder):
     def delete_graceful_restart_helper_supported_grace_time(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_graceful_restart_helper_supported_grace_time_delete())
 
+    def delete_graceful_restart_helper(self) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_graceful_restart_helper_delete())
+
     def delete_graceful_restart(self) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_graceful_restart_delete())
 
@@ -879,6 +882,7 @@ class OspfBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "Route redistribution",
                     "protocols": mapper.redistribute_protocol_list(),
+                    "metric_types": mapper.metric_types(),
                 },
                 "access_list": {
                     "supported": True,
@@ -896,6 +900,7 @@ class OspfBatchBuilder(BatchBuilder):
                 "default_information": {
                     "supported": True,
                     "description": "Default route origination",
+                    "metric_types": mapper.metric_types(),
                 },
                 "graceful_restart": {
                     "supported": True,

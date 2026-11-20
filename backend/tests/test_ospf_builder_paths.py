@@ -62,6 +62,7 @@ BOTH_CASES = [
     ("delete_distance_ospf_intra_area", (), "delete", ["distance", "ospf", "intra-area"]),
     ("delete_graceful_restart", (), "delete", ["graceful-restart"]),
     ("delete_graceful_restart_grace_period", (), "delete", ["graceful-restart", "grace-period"]),
+    ("delete_graceful_restart_helper", (), "delete", ["graceful-restart", "helper"]),
     ("delete_graceful_restart_helper_enable", (), "delete", ["graceful-restart", "helper", "enable"]),
     ("delete_graceful_restart_helper_enable_router_id", ("192.0.2.2",), "delete", ["graceful-restart", "helper", "enable", "router-id", "192.0.2.2"]),
     ("delete_graceful_restart_helper_no_strict_lsa_checking", (), "delete", ["graceful-restart", "helper", "no-strict-lsa-checking"]),
@@ -336,6 +337,8 @@ def test_capability_lists_match_the_labs():
         assert caps["areas"]["shortcut_values"] == ["default", "disable", "enable"]
         assert caps["areas"]["authentication_values"] == ["plaintext-password", "md5"]
         assert caps["areas"]["nssa_translate_values"] == ["always", "candidate", "never"]
+        assert caps["redistribute"]["metric_types"] == ["1", "2"]
+        assert caps["default_information"]["metric_types"] == ["1", "2"]
         assert caps["access_list"]["export_values"] == ["bgp", "connected", "kernel", "rip", "static"]
 
 
