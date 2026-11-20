@@ -87,6 +87,7 @@ BOTH_CASES = [
     ("delete_interface_mtu_ignore", ("eth0",), "delete", ["interface", "eth0", "mtu-ignore"]),
     ("delete_interface_network", ("eth0",), "delete", ["interface", "eth0", "network"]),
     ("delete_interface_passive", ("eth0",), "delete", ["interface", "eth0", "passive"]),
+    ("delete_interface_passive_disable", ("eth0",), "delete", ["interface", "eth0", "passive", "disable"]),
     ("delete_interface_priority", ("eth0",), "delete", ["interface", "eth0", "priority"]),
     ("delete_interface_retransmit_interval", ("eth0",), "delete", ["interface", "eth0", "retransmit-interval"]),
     ("delete_interface_transmit_delay", ("eth0",), "delete", ["interface", "eth0", "transmit-delay"]),

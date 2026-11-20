@@ -313,6 +313,9 @@ class OspfBatchBuilder(BatchBuilder):
     def set_interface_passive_disable(self, iface: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_interface_passive_disable(iface))
 
+    def delete_interface_passive_disable(self, iface: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_interface_passive_disable(iface))
+
     def delete_interface_passive(self, iface: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_interface_passive_delete(iface))
 
