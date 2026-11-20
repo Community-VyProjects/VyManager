@@ -49,6 +49,23 @@ def org_enforcement_enabled() -> bool:
     return ORG_ENFORCEMENT
 
 
+def multi_org_warning(org_count: int) -> Optional[str]:
+    """Warning text when more than one organization exists without enforcement.
+
+    With ORG_ENFORCEMENT off the org boundary is inert: by-id org checks are
+    no-ops and RLS is not forced, so extra organizations do not isolate
+    anything. Creating them stays allowed so orgs can be staged before the
+    flip, but operators must be told.
+    """
+    if ORG_ENFORCEMENT or org_count < 2:
+        return None
+    return (
+        f"{org_count} organizations exist but ORG_ENFORCEMENT is off, so they "
+        "are not isolated from each other. See the 'Enabling enforcement' "
+        "runbook in docs/architecture/organizations."
+    )
+
+
 def _require_pool(request: Request) -> asyncpg.Pool:
     pool = getattr(request.app.state, "db_pool", None)
     if pool is None:
