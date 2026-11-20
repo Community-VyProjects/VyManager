@@ -6,6 +6,7 @@ are the tenant-isolation boundary (Org -> Sites -> Instances); this is the
 surface that creates them and assigns users, which previously only existed at
 the database level. ADMIN (System Administrator) only.
 """
+import logging
 import re
 import secrets
 import string
@@ -16,10 +17,11 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from org_scope import org_conn_admin
+from org_scope import multi_org_warning, org_conn_admin
 from fastapi_permissions import require_super_admin
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
+logger = logging.getLogger(__name__)
 
 _ORG_ROLES = {"OWNER", "ADMIN", "MEMBER"}
 _SUFFIX_ALPHABET = string.ascii_lowercase + string.digits
@@ -128,7 +130,12 @@ async def create_organization(
         raise HTTPException(
             status_code=409, detail="An organization with this name already exists"
         )
-    return {"organization": _serialize_org(row)}
+    result: Dict[str, Any] = {"organization": _serialize_org(row)}
+    warning = multi_org_warning(await conn.fetchval("SELECT COUNT(*) FROM organizations"))
+    if warning:
+        logger.warning(warning)
+        result["warning"] = warning
+    return result
 
 
 @router.patch("/{organization_id}")
