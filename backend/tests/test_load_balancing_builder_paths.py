@@ -1,6 +1,6 @@
 """Golden (method, args, op, expected_path) cases for LoadBalancingBatchBuilder.
 
-Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+Paths checked with validateTmplPath on 1.4 (100.64.64.4) and 1.5 (100.64.64.5).
 1.4 uses load-balancing reverse-proxy. 1.5 uses load-balancing haproxy.
 Version-split leaves raise on 1.4, including WAN rule group deletes.
 """
@@ -77,6 +77,7 @@ COMMON_CASES = [
     ('set_wan_rule_source_address', ('10', '192.0.2.0/24'), 'set', ['load-balancing', 'wan', 'rule', '10', 'source', 'address', '192.0.2.0/24']),
     ('set_wan_rule_source_port', ('10', '80'), 'set', ['load-balancing', 'wan', 'rule', '10', 'source', 'port', '80']),
     ('set_wan_sticky_connections_inbound', ('',), 'set', ['load-balancing', 'wan', 'sticky-connections', 'inbound']),
+    ('delete_wan_sticky_connections_inbound', ('',), 'delete', ['load-balancing', 'wan', 'sticky-connections', 'inbound']),
 ]
 
 

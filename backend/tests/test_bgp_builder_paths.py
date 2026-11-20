@@ -18,6 +18,12 @@ CASES = [
     ("set_parameters_no_ipv6_auto_ra", (), "set", ["protocols", "bgp", "parameters", "no-ipv6-auto-ra"]),
     ("delete_parameters_no_ipv6_auto_ra", (), "delete", ["protocols", "bgp", "parameters", "no-ipv6-auto-ra"]),
     ("delete_parameters_bestpath_bandwidth", (), "delete", ["protocols", "bgp", "parameters", "bestpath", "bandwidth"]),
+    ("set_parameters_bestpath_bandwidth", ("ignore",), "set", ["protocols", "bgp", "parameters", "bestpath", "bandwidth", "ignore"]),
+    ("set_parameters_bestpath_med", ("confed",), "set", ["protocols", "bgp", "parameters", "bestpath", "med", "confed"]),
+    ("delete_parameters_bestpath_med", ("missing-as-worst",), "delete", ["protocols", "bgp", "parameters", "bestpath", "med", "missing-as-worst"]),
+    ("delete_parameters_bestpath", (), "delete", ["protocols", "bgp", "parameters", "bestpath"]),
+    ("set_parameters_no_hard_administrative_reset", (), "set", ["protocols", "bgp", "parameters", "no-hard-administrative-reset"]),
+    ("delete_parameters_no_hard_administrative_reset", (), "delete", ["protocols", "bgp", "parameters", "no-hard-administrative-reset"]),
     ("set_neighbor", (NEIGHBOR,), "set", ["protocols", "bgp", "neighbor", NEIGHBOR]),
     ("set_neighbor_remote_as", (NEIGHBOR, "65100"), "set", ["protocols", "bgp", "neighbor", NEIGHBOR, "remote-as", "65100"]),
     ("delete_neighbor_description", (NEIGHBOR,), "delete", ["protocols", "bgp", "neighbor", NEIGHBOR, "description"]),
@@ -61,6 +67,11 @@ CASES = [
     ("delete_peer_group_af_route_map_export", ("UPSTREAM", AFI), "delete", ["protocols", "bgp", "peer-group", "UPSTREAM", "address-family", AFI, "route-map", "export"]),
     ("set_af_redistribute_table", (AFI, "10"), "set", ["protocols", "bgp", "address-family", AFI, "redistribute", "table", "10"]),
     ("delete_af_redistribute_table", (AFI, "10"), "delete", ["protocols", "bgp", "address-family", AFI, "redistribute", "table", "10"]),
+    ("set_af_maximum_paths_ebgp", (AFI, "4"), "set", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ebgp", "4"]),
+    ("set_af_maximum_paths_ibgp", (AFI, "8"), "set", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ibgp", "8"]),
+    ("delete_af_maximum_paths_ebgp", (AFI,), "delete", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ebgp"]),
+    ("delete_af_maximum_paths_ibgp", (AFI,), "delete", ["protocols", "bgp", "address-family", AFI, "maximum-paths", "ibgp"]),
+    ("delete_af_maximum_paths", (AFI,), "delete", ["protocols", "bgp", "address-family", AFI, "maximum-paths"]),
 ]
 
 ONLY_15 = [

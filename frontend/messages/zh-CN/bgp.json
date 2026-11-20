@@ -85,6 +85,9 @@
       "asSet": "AS Set",
       "summaryOnly": "仅汇总",
       "maximumPaths": "最大路径数",
+      "ebgp": "eBGP",
+      "ibgp": "iBGP",
+      "maximumPathsRange": "最大路径数必须是 1 到 256 的整数",
       "table": "表"
     },
     "params": {
@@ -126,7 +129,9 @@
         "as_path_ignore": { "label": "AS-Path Ignore", "desc": "最佳路径选择时忽略 AS-path 长度" },
         "as_path_multipath_relax": { "label": "AS-Path Multipath Relax", "desc": "允许在 AS 路径不同的多个提供商之间负载分担" },
         "compare_routerid": { "label": "比较路由器 ID", "desc": "对相同的 eBGP 路径比较 router-id" },
-        "peer_type_multipath_relax": { "label": "Peer Type Multipath Relax", "desc": "允许在 iBGP 和 eBGP 路径之间负载分担" }
+        "peer_type_multipath_relax": { "label": "Peer Type Multipath Relax", "desc": "允许在 iBGP 和 eBGP 路径之间负载分担" },
+        "bandwidth": { "label": "带宽" },
+        "med": { "label": "MED" }
       },
       "distance": {
         "external": "外部",

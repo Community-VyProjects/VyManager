@@ -145,3 +145,32 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     assert body["neighbors"][0]["local_as"]["asn"] == "65001"
     assert body["srv6_locator"] == "LOC1"
     assert body["sid_vpn_per_vrf_export"] == "100"
+
+
+def test_bestpath_bandwidth_and_med_parse_into_the_router_model():
+    from routers.bgp.bgp import BgpConfig
+
+    tree = {
+        "protocols": {
+            "bgp": {
+                "parameters": {
+                    "bestpath": {
+                        "bandwidth": "ignore",
+                        "med": ["confed", "missing-as-worst"],
+                    },
+                    "no-hard-administrative-reset": {},
+                }
+            }
+        }
+    }
+    parsed = get_bgp_mapper("1.4.3").parse_config(tree)
+    assert get_bgp_mapper("2026.09.23-rolling").parse_config(tree) == parsed
+    model = BgpConfig(**parsed)
+    assert model.parameters.bestpath.bandwidth == "ignore"
+    assert set(model.parameters.bestpath.med or []) == {"confed", "missing-as-worst"}
+    assert model.parameters.no_hard_administrative_reset is True
+
+    string_med = get_bgp_mapper("1.5").parse_config({
+        "protocols": {"bgp": {"parameters": {"bestpath": {"med": "confed"}}}},
+    })
+    assert string_med["parameters"]["bestpath"]["med"] == ["confed"]

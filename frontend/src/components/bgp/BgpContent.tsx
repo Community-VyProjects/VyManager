@@ -78,6 +78,16 @@ function failedSaveMessage(
   return result.error || fallback;
 }
 
+/** null clears the leaf. undefined is not an integer from 1 to 256. */
+function maximumPathCount(raw: string): number | null | undefined {
+  const text = raw.trim();
+  if (!text) return null;
+  if (!/^\d+$/.test(text)) return undefined;
+  const n = Number(text);
+  if (n < 1 || n > 256) return undefined;
+  return n;
+}
+
 export function BgpContent() {
   const t = useTranslations("bgp");
   const tc = useTranslations("common");
@@ -121,6 +131,8 @@ export function BgpContent() {
   const [afAggRouteMap, setAfAggRouteMap] = useState("");
   const [afSaving, setAfSaving] = useState(false);
   const [afError, setAfError] = useState<string | null>(null);
+  const [afMaxEbgp, setAfMaxEbgp] = useState("");
+  const [afMaxIbgp, setAfMaxIbgp] = useState("");
 
   // Route-map and BFD profile names for dropdowns
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
@@ -187,6 +199,12 @@ export function BgpContent() {
   }, [selectedAfi]);
 
   useEffect(() => {
+    const af = config?.address_families.find((item) => item.afi === selectedAfi);
+    setAfMaxEbgp(af?.maximum_paths_ebgp != null ? String(af.maximum_paths_ebgp) : "");
+    setAfMaxIbgp(af?.maximum_paths_ibgp != null ? String(af.maximum_paths_ibgp) : "");
+  }, [selectedAfi, config]);
+
+  useEffect(() => {
     setBmpBuffer(config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "");
   }, [config?.bmp?.mirror_buffer_limit]);
 
@@ -217,7 +235,11 @@ export function BgpContent() {
     setOverviewError(null);
     try {
       const result = await bgpService.saveOverview(config, systemAs, routerId, keepalive, holdtime);
-      if (!result.success) throw new Error(result.error || t("content.saveFailed"));
+      const message = failedSaveMessage(result, t("content.saveOverviewFailed"));
+      if (message) {
+        setOverviewError(message);
+        return;
+      }
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
@@ -467,6 +489,37 @@ export function BgpContent() {
     }
   };
 
+  const handleSaveMaximumPaths = async () => {
+    const ebgp = maximumPathCount(afMaxEbgp);
+    const ibgp = maximumPathCount(afMaxIbgp);
+    if (ebgp === undefined || ibgp === undefined) {
+      setAfError(t("content.af.maximumPathsRange"));
+      return;
+    }
+    const loaded = config?.address_families.find((item) => item.afi === selectedAfi);
+    setAfSaving(true);
+    setAfError(null);
+    try {
+      const result = await bgpService.saveMaximumPaths(
+        selectedAfi,
+        loaded?.maximum_paths_ebgp ?? null,
+        loaded?.maximum_paths_ibgp ?? null,
+        ebgp,
+        ibgp,
+      );
+      const message = failedSaveMessage(result, t("content.saveFailed"));
+      if (message) {
+        setAfError(message);
+        return;
+      }
+      await loadData(true);
+    } catch (err) {
+      setAfError(thrownMessage(err, t("content.saveFailed")));
+    } finally {
+      setAfSaving(false);
+    }
+  };
+
   // ==========================================================================
   // Parameters handlers
   // ==========================================================================
@@ -485,7 +538,11 @@ export function BgpContent() {
     setParamsError(null);
     try {
       const result = await bgpService.saveParameters(config.parameters, editParams);
-      if (!result.success) throw new Error(result.error || t("content.saveFailed"));
+      const message = failedSaveMessage(result, t("content.saveParamsFailed"));
+      if (message) {
+        setParamsError(message);
+        return;
+      }
       await loadData(true);
       setParamsEditing(false);
     } catch (err) {
@@ -1441,19 +1498,44 @@ export function BgpContent() {
                     )}
 
                     {/* Maximum Paths */}
-                    {currentAf && (currentAf.maximum_paths_ebgp || currentAf.maximum_paths_ibgp) && (
+                    {(capabilities?.maximum_paths_afis ?? []).includes(selectedAfi) && (
                       <Card>
                         <CardContent className="p-6">
                           <h3 className="text-sm font-medium mb-4">{t("content.af.maximumPaths")}</h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-xs text-muted-foreground">eBGP</Label>
-                              <p className="font-mono">{currentAf.maximum_paths_ebgp ?? tc("default")}</p>
+                          <div className="flex items-end gap-3">
+                            <div className="w-[160px] space-y-1">
+                              <Label className="text-xs">{t("content.af.ebgp")}</Label>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                value={afMaxEbgp}
+                                onChange={(e) => setAfMaxEbgp(e.target.value)}
+                                className="h-9"
+                                disabled={afSaving}
+                              />
                             </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground">iBGP</Label>
-                              <p className="font-mono">{currentAf.maximum_paths_ibgp ?? tc("default")}</p>
+                            <div className="w-[160px] space-y-1">
+                              <Label className="text-xs">{t("content.af.ibgp")}</Label>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                value={afMaxIbgp}
+                                onChange={(e) => setAfMaxIbgp(e.target.value)}
+                                className="h-9"
+                                disabled={afSaving}
+                              />
                             </div>
+                            <Button
+                              size="sm"
+                              onClick={handleSaveMaximumPaths}
+                              disabled={afSaving || (
+                                afMaxEbgp.trim() === (currentAf?.maximum_paths_ebgp != null ? String(currentAf.maximum_paths_ebgp) : "")
+                                && afMaxIbgp.trim() === (currentAf?.maximum_paths_ibgp != null ? String(currentAf.maximum_paths_ibgp) : "")
+                              )}
+                            >
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                              {tc("save")}
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -1631,6 +1713,75 @@ export function BgpContent() {
                         );
                       })}
                     </div>
+                    {(capabilities?.features.bestpath_bandwidth?.supported
+                      || capabilities?.features.bestpath_med?.supported) && (
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        {capabilities?.features.bestpath_bandwidth?.supported && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("content.params.bestpath.bandwidth.label")}</Label>
+                            {paramsEditing && editParams ? (
+                              <Select
+                                value={editParams.bestpath.bandwidth || "__none__"}
+                                onValueChange={(v) => {
+                                  setEditParams({
+                                    ...editParams,
+                                    bestpath: {
+                                      ...editParams.bestpath,
+                                      bandwidth: v === "__none__" ? null : v,
+                                    },
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
+                                  {(capabilities.features.bestpath_bandwidth.values || []).map((value) => (
+                                    <SelectItem key={value} value={value}>{value}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <p className="text-sm font-mono p-2 bg-muted rounded-md">
+                                {config?.parameters.bestpath.bandwidth || <span className="text-muted-foreground">{tc("notSet")}</span>}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {capabilities?.features.bestpath_med?.supported && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("content.params.bestpath.med.label")}</Label>
+                            <div className="space-y-2 rounded-lg border p-4">
+                              {(capabilities.features.bestpath_med.values || []).map((value) => {
+                                const selected = new Set((paramsEditing ? editParams?.bestpath.med : config?.parameters.bestpath.med) || []);
+                                return (
+                                  <div key={value} className="flex items-center space-x-3">
+                                    <Checkbox
+                                      id={`bp-med-${value}`}
+                                      checked={selected.has(value)}
+                                      disabled={!paramsEditing}
+                                      onCheckedChange={(c) => {
+                                        if (!paramsEditing || !editParams) return;
+                                        const next = new Set(editParams.bestpath.med || []);
+                                        if (c === true) next.add(value);
+                                        else next.delete(value);
+                                        setEditParams({
+                                          ...editParams,
+                                          bestpath: {
+                                            ...editParams.bestpath,
+                                            med: next.size ? [...next] : null,
+                                          },
+                                        });
+                                      }}
+                                    />
+                                    <Label htmlFor={`bp-med-${value}`} className="cursor-pointer text-sm">{value}</Label>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 

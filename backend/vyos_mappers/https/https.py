@@ -1,13 +1,64 @@
-"""HTTPS Service Command Mapper."""
-from typing import List
+"""HTTPS Service Command Mapper.
+
+The shared class holds the 1.4 command tree. The 1.5 subclass moves debug and
+strict under ``api rest`` and CORS under ``api graphql cors``.
+"""
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "https"]
 
 
 class HTTPSMapper(BaseFeatureMapper):
-    def __init__(self, version: str):
-        super().__init__(version)
+    """Shared HTTPS commands. 1.5-only path methods live on the subclass."""
+
+    # service https tls-version allowed values (same on both labs).
+    _TLS_VERSIONS = ("1.2", "1.3")
+
+    # tls-version node.def help on both labs: "(default: 1.2, 1.3)".
+    _TLS_VERSION_DEFAULTS = ("1.2", "1.3")
+
+    # service https api graphql authentication type allowed values (both labs).
+    _GRAPHQL_AUTH_TYPES = ("key", "token")
+
+    # Leaves only 1.5 has, mapped to the path method the subclass defines.
+    _VERSIONED_NODES = {
+        "api rest": "get_api_rest",
+    }
+
+    # ========================================================================
+    # Core
+    # ========================================================================
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"{node} is not supported on this device")
+
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_https_config
+
+        return parse_https_config(self, full_config)
+
+    def tls_versions(self) -> List[str]:
+        return list(self._TLS_VERSIONS)
+
+    def tls_version_defaults(self) -> List[str]:
+        """TLS versions the lab uses when tls-version is unset (both labs)."""
+        return list(self._TLS_VERSION_DEFAULTS)
+
+    def graphql_auth_types(self) -> List[str]:
+        return list(self._GRAPHQL_AUTH_TYPES)
+
+    def cors_scope(self) -> str:
+        """Parent of the CORS node: ``api`` on 1.4."""
+        return "api"
 
     # ========================================================================
     # Global delete
@@ -128,8 +179,18 @@ class HTTPSMapper(BaseFeatureMapper):
         return BASE + ["api", "keys", "id"]
 
     # ========================================================================
-    # GraphQL authentication (shared across versions)
+    # API node
     # ========================================================================
+
+    def get_api_delete(self) -> List[str]:
+        return BASE + ["api"]
+
+    # ========================================================================
+    # GraphQL
+    # ========================================================================
+
+    def get_api_graphql(self) -> List[str]:
+        return BASE + ["api", "graphql"]
 
     def get_api_graphql_auth_expiration(self, value: str) -> List[str]:
         return BASE + ["api", "graphql", "authentication", "expiration", value]
@@ -153,29 +214,24 @@ class HTTPSMapper(BaseFeatureMapper):
         return BASE + ["api", "graphql", "introspection"]
 
     # ========================================================================
-    # Debug / Strict — 1.5 default: under api/rest
-    # (v1_4 overrides place these directly under api)
+    # Debug / Strict (1.4: directly under api)
     # ========================================================================
 
     def get_api_debug(self) -> List[str]:
-        return BASE + ["api", "rest", "debug"]
+        return BASE + ["api", "debug"]
 
     def get_api_strict(self) -> List[str]:
-        return BASE + ["api", "rest", "strict"]
-
-    def get_api_rest(self) -> List[str]:
-        return BASE + ["api", "rest"]
+        return BASE + ["api", "strict"]
 
     # ========================================================================
-    # CORS allow-origin — 1.5 default: under api/graphql/cors
-    # (v1_4 overrides place these under api/cors)
+    # CORS allow-origin (1.4: under api cors)
     # ========================================================================
 
     def get_api_cors_allow_origin(self, origin: str) -> List[str]:
-        return BASE + ["api", "graphql", "cors", "allow-origin", origin]
+        return BASE + ["api", "cors", "allow-origin", origin]
 
     def get_api_cors_allow_origin_delete(self, origin: str) -> List[str]:
-        return BASE + ["api", "graphql", "cors", "allow-origin", origin]
+        return BASE + ["api", "cors", "allow-origin", origin]
 
     def get_api_cors_allow_origins_delete(self) -> List[str]:
-        return BASE + ["api", "graphql", "cors", "allow-origin"]
+        return BASE + ["api", "cors", "allow-origin"]

@@ -1,30 +1,16 @@
-"""Factory for version-specific HTTPS mappers."""
+"""Factory for HTTPS mappers.
+
+The shared class is returned directly on 1.4. 1.5 paths live on the
+subclass. A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+"""
+
 from ...base import is_vyos_1_4
 from ..https import HTTPSMapper
-from .v1_4 import HTTPSMapperV1_4
 from .v1_5 import HTTPSMapperV1_5
 
 
-def get_https_mapper(version: str):
-    """Return a version-merged HTTPS mapper."""
-    base = HTTPSMapper(version)
-
+def get_https_mapper(version: str) -> HTTPSMapper:
+    """Return the HTTPS mapper for this device."""
     if is_vyos_1_4(version):
-        version_specific = HTTPSMapperV1_4()
-    else:
-        version_specific = HTTPSMapperV1_5()
-
-    class MergedMapper:
-        # parse_config must live here. A method on the base mapper is bound
-        # to `base`, so version branches would not see the merged mapper.
-        def parse_config(self, full_config):
-            from ..config_parse import parse_config as parse_https_config
-
-            return parse_https_config(self, full_config)
-
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+        return HTTPSMapper(version)
+    return HTTPSMapperV1_5(version)
