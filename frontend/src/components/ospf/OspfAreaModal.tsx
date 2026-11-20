@@ -25,6 +25,7 @@ import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { OspfArea, OspfCapabilities } from "@/lib/api/ospf";
 import {
+  OSPF_RETRANSMIT_WINDOW,
   ospfAreaProblem,
   ospfAuthDraft,
   ospfAuthFromDraft,
@@ -201,7 +202,11 @@ export function OspfAreaModal({
     const area = buildArea();
     const areaProblem = ospfAreaProblem(area);
     if (areaProblem) {
-      setError(t(`areaModal.${areaProblem}`));
+      setError(
+        areaProblem === "retransmitWindowRange"
+          ? t("interfaceModal.retransmitWindowRange", OSPF_RETRANSMIT_WINDOW)
+          : t(`areaModal.${areaProblem}`),
+      );
       return;
     }
     for (const link of links.filter((l) => !linkBlank(l))) {
@@ -469,6 +474,8 @@ export function OspfAreaModal({
                         <Input
                           id={`ospf-area-vl-${idx}-${field}`}
                           type="number"
+                          min={field === "retransmitWindow" ? OSPF_RETRANSMIT_WINDOW.min : undefined}
+                          max={field === "retransmitWindow" ? OSPF_RETRANSMIT_WINDOW.max : undefined}
                           value={link[field] as string}
                           onChange={(e) => setLink(idx, { [field]: e.target.value })}
                         />

@@ -223,7 +223,8 @@
     "bfdProfile": "BFD 配置文件",
     "helloMultiplierDeadInterval": "Hello 倍数和失效间隔不能同时设置",
     "md5Keys": "MD5 密钥",
-    "md5Key": "MD5 密钥"
+    "md5Key": "MD5 密钥",
+    "retransmitWindowRange": "重传窗口必须在 {min} 到 {max} 之间"
   },
   "redistributeModal": {
     "title": "添加路由重分发",

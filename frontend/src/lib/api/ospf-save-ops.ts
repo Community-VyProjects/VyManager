@@ -283,10 +283,23 @@ const INTERFACE_LEAVES: [keyof OspfInterface, string][] = [
 ];
 
 /** Error key under ``interfaceModal`` for an interface the lab would reject. */
-export function ospfInterfaceProblem(updated: OspfInterface): "helloMultiplierDeadInterval" | null {
+/** Lab range of interface and virtual-link retransmit-window (1.5 only). */
+export const OSPF_RETRANSMIT_WINDOW = { min: 20, max: 1000 };
+
+function retransmitWindowBad(value: number | string | null | undefined): boolean {
+  const text = ospfNum(value);
+  if (text === null) return false;
+  const n = Number(text);
+  return !Number.isInteger(n) || n < OSPF_RETRANSMIT_WINDOW.min || n > OSPF_RETRANSMIT_WINDOW.max;
+}
+
+export function ospfInterfaceProblem(
+  updated: OspfInterface,
+): "helloMultiplierDeadInterval" | "retransmitWindowRange" | null {
   if (ospfNum(updated.hello_multiplier) !== null && ospfNum(updated.dead_interval) !== null) {
     return "helloMultiplierDeadInterval";
   }
+  if (retransmitWindowBad(updated.retransmit_window)) return "retransmitWindowRange";
   return null;
 }
 
@@ -351,7 +364,8 @@ export type OspfAreaProblem =
   | "rangePrefixRequired"
   | "rangeDuplicate"
   | "virtualLinkAddressRequired"
-  | "virtualLinkDuplicate";
+  | "virtualLinkDuplicate"
+  | "retransmitWindowRange";
 
 export function ospfAreaProblem(updated: OspfArea): OspfAreaProblem | null {
   const nets = new Set<string>();
@@ -364,7 +378,8 @@ export function ospfAreaProblem(updated: OspfArea): OspfAreaProblem | null {
     listProblem<OspfAreaRange, OspfAreaProblem>(updated.ranges, (r) => r.prefix, "rangePrefixRequired", "rangeDuplicate") ??
     listProblem<OspfVirtualLink, OspfAreaProblem>(
       updated.virtual_links, (v) => v.address, "virtualLinkAddressRequired", "virtualLinkDuplicate",
-    )
+    ) ??
+    (updated.virtual_links.some((v) => retransmitWindowBad(v.retransmit_window)) ? "retransmitWindowRange" : null)
   );
 }
 

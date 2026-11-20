@@ -644,15 +644,17 @@ export function OspfContent() {
                 {hasWritePermission && (
                   !overviewEditing ? (
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setDeletingOspf(true)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {t("overview.deleteOspf")}
-                      </Button>
+                      {config?.configured && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeletingOspf(true)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {t("overview.deleteOspf")}
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={startEditOverview}>
                         <Pencil className="h-4 w-4 mr-2" />
                         {t("overview.editParameters")}

@@ -188,6 +188,8 @@ export interface OspfSegmentRouting {
 }
 
 export interface OspfConfig {
+  /** False when the device has no protocols ospf node. */
+  configured: boolean;
   parameters: OspfParameters;
   areas: OspfArea[];
   interfaces: OspfInterface[];

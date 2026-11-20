@@ -99,7 +99,7 @@ def test_ospf_capabilities_retransmit_window():
 
 def test_interface_modal_gates_retransmit_window():
     text = MODAL.read_text()
-    assert 'id="ospf-iface-retransmit-window"' in text
+    assert '"ospf-iface-retransmit-window"' in text
     assert 't("interfaceModal.retransmitWindow")' in text
     assert en_message(REPO, "ospf.json", "interfaceModal.retransmitWindow") == "Retransmit Window"
     assert "features?.interfaces?.retransmit_window" in text

@@ -64,6 +64,7 @@ function area(partial: Partial<OspfArea> = {}): OspfArea {
 
 function config(partial: Partial<OspfConfig> = {}): OspfConfig {
   return {
+    configured: true,
     parameters: { opaque_lsa: false, rfc1583_compatibility: false },
     areas: [],
     interfaces: [],
@@ -173,6 +174,14 @@ describe("interfaces", () => {
 
   it("rejects hello-multiplier with dead-interval", () => {
     assert.equal(ospfInterfaceProblem(iface({ hello_multiplier: 5, dead_interval: 40 })), "helloMultiplierDeadInterval");
+  });
+
+  it("rejects a retransmit-window outside the lab range 20-1000", () => {
+    assert.equal(ospfInterfaceProblem(iface({ retransmit_window: 19 })), "retransmitWindowRange");
+    assert.equal(ospfInterfaceProblem(iface({ retransmit_window: 1001 })), "retransmitWindowRange");
+    assert.equal(ospfInterfaceProblem(iface({ retransmit_window: 20 })), null);
+    const vl = { address: "192.0.2.1", retransmit_window: 5, authentication: { ...EMPTY_AUTH } };
+    assert.equal(ospfAreaProblem(area({ virtual_links: [vl] })), "retransmitWindowRange");
   });
 });
 

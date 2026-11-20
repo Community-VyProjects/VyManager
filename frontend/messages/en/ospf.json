@@ -223,7 +223,8 @@
     "bfdProfile": "BFD Profile",
     "helloMultiplierDeadInterval": "Hello multiplier and dead interval cannot both be set",
     "md5Keys": "MD5 Keys",
-    "md5Key": "MD5 Key"
+    "md5Key": "MD5 Key",
+    "retransmitWindowRange": "Retransmit window must be between {min} and {max}"
   },
   "redistributeModal": {
     "title": "Add Route Redistribution",

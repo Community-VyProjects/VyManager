@@ -28,6 +28,7 @@ import {
   ospfAuthDraft,
   ospfAuthFromDraft,
   ospfAuthProblem,
+  OSPF_RETRANSMIT_WINDOW,
   ospfInterfaceProblem,
   ospfPassiveMode,
   type OspfAuthDraft,
@@ -166,6 +167,7 @@ export function OspfInterfaceModal({
       return t("interfaceModal.ldpSyncHolddownRange");
     }
     const ifaceProblem = ospfInterfaceProblem(config);
+    if (ifaceProblem === "retransmitWindowRange") return t("interfaceModal.retransmitWindowRange", OSPF_RETRANSMIT_WINDOW);
     if (ifaceProblem) return t(`interfaceModal.${ifaceProblem}`);
     const authProblem = ospfAuthProblem(existingInterface?.authentication, auth);
     if (authProblem) return t(`auth.${authProblem}`);
@@ -191,10 +193,25 @@ export function OspfInterfaceModal({
     }
   };
 
-  const numberField = (id: string, label: string, value: string, setValue: (v: string) => void, placeholder?: string) => (
+  const numberField = (
+    id: string,
+    label: string,
+    value: string,
+    setValue: (v: string) => void,
+    placeholder?: string,
+    range?: { min: number; max: number },
+  ) => (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type="number" value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} />
+      <Input
+        id={id}
+        type="number"
+        min={range?.min}
+        max={range?.max}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+      />
     </div>
   );
 
@@ -268,18 +285,15 @@ export function OspfInterfaceModal({
                 {numberField("ospf-iface-dead", t("interfaceModal.deadInterval"), deadInterval, setDeadInterval, t("interfaceModal.seconds"))}
                 {numberField("ospf-iface-hello-multiplier", t("interfaceModal.helloMultiplier"), helloMultiplier, setHelloMultiplier)}
                 {numberField("ospf-iface-retransmit", t("interfaceModal.retransmitInterval"), retransmitInterval, setRetransmitInterval, t("interfaceModal.seconds"))}
-                {showRetransmitWindow && (
-                  <div className="space-y-2">
-                    <Label htmlFor="ospf-iface-retransmit-window">{t("interfaceModal.retransmitWindow")}</Label>
-                    <Input
-                      id="ospf-iface-retransmit-window"
-                      type="number"
-                      value={retransmitWindow}
-                      onChange={(e) => setRetransmitWindow(e.target.value)}
-                      placeholder={t("interfaceModal.packets")}
-                    />
-                  </div>
-                )}
+                {showRetransmitWindow &&
+                  numberField(
+                    "ospf-iface-retransmit-window",
+                    t("interfaceModal.retransmitWindow"),
+                    retransmitWindow,
+                    setRetransmitWindow,
+                    t("interfaceModal.packets"),
+                    OSPF_RETRANSMIT_WINDOW,
+                  )}
                 {numberField("ospf-iface-transmit-delay", t("interfaceModal.transmitDelay"), transmitDelay, setTransmitDelay, t("interfaceModal.seconds"))}
               </div>
             </div>

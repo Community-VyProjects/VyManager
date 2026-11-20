@@ -110,6 +110,15 @@ def test_present_node_without_log_flag_is_false():
     )
     assert parsed["log_adjacency_changes"] is False
     assert parsed["parameters"]["router_id"] == "1.1.1.1"
+    assert parsed["configured"] is True
+
+
+def test_configured_flag_reaches_the_response_model():
+    from routers.ospf.ospf import OspfConfig
+
+    assert OspfConfig(**get_ospf_mapper("1.5").parse_config({})).configured is False
+    tree = {"protocols": {"ospf": {"parameters": {"router-id": "1.1.1.1"}}}}
+    assert OspfConfig(**get_ospf_mapper("1.5").parse_config(tree)).configured is True
 
 
 def test_parse_nested_ospf_config():

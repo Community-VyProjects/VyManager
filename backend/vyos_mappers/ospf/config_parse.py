@@ -94,6 +94,7 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     passive = ospf_config.get("passive-interface")
     capability = ospf_config.get("capability")
     return {
+        "configured": True,
         "parameters": parse_parameters(ospf_config.get("parameters", {})),
         "areas": areas,
         "interfaces": interfaces,
