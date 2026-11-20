@@ -383,6 +383,12 @@ class L2TPBatchBuilder(BatchBuilder):
         prefix, delegation = value.split("|", 1)
         return self.add_set(self.mappers[self.mapper_key].get_client_ipv6_pool_delegate_prefix_path(pool, prefix, delegation))
 
+    def delete_client_ipv6_pool_prefix(self, pool: str, prefix: str) -> "L2TPBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_client_ipv6_pool_prefix_path(pool, prefix))
+
+    def delete_client_ipv6_pool_delegate(self, pool: str, prefix: str) -> "L2TPBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_client_ipv6_pool_delegate_path(pool, prefix))
+
     def delete_client_ipv6_pool(self, pool: str) -> "L2TPBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_client_ipv6_pool_delete_path(pool))
 
