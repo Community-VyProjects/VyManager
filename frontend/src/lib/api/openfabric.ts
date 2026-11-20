@@ -89,12 +89,14 @@ class OpenfabricService {
   // NET
   // -------------------------------------------------------------------------
 
-  async setNet(net: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "set_net", value: net }]);
-  }
-
-  async deleteNet(net: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_net", value: net }]);
+  // Replace the NET in one commit: delete-then-set works whether the node is
+  // single- or multi-valued, and a failed commit leaves the old NET in place.
+  async updateNet(oldNet: string | null | undefined, newNet: string): Promise<VyOSResponse> {
+    if ((oldNet || "") === newNet) return { success: true };
+    const ops: BatchOperation[] = [];
+    if (oldNet) ops.push({ op: "delete_net", value: oldNet });
+    if (newNet) ops.push({ op: "set_net", value: newNet });
+    return this.batch(ops);
   }
 
   // -------------------------------------------------------------------------
