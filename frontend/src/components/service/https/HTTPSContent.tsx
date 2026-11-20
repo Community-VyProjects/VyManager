@@ -15,32 +15,11 @@ import {
   Globe,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { httpsService, HTTPSConfig } from "@/lib/api/https";
-import { httpsCorsIndependent, httpsRestContainer } from "@/lib/api/https-save-ops";
+import { httpsService, HTTPSCapabilities, HTTPSConfig } from "@/lib/api/https";
+import { httpsConfigured, httpsRestContainer, httpsTlsVersions } from "@/lib/api/https-save-ops";
 import { HTTPSModal } from "./HTTPSModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
-
-function isConfigured(config: HTTPSConfig): boolean {
-  return (
-    config.listen_addresses.length > 0 ||
-    config.allow_client_addresses.length > 0 ||
-    config.port != null ||
-    config.request_body_size_limit != null ||
-    config.tls_versions.length > 0 ||
-    !!config.vrf ||
-    config.enable_http_redirect ||
-    !!config.certificates.certificate ||
-    !!config.certificates.ca_certificate ||
-    !!config.certificates.dh_params ||
-    config.api.keys.length > 0 ||
-    config.api.rest.enabled ||
-    config.api.rest.debug ||
-    config.api.rest.strict ||
-    config.api.graphql.enabled ||
-    config.api.graphql.cors_allow_origins.length > 0
-  );
-}
 
 export function HTTPSContent() {
   const t = useTranslations("https");
@@ -49,9 +28,7 @@ export function HTTPSContent() {
   const hasWritePermission = canWrite(FeatureGroup.HTTPS);
 
   const [config, setConfig] = useState<HTTPSConfig | null>(null);
-  const [corsIndependent, setCorsIndependent] = useState(false);
-  const [restContainer, setRestContainer] = useState(false);
-  const [capsReady, setCapsReady] = useState(false);
+  const [capabilities, setCapabilities] = useState<HTTPSCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -65,9 +42,7 @@ export function HTTPSContent() {
         httpsService.getCapabilities().catch(() => null),
       ]);
       setConfig(data);
-      setCorsIndependent(httpsCorsIndependent(caps));
-      setRestContainer(httpsRestContainer(caps));
-      setCapsReady(caps !== null);
+      setCapabilities(caps);
       if (!caps) {
         setError(t("content.loadFailed"));
       }
@@ -104,7 +79,9 @@ export function HTTPSContent() {
     );
   }
 
-  const configured = config ? isConfigured(config) : false;
+  const configured = config ? httpsConfigured(config) : false;
+  const capsReady = capabilities !== null;
+  const restContainer = httpsRestContainer(capabilities);
 
   return (
     <>
@@ -228,7 +205,7 @@ export function HTTPSContent() {
                             <Badge key={v} variant="secondary" className="font-mono text-xs">{v}</Badge>
                           ))
                         ) : (
-                          <span className="text-xs text-muted-foreground">{t("content.withDefault", { value: "1.2, 1.3" })}</span>
+                          <span className="text-xs text-muted-foreground">{t("content.withDefault", { value: httpsTlsVersions(capabilities).join(", ") })}</span>
                         )}
                       </div>
                     </div>
@@ -342,9 +319,7 @@ export function HTTPSContent() {
         onClose={() => setModalOpen(false)}
         onSuccess={handleSuccess}
         config={config}
-        corsIndependent={corsIndependent}
-        restContainer={restContainer}
-        capsReady={capsReady}
+        capabilities={capabilities}
       />
     </>
   );

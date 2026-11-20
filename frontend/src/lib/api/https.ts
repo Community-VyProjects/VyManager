@@ -52,7 +52,6 @@ export interface HTTPSConfig {
 export interface HTTPSCapabilities {
   version: string;
   features: Record<string, unknown>;
-  version_info: { is_1_4: boolean; is_1_5: boolean };
 }
 
 export interface BatchOperation {
@@ -77,11 +76,18 @@ class HTTPSService {
     });
   }
 
-  async saveConfig(config: HTTPSConfig, options: HttpsSaveOptions): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/https/batch", {
-      operations: buildHttpsSaveOps(config, options),
-    });
-    return result;
+  async saveConfig(
+    original: HTTPSConfig,
+    updated: HTTPSConfig,
+    options: HttpsSaveOptions,
+  ): Promise<VyOSResponse> {
+    const operations = buildHttpsSaveOps(original, updated, options);
+    if (operations.length === 0) return { success: true };
+    return this.batchConfigure(operations);
+  }
+
+  async batchConfigure(operations: BatchOperation[]): Promise<VyOSResponse> {
+    return apiClient.post<VyOSResponse>("/vyos/https/batch", { operations });
   }
 }
 

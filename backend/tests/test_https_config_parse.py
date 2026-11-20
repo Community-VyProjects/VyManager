@@ -1,5 +1,6 @@
 """HTTPS GET /config parse lives on the mapper (issue #966)."""
 
+from https_router_client import HttpsService, https_client
 from vyos_mappers.https.https_versions import get_https_mapper
 
 
@@ -102,7 +103,7 @@ def test_version_keys_come_from_mapper():
     assert parsed_14["certificates"]["dh_params"] is None
     assert parsed_14["api"]["keys"] == [
         {"id": "alpha", "key": ""},
-        {"id": "zeta", "key": "z-secret"},
+        {"id": "zeta", "key": "***"},
     ]
     assert parsed_14["api"]["graphql"]["enabled"] is True
     assert parsed_14["api"]["graphql"]["introspection"] is True
@@ -184,7 +185,7 @@ def test_1_5_keys_do_not_enable_rest():
         }
     }
     parsed = get_https_mapper("1.5").parse_config(tree)
-    assert parsed["api"]["keys"] == [{"id": "k", "key": "secret"}]
+    assert parsed["api"]["keys"] == [{"id": "k", "key": "***"}]
     assert parsed["api"]["rest"]["enabled"] is False
 
 
@@ -195,7 +196,7 @@ def test_1_4_keys_do_not_enable_rest():
         }
     }
     parsed = get_https_mapper("1.4").parse_config(tree)
-    assert parsed["api"]["keys"] == [{"id": "k", "key": "secret"}]
+    assert parsed["api"]["keys"] == [{"id": "k", "key": "***"}]
     assert parsed["api"]["rest"] == {
         "enabled": False,
         "debug": False,
@@ -220,41 +221,23 @@ def test_empty_tree():
     assert get_https_mapper("1.5").parse_config({"service": {"https": {}}}) == _empty()
 
 
-
 def test_get_config_returns_mapper_parse(monkeypatch):
     tree = _tree()
     expected = get_https_mapper("1.4").parse_config(tree)
 
-    async def allow(*_args, **_kwargs):
-        return None
-
-    class FakeService:
-        def get_version(self):
-            return "1.4"
-
-        def get_full_config(self, refresh=False):
-            return tree
-
-    monkeypatch.setattr("routers.https.https.require_read_permission", allow)
-    monkeypatch.setattr(
-        "routers.https.https.get_session_vyos_service",
-        lambda _req: FakeService(),
+    response = https_client(monkeypatch, HttpsService(version="1.4", config=tree)).get(
+        "/vyos/https/config"
     )
-
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from routers.https.https import router
-
-    app = FastAPI()
-    app.include_router(router)
-    client = TestClient(app)
-    response = client.get("/vyos/https/config")
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["port"] == expected["port"] == 0
     assert body["vrf"] == "mgmt"
     assert body["certificates"]["ca_certificate"] == "ca1"
-    assert body["api"]["keys"][0] == {"id": "alpha", "key": ""}
+    assert body["api"]["keys"] == [
+        {"id": "alpha", "key": ""},
+        {"id": "zeta", "key": "***"},
+    ]
+    assert "z-secret" not in response.text
     assert body["api"]["graphql"]["cors_allow_origins"] == ["https://old.example"]
     assert body["api"]["rest"]["debug"] is True
     assert body["api"]["rest"]["strict"] is False
