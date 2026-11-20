@@ -78,6 +78,16 @@ function failedSaveMessage(
   return result.error || fallback;
 }
 
+/** null clears the leaf. undefined is not an integer from 1 to 256. */
+function maximumPathCount(raw: string): number | null | undefined {
+  const text = raw.trim();
+  if (!text) return null;
+  if (!/^\d+$/.test(text)) return undefined;
+  const n = Number(text);
+  if (n < 1 || n > 256) return undefined;
+  return n;
+}
+
 export function BgpContent() {
   const t = useTranslations("bgp");
   const tc = useTranslations("common");
@@ -121,6 +131,8 @@ export function BgpContent() {
   const [afAggRouteMap, setAfAggRouteMap] = useState("");
   const [afSaving, setAfSaving] = useState(false);
   const [afError, setAfError] = useState<string | null>(null);
+  const [afMaxEbgp, setAfMaxEbgp] = useState("");
+  const [afMaxIbgp, setAfMaxIbgp] = useState("");
 
   // Route-map and BFD profile names for dropdowns
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
@@ -185,6 +197,12 @@ export function BgpContent() {
   useEffect(() => {
     setAfRedistProto("");
   }, [selectedAfi]);
+
+  useEffect(() => {
+    const af = config?.address_families.find((item) => item.afi === selectedAfi);
+    setAfMaxEbgp(af?.maximum_paths_ebgp != null ? String(af.maximum_paths_ebgp) : "");
+    setAfMaxIbgp(af?.maximum_paths_ibgp != null ? String(af.maximum_paths_ibgp) : "");
+  }, [selectedAfi, config]);
 
   useEffect(() => {
     setBmpBuffer(config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "");
@@ -462,6 +480,37 @@ export function BgpContent() {
       setAfError(message);
       setPageConfirmError(message);
       return false;
+    } finally {
+      setAfSaving(false);
+    }
+  };
+
+  const handleSaveMaximumPaths = async () => {
+    const ebgp = maximumPathCount(afMaxEbgp);
+    const ibgp = maximumPathCount(afMaxIbgp);
+    if (ebgp === undefined || ibgp === undefined) {
+      setAfError(t("content.af.maximumPathsRange"));
+      return;
+    }
+    const loaded = config?.address_families.find((item) => item.afi === selectedAfi);
+    setAfSaving(true);
+    setAfError(null);
+    try {
+      const result = await bgpService.saveMaximumPaths(
+        selectedAfi,
+        loaded?.maximum_paths_ebgp ?? null,
+        loaded?.maximum_paths_ibgp ?? null,
+        ebgp,
+        ibgp,
+      );
+      const message = failedSaveMessage(result, t("content.saveFailed"));
+      if (message) {
+        setAfError(message);
+        return;
+      }
+      await loadData(true);
+    } catch (err) {
+      setAfError(thrownMessage(err, t("content.saveFailed")));
     } finally {
       setAfSaving(false);
     }
@@ -1441,19 +1490,46 @@ export function BgpContent() {
                     )}
 
                     {/* Maximum Paths */}
-                    {currentAf && (currentAf.maximum_paths_ebgp || currentAf.maximum_paths_ibgp) && (
+                    {(capabilities?.maximum_paths_afis ?? []).includes(selectedAfi) && (
                       <Card>
                         <CardContent className="p-6">
                           <h3 className="text-sm font-medium mb-4">{t("content.af.maximumPaths")}</h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-xs text-muted-foreground">eBGP</Label>
-                              <p className="font-mono">{currentAf.maximum_paths_ebgp ?? tc("default")}</p>
+                          <div className="flex items-end gap-3">
+                            <div className="w-[160px] space-y-1">
+                              <Label className="text-xs">{t("content.af.ebgp")}</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={256}
+                                value={afMaxEbgp}
+                                onChange={(e) => setAfMaxEbgp(e.target.value)}
+                                className="h-9"
+                                disabled={afSaving}
+                              />
                             </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground">iBGP</Label>
-                              <p className="font-mono">{currentAf.maximum_paths_ibgp ?? tc("default")}</p>
+                            <div className="w-[160px] space-y-1">
+                              <Label className="text-xs">{t("content.af.ibgp")}</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={256}
+                                value={afMaxIbgp}
+                                onChange={(e) => setAfMaxIbgp(e.target.value)}
+                                className="h-9"
+                                disabled={afSaving}
+                              />
                             </div>
+                            <Button
+                              size="sm"
+                              onClick={handleSaveMaximumPaths}
+                              disabled={afSaving || (
+                                afMaxEbgp.trim() === (currentAf?.maximum_paths_ebgp != null ? String(currentAf.maximum_paths_ebgp) : "")
+                                && afMaxIbgp.trim() === (currentAf?.maximum_paths_ibgp != null ? String(currentAf.maximum_paths_ibgp) : "")
+                              )}
+                            >
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                              {tc("save")}
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>

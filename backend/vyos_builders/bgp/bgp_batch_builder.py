@@ -1188,6 +1188,12 @@ class BgpBatchBuilder(BatchBuilder):
     def delete_af_maximum_paths(self, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_af_maximum_paths_delete(afi))
 
+    def delete_af_maximum_paths_ebgp(self, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_maximum_paths_ebgp_delete(afi))
+
+    def delete_af_maximum_paths_ibgp(self, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_maximum_paths_ibgp_delete(afi))
+
     # Redistribute
     def set_af_redistribute(self, afi: str, protocol: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_af_redistribute(afi, protocol))
@@ -1443,6 +1449,7 @@ class BgpBatchBuilder(BatchBuilder):
                 "ipv6-unicast": sorted(self.m.redistribute_ipv6_protocols()),
             },
             "redistribute_table_afis": sorted(self.m.redistribute_table_afis()),
+            "maximum_paths_afis": sorted(self.m.maximum_paths_afis()),
             "address_family_types": {
                 "neighbor": [
                     "ipv4-unicast", "ipv6-unicast",

@@ -85,6 +85,9 @@
       "asSet": "AS Set",
       "summaryOnly": "仅汇总",
       "maximumPaths": "最大路径数",
+      "ebgp": "eBGP",
+      "ibgp": "iBGP",
+      "maximumPathsRange": "最大路径数必须是 1 到 256 的整数",
       "table": "表"
     },
     "params": {
