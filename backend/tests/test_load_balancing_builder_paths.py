@@ -1,6 +1,6 @@
 """Golden (method, args, op, expected_path) cases for LoadBalancingBatchBuilder.
 
-Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+Paths checked with validateTmplPath on 1.4 (100.64.64.4) and 1.5 (100.64.64.5).
 1.4 uses load-balancing reverse-proxy. 1.5 uses load-balancing haproxy.
 Version-split leaves raise on 1.4, including WAN rule group deletes.
 """
