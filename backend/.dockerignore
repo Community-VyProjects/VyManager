@@ -1,0 +1,10 @@
+# Build context for backend/Dockerfile (dev compose: context ../../backend)
+.env
+.env.*
+!.env.example
+__pycache__
+**/__pycache__
+**/*.pyc
+venv
+.venv
+.pytest_cache
