@@ -242,3 +242,17 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     assert body["api"]["rest"]["debug"] is True
     assert body["api"]["rest"]["strict"] is False
     assert body["api"]["graphql"]["authentication"]["expiration"] == 3600
+
+
+def test_bare_graphql_node_is_enabled_on_both_versions():
+    tree = {"service": {"https": {"api": {"graphql": {}}}}}
+    for version in ("1.4", "1.5"):
+        graphql = get_https_mapper(version).parse_config(tree)["api"]["graphql"]
+        assert graphql["enabled"] is True
+        assert graphql["authentication"] == {
+            "auth_type": None,
+            "expiration": None,
+            "secret_length": None,
+        }
+    tree = {"service": {"https": {"api": {"graphql": {"authentication": {}}}}}}
+    assert get_https_mapper("1.5").parse_config(tree)["api"]["graphql"]["enabled"] is True

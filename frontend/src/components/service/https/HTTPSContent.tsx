@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { httpsService, HTTPSCapabilities, HTTPSConfig } from "@/lib/api/https";
-import { httpsConfigured, httpsRestContainer, httpsTlsVersions } from "@/lib/api/https-save-ops";
+import { httpsConfigured, httpsRestContainer, httpsTlsDefaults } from "@/lib/api/https-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { HTTPSModal } from "./HTTPSModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -47,7 +48,7 @@ export function HTTPSContent() {
         setError(t("content.loadFailed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
+      setError((err as ApiError).message || t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -82,6 +83,7 @@ export function HTTPSContent() {
   const configured = config ? httpsConfigured(config) : false;
   const capsReady = capabilities !== null;
   const restContainer = httpsRestContainer(capabilities);
+  const tlsDefaults = httpsTlsDefaults(capabilities);
 
   return (
     <>
@@ -205,7 +207,9 @@ export function HTTPSContent() {
                             <Badge key={v} variant="secondary" className="font-mono text-xs">{v}</Badge>
                           ))
                         ) : (
-                          <span className="text-xs text-muted-foreground">{t("content.withDefault", { value: httpsTlsVersions(capabilities).join(", ") })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {tlsDefaults.length > 0 ? t("content.withDefault", { value: tlsDefaults.join(", ") }) : "—"}
+                          </span>
                         )}
                       </div>
                     </div>

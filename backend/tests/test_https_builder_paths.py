@@ -1,6 +1,6 @@
 """Golden (method, args, op, expected_path) cases for HTTPSBatchBuilder.
 
-Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+Paths checked with validateTmplPath on 1.4 (100.64.64.4) and 1.5 (100.64.64.5).
 Generated for issue #719; edit the tables directly if the mapper changes.
 """
 
@@ -25,6 +25,7 @@ COMMON_CASES = [
     ('delete_allow_client_addresses', (), 'delete', ['service', 'https', 'allow-client', 'address']),
     ('delete_api', (), 'delete', ['service', 'https', 'api']),
     ('delete_api_graphql', (), 'delete', ['service', 'https', 'api', 'graphql']),
+    ('set_api_graphql', (), 'set', ['service', 'https', 'api', 'graphql']),
     ('delete_api_graphql_auth_expiration', (), 'delete', ['service', 'https', 'api', 'graphql', 'authentication', 'expiration']),
     ('delete_api_graphql_auth_secret_length', (), 'delete', ['service', 'https', 'api', 'graphql', 'authentication', 'secret-length']),
     ('delete_api_graphql_auth_type', (), 'delete', ['service', 'https', 'api', 'graphql', 'authentication', 'type']),
@@ -135,6 +136,7 @@ def test_https_capability_flags_follow_the_mapper(monkeypatch):
     assert caps_15["features"]["api_cors"]["cors_scope"] == "graphql"
     for caps in (caps_14, caps_15):
         assert caps["features"]["tls_version"]["options"] == ["1.2", "1.3"]
+        assert caps["features"]["tls_version"]["defaults"] == ["1.2", "1.3"]
         assert caps["features"]["api_graphql_auth"]["auth_types"] == ["key", "token"]
 
     # The flags come from the mapper, not from the version string.

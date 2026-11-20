@@ -66,6 +66,7 @@ class HTTPSBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "Allowed TLS versions (multi-value, default: 1.2 and 1.3)",
                     "options": self.m.tls_versions(),
+                    "defaults": self.m.tls_version_defaults(),
                 },
                 "vrf": {
                     "supported": True,
@@ -91,8 +92,10 @@ class HTTPSBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "GraphQL authentication (key or JWT token)",
                     "auth_types": self.m.graphql_auth_types(),
+                    "token_expiration_default": 3600,
                     "token_expiration_min": 60,
                     "token_expiration_max": 31536000,
+                    "secret_length_default": 32,
                     "secret_length_min": 16,
                     "secret_length_max": 65535,
                 },
@@ -252,8 +255,11 @@ class HTTPSBatchBuilder(BatchBuilder):
     # GraphQL
     # -----------------------------------------------------------------------
 
+    def set_api_graphql(self) -> "HTTPSBatchBuilder":
+        return self.add_set(self.m.get_api_graphql())
+
     def delete_api_graphql(self) -> "HTTPSBatchBuilder":
-        return self.add_delete(self.m.get_api_graphql_delete())
+        return self.add_delete(self.m.get_api_graphql())
 
     def set_api_graphql_auth_expiration(self, value: str) -> "HTTPSBatchBuilder":
         return self.add_set(self.m.get_api_graphql_auth_expiration(value))

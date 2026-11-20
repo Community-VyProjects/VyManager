@@ -38,11 +38,15 @@ import {
 } from "lucide-react";
 import { httpsService, HTTPSCapabilities, HTTPSConfig, HTTPSApiKey } from "@/lib/api/https";
 import {
+  MASKED_SECRET,
   httpsCorsIndependent,
   httpsGraphqlAuthTypes,
+  httpsRange,
   httpsRestContainer,
   httpsTlsVersions,
+  type HttpsRange,
 } from "@/lib/api/https-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { pkiService, PKICertificate, PKICA, PKIDH } from "@/lib/api/pki";
 
 interface HTTPSModalProps {
@@ -55,6 +59,16 @@ interface HTTPSModalProps {
 
 interface ApiKeyRow extends HTTPSApiKey {
   key_: number;
+}
+
+function outOfRange(raw: string, range: HttpsRange): boolean {
+  const value = parseInt(raw, 10);
+  if (isNaN(value)) return true;
+  return (range.min != null && value < range.min) || (range.max != null && value > range.max);
+}
+
+function rangeValues(range: HttpsRange) {
+  return { min: range.min ?? "", max: range.max ?? "" };
 }
 
 const EMPTY_CONFIG: HTTPSConfig = {
@@ -81,6 +95,14 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
   const restContainer = httpsRestContainer(capabilities);
   const tlsOptions = httpsTlsVersions(capabilities);
   const authTypes = httpsGraphqlAuthTypes(capabilities);
+  const portRange = httpsRange(capabilities, "port", "min", "max", "default");
+  const bodySizeRange = httpsRange(capabilities, "request_body_size_limit", "min", "max", "default");
+  const expirationRange = httpsRange(
+    capabilities, "api_graphql_auth", "token_expiration_min", "token_expiration_max", "token_expiration_default",
+  );
+  const secretLengthRange = httpsRange(
+    capabilities, "api_graphql_auth", "secret_length_min", "secret_length_max", "secret_length_default",
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,7 +142,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
   // Tab 5 — GraphQL
   const [graphqlEnabled, setGraphqlEnabled] = useState(false);
   const [graphqlIntrospection, setGraphqlIntrospection] = useState(false);
-  const [graphqlAuthType, setGraphqlAuthType] = useState("key");
+  const [graphqlAuthType, setGraphqlAuthType] = useState("");
   const [graphqlExpiration, setGraphqlExpiration] = useState("");
   const [graphqlSecretLength, setGraphqlSecretLength] = useState("");
   const [corsOrigins, setCorsOrigins] = useState<string[]>([]);
@@ -158,7 +180,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
 
     setGraphqlEnabled(src.api.graphql.enabled);
     setGraphqlIntrospection(src.api.graphql.introspection);
-    setGraphqlAuthType(src.api.graphql.authentication.auth_type ?? "key");
+    setGraphqlAuthType(src.api.graphql.authentication.auth_type ?? "");
     setGraphqlExpiration(src.api.graphql.authentication.expiration != null ? String(src.api.graphql.authentication.expiration) : "");
     setGraphqlSecretLength(src.api.graphql.authentication.secret_length != null ? String(src.api.graphql.authentication.secret_length) : "");
     setCorsOrigins([...src.api.graphql.cors_allow_origins]);
@@ -200,6 +222,14 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
       setError(t("modal.errors.keyIdUnique"));
       return;
     }
+    if (id.includes(",")) {
+      setError(t("modal.errors.keyIdComma"));
+      return;
+    }
+    if (secret === MASKED_SECRET) {
+      setError(t("modal.errors.keySecretMasked"));
+      return;
+    }
     setKeyRows((prev) => [...prev, { id, key: secret, key_: nextKeyIndex }]);
     setNextKeyIndex((n) => n + 1);
     setNewKeyId("");
@@ -216,21 +246,17 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
   }
 
   function validate(): string | null {
-    if (port) {
-      const p = parseInt(port, 10);
-      if (isNaN(p) || p < 1 || p > 65535) return t("modal.errors.portRange");
+    if (port && outOfRange(port, portRange)) {
+      return t("modal.errors.portRange", rangeValues(portRange));
     }
-    if (requestBodySizeLimit) {
-      const s = parseInt(requestBodySizeLimit, 10);
-      if (isNaN(s) || s < 1 || s > 256) return t("modal.errors.bodySizeRange");
+    if (requestBodySizeLimit && outOfRange(requestBodySizeLimit, bodySizeRange)) {
+      return t("modal.errors.bodySizeRange", rangeValues(bodySizeRange));
     }
-    if (graphqlEnabled && graphqlExpiration) {
-      const e = parseInt(graphqlExpiration, 10);
-      if (isNaN(e) || e < 60 || e > 31536000) return t("modal.errors.expirationRange");
+    if (graphqlEnabled && graphqlExpiration && outOfRange(graphqlExpiration, expirationRange)) {
+      return t("modal.errors.expirationRange", rangeValues(expirationRange));
     }
-    if (graphqlEnabled && graphqlSecretLength) {
-      const s = parseInt(graphqlSecretLength, 10);
-      if (isNaN(s) || s < 16 || s > 65535) return t("modal.errors.secretLengthRange");
+    if (graphqlEnabled && graphqlSecretLength && outOfRange(graphqlSecretLength, secretLengthRange)) {
+      return t("modal.errors.secretLengthRange", rangeValues(secretLengthRange));
     }
     const ids = keyRows.map((r) => r.id);
     if (new Set(ids).size !== ids.length) return t("modal.errors.keyIdsUnique");
@@ -266,9 +292,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
           enabled: graphqlEnabled,
           introspection: graphqlIntrospection,
           authentication: {
-            auth_type: graphqlEnabled ? (graphqlAuthType || "key") : null,
-            expiration: graphqlEnabled && graphqlAuthType === "token" && graphqlExpiration ? parseInt(graphqlExpiration, 10) : null,
-            secret_length: graphqlEnabled && graphqlAuthType === "token" && graphqlSecretLength ? parseInt(graphqlSecretLength, 10) : null,
+            auth_type: graphqlEnabled ? graphqlAuthType || null : null,
+            expiration: graphqlEnabled && graphqlExpiration ? parseInt(graphqlExpiration, 10) : null,
+            secret_length: graphqlEnabled && graphqlSecretLength ? parseInt(graphqlSecretLength, 10) : null,
           },
           cors_allow_origins: corsOrigins,
         },
@@ -287,7 +313,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("modal.errors.unexpected"));
+      setError((err as ApiError).message || t("modal.errors.unexpected"));
     } finally {
       setLoading(false);
     }
@@ -397,9 +423,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                   <Input
                     id="port"
                     type="number"
-                    min={1}
-                    max={65535}
-                    placeholder={t("content.withDefault", { value: "443" })}
+                    min={portRange.min}
+                    max={portRange.max}
+                    placeholder={portRange.default != null ? t("content.withDefault", { value: String(portRange.default) }) : undefined}
                     value={port}
                     onChange={(e) => setPort(e.target.value)}
                   />
@@ -411,9 +437,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                   <Input
                     id="body-size"
                     type="number"
-                    min={1}
-                    max={256}
-                    placeholder={t("content.withDefault", { value: "1" })}
+                    min={bodySizeRange.min}
+                    max={bodySizeRange.max}
+                    placeholder={bodySizeRange.default != null ? t("content.withDefault", { value: String(bodySizeRange.default) }) : undefined}
                     value={requestBodySizeLimit}
                     onChange={(e) => setRequestBodySizeLimit(e.target.value)}
                   />
@@ -559,7 +585,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                           <tr key={row.key_} className="border-t">
                             <td className="px-3 py-2 font-mono text-xs">{row.id}</td>
                             <td className="px-3 py-2 font-mono text-xs">
-                              {"••••••••"}
+                              {row.key ? "••••••••" : "—"}
                             </td>
                             <td className="px-3 py-2">
                               <Button
@@ -696,14 +722,15 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                   <div className="space-y-2">
                     <Label htmlFor="graphql-auth-type">{t("modal.authType")}</Label>
                     <Select
-                      value={graphqlAuthType}
-                      onValueChange={setGraphqlAuthType}
+                      value={graphqlAuthType || "__none__"}
+                      onValueChange={(v) => setGraphqlAuthType(v === "__none__" ? "" : v)}
                       disabled={!graphqlEnabled}
                     >
                       <SelectTrigger id="graphql-auth-type">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__none__">{tc("default")}</SelectItem>
                         {authTypes.map((type) => (
                           <SelectItem key={type} value={type}>{type}</SelectItem>
                         ))}
@@ -711,16 +738,16 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                     </Select>
                   </div>
 
-                  {graphqlAuthType === "token" && graphqlEnabled && (
+                  {graphqlEnabled && (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="graphql-expiration">{t("modal.tokenExpiration")}</Label>
                         <Input
                           id="graphql-expiration"
                           type="number"
-                          min={60}
-                          max={31536000}
-                          placeholder={t("content.withDefault", { value: "3600" })}
+                          min={expirationRange.min}
+                          max={expirationRange.max}
+                          placeholder={expirationRange.default != null ? t("content.withDefault", { value: String(expirationRange.default) }) : undefined}
                           value={graphqlExpiration}
                           onChange={(e) => setGraphqlExpiration(e.target.value)}
                           disabled={!graphqlEnabled}
@@ -731,9 +758,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: H
                         <Input
                           id="graphql-secret-length"
                           type="number"
-                          min={16}
-                          max={65535}
-                          placeholder={t("content.withDefault", { value: "32" })}
+                          min={secretLengthRange.min}
+                          max={secretLengthRange.max}
+                          placeholder={secretLengthRange.default != null ? t("content.withDefault", { value: String(secretLengthRange.default) }) : undefined}
                           value={graphqlSecretLength}
                           onChange={(e) => setGraphqlSecretLength(e.target.value)}
                           disabled={!graphqlEnabled}

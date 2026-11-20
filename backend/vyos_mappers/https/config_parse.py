@@ -120,10 +120,9 @@ def _parse_api_keys(raw: Any) -> List[Dict[str, str]]:
 
 
 def _parse_graphql(raw: dict, cors_under_graphql: bool) -> Dict[str, Any]:
-    if not raw or not isinstance(raw, dict):
-        return _empty_graphql()
-
-    auth_raw = raw.get("authentication", {}) or {}
+    """Parse a present ``api graphql`` node; an empty node is still enabled."""
+    auth_node = raw.get("authentication")
+    auth_raw = auth_node if isinstance(auth_node, dict) else {}
     auth = {
         "auth_type": _parse_scalar(auth_raw.get("type")),
         "expiration": _parse_int(auth_raw.get("expiration")),
@@ -150,8 +149,9 @@ def _parse_api(raw: dict, mapper) -> Dict[str, Any]:
 
     cors_under_graphql = _cors_under_graphql(mapper)
     keys = _parse_api_keys(raw.get("keys", {}))
-    graphql_raw = raw.get("graphql", {}) or {}
-    if graphql_raw:
+    # Presence is key membership: a bare `api graphql` node enables GraphQL.
+    if "graphql" in raw:
+        graphql_raw = raw["graphql"] if isinstance(raw["graphql"], dict) else {}
         graphql = _parse_graphql(graphql_raw, cors_under_graphql)
     else:
         graphql = _empty_graphql()

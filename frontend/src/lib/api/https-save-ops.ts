@@ -30,6 +30,29 @@ export function httpsGraphqlAuthTypes(capabilities: Capabilities): string[] {
   return stringList(feature(capabilities, "api_graphql_auth")?.auth_types);
 }
 
+export function httpsTlsDefaults(capabilities: Capabilities): string[] {
+  return stringList(feature(capabilities, "tls_version")?.defaults);
+}
+
+export interface HttpsRange {
+  min?: number;
+  max?: number;
+  default?: number;
+}
+
+/** A numeric range from capabilities, e.g. ("port", "min", "max", "default"). */
+export function httpsRange(
+  capabilities: Capabilities,
+  name: string,
+  minKey: string,
+  maxKey: string,
+  defaultKey: string,
+): HttpsRange {
+  const node = feature(capabilities, name);
+  const read = (key: string) => (typeof node?.[key] === "number" ? (node[key] as number) : undefined);
+  return { min: read(minKey), max: read(maxKey), default: read(defaultKey) };
+}
+
 export interface HttpsSaveOptions {
   capsReady?: boolean;
   corsIndependent?: boolean;
@@ -49,7 +72,7 @@ function num(value: number | null | undefined): string {
 }
 
 /** Trim every field the save diffs, so the loaded and edited configs compare. */
-export function normalizeHttpsConfig(config: HTTPSConfig): HTTPSConfig {
+function normalizeHttpsConfig(config: HTTPSConfig): HTTPSConfig {
   const graphql = config.api.graphql;
   return {
     listen_addresses: cleanList(config.listen_addresses),
@@ -197,11 +220,15 @@ function diffGraphql(
   if (was.enabled && !now.enabled) {
     ops.push({ op: "delete_api_graphql" });
   } else if (now.enabled) {
+    if (!was.enabled) ops.push({ op: "set_api_graphql" });
     const wasAuth = was.enabled ? was.authentication : {};
-    // The lab sets type key when graphql exists without one.
-    const wasType = was.enabled ? text(wasAuth.auth_type) || "key" : "";
-    const nowType = text(now.authentication.auth_type) || "key";
-    if (wasType !== nowType) ops.push({ op: "set_api_graphql_auth_type", value: nowType });
+    diffValue(
+      ops,
+      text(wasAuth.auth_type),
+      text(now.authentication.auth_type),
+      "set_api_graphql_auth_type",
+      "delete_api_graphql_auth_type",
+    );
     diffFlag(
       ops,
       was.enabled && was.introspection,

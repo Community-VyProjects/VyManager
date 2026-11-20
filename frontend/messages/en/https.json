@@ -29,10 +29,12 @@
   "modal": {
     "errors": {
       "keyIdUnique": "API key ID must be unique.",
-      "portRange": "Port must be between 1 and 65535.",
-      "bodySizeRange": "Request body size limit must be between 1 and 256 MB.",
-      "expirationRange": "JWT token expiration must be between 60 and 31,536,000 seconds.",
-      "secretLengthRange": "JWT secret length must be between 16 and 65,535 bytes.",
+      "keyIdComma": "API key ID cannot contain a comma.",
+      "keySecretMasked": "Enter the secret key itself, not the mask.",
+      "portRange": "Port must be between {min} and {max}.",
+      "bodySizeRange": "Request body size limit must be between {min} and {max} MB.",
+      "expirationRange": "JWT token expiration must be between {min} and {max} seconds.",
+      "secretLengthRange": "JWT secret length must be between {min} and {max} bytes.",
       "keyIdsUnique": "API key IDs must be unique.",
       "configurationFailed": "Configuration failed",
       "unexpected": "An unexpected error occurred."

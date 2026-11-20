@@ -46,6 +46,10 @@ class HTTPSMapper(BaseFeatureMapper):
     def tls_versions(self) -> List[str]:
         return list(self._TLS_VERSIONS)
 
+    def tls_version_defaults(self) -> List[str]:
+        """TLS versions the lab uses when tls-version is unset (both labs)."""
+        return list(self._TLS_VERSIONS)
+
     def graphql_auth_types(self) -> List[str]:
         return list(self._GRAPHQL_AUTH_TYPES)
 
@@ -182,7 +186,7 @@ class HTTPSMapper(BaseFeatureMapper):
     # GraphQL
     # ========================================================================
 
-    def get_api_graphql_delete(self) -> List[str]:
+    def get_api_graphql(self) -> List[str]:
         return BASE + ["api", "graphql"]
 
     def get_api_graphql_auth_expiration(self, value: str) -> List[str]:

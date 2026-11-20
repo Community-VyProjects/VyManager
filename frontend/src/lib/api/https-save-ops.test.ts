@@ -6,7 +6,9 @@ import {
   httpsConfigured,
   httpsCorsIndependent,
   httpsGraphqlAuthTypes,
+  httpsRange,
   httpsRestContainer,
+  httpsTlsDefaults,
   httpsTlsVersions,
 } from "./https-save-ops";
 import { httpsService, type BatchOperation, type HTTPSConfig } from "./https";
@@ -163,19 +165,52 @@ describe("buildHttpsSaveOps", () => {
       V15,
     );
     assert.deepEqual(ops, [
+      { op: "set_api_graphql" },
       { op: "set_api_graphql_auth_type", value: "token" },
       { op: "set_api_graphql_auth_expiration", value: "600" },
       { op: "set_api_cors_allow_origin", value: "https://x.example" },
     ]);
   });
 
-  it("treats a missing loaded auth type as the lab default key", () => {
-    const loaded = config({ api: api({ graphql: graphql({ authentication: {} }) }) });
-    const unchanged = config({ api: api({ graphql: graphql({ authentication: { auth_type: "key" } }) }) });
-    assert.deepEqual(buildHttpsSaveOps(loaded, unchanged, V15), []);
+  it("enables GraphQL with no type as a bare graphql node", () => {
+    const ops = buildHttpsSaveOps(
+      config({ port: 8443 }),
+      config({ port: 8443, api: api({ graphql: graphql({ authentication: {} }) }) }),
+      V15,
+    );
+    assert.deepEqual(ops, [{ op: "set_api_graphql" }]);
   });
 
-  it("deletes token leaves when switching back to key", () => {
+  it("keeps an unset auth type unset and deletes the type when reset to default", () => {
+    const loaded = config({ api: api({ graphql: graphql({ authentication: {} }) }) });
+    assert.deepEqual(buildHttpsSaveOps(loaded, structuredClone(loaded), V15), []);
+    const reset = buildHttpsSaveOps(LOADED, edit((d) => {
+      d.api.graphql.authentication = { auth_type: null };
+    }), V15);
+    assert.deepEqual(reset, [{ op: "delete_api_graphql_auth_type" }]);
+  });
+
+  it("keeps expiration and secret-length under type key on an unrelated save", () => {
+    const loaded = config({
+      port: 8443,
+      api: api({ graphql: graphql({ authentication: { auth_type: "key", expiration: 600, secret_length: 64 } }) }),
+    });
+    const updated = structuredClone(loaded);
+    updated.port = 443;
+    assert.deepEqual(buildHttpsSaveOps(loaded, updated, V15), [{ op: "set_port", value: "443" }]);
+  });
+
+  it("keeps 1.4 api CORS when GraphQL is turned off", () => {
+    const loaded = config({
+      api: api({ graphql: graphql({ cors_allow_origins: ["https://a.example"] }) }),
+    });
+    const updated = config({
+      api: api({ graphql: { ...api().graphql, cors_allow_origins: ["https://a.example"] } }),
+    });
+    assert.deepEqual(buildHttpsSaveOps(loaded, updated, V14), [{ op: "delete_api_graphql" }]);
+  });
+
+  it("deletes cleared token leaves when switching back to key", () => {
     const loaded = config({
       api: api({ graphql: graphql({ authentication: { auth_type: "token", expiration: 600, secret_length: 64 } }) }),
     });
@@ -284,7 +319,8 @@ describe("https capability readers", () => {
       features: {
         api_cors: { cors_scope: "api" },
         api_rest: { supported: false },
-        tls_version: { options: ["1.2", "1.3"] },
+        tls_version: { options: ["1.2", "1.3"], defaults: ["1.2", "1.3"] },
+        port: { min: 1, max: 65535, default: 443 },
         api_graphql_auth: { auth_types: ["key", "token"] },
       },
     };
@@ -292,6 +328,9 @@ describe("https capability readers", () => {
     assert.equal(httpsRestContainer(caps), false);
     assert.deepEqual(httpsTlsVersions(caps), ["1.2", "1.3"]);
     assert.deepEqual(httpsGraphqlAuthTypes(caps), ["key", "token"]);
+    assert.deepEqual(httpsTlsDefaults(caps), ["1.2", "1.3"]);
+    assert.deepEqual(httpsRange(caps, "port", "min", "max", "default"), { min: 1, max: 65535, default: 443 });
+    assert.deepEqual(httpsRange(null, "port", "min", "max", "default"), { min: undefined, max: undefined, default: undefined });
     assert.equal(httpsCorsIndependent({ features: { api_cors: { cors_scope: "graphql" } } }), false);
     assert.equal(httpsRestContainer({ features: { api_rest: { supported: true } } }), true);
     assert.equal(httpsCorsIndependent(null), false);
