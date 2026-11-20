@@ -26,10 +26,13 @@ def test_published_compose_has_one_shot_migrate_before_backend():
 def test_prisma_client_and_cli_pins_match():
     pkg = json.loads((ROOT / "frontend/package.json").read_text())
     client = pkg["dependencies"]["@prisma/client"]
-    cli = pkg["devDependencies"]["prisma"]
+    # The image entrypoint runs the Prisma CLI, and the runner prunes dev
+    # dependencies, so the CLI must be a runtime dependency.
+    cli = pkg["dependencies"]["prisma"]
+    assert "prisma" not in pkg.get("devDependencies", {})
     assert client == cli
     lock = json.loads((ROOT / "frontend/package-lock.json").read_text())
     assert lock["packages"][""]["dependencies"]["@prisma/client"] == client
-    assert lock["packages"][""]["devDependencies"]["prisma"] == cli
+    assert lock["packages"][""]["dependencies"]["prisma"] == cli
     assert lock["packages"]["node_modules/@prisma/client"]["version"] == client
     assert lock["packages"]["node_modules/prisma"]["version"] == cli
