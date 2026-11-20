@@ -36,6 +36,10 @@ ENV BETTER_AUTH_SECRET=dummy_secret_for_build_only
 ENV BACKEND_URL=http://backend:8000
 RUN npm run build
 
+# Drop dev dependencies so the runner only ships what next start and the
+# entrypoint's prisma commands need (prisma is a runtime dependency).
+RUN npm prune --omit=dev
+
 
 # ---- Production Runtime Stage ----
 FROM node:24-alpine AS runner
