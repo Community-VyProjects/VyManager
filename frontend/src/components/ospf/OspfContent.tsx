@@ -1294,7 +1294,7 @@ export function OspfContent() {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => { setAdvancedEditing(false); setAdvancedError(null); }}>
+                      <Button size="sm" variant="outline" onClick={() => { setAdvancedEditing(false); setAdvancedError(null); setGrRouterIdError(null); }}>
                         {tc("cancel")}
                       </Button>
                       <Button size="sm" onClick={saveAdvanced} disabled={advancedSaving}>
@@ -1528,7 +1528,9 @@ export function OspfContent() {
                               </Button>
                             </div>
                           )}
-                          {grRouterIdError && <p className="text-sm text-destructive">{grRouterIdError}</p>}
+                          {advancedEditing && grEnabled && grHelperEnable && grRouterIdError && (
+                            <p className="text-sm text-destructive">{grRouterIdError}</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
