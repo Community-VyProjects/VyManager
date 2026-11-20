@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { httpsService, HTTPSCapabilities, HTTPSConfig } from "@/lib/api/https";
-import { httpsConfigured, httpsRestContainer, httpsTlsDefaults } from "@/lib/api/https-save-ops";
+import { httpsConfigured, httpsRange, httpsRestContainer, httpsTlsDefaults } from "@/lib/api/https-save-ops";
 import type { ApiError } from "@/lib/types/api";
 import { HTTPSModal } from "./HTTPSModal";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -84,6 +84,7 @@ export function HTTPSContent() {
   const capsReady = capabilities !== null;
   const restContainer = httpsRestContainer(capabilities);
   const tlsDefaults = httpsTlsDefaults(capabilities);
+  const portDefault = httpsRange(capabilities, "port", "min", "max", "default").default;
 
   return (
     <>
@@ -158,7 +159,7 @@ export function HTTPSContent() {
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-32 shrink-0">{t("content.port")}</span>
                       <span className="font-mono text-xs">
-                        {config!.port ?? t("content.withDefault", { value: "443" })}
+                        {config!.port ?? (portDefault != null ? t("content.withDefault", { value: String(portDefault) }) : "—")}
                       </span>
                     </div>
                     <div>
