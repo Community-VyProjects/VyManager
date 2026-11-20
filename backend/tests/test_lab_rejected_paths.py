@@ -10,7 +10,7 @@ import pytest
 
 from vyos_builders.lldp.lldp_batch_builder import LLDPBatchBuilder
 from vyos_builders.load_balancing import LoadBalancingBatchBuilder
-from vyos_mappers.load_balancing.load_balancing import LoadBalancingMapper
+from vyos_mappers.load_balancing.load_balancing_versions import get_load_balancing_mapper
 
 
 def _ops(builder):
@@ -118,7 +118,7 @@ def test_load_balancing_capabilities_follow_the_mapper():
 
 
 def test_parse_wildcard_domain_as_presence():
-    mapper = LoadBalancingMapper("1.5")
+    mapper = get_load_balancing_mapper("2026.09.23-rolling")
     parsed = mapper.parse_config({
         "load-balancing": {
             "haproxy": {
