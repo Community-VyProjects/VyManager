@@ -89,6 +89,10 @@ class OspfMapper(BaseFeatureMapper):
         """External metric-type (val_help 1-2) for redistribute and originate."""
         return ["1", "2"]
 
+    def segment_routing_prefix_flags(self) -> List[str]:
+        """Valueless leaves under segment-routing prefix index; the lab allows one at a time."""
+        return ["explicit-null", "no-php-flag"]
+
     def access_list_export_values(self) -> List[str]:
         return ["bgp", "connected", "kernel", "rip", "static"]
 

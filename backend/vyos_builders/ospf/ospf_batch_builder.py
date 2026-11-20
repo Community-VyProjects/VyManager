@@ -912,6 +912,7 @@ class OspfBatchBuilder(BatchBuilder):
                 "segment_routing": {
                     "supported": True,
                     "description": "OSPF Segment Routing (SR-MPLS)",
+                    "prefix_flags": mapper.segment_routing_prefix_flags(),
                 },
                 "mpls_te": {
                     "supported": True,

@@ -239,7 +239,7 @@ export interface OspfCapabilities {
     summary_addresses: OspfFeature;
     default_information: OspfFeature & { metric_types: string[] };
     graceful_restart: OspfFeature;
-    segment_routing: OspfFeature;
+    segment_routing: OspfFeature & { prefix_flags: string[] };
     mpls_te: OspfFeature;
     max_metric: OspfFeature;
   };

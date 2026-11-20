@@ -17,11 +17,11 @@
     "tableId": "Table ID",
     "options": "Options",
     "passive": "Passive",
-    "type1": "Type 1",
-    "type2": "Type 2",
     "addArea": "Add Area",
     "addRedistribute": "Add Redistribute",
-    "adding": "Adding..."
+    "adding": "Adding...",
+    "prefix": "Prefix",
+    "address": "Address"
   },
   "values": {
     "auto": "auto",
@@ -29,7 +29,6 @@
     "none": "none",
     "yes": "Yes",
     "no": "No",
-    "plain": "Plain",
     "type": "Type {type}"
   },
   "page": {
@@ -59,7 +58,6 @@
     "parameters": "Parameters",
     "routerIdPlaceholder": "Auto-detected",
     "abrType": "ABR Type",
-    "abrTypePlaceholder": "Default (cisco)",
     "maximumPaths": "Maximum Paths",
     "referenceBandwidth": "Reference Bandwidth",
     "referenceBandwidthPlaceholder": "Default (100 Mbps)",
@@ -67,13 +65,11 @@
     "logAdjacencyChanges": "Log Adjacency Changes",
     "logAdjacencyChangesDetail": "Log Adjacency Changes (Detail)",
     "opaqueLsa": "Opaque LSA",
-    "rfc1583": "RFC 1583 Compatibility",
     "defaultInformation": "Default Information Originate",
     "always": "Always",
-    "abrTypes": {
-      "shortcut": "Shortcut",
-      "standard": "Standard"
-    }
+    "deleteOspf": "Delete OSPF",
+    "defaultMetric": "Default Metric",
+    "rfc1583": "RFC 1583 Compatibility"
   },
   "areas": {
     "description": "OSPF area configuration",
@@ -122,7 +118,39 @@
     "ldpSyncHolddown": "LDP Sync Holddown",
     "refreshTimers": "Refresh Timers",
     "aggregationTimer": "Aggregation Timer",
-    "capabilityOpaque": "Capability Opaque"
+    "capabilityOpaque": "Capability Opaque",
+    "accessLists": "Access List Export",
+    "neighbors": "Neighbors",
+    "pollInterval": "Poll Interval",
+    "summaryAddresses": "Summary Addresses",
+    "tag": "Tag",
+    "segmentRouting": "Segment Routing",
+    "globalBlockLow": "Global Block Low",
+    "globalBlockHigh": "Global Block High",
+    "localBlockLow": "Local Block Low",
+    "localBlockHigh": "Local Block High",
+    "maximumLabelDepth": "Maximum Label Depth",
+    "prefixSids": "Prefix SIDs",
+    "sidIndex": "Index",
+    "sidFlag": "Flag",
+    "noStrictLsaChecking": "No strict LSA checking",
+    "plannedOnly": "Planned only",
+    "supportedGraceTime": "Supported Grace Time",
+    "mplsTe": "MPLS-TE",
+    "routerAddress": "Router Address",
+    "accessListRequired": "Each access list entry needs a list",
+    "accessListDuplicate": "Each access list can only be used once",
+    "neighborAddressRequired": "Each neighbor needs an address",
+    "neighborDuplicate": "Each neighbor address can only be used once",
+    "summaryPrefixRequired": "Each summary address needs a prefix",
+    "summaryDuplicate": "Each summary prefix can only be used once",
+    "srPrefixRequired": "Each prefix SID needs a prefix",
+    "srPrefixDuplicate": "Each prefix SID prefix can only be used once",
+    "summaryTagNoAdvertise": "A summary address cannot have both a tag and do not advertise",
+    "srIndexRequired": "Each prefix SID needs an index",
+    "srBlockPair": "Set both the low and high label value of a block",
+    "srBlockOrder": "The low label value must not be above the high label value",
+    "srLocalNeedsGlobal": "A local block needs a global block"
   },
   "delete": {
     "title": "Delete OSPF {itemType}",
@@ -131,7 +159,8 @@
     "itemArea": "Area",
     "itemInterface": "Interface",
     "itemRedistribute": "Redistribute",
-    "tableSuffix": " (table {table})"
+    "tableSuffix": " (table {table})",
+    "itemOspf": "OSPF configuration"
   },
   "areaModal": {
     "titleEdit": "Edit OSPF Area",
@@ -140,21 +169,24 @@
     "descriptionAdd": "Configure a new OSPF area.",
     "areaIdPlaceholder": "0.0.0.0 or integer",
     "areaType": "Area Type",
-    "areaTypePlaceholder": "Normal (default)",
-    "normal": "Normal",
-    "stub": "Stub",
     "noSummaryStub": "No Summary (Totally Stubby)",
     "noSummaryNssa": "No Summary (Totally NSSA)",
     "defaultCost": "Default Cost",
     "defaultCostPlaceholder": "Default cost for injected default route",
     "networkPlaceholder": "e.g. 10.0.0.0/24",
     "shortcut": "Shortcut",
-    "enable": "Enable",
-    "disable": "Disable",
     "exportList": "Export List",
     "importList": "Import List",
     "networkExists": "Network already exists",
-    "areaIdRequired": "Area ID is required"
+    "areaIdRequired": "Area ID is required",
+    "translate": "NSSA Translate",
+    "substitute": "Substitute",
+    "notAdvertise": "Do not advertise",
+    "virtualLinks": "Virtual Links",
+    "rangePrefixRequired": "Each range needs a prefix",
+    "rangeDuplicate": "Each range prefix can only be used once",
+    "virtualLinkAddressRequired": "Each virtual link needs an address",
+    "virtualLinkDuplicate": "Each virtual link address can only be used once"
   },
   "interfaceModal": {
     "titleEdit": "Edit OSPF Interface",
@@ -177,17 +209,20 @@
     "ldpSync": "LDP Sync",
     "disableLdpSync": "Disable LDP Sync",
     "ldpSyncHolddown": "LDP Sync Holddown (s)",
-    "plaintextPasswordPlaceholder": "Plaintext password (optional)",
-    "md5Keys": "MD5 Keys",
     "addKey": "Add Key",
     "keyId": "Key ID",
-    "md5Key": "MD5 Key",
     "selectInterface": "Please select an interface",
     "costRange": "Cost must be between 1 and 65535",
     "priorityRange": "Priority must be between 0 and 255",
     "ldpSyncHolddownRange": "LDP sync holddown must be between 0 and 10000",
-    "md5KeyValueRequired": "MD5 key value is required for each key ID",
-    "md5KeyIdRequired": "MD5 key ID is required"
+    "helloMultiplier": "Hello Multiplier",
+    "passiveOn": "Passive",
+    "passiveDisable": "Not passive",
+    "bfd": "BFD",
+    "bfdProfile": "BFD Profile",
+    "helloMultiplierDeadInterval": "Hello multiplier and dead interval cannot both be set",
+    "md5Keys": "MD5 Keys",
+    "md5Key": "MD5 Key"
   },
   "redistributeModal": {
     "title": "Add Route Redistribution",
@@ -196,6 +231,17 @@
     "tableIdPlaceholder": "Routing table number",
     "metricPlaceholder": "Metric value",
     "selectProtocolError": "Please select a protocol",
-    "tableIdRequired": "Table ID is required"
+    "tableIdRequired": "Table ID is required",
+    "titleEdit": "Edit Redistribution"
+  },
+  "auth": {
+    "md5KeyRequired": "Add at least one MD5 key",
+    "md5KeyIdRequired": "Each MD5 key needs a key ID",
+    "md5KeyIdRange": "MD5 key ID must be 1-255",
+    "md5KeyIdDuplicate": "Each MD5 key ID can only be used once",
+    "md5KeyValueRequired": "Enter the MD5 key",
+    "md5KeyInvalid": "MD5 key must be 1-16 characters with no spaces",
+    "plaintextPasswordRequired": "Enter the plaintext password",
+    "plaintextPasswordInvalid": "Password must be 1-8 characters with no spaces"
   }
 }

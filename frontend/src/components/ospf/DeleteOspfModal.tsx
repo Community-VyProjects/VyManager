@@ -11,8 +11,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteOspfModalProps {
   open: boolean;
@@ -32,18 +33,30 @@ export function DeleteOspfModal({
   const t = useTranslations("ospf");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  // The caller closes the dialog after a successful commit; a rejected one stays open with its error.
+  const handleConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       await onConfirm();
+    } catch (err: unknown) {
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setError(null);
+        onOpenChange(next);
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("delete.title", { itemType })}</AlertDialogTitle>
@@ -55,6 +68,13 @@ export function DeleteOspfModal({
             })}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>

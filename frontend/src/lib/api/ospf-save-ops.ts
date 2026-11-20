@@ -84,7 +84,7 @@ function keyed<T>(items: T[], key: (item: T) => string): Map<string, T> {
 }
 
 /** Problem key for a keyed list: a blank name or a name used twice. */
-function listProblem<T>(items: T[], key: (item: T) => Scalar, blank: string, duplicate: string): string | null {
+function listProblem<T, K extends string>(items: T[], key: (item: T) => Scalar, blank: K, duplicate: K): K | null {
   const seen = new Set<string>();
   for (const item of items) {
     const name = ospfText(key(item));
@@ -146,8 +146,21 @@ export function ospfAuthFromDraft(draft: OspfAuthDraft): OspfAuthentication {
   return { ...EMPTY_AUTH };
 }
 
+export type OspfAuthProblem =
+  | "md5KeyRequired"
+  | "md5KeyIdRequired"
+  | "md5KeyIdRange"
+  | "md5KeyIdDuplicate"
+  | "md5KeyValueRequired"
+  | "md5KeyInvalid"
+  | "plaintextPasswordRequired"
+  | "plaintextPasswordInvalid";
+
 /** Error key under ``auth`` for a draft the lab would reject, or null. */
-export function ospfAuthProblem(original: OspfAuthentication | null | undefined, draft: OspfAuthDraft): string | null {
+export function ospfAuthProblem(
+  original: OspfAuthentication | null | undefined,
+  draft: OspfAuthDraft,
+): OspfAuthProblem | null {
   const before = ospfAuthMode(original);
   if (draft.mode === "md5") {
     const rows = draftRows(draft);
@@ -267,7 +280,7 @@ const INTERFACE_LEAVES: [keyof OspfInterface, string][] = [
 ];
 
 /** Error key under ``interfaceModal`` for an interface the lab would reject. */
-export function ospfInterfaceProblem(updated: OspfInterface): string | null {
+export function ospfInterfaceProblem(updated: OspfInterface): "helloMultiplierDeadInterval" | null {
   if (ospfNum(updated.hello_multiplier) !== null && ospfNum(updated.dead_interval) !== null) {
     return "helloMultiplierDeadInterval";
   }
@@ -330,7 +343,14 @@ export function ospfInterfaceOps(
 // ============================================================================
 
 /** Error key under ``areaModal`` for a draft the lab would reject. */
-export function ospfAreaProblem(updated: OspfArea): string | null {
+export type OspfAreaProblem =
+  | "networkExists"
+  | "rangePrefixRequired"
+  | "rangeDuplicate"
+  | "virtualLinkAddressRequired"
+  | "virtualLinkDuplicate";
+
+export function ospfAreaProblem(updated: OspfArea): OspfAreaProblem | null {
   const nets = new Set<string>();
   for (const net of updated.networks) {
     const text = ospfText(net);
@@ -338,8 +358,10 @@ export function ospfAreaProblem(updated: OspfArea): string | null {
     nets.add(text);
   }
   return (
-    listProblem(updated.ranges, (r) => r.prefix, "rangePrefixRequired", "rangeDuplicate") ??
-    listProblem(updated.virtual_links, (v) => v.address, "virtualLinkAddressRequired", "virtualLinkDuplicate")
+    listProblem<OspfAreaRange, OspfAreaProblem>(updated.ranges, (r) => r.prefix, "rangePrefixRequired", "rangeDuplicate") ??
+    listProblem<OspfVirtualLink, OspfAreaProblem>(
+      updated.virtual_links, (v) => v.address, "virtualLinkAddressRequired", "virtualLinkDuplicate",
+    )
   );
 }
 
@@ -746,18 +768,37 @@ export function ospfSegmentRoutingOps(
   return { first, second };
 }
 
+export type OspfAdvancedProblem =
+  | "accessListRequired"
+  | "accessListDuplicate"
+  | "neighborAddressRequired"
+  | "neighborDuplicate"
+  | "summaryPrefixRequired"
+  | "summaryDuplicate"
+  | "srPrefixRequired"
+  | "srPrefixDuplicate"
+  | "summaryTagNoAdvertise"
+  | "srIndexRequired"
+  | "srBlockPair"
+  | "srBlockOrder"
+  | "srLocalNeedsGlobal";
+
 /** Error key under ``advanced`` for keyed lists and segment routing the lab would reject. */
 export function ospfAdvancedProblem(draft: {
   accessLists: OspfAccessList[];
   neighbors: OspfNeighbor[];
   summaryAddresses: OspfSummaryAddress[];
   segmentRouting: OspfSegmentRouting;
-}): string | null {
+}): OspfAdvancedProblem | null {
   const listError =
-    listProblem(draft.accessLists, (a) => a.acl, "accessListRequired", "accessListDuplicate") ??
-    listProblem(draft.neighbors, (n) => n.address, "neighborAddressRequired", "neighborDuplicate") ??
-    listProblem(draft.summaryAddresses, (s) => s.prefix, "summaryPrefixRequired", "summaryDuplicate") ??
-    listProblem(draft.segmentRouting.prefixes || [], (p) => p.prefix, "srPrefixRequired", "srPrefixDuplicate");
+    listProblem<OspfAccessList, OspfAdvancedProblem>(draft.accessLists, (a) => a.acl, "accessListRequired", "accessListDuplicate") ??
+    listProblem<OspfNeighbor, OspfAdvancedProblem>(draft.neighbors, (n) => n.address, "neighborAddressRequired", "neighborDuplicate") ??
+    listProblem<OspfSummaryAddress, OspfAdvancedProblem>(
+      draft.summaryAddresses, (s) => s.prefix, "summaryPrefixRequired", "summaryDuplicate",
+    ) ??
+    listProblem<OspfSegmentRoutingPrefix, OspfAdvancedProblem>(
+      draft.segmentRouting.prefixes || [], (p) => p.prefix, "srPrefixRequired", "srPrefixDuplicate",
+    );
   if (listError) return listError;
   if (draft.summaryAddresses.some((s) => s.no_advertise && ospfNum(s.tag) !== null)) return "summaryTagNoAdvertise";
   if ((draft.segmentRouting.prefixes || []).some((p) => ospfNum(p.index_value) === null)) return "srIndexRequired";

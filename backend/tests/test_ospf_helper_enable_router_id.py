@@ -17,7 +17,7 @@ from vyos_mappers.ospfv3.ospfv3_versions import get_ospfv3_mapper
 REPO = Path(__file__).resolve().parents[2]
 OSPF_PAGE = REPO / "frontend/src/components/ospf/OspfContent.tsx"
 OSPFV3_PAGE = REPO / "frontend/src/components/ospfv3/Ospfv3Content.tsx"
-OSPF_API = REPO / "frontend/src/lib/api/ospf.ts"
+OSPF_API = REPO / "frontend/src/lib/api/ospf-save-ops.ts"
 OSPFV3_API = REPO / "frontend/src/lib/api/ospfv3.ts"
 
 PATH = ["graceful-restart", "helper", "enable", "router-id", "192.0.2.1"]

@@ -17,11 +17,11 @@
     "tableId": "表 ID",
     "options": "选项",
     "passive": "被动",
-    "type1": "类型 1",
-    "type2": "类型 2",
     "addArea": "添加区域",
     "addRedistribute": "添加重分发",
-    "adding": "正在添加..."
+    "adding": "正在添加...",
+    "prefix": "前缀",
+    "address": "地址"
   },
   "values": {
     "auto": "自动",
@@ -29,7 +29,6 @@
     "none": "无",
     "yes": "是",
     "no": "否",
-    "plain": "明文",
     "type": "类型 {type}"
   },
   "page": {
@@ -59,7 +58,6 @@
     "parameters": "参数",
     "routerIdPlaceholder": "自动检测",
     "abrType": "ABR 类型",
-    "abrTypePlaceholder": "默认 (cisco)",
     "maximumPaths": "最大路径数",
     "referenceBandwidth": "参考带宽",
     "referenceBandwidthPlaceholder": "默认 (100 Mbps)",
@@ -67,13 +65,11 @@
     "logAdjacencyChanges": "记录邻接变化",
     "logAdjacencyChangesDetail": "记录邻接变化（详细）",
     "opaqueLsa": "Opaque LSA",
-    "rfc1583": "RFC 1583 兼容",
     "defaultInformation": "默认信息发布",
     "always": "始终",
-    "abrTypes": {
-      "shortcut": "快捷",
-      "standard": "标准"
-    }
+    "deleteOspf": "删除 OSPF",
+    "defaultMetric": "默认度量",
+    "rfc1583": "RFC 1583 兼容"
   },
   "areas": {
     "description": "OSPF 区域配置",
@@ -122,7 +118,39 @@
     "ldpSyncHolddown": "LDP 同步保持时间",
     "refreshTimers": "刷新计时器",
     "aggregationTimer": "聚合计时器",
-    "capabilityOpaque": "Opaque 能力"
+    "capabilityOpaque": "Opaque 能力",
+    "accessLists": "访问列表导出",
+    "neighbors": "邻居",
+    "pollInterval": "轮询间隔",
+    "summaryAddresses": "汇总地址",
+    "tag": "标签",
+    "segmentRouting": "段路由",
+    "globalBlockLow": "全局块下限",
+    "globalBlockHigh": "全局块上限",
+    "localBlockLow": "本地块下限",
+    "localBlockHigh": "本地块上限",
+    "maximumLabelDepth": "最大标签深度",
+    "prefixSids": "前缀 SID",
+    "sidIndex": "索引",
+    "sidFlag": "标志",
+    "noStrictLsaChecking": "不严格检查 LSA",
+    "plannedOnly": "仅计划内",
+    "supportedGraceTime": "支持的宽限时间",
+    "mplsTe": "MPLS-TE",
+    "routerAddress": "路由器地址",
+    "accessListRequired": "每个访问列表条目都需要选择列表",
+    "accessListDuplicate": "每个访问列表只能使用一次",
+    "neighborAddressRequired": "每个邻居都需要地址",
+    "neighborDuplicate": "每个邻居地址只能使用一次",
+    "summaryPrefixRequired": "每个汇总地址都需要前缀",
+    "summaryDuplicate": "每个汇总前缀只能使用一次",
+    "srPrefixRequired": "每个前缀 SID 都需要前缀",
+    "srPrefixDuplicate": "每个前缀 SID 的前缀只能使用一次",
+    "summaryTagNoAdvertise": "汇总地址不能同时设置标签和不通告",
+    "srIndexRequired": "每个前缀 SID 都需要索引",
+    "srBlockPair": "请同时设置块的下限和上限标签值",
+    "srBlockOrder": "下限标签值不能大于上限标签值",
+    "srLocalNeedsGlobal": "本地块需要先配置全局块"
   },
   "delete": {
     "title": "删除 OSPF {itemType}",
@@ -131,7 +159,8 @@
     "itemArea": "区域",
     "itemInterface": "接口",
     "itemRedistribute": "重分发",
-    "tableSuffix": "（表 {table}）"
+    "tableSuffix": "（表 {table}）",
+    "itemOspf": "OSPF 配置"
   },
   "areaModal": {
     "titleEdit": "编辑 OSPF 区域",
@@ -140,21 +169,24 @@
     "descriptionAdd": "配置新的 OSPF 区域。",
     "areaIdPlaceholder": "0.0.0.0 或整数",
     "areaType": "区域类型",
-    "areaTypePlaceholder": "普通（默认）",
-    "normal": "普通",
-    "stub": "存根",
     "noSummaryStub": "无汇总（完全存根）",
     "noSummaryNssa": "无汇总（完全 NSSA）",
     "defaultCost": "默认开销",
     "defaultCostPlaceholder": "注入的默认路由的开销",
     "networkPlaceholder": "例如 10.0.0.0/24",
     "shortcut": "快捷方式",
-    "enable": "启用",
-    "disable": "禁用",
     "exportList": "导出列表",
     "importList": "导入列表",
     "networkExists": "网络已存在",
-    "areaIdRequired": "区域 ID 为必填项"
+    "areaIdRequired": "区域 ID 为必填项",
+    "translate": "NSSA 转换",
+    "substitute": "替代",
+    "notAdvertise": "不通告",
+    "virtualLinks": "虚链路",
+    "rangePrefixRequired": "每个范围都需要前缀",
+    "rangeDuplicate": "每个范围前缀只能使用一次",
+    "virtualLinkAddressRequired": "每条虚链路都需要地址",
+    "virtualLinkDuplicate": "每个虚链路地址只能使用一次"
   },
   "interfaceModal": {
     "titleEdit": "编辑 OSPF 接口",
@@ -177,17 +209,20 @@
     "ldpSync": "LDP 同步",
     "disableLdpSync": "禁用 LDP 同步",
     "ldpSyncHolddown": "LDP 同步保持时间（秒）",
-    "plaintextPasswordPlaceholder": "明文密码（可选）",
-    "md5Keys": "MD5 密钥",
     "addKey": "添加密钥",
     "keyId": "密钥 ID",
-    "md5Key": "MD5 密钥",
     "selectInterface": "请选择接口",
     "costRange": "开销必须介于 1 到 65535 之间",
     "priorityRange": "优先级必须介于 0 到 255 之间",
     "ldpSyncHolddownRange": "LDP 同步保持时间必须介于 0 到 10000 之间",
-    "md5KeyValueRequired": "每个密钥 ID 都必须填写 MD5 密钥值",
-    "md5KeyIdRequired": "MD5 密钥 ID 为必填项"
+    "helloMultiplier": "Hello 倍数",
+    "passiveOn": "被动",
+    "passiveDisable": "非被动",
+    "bfd": "BFD",
+    "bfdProfile": "BFD 配置文件",
+    "helloMultiplierDeadInterval": "Hello 倍数和失效间隔不能同时设置",
+    "md5Keys": "MD5 密钥",
+    "md5Key": "MD5 密钥"
   },
   "redistributeModal": {
     "title": "添加路由重分发",
@@ -196,6 +231,17 @@
     "tableIdPlaceholder": "路由表编号",
     "metricPlaceholder": "度量值",
     "selectProtocolError": "请选择协议",
-    "tableIdRequired": "表 ID 为必填项"
+    "tableIdRequired": "表 ID 为必填项",
+    "titleEdit": "编辑重分发"
+  },
+  "auth": {
+    "md5KeyRequired": "至少添加一个 MD5 密钥",
+    "md5KeyIdRequired": "每个 MD5 密钥都需要密钥 ID",
+    "md5KeyIdRange": "MD5 密钥 ID 必须在 1-255 之间",
+    "md5KeyIdDuplicate": "每个 MD5 密钥 ID 只能使用一次",
+    "md5KeyValueRequired": "请输入 MD5 密钥",
+    "md5KeyInvalid": "MD5 密钥必须为 1-16 个字符且不含空格",
+    "plaintextPasswordRequired": "请输入明文密码",
+    "plaintextPasswordInvalid": "密码必须为 1-8 个字符且不含空格"
   }
 }

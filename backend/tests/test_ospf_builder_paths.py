@@ -339,6 +339,7 @@ def test_capability_lists_match_the_labs():
         assert caps["areas"]["authentication_values"] == ["plaintext-password", "md5"]
         assert caps["areas"]["nssa_translate_values"] == ["always", "candidate", "never"]
         assert caps["redistribute"]["metric_types"] == ["1", "2"]
+        assert caps["segment_routing"]["prefix_flags"] == ["explicit-null", "no-php-flag"]
         assert caps["default_information"]["metric_types"] == ["1", "2"]
         assert caps["access_list"]["export_values"] == ["bgp", "connected", "kernel", "rip", "static"]
 
