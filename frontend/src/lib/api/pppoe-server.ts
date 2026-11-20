@@ -661,6 +661,38 @@ class PPPoEServerService {
     return this.batchConfigure(name, ops);
   }
 
+  // Edit in one commit: prefixes/delegates removed or changed are deleted,
+  // new ones set; the pool itself is never deleted.
+  async updateIPv6Pool(
+    current: PPPoEIPv6Pool,
+    prefixes: Array<{ prefix: string; mask?: string }>,
+    delegates: Array<{ prefix: string; delegation_prefix?: string }>
+  ): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [];
+    const diff = (prev: [string, string][], next: [string, string][], kind: "prefix" | "delegate") => {
+      const prevKeys = new Set(prev.map(([p, v]) => `${p}|${v}`));
+      const nextKeys = new Set(next.map(([p, v]) => `${p}|${v}`));
+      for (const [p, v] of prev) {
+        if (!nextKeys.has(`${p}|${v}`)) ops.push({ op: `delete_ipv6_pool_${kind}`, value: p });
+      }
+      for (const [p, v] of next) {
+        if (p && v && !prevKeys.has(`${p}|${v}`)) ops.push({ op: `set_ipv6_pool_${kind}`, value: `${p}|${v}` });
+      }
+    };
+    diff(
+      (current.prefixes || []).map((p) => [p.prefix, p.mask || ""]),
+      prefixes.map((p) => [p.prefix, p.mask || ""]),
+      "prefix",
+    );
+    diff(
+      (current.delegates || []).map((d) => [d.prefix, d.delegation_prefix || ""]),
+      delegates.map((d) => [d.prefix, d.delegation_prefix || ""]),
+      "delegate",
+    );
+    if (ops.length === 0) return { success: true };
+    return this.batchConfigure(current.name, ops);
+  }
+
   async deleteIPv6Pool(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_ipv6_pool" }]);
   }

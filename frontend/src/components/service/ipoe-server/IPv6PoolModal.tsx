@@ -61,10 +61,9 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
     const validDelegates = delegates.filter((d) => d.prefix && d.delegation_prefix);
 
     try {
-      if (isEdit) {
-        await ipoeServerService.deleteIPv6Pool(existingPool!.name);
-      }
-      const result = await ipoeServerService.createIPv6Pool(name.trim(), validPrefixes, validDelegates);
+      const result = isEdit
+        ? await ipoeServerService.updateIPv6Pool(existingPool!, validPrefixes, validDelegates)
+        : await ipoeServerService.createIPv6Pool(name.trim(), validPrefixes, validDelegates);
 
       if (result.success) {
         onOpenChange(false);
