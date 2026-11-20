@@ -64,9 +64,21 @@ frontend:
     pullPolicy: Always
   podAnnotations: {}
   podLabels: {}
-  podSecurityContext: {}
-  securityContext: {}
-  resources: {}
+  # The images run as uid 1000. runAsNonRoot makes the kubelet refuse an
+  # image that would start as root.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -114,9 +126,21 @@ backend:
     pullPolicy: Always
   podAnnotations: {}
   podLabels: {}
-  podSecurityContext: {}
-  securityContext: {}
-  resources: {}
+  # The images run as uid 1000. runAsNonRoot makes the kubelet refuse an
+  # image that would start as root.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -165,9 +189,21 @@ migrations:
   annotations: {}
   podAnnotations: {}
   podLabels: {}
-  podSecurityContext: {}
-  securityContext: {}
-  resources: {}
+  # The images run as uid 1000. runAsNonRoot makes the kubelet refuse an
+  # image that would start as root.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}

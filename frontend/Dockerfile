@@ -34,18 +34,20 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Install netcat for entrypoint checks
-RUN apk add --no-cache netcat-openbsd
+RUN apk add --no-cache netcat-openbsd && chown node:node /app
 
 # Copy only necessary production artifacts
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=node:node /app/package*.json ./
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/public ./public
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+USER 1000:1000
 
 EXPOSE 3000
 

@@ -167,8 +167,16 @@ Requests and limits can be set independently for every pod-producing component:
 - `migrations.resources`
 - `tests.resources` (pod created only by `helm test`)
 
-Application and database resources are empty by default because appropriate
+Frontend, backend and migrations default to modest CPU and memory requests
+and no limits. Database resources are empty by default because appropriate
 values depend on cluster policy and workload size.
+
+## Security context
+
+The frontend, backend and migration containers run as uid 1000. They default to
+`runAsNonRoot: true`, the `RuntimeDefault` seccomp profile,
+`allowPrivilegeEscalation: false` and all capabilities dropped. Override
+`<component>.podSecurityContext` and `<component>.securityContext` to change it.
 
 ## Custom CA certificates
 
