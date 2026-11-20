@@ -53,7 +53,7 @@ spec:
       containers:
         - name: backend
           image: {{ include "vymanager.backendImage" . | quote }}
-          imagePullPolicy: {{ include "vymanager.pullPolicyFor" (dict "tag" .Values.backend.image.tag "policy" .Values.backend.image.pullPolicy) }}
+          imagePullPolicy: {{ include "vymanager.pullPolicyFor" (dict "tag" (include "vymanager.backendTag" .) "policy" .Values.backend.image.pullPolicy) }}
           securityContext:
             {{- toYaml .Values.backend.securityContext | nindent 12 }}
           ports:
