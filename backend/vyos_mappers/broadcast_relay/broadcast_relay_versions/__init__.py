@@ -1,4 +1,5 @@
 """Factory for version-specific Broadcast Relay mappers."""
+from ...base import is_vyos_1_4
 from ..broadcast_relay import BroadcastRelayMapper
 from .v1_4 import BroadcastRelayMapperV1_4
 from .v1_5 import BroadcastRelayMapperV1_5
@@ -8,7 +9,7 @@ def get_broadcast_relay_mapper(version: str):
     """Return a version-merged Broadcast Relay mapper."""
     base = BroadcastRelayMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = BroadcastRelayMapperV1_4()
     else:
         version_specific = BroadcastRelayMapperV1_5()

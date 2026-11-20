@@ -16,7 +16,7 @@ from org_scope import (
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Literal, Optional, Any
 from datetime import datetime, timedelta, timezone
 import asyncpg
 import json
@@ -154,7 +154,7 @@ class InstanceCreateRequest(BaseModel):
     host: str = Field(..., description="VyOS device IP or hostname")
     port: int = Field(default=443, ge=1, le=65535, description="VyOS API port")
     api_key: str = Field(..., description="VyOS API key")
-    vyos_version: str = Field(..., description="VyOS version (1.4 or 1.5)")
+    vyos_version: Literal["1.4", "1.5"] = Field(..., description="VyOS version (1.4 or 1.5)")
     protocol: str = Field(default="https", description="Protocol (http or https)")
     verify_ssl: bool = Field(default=False, description="Verify SSL certificate")
     is_active: bool = Field(default=True, description="Whether instance is active")
@@ -173,7 +173,7 @@ class InstanceUpdateRequest(BaseModel):
     host: Optional[str] = Field(None, description="VyOS device IP or hostname")
     port: Optional[int] = Field(None, ge=1, le=65535, description="VyOS API port")
     api_key: Optional[str] = Field(None, description="VyOS API key")
-    vyos_version: Optional[str] = Field(None, description="VyOS version (1.4 or 1.5)")
+    vyos_version: Optional[Literal["1.4", "1.5"]] = Field(None, description="VyOS version (1.4 or 1.5)")
     protocol: Optional[str] = Field(None, description="Protocol (http or https)")
     verify_ssl: Optional[bool] = Field(None, description="Verify SSL certificate")
     is_active: Optional[bool] = Field(None, description="Whether instance is active")

@@ -1,16 +1,16 @@
 """Read-model for failover config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version branches use mapper.version, matching the old router
-check: ``"1.5" in version or "latest" in version``.
+the tree. Version branches use mapper.version via ``is_vyos_1_4``.
 """
 
 from typing import Any, Dict, List
 
+from ..base import is_vyos_1_4
+
 
 def _is_1_5(mapper) -> bool:
-    version = mapper.version
-    return "1.5" in version or "latest" in version
+    return not is_vyos_1_4(mapper.version)
 
 
 def _empty_check() -> Dict[str, Any]:

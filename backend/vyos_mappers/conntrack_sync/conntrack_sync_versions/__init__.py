@@ -1,4 +1,5 @@
 """Factory for version-specific Conntrack-Sync mappers."""
+from ...base import is_vyos_1_4
 from ..conntrack_sync import ConntrackSyncMapper
 from .v1_4 import ConntrackSyncMapperV1_4
 from .v1_5 import ConntrackSyncMapperV1_5
@@ -8,7 +9,7 @@ def get_conntrack_sync_mapper(version: str):
     """Return a version-merged Conntrack-Sync mapper."""
     base = ConntrackSyncMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = ConntrackSyncMapperV1_4()
     else:
         version_specific = ConntrackSyncMapperV1_5()

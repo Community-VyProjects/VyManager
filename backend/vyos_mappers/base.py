@@ -8,6 +8,11 @@ from abc import ABC
 from typing import Dict, Iterable, Type, Union, Callable
 
 
+def is_vyos_1_4(version: str) -> bool:
+    """True for VyOS 1.4. 1.5, rolling and anything unrecognised map to 1.5."""
+    return "1.4" in version
+
+
 class BaseFeatureMapper(ABC):
     """
     Base class for feature-specific mappers.

@@ -1,5 +1,6 @@
 """NDP Proxy version-specific mapper factory."""
 
+from ...base import is_vyos_1_4
 from ..ndp_proxy import NdpProxyMapper
 from .v1_4 import NdpProxyMapperV1_4
 from .v1_5 import NdpProxyMapperV1_5
@@ -7,7 +8,7 @@ from .v1_5 import NdpProxyMapperV1_5
 
 def get_ndp_proxy_mapper(version: str):
     base = NdpProxyMapper(version)
-    version_specific = NdpProxyMapperV1_4() if "1.4" in version else NdpProxyMapperV1_5()
+    version_specific = NdpProxyMapperV1_4() if is_vyos_1_4(version) else NdpProxyMapperV1_5()
 
     class MergedMapper:
         # parse_config must live here. A method on NdpProxyMapper is bound to

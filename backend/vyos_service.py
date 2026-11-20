@@ -38,6 +38,7 @@ from vyos_builders.interfaces import (
 from vyos_builders.nat import NATBatchBuilder
 from vyos_builders.system import SystemPerformanceBatchBuilder
 from vyos_builders.wireguard import WireGuardBatchBuilder
+from vyos_mappers.base import is_vyos_1_4
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,10 @@ class VyOSDeviceConfig:
     ):
         self.hostname = hostname
         self.apikey = apikey
-        self.version = version
+        # Rows written before vyos_version was validated may hold free text
+        # ("latest", "", ...). Collapse to the two supported values so mapper
+        # factories and builder capability checks all agree.
+        self.version = "1.4" if is_vyos_1_4(version or "") else "1.5"
         self.protocol = protocol
         self.port = port
         self.verify = verify

@@ -1,3 +1,4 @@
+from ...base import is_vyos_1_4
 from ..openfabric import OpenfabricMapper
 from .v1_4 import OpenfabricMapperV1_4
 from .v1_5 import OpenfabricMapperV1_5
@@ -6,7 +7,7 @@ from .v1_5 import OpenfabricMapperV1_5
 def get_openfabric_mapper(version: str):
     base = OpenfabricMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = OpenfabricMapperV1_4()
     else:
         version_specific = OpenfabricMapperV1_5()

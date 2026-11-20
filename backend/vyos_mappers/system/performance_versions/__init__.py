@@ -2,6 +2,7 @@
 System Option Performance Mapper - Version-Specific Implementations
 """
 
+from ...base import is_vyos_1_4
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -15,7 +16,7 @@ def get_system_performance_mapper(version: str) -> "SystemPerformanceMapper":
     from .v1_4 import SystemPerformanceMapper_v1_4
     from .v1_5 import SystemPerformanceMapper_v1_5
 
-    if version.startswith("1.4"):
+    if is_vyos_1_4(version):
         return SystemPerformanceMapper_v1_4(version)
     # 1.5 and unknown default to 1.5
     return SystemPerformanceMapper_v1_5(version)

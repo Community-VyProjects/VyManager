@@ -1,4 +1,5 @@
 """Factory for version-specific firewall global-options mappers."""
+from ...base import is_vyos_1_4
 from ..firewall_global_options import FirewallGlobalOptionsMapper
 from .v1_4 import FirewallGlobalOptionsMapperV1_4
 from .v1_5 import FirewallGlobalOptionsMapperV1_5
@@ -15,10 +16,8 @@ def get_firewall_global_options_mapper(version: str):
     """
     base = FirewallGlobalOptionsMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = FirewallGlobalOptionsMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = FirewallGlobalOptionsMapperV1_5()
     else:
         # Default to latest (1.5)
         version_specific = FirewallGlobalOptionsMapperV1_5()

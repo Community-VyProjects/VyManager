@@ -1,5 +1,6 @@
 """Factory for version-specific L2TP mappers."""
 
+from ...base import is_vyos_1_4
 from ..l2tp import L2TPMapper
 from .v1_4 import L2TPMapperV1_4
 from .v1_5 import L2TPMapperV1_5
@@ -20,10 +21,8 @@ def get_l2tp_mapper(version: str) -> L2TPMapper:
     """
     base = L2TPMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = L2TPMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = L2TPMapperV1_5()
     else:
         version_specific = L2TPMapperV1_5()  # Default to latest
 

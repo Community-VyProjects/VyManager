@@ -11,6 +11,7 @@ Version differences:
   - `ipv6 address interface-identifier`
 """
 
+from ...base import is_vyos_1_4
 from ..pppoe import PppoeInterfaceMapper
 from .v1_4 import PppoeMapper_v1_4
 from .v1_5 import PppoeMapper_v1_5
@@ -18,6 +19,6 @@ from .v1_5 import PppoeMapper_v1_5
 
 def get_pppoe_mapper(version: str) -> PppoeInterfaceMapper:
     """Get version-specific PPPoE interface mapper."""
-    if "1.5" in version or "latest" in version:
+    if not is_vyos_1_4(version):
         return PppoeMapper_v1_5(version)
     return PppoeMapper_v1_4(version)

@@ -1,4 +1,5 @@
 """Factory for version-specific HTTPS mappers."""
+from ...base import is_vyos_1_4
 from ..https import HTTPSMapper
 from .v1_4 import HTTPSMapperV1_4
 from .v1_5 import HTTPSMapperV1_5
@@ -8,7 +9,7 @@ def get_https_mapper(version: str):
     """Return a version-merged HTTPS mapper."""
     base = HTTPSMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = HTTPSMapperV1_4()
     else:
         version_specific = HTTPSMapperV1_5()

@@ -1,4 +1,5 @@
 """Factory for version-specific Suricata mappers."""
+from ...base import is_vyos_1_4
 from typing import Any
 
 from ..suricata import SuricataMapper
@@ -10,7 +11,7 @@ def get_suricata_mapper(version: str) -> Any:
     """Return a version-merged Suricata mapper."""
     base = SuricataMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = SuricataMapperV1_4()
     else:
         version_specific = SuricataMapperV1_5()

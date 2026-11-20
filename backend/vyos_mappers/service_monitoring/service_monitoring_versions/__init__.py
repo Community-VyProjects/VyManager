@@ -1,4 +1,5 @@
 """Factory for version-specific Service Monitoring mappers."""
+from ...base import is_vyos_1_4
 from ..service_monitoring import ServiceMonitoringMapper
 from .v1_4 import ServiceMonitoringMapperV1_4
 from .v1_5 import ServiceMonitoringMapperV1_5
@@ -8,7 +9,7 @@ def get_service_monitoring_mapper(version: str):
     """Return a version-merged Service Monitoring mapper."""
     base = ServiceMonitoringMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = ServiceMonitoringMapperV1_4()
     else:
         version_specific = ServiceMonitoringMapperV1_5()
