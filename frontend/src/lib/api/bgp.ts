@@ -962,20 +962,13 @@ class BgpService {
       }
     }
 
-    const leaf = (raw: string | null | undefined): string | null => {
-      const text = (raw ?? "").trim();
-      return text || null;
-    };
-    const medValues = (raw: string[] | null | undefined): string[] =>
-      [...new Set((raw || []).map((item) => item.trim()).filter(Boolean))].sort();
+    const medValues = (raw: string[] | null | undefined): string[] => [...(raw || [])].sort();
     const currentBestpath = {
       ...current.bestpath,
-      bandwidth: leaf(current.bestpath.bandwidth),
       med: medValues(current.bestpath.med),
     };
     const updatedBestpath = {
       ...updated.bestpath,
-      bandwidth: leaf(updated.bestpath.bandwidth),
       med: medValues(updated.bestpath.med),
     };
     const bestpathEmpty = (bp: typeof currentBestpath) =>

@@ -67,7 +67,7 @@ async function sent(current: BgpParameters, updated: BgpParameters): Promise<unk
 describe("bgp saveParameters bestpath", () => {
   it("sets bandwidth and does not delete the value it replaces", async () => {
     assert.deepEqual(
-      await sent(params(), params({ bandwidth: " ignore " })),
+      await sent(params(), params({ bandwidth: "ignore" })),
       [{ op: "set_parameters_bestpath_bandwidth", value: "ignore" }],
     );
     assert.deepEqual(
@@ -97,7 +97,7 @@ describe("bgp saveParameters bestpath", () => {
     assert.deepEqual(
       await sent(
         params({ med: ["confed", "missing-as-worst"] }),
-        params({ med: ["  confed  "] }),
+        params({ med: ["confed"] }),
       ),
       [{ op: "delete_parameters_bestpath_med", value: "missing-as-worst" }],
     );
@@ -113,11 +113,11 @@ describe("bgp saveParameters bestpath", () => {
     );
   });
 
-  it("does not emit for padded, blank, or reordered values", async () => {
+  it("does not emit when med values are only reordered", async () => {
     assert.deepEqual(
       await sent(
         params({ bandwidth: "ignore", med: ["confed", "missing-as-worst"] }),
-        params({ bandwidth: " ignore ", med: ["missing-as-worst", " confed ", ""] }),
+        params({ bandwidth: "ignore", med: ["missing-as-worst", "confed"] }),
       ),
       [],
     );

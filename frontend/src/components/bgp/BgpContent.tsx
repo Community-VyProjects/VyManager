@@ -78,19 +78,6 @@ function failedSaveMessage(
   return result.error || fallback;
 }
 
-function bandwidthOptions(values: string[], loaded: string | null | undefined): string[] {
-  if (loaded && !values.includes(loaded)) return [loaded, ...values];
-  return values;
-}
-
-function medOptions(values: string[], loaded: string[] | null | undefined): string[] {
-  const options = [...values];
-  for (const value of loaded || []) {
-    if (value && !options.includes(value)) options.push(value);
-  }
-  return options;
-}
-
 /** null clears the leaf. undefined is not an integer from 1 to 256. */
 function maximumPathCount(raw: string): number | null | undefined {
   const text = raw.trim();
@@ -248,7 +235,11 @@ export function BgpContent() {
     setOverviewError(null);
     try {
       const result = await bgpService.saveOverview(config, systemAs, routerId, keepalive, holdtime);
-      if (!result.success) throw new Error(result.error || t("content.saveFailed"));
+      const message = failedSaveMessage(result, t("content.saveOverviewFailed"));
+      if (message) {
+        setOverviewError(message);
+        return;
+      }
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
@@ -1744,7 +1735,7 @@ export function BgpContent() {
                                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                  {bandwidthOptions(capabilities.features.bestpath_bandwidth.values || [], editParams.bestpath.bandwidth).map((value) => (
+                                  {(capabilities.features.bestpath_bandwidth.values || []).map((value) => (
                                     <SelectItem key={value} value={value}>{value}</SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1760,10 +1751,7 @@ export function BgpContent() {
                           <div className="space-y-2">
                             <Label className="text-xs">{t("content.params.bestpath.med.label")}</Label>
                             <div className="space-y-2 rounded-lg border p-4">
-                              {medOptions(
-                                capabilities.features.bestpath_med.values || [],
-                                paramsEditing ? editParams?.bestpath.med : config?.parameters.bestpath.med,
-                              ).map((value) => {
+                              {(capabilities.features.bestpath_med.values || []).map((value) => {
                                 const selected = new Set((paramsEditing ? editParams?.bestpath.med : config?.parameters.bestpath.med) || []);
                                 return (
                                   <div key={value} className="flex items-center space-x-3">

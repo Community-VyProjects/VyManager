@@ -156,7 +156,7 @@ def test_bestpath_bandwidth_and_med_parse_into_the_router_model():
                 "parameters": {
                     "bestpath": {
                         "bandwidth": "ignore",
-                        "med": {"confed": {}, "missing-as-worst": {}},
+                        "med": ["confed", "missing-as-worst"],
                     },
                     "no-hard-administrative-reset": {},
                 }
