@@ -1498,9 +1498,8 @@ export function BgpContent() {
                             <div className="w-[160px] space-y-1">
                               <Label className="text-xs">{t("content.af.ebgp")}</Label>
                               <Input
-                                type="number"
-                                min={1}
-                                max={256}
+                                type="text"
+                                inputMode="numeric"
                                 value={afMaxEbgp}
                                 onChange={(e) => setAfMaxEbgp(e.target.value)}
                                 className="h-9"
@@ -1510,9 +1509,8 @@ export function BgpContent() {
                             <div className="w-[160px] space-y-1">
                               <Label className="text-xs">{t("content.af.ibgp")}</Label>
                               <Input
-                                type="number"
-                                min={1}
-                                max={256}
+                                type="text"
+                                inputMode="numeric"
                                 value={afMaxIbgp}
                                 onChange={(e) => setAfMaxIbgp(e.target.value)}
                                 className="h-9"

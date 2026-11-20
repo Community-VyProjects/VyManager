@@ -1062,15 +1062,22 @@ class BgpService {
     ibgp: number | null,
   ): Promise<VyOSResponse> {
     const operations: BgpBatchOperation[] = [];
-    if (ebgp !== originalEbgp) {
-      operations.push(ebgp != null
-        ? { op: "set_af_maximum_paths_ebgp", value: `${afi},${ebgp}` }
-        : { op: "delete_af_maximum_paths_ebgp", value: afi });
-    }
-    if (ibgp !== originalIbgp) {
-      operations.push(ibgp != null
-        ? { op: "set_af_maximum_paths_ibgp", value: `${afi},${ibgp}` }
-        : { op: "delete_af_maximum_paths_ibgp", value: afi });
+    // Last leaf delete leaves an empty maximum-paths node on both labs.
+    if (ebgp == null && ibgp == null) {
+      if (originalEbgp != null || originalIbgp != null) {
+        operations.push({ op: "delete_af_maximum_paths", value: afi });
+      }
+    } else {
+      if (ebgp !== originalEbgp) {
+        operations.push(ebgp != null
+          ? { op: "set_af_maximum_paths_ebgp", value: `${afi},${ebgp}` }
+          : { op: "delete_af_maximum_paths_ebgp", value: afi });
+      }
+      if (ibgp !== originalIbgp) {
+        operations.push(ibgp != null
+          ? { op: "set_af_maximum_paths_ibgp", value: `${afi},${ibgp}` }
+          : { op: "delete_af_maximum_paths_ibgp", value: afi });
+      }
     }
     if (operations.length === 0) return { success: true };
     return this.batchConfigure({ operations });

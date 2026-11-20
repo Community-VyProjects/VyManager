@@ -29,6 +29,45 @@ describe("bgp saveMaximumPaths", () => {
     assert.equal(calls, 0);
   });
 
+  it("deletes the parent when both loaded leaves are cleared", async () => {
+    const sent: unknown[] = [];
+    const service = Object.create(bgpService) as typeof bgpService;
+    service.batchConfigure = async (request) => {
+      sent.push(request.operations);
+      return { success: true };
+    };
+    await service.saveMaximumPaths("ipv4-unicast", 4, 8, null, null);
+    assert.deepEqual(sent, [[
+      { op: "delete_af_maximum_paths", value: "ipv4-unicast" },
+    ]]);
+  });
+
+  it("deletes the parent when the only loaded leaf is cleared", async () => {
+    const sent: unknown[] = [];
+    const service = Object.create(bgpService) as typeof bgpService;
+    service.batchConfigure = async (request) => {
+      sent.push(request.operations);
+      return { success: true };
+    };
+    await service.saveMaximumPaths("ipv6-unicast", null, 8, null, null);
+    assert.deepEqual(sent, [[
+      { op: "delete_af_maximum_paths", value: "ipv6-unicast" },
+    ]]);
+  });
+
+  it("leaf-deletes one side when the sibling remains", async () => {
+    const sent: unknown[] = [];
+    const service = Object.create(bgpService) as typeof bgpService;
+    service.batchConfigure = async (request) => {
+      sent.push(request.operations);
+      return { success: true };
+    };
+    await service.saveMaximumPaths("ipv4-unicast", 4, 8, null, 8);
+    assert.deepEqual(sent, [[
+      { op: "delete_af_maximum_paths_ebgp", value: "ipv4-unicast" },
+    ]]);
+  });
+
   it("sets both leaves from unset", async () => {
     const sent: unknown[] = [];
     const service = Object.create(bgpService) as typeof bgpService;
