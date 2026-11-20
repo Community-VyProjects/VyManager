@@ -11,9 +11,10 @@ Endpoints:
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 from session_vyos_service import get_session_vyos_service
-from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.https import HTTPSMapper
 from vyos_builders.https import HTTPSBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -117,6 +118,8 @@ async def get_https_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_https_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -134,8 +137,13 @@ async def get_https_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("https", service.get_version())
+        mapper = cast(
+            HTTPSMapper,
+            CommandMapperRegistry.get_mapper("https", service.get_version()),
+        )
         return HTTPSConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_https_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -154,35 +162,38 @@ async def https_batch_configure(http_request: Request, body: HTTPSBatchRequest):
         service = get_session_vyos_service(http_request)
         builder = HTTPSBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
+                if count == 0:
                     method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                parts = operation.value.split(",", count - 1)
+                if len(parts) != count or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {count} values",
+                    )
+                method(*parts)
+        except ValueError as exc:
+            # The mapper raises ValueError for a leaf this version does not have.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "HTTPS service configuration updated"},
+            data={"message": "HTTPS service configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in https_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
