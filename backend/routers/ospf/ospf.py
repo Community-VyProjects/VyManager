@@ -8,10 +8,11 @@ Supports version-aware configuration for VyOS 1.4 and 1.5.
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.ospf import OspfBatchBuilder
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.ospf import OspfMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
@@ -43,6 +44,13 @@ class OspfAreaRange(BaseModel):
     substitute: Optional[str] = None
 
 
+class OspfAuthentication(BaseModel):
+    """Interface or virtual-link authentication. Secrets load as ``***``."""
+    md5_key_ids: Dict[str, str] = {}
+    plaintext_password: Optional[str] = None
+    null: bool = False
+
+
 class OspfVirtualLink(BaseModel):
     """OSPF area virtual-link configuration."""
     address: str
@@ -51,6 +59,7 @@ class OspfVirtualLink(BaseModel):
     retransmit_interval: Optional[int] = None
     retransmit_window: Optional[int] = None
     transmit_delay: Optional[int] = None
+    authentication: OspfAuthentication = OspfAuthentication()
 
 
 class OspfArea(BaseModel):
@@ -59,6 +68,7 @@ class OspfArea(BaseModel):
     area_type: Optional[str] = None
     area_type_no_summary: bool = False
     area_type_default_cost: Optional[int] = None
+    area_type_translate: Optional[str] = None
     networks: List[str] = []
     ranges: List[OspfAreaRange] = []
     authentication: Optional[str] = None
@@ -66,12 +76,6 @@ class OspfArea(BaseModel):
     export_list: Optional[str] = None
     import_list: Optional[str] = None
     virtual_links: List[OspfVirtualLink] = []
-
-
-class OspfInterfaceAuthentication(BaseModel):
-    """OSPF interface authentication settings."""
-    md5_key_ids: Dict[str, str] = {}
-    plaintext_password: Optional[str] = None
 
 
 class OspfInterface(BaseModel):
@@ -89,10 +93,11 @@ class OspfInterface(BaseModel):
     passive: Optional[bool] = None
     passive_disable: bool = False
     bfd: bool = False
+    bfd_profile: Optional[str] = None
     mtu_ignore: bool = False
     bandwidth: Optional[int] = None
     hello_multiplier: Optional[int] = None
-    authentication: OspfInterfaceAuthentication = OspfInterfaceAuthentication()
+    authentication: OspfAuthentication = OspfAuthentication()
     ldp_sync: bool = False
     ldp_sync_disable: bool = False
     ldp_sync_holddown: Optional[int] = None
@@ -166,6 +171,12 @@ class OspfNeighbor(BaseModel):
     priority: Optional[int] = None
 
 
+class OspfAccessList(BaseModel):
+    """OSPF access-list export filter."""
+    acl: str
+    export: List[str] = []
+
+
 class OspfMplsTe(BaseModel):
     """OSPF MPLS-TE settings."""
     enable: bool = False
@@ -179,6 +190,14 @@ class OspfSummaryAddress(BaseModel):
     tag: Optional[int] = None
 
 
+class OspfSegmentRoutingPrefix(BaseModel):
+    """OSPF segment routing prefix SID."""
+    prefix: str
+    index_value: Optional[int] = None
+    explicit_null: bool = False
+    no_php_flag: bool = False
+
+
 class OspfSegmentRouting(BaseModel):
     """OSPF segment routing settings."""
     global_block_low: Optional[int] = None
@@ -186,6 +205,7 @@ class OspfSegmentRouting(BaseModel):
     local_block_low: Optional[int] = None
     local_block_high: Optional[int] = None
     maximum_label_depth: Optional[int] = None
+    prefixes: List[OspfSegmentRoutingPrefix] = []
 
 
 class OspfConfig(BaseModel):
@@ -200,6 +220,8 @@ class OspfConfig(BaseModel):
     max_metric_router_lsa: OspfMaxMetricRouterLsa = OspfMaxMetricRouterLsa()
     graceful_restart: OspfGracefulRestart = OspfGracefulRestart()
     neighbors: List[OspfNeighbor] = []
+    access_lists: List[OspfAccessList] = []
+    default_metric: Optional[int] = None
     mpls_te: OspfMplsTe = OspfMplsTe()
     summary_addresses: List[OspfSummaryAddress] = []
     segment_routing: OspfSegmentRouting = OspfSegmentRouting()
@@ -244,16 +266,17 @@ async def get_ospf_capabilities(request: Request):
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = OspfBatchBuilder(version=version)
+        builder = OspfBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in get_ospf_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -270,10 +293,15 @@ async def get_ospf_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("ospf", service.get_version())
+        mapper = cast(
+            OspfMapper,
+            CommandMapperRegistry.get_mapper("ospf", service.get_version()),
+        )
         return OspfConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Unhandled error")
+        logger.exception("Unhandled error in get_ospf_config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -289,42 +317,40 @@ async def ospf_batch_configure(http_request: Request, body: OspfBatchRequest):
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = OspfBatchBuilder(version=version)
+        builder = OspfBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1 and operation.value:
-                method(operation.value)
-            elif len(params) == 2 and operation.value:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value)
-            elif len(params) == 3 and operation.value:
-                values = operation.value.split(",", 2)
-                if len(values) == 3:
-                    method(values[0], values[1], values[2])
-                elif len(values) == 2:
-                    method(values[0], values[1])
+                if count == 0:
+                    method()
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                parts = operation.value.split(",", count - 1)
+                if len(parts) != count or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {count} values",
+                    )
+                method(*parts)
+        except ValueError as exc:
+            # The mapper raises ValueError for a leaf this device does not have.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "OSPF configuration updated"},
-            error=response.error if response.error else None
+            data={"message": "OSPF configuration updated"} if response.status == 200 else None,
+            error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in ospf_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -1,10 +1,13 @@
 """Read-model for OSPF config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Functions return plain dicts, lists, or None.
+the tree. Functions return plain dicts, lists, or None. MD5 keys and plaintext
+passwords are secrets and load masked.
 """
 
 from typing import Any, Dict, List, Optional
+
+MASKED_SECRET = "***"
 
 
 def _deep_get(d: Any, *keys):
@@ -37,6 +40,36 @@ def _to_list(value) -> List[str]:
     if isinstance(value, str):
         return [value]
     return []
+
+
+def parse_authentication(raw: Any) -> Dict[str, Any]:
+    """Interface or virtual-link ``authentication`` node, secrets masked."""
+    auth_raw = raw if isinstance(raw, dict) else {}
+    md5_raw = _deep_get(auth_raw, "md5", "key-id") or {}
+    md5_key_ids: Dict[str, str] = {}
+    if isinstance(md5_raw, dict):
+        for key_id, key_config in md5_raw.items():
+            has_key = isinstance(key_config, dict) and bool(key_config.get("md5-key"))
+            md5_key_ids[str(key_id)] = MASKED_SECRET if has_key else ""
+    return {
+        "md5_key_ids": md5_key_ids,
+        "plaintext_password": (
+            MASKED_SECRET if auth_raw.get("plaintext-password") else None
+        ),
+        "null": "null" in auth_raw,
+    }
+
+
+def parse_access_lists(raw: Any) -> List[Dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return []
+    return [
+        {
+            "acl": str(acl),
+            "export": [str(v) for v in _to_list((config or {}).get("export"))],
+        }
+        for acl, config in raw.items()
+    ]
 
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -73,6 +106,8 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
         "max_metric_router_lsa": parse_max_metric(ospf_config),
         "graceful_restart": parse_graceful_restart(ospf_config.get("graceful-restart", {})),
         "neighbors": parse_neighbors(ospf_config.get("neighbor", {})),
+        "access_lists": parse_access_lists(ospf_config.get("access-list")),
+        "default_metric": _safe_int(ospf_config.get("default-metric")),
         "mpls_te": parse_mpls_te(ospf_config.get("mpls-te", {})),
         "summary_addresses": parse_summary_addresses(ospf_config.get("summary-address", {})),
         "segment_routing": parse_segment_routing(ospf_config.get("segment-routing", {})),
@@ -87,11 +122,7 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
             if isinstance(log_adj, dict)
             else False
         ),
-        "passive_interface_default": (
-            "default" in (ospf_config.get("passive-interface", {}) or {})
-            if isinstance(passive, dict)
-            else False
-        ),
+        "passive_interface_default": "default" in _to_list(passive),
         "maximum_paths": _safe_int(ospf_config.get("maximum-paths")),
         "ldp_sync_holddown": _safe_int(_deep_get(ospf_config, "ldp-sync", "holddown")),
         "refresh_timers": _safe_int(_deep_get(ospf_config, "refresh", "timers")),
@@ -129,6 +160,7 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
         area_type = None
         area_type_no_summary = False
         area_type_default_cost = None
+        area_type_translate = None
 
         if "stub" in area_type_raw:
             area_type = "stub"
@@ -142,6 +174,7 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
             if isinstance(nssa_config, dict):
                 area_type_no_summary = "no-summary" in nssa_config
                 area_type_default_cost = _safe_int(nssa_config.get("default-cost"))
+                area_type_translate = nssa_config.get("translate")
         elif "normal" in area_type_raw:
             area_type = "normal"
 
@@ -180,6 +213,7 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
                     "retransmit_interval": _safe_int(vl_config.get("retransmit-interval")),
                     "retransmit_window": _safe_int(vl_config.get("retransmit-window")),
                     "transmit_delay": _safe_int(vl_config.get("transmit-delay")),
+                    "authentication": parse_authentication(vl_config.get("authentication")),
                 }
             )
 
@@ -189,6 +223,7 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
                 "area_type": area_type,
                 "area_type_no_summary": area_type_no_summary,
                 "area_type_default_cost": area_type_default_cost,
+                "area_type_translate": area_type_translate,
                 "networks": networks,
                 "ranges": ranges,
                 "authentication": config.get("authentication"),
@@ -210,15 +245,6 @@ def parse_interfaces(raw: dict) -> List[Dict[str, Any]]:
     for iface_name, config in raw.items():
         if config is None:
             config = {}
-
-        # Parse authentication
-        auth_raw = config.get("authentication", {}) or {}
-        md5_raw = _deep_get(auth_raw, "md5", "key-id") or {}
-        md5_key_ids = {}
-        if isinstance(md5_raw, dict):
-            for key_id, key_config in md5_raw.items():
-                if isinstance(key_config, dict):
-                    md5_key_ids[str(key_id)] = key_config.get("md5-key", "")
 
         # Passive can be a flag or have a "disable" sub-key
         passive_raw = config.get("passive")
@@ -252,17 +278,11 @@ def parse_interfaces(raw: dict) -> List[Dict[str, Any]]:
                 "passive": passive,
                 "passive_disable": passive_disable,
                 "bfd": "bfd" in config,
+                "bfd_profile": _deep_get(config, "bfd", "profile"),
                 "mtu_ignore": "mtu-ignore" in config,
                 "bandwidth": _safe_int(config.get("bandwidth")),
                 "hello_multiplier": _safe_int(config.get("hello-multiplier")),
-                "authentication": {
-                    "md5_key_ids": md5_key_ids,
-                    "plaintext_password": (
-                        auth_raw.get("plaintext-password")
-                        if isinstance(auth_raw, dict)
-                        else None
-                    ),
-                },
+                "authentication": parse_authentication(config.get("authentication")),
                 "ldp_sync": "ldp-sync" in config,
                 "ldp_sync_disable": ldp_sync_disable,
                 "ldp_sync_holddown": ldp_sync_holddown,
@@ -468,4 +488,13 @@ def parse_segment_routing(raw: dict) -> Dict[str, Any]:
         "local_block_low": _safe_int(local_block.get("low-label-value")),
         "local_block_high": _safe_int(local_block.get("high-label-value")),
         "maximum_label_depth": _safe_int(raw.get("maximum-label-depth")),
+        "prefixes": [
+            {
+                "prefix": str(prefix),
+                "index_value": _safe_int(_deep_get(cfg, "index", "value")),
+                "explicit_null": "explicit-null" in (_deep_get(cfg, "index") or {}),
+                "no_php_flag": "no-php-flag" in (_deep_get(cfg, "index") or {}),
+            }
+            for prefix, cfg in (raw.get("prefix") or {}).items()
+        ],
     }

@@ -170,11 +170,9 @@ def test_allowlist_rejects_unknown_redistribute_protocol():
 
 def test_capabilities_read_mapper_allowlist():
     caps_14 = OspfBatchBuilder(version="1.4").get_capabilities()
-    assert "nhrp" not in caps_14["redistribute_protocols"]
-    assert caps_14["features"]["redistribute_nhrp"]["supported"] is False
+    assert "nhrp" not in caps_14["features"]["redistribute"]["protocols"]
     caps_15 = OspfBatchBuilder(version="1.5").get_capabilities()
-    assert "nhrp" in caps_15["redistribute_protocols"]
-    assert caps_15["features"]["redistribute_nhrp"]["supported"] is True
+    assert "nhrp" in caps_15["features"]["redistribute"]["protocols"]
     babel_14 = BabelBatchBuilder(version="1.4").get_capabilities()
     assert "nhrp" not in babel_14["redistribute_protocols"]["ipv4"]
     babel_15 = BabelBatchBuilder(version="1.5").get_capabilities()

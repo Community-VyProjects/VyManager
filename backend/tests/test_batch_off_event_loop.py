@@ -101,6 +101,11 @@ HTTPS_OFFLOADED = [
     ("https_batch_configure", "routers/https/https.py", "execute_batch", 1),
 ]
 
+OSPF_OFFLOADED = [
+    ("get_ospf_config", "routers/ospf/ospf.py", "get_full_config", 1),
+    ("ospf_batch_configure", "routers/ospf/ospf.py", "execute_batch", 1),
+]
+
 # handler, file, blocking attribute, expected offload count
 CONFIG_OFFLOADED = [
     ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
@@ -176,8 +181,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
@@ -232,11 +237,15 @@ HTTPS_VALUE_ERROR = [
     ("https_batch_configure", "routers/https/https.py"),
 ]
 
+OSPF_VALUE_ERROR = [
+    ("ospf_batch_configure", "routers/ospf/ospf.py"),
+]
+
 
 @pytest.mark.parametrize(
     "name,rel",
-    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR,
-    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR],
+    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR,
+    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR],
 )
 def test_value_error_does_not_wrap_execute_batch(name, rel):
     """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""
