@@ -126,6 +126,17 @@ def test_unknown_op_is_400(client):
     assert resp.json()["detail"] == "Unknown operation: no_such_op"
 
 
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_unresolvable_protocol_op_is_400(client, commit, version):
+    """A packed protocol op whose value names no mapper path raises
+    AttributeError in vrf_protocol; the client sent it, so it is a 400."""
+    commit["version"] = version
+    resp = _post(client, [{"op": "set_vrf_ospf_parameters_router_id", "value": "red"}])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"].startswith("Unknown operation: ")
+    assert client.executed == []
+
+
 def test_1_5_static_leaf_on_1_4_is_400(client):
     resp = _post(client, [
         {"op": "set_vrf", "value": "T-V"},

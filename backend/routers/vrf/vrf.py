@@ -394,6 +394,9 @@ async def vrf_batch_configure(http_request: Request, body: VrfBatchRequest):
         except ValueError as e:
             # A leaf this version lacks, or a packed value with the wrong arity.
             raise HTTPException(status_code=400, detail=str(e))
+        except AttributeError as e:
+            # A packed protocol op whose value names no mapper path.
+            raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
 
         response = await run_in_threadpool(service.execute_batch, builder)
         failed = response.status != 200 or bool(response.error)

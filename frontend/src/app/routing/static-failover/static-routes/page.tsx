@@ -148,6 +148,7 @@ function StaticRoutesPageInner() {
       route.description,
       ...route.next_hops.map((nh) => nh.address),
       ...route.interfaces.map((iface) => iface.interface),
+      ...route.dhcp_interfaces,
     ),
   );
   const filteredArp = (config?.arp_interfaces ?? [])
@@ -448,7 +449,7 @@ function StaticRoutesPageInner() {
                       <TableBody>
                         {filteredRoutes.map((route) => {
                           const hasNextHops = route.next_hops.length > 0;
-                          const hasInterfaces = route.interfaces.length > 0;
+                          const hasInterfaces = route.interfaces.length > 0 || route.dhcp_interfaces.length > 0;
                           const isBlackhole = route.blackhole;
 
                           return (
@@ -522,6 +523,11 @@ function StaticRoutesPageInner() {
                                         +{route.interfaces.length - 2}
                                       </Badge>
                                     )}
+                                    {route.dhcp_interfaces.map((iface) => (
+                                      <Badge key={`dhcp-${iface}`} variant="outline" className="text-xs">
+                                        {tr("accordion.dhcpInterface", { name: iface })}
+                                      </Badge>
+                                    ))}
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground text-sm">—</span>

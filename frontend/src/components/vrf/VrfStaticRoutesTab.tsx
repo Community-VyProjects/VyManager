@@ -96,6 +96,7 @@ export function VrfStaticRoutesTab({
       route.description,
       ...route.next_hops.map((nh) => nh.address),
       ...route.interfaces.map((iface) => iface.interface),
+      ...route.dhcp_interfaces,
     ].some((value) => value?.toLowerCase().includes(query)),
   );
 
