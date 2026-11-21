@@ -24,7 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
 import { l2tpService, L2TPPPPOptions, L2TPCapabilities } from "@/lib/api/l2tp";
-import { pppOptionsProblem, replaceMask, type L2TPPPPOptionsUpdate } from "@/lib/api/l2tp-ppp-save-ops";
+import { firstMaskEdit, pppOptionsProblem, type L2TPPPPOptionsUpdate } from "@/lib/api/l2tp-ppp-save-ops";
 import { NONE_SENTINEL, fromNamedListValue, listedNames, toNamedListValue } from "@/lib/named-list-select-options";
 import { ApiError } from "@/lib/types/api";
 
@@ -58,6 +58,8 @@ export function PPPOptionsModal({
   const [ipv6InterfaceId, setIpv6InterfaceId] = useState("");
   const [ipv6PeerInterfaceId, setIpv6PeerInterfaceId] = useState("");
   const [ipv6PeerInterfaceIdSecret, setIpv6PeerInterfaceIdSecret] = useState("");
+  // True while the field still shows the loaded mask of a stored secret.
+  const [secretMasked, setSecretMasked] = useState(false);
   const [ipv6AcceptPeerInterfaceId, setIpv6AcceptPeerInterfaceId] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -78,6 +80,7 @@ export function PPPOptionsModal({
       setIpv6InterfaceId(currentOptions.ipv6_interface_id || "");
       setIpv6PeerInterfaceId(currentOptions.ipv6_peer_interface_id || "");
       setIpv6PeerInterfaceIdSecret(currentOptions.ipv6_peer_interface_id_secret || "");
+      setSecretMasked(!!currentOptions.ipv6_peer_interface_id_secret);
       setIpv6AcceptPeerInterfaceId(currentOptions.ipv6_accept_peer_interface_id || false);
       setError(null);
     }
@@ -99,7 +102,7 @@ export function PPPOptionsModal({
       interface_cache: interfaceCache,
       ipv6_interface_id: ipv6InterfaceId,
       ipv6_peer_interface_id: ipv6PeerInterfaceId,
-      ipv6_peer_interface_id_secret: secretSupported ? ipv6PeerInterfaceIdSecret : undefined,
+      ipv6_peer_interface_id_secret: secretSupported && !secretMasked ? ipv6PeerInterfaceIdSecret : undefined,
       ipv6_accept_peer_interface_id: ipv6AcceptPeerInterfaceId,
     };
     const problem = pppOptionsProblem(currentOptions, updated, secretSupported);
@@ -232,8 +235,13 @@ export function PPPOptionsModal({
                 autoComplete="new-password"
                 value={ipv6PeerInterfaceIdSecret}
                 onChange={(e) => {
-                  const next = e.target.value;
-                  setIpv6PeerInterfaceIdSecret((prev) => replaceMask(prev, next));
+                  if (secretMasked) {
+                    const edit = e.nativeEvent as InputEvent;
+                    setIpv6PeerInterfaceIdSecret(firstMaskEdit(edit.inputType, edit.data));
+                    setSecretMasked(false);
+                  } else {
+                    setIpv6PeerInterfaceIdSecret(e.target.value);
+                  }
                 }}
                 placeholder={t("shared.enterSecret")}
               />
