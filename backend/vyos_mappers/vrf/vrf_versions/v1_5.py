@@ -1,10 +1,15 @@
-"""VyOS 1.5-specific VRF mapper overrides.
+"""VRF feature trees only the VyOS 1.5 template tree has."""
 
-Static route version differences live on the global static-routes mapper.
-PathPrefixMapper adds ``vrf name <vrf>``. Protocol-specific 1.5 features
-live in the per-protocol base mappers.
-"""
+from typing import FrozenSet
+
+from ..vrf import VrfMapper
 
 
-class VrfMapperV1_5:
-    """No VRF-only static path overrides."""
+class VrfMapperV1_5(VrfMapper):
+    """VyOS 1.5 adds failover and the DHCP servers under ``vrf name <vrf>``."""
+
+    FEATURE_NODES: FrozenSet[str] = VrfMapper.FEATURE_NODES | {
+        "protocols failover",
+        "service dhcp-server",
+        "service dhcpv6-server",
+    }

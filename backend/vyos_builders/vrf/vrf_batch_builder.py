@@ -8,10 +8,16 @@ Prefixes global feature builders for OSPF, OSPFv3, ISIS, BGP, static,
 failover, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.vrf.vrf import VrfMapper
 from .vrf_rpki_mixin import VrfRpkiMixin
-from .vrf_protocol import parse_vrf_protocol_op, run_vrf_protocol_op, vrf_protocol_op_exists
+from .vrf_protocol import (
+    FEATURE_NODES,
+    parse_vrf_protocol_op,
+    run_vrf_protocol_op,
+    vrf_protocol_op_exists,
+)
 from vyos_builders.base import BatchBuilder
 
 
@@ -178,6 +184,7 @@ class VrfBatchBuilder(
     def get_capabilities(self) -> Dict[str, Any]:
         is_1_5 = "1.5" in self.version or "latest" in self.version
         is_1_4 = "1.4" in self.version
+        feature_nodes = cast(VrfMapper, self.mappers[self.mapper_key]).feature_nodes()
 
         return {
             "version": self.version,
@@ -215,7 +222,7 @@ class VrfBatchBuilder(
                     "description": "RPKI configuration within VRF (VyOS 1.5+ only)",
                 },
                 "failover": {
-                    "supported": is_1_5,
+                    "supported": FEATURE_NODES["failover"] in feature_nodes,
                     "description": "Failover route configuration within VRF (VyOS 1.5+ only)",
                 },
                 "ospf": {
@@ -235,11 +242,11 @@ class VrfBatchBuilder(
                     "description": "BGP configuration within VRF",
                 },
                 "dhcp_server": {
-                    "supported": is_1_5,
+                    "supported": FEATURE_NODES["dhcp"] in feature_nodes,
                     "description": "DHCP server configuration within VRF (VyOS 1.5+ only)",
                 },
                 "dhcpv6_server": {
-                    "supported": is_1_5,
+                    "supported": FEATURE_NODES["dhcpv6"] in feature_nodes,
                     "description": "DHCPv6 server configuration within VRF (VyOS 1.5+ only)",
                 },
                 "static_route_ipv4_segments": {

@@ -2,18 +2,43 @@
 VRF Command Mapper
 
 Handles command path generation for VRF (Virtual Routing and Forwarding) configuration.
-Version-specific logic is in version-specific files.
+Trees only one version has are listed on that version's subclass in
+``vrf_versions``.
 """
 
-from typing import List
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class VrfMapper(BaseFeatureMapper):
     """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    # Global feature trees the VRF builder reuses under ``vrf name <vrf>``
+    # through the global feature builders, as the CLI path below the VRF.
+    # Both labs have these. A version subclass adds the trees only its lab
+    # has.
+    FEATURE_NODES: FrozenSet[str] = frozenset({"protocols static"})
+
+    # ========================================================================
+    # Core
+    # ========================================================================
+
+    def feature_nodes(self) -> FrozenSet[str]:
+        """Global feature trees under ``vrf name <vrf>`` this device has.
+
+        Capabilities and the builder read this set instead of the version
+        string.
+        """
+        return self.FEATURE_NODES
+
+    def require_feature(self, node: str) -> None:
+        if node not in self.feature_nodes():
+            raise ValueError(f"vrf {node} is not supported on this device")
+
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_vrf_config
+
+        return parse_vrf_config(self, full_config)
 
     # ========================================================================
     # Global VRF Paths
