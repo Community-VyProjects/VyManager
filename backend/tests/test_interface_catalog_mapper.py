@@ -73,7 +73,10 @@ class StubDevice:
 
     def show(self, path):
         self.paths.append(path)
-        return self.replies.get(tuple(path), SimpleNamespace(status=200, result="", error=False))
+        reply = self.replies.get(tuple(path), SimpleNamespace(status=200, result="", error=False))
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
 
 
 class StubService:
@@ -166,9 +169,11 @@ def test_the_mapper_decides_not_the_version_string(client, stub, monkeypatch):
         SimpleNamespace(status=200, result={}, error="API Error 200: command failed"),
         SimpleNamespace(status=500, result={}, error="HTTP Error 500: boom"),
         SimpleNamespace(status=200, result="", error=False),
+        SimpleNamespace(status=200, result='{"eth0": {}}', error=False),
+        ConnectionError("device unreachable"),
     ],
 )
-def test_a_refused_or_empty_kernel_list_falls_back_to_config(client, stub, reply):
+def test_a_refused_empty_or_failed_kernel_list_falls_back_to_config(client, stub, reply):
     stub["version"] = ROLLING
     stub["replies"][("interfaces", "kernel", "json")] = reply
     response = client.get("/vyos/show/all-interfaces")

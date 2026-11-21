@@ -222,6 +222,11 @@ async def get_interface_counters(request: Request):
         )
 
         if response.status != 200 or response.error:
+            logger.warning(
+                "'show interfaces counters' failed (status %s): %s",
+                response.status,
+                response.error,
+            )
             raise HTTPException(
                 status_code=500,
                 detail="Unable to read interface counters",
@@ -242,12 +247,12 @@ async def get_interface_counters(request: Request):
 
 
 # ========================================================================
-# Endpoint: All Interfaces (from config)
+# Endpoint: All Interfaces (kernel list when the device has it, else config)
 # ========================================================================
 
 
 class AllInterfacesResponse(BaseModel):
-    """Response containing all interface names from config."""
+    """Response containing all interface names for the interface pickers."""
     interfaces: List[InterfaceName]
     total: int
 
@@ -352,14 +357,14 @@ async def get_all_interfaces(request: Request):
                     interfaces = _interfaces_from_kernel(output, config_index)
                 elif response.status != 200 or response.error:
                     logger.warning(
-                        "'show interfaces kernel json' failed (status %s); using config list",
+                        "'show interfaces kernel json' failed (status %s): %s; using config list",
                         response.status,
+                        response.error,
                     )
                 else:
                     logger.warning("Empty 'show interfaces kernel json' output; using config list")
             except Exception:
-                logger.exception("Failed to parse kernel interface list; using config list")
-                interfaces = config_list
+                logger.exception("Failed to read or parse the kernel interface list; using config list")
 
         return AllInterfacesResponse(
             interfaces=interfaces,
@@ -401,6 +406,12 @@ async def get_available_ethernet_interfaces(request: Request):
         response = await run_in_threadpool(
             service.device.show, path=catalog.get_ethernet_show_path()
         )
+        if response.status != 200 or response.error:
+            logger.warning(
+                "'show interfaces ethernet' failed (status %s): %s",
+                response.status,
+                response.error,
+            )
         all_eth = parse_show_ethernet_names(_extract_show_output(response))
 
         # Exclude interfaces that already have an address configured.
