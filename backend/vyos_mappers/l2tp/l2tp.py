@@ -1,25 +1,68 @@
 """
 L2TP VPN Command Mapper
 
-Handles command path generation and config parsing for L2TP remote-access VPN.
-The L2TP command tree is identical between VyOS 1.4 and 1.5.
+Shared ``vpn l2tp remote-access`` commands for VyOS 1.4 and 1.5. The 1.5-only
+``ppp-options ipv6-peer-interface-id-secret`` leaf lives on the 1.5 subclass.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, FrozenSet, List
+
+from ..base import BaseFeatureMapper
 
 
-class L2TPMapper:
-    """Base mapper with all L2TP operations."""
+class L2TPMapper(BaseFeatureMapper):
+    """Shared L2TP remote-access commands."""
 
-    def __init__(self, version: str):
-        self.version = version
+    # node -> path method that only the version subclass defines
+    _VERSIONED_NODES = {
+        "ppp_ipv6_peer_interface_id_secret": "get_ppp_ipv6_peer_interface_id_secret_path",
+    }
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only leaves this device has.
+
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"l2tp {node} is not supported on this device")
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_l2tp_config
+
+        return parse_l2tp_config(self, full_config)
 
     # ========================================================================
-    # Base path
+    # Allowed values (lab ``allowed:`` / ``val_help`` lists)
     # ========================================================================
 
-    def get_base_path(self) -> List[str]:
-        return ["vpn", "l2tp", "remote-access"]
+    def auth_modes(self) -> List[str]:
+        return ["local", "radius", "noauth"]
+
+    def auth_protocols(self) -> List[str]:
+        return ["pap", "chap", "mschap", "mschap-v2"]
+
+    def ipsec_auth_modes(self) -> List[str]:
+        return ["pre-shared-secret", "x509"]
+
+    def ppp_ipv4_modes(self) -> List[str]:
+        return ["deny", "allow", "prefer", "require"]
+
+    def ppp_ipv6_modes(self) -> List[str]:
+        return ["deny", "allow", "prefer", "require"]
+
+    def ppp_mppe_modes(self) -> List[str]:
+        return ["require", "prefer", "deny"]
+
+    def log_levels(self) -> List[str]:
+        return ["0", "1", "2", "3", "4", "5"]
 
     # ========================================================================
     # General settings
@@ -529,238 +572,3 @@ class L2TPMapper:
 
     def get_delete_all_path(self) -> List[str]:
         return ["vpn", "l2tp"]
-
-    # ========================================================================
-    # Config Parsing
-    # ========================================================================
-
-    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
-        l2tp_config = full_config.get("vpn", {}).get("l2tp", {}).get("remote-access", {})
-
-        if not l2tp_config:
-            return {
-                "configured": False,
-                "description": None,
-                "outside_address": None,
-                "gateway_address": None,
-                "mtu": None,
-                "name_servers": [],
-                "wins_servers": [],
-                "default_pool": None,
-                "default_ipv6_pool": None,
-                "max_concurrent_sessions": None,
-                "thread_count": None,
-                "authentication": {},
-                "ipsec_settings": {},
-                "client_ip_pools": {},
-                "client_ipv6_pools": {},
-                "ppp_options": {},
-                "lns": {},
-                "limits": {},
-                "log": {},
-                "extended_scripts": {},
-                "shaper": {},
-                "snmp": {},
-            }
-
-        return {
-            "configured": True,
-            "description": l2tp_config.get("description"),
-            "outside_address": l2tp_config.get("outside-address"),
-            "gateway_address": l2tp_config.get("gateway-address"),
-            "mtu": l2tp_config.get("mtu"),
-            "name_servers": self._normalize_to_list(l2tp_config.get("name-server")),
-            "wins_servers": self._normalize_to_list(l2tp_config.get("wins-server")),
-            "default_pool": l2tp_config.get("default-pool"),
-            "default_ipv6_pool": l2tp_config.get("default-ipv6-pool"),
-            "max_concurrent_sessions": l2tp_config.get("max-concurrent-sessions"),
-            "thread_count": l2tp_config.get("thread-count"),
-            "authentication": self._parse_authentication(l2tp_config.get("authentication", {})),
-            "ipsec_settings": self._parse_ipsec_settings(l2tp_config.get("ipsec-settings", {})),
-            "client_ip_pools": self._parse_client_ip_pools(l2tp_config.get("client-ip-pool", {})),
-            "client_ipv6_pools": self._parse_client_ipv6_pools(l2tp_config.get("client-ipv6-pool", {})),
-            "ppp_options": self._parse_ppp_options(l2tp_config.get("ppp-options", {})),
-            "lns": self._parse_lns(l2tp_config.get("lns", {})),
-            "limits": self._parse_limits(l2tp_config.get("limits", {})),
-            "log": self._parse_log(l2tp_config.get("log", {})),
-            "extended_scripts": self._parse_extended_scripts(l2tp_config.get("extended-scripts", {})),
-            "shaper": self._parse_shaper(l2tp_config.get("shaper", {})),
-            "snmp": self._parse_snmp(l2tp_config.get("snmp", {})),
-        }
-
-    def _parse_authentication(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        local_users = {}
-        for username, user_config in config.get("local-users", {}).get("username", {}).items():
-            rate_limit = user_config.get("rate-limit", {})
-            local_users[username] = {
-                "username": username,
-                "password": user_config.get("password"),
-                "disabled": "disable" in user_config,
-                "static_ip": user_config.get("static-ip"),
-                "rate_limit": {
-                    "download": rate_limit.get("download"),
-                    "upload": rate_limit.get("upload"),
-                },
-            }
-
-        radius = self._parse_radius(config.get("radius", {}))
-
-        return {
-            "mode": config.get("mode"),
-            "protocols": self._normalize_to_list(config.get("protocols")),
-            "local_users": local_users,
-            "radius": radius,
-        }
-
-    def _parse_radius(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        servers = {}
-        for addr, server_config in config.get("server", {}).items():
-            servers[addr] = {
-                "address": addr,
-                "key": "***" if server_config.get("key") else None,
-                "port": server_config.get("port"),
-                "acct_port": server_config.get("acct-port"),
-                "priority": server_config.get("priority"),
-                "fail_time": server_config.get("fail-time"),
-                "disabled": "disable" in server_config,
-                "backup": "backup" in server_config,
-                "disable_accounting": "disable-accounting" in server_config,
-            }
-
-        dae = config.get("dynamic-author", {})
-        rate_limit = config.get("rate-limit", {})
-
-        return {
-            "servers": servers,
-            "source_address": config.get("source-address"),
-            "timeout": config.get("timeout"),
-            "max_try": config.get("max-try"),
-            "nas_identifier": config.get("nas-identifier"),
-            "nas_ip_address": config.get("nas-ip-address"),
-            "preallocate_vif": "preallocate-vif" in config,
-            "accounting_interim_interval": config.get("accounting-interim-interval"),
-            "acct_interim_jitter": config.get("acct-interim-jitter"),
-            "acct_timeout": config.get("acct-timeout"),
-            "dynamic_author": {
-                "server": dae.get("server"),
-                "port": dae.get("port"),
-                "key": "***" if dae.get("key") else None,
-            },
-            "rate_limit": {
-                "enable": "enable" in rate_limit,
-                "attribute": rate_limit.get("attribute"),
-                "vendor": rate_limit.get("vendor"),
-                "multiplier": rate_limit.get("multiplier"),
-            },
-        }
-
-    def _parse_ipsec_settings(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        auth = config.get("authentication", {})
-        x509 = auth.get("x509", {})
-        return {
-            "authentication": {
-                "mode": auth.get("mode"),
-                "pre_shared_secret": "***" if auth.get("pre-shared-secret") else None,
-                "x509": {
-                    "ca_certificate": x509.get("ca-certificate"),
-                    "certificate": x509.get("certificate"),
-                    "passphrase": "***" if x509.get("passphrase") else None,
-                },
-            },
-            "ike_group": config.get("ike-group"),
-            "esp_group": config.get("esp-group"),
-            "ike_lifetime": config.get("ike-lifetime"),
-            "lifetime": config.get("lifetime"),
-        }
-
-    def _parse_client_ip_pools(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        pools = {}
-        for name, pool_config in config.items():
-            pools[name] = {
-                "name": name,
-                "range": pool_config.get("range"),
-                "next_pool": pool_config.get("next-pool"),
-            }
-        return pools
-
-    def _parse_client_ipv6_pools(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        pools = {}
-        for name, pool_config in config.items():
-            prefixes = {}
-            for prefix, prefix_config in pool_config.get("prefix", {}).items():
-                prefixes[prefix] = {
-                    "prefix": prefix,
-                    "mask": prefix_config.get("mask") if isinstance(prefix_config, dict) else None,
-                }
-            delegates = {}
-            for prefix, delegate_config in pool_config.get("delegate", {}).items():
-                delegates[prefix] = {
-                    "prefix": prefix,
-                    "delegation_prefix": delegate_config.get("delegation-prefix") if isinstance(delegate_config, dict) else None,
-                }
-            pools[name] = {
-                "name": name,
-                "prefixes": prefixes,
-                "delegates": delegates,
-            }
-        return pools
-
-    def _parse_ppp_options(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "disable_ccp": "disable-ccp" in config,
-            "interface_cache": config.get("interface-cache"),
-            "ipv4": config.get("ipv4"),
-            "ipv6": config.get("ipv6"),
-            "ipv6_interface_id": config.get("ipv6-interface-id"),
-            "ipv6_peer_interface_id": config.get("ipv6-peer-interface-id"),
-            "ipv6_accept_peer_interface_id": "ipv6-accept-peer-interface-id" in config,
-            "mppe": config.get("mppe"),
-            "lcp_echo_failure": config.get("lcp-echo-failure"),
-            "lcp_echo_interval": config.get("lcp-echo-interval"),
-            "lcp_echo_timeout": config.get("lcp-echo-timeout"),
-            "min_mtu": config.get("min-mtu"),
-            "mru": config.get("mru"),
-        }
-
-    def _parse_lns(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "host_name": config.get("host-name"),
-            "shared_secret": "***" if config.get("shared-secret") else None,
-        }
-
-    def _parse_limits(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "connection_limit": config.get("connection-limit"),
-            "burst": config.get("burst"),
-            "timeout": config.get("timeout"),
-        }
-
-    def _parse_log(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "level": config.get("level"),
-        }
-
-    def _parse_extended_scripts(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "on_change": config.get("on-change"),
-            "on_down": config.get("on-down"),
-            "on_pre_up": config.get("on-pre-up"),
-            "on_up": config.get("on-up"),
-        }
-
-    def _parse_shaper(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "fwmark": config.get("fwmark"),
-        }
-
-    def _parse_snmp(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "master_agent": "master-agent" in config,
-        }
-
-    def _normalize_to_list(self, value: Any) -> list:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return value
-        return [value]
