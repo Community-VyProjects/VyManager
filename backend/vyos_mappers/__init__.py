@@ -110,7 +110,7 @@ from .segment_routing import SegmentRoutingMapper
 from .segment_routing.segment_routing_versions import get_segment_routing_mapper
 from .traffic_engineering import TrafficEngineeringMapper
 from .traffic_engineering.traffic_engineering_versions import get_traffic_engineering_mapper
-from .broadcast_relay.broadcast_relay_versions import get_broadcast_relay_mapper
+from .broadcast_relay import BroadcastRelayMapper
 from .dhcp_relay import DHCPRelayMapper
 from .dhcp_relay.dhcp_relay_versions import get_dhcp_relay_mapper
 from .dhcpv6_relay import DHCPv6RelayMapper
@@ -301,8 +301,8 @@ CommandMapperRegistry.register_feature("rpki", get_rpki_mapper)
 CommandMapperRegistry.register_feature("segment_routing", get_segment_routing_mapper)
 # Traffic Engineering uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("traffic_engineering", get_traffic_engineering_mapper)
-# Broadcast Relay uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("broadcast_relay", get_broadcast_relay_mapper)
+# Broadcast Relay uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("broadcast_relay", BroadcastRelayMapper)
 # DHCP Relay uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dhcp_relay", get_dhcp_relay_mapper)
 # DHCPv6 Relay uses factory for version-specific mappers
@@ -424,6 +424,7 @@ __all__ = [
     "ConfigSyncMapper",
     "ConntrackSyncMapper",
     "ConsoleServerMapper",
+    "BroadcastRelayMapper",
     "DHCPRelayMapper",
     "DHCPv6RelayMapper",
     "DNSForwardingMapper",
