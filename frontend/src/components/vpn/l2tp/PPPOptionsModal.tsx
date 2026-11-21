@@ -247,6 +247,18 @@ export function PPPOptionsModal({
                   const input = e.currentTarget;
                   maskSelection.current = [input.selectionStart ?? 0, input.selectionEnd ?? input.value.length];
                 }}
+                onPaste={(e) => {
+                  if (!secretMasked) return;
+                  e.preventDefault();
+                  setIpv6PeerInterfaceIdSecret(e.clipboardData.getData("text/plain"));
+                  setSecretMasked(false);
+                }}
+                onDrop={(e) => {
+                  if (!secretMasked) return;
+                  e.preventDefault();
+                  setIpv6PeerInterfaceIdSecret(e.dataTransfer.getData("text/plain"));
+                  setSecretMasked(false);
+                }}
                 onChange={(e) => {
                   if (secretMasked) {
                     const mask = currentOptions.ipv6_peer_interface_id_secret || "";
