@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/power", tags=["power"])
 
+
 def _utcnow() -> datetime:
     """Naive UTC now, the form scheduledTime is stored in."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -201,24 +202,6 @@ async def reboot_system(request: Request, body: PowerActionRequest):
     elif body.action == "cancel":
         path = ["cancel"]
         scheduled_time = None
-
-        # Mark as cancelled in database
-        async with request_scoped_conn(request) as conn:
-            await conn.execute(
-                """
-                UPDATE scheduled_power_actions
-                SET cancelled = true,
-                    "cancelledBy" = $1,
-                    "cancelledByName" = $2,
-                    "cancelledAt" = NOW()
-                WHERE "instanceId" = $3
-                  AND "actionType" = 'reboot'
-                  AND cancelled = false
-                """,
-                user["id"],
-                user["name"],
-                instance_id,
-            )
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
 
@@ -257,6 +240,25 @@ async def reboot_system(request: Request, body: PowerActionRequest):
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+    # Mark as cancelled in database once the device accepted the cancel
+    if body.action == "cancel":
+        async with request_scoped_conn(request) as conn:
+            await conn.execute(
+                """
+                UPDATE scheduled_power_actions
+                SET cancelled = true,
+                    "cancelledBy" = $1,
+                    "cancelledByName" = $2,
+                    "cancelledAt" = NOW()
+                WHERE "instanceId" = $3
+                  AND "actionType" = 'reboot'
+                  AND cancelled = false
+                """,
+                user["id"],
+                user["name"],
+                instance_id,
+            )
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:
@@ -361,24 +363,6 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
     elif body.action == "cancel":
         path = ["cancel"]
         scheduled_time = None
-
-        # Mark as cancelled in database
-        async with request_scoped_conn(request) as conn:
-            await conn.execute(
-                """
-                UPDATE scheduled_power_actions
-                SET cancelled = true,
-                    "cancelledBy" = $1,
-                    "cancelledByName" = $2,
-                    "cancelledAt" = NOW()
-                WHERE "instanceId" = $3
-                  AND "actionType" = 'poweroff'
-                  AND cancelled = false
-                """,
-                user["id"],
-                user["name"],
-                instance_id,
-            )
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
 
@@ -417,6 +401,25 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+    # Mark as cancelled in database once the device accepted the cancel
+    if body.action == "cancel":
+        async with request_scoped_conn(request) as conn:
+            await conn.execute(
+                """
+                UPDATE scheduled_power_actions
+                SET cancelled = true,
+                    "cancelledBy" = $1,
+                    "cancelledByName" = $2,
+                    "cancelledAt" = NOW()
+                WHERE "instanceId" = $3
+                  AND "actionType" = 'poweroff'
+                  AND cancelled = false
+                """,
+                user["id"],
+                user["name"],
+                instance_id,
+            )
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:

@@ -175,6 +175,26 @@ def test_device_error_text_is_400(client, device, route):
     assert resp.json()["detail"] == 'Invalid time "x". The valid format is HH:MM'
 
 
+@pytest.mark.parametrize("route", ROUTES)
+def test_cancel_marks_the_row_after_the_device_accepts(client, route):
+    test_client, conn = client
+    resp = test_client.post(route, json={"action": "cancel"})
+    assert resp.status_code == 200, resp.text
+    kind = route.rsplit("/", 1)[1]
+    updates = [query for query, args in conn.executed if query.startswith("UPDATE")]
+    assert len(updates) == 1
+    assert f"\"actionType\" = '{kind}'" in updates[0]
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_failed_cancel_leaves_the_row_alone(client, device, route):
+    test_client, conn = client
+    device.update(status=400, error="boom")
+    resp = test_client.post(route, json={"action": "cancel"})
+    assert resp.status_code == 500
+    assert conn.executed == []
+
+
 def _stored_row():
     return {
         "actionType": "reboot",
