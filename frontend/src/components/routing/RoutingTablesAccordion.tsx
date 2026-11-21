@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -19,26 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Plus,
-  Trash2,
-  Pencil,
-  Check,
-  X,
-  Network,
-  Shield,
-  ArrowRight,
-  TableProperties,
-  AlertCircle,
-} from "lucide-react";
-import {
-  staticRoutesService,
-  type RoutingTable,
-  type StaticRoute,
-} from "@/lib/api/static-routes";
+import { Plus, Trash2, Pencil, Network, Shield, ArrowRight, TableProperties } from "lucide-react";
+import type { RoutingTable, StaticRoute } from "@/lib/api/static-routes";
+import type { RouteFamily, StaticRouteFeatures } from "@/lib/api/static-routes-save-ops";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { TableRouteModal } from "./TableRouteModal";
+import { StaticRouteModal } from "./StaticRouteModal";
+import { DeleteStaticRouteModal } from "./DeleteStaticRouteModal";
+import { RoutingTableModal } from "./RoutingTableModal";
+import { DeleteRoutingTableModal } from "./DeleteRoutingTableModal";
 import {
   Tooltip,
   TooltipContent,
@@ -48,76 +36,19 @@ import {
 
 interface RoutingTablesAccordionProps {
   tables: RoutingTable[];
+  features: StaticRouteFeatures;
   onRefresh: () => void;
 }
 
-export function RoutingTablesAccordion({
-  tables,
-  onRefresh,
-}: RoutingTablesAccordionProps) {
+type RouteEdit = { tableId: number; family: RouteFamily; route: StaticRoute | null };
+
+export function RoutingTablesAccordion({ tables, features, onRefresh }: RoutingTablesAccordionProps) {
   const t = useTranslations("routingExtras");
   const tc = useTranslations("common");
-  const [editingDescription, setEditingDescription] = useState<number | null>(null);
-  const [descriptionValue, setDescriptionValue] = useState("");
-  const [, setDeletingRoute] = useState<{ tableId: number; route: StaticRoute } | null>(null);
-  const [editingRoute, setEditingRoute] = useState<{ table: RoutingTable; route: StaticRoute } | null>(null);
-  const [addingRouteToTable, setAddingRouteToTable] = useState<RoutingTable | null>(null);
-  const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleEditDescription = (table: RoutingTable) => {
-    setEditingDescription(table.table_id);
-    setDescriptionValue(table.description || "");
-  };
-
-  const handleSaveDescription = async (tableId: number) => {
-    setLoading(`desc-${tableId}`);
-    setError(null);
-    try {
-      await staticRoutesService.updateRoutingTableDescription(tableId, descriptionValue);
-      setEditingDescription(null);
-      onRefresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("accordion.updateDescriptionFailed"));
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingDescription(null);
-    setDescriptionValue("");
-  };
-
-  const handleDeleteTable = async (tableId: number) => {
-    if (!confirm(t("accordion.deleteTableConfirm", { id: String(tableId) }))) {
-      return;
-    }
-    setLoading(`delete-table-${tableId}`);
-    setError(null);
-    try {
-      await staticRoutesService.deleteRoutingTable(tableId);
-      onRefresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("accordion.deleteTableFailed"));
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleDeleteRoute = async (tableId: number, route: StaticRoute) => {
-    setLoading(`delete-route-${tableId}-${route.destination}`);
-    setError(null);
-    try {
-      await staticRoutesService.deleteTableRoute(tableId, route.destination, route.route_type);
-      setDeletingRoute(null);
-      onRefresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("accordion.deleteRouteFailed"));
-    } finally {
-      setLoading(null);
-    }
-  };
+  const [routeEdit, setRouteEdit] = useState<RouteEdit | null>(null);
+  const [routeDelete, setRouteDelete] = useState<{ tableId: number; route: StaticRoute } | null>(null);
+  const [tableEdit, setTableEdit] = useState<RoutingTable | null>(null);
+  const [tableDelete, setTableDelete] = useState<RoutingTable | null>(null);
 
   if (tables.length === 0) {
     return (
@@ -135,22 +66,17 @@ export function RoutingTablesAccordion({
     );
   }
 
+  const editTable = tables.find((table) => table.table_id === routeEdit?.tableId);
+  const configured = editTable
+    ? (routeEdit?.family === "ipv6" ? editTable.ipv6_routes : editTable.ipv4_routes).map((r) => r.destination)
+    : [];
+
   return (
     <>
-      {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2 mb-4">
-          <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-destructive">{error}</p>
-          <Button variant="ghost" size="sm" className="ml-auto h-6 px-2" onClick={() => setError(null)}>
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-
       <Accordion type="multiple" className="space-y-2">
         {tables.map((table) => {
           const totalRoutes = table.ipv4_routes.length + table.ipv6_routes.length;
-          const isEditingDesc = editingDescription === table.table_id;
+          const routes = [...table.ipv4_routes, ...table.ipv6_routes];
 
           return (
             <AccordionItem
@@ -160,109 +86,97 @@ export function RoutingTablesAccordion({
             >
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-4 flex-1 mr-4">
-                  {/* Table ID */}
                   <div className="flex items-center gap-2 min-w-[80px]">
                     <TableProperties className="h-5 w-5 text-primary" />
                     <span className="font-mono font-bold text-xl">{table.table_id}</span>
                   </div>
 
-                  {/* Description */}
                   <div className="flex-1 text-left">
-                    {isEditingDesc ? (
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Input
-                          value={descriptionValue}
-                          onChange={(e) => setDescriptionValue(e.target.value)}
-                          placeholder={t("accordion.descriptionPlaceholder")}
-                          className="h-8 max-w-xs"
-                          autoFocus
-                        />
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0"
-                          onClick={() => handleSaveDescription(table.table_id)}
-                          disabled={loading === `desc-${table.table_id}`}
-                        >
-                          <Check className="h-4 w-4 text-green-500" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0"
-                          onClick={handleCancelEdit}
-                        >
-                          <X className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "text-sm",
-                          table.description ? "text-foreground" : "text-muted-foreground italic"
-                        )}>
-                          {table.description || t("accordion.noDescription")}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditDescription(table);
-                          }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
+                    <span className={cn(
+                      "text-sm",
+                      table.description ? "text-foreground" : "text-muted-foreground italic"
+                    )}>
+                      {table.description || t("accordion.noDescription")}
+                    </span>
                   </div>
 
-                  {/* Route counts */}
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                      {table.ipv4_routes.length} IPv4
+                      {t("accordion.ipv4Count", { count: table.ipv4_routes.length })}
                     </Badge>
                     <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20">
-                      {table.ipv6_routes.length} IPv6
+                      {t("accordion.ipv6Count", { count: table.ipv6_routes.length })}
                     </Badge>
                   </div>
 
-                  {/* Delete table button */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTable(table.table_id);
-                    }}
-                    disabled={loading === `delete-table-${table.table_id}`}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label={tc("edit")}
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-accent"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTableEdit(table);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setTableEdit(table);
+                          }
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label={tc("delete")}
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-accent"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTableDelete(table);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setTableDelete(table);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </span>
+                    </div>
                 </div>
               </AccordionTrigger>
 
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  {/* Add Route Button */}
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      onClick={() => setAddingRouteToTable(table)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("accordion.addRoute")}
-                    </Button>
-                  </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRouteEdit({ tableId: table.table_id, family: "ipv4", route: null })}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("accordion.addIpv4Route")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRouteEdit({ tableId: table.table_id, family: "ipv6", route: null })}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("accordion.addIpv6Route")}
+                      </Button>
+                    </div>
 
-                  {/* Routes Table */}
                   {totalRoutes === 0 ? (
                     <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/30">
                       <Network className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">{t("accordion.noRoutes")}</p>
-                      <p className="text-xs mt-1">{t("accordion.addRouteHint")}</p>
                     </div>
                   ) : (
                     <div className="border rounded-lg overflow-hidden">
@@ -277,26 +191,14 @@ export function RoutingTablesAccordion({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {/* IPv4 Routes */}
-                          {table.ipv4_routes.map((route) => (
+                          {routes.map((route) => (
                             <RouteRow
-                              key={`ipv4-${route.destination}`}
+                              key={`${route.route_type}-${route.destination}`}
                               route={route}
-                              tableId={table.table_id}
-                              onEdit={() => setEditingRoute({ table, route })}
-                              onDelete={() => handleDeleteRoute(table.table_id, route)}
-                              isDeleting={loading === `delete-route-${table.table_id}-${route.destination}`}
-                            />
-                          ))}
-                          {/* IPv6 Routes */}
-                          {table.ipv6_routes.map((route) => (
-                            <RouteRow
-                              key={`ipv6-${route.destination}`}
-                              route={route}
-                              tableId={table.table_id}
-                              onEdit={() => setEditingRoute({ table, route })}
-                              onDelete={() => handleDeleteRoute(table.table_id, route)}
-                              isDeleting={loading === `delete-route-${table.table_id}-${route.destination}`}
+                              onEdit={() =>
+                                setRouteEdit({ tableId: table.table_id, family: route.route_type, route })
+                              }
+                              onDelete={() => setRouteDelete({ tableId: table.table_id, route })}
                             />
                           ))}
                         </TableBody>
@@ -310,22 +212,46 @@ export function RoutingTablesAccordion({
         })}
       </Accordion>
 
-      {/* Add Route Modal */}
-      <TableRouteModal
-        open={addingRouteToTable !== null || editingRoute !== null}
+      <StaticRouteModal
+        open={routeEdit !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            setAddingRouteToTable(null);
-            setEditingRoute(null);
-          }
+          if (!open) setRouteEdit(null);
         }}
-        onSuccess={() => {
-          setAddingRouteToTable(null);
-          setEditingRoute(null);
-          onRefresh();
+        onSuccess={onRefresh}
+        scope={{ kind: "table", tableId: routeEdit?.tableId ?? 0 }}
+        family={routeEdit?.family ?? "ipv4"}
+        existing={routeEdit?.route ?? null}
+        features={features}
+        configured={configured}
+      />
+
+      <DeleteStaticRouteModal
+        open={routeDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setRouteDelete(null);
         }}
-        table={editingRoute?.table ?? addingRouteToTable}
-        existing={editingRoute?.route ?? null}
+        onSuccess={onRefresh}
+        scope={{ kind: "table", tableId: routeDelete?.tableId ?? 0 }}
+        route={routeDelete?.route ?? null}
+      />
+
+      <RoutingTableModal
+        open={tableEdit !== null}
+        onOpenChange={(open) => {
+          if (!open) setTableEdit(null);
+        }}
+        onSuccess={onRefresh}
+        existing={tableEdit}
+        configured={tables.map((table) => table.table_id)}
+      />
+
+      <DeleteRoutingTableModal
+        open={tableDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setTableDelete(null);
+        }}
+        onSuccess={onRefresh}
+        table={tableDelete}
       />
     </>
   );
@@ -333,14 +259,13 @@ export function RoutingTablesAccordion({
 
 interface RouteRowProps {
   route: StaticRoute;
-  tableId: number;
   onEdit: () => void;
   onDelete: () => void;
-  isDeleting: boolean;
 }
 
-function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
+function RouteRow({ route, onEdit, onDelete }: RouteRowProps) {
   const t = useTranslations("routingExtras");
+  const tc = useTranslations("common");
   const isIPv4 = route.route_type === "ipv4";
 
   return (
@@ -355,7 +280,7 @@ function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
               : "bg-purple-500/10 text-purple-600 border-purple-500/20"
           )}
         >
-          {isIPv4 ? "v4" : "v6"}
+          {isIPv4 ? t("accordion.v4") : t("accordion.v6")}
         </Badge>
       </TableCell>
       <TableCell className="font-mono text-sm">
@@ -374,29 +299,28 @@ function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
               {t("shared.reject")}
             </Badge>
           )}
-          {route.next_hops.slice(0, 5).map((nh, idx) => (
+          {route.next_hops.slice(0, 5).map((nh) => (
             <Badge
-              key={`nh-${idx}`}
+              key={`nh-${nh.address}`}
               variant="secondary"
-              className={cn(
-                "text-xs font-mono",
-                nh.disable && "opacity-50 line-through"
-              )}
+              className={cn("text-xs font-mono", nh.disable && "opacity-50 line-through")}
             >
               <ArrowRight className="h-3 w-3 mr-1" />
               {nh.address}
             </Badge>
           ))}
-          {route.interfaces.slice(0, 5).map((iface, idx) => (
+          {route.interfaces.slice(0, 5).map((iface) => (
             <Badge
-              key={`iface-${idx}`}
+              key={`iface-${iface.interface}`}
               variant="outline"
-              className={cn(
-                "text-xs",
-                iface.disable && "opacity-50 line-through"
-              )}
+              className={cn("text-xs", iface.disable && "opacity-50 line-through")}
             >
               {iface.interface}
+            </Badge>
+          ))}
+          {route.dhcp_interfaces.map((iface) => (
+            <Badge key={`dhcp-${iface}`} variant="outline" className="text-xs">
+              {t("accordion.dhcpInterface", { name: iface })}
             </Badge>
           ))}
           {(route.next_hops.length > 5 || route.interfaces.length > 5) && (
@@ -404,18 +328,20 @@ function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge variant="secondary" className="text-xs cursor-default">
-                    +{Math.max(0, route.next_hops.length - 5) + Math.max(0, route.interfaces.length - 5)}
+                    {t("accordion.more", {
+                      count: Math.max(0, route.next_hops.length - 5) + Math.max(0, route.interfaces.length - 5),
+                    })}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className="flex flex-col gap-1 text-xs">
-                    {route.next_hops.slice(5).map((nh, idx) => (
-                      <span key={`nh-${idx}`} className={cn("font-mono", nh.disable && "opacity-50 line-through")}>
-                        → {nh.address}
+                    {route.next_hops.slice(5).map((nh) => (
+                      <span key={`nh-${nh.address}`} className={cn("font-mono", nh.disable && "opacity-50 line-through")}>
+                        {nh.address}
                       </span>
                     ))}
-                    {route.interfaces.slice(5).map((iface, idx) => (
-                      <span key={`iface-${idx}`} className={cn(iface.disable && "opacity-50 line-through")}>
+                    {route.interfaces.slice(5).map((iface) => (
+                      <span key={`iface-${iface.interface}`} className={cn(iface.disable && "opacity-50 line-through")}>
                         {iface.interface}
                       </span>
                     ))}
@@ -424,35 +350,21 @@ function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
               </Tooltip>
             </TooltipProvider>
           )}
-          {!route.blackhole && !route.reject && route.next_hops.length === 0 && route.interfaces.length === 0 && (
-            <span className="text-muted-foreground text-sm">—</span>
-          )}
         </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {route.description || "—"}
       </TableCell>
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0"
-            onClick={onEdit}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0"
-            onClick={onDelete}
-            disabled={isDeleting}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
-      </TableCell>
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={tc("edit")} onClick={onEdit}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={tc("delete")} onClick={onDelete}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </TableCell>
     </TableRow>
   );
 }

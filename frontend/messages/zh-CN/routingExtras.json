@@ -1,16 +1,20 @@
 {
   "validation": {
-    "destinationRequired": "目标为必填项",
-    "invalidIpv4Cidr": "IPv4 CIDR 格式无效（例如 10.0.0.0/8）",
-    "invalidIpv6Cidr": "IPv6 CIDR 格式无效（例如 2001:db8::/32）",
-    "routingMethodRequired": "至少需要一个下一跳、接口、黑洞或拒绝",
     "interfaceRequired": "接口为必填项",
     "ipAddressRequired": "IP 地址为必填项",
     "invalidIpv4Address": "IPv4 地址格式无效",
     "macAddressRequired": "MAC 地址为必填项",
     "invalidMacAddress": "MAC 地址格式无效（格式为 XX:XX:XX:XX:XX:XX）",
     "tableIdRequired": "路由表 ID 为必填项",
-    "tableIdRange": "路由表 ID 必须是 1 到 200 之间的数字"
+    "tableIdRange": "路由表 ID 必须是 {min} 到 {max} 之间的数字",
+    "arpEntryExists": "此接口上已存在 {name} 的 ARP 条目",
+    "descriptionTooLong": "描述最多 {max} 个字符",
+    "tableExists": "路由表 {name} 已存在",
+    "nextHopAddressRequired": "每个下一跳都需要地址",
+    "nextHopDuplicate": "下一跳 {name} 重复",
+    "interfaceDuplicate": "接口 {name} 重复",
+    "distanceRange": "距离必须介于 {min} 和 {max} 之间",
+    "distanceRangeNamed": "{name} 的距离必须介于 {min} 和 {max} 之间"
   },
   "shared": {
     "interface": "接口",
@@ -38,7 +42,6 @@
     "editDescription": "修改 {interface} 上 {ip} 的静态 ARP 条目",
     "createDescription": "添加静态 ARP 条目，将 IP 地址映射到 MAC 地址",
     "ipAddress": "IP 地址",
-    "ipLocked": "IP 地址无法更改。如需更改，请删除后重新创建。",
     "macAddress": "MAC 地址",
     "descriptionPlaceholder": "此 ARP 条目的描述",
     "updateEntry": "更新条目"
@@ -57,7 +60,13 @@
     "createFailed": "创建组播路由失败",
     "title": "创建组播路由",
     "description": "为组播 RIB 添加静态组播路由",
-    "prefixCidr": "前缀（CIDR）"
+    "prefixCidr": "前缀（CIDR）",
+    "editTitle": "编辑组播路由",
+    "editDescription": "修改 {prefix} 的下一跳和接口",
+    "updateFailed": "更新组播路由失败",
+    "mrouteExists": "{name} 的组播路由已存在",
+    "nextHopAddressInvalid": "下一跳 {name} 不是有效的 IPv4 地址",
+    "interfaceRequired": "每个接口条目都需要接口"
   },
   "deleteMroute": {
     "failed": "删除组播路由失败",
@@ -68,15 +77,16 @@
     "interfaces": "接口："
   },
   "neighborProxyModal": {
-    "ipRequired": "IP 地址为必填项",
-    "interfaceRequired": "接口为必填项",
-    "invalidIpv4": "IPv4 地址格式无效",
     "invalidIpv6": "IPv6 地址格式无效",
     "createFailed": "创建邻居代理条目失败",
     "title": "创建邻居代理条目",
     "description": "为 ARP（IPv4）或 ND（IPv6）添加邻居代理条目",
     "ipv4Address": "IPv4 地址",
-    "ipv6Address": "IPv6 地址"
+    "ipv6Address": "IPv6 地址",
+    "editTitle": "编辑邻居代理条目",
+    "editDescription": "修改代理 {address} 的接口",
+    "updateFailed": "更新邻居代理条目失败",
+    "exists": "{name} 的代理条目已存在"
   },
   "deleteNeighborProxy": {
     "failed": "删除邻居代理条目失败",
@@ -94,39 +104,34 @@
     "createTitle": "创建路由表",
     "editDescription": "更新此路由表的描述",
     "createDescription": "创建用于策略路由的自定义路由表",
-    "tableId": "路由表 ID（1-200）",
+    "tableId": "路由表 ID（{min}-{max}）",
     "descriptionPlaceholder": "此路由表的描述",
     "ipv4Routes": "IPv4 路由：",
     "ipv6Routes": "IPv6 路由：",
     "createTable": "创建路由表"
   },
-  "tableRouteModal": {
-    "updateFailed": "更新路由失败",
-    "createFailed": "创建路由失败",
-    "editTitle": "编辑路由表 {id} 中的路由",
-    "addTitle": "向路由表 {id} 添加路由",
-    "editDescription": "修改路由 {destination}（{type}）",
-    "createDescription": "在此路由表中创建新的静态路由",
-    "destinationCidr": "目标（CIDR）",
-    "destinationLocked": "目标无法更改。如需更改目标，请删除后重新创建。",
-    "routeType": "路由类型",
-    "descriptionPlaceholder": "路由描述"
-  },
   "accordion": {
-    "updateDescriptionFailed": "更新描述失败",
-    "deleteTableConfirm": "确定要删除路由表 {id} 吗？这将移除该表中的所有路由。",
-    "deleteTableFailed": "删除路由表失败",
-    "deleteRouteFailed": "删除路由失败",
     "emptyTitle": "没有路由表",
     "emptyDescription": "未配置自定义路由表。创建一个即可开始使用。",
-    "descriptionPlaceholder": "输入描述...",
     "noDescription": "无描述",
-    "addRoute": "添加路由",
     "noRoutes": "此路由表中没有路由",
-    "addRouteHint": "点击“添加路由”创建一条",
     "type": "类型",
     "destination": "目标",
     "nextHopInterface": "下一跳 / 接口",
-    "action": "操作"
+    "action": "操作",
+    "addIpv4Route": "添加 IPv4 路由",
+    "addIpv6Route": "添加 IPv6 路由",
+    "ipv4Count": "{count} 条 IPv4",
+    "ipv6Count": "{count} 条 IPv6",
+    "v4": "v4",
+    "v6": "v6",
+    "dhcpInterface": "DHCP：{name}",
+    "more": "+{count}"
+  },
+  "deleteTable": {
+    "title": "删除路由表",
+    "description": "确定要删除此路由表吗？",
+    "failed": "删除路由表失败",
+    "tableId": "路由表 ID："
   }
 }

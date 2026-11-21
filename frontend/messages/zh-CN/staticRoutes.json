@@ -47,9 +47,9 @@
     "interfaces": "接口",
     "distance": "距离",
     "type": "类型",
-    "blackhole": "黑洞",
     "disabledSuffix": "（已禁用）",
-    "active": "生效中"
+    "active": "生效中",
+    "partial": "部分"
   },
   "arp": {
     "searchPlaceholder": "搜索 ARP 条目...",
@@ -58,7 +58,8 @@
     "emptyDescription": "未配置静态 ARP 条目",
     "interface": "接口",
     "ipAddress": "IP 地址",
-    "macAddress": "MAC 地址"
+    "macAddress": "MAC 地址",
+    "noMatch": "没有与搜索匹配的 ARP 条目"
   },
   "mroute": {
     "searchPlaceholder": "搜索组播路由...",
@@ -66,20 +67,32 @@
     "emptyTitle": "没有组播路由",
     "emptyDescription": "未配置静态组播路由",
     "prefix": "前缀",
-    "distanceSuffix": "（距离:{distance}）"
+    "distanceSuffix": "（距离:{distance}）",
+    "noMatch": "没有与搜索匹配的组播路由"
   },
   "neighborProxy": {
     "searchPlaceholder": "搜索邻居代理条目...",
     "create": "创建邻居代理",
     "emptyTitle": "没有邻居代理条目",
-    "emptyDescription": "未配置邻居代理条目（ARP 或 ND）"
+    "emptyDescription": "未配置邻居代理条目（ARP 或 ND）",
+    "arpType": "ARP (IPv4)",
+    "ndType": "ND (IPv6)",
+    "noMatch": "没有与搜索匹配的邻居代理条目"
   },
   "tables": {
     "create": "创建路由表"
   },
   "validation": {
     "destinationRequired": "目标为必填项",
-    "routingMethodRequired": "至少需要一种路由方式（下一跳、接口、黑洞或拒绝）"
+    "destinationInvalid": "目标必须是 CIDR 格式的网络",
+    "destinationExists": "到 {name} 的路由已存在",
+    "nextHopAddressInvalid": "下一跳 {name} 不是有效地址",
+    "sourceInvalid": "下一跳 {name} 的多跳源地址无效",
+    "interfaceRequired": "每个接口路由都需要接口",
+    "blackholeAndReject": "路由不能同时为黑洞和拒绝",
+    "rangeTag": "标记必须介于 {min} 和 {max} 之间",
+    "sourceRequired": "下一跳 {name} 的每个多跳源都需要地址",
+    "sourceDuplicate": "下一跳 {name} 的多跳源重复"
   },
   "modal": {
     "updateFailed": "更新路由失败",
@@ -90,13 +103,10 @@
     "createDescription": "为 {family} 流量配置新的静态路由",
     "tabs": {
       "basic": "基本",
-      "routing": "路由",
-      "advanced": "高级"
+      "routing": "路由"
     },
     "destinationNetwork": "目标网络",
     "example": "例如 {value}",
-    "destinationLocked": "目标无法更改。如需更改目标，请删除后重新创建。",
-    "cidrHint": "CIDR 格式的网络",
     "descriptionPlaceholder": "此路由的可选描述",
     "nextHops": "下一跳",
     "addNextHop": "添加下一跳",
@@ -106,7 +116,6 @@
     "defaultOne": "默认：1",
     "enableBfd": "启用 BFD 监测",
     "bfdProfile": "BFD 配置文件",
-    "bfdProfilePlaceholder": "BFD 配置文件名称（可选）",
     "disableNextHop": "禁用此下一跳",
     "noNextHops": "未配置下一跳。点击“添加下一跳”进行添加。",
     "interfaceRoutes": "接口路由",
@@ -115,16 +124,24 @@
     "disableInterface": "禁用此接口路由",
     "noInterfaces": "未配置接口路由。点击“添加接口”进行添加。",
     "blackholeRoute": "黑洞路由（静默丢弃）",
-    "blackholeHelp": "匹配此路由的数据包将被丢弃且不发送通知。",
     "tag": "标记",
     "rejectRoute": "拒绝路由（ICMP 不可达）",
-    "rejectHelp": "匹配此路由的数据包将被拒绝，并返回 ICMP 不可达响应。",
-    "dhcpInterface": "DHCP 接口",
-    "dhcpHelp": "使用此接口上通过 DHCP 获取的网关",
-    "noAdvanced": "此设备上没有可用的高级选项。",
     "updating": "正在更新...",
     "updateRoute": "更新路由",
-    "createRoute": "创建路由"
+    "createRoute": "创建路由",
+    "createTitleTable": "在路由表 {id} 中创建 {type} 路由",
+    "editTitleTable": "编辑路由表 {id} 中的路由",
+    "createTitleVrf": "在 VRF {vrf} 中创建 {type} 路由",
+    "editTitleVrf": "编辑 VRF {vrf} 中的路由",
+    "dhcpInterfaces": "DHCP 接口",
+    "nextHopInterface": "出接口",
+    "vrf": "VRF",
+    "segments": "SRv6 段",
+    "multiHop": "多跳",
+    "multiHopSource": "多跳源地址",
+    "multiHopSourceProfile": "源 BFD 配置文件",
+    "multiHopSources": "多跳源",
+    "addSource": "添加源"
   },
   "deleteModal": {
     "failed": "删除路由失败",
@@ -139,6 +156,20 @@
     "warningTitle": "这将永久删除该路由",
     "warningBody": "发往 {destination} 的流量将不再使用此路由。如有需要，请确保已配置备用路由。",
     "deleteRoute": "删除路由",
-    "tableContainsRoutes": "{count, plural, one {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。} other {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。}}"
+    "tableContainsRoutes": "{count, plural, one {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。} other {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。}}",
+    "titleTable": "从路由表 {id} 删除路由",
+    "rejectRoute": "拒绝路由",
+    "titleVrf": "从 VRF {vrf} 删除路由"
+  },
+  "routeMap": {
+    "buttonSet": "路由映射：{name}",
+    "title": "静态路由映射",
+    "description": "应用于安装到内核的静态路由的路由映射",
+    "label": "路由映射",
+    "saveFailed": "保存路由映射失败"
+  },
+  "family": {
+    "ipv4": "IPv4",
+    "ipv6": "IPv6"
   }
 }

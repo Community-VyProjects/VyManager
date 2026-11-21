@@ -1,7 +1,8 @@
-"""VRF feature op names that existed on the deleted mixins.
+"""VRF feature op allowlist.
 
-This is the allowlist. A global builder method is not a VRF op
-unless its name is here.
+Each name maps onto a global feature builder method run under
+``vrf name <vrf>`` (see ``vrf_protocol``). A global builder method is not
+a VRF op unless its name is here.
 """
 LEGACY_OPS = frozenset({
     'delete_vrf_dhcp',
@@ -259,7 +260,10 @@ LEGACY_OPS = frozenset({
     'delete_vrf_static_route6_interface_segments',
     'delete_vrf_static_route6_interface_vrf',
     'delete_vrf_static_route6_next_hop',
+    'delete_vrf_static_route6_next_hop_bfd',
+    'delete_vrf_static_route6_next_hop_bfd_multi_hop',
     'delete_vrf_static_route6_next_hop_bfd_multi_hop_source',
+    'delete_vrf_static_route6_next_hop_bfd_multi_hop_source_profile',
     'delete_vrf_static_route6_next_hop_bfd_profile',
     'delete_vrf_static_route6_next_hop_disable',
     'delete_vrf_static_route6_next_hop_distance',
@@ -280,7 +284,10 @@ LEGACY_OPS = frozenset({
     'delete_vrf_static_route_interface_segments',
     'delete_vrf_static_route_interface_vrf',
     'delete_vrf_static_route_next_hop',
+    'delete_vrf_static_route_next_hop_bfd',
+    'delete_vrf_static_route_next_hop_bfd_multi_hop',
     'delete_vrf_static_route_next_hop_bfd_multi_hop_source',
+    'delete_vrf_static_route_next_hop_bfd_multi_hop_source_profile',
     'delete_vrf_static_route_next_hop_bfd_profile',
     'delete_vrf_static_route_next_hop_disable',
     'delete_vrf_static_route_next_hop_distance',
@@ -542,7 +549,10 @@ LEGACY_OPS = frozenset({
     'set_vrf_static_route6_interface_segments',
     'set_vrf_static_route6_interface_vrf',
     'set_vrf_static_route6_next_hop',
+    'set_vrf_static_route6_next_hop_bfd',
+    'set_vrf_static_route6_next_hop_bfd_multi_hop',
     'set_vrf_static_route6_next_hop_bfd_multi_hop_source',
+    'set_vrf_static_route6_next_hop_bfd_multi_hop_source_profile',
     'set_vrf_static_route6_next_hop_bfd_profile',
     'set_vrf_static_route6_next_hop_disable',
     'set_vrf_static_route6_next_hop_distance',
@@ -563,7 +573,10 @@ LEGACY_OPS = frozenset({
     'set_vrf_static_route_interface_segments',
     'set_vrf_static_route_interface_vrf',
     'set_vrf_static_route_next_hop',
+    'set_vrf_static_route_next_hop_bfd',
+    'set_vrf_static_route_next_hop_bfd_multi_hop',
     'set_vrf_static_route_next_hop_bfd_multi_hop_source',
+    'set_vrf_static_route_next_hop_bfd_multi_hop_source_profile',
     'set_vrf_static_route_next_hop_bfd_profile',
     'set_vrf_static_route_next_hop_disable',
     'set_vrf_static_route_next_hop_distance',
