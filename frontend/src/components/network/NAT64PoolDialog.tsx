@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle } from "lucide-react";
 import { nat64Service, type NAT64TranslationPool } from "@/lib/api/nat64";
+import { nat64PoolProblem, type NAT64PoolFields } from "@/lib/api/nat64-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface NAT64PoolDialogProps {
   open: boolean;
@@ -74,30 +76,28 @@ export function NAT64PoolDialog({
     setSaving(true);
     setError(null);
     try {
-      const protocol = { tcp, udp, icmp };
-      const poolNumber = isEditing ? pool.pool_number : nextPoolNumber;
+      const fields: NAT64PoolFields = {
+        address,
+        description,
+        port,
+        protocol: { tcp, udp, icmp },
+        disable,
+      };
+      const problem = nat64PoolProblem(fields);
+      if (problem) {
+        setError(t(`poolDialog.${problem}`));
+        return;
+      }
 
       if (isEditing) {
-        await nat64Service.updatePool(ruleNumber, poolNumber, pool, {
-          address,
-          description,
-          port,
-          protocol,
-          disable,
-        });
+        await nat64Service.updatePool(ruleNumber, pool, fields);
       } else {
-        await nat64Service.createPool(ruleNumber, poolNumber, {
-          address: address || undefined,
-          description: description || undefined,
-          port: port || undefined,
-          protocol,
-          disable,
-        });
+        await nat64Service.createPool(ruleNumber, nextPoolNumber, fields);
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSaving(false);
     }
@@ -153,7 +153,7 @@ export function NAT64PoolDialog({
               id="nat64-pool-port"
               value={port}
               onChange={(e) => setPort(e.target.value)}
-              placeholder="1024-65535"
+              placeholder="10000-20000"
               className="font-mono"
             />
           </div>

@@ -34,7 +34,6 @@ from .firewall.bridge_versions import get_bridge_firewall_mapper
 from .nat import NATMapper
 from .nat.nat_versions import get_nat_mapper
 from .nat64 import NAT64Mapper
-from .nat64.nat64_versions import get_nat64_mapper
 from .nat66 import NAT66Mapper
 from .nat66.nat66_versions import get_nat66_mapper
 from .dhcp_server import DHCPServerMapper
@@ -205,8 +204,8 @@ CommandMapperRegistry.register_feature("firewall_ipv4", get_firewall_ipv4_mapper
 CommandMapperRegistry.register_feature("firewall_ipv6", get_firewall_ipv6_mapper)
 # NAT uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("nat", get_nat_mapper)
-# NAT64 uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("nat64", get_nat64_mapper)
+# NAT64 uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("nat64", NAT64Mapper)
 # NAT66 uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("nat66", get_nat66_mapper)
 # DHCP uses factory for version-specific mappers
