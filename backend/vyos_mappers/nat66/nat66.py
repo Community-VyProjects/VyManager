@@ -28,14 +28,71 @@ Common command tree (VyOS 1.4 and 1.5):
     source port <port>
     translation address <ipv6>
     translation port <port>
+
+The ``source group`` and ``destination group`` subtrees on both rule types
+exist only on 1.5; their paths live on the 1.5 subclass.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, FrozenSet, List
 
 from ..base import BaseFeatureMapper
 
 
 class NAT66Mapper(BaseFeatureMapper):
-    """Base NAT66 mapper with path generation for all common nat66 commands."""
+    """Shared nat66 source and destination rule commands (VyOS 1.4 and 1.5)."""
+
+    # node -> path method that only the version subclass defines
+    _VERSIONED_NODES = {
+        "source_rule_source_group": "get_source_rule_source_group",
+        "source_rule_destination_group": "get_source_rule_destination_group",
+        "destination_rule_source_group": "get_destination_rule_source_group",
+        "destination_rule_destination_group": "get_destination_rule_destination_group",
+    }
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only subtrees this device has.
+
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"nat66 {node.replace('_', ' ')} is not supported on this device")
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_nat66_config
+
+        return parse_nat66_config(self, full_config)
+
+    # ==================== Allowed values (lab ``allowed:`` lists) ====================
+
+    def protocols(self) -> List[str]:
+        """``protocol`` completion on both labs: ``all tcp_udp`` plus list_protocols.sh."""
+        return [
+            "all", "tcp_udp",
+            "ip", "hopopt", "icmp", "igmp", "ggp", "ipencap", "st", "tcp", "egp", "igp",
+            "pup", "udp", "hmp", "xns-idp", "rdp", "iso-tp4", "dccp", "xtp", "ddp",
+            "idpr-cmtp", "ipv6", "ipv6-route", "ipv6-frag", "idrp", "rsvp", "gre", "esp",
+            "ah", "skip", "ipv6-icmp", "ipv6-nonxt", "ipv6-opts", "rspf", "vmtp", "eigrp",
+            "ospf", "ax.25", "ipip", "etherip", "encap", "pim", "ipcomp", "vrrp", "l2tp",
+            "isis", "sctp", "fc", "mobility-header", "udplite", "mpls-in-ip", "manet",
+            "hip", "shim6", "wesp", "rohc", "ethernet", "mptcp",
+        ]
+
+    def group_types(self) -> List[str]:
+        """Children of a rule's ``source group`` / ``destination group`` (none on 1.4)."""
+        return []
+
+    def group_keys(self) -> Dict[str, str]:
+        """Parse key of each group match -> its CLI child under ``<side> group``."""
+        from .config_parse import GROUP_KEYS
+
+        return dict(GROUP_KEYS)
 
     # ==================== Source Rule paths ====================
 
@@ -78,8 +135,9 @@ class NAT66Mapper(BaseFeatureMapper):
     def get_source_rule_outbound_interface_name(self, rule_number: int, name: str) -> List[str]:
         return ["nat66", "source", "rule", str(rule_number), "outbound-interface", "name", name]
 
-    def get_source_rule_outbound_interface_name_path(self, rule_number: int) -> List[str]:
-        return ["nat66", "source", "rule", str(rule_number), "outbound-interface", "name"]
+    def get_source_rule_outbound_interface_path(self, rule_number: int) -> List[str]:
+        # `name` is the only child; deleting it alone leaves an empty node 1.4 cannot render
+        return ["nat66", "source", "rule", str(rule_number), "outbound-interface"]
 
     # Source rule - source
     def get_source_rule_source_prefix(self, rule_number: int, prefix: str) -> List[str]:
@@ -161,8 +219,9 @@ class NAT66Mapper(BaseFeatureMapper):
     def get_destination_rule_inbound_interface_name(self, rule_number: int, name: str) -> List[str]:
         return ["nat66", "destination", "rule", str(rule_number), "inbound-interface", "name", name]
 
-    def get_destination_rule_inbound_interface_name_path(self, rule_number: int) -> List[str]:
-        return ["nat66", "destination", "rule", str(rule_number), "inbound-interface", "name"]
+    def get_destination_rule_inbound_interface_path(self, rule_number: int) -> List[str]:
+        # `name` is the only child; deleting it alone leaves an empty node 1.4 cannot render
+        return ["nat66", "destination", "rule", str(rule_number), "inbound-interface"]
 
     # Destination rule - source
     def get_destination_rule_source_address(self, rule_number: int, address: str) -> List[str]:
@@ -202,63 +261,3 @@ class NAT66Mapper(BaseFeatureMapper):
 
     def get_destination_rule_translation_port_path(self, rule_number: int) -> List[str]:
         return ["nat66", "destination", "rule", str(rule_number), "translation", "port"]
-
-    # ==================== Config Parsing ====================
-
-    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse nat66 source and destination rules from the VyOS config tree."""
-        nat66_config = full_config.get("nat66", {})
-        return {
-            "source_rules": self._parse_rules(nat66_config.get("source", {}).get("rule", {}), "prefix", "outbound"),
-            "destination_rules": self._parse_rules(nat66_config.get("destination", {}).get("rule", {}), "address", "inbound"),
-        }
-
-    def _parse_group(self, group_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        group = {
-            "address_group": group_config.get("address-group"),
-            "domain_group": group_config.get("domain-group"),
-            "mac_group": group_config.get("mac-group"),
-            "network_group": group_config.get("network-group"),
-            "port_group": group_config.get("port-group"),
-        }
-        return group if any(group.values()) else None
-
-    def _parse_rules(self, rules_config: Dict[str, Any], match_key: str, direction: str) -> List[Dict[str, Any]]:
-        """Source rules match on prefix and an outbound interface; destination rules on address and an inbound interface."""
-        rules = []
-        for rule_num_str, rule_data in rules_config.items():
-            try:
-                rule_number = int(rule_num_str)
-            except (ValueError, TypeError):
-                continue
-
-            source_config = rule_data.get("source", {})
-            dest_config = rule_data.get("destination", {})
-            translation_config = rule_data.get("translation", {})
-            interface = rule_data.get(f"{direction}-interface", {})
-
-            rules.append({
-                "rule_number": rule_number,
-                "description": rule_data.get("description"),
-                "disable": "disable" in rule_data,
-                "exclude": "exclude" in rule_data,
-                "log": "log" in rule_data,
-                "protocol": rule_data.get("protocol"),
-                f"{direction}_interface": interface.get("name") if isinstance(interface, dict) else None,
-                "source": {
-                    match_key: source_config.get(match_key),
-                    "port": source_config.get("port"),
-                } if source_config else None,
-                "destination": {
-                    match_key: dest_config.get(match_key),
-                    "port": dest_config.get("port"),
-                    "group": self._parse_group(dest_config.get("group", {})),
-                } if dest_config else None,
-                "translation": {
-                    "address": translation_config.get("address"),
-                    "port": translation_config.get("port"),
-                } if translation_config else None,
-            })
-
-        rules.sort(key=lambda rule: rule["rule_number"])
-        return rules
