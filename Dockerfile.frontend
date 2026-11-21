@@ -45,18 +45,23 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Install netcat for health checks and wait scripts
-RUN apk add --no-cache netcat-openbsd
+RUN apk add --no-cache netcat-openbsd && chown node:node /app
 
 # Copy only necessary production artifacts
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=node:node /app/package*.json ./
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/public ./public
 
 # Copy and set entrypoint script
 COPY frontend/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Run as the unprivileged node user (uid 1000). The entrypoint runs
+# `prisma generate` (writes node_modules) and may write prisma/migrations,
+# so /app is owned by node.
+USER 1000:1000
 
 # Expose port
 EXPOSE 3000
