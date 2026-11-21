@@ -368,6 +368,24 @@ class L2TPService {
     return this.batchConfigure(name, ops);
   }
 
+  // Edit in one commit with only the changed fields. A changed value is
+  // deleted before the new one is set, so a multi-value range is replaced.
+  async updateIPPool(current: L2TPClientIPPool, config: {
+    range?: string;
+    next_pool?: string;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [];
+    for (const field of ["range", "next_pool"] as const) {
+      const next = config[field];
+      const prev = current[field];
+      if ((next || "") === (prev || "")) continue;
+      if (prev) ops.push({ op: `delete_client_ip_pool_${field}` });
+      if (next) ops.push({ op: `set_client_ip_pool_${field}`, value: next });
+    }
+    if (ops.length === 0) return { success: true };
+    return this.batchConfigure(current.name, ops);
+  }
+
   async deleteIPPool(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_client_ip_pool" }]);
   }
@@ -394,6 +412,47 @@ class L2TPService {
       }
     }
     return this.batchConfigure(name, ops);
+  }
+
+  // Edit in one commit: a prefix or delegate that was removed or whose
+  // mask/delegation prefix changed is deleted, then the new ones are set.
+  async updateIPv6Pool(current: L2TPClientIPv6Pool, config: {
+    prefixes?: Array<{ prefix: string; mask?: string }>;
+    delegates?: Array<{ prefix: string; delegation_prefix?: string }>;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [];
+    const diff = (
+      prev: Array<{ prefix: string; sub: string }>,
+      next: Array<{ prefix: string; sub: string }>,
+      kind: "prefix" | "delegate",
+      subOp: string,
+    ) => {
+      const key = (e: { prefix: string; sub: string }) => `${e.prefix}|${e.sub}`;
+      const prevKeys = new Set(prev.map(key));
+      const nextKeys = new Set(next.map(key));
+      for (const e of prev) {
+        if (!nextKeys.has(key(e))) ops.push({ op: `delete_client_ipv6_pool_${kind}`, value: e.prefix });
+      }
+      for (const e of next) {
+        if (prevKeys.has(key(e))) continue;
+        ops.push({ op: `set_client_ipv6_pool_${kind}`, value: e.prefix });
+        if (e.sub) ops.push({ op: subOp, value: key(e) });
+      }
+    };
+    diff(
+      (current.prefixes || []).map((p) => ({ prefix: p.prefix, sub: p.mask || "" })),
+      (config.prefixes || []).map((p) => ({ prefix: p.prefix, sub: p.mask || "" })),
+      "prefix",
+      "set_client_ipv6_pool_prefix_mask",
+    );
+    diff(
+      (current.delegates || []).map((d) => ({ prefix: d.prefix, sub: d.delegation_prefix || "" })),
+      (config.delegates || []).map((d) => ({ prefix: d.prefix, sub: d.delegation_prefix || "" })),
+      "delegate",
+      "set_client_ipv6_pool_delegate_prefix",
+    );
+    if (ops.length === 0) return { success: true };
+    return this.batchConfigure(current.name, ops);
   }
 
   async deleteIPv6Pool(name: string): Promise<VyOSResponse> {

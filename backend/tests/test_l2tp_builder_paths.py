@@ -29,6 +29,8 @@ COMMON_CASES = [
     ('delete_client_ip_pool_next_pool', ('G0',), 'delete', ['vpn', 'l2tp', 'remote-access', 'client-ip-pool', 'G0', 'next-pool']),
     ('delete_client_ip_pool_range', ('G0',), 'delete', ['vpn', 'l2tp', 'remote-access', 'client-ip-pool', 'G0', 'range']),
     ('delete_client_ipv6_pool', ('G0',), 'delete', ['vpn', 'l2tp', 'remote-access', 'client-ipv6-pool', 'G0']),
+    ('delete_client_ipv6_pool_delegate', ('G0', '2001:db8::/32'), 'delete', ['vpn', 'l2tp', 'remote-access', 'client-ipv6-pool', 'G0', 'delegate', '2001:db8::/32']),
+    ('delete_client_ipv6_pool_prefix', ('G0', '2001:db8::/32'), 'delete', ['vpn', 'l2tp', 'remote-access', 'client-ipv6-pool', 'G0', 'prefix', '2001:db8::/32']),
     ('delete_default_ipv6_pool', ('G0',), 'delete', ['vpn', 'l2tp', 'remote-access', 'default-ipv6-pool']),
     ('delete_default_pool', ('G0',), 'delete', ['vpn', 'l2tp', 'remote-access', 'default-pool']),
     ('delete_description', ('G0',), 'delete', ['vpn', 'l2tp', 'remote-access', 'description']),

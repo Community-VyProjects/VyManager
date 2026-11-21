@@ -63,9 +63,7 @@ export function IPv6PoolModal({
     setError(null);
 
     try {
-      if (isEdit) await l2tpService.deleteIPv6Pool(existingPool!.name);
-
-      const result = await l2tpService.createIPv6Pool(name.trim(), {
+      const config = {
         prefixes: prefixes.filter(p => p.prefix).map(p => ({
           prefix: p.prefix,
           mask: p.mask || undefined,
@@ -74,7 +72,10 @@ export function IPv6PoolModal({
           prefix: d.prefix,
           delegation_prefix: d.delegation_prefix || undefined,
         })),
-      });
+      };
+      const result = isEdit
+        ? await l2tpService.updateIPv6Pool(existingPool!, config)
+        : await l2tpService.createIPv6Pool(name.trim(), config);
 
       if (result.success) {
         onOpenChange(false);
