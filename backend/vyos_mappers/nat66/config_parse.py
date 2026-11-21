@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from .nat66 import NAT66Mapper
 
 # parse key -> CLI child under ``<side> group``
-GROUP_KEYS = {
+_GROUP_KEYS = {
     "address_group": "address-group",
     "domain_group": "domain-group",
     "mac_group": "mac-group",
@@ -18,7 +18,7 @@ GROUP_KEYS = {
 def _parse_group(group_config: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(group_config, dict):
         return None
-    group = {key: group_config.get(leaf) for key, leaf in GROUP_KEYS.items()}
+    group = {key: group_config.get(leaf) for key, leaf in _GROUP_KEYS.items()}
     return group if any(group.values()) else None
 
 

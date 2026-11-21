@@ -59,6 +59,7 @@ export default function NAT66Page() {
   const [config, setConfig] = useState<NAT66ConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<NAT66Capabilities | null>(null);
   const [groupsConfig, setGroupsConfig] = useState<GroupsConfigResponse | null>(null);
+  const [groupsFailed, setGroupsFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,24 +74,29 @@ export default function NAT66Page() {
     try {
       setLoading(true);
       setError(null);
-      const data = await nat66Service.getConfig(refresh);
+      // Capabilities come with every (re)load so a failed first read is retried too.
+      const [data, caps] = await Promise.all([
+        nat66Service.getConfig(refresh),
+        nat66Service.getCapabilities(),
+      ]);
       setConfig(data);
+      setCapabilities(caps);
     } catch (err) {
       setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
+    try {
+      setGroupsConfig(await firewallGroupsService.getConfig());
+      setGroupsFailed(false);
+    } catch {
+      setGroupsFailed(true);
+    }
   }, [t]);
 
   useEffect(() => {
     fetchConfig();
-    nat66Service
-      .getCapabilities()
-      .then(setCapabilities)
-      .catch((err) => setError((err as ApiError).message || t("page.loadFailed")));
-    firewallGroupsService.getConfig().then(setGroupsConfig).catch(console.error);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchConfig]);
 
   const sourceRules = config?.source_rules ?? [];
   const destinationRules = config?.destination_rules ?? [];
@@ -176,7 +182,9 @@ export default function NAT66Page() {
                 ))}
               </ul>
             ) : (
-              <p className="text-muted-foreground">{t("page.noMembers")}</p>
+              <p className="text-muted-foreground">
+                {groupsFailed ? t("ruleDialog.groupsLoadFailed") : t("page.noMembers")}
+              </p>
             )}
           </div>
         </TooltipContent>
@@ -207,19 +215,24 @@ export default function NAT66Page() {
     );
   };
 
-  // Port, or the port group, of one rule side
+  // Port and port group of one rule side
   const renderPort = (side: NAT66RuleMatch | null | undefined) => {
-    if (side?.port) {
-      return (
-        <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-          {side.port}
-        </code>
-      );
+    const portGroup = groupsSupported ? side?.group?.port_group : null;
+    if (!side?.port && !portGroup) {
+      return <span className="text-xs text-muted-foreground">-</span>;
     }
-    if (groupsSupported && side?.group?.port_group) {
-      return <GroupBadgeWithTooltip label={t("page.groupLabels.port")} groupName={side.group.port_group} groupType="port" />;
-    }
-    return <span className="text-xs text-muted-foreground">-</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {side?.port && (
+          <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
+            {side.port}
+          </code>
+        )}
+        {portGroup && (
+          <GroupBadgeWithTooltip label={t("page.groupLabels.port")} groupName={portGroup} groupType="port" />
+        )}
+      </div>
+    );
   };
 
   // Permission checks

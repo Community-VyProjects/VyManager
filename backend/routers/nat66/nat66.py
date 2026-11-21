@@ -287,19 +287,18 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
 
 def _set_groups(
     set_group: Callable[[int, str, str], Any],
-    mapper: NAT66Mapper,
     number: int,
     side: Optional[NAT66RuleMatch],
 ) -> None:
+    """Re-set each group match; the builder rejects a type the device lacks (ValueError)."""
     if side is None or side.group is None:
         return
-    names = side.group.model_dump()
-    for key, group_type in mapper.group_keys().items():
-        if names[key]:
-            set_group(number, group_type, names[key])
+    for key, name in side.group.model_dump().items():
+        if name:
+            set_group(number, key.replace("_", "-"), name)
 
 
-def _recreate_source_rule(batch: NAT66BatchBuilder, mapper: NAT66Mapper, num: int, rd: NAT66RuleData) -> None:
+def _recreate_source_rule(batch: NAT66BatchBuilder, num: int, rd: NAT66RuleData) -> None:
     batch.set_source_rule(num)
     if rd.description:
         batch.set_source_rule_description(num, rd.description)
@@ -318,13 +317,13 @@ def _recreate_source_rule(batch: NAT66BatchBuilder, mapper: NAT66Mapper, num: in
             batch.set_source_rule_source_prefix(num, rd.source.prefix)
         if rd.source.port:
             batch.set_source_rule_source_port(num, rd.source.port)
-    _set_groups(batch.set_source_rule_source_group, mapper, num, rd.source)
+    _set_groups(batch.set_source_rule_source_group, num, rd.source)
     if rd.destination is not None:
         if rd.destination.prefix:
             batch.set_source_rule_destination_prefix(num, rd.destination.prefix)
         if rd.destination.port:
             batch.set_source_rule_destination_port(num, rd.destination.port)
-    _set_groups(batch.set_source_rule_destination_group, mapper, num, rd.destination)
+    _set_groups(batch.set_source_rule_destination_group, num, rd.destination)
     if rd.translation is not None:
         if rd.translation.address:
             batch.set_source_rule_translation_address(num, rd.translation.address)
@@ -332,7 +331,7 @@ def _recreate_source_rule(batch: NAT66BatchBuilder, mapper: NAT66Mapper, num: in
             batch.set_source_rule_translation_port(num, rd.translation.port)
 
 
-def _recreate_destination_rule(batch: NAT66BatchBuilder, mapper: NAT66Mapper, num: int, rd: NAT66RuleData) -> None:
+def _recreate_destination_rule(batch: NAT66BatchBuilder, num: int, rd: NAT66RuleData) -> None:
     batch.set_destination_rule(num)
     if rd.description:
         batch.set_destination_rule_description(num, rd.description)
@@ -351,13 +350,13 @@ def _recreate_destination_rule(batch: NAT66BatchBuilder, mapper: NAT66Mapper, nu
             batch.set_destination_rule_source_address(num, rd.source.address)
         if rd.source.port:
             batch.set_destination_rule_source_port(num, rd.source.port)
-    _set_groups(batch.set_destination_rule_source_group, mapper, num, rd.source)
+    _set_groups(batch.set_destination_rule_source_group, num, rd.source)
     if rd.destination is not None:
         if rd.destination.address:
             batch.set_destination_rule_destination_address(num, rd.destination.address)
         if rd.destination.port:
             batch.set_destination_rule_destination_port(num, rd.destination.port)
-    _set_groups(batch.set_destination_rule_destination_group, mapper, num, rd.destination)
+    _set_groups(batch.set_destination_rule_destination_group, num, rd.destination)
     if rd.translation is not None:
         if rd.translation.address:
             batch.set_destination_rule_translation_address(num, rd.translation.address)
@@ -374,9 +373,7 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        batch = NAT66BatchBuilder(version=version)
-        mapper = cast(NAT66Mapper, CommandMapperRegistry.get_mapper("nat66", version))
+        batch = NAT66BatchBuilder(version=service.get_version())
         is_source = request.rule_type == "source"
 
         try:
@@ -390,9 +387,9 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
                 if item.new_number is None or item.rule_data is None:
                     continue  # delete-only item: removed above, not recreated
                 if is_source:
-                    _recreate_source_rule(batch, mapper, item.new_number, item.rule_data)
+                    _recreate_source_rule(batch, item.new_number, item.rule_data)
                 else:
-                    _recreate_destination_rule(batch, mapper, item.new_number, item.rule_data)
+                    _recreate_destination_rule(batch, item.new_number, item.rule_data)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 

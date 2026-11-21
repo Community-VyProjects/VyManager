@@ -243,22 +243,19 @@ class NAT66BatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         """Return NAT66 capabilities; group matches follow the mapper allowlist."""
         m = self._m()
-        # every version-only nat66 subtree is a group match
-        groups = bool(m.versioned_nodes())
-        group_ops = {
-            "source_rule": [
-                "set_source_rule_source_group",
-                "delete_source_rule_source_group",
-                "set_source_rule_destination_group",
-                "delete_source_rule_destination_group",
-            ],
-            "destination_rule": [
-                "set_destination_rule_source_group",
-                "delete_destination_rule_source_group",
-                "set_destination_rule_destination_group",
-                "delete_destination_rule_destination_group",
-            ],
+        nodes = m.versioned_nodes()
+        # allowlist node -> rule type; the node name is also its op suffix
+        group_nodes = {
+            "source_rule_source_group": "source_rule",
+            "source_rule_destination_group": "source_rule",
+            "destination_rule_source_group": "destination_rule",
+            "destination_rule_destination_group": "destination_rule",
         }
+        group_ops: Dict[str, List[str]] = {"source_rule": [], "destination_rule": []}
+        for node, rule_type in group_nodes.items():
+            if node in nodes:
+                group_ops[rule_type] += [f"set_{node}", f"delete_{node}"]
+        groups = set(group_nodes) <= nodes
         return {
             "version": self.version,
             "supported": True,
@@ -310,7 +307,7 @@ class NAT66BatchBuilder(BatchBuilder):
                     "delete_source_rule_translation_address",
                     "set_source_rule_translation_port",
                     "delete_source_rule_translation_port",
-                ] + (group_ops["source_rule"] if groups else []),
+                ] + group_ops["source_rule"],
                 "destination_rule": [
                     "set_destination_rule",
                     "delete_destination_rule",
@@ -338,6 +335,6 @@ class NAT66BatchBuilder(BatchBuilder):
                     "delete_destination_rule_translation_address",
                     "set_destination_rule_translation_port",
                     "delete_destination_rule_translation_port",
-                ] + (group_ops["destination_rule"] if groups else []),
+                ] + group_ops["destination_rule"],
             },
         }

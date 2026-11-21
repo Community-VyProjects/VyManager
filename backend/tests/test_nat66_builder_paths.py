@@ -156,6 +156,18 @@ ONLY_1_5 = [
         "delete",
         D + ["destination", "group", "port-group"],
     ),
+    (
+        "set_source_rule_source_group",
+        (RULE, "domain-group", "T-D"),
+        "set",
+        S + ["source", "group", "domain-group", "T-D"],
+    ),
+    (
+        "delete_destination_rule_source_group",
+        (RULE, "domain-group"),
+        "delete",
+        D + ["source", "group", "domain-group"],
+    ),
 ]
 
 V1_4 = "1.4.3"

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle } from "lucide-react";
 import {
   nat66Service,
@@ -35,6 +36,7 @@ import {
 import {
   PORT_PROTOCOLS,
   emptySide,
+  groupKey,
   nat66RuleProblem,
   sideFields,
   type NAT66RuleFields,
@@ -107,8 +109,8 @@ export function NAT66RuleDialog({
   const [description, setDescription] = useState("");
   const [protocol, setProtocol] = useState("");
   const [interfaceName, setInterfaceName] = useState("");
-  const [source, setSource] = useState<NAT66SideFields>(() => emptySide([]));
-  const [destination, setDestination] = useState<NAT66SideFields>(() => emptySide([]));
+  const [source, setSource] = useState<NAT66SideFields>(emptySide);
+  const [destination, setDestination] = useState<NAT66SideFields>(emptySide);
   const [translationType, setTranslationType] = useState<"address" | "masquerade">("address");
   const [translationAddress, setTranslationAddress] = useState("");
   const [translationPort, setTranslationPort] = useState("");
@@ -125,7 +127,7 @@ export function NAT66RuleDialog({
       firewallGroupsService
         .getConfig()
         .then(setGroupsConfig)
-        .catch((err) => setError((err as ApiError).message || t("ruleDialog.groupsLoadFailed")));
+        .catch(() => setError(t("ruleDialog.groupsLoadFailed")));
     }
   }, [open, groupsSupported, t]);
 
@@ -144,8 +146,8 @@ export function NAT66RuleDialog({
           ? (editingRule as NAT66SourceRule).outbound_interface
           : (editingRule as NAT66DestinationRule).inbound_interface) || ""
       );
-      setSource(sideFields(editingRule.source, matchKey, groupTypes));
-      setDestination(sideFields(editingRule.destination, matchKey, groupTypes));
+      setSource(sideFields(editingRule.source, matchKey));
+      setDestination(sideFields(editingRule.destination, matchKey));
       const isMasq = isSource && editingRule.translation?.address === "masquerade";
       setTranslationType(isMasq ? "masquerade" : "address");
       setTranslationAddress(isMasq ? "" : editingRule.translation?.address || "");
@@ -154,8 +156,8 @@ export function NAT66RuleDialog({
       setDescription("");
       setProtocol("");
       setInterfaceName("");
-      setSource(emptySide(groupTypes));
-      setDestination(emptySide(groupTypes));
+      setSource(emptySide());
+      setDestination(emptySide());
       setTranslationType(isSource ? "masquerade" : "address");
       setTranslationAddress("");
       setTranslationPort("");
@@ -163,7 +165,7 @@ export function NAT66RuleDialog({
       setExclude(false);
       setLog(false);
     }
-  }, [open, editingRule, isSource, matchKey, groupTypes]);
+  }, [open, editingRule, isSource, matchKey]);
 
   const showPortFields = PORT_PROTOCOLS.includes(protocol);
 
@@ -245,29 +247,19 @@ export function NAT66RuleDialog({
         {groupTypes
           .filter((type) => type !== "port-group" || showPortFields)
           .map((type) => {
-            const current = fields.groups[type] ?? "";
+            const key = groupKey(type);
             const names = (groupsConfig && GROUP_OPTIONS[type] ? GROUP_OPTIONS[type](groupsConfig) : []).map(
               (group) => group.name
             );
             return (
               <div key={type} className="space-y-2">
                 <Label htmlFor={`nat66-${side}-${type}`}>{groupLabel(type)}</Label>
-                <Select
-                  value={toNamedListValue(current)}
-                  onValueChange={(value) =>
-                    setFields({ ...fields, groups: { ...fields.groups, [type]: fromNamedListValue(value) } })
-                  }
-                >
-                  <SelectTrigger id={`nat66-${side}-${type}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
-                    {listedNames(names, current).map((name) => (
-                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NamedListSelect
+                  id={`nat66-${side}-${type}`}
+                  value={fields.groups[key] ?? ""}
+                  names={names}
+                  onValueChange={(value) => setFields({ ...fields, groups: { ...fields.groups, [key]: value } })}
+                />
               </div>
             );
           })}
@@ -341,6 +333,7 @@ export function NAT66RuleDialog({
                   onValueChange={setInterfaceName}
                   id="nat66-iface"
                   placeholder={tc("selectInterface")}
+                  noneOption={{ label: tc("none"), value: "" }}
                 />
               </div>
 
@@ -395,7 +388,7 @@ export function NAT66RuleDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE_SENTINEL}>{t("ruleDialog.protocolAll")}</SelectItem>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                     {listedNames(protocols, protocol).map((name) => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ))}

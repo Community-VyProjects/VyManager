@@ -12,16 +12,16 @@ export type NAT66Side = "source" | "destination";
 /** Protocols whose rules can match or translate a port (nft needs a transport match). */
 export const PORT_PROTOCOLS: readonly string[] = ["tcp", "udp", "tcp_udp"];
 
-/** Group types of which 1.5 verify allows one per side. */
-const EXCLUSIVE_GROUP_TYPES: readonly string[] = ["address-group", "domain-group", "network-group"];
+/** Group matches of which 1.5 verify allows one per side. */
+const EXCLUSIVE_GROUPS: readonly (keyof NAT66RuleGroup)[] = ["address_group", "domain_group", "network_group"];
 
 /** One side (source or destination) of a rule as the dialog edits it. */
 export interface NAT66SideFields {
   /** ``prefix`` on source rules, ``address`` on destination rules. */
   match: string;
   port: string;
-  /** Group name per CLI group type (``address-group`` ...); "" for none. */
-  groups: Record<string, string>;
+  /** Group name per group match; "" for none, absent when the dialog never loaded it. */
+  groups: NAT66RuleGroup;
 }
 
 export interface NAT66RuleFields {
@@ -60,8 +60,8 @@ function effectivePort(fields: NAT66RuleFields, value: string): string {
   return portsApply(fields.protocol) ? text(value) : "";
 }
 
-function effectiveGroup(fields: NAT66RuleFields, groupType: string, value: string | undefined): string {
-  if (groupType === "port-group" && !portsApply(fields.protocol)) return "";
+function effectiveGroup(fields: NAT66RuleFields, key: keyof NAT66RuleGroup, value: string | null | undefined): string {
+  if (key === "port_group" && !portsApply(fields.protocol)) return "";
   return text(value);
 }
 
@@ -89,21 +89,20 @@ function flag(
   else if (!after && before) ops.push({ op: deleteOp });
 }
 
-/** Blank side fields for every group type the device has. */
-export function emptySide(groupTypes: readonly string[]): NAT66SideFields {
-  return { match: "", port: "", groups: Object.fromEntries(groupTypes.map((type) => [type, ""])) };
+/** Blank side fields: no group match is touched until the user picks one. */
+export function emptySide(): NAT66SideFields {
+  return { match: "", port: "", groups: {} };
 }
 
 /** Side fields loaded from a parsed rule side. */
 export function sideFields(
   side: NAT66RuleMatch | null | undefined,
   matchKey: "prefix" | "address",
-  groupTypes: readonly string[],
 ): NAT66SideFields {
   return {
     match: side?.[matchKey] ?? "",
     port: side?.port ?? "",
-    groups: Object.fromEntries(groupTypes.map((type) => [type, side?.group?.[groupKey(type)] ?? ""])),
+    groups: { ...(side?.group ?? {}) },
   };
 }
 
@@ -117,7 +116,7 @@ export function nat66RuleProblem(fields: NAT66RuleFields): NAT66RuleProblem | nu
     return "translationRequired";
   }
   for (const side of [fields.source, fields.destination]) {
-    const exclusive = EXCLUSIVE_GROUP_TYPES.filter((type) => effectiveGroup(fields, type, side.groups[type]));
+    const exclusive = EXCLUSIVE_GROUPS.filter((key) => effectiveGroup(fields, key, side.groups[key]));
     if (exclusive.length > 1) return "oneAddressGroup";
   }
   return null;
@@ -137,10 +136,11 @@ function sideOps(
   leaf(ops, `set_${prefix}_${matchKey}`, `delete_${prefix}_${matchKey}`, before?.[matchKey], after.match);
   leaf(ops, `set_${prefix}_port`, `delete_${prefix}_port`, before?.port, effectivePort(fields, after.port));
   for (const type of groupTypes) {
-    const raw = after.groups[type];
-    if (raw === undefined) continue; // not loaded into the dialog: leave it as it is
-    const was = text(before?.group?.[groupKey(type)]);
-    const now = effectiveGroup(fields, type, raw);
+    const key = groupKey(type);
+    const raw = after.groups[key];
+    if (raw === undefined) continue; // never loaded or picked in the dialog: leave it as it is
+    const was = text(before?.group?.[key]);
+    const now = effectiveGroup(fields, key, raw);
     if (now === was) continue;
     ops.push(
       now

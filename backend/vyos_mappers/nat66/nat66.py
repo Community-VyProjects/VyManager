@@ -88,12 +88,6 @@ class NAT66Mapper(BaseFeatureMapper):
         """Children of a rule's ``source group`` / ``destination group`` (none on 1.4)."""
         return []
 
-    def group_keys(self) -> Dict[str, str]:
-        """Parse key of each group match -> its CLI child under ``<side> group``."""
-        from .config_parse import GROUP_KEYS
-
-        return dict(GROUP_KEYS)
-
     # ==================== Source Rule paths ====================
 
     def get_source_rule(self, rule_number: int) -> List[str]:

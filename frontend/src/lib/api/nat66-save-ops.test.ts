@@ -43,13 +43,13 @@ const DESTINATION_RULE: NAT66DestinationRule = {
   translation: { address: "fd00::10", port: null },
 };
 
-function sourceFields(rule: NAT66SourceRule, groupTypes = GROUP_TYPES): NAT66RuleFields {
+function sourceFields(rule: NAT66SourceRule): NAT66RuleFields {
   return {
     description: rule.description ?? "",
     protocol: rule.protocol ?? "",
     interfaceName: rule.outbound_interface ?? "",
-    source: sideFields(rule.source, "prefix", groupTypes),
-    destination: sideFields(rule.destination, "prefix", groupTypes),
+    source: sideFields(rule.source, "prefix"),
+    destination: sideFields(rule.destination, "prefix"),
     translationAddress: rule.translation?.address ?? "",
     translationPort: rule.translation?.port ?? "",
     disable: rule.disable,
@@ -58,13 +58,13 @@ function sourceFields(rule: NAT66SourceRule, groupTypes = GROUP_TYPES): NAT66Rul
   };
 }
 
-function destinationFields(rule: NAT66DestinationRule, groupTypes = GROUP_TYPES): NAT66RuleFields {
+function destinationFields(rule: NAT66DestinationRule): NAT66RuleFields {
   return {
     description: rule.description ?? "",
     protocol: rule.protocol ?? "",
     interfaceName: rule.inbound_interface ?? "",
-    source: sideFields(rule.source, "address", groupTypes),
-    destination: sideFields(rule.destination, "address", groupTypes),
+    source: sideFields(rule.source, "address"),
+    destination: sideFields(rule.destination, "address"),
     translationAddress: rule.translation?.address ?? "",
     translationPort: rule.translation?.port ?? "",
     disable: rule.disable,
@@ -98,9 +98,9 @@ describe("nat66RuleProblem", () => {
 
   it("allows one address, network or domain group per side", () => {
     const fields = sourceFields(SOURCE_RULE);
-    const two = { ...fields, destination: { ...fields.destination, groups: { ...fields.destination.groups, "address-group": "T-A6" } } };
+    const two = { ...fields, destination: { ...fields.destination, groups: { ...fields.destination.groups, address_group: "T-A6" } } };
     assert.equal(nat66RuleProblem(two), "oneAddressGroup");
-    const withMac = { ...fields, source: { ...fields.source, groups: { ...fields.source.groups, "address-group": "T-A6" } } };
+    const withMac = { ...fields, source: { ...fields.source, groups: { ...fields.source.groups, address_group: "T-A6" } } };
     assert.equal(nat66RuleProblem(withMac), null);
   });
 });
@@ -110,7 +110,7 @@ describe("rule ops", () => {
     assert.deepEqual(buildRuleUpdateOps("source", SOURCE_RULE, sourceFields(SOURCE_RULE), GROUP_TYPES), []);
     const padded = sourceFields(SOURCE_RULE);
     padded.description = " v6 out ";
-    padded.source = { ...padded.source, match: " fd00::/64 ", groups: { ...padded.source.groups, "mac-group": " T-MAC " } };
+    padded.source = { ...padded.source, match: " fd00::/64 ", groups: { ...padded.source.groups, mac_group: " T-MAC " } };
     assert.deepEqual(buildRuleUpdateOps("source", SOURCE_RULE, padded, GROUP_TYPES), []);
     assert.deepEqual(
       buildRuleUpdateOps("destination", DESTINATION_RULE, destinationFields(DESTINATION_RULE), GROUP_TYPES),
@@ -122,8 +122,8 @@ describe("rule ops", () => {
     const fields = sourceFields(SOURCE_RULE);
     fields.description = "";
     fields.interfaceName = " eth2 ";
-    fields.source = { ...fields.source, match: "", groups: { ...fields.source.groups, "mac-group": "", "address-group": "T-A6" } };
-    fields.destination = { ...fields.destination, groups: { ...fields.destination.groups, "network-group": "" } };
+    fields.source = { ...fields.source, match: "", groups: { ...fields.source.groups, mac_group: "", address_group: "T-A6" } };
+    fields.destination = { ...fields.destination, groups: { ...fields.destination.groups, network_group: "" } };
     fields.translationAddress = "fd00::1";
     fields.translationPort = " 8080 ";
     assert.deepEqual(buildRuleUpdateOps("source", SOURCE_RULE, fields, GROUP_TYPES), [
@@ -147,10 +147,12 @@ describe("rule ops", () => {
     ]);
   });
 
-  it("leaves groups alone when the device has no group types", () => {
-    const fields = sourceFields(SOURCE_RULE, []);
-    assert.deepEqual(buildRuleUpdateOps("source", SOURCE_RULE, fields, []), []);
-    assert.deepEqual(buildRuleUpdateOps("source", SOURCE_RULE, fields, GROUP_TYPES), []);
+  it("leaves groups alone when the device has no group types or the dialog never set them", () => {
+    const cleared = sourceFields(SOURCE_RULE);
+    cleared.source = { ...cleared.source, groups: { mac_group: "" } };
+    assert.deepEqual(buildRuleUpdateOps("source", SOURCE_RULE, cleared, []), []);
+    const untouched = { ...sourceFields(SOURCE_RULE), source: { ...sourceFields(SOURCE_RULE).source, groups: {} } };
+    assert.deepEqual(buildRuleUpdateOps("source", SOURCE_RULE, untouched, GROUP_TYPES), []);
   });
 
   it("uses address leaves and the inbound interface on destination rules", () => {
@@ -172,8 +174,8 @@ describe("rule ops", () => {
       description: " ",
       protocol: "udp",
       interfaceName: "eth0",
-      source: emptySide(GROUP_TYPES),
-      destination: { ...emptySide(GROUP_TYPES), port: "53", groups: { ...emptySide(GROUP_TYPES).groups, "domain-group": "T-D" } },
+      source: emptySide(),
+      destination: { ...emptySide(), port: "53", groups: { ...emptySide().groups, domain_group: "T-D" } },
       translationAddress: "masquerade",
       translationPort: "",
       disable: false,
@@ -237,5 +239,40 @@ describe("service", () => {
         { old_number: 105, new_number: 100, rule_data: data },
       ],
     });
+  });
+
+  it("throws the device error of a rejected batch or reorder as an ApiError", async () => {
+    const { apiClient } = await import("./client");
+    const original = apiClient.post;
+    apiClient.post = (async () => ({ success: false, error: "Commit failed" })) as typeof apiClient.post;
+    try {
+      await assert.rejects(
+        nat66Service.batchConfigure(100, "source", [{ op: "delete_source_rule" }]),
+        (err: unknown) => !(err instanceof Error) && (err as { message: string }).message === "Commit failed",
+      );
+      apiClient.post = (async () => ({ success: false })) as typeof apiClient.post;
+      await assert.rejects(
+        nat66Service.reorderRules("source", [{ old_number: 100, new_number: null, rule_data: null }]),
+        (err: unknown) => (err as { message: string }).message === "",
+      );
+    } finally {
+      apiClient.post = original;
+    }
+  });
+
+  it("does not post an empty batch", async () => {
+    const { apiClient } = await import("./client");
+    const original = apiClient.post;
+    let posts = 0;
+    apiClient.post = (async () => {
+      posts += 1;
+      return { success: true };
+    }) as typeof apiClient.post;
+    try {
+      await nat66Service.updateRule("source", SOURCE_RULE, sourceFields(SOURCE_RULE), GROUP_TYPES);
+      assert.equal(posts, 0);
+    } finally {
+      apiClient.post = original;
+    }
   });
 });

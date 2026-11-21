@@ -59,7 +59,6 @@
     "translationPort": "转换端口",
     "translationPortPlaceholder": "例如 8080",
     "protocol": "协议",
-    "protocolAll": "全部（默认）",
     "sourcePrefix": "源前缀",
     "sourceAddress": "源地址",
     "sourcePort": "源端口",

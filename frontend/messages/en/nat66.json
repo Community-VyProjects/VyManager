@@ -59,7 +59,6 @@
     "translationPort": "Translation Port",
     "translationPortPlaceholder": "e.g., 8080",
     "protocol": "Protocol",
-    "protocolAll": "All (default)",
     "sourcePrefix": "Source Prefix",
     "sourceAddress": "Source Address",
     "sourcePort": "Source Port",
