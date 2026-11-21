@@ -25,7 +25,7 @@ from vyos_mappers.feature_leaves import (
     FailoverExtraLeaves,
     StaticExtraLeaves,
 )
-from vyos_mappers.path_prefix import PathPrefixMapper, require_feature_version
+from vyos_mappers.path_prefix import PathPrefixMapper
 
 # Longest name first so "ospfv3" is not parsed as "ospf" and "dhcpv6" is not "dhcp".
 PROTOCOL_BUILDERS = {
@@ -346,7 +346,7 @@ def _run_feature_op(
     vrf_name: str,
     value: Optional[str],
 ) -> Any:
-    require_feature_version(proto, owner.version)
+    owner.mappers["vrf"].require_feature(proto)
     inner = FEATURE_BUILDERS[proto](owner.version)
     _install_prefix(inner, ["vrf", "name", vrf_name])
     key = _mode_key(proto, verb, suffix)
