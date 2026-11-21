@@ -12,7 +12,7 @@ from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.ospf.ospf import OspfMapper
 from vyos_mappers.static_routes.static_routes import IPV4_SEGMENTS, SOURCE_PROFILE, StaticRoutesMapper
-from vyos_mappers.vrf.vrf import VrfMapper
+from vyos_mappers.vrf import VrfBgpMapper, VrfIsisMapper, VrfMapper, VrfOspfMapper
 from .vrf_protocol import (
     ArityError,
     parse_vrf_protocol_op,
@@ -41,6 +41,10 @@ class VrfBatchBuilder(BatchBuilder):
             version,
         )
 
+    @property
+    def m(self) -> VrfMapper:
+        return cast(VrfMapper, self.mappers[self.mapper_key])
+
     def __getattr__(self, name: str):
         parsed = parse_vrf_protocol_op(name)
         if parsed is None:
@@ -62,11 +66,11 @@ class VrfBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_bind_to_all(self) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_bind_to_all()
+        path = self.m.get_bind_to_all()
         return self.add_set(path)
 
     def delete_bind_to_all(self) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_bind_to_all()
+        path = self.m.get_bind_to_all()
         return self.add_delete(path)
 
     # ========================================================================
@@ -74,43 +78,43 @@ class VrfBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_vrf(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_path(name)
+        path = self.m.get_vrf_path(name)
         return self.add_set(path)
 
     def delete_vrf(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_path(name)
+        path = self.m.get_vrf_path(name)
         return self.add_delete(path)
 
     def set_vrf_description(self, name: str, value: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_description(name, value)
+        path = self.m.get_vrf_description(name, value)
         return self.add_set(path)
 
     def delete_vrf_description(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_path(name) + ["description"]
+        path = self.m.get_vrf_path(name) + ["description"]
         return self.add_delete(path)
 
     def set_vrf_disable(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_disable(name)
+        path = self.m.get_vrf_disable(name)
         return self.add_set(path)
 
     def delete_vrf_disable(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_disable(name)
+        path = self.m.get_vrf_disable(name)
         return self.add_delete(path)
 
     def set_vrf_table(self, name: str, value: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_table(name, value)
+        path = self.m.get_vrf_table(name, value)
         return self.add_set(path)
 
     def delete_vrf_table(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_path(name) + ["table"]
+        path = self.m.get_vrf_path(name) + ["table"]
         return self.add_delete(path)
 
     def set_vrf_vni(self, name: str, value: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_vni(name, value)
+        path = self.m.get_vrf_vni(name, value)
         return self.add_set(path)
 
     def delete_vrf_vni(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_path(name) + ["vni"]
+        path = self.m.get_vrf_path(name) + ["vni"]
         return self.add_delete(path)
 
     # ========================================================================
@@ -118,19 +122,19 @@ class VrfBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_vrf_ip_disable_forwarding(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ip_disable_forwarding(name)
+        path = self.m.get_vrf_ip_disable_forwarding(name)
         return self.add_set(path)
 
     def delete_vrf_ip_disable_forwarding(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ip_disable_forwarding(name)
+        path = self.m.get_vrf_ip_disable_forwarding(name)
         return self.add_delete(path)
 
     def set_vrf_ip_nht_no_resolve_via_default(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ip_nht_no_resolve_via_default(name)
+        path = self.m.get_vrf_ip_nht_no_resolve_via_default(name)
         return self.add_set(path)
 
     def delete_vrf_ip_nht_no_resolve_via_default(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ip_nht_no_resolve_via_default(name)
+        path = self.m.get_vrf_ip_nht_no_resolve_via_default(name)
         return self.add_delete(path)
 
     def set_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
@@ -138,12 +142,12 @@ class VrfBatchBuilder(BatchBuilder):
         protocol, _, route_map = value.partition(",")
         if not protocol or not route_map:
             raise ArityError(f"Operation set_vrf_ip_protocol_route_map requires 'protocol,route-map'")
-        path = self.mappers[self.mapper_key].get_vrf_ip_protocol_route_map(name, protocol, route_map)
+        path = self.m.get_vrf_ip_protocol_route_map(name, protocol, route_map)
         return self.add_set(path)
 
     def delete_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IP protocol route-map. Value is the protocol name."""
-        path = self.mappers[self.mapper_key].get_vrf_path(name) + ["ip", "protocol", value, "route-map"]
+        path = self.m.get_vrf_path(name) + ["ip", "protocol", value, "route-map"]
         return self.add_delete(path)
 
     # ========================================================================
@@ -151,19 +155,19 @@ class VrfBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_vrf_ipv6_disable_forwarding(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ipv6_disable_forwarding(name)
+        path = self.m.get_vrf_ipv6_disable_forwarding(name)
         return self.add_set(path)
 
     def delete_vrf_ipv6_disable_forwarding(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ipv6_disable_forwarding(name)
+        path = self.m.get_vrf_ipv6_disable_forwarding(name)
         return self.add_delete(path)
 
     def set_vrf_ipv6_nht_no_resolve_via_default(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ipv6_nht_no_resolve_via_default(name)
+        path = self.m.get_vrf_ipv6_nht_no_resolve_via_default(name)
         return self.add_set(path)
 
     def delete_vrf_ipv6_nht_no_resolve_via_default(self, name: str) -> "VrfBatchBuilder":
-        path = self.mappers[self.mapper_key].get_vrf_ipv6_nht_no_resolve_via_default(name)
+        path = self.m.get_vrf_ipv6_nht_no_resolve_via_default(name)
         return self.add_delete(path)
 
     def set_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
@@ -171,12 +175,12 @@ class VrfBatchBuilder(BatchBuilder):
         protocol, _, route_map = value.partition(",")
         if not protocol or not route_map:
             raise ArityError(f"Operation set_vrf_ipv6_protocol_route_map requires 'protocol,route-map'")
-        path = self.mappers[self.mapper_key].get_vrf_ipv6_protocol_route_map(name, protocol, route_map)
+        path = self.m.get_vrf_ipv6_protocol_route_map(name, protocol, route_map)
         return self.add_set(path)
 
     def delete_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IPv6 protocol route-map. Value is the protocol name."""
-        path = self.mappers[self.mapper_key].get_vrf_path(name) + ["ipv6", "protocol", value, "route-map"]
+        path = self.m.get_vrf_path(name) + ["ipv6", "protocol", value, "route-map"]
         return self.add_delete(path)
 
     # ========================================================================
@@ -186,10 +190,13 @@ class VrfBatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         is_1_5 = "1.5" in self.version or "latest" in self.version
         is_1_4 = "1.4" in self.version
-        vrf_mapper = cast(VrfMapper, self.mappers[self.mapper_key])
+        vrf_mapper = self.m
         static_mapper = cast(StaticRoutesMapper, self.mappers["static_routes"])
         # VRF OSPF ops run the global OSPF builder, so its allowlist decides.
         ospf_nodes = cast(OspfMapper, self.mappers["ospf"]).versioned_nodes()
+        vrf_ospf = cast(VrfOspfMapper, self.mappers["vrf_ospf"])
+        vrf_isis = cast(VrfIsisMapper, self.mappers["vrf_isis"])
+        vrf_bgp = cast(VrfBgpMapper, self.mappers["vrf_bgp"])
 
         return {
             "version": self.version,
@@ -274,7 +281,7 @@ class VrfBatchBuilder(BatchBuilder):
                     "description": "OSPF retransmit-window on interfaces and virtual-links",
                 },
                 "ospf_redistribute_nhrp": {
-                    "supported": "nhrp" in self.mappers["vrf_ospf"].redistribute_protocols(),
+                    "supported": "nhrp" in vrf_ospf.redistribute_protocols(),
                     "description": "OSPF redistribute NHRP (VyOS 1.5+ only)",
                 },
                 "isis_fast_reroute": {
@@ -282,15 +289,15 @@ class VrfBatchBuilder(BatchBuilder):
                     "description": "IS-IS fast-reroute (LFA, TI-LFA) (VyOS 1.5+ only)",
                 },
                 "isis_redistribute_nhrp": {
-                    "supported": "nhrp" in self.mappers["vrf_isis"].redistribute_ipv4_protocols(),
+                    "supported": "nhrp" in vrf_isis.redistribute_ipv4_protocols(),
                     "description": "IS-IS redistribute NHRP",
                 },
                 "bgp_redistribute_nhrp": {
-                    "supported": "nhrp" in self.mappers["vrf_bgp"].redistribute_protocols(),
+                    "supported": "nhrp" in vrf_bgp.redistribute_protocols(),
                     "description": "BGP redistribute NHRP (VyOS 1.5+ only)",
                 },
                 "l2vpn_evpn_control_flags": {
-                    "supported": bool(self.mappers["vrf_bgp"].l2vpn_evpn_control_flags()),
+                    "supported": bool(vrf_bgp.l2vpn_evpn_control_flags()),
                     "description": "BGP L2VPN EVPN address-family control flags",
                 },
             },

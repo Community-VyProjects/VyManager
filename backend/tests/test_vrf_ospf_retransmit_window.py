@@ -89,13 +89,16 @@ def test_gate_reads_the_mapper_not_the_version(monkeypatch):
 
     for name, method in saved.items():
         monkeypatch.setattr(OspfMapper, name, method, raising=False)
-    assert isinstance(CommandMapperRegistry.get_mapper("ospf", "1.4"), OspfMapper)
+    assert type(CommandMapperRegistry.get_mapper("ospf", "1.4")) is OspfMapper
     assert _flag("1.4") is True
     for op, value, verb, path in V15_OPS:
         assert _run("1.4", op, value) == [(verb, path)]
 
 
-def test_flag_needs_both_leaves(monkeypatch):
+@pytest.mark.parametrize(
+    "missing", ["get_interface_retransmit_window", "get_area_virtual_link_retransmit_window"]
+)
+def test_flag_needs_both_leaves(monkeypatch, missing):
     """The screen gates the interface and the virtual-link field on one flag."""
-    monkeypatch.delattr(OspfMapperV1_5, "get_area_virtual_link_retransmit_window")
+    monkeypatch.delattr(OspfMapperV1_5, missing)
     assert _flag("1.5") is False
