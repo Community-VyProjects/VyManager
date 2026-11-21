@@ -1,4 +1,13 @@
 import { apiClient } from "./client";
+import type { ApiError } from "../types/api";
+import {
+  buildPoolCreateOps,
+  buildPoolUpdateOps,
+  buildRuleCreateOps,
+  buildRuleUpdateOps,
+  type NAT64PoolFields,
+  type NAT64RuleFields,
+} from "./nat64-save-ops";
 
 // ==================== Type Definitions ====================
 
@@ -33,10 +42,6 @@ export interface NAT64ConfigResponse {
 
 export interface NAT64Capabilities {
   version: string;
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
-  };
   supported: boolean;
   features: Record<string, { supported: boolean; description: string }>;
   operations: Record<string, string[]>;
@@ -59,6 +64,20 @@ interface ReorderRuleItem {
   rule_data: Record<string, unknown>;
 }
 
+const NO_CHANGES: VyOSResponse = { success: true, data: null };
+
+/**
+ * A rejected commit comes back as HTTP 200 with ``success: false``; throw an
+ * ApiError carrying the device error so the dialog stays open and shows it.
+ */
+function throwIfFailed(result: VyOSResponse): VyOSResponse {
+  if (!result.success) {
+    const error: ApiError = { message: result.error || "" };
+    throw error;
+  }
+  return result;
+}
+
 // ==================== Service ====================
 
 class NAT64Service {
@@ -72,113 +91,36 @@ class NAT64Service {
     });
   }
 
+  /** POST one batch; an empty batch is not sent. */
   async batchConfigure(
     ruleNumber: number,
     operations: NAT64BatchOperation[],
     poolNumber?: number
   ): Promise<VyOSResponse> {
+    if (operations.length === 0) return NO_CHANGES;
     const result = await apiClient.post<VyOSResponse>("/vyos/nat64/batch", {
       rule_number: ruleNumber,
       pool_number: poolNumber ?? null,
       operations,
     });
-    if (!result.success) {
-      throw new Error(result.error || "Operation failed");
-    }
-    return result;
+    return throwIfFailed(result);
   }
 
   async reorderRules(rules: ReorderRuleItem[]): Promise<VyOSResponse> {
     const result = await apiClient.post<VyOSResponse>("/vyos/nat64/reorder", {
       rules,
     });
-    if (!result.success) {
-      throw new Error(result.error || "Reorder failed");
-    }
-    return result;
+    return throwIfFailed(result);
   }
 
   // ==================== Rule Helpers ====================
 
-  async createRule(config: {
-    ruleNumber: number;
-    description?: string;
-    sourcePrefix?: string;
-    matchMark?: string;
-    disable?: boolean;
-  }): Promise<VyOSResponse> {
-    const operations: NAT64BatchOperation[] = [{ op: "set_source_rule" }];
-    if (config.description) {
-      operations.push({ op: "set_source_rule_description", value: config.description });
-    }
-    if (config.sourcePrefix) {
-      operations.push({ op: "set_source_rule_source_prefix", value: config.sourcePrefix });
-    }
-    if (config.matchMark) {
-      operations.push({ op: "set_source_rule_match_mark", value: config.matchMark });
-    }
-    if (config.disable) {
-      operations.push({ op: "set_source_rule_disable" });
-    }
-    return this.batchConfigure(config.ruleNumber, operations);
+  async createRule(ruleNumber: number, fields: NAT64RuleFields): Promise<VyOSResponse> {
+    return this.batchConfigure(ruleNumber, buildRuleCreateOps(fields));
   }
 
-  async updateRule(
-    ruleNumber: number,
-    current: NAT64SourceRule,
-    updated: {
-      description?: string;
-      sourcePrefix?: string;
-      matchMark?: string;
-      disable?: boolean;
-    }
-  ): Promise<VyOSResponse> {
-    const operations: NAT64BatchOperation[] = [];
-
-    // Description
-    if (updated.description !== undefined) {
-      if (updated.description) {
-        operations.push({ op: "set_source_rule_description", value: updated.description });
-      } else if (current.description) {
-        operations.push({ op: "delete_source_rule_description" });
-      }
-    }
-
-    // Source prefix
-    if (updated.sourcePrefix !== undefined) {
-      if (updated.sourcePrefix) {
-        operations.push({ op: "set_source_rule_source_prefix", value: updated.sourcePrefix });
-      } else if (current.source_prefix) {
-        operations.push({ op: "delete_source_rule_source_prefix" });
-      }
-    }
-
-    // Match mark
-    if (updated.matchMark !== undefined) {
-      if (updated.matchMark) {
-        operations.push({ op: "set_source_rule_match_mark", value: updated.matchMark });
-      } else if (current.match_mark) {
-        operations.push({ op: "delete_source_rule_match_mark" });
-      }
-    }
-
-    // Disable
-    if (updated.disable !== undefined) {
-      if (updated.disable && !current.disable) {
-        operations.push({ op: "set_source_rule_disable" });
-      } else if (!updated.disable && current.disable) {
-        operations.push({ op: "delete_source_rule_disable" });
-      }
-    }
-
-    if (operations.length === 0) {
-      return { success: true, data: { message: "No changes" } };
-    }
-    return this.batchConfigure(ruleNumber, operations);
-  }
-
-  async deleteRule(ruleNumber: number): Promise<VyOSResponse> {
-    return this.batchConfigure(ruleNumber, [{ op: "delete_source_rule" }]);
+  async updateRule(current: NAT64SourceRule, fields: NAT64RuleFields): Promise<VyOSResponse> {
+    return this.batchConfigure(current.rule_number, buildRuleUpdateOps(current, fields));
   }
 
   async toggleRuleDisable(ruleNumber: number, currentlyDisabled: boolean): Promise<VyOSResponse> {
@@ -191,128 +133,25 @@ class NAT64Service {
   async createPool(
     ruleNumber: number,
     poolNumber: number,
-    config: {
-      address?: string;
-      description?: string;
-      port?: string;
-      protocol?: { tcp: boolean; udp: boolean; icmp: boolean };
-      disable?: boolean;
-    }
+    fields: NAT64PoolFields
   ): Promise<VyOSResponse> {
-    const operations: NAT64BatchOperation[] = [{ op: "set_source_rule_translation_pool" }];
-    if (config.address) {
-      operations.push({ op: "set_source_rule_translation_pool_address", value: config.address });
-    }
-    if (config.description) {
-      operations.push({ op: "set_source_rule_translation_pool_description", value: config.description });
-    }
-    if (config.port) {
-      operations.push({ op: "set_source_rule_translation_pool_port", value: config.port });
-    }
-    if (config.protocol?.tcp) {
-      operations.push({ op: "set_source_rule_translation_pool_protocol_tcp" });
-    }
-    if (config.protocol?.udp) {
-      operations.push({ op: "set_source_rule_translation_pool_protocol_udp" });
-    }
-    if (config.protocol?.icmp) {
-      operations.push({ op: "set_source_rule_translation_pool_protocol_icmp" });
-    }
-    if (config.disable) {
-      operations.push({ op: "set_source_rule_translation_pool_disable" });
-    }
-    return this.batchConfigure(ruleNumber, operations, poolNumber);
+    return this.batchConfigure(ruleNumber, buildPoolCreateOps(fields), poolNumber);
   }
 
   async updatePool(
     ruleNumber: number,
-    poolNumber: number,
     current: NAT64TranslationPool,
-    updated: {
-      address?: string;
-      description?: string;
-      port?: string;
-      protocol?: { tcp: boolean; udp: boolean; icmp: boolean };
-      disable?: boolean;
-    }
+    fields: NAT64PoolFields
   ): Promise<VyOSResponse> {
-    const operations: NAT64BatchOperation[] = [];
-
-    // Address
-    if (updated.address !== undefined) {
-      if (updated.address) {
-        operations.push({ op: "set_source_rule_translation_pool_address", value: updated.address });
-      } else if (current.address) {
-        operations.push({ op: "delete_source_rule_translation_pool_address" });
-      }
-    }
-
-    // Description
-    if (updated.description !== undefined) {
-      if (updated.description) {
-        operations.push({ op: "set_source_rule_translation_pool_description", value: updated.description });
-      } else if (current.description) {
-        operations.push({ op: "delete_source_rule_translation_pool_description" });
-      }
-    }
-
-    // Port
-    if (updated.port !== undefined) {
-      if (updated.port) {
-        operations.push({ op: "set_source_rule_translation_pool_port", value: updated.port });
-      } else if (current.port) {
-        operations.push({ op: "delete_source_rule_translation_pool_port" });
-      }
-    }
-
-    // Protocol flags
-    if (updated.protocol) {
-      const curProto = current.protocol || { tcp: false, udp: false, icmp: false };
-      if (updated.protocol.tcp && !curProto.tcp) {
-        operations.push({ op: "set_source_rule_translation_pool_protocol_tcp" });
-      } else if (!updated.protocol.tcp && curProto.tcp) {
-        operations.push({ op: "delete_source_rule_translation_pool_protocol_tcp" });
-      }
-      if (updated.protocol.udp && !curProto.udp) {
-        operations.push({ op: "set_source_rule_translation_pool_protocol_udp" });
-      } else if (!updated.protocol.udp && curProto.udp) {
-        operations.push({ op: "delete_source_rule_translation_pool_protocol_udp" });
-      }
-      if (updated.protocol.icmp && !curProto.icmp) {
-        operations.push({ op: "set_source_rule_translation_pool_protocol_icmp" });
-      } else if (!updated.protocol.icmp && curProto.icmp) {
-        operations.push({ op: "delete_source_rule_translation_pool_protocol_icmp" });
-      }
-    }
-
-    // Disable
-    if (updated.disable !== undefined) {
-      if (updated.disable && !current.disable) {
-        operations.push({ op: "set_source_rule_translation_pool_disable" });
-      } else if (!updated.disable && current.disable) {
-        operations.push({ op: "delete_source_rule_translation_pool_disable" });
-      }
-    }
-
-    if (operations.length === 0) {
-      return { success: true, data: { message: "No changes" } };
-    }
-    return this.batchConfigure(ruleNumber, operations, poolNumber);
+    return this.batchConfigure(
+      ruleNumber,
+      buildPoolUpdateOps(current, fields),
+      current.pool_number
+    );
   }
 
   async deletePool(ruleNumber: number, poolNumber: number): Promise<VyOSResponse> {
     return this.batchConfigure(ruleNumber, [{ op: "delete_source_rule_translation_pool" }], poolNumber);
-  }
-
-  async togglePoolDisable(
-    ruleNumber: number,
-    poolNumber: number,
-    currentlyDisabled: boolean
-  ): Promise<VyOSResponse> {
-    const op = currentlyDisabled
-      ? "delete_source_rule_translation_pool_disable"
-      : "set_source_rule_translation_pool_disable";
-    return this.batchConfigure(ruleNumber, [{ op }], poolNumber);
   }
 
   // ==================== Delete + Compact ====================

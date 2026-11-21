@@ -5,7 +5,6 @@
     "accessDeniedMessage": "You do not have permission to view NAT64 configurations. Please contact your administrator for access.",
     "ruleCount": "{count, plural, one {# rule} other {# rules}}",
     "addRule": "Add Rule",
-    "failedToLoad": "Failed to load",
     "noRulesSidebar": "No NAT64 rules configured. Add a rule to get started.",
     "ruleTitle": "Rule {number}",
     "disabledBadge": "disabled",
@@ -40,7 +39,9 @@
     "sourcePrefix": "Source Prefix",
     "matchMark": "Match Mark",
     "matchMarkPlaceholder": "Optional firewall mark",
-    "disableRule": "Disable rule"
+    "disableRule": "Disable rule",
+    "sourcePrefixRequired": "Source prefix is required",
+    "matchMarkRange": "Match mark must be a number from {min} to {max}"
   },
   "poolDialog": {
     "editTitle": "Edit Pool {pool} (Rule {rule})",
@@ -52,7 +53,9 @@
     "descriptionPlaceholder": "Translation pool description",
     "port": "Port",
     "protocol": "Protocol",
-    "disablePool": "Disable pool"
+    "disablePool": "Disable pool",
+    "addressRequired": "Address is required",
+    "portRequired": "Port is required"
   },
   "deleteDialog": {
     "deleteFailed": "Delete failed",
@@ -60,5 +63,11 @@
     "poolTitle": "Delete Pool {number}",
     "ruleMessage": "This will permanently delete Rule {rule}{pools, plural, =0 {} one { and its # translation pool} other { and its # translation pools}}. Remaining rules will be renumbered starting from 100.",
     "poolMessage": "This will permanently delete Pool {pool} from Rule {rule}. This action cannot be undone."
+  },
+  "toggleDialog": {
+    "enableTitle": "Enable Rule {number}",
+    "disableTitle": "Disable Rule {number}",
+    "enableMessage": "Rule {number} will start translating traffic.",
+    "disableMessage": "Rule {number} will stop translating traffic until it is enabled again."
   }
 }

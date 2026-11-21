@@ -17,6 +17,7 @@ import {
   type NAT64SourceRule,
   type NAT64TranslationPool,
 } from "@/lib/api/nat64";
+import type { ApiError } from "@/lib/types/api";
 
 interface NAT64DeleteDialogProps {
   open: boolean;
@@ -56,7 +57,7 @@ export function NAT64DeleteDialog({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteDialog.deleteFailed"));
+      setError((err as ApiError).message || t("deleteDialog.deleteFailed"));
     } finally {
       setSaving(false);
     }

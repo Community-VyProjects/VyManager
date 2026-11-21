@@ -37,8 +37,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { NAT64RuleDialog } from "@/components/network/NAT64RuleDialog";
 import { NAT64PoolDialog } from "@/components/network/NAT64PoolDialog";
 import { NAT64DeleteDialog } from "@/components/network/NAT64DeleteDialog";
+import { NAT64ToggleDialog } from "@/components/network/NAT64ToggleDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import type { ApiError } from "@/lib/types/api";
 
 export default function NAT64Page() {
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
@@ -55,6 +57,7 @@ export default function NAT64Page() {
   const [poolDialogOpen, setPoolDialogOpen] = useState(false);
   const [editingPool, setEditingPool] = useState<NAT64TranslationPool | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     type: "rule" | "pool";
     rule: NAT64SourceRule;
@@ -75,7 +78,7 @@ export default function NAT64Page() {
         setSelectedRule(updated || null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.loadFailed"));
+      setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -173,7 +176,7 @@ export default function NAT64Page() {
               <div className="p-4">
                 <div className="flex items-center gap-2 text-destructive text-sm">
                   <AlertCircle className="h-4 w-4" />
-                  <span>{t("page.failedToLoad")}</span>
+                  <span>{error}</span>
                 </div>
               </div>
             ) : rules.length === 0 ? (
@@ -282,19 +285,7 @@ export default function NAT64Page() {
                         variant="outline"
                         size="sm"
                         className="gap-2"
-                        onClick={() =>
-                          nat64Service
-                            .toggleRuleDisable(
-                              selectedRule.rule_number,
-                              selectedRule.disable
-                            )
-                            .then(() => fetchConfig(true))
-                            .catch((err) =>
-                              setError(
-                                err instanceof Error ? err.message : t("page.toggleFailed")
-                              )
-                            )
-                        }
+                        onClick={() => setToggleDialogOpen(true)}
                       >
                         <Power className="h-4 w-4" />
                         {selectedRule.disable ? t("page.enable") : t("page.disable")}
@@ -552,6 +543,14 @@ export default function NAT64Page() {
           }
           fetchConfig(true);
         }}
+      />
+
+      {/* Enable / Disable Dialog */}
+      <NAT64ToggleDialog
+        open={toggleDialogOpen}
+        onOpenChange={setToggleDialogOpen}
+        rule={selectedRule}
+        onSuccess={() => fetchConfig(true)}
       />
     </AppLayout>
   );
