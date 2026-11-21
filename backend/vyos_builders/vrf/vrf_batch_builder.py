@@ -10,6 +10,7 @@ failover, RPKI, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
 
 from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.static_routes.static_routes import IPV4_SEGMENTS, SOURCE_PROFILE, StaticRoutesMapper
 from vyos_mappers.vrf.vrf import VrfMapper
 from .vrf_protocol import (
     ArityError,
@@ -33,6 +34,7 @@ class VrfBatchBuilder(BatchBuilder):
                 "vrf_ospfv3",
                 "vrf_isis",
                 "vrf_bgp",
+                "static_routes",
             ),
             version,
         )
@@ -131,11 +133,11 @@ class VrfBatchBuilder(BatchBuilder):
 
     def set_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Set IP protocol route-map. Value format: 'protocol,route-map-name'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers[self.mapper_key].get_vrf_ip_protocol_route_map(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
+        protocol, _, route_map = value.partition(",")
+        if not protocol or not route_map:
+            raise ArityError(f"Operation set_vrf_ip_protocol_route_map requires 'protocol,route-map'")
+        path = self.mappers[self.mapper_key].get_vrf_ip_protocol_route_map(name, protocol, route_map)
+        return self.add_set(path)
 
     def delete_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IP protocol route-map. Value is the protocol name."""
@@ -164,11 +166,11 @@ class VrfBatchBuilder(BatchBuilder):
 
     def set_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Set IPv6 protocol route-map. Value format: 'protocol,route-map-name'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers[self.mapper_key].get_vrf_ipv6_protocol_route_map(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
+        protocol, _, route_map = value.partition(",")
+        if not protocol or not route_map:
+            raise ArityError(f"Operation set_vrf_ipv6_protocol_route_map requires 'protocol,route-map'")
+        path = self.mappers[self.mapper_key].get_vrf_ipv6_protocol_route_map(name, protocol, route_map)
+        return self.add_set(path)
 
     def delete_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IPv6 protocol route-map. Value is the protocol name."""
@@ -183,6 +185,7 @@ class VrfBatchBuilder(BatchBuilder):
         is_1_5 = "1.5" in self.version or "latest" in self.version
         is_1_4 = "1.4" in self.version
         vrf_mapper = cast(VrfMapper, self.mappers[self.mapper_key])
+        static_mapper = cast(StaticRoutesMapper, self.mappers["static_routes"])
 
         return {
             "version": self.version,
@@ -248,8 +251,16 @@ class VrfBatchBuilder(BatchBuilder):
                     "description": "DHCPv6 server configuration within VRF (VyOS 1.5+ only)",
                 },
                 "static_route_ipv4_segments": {
-                    "supported": is_1_5,
-                    "description": "SRv6 segments on IPv4 static route next-hops (VyOS 1.5+ only)",
+                    "supported": static_mapper.supports_node(IPV4_SEGMENTS),
+                    "description": "SRv6 segments on IPv4 static route next-hops and interfaces",
+                },
+                "static_route_bfd_source_profile": {
+                    "supported": static_mapper.supports_node(SOURCE_PROFILE),
+                    "description": "BFD profile per static route multi-hop source address",
+                },
+                "static_route_dhcp_interface_multi": {
+                    "supported": static_mapper.dhcp_interface_multi(),
+                    "description": "Several DHCP interfaces per IPv4 static route (one on 1.4)",
                 },
                 "ospf_retransmit_window": {
                     "supported": is_1_5,

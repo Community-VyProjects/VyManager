@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { staticRoutesService, type RoutingTable } from "@/lib/api/static-routes";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteRoutingTableModalProps {
   open: boolean;
@@ -27,9 +28,17 @@ export function DeleteRoutingTableModal({
   onSuccess,
   table,
 }: DeleteRoutingTableModalProps) {
-  const t = useTranslations("staticRoutes");
+  const t = useTranslations("routingExtras");
+  const ts = useTranslations("staticRoutes");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    if (!next) setError(null);
+    onOpenChange(next);
+  };
 
   const handleDelete = async () => {
     if (!table) return;
@@ -38,11 +47,15 @@ export function DeleteRoutingTableModal({
     setLoading(true);
 
     try {
-      await staticRoutesService.deleteRoutingTable(table.table_id);
+      const result = await staticRoutesService.deleteRoutingTable(table.table_id);
+      if (!result.success) {
+        setError(result.error || t("deleteTable.failed"));
+        return;
+      }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete routing table");
+      setError((err as ApiError).message || t("deleteTable.failed"));
     } finally {
       setLoading(false);
     }
@@ -53,43 +66,41 @@ export function DeleteRoutingTableModal({
   const totalRoutes = table.ipv4_routes.length + table.ipv6_routes.length;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-destructive" />
-            Delete Routing Table
+            {t("deleteTable.title")}
           </DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete this routing table?
-          </DialogDescription>
+          <DialogDescription>{t("deleteTable.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2 mb-4">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Table ID:</span>
+              <span className="text-sm text-muted-foreground">{t("deleteTable.tableId")}</span>
               <span className="text-sm font-mono font-medium">{table.table_id}</span>
             </div>
             {table.description && (
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Description:</span>
+                <span className="text-sm text-muted-foreground">{t("deleteArp.descriptionColon")}</span>
                 <span className="text-sm">{table.description}</span>
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">IPv4 Routes:</span>
+              <span className="text-sm text-muted-foreground">{t("routingTableModal.ipv4Routes")}</span>
               <span className="text-sm font-mono">{table.ipv4_routes.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">IPv6 Routes:</span>
+              <span className="text-sm text-muted-foreground">{t("routingTableModal.ipv6Routes")}</span>
               <span className="text-sm font-mono">{table.ipv6_routes.length}</span>
             </div>
           </div>
@@ -98,19 +109,19 @@ export function DeleteRoutingTableModal({
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mt-4 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
               <p className="text-sm text-destructive">
-                {t("deleteModal.tableContainsRoutes", { count: totalRoutes })}
+                {ts("deleteModal.tableContainsRoutes", { count: totalRoutes })}
               </p>
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
+            {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Delete
+            {tc("delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,27 +1,29 @@
 """Read-model for VRF config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. BFD multi-hop source is read from both the 1.5 flat
-``source-address`` leaf and the 1.4 ``source/<tag>`` node. The historical
-parser tried both regardless of version; do not drop either read.
+the tree. VRF static routes are read by the global static route walker.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
+
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.static_routes.config_parse import parse_routes
+from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
 
 
-def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalise full VyOS config into the GET /vyos/vrf/config payload.
-
-    BFD multi-hop source is not selected by version: both the 1.5
-    source-address leaf and the 1.4 source/<tag> node are read.
-    """
+def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalise full VyOS config into the GET /vyos/vrf/config payload."""
     vrf_config = full_config.get("vrf", {})
     if not vrf_config:
         return {"bind_to_all": False, "instances": []}
 
+    # The static route tree is the global one; its mapper picks the version form.
+    static_mapper = cast(
+        StaticRoutesMapper, CommandMapperRegistry.get_mapper("static_routes", mapper.version)
+    )
     return {
         "bind_to_all": "bind-to-all" in vrf_config,
-        "instances": parse_vrf_instances(vrf_config.get("name", {})),
+        "instances": parse_vrf_instances(vrf_config.get("name", {}), static_mapper),
     }
 
 
@@ -55,127 +57,21 @@ def parse_ip_settings(config: dict, family: str) -> Dict[str, Any]:
     }
 
 
-def _parse_bfd(nh_config: dict) -> Optional[Dict[str, Any]]:
-    """Parse BFD config from a next-hop.
+def parse_static_config(
+    protocols_config: dict, static_mapper: StaticRoutesMapper
+) -> Optional[Dict[str, Any]]:
+    """Static routes under ``vrf name <vrf> protocols static``.
 
-    VyOS 1.5 stores multi-hop source as ``source-address``. VyOS 1.4 stores
-    it as ``source/<tag>``. Both reads are preserved.
+    The tree is the global ``protocols static`` route tree, so the global
+    walker reads it.
     """
-    bfd_config = nh_config.get("bfd", {})
-    if not bfd_config:
+    if "static" not in protocols_config:
         return None
-
-    profile = bfd_config.get("profile")
-    multi_hop = bfd_config.get("multi-hop", {})
-
-    # VyOS 1.5: source-address (flat leaf)
-    multi_hop_source = multi_hop.get("source-address")
-
-    # VyOS 1.4: source/<tag>/profile (tagged node)
-    if not multi_hop_source:
-        source_config = multi_hop.get("source", {})
-        if isinstance(source_config, dict):
-            for addr in source_config:
-                multi_hop_source = addr
-                break
-
-    if not profile and not multi_hop_source:
-        return None
-
-    return {"profile": profile, "multi_hop_source": multi_hop_source}
-
-
-def _parse_static_routes(route_config: dict, route_type: str = "route") -> List[Dict[str, Any]]:
-    """Parse static routes (route or route6) from VRF config."""
-    routes = []
-    raw = route_config.get(route_type, {})
-    if not isinstance(raw, dict):
-        return routes
-
-    for dest, dest_config in raw.items():
-        if dest_config is None:
-            dest_config = {}
-
-        next_hops = []
-        for nh_addr, nh_config in (dest_config.get("next-hop", {}) or {}).items():
-            if nh_config is None:
-                nh_config = {}
-            next_hops.append(
-                {
-                    "address": nh_addr,
-                    "disable": "disable" in nh_config,
-                    "distance": int(nh_config["distance"]) if nh_config.get("distance") else None,
-                    "interface": nh_config.get("interface"),
-                    "vrf": nh_config.get("vrf"),
-                    "bfd": _parse_bfd(nh_config),
-                    "segments": nh_config.get("segments"),
-                }
-            )
-
-        interfaces = []
-        for iface_name, iface_config in (dest_config.get("interface", {}) or {}).items():
-            if iface_config is None:
-                iface_config = {}
-            interfaces.append(
-                {
-                    "name": iface_name,
-                    "disable": "disable" in iface_config,
-                    "distance": int(iface_config["distance"]) if iface_config.get("distance") else None,
-                    "vrf": iface_config.get("vrf"),
-                    "segments": iface_config.get("segments"),
-                }
-            )
-
-        blackhole = None
-        bh = dest_config.get("blackhole")
-        if bh is not None:
-            if isinstance(bh, dict):
-                blackhole = {
-                    "distance": int(bh["distance"]) if bh.get("distance") else None,
-                    "tag": int(bh["tag"]) if bh.get("tag") else None,
-                }
-            else:
-                blackhole = {"distance": None, "tag": None}
-
-        reject = None
-        rj = dest_config.get("reject")
-        if rj is not None:
-            if isinstance(rj, dict):
-                reject = {
-                    "distance": int(rj["distance"]) if rj.get("distance") else None,
-                    "tag": int(rj["tag"]) if rj.get("tag") else None,
-                }
-            else:
-                reject = {"distance": None, "tag": None}
-
-        routes.append(
-            {
-                "destination": dest,
-                "description": dest_config.get("description"),
-                "dhcp_interface": dest_config.get("dhcp-interface"),
-                "next_hops": next_hops,
-                "interfaces": interfaces,
-                "blackhole": blackhole,
-                "reject": reject,
-            }
-        )
-
-    return routes
-
-
-def parse_static_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
-    """Parse static route configuration from VRF protocols."""
-    static_config = protocols_config.get("static", {})
-    if not static_config:
-        return None
-
-    routes = _parse_static_routes(static_config, "route")
-    routes6 = _parse_static_routes(static_config, "route6")
-
-    if not routes and not routes6:
-        return {"routes": [], "routes6": []}
-
-    return {"routes": routes, "routes6": routes6}
+    static_config = protocols_config.get("static")
+    return {
+        "routes": parse_routes(static_mapper, static_config, "ipv4"),
+        "routes6": parse_routes(static_mapper, static_config, "ipv6"),
+    }
 
 
 def parse_rpki_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
@@ -508,7 +404,7 @@ def parse_dhcpv6_config(service_config: dict) -> Optional[Dict[str, Any]]:
     }
 
 
-def parse_vrf_instances(names_raw: dict) -> List[Dict[str, Any]]:
+def parse_vrf_instances(names_raw: dict, static_mapper: StaticRoutesMapper) -> List[Dict[str, Any]]:
     """Parse VRF instance configurations."""
     instances = []
 
@@ -526,7 +422,7 @@ def parse_vrf_instances(names_raw: dict) -> List[Dict[str, Any]]:
         if isinstance(service_config, dict):
             services = list(service_config.keys())
 
-        static = parse_static_config(protocols_config) if isinstance(protocols_config, dict) else None
+        static = parse_static_config(protocols_config, static_mapper) if isinstance(protocols_config, dict) else None
         rpki = parse_rpki_config(protocols_config) if isinstance(protocols_config, dict) else None
         failover = parse_failover_config(protocols_config) if isinstance(protocols_config, dict) else None
         ospf = parse_ospf_summary(protocols_config) if isinstance(protocols_config, dict) else None

@@ -38,6 +38,10 @@ jobs:
         working-directory: frontend
         run: npm run test:https-save
 
+      - name: Run static routes save op tests
+        working-directory: frontend
+        run: npm run test:static-routes-save
+
       - name: Run OSPF save op tests
         working-directory: frontend
         run: npm run test:ospf-save
