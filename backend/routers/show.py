@@ -12,13 +12,15 @@ is dashboard_broadcaster. This module is the request endpoint.
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, cast
 import asyncio
 import json
 import httpx
 
 from starlette.concurrency import run_in_threadpool
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.interfaces.catalog import InterfaceCatalogMapper
 from fastapi_permissions import has_permission, require_any_read_permission, require_read_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel
@@ -163,13 +165,14 @@ async def get_firewall_statistics(request: Request):
 
 
 def _extract_show_output(response) -> str:
-    """Return the text body of a pyvyos show-command response, or ''."""
-    if response.status == 200:
-        if isinstance(response.result, dict) and "data" in response.result:
-            return response.result["data"] or ""
-        if isinstance(response.result, str):
-            return response.result
-    return ""
+    """Return the text body of a pyvyos show-command response, or ''.
+
+    pyvyos sets ``error`` on an HTTP 200 the device refused and unwraps the
+    reply's ``data`` into ``result``, a str for op commands.
+    """
+    if response.status != 200 or response.error:
+        return ""
+    return response.result if isinstance(response.result, str) else ""
 
 
 async def _fetch_graphql_hardware(service) -> Optional[dict]:
@@ -209,26 +212,22 @@ async def get_interface_counters(request: Request):
     await require_read_permission(request, FeatureGroup.INTERFACES)
     try:
         service = get_session_vyos_service(request)
-
-        # Execute 'show interface counters' command
-        response = await run_in_threadpool(
-            service.device.show, path=["interfaces", "counters"]
+        catalog = cast(
+            InterfaceCatalogMapper,
+            CommandMapperRegistry.get_mapper("interface_catalog", service.get_version() or ""),
         )
 
-        if response.status != 200:
+        response = await run_in_threadpool(
+            service.device.show, path=catalog.get_counters_show_path()
+        )
+
+        if response.status != 200 or response.error:
             raise HTTPException(
                 status_code=500,
                 detail="Unable to read interface counters",
             )
 
-        # Parse the output
-        output = ""
-        if isinstance(response.result, dict) and "data" in response.result:
-            output = response.result["data"]
-        elif isinstance(response.result, str):
-            output = response.result
-
-        interfaces = parse_interface_counters(output)
+        interfaces = parse_interface_counters(_extract_show_output(response))
 
         return InterfaceCountersResponse(
             interfaces=interfaces,
@@ -237,7 +236,7 @@ async def get_interface_counters(request: Request):
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -316,11 +315,11 @@ async def get_all_interfaces(request: Request):
     """
     Get all interface names for use in the interface pickers.
 
-    On VyOS 1.5+ the list is sourced from ``show interfaces kernel json`` so that
-    host/container-created interfaces (e.g. tailscale, podman veth/bridges) are
-    selectable too; config descriptions/types are merged in and configured-but-
-    down interfaces are unioned back in. On VyOS 1.4 (where that command does not
-    exist) the list is built from the VyOS config tree.
+    When the device has ``show interfaces kernel json`` (the interface catalog
+    mapper lists it), the list is sourced from it so that host/container-created
+    interfaces (e.g. tailscale, podman veth/bridges) are selectable too; config
+    descriptions/types are merged in and configured-but-down interfaces are
+    unioned back in. Otherwise the list is built from the VyOS config tree.
 
     Returns:
         List of all interface names, including VLANs and sub-interfaces.
@@ -328,38 +327,36 @@ async def get_all_interfaces(request: Request):
     await require_any_read_permission(request)
     try:
         service = get_session_vyos_service(request)
+        catalog = cast(
+            InterfaceCatalogMapper,
+            CommandMapperRegistry.get_mapper("interface_catalog", service.get_version() or ""),
+        )
 
-        # Config-derived list is both the 1.4 result and the 1.5 fallback /
-        # enrichment source.
+        # Config-derived list is both the result without the kernel command
+        # and the fallback / enrichment source.
         full_config = await run_in_threadpool(service.get_full_config, refresh=False)
         config_list = _interfaces_from_config(full_config.get("interfaces", {}))
 
-        version = service.get_version() or ""
         interfaces = config_list
 
-        if "1.4" not in version:
-            # VyOS 1.5+: prefer the kernel interface list, fall back to config
-            # on any failure so the dropdowns never break.
+        if "kernel json" in catalog.versioned_nodes():
+            # Prefer the kernel interface list, fall back to config on any
+            # failure so the dropdowns never break.
             try:
                 response = await run_in_threadpool(
-                    service.device.show, path=["interfaces", "kernel", "json"]
+                    service.device.show, path=catalog.versioned_path("kernel json")
                 )
-                if response.status == 200:
-                    output = ""
-                    if isinstance(response.result, dict) and "data" in response.result:
-                        output = response.result["data"]
-                    elif isinstance(response.result, str):
-                        output = response.result
-                    if output and output.strip():
-                        config_index = {i.name: i for i in config_list}
-                        interfaces = _interfaces_from_kernel(output, config_index)
-                    else:
-                        logger.warning("Empty 'show interfaces kernel json' output; using config list")
-                else:
+                output = _extract_show_output(response)
+                if output.strip():
+                    config_index = {i.name: i for i in config_list}
+                    interfaces = _interfaces_from_kernel(output, config_index)
+                elif response.status != 200 or response.error:
                     logger.warning(
                         "'show interfaces kernel json' failed (status %s); using config list",
                         response.status,
                     )
+                else:
+                    logger.warning("Empty 'show interfaces kernel json' output; using config list")
             except Exception:
                 logger.exception("Failed to parse kernel interface list; using config list")
                 interfaces = config_list
@@ -371,7 +368,7 @@ async def get_all_interfaces(request: Request):
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -395,21 +392,16 @@ async def get_available_ethernet_interfaces(request: Request):
     await require_read_permission(request, FeatureGroup.ETHERNET)
     try:
         service = get_session_vyos_service(request)
+        catalog = cast(
+            InterfaceCatalogMapper,
+            CommandMapperRegistry.get_mapper("interface_catalog", service.get_version() or ""),
+        )
 
         # Operational show to list all physical ethernet ports
         response = await run_in_threadpool(
-            service.device.show, path=["interfaces", "ethernet"]
+            service.device.show, path=catalog.get_ethernet_show_path()
         )
-
-        all_eth: List[str] = []
-        if response.status == 200:
-            output = ""
-            if isinstance(response.result, dict) and "data" in response.result:
-                output = response.result["data"]
-            elif isinstance(response.result, str):
-                output = response.result
-
-            all_eth.extend(parse_show_ethernet_names(output))
+        all_eth = parse_show_ethernet_names(_extract_show_output(response))
 
         # Exclude interfaces that already have an address configured.
         # Interfaces in the config tree with no address (e.g. disabled/empty)
@@ -426,7 +418,7 @@ async def get_available_ethernet_interfaces(request: Request):
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
