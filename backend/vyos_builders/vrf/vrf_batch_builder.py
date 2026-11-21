@@ -10,9 +10,8 @@ failover, RPKI, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
 
 from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
+from vyos_mappers.static_routes.static_routes import IPV4_SEGMENTS, SOURCE_PROFILE, StaticRoutesMapper
 from vyos_mappers.vrf.vrf import VrfMapper
-from vyos_builders.static_routes.static_routes_batch_builder import IPV4_SEGMENTS, SOURCE_PROFILE
 from .vrf_protocol import (
     ArityError,
     parse_vrf_protocol_op,
@@ -258,6 +257,10 @@ class VrfBatchBuilder(BatchBuilder):
                 "static_route_bfd_source_profile": {
                     "supported": static_mapper.supports_node(SOURCE_PROFILE),
                     "description": "BFD profile per static route multi-hop source address",
+                },
+                "static_route_dhcp_interface_multi": {
+                    "supported": static_mapper.dhcp_interface_multi(),
+                    "description": "Several DHCP interfaces per IPv4 static route (one on 1.4)",
                 },
                 "ospf_retransmit_window": {
                     "supported": is_1_5,

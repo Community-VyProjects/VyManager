@@ -6,10 +6,15 @@
     "macAddressRequired": "MAC address is required",
     "invalidMacAddress": "Invalid MAC address format (use XX:XX:XX:XX:XX:XX)",
     "tableIdRequired": "Table ID is required",
-    "tableIdRange": "Table ID must be a number between 1 and 200",
+    "tableIdRange": "Table ID must be a number between {min} and {max}",
     "arpEntryExists": "An ARP entry for {name} already exists on this interface",
     "descriptionTooLong": "Description must be at most {max} characters",
-    "tableExists": "Table {name} already exists"
+    "tableExists": "Table {name} already exists",
+    "nextHopAddressRequired": "Every next-hop needs an address",
+    "nextHopDuplicate": "Next-hop {name} is listed twice",
+    "interfaceDuplicate": "Interface {name} is listed twice",
+    "distanceRange": "Distance must be between {min} and {max}",
+    "distanceRangeNamed": "Distance of {name} must be between {min} and {max}"
   },
   "shared": {
     "interface": "Interface",
@@ -60,13 +65,8 @@
     "editDescription": "Modify next-hops and interfaces of {prefix}",
     "updateFailed": "Failed to update multicast route",
     "mrouteExists": "A multicast route for {name} already exists",
-    "nextHopAddressRequired": "Every next-hop needs an address",
     "nextHopAddressInvalid": "Next-hop {name} is not a valid IPv4 address",
-    "nextHopDuplicate": "Next-hop {name} is listed twice",
-    "interfaceRequired": "Every interface entry needs an interface",
-    "interfaceDuplicate": "Interface {name} is listed twice",
-    "distanceRange": "Distance must be between {min} and {max}",
-    "distanceRangeNamed": "Distance of {name} must be between {min} and {max}"
+    "interfaceRequired": "Every interface entry needs an interface"
   },
   "deleteMroute": {
     "failed": "Failed to delete multicast route",
@@ -77,9 +77,6 @@
     "interfaces": "Interfaces:"
   },
   "neighborProxyModal": {
-    "ipRequired": "IP address is required",
-    "interfaceRequired": "Interface is required",
-    "invalidIpv4": "Invalid IPv4 address format",
     "invalidIpv6": "Invalid IPv6 address format",
     "createFailed": "Failed to create neighbor proxy entry",
     "title": "Create Neighbor Proxy Entry",
@@ -107,7 +104,7 @@
     "createTitle": "Create Routing Table",
     "editDescription": "Update the description for this routing table",
     "createDescription": "Create a custom routing table for policy-based routing",
-    "tableId": "Table ID (1-200)",
+    "tableId": "Table ID ({min}-{max})",
     "descriptionPlaceholder": "Description for this routing table",
     "ipv4Routes": "IPv4 Routes:",
     "ipv6Routes": "IPv6 Routes:",
@@ -129,7 +126,12 @@
     "v4": "v4",
     "v6": "v6",
     "dhcpInterface": "DHCP: {name}",
-    "more": "+{count}",
-    "emptyCell": "—"
+    "more": "+{count}"
+  },
+  "deleteTable": {
+    "title": "Delete Routing Table",
+    "description": "Are you sure you want to delete this routing table?",
+    "failed": "Failed to delete routing table",
+    "tableId": "Table ID:"
   }
 }

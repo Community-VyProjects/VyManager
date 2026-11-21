@@ -102,12 +102,15 @@ export function CreateMrouteModal({
     switch (problem.key) {
       case "range":
         return problem.name
-          ? t("mrouteModal.distanceRangeNamed", { min: problem.min, max: problem.max, name: problem.name })
-          : t("mrouteModal.distanceRange", { min: problem.min, max: problem.max });
-      case "mrouteExists":
-      case "nextHopAddressInvalid":
+          ? t("validation.distanceRangeNamed", { min: problem.min, max: problem.max, name: problem.name })
+          : t("validation.distanceRange", { min: problem.min, max: problem.max });
       case "nextHopDuplicate":
       case "interfaceDuplicate":
+        return t(`validation.${problem.key}`, { name: problem.name });
+      case "nextHopAddressRequired":
+        return t("validation.nextHopAddressRequired");
+      case "mrouteExists":
+      case "nextHopAddressInvalid":
         return t(`mrouteModal.${problem.key}`, { name: problem.name });
       case "prefixRequired":
         return t("mrouteModal.prefixRequired");
@@ -116,7 +119,7 @@ export function CreateMrouteModal({
       case "targetRequired":
         return t("mrouteModal.nextHopOrInterfaceRequired");
       default:
-        return t(`mrouteModal.${problem.key}`);
+        return t("mrouteModal.interfaceRequired");
     }
   };
 

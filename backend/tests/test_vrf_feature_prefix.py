@@ -386,11 +386,11 @@ def test_ipv4_segments_delete_is_rejected_on_1_4():
 
 def test_bfd_source_delete_follows_version():
     old = VrfBatchBuilder("1.4")
-    old.delete_vrf_static_route_next_hop_bfd_multi_hop_source("blue", "10.0.0.0/24,192.0.2.1")
-    assert old.get_operations()[-1]["path"][-1] == "source"
+    old.delete_vrf_static_route_next_hop_bfd_multi_hop_source("blue", "10.0.0.0/24,192.0.2.1,192.0.2.9")
+    assert old.get_operations()[-1]["path"][-2:] == ["source", "192.0.2.9"]
     new = VrfBatchBuilder("1.5")
-    new.delete_vrf_static_route_next_hop_bfd_multi_hop_source("blue", "10.0.0.0/24,192.0.2.1")
-    assert new.get_operations()[-1]["path"][-1] == "source-address"
+    new.delete_vrf_static_route_next_hop_bfd_multi_hop_source("blue", "10.0.0.0/24,192.0.2.1,192.0.2.9")
+    assert new.get_operations()[-1]["path"][-2:] == ["source-address", "192.0.2.9"]
 
 
 def test_route6_bfd_source_follows_version():
@@ -403,18 +403,18 @@ def test_route6_bfd_source_follows_version():
         "next-hop", "2001:db8::1", "bfd", "multi-hop", "source", "2001:db8::2",
     ]
     old.delete_vrf_static_route6_next_hop_bfd_multi_hop_source(
-        "blue", "2001:db8::/64,2001:db8::1"
+        "blue", "2001:db8::/64,2001:db8::1,2001:db8::2"
     )
-    assert old.get_operations()[-1]["path"][-1] == "source"
+    assert old.get_operations()[-1]["path"][-2:] == ["source", "2001:db8::2"]
     new = VrfBatchBuilder("1.5")
     new.set_vrf_static_route6_next_hop_bfd_multi_hop_source(
         "blue", "2001:db8::/64,2001:db8::1,2001:db8::2"
     )
     assert new.get_operations()[-1]["path"][-2:] == ["source-address", "2001:db8::2"]
     new.delete_vrf_static_route6_next_hop_bfd_multi_hop_source(
-        "blue", "2001:db8::/64,2001:db8::1"
+        "blue", "2001:db8::/64,2001:db8::1,2001:db8::2"
     )
-    assert new.get_operations()[-1]["path"][-1] == "source-address"
+    assert new.get_operations()[-1]["path"][-2:] == ["source-address", "2001:db8::2"]
 
 
 def test_dhcpv6_static_mapping_uses_the_global_builder(monkeypatch):

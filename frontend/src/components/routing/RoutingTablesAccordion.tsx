@@ -353,7 +353,7 @@ function RouteRow({ route, onEdit, onDelete }: RouteRowProps) {
         </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
-        {route.description || t("accordion.emptyCell")}
+        {route.description || "—"}
       </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

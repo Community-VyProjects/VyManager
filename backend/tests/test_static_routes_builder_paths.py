@@ -6,19 +6,18 @@ set/delete leaves were committed on both labs.
 """
 
 import inspect
-from typing import cast
 
 import pytest
 
-from vyos_builders.static_routes.static_routes_batch_builder import (
+from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
+from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.static_routes.static_routes import (
     IPV4_SEGMENTS,
     MROUTE,
     SOURCE_PROFILE,
-    StaticRoutesBatchBuilder,
+    StaticRoutesMapper,
 )
-from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
-from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
 from vyos_mappers.static_routes.static_routes_versions.v1_4 import StaticRoutesMapperV1_4
 from vyos_mappers.static_routes.static_routes_versions.v1_5 import StaticRoutesMapperV1_5
 
@@ -217,9 +216,9 @@ CASES_BOTH = [
 
 CASES_1_5 = [
     ('delete_ipv4_route_interface_segments', ('198.51.100.0/24', 'eth1'), 'delete', ['protocols', 'static', 'route', '198.51.100.0/24', 'interface', 'eth1', 'segments']),
-    ('delete_ipv4_route_next_hop_bfd_multi_hop_source', ('198.51.100.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source-address']),
+    ('delete_ipv4_route_next_hop_bfd_multi_hop_source', ('198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'delete', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source-address', '192.0.2.9']),
     ('delete_ipv4_route_next_hop_segments', ('198.51.100.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'segments']),
-    ('delete_ipv6_route_next_hop_bfd_multi_hop_source', ('2001:db8:100::/48', '2001:db8::1'), 'delete', ['protocols', 'static', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source-address']),
+    ('delete_ipv6_route_next_hop_bfd_multi_hop_source', ('2001:db8:100::/48', '2001:db8::1', '2001:db8::9'), 'delete', ['protocols', 'static', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source-address', '2001:db8::9']),
     ('delete_mroute', ('233.252.0.0/24',), 'delete', ['protocols', 'static', 'mroute', '233.252.0.0/24']),
     ('delete_mroute_interface', ('233.252.0.0/24', 'eth1'), 'delete', ['protocols', 'static', 'mroute', '233.252.0.0/24', 'interface', 'eth1']),
     ('delete_mroute_interface_disable', ('233.252.0.0/24', 'eth1'), 'delete', ['protocols', 'static', 'mroute', '233.252.0.0/24', 'interface', 'eth1', 'disable']),
@@ -230,9 +229,9 @@ CASES_1_5 = [
     ('delete_mroute_next_hop_distance', ('233.252.0.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'mroute', '233.252.0.0/24', 'next-hop', '192.0.2.1', 'distance']),
     ('delete_mroute_next_hops', ('233.252.0.0/24',), 'delete', ['protocols', 'static', 'mroute', '233.252.0.0/24', 'next-hop']),
     ('delete_table_ipv4_route_interface_segments', ('10', '198.51.100.0/24', 'eth1'), 'delete', ['protocols', 'static', 'table', '10', 'route', '198.51.100.0/24', 'interface', 'eth1', 'segments']),
-    ('delete_table_ipv4_route_next_hop_bfd_multi_hop_source', ('10', '198.51.100.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'table', '10', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source-address']),
+    ('delete_table_ipv4_route_next_hop_bfd_multi_hop_source', ('10', '198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'delete', ['protocols', 'static', 'table', '10', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source-address', '192.0.2.9']),
     ('delete_table_ipv4_route_next_hop_segments', ('10', '198.51.100.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'table', '10', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'segments']),
-    ('delete_table_ipv6_route_next_hop_bfd_multi_hop_source', ('10', '2001:db8:100::/48', '2001:db8::1'), 'delete', ['protocols', 'static', 'table', '10', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source-address']),
+    ('delete_table_ipv6_route_next_hop_bfd_multi_hop_source', ('10', '2001:db8:100::/48', '2001:db8::1', '2001:db8::9'), 'delete', ['protocols', 'static', 'table', '10', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source-address', '2001:db8::9']),
     ('set_ipv4_route_interface_segments', ('198.51.100.0/24', 'eth1', 'fc00::1'), 'set', ['protocols', 'static', 'route', '198.51.100.0/24', 'interface', 'eth1', 'segments', 'fc00::1']),
     ('set_ipv4_route_next_hop_bfd_multi_hop_source', ('198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'set', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source-address', '192.0.2.9']),
     ('set_ipv4_route_next_hop_segments', ('198.51.100.0/24', '192.0.2.1', 'fc00::1'), 'set', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'segments', 'fc00::1']),
@@ -251,9 +250,9 @@ CASES_1_5 = [
 ]
 
 CASES_1_4 = [
-    ('delete_ipv4_route_next_hop_bfd_multi_hop_source', ('198.51.100.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source']),
+    ('delete_ipv4_route_next_hop_bfd_multi_hop_source', ('198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'delete', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source', '192.0.2.9']),
     ('delete_ipv4_route_next_hop_bfd_multi_hop_source_profile', ('198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'delete', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source', '192.0.2.9', 'profile']),
-    ('delete_ipv6_route_next_hop_bfd_multi_hop_source', ('2001:db8:100::/48', '2001:db8::1'), 'delete', ['protocols', 'static', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source']),
+    ('delete_ipv6_route_next_hop_bfd_multi_hop_source', ('2001:db8:100::/48', '2001:db8::1', '2001:db8::9'), 'delete', ['protocols', 'static', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source', '2001:db8::9']),
     ('delete_ipv6_route_next_hop_bfd_multi_hop_source_profile', ('2001:db8:100::/48', '2001:db8::1', '2001:db8::9'), 'delete', ['protocols', 'static', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source', '2001:db8::9', 'profile']),
     ('delete_mroute_interface', ('233.252.0.0/24', 'eth1'), 'delete', ['protocols', 'static', 'multicast', 'interface-route', '233.252.0.0/24', 'next-hop-interface', 'eth1']),
     ('delete_mroute_interface_distance', ('233.252.0.0/24', 'eth1'), 'delete', ['protocols', 'static', 'multicast', 'interface-route', '233.252.0.0/24', 'next-hop-interface', 'eth1', 'distance']),
@@ -261,9 +260,9 @@ CASES_1_4 = [
     ('delete_mroute_next_hop', ('233.252.0.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'multicast', 'route', '233.252.0.0/24', 'next-hop', '192.0.2.1']),
     ('delete_mroute_next_hop_distance', ('233.252.0.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'multicast', 'route', '233.252.0.0/24', 'next-hop', '192.0.2.1', 'distance']),
     ('delete_mroute_next_hops', ('233.252.0.0/24',), 'delete', ['protocols', 'static', 'multicast', 'route', '233.252.0.0/24']),
-    ('delete_table_ipv4_route_next_hop_bfd_multi_hop_source', ('10', '198.51.100.0/24', '192.0.2.1'), 'delete', ['protocols', 'static', 'table', '10', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source']),
+    ('delete_table_ipv4_route_next_hop_bfd_multi_hop_source', ('10', '198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'delete', ['protocols', 'static', 'table', '10', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source', '192.0.2.9']),
     ('delete_table_ipv4_route_next_hop_bfd_multi_hop_source_profile', ('10', '198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'delete', ['protocols', 'static', 'table', '10', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source', '192.0.2.9', 'profile']),
-    ('delete_table_ipv6_route_next_hop_bfd_multi_hop_source', ('10', '2001:db8:100::/48', '2001:db8::1'), 'delete', ['protocols', 'static', 'table', '10', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source']),
+    ('delete_table_ipv6_route_next_hop_bfd_multi_hop_source', ('10', '2001:db8:100::/48', '2001:db8::1', '2001:db8::9'), 'delete', ['protocols', 'static', 'table', '10', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source', '2001:db8::9']),
     ('delete_table_ipv6_route_next_hop_bfd_multi_hop_source_profile', ('10', '2001:db8:100::/48', '2001:db8::1', '2001:db8::9'), 'delete', ['protocols', 'static', 'table', '10', 'route6', '2001:db8:100::/48', 'next-hop', '2001:db8::1', 'bfd', 'multi-hop', 'source', '2001:db8::9', 'profile']),
     ('set_ipv4_route_next_hop_bfd_multi_hop_source', ('198.51.100.0/24', '192.0.2.1', '192.0.2.9'), 'set', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source', '192.0.2.9']),
     ('set_ipv4_route_next_hop_bfd_multi_hop_source_profile', ('198.51.100.0/24', '192.0.2.1', '192.0.2.9', 'T-P'), 'set', ['protocols', 'static', 'route', '198.51.100.0/24', 'next-hop', '192.0.2.1', 'bfd', 'multi-hop', 'source', '192.0.2.9', 'profile', 'T-P']),
@@ -355,44 +354,51 @@ def test_capabilities_follow_the_labs():
         "route_ipv4_segments": False,
         "next_hop_bfd_source_profile": True,
         "multicast_mroute": False,
+        "route_dhcp_interface_multi": False,
     }
     assert {k: v["supported"] for k, v in _features("1.5").items()} == {
         "route_ipv4_segments": True,
         "next_hop_bfd_source_profile": False,
         "multicast_mroute": True,
+        "route_dhcp_interface_multi": True,
     }
-    assert _vrf_features("1.4")["static_route_ipv4_segments"]["supported"] is False
-    assert _vrf_features("1.4")["static_route_bfd_source_profile"]["supported"] is True
-    assert _vrf_features("1.5")["static_route_ipv4_segments"]["supported"] is True
-    assert _vrf_features("1.5")["static_route_bfd_source_profile"]["supported"] is False
+    for version, segments, profile, multi in (("1.4", False, True, False), ("1.5", True, False, True)):
+        vrf = _vrf_features(version)
+        assert vrf["static_route_ipv4_segments"]["supported"] is segments
+        assert vrf["static_route_bfd_source_profile"]["supported"] is profile
+        assert vrf["static_route_dhcp_interface_multi"]["supported"] is multi
+
+
+def test_versioned_nodes_are_the_subclass_path_methods():
+    """The allowlist is derived from which subclass defines each path method."""
+    v14 = CommandMapperRegistry.get_mapper("static_routes", "1.4")
+    v15 = CommandMapperRegistry.get_mapper("static_routes", "1.5")
+    assert isinstance(v14, StaticRoutesMapper) and isinstance(v15, StaticRoutesMapper)
+    assert v14.versioned_nodes() == {SOURCE_PROFILE}
+    assert v15.versioned_nodes() == {IPV4_SEGMENTS, MROUTE}
+    assert not hasattr(v14, "get_route_next_hop_segments")
+    assert not hasattr(v14, "get_route_interface_segments")
+    assert not hasattr(v15, "get_route_next_hop_bfd_multi_hop_source_profile")
 
 
 def test_gates_read_the_mapper_not_the_version(monkeypatch):
-    """A 1.5 string with an empty allowlist hides and rejects; a 1.4 string
-    with the 1.5 allowlist allows. A version check in the builder fails this."""
-    monkeypatch.setattr(StaticRoutesMapperV1_5, "versioned_nodes", lambda self: frozenset())
-    assert not any(v["supported"] for v in _features("1.5").values())
+    """Removing the 1.5 path method hides and rejects it on a 1.5 string;
+    adding it to the 1.4 class allows it on a 1.4 string. A version check in
+    the builder or the capabilities fails this."""
+    segments = StaticRoutesMapperV1_5.get_route_next_hop_segments
+    monkeypatch.delattr(StaticRoutesMapperV1_5, "get_route_next_hop_segments")
+    assert _features("1.5")["route_ipv4_segments"]["supported"] is False
     assert _vrf_features("1.5")["static_route_ipv4_segments"]["supported"] is False
-    builder = StaticRoutesBatchBuilder(version="1.5")
     with pytest.raises(ValueError, match="route segments is not supported"):
-        builder.set_ipv4_route_next_hop_segments("198.51.100.0/24", "192.0.2.1", "fc00::1")
+        StaticRoutesBatchBuilder(version="1.5").set_ipv4_route_next_hop_segments(
+            "198.51.100.0/24", "192.0.2.1", "fc00::1"
+        )
     with pytest.raises(ValueError, match="route segments is not supported"):
         VrfBatchBuilder("1.5").set_vrf_static_route_next_hop_segments("T-V", "198.51.100.0/24,192.0.2.1,fc00::1")
 
-    monkeypatch.setattr(
-        StaticRoutesMapperV1_4,
-        "versioned_nodes",
-        lambda self: frozenset({IPV4_SEGMENTS, SOURCE_PROFILE}),
-    )
+    monkeypatch.setattr(StaticRoutesMapperV1_4, "get_route_next_hop_segments", segments, raising=False)
     assert _features("1.4")["route_ipv4_segments"]["supported"] is True
     assert _vrf_features("1.4")["static_route_ipv4_segments"]["supported"] is True
     builder = StaticRoutesBatchBuilder(version="1.4")
     builder.set_ipv4_route_next_hop_segments("198.51.100.0/24", "192.0.2.1", "fc00::1")
     assert builder.get_operations()[0]["path"][-2:] == ["segments", "fc00::1"]
-
-
-def test_mroute_capability_is_the_mapper_node():
-    mapper = cast(StaticRoutesMapper, CommandMapperRegistry.get_mapper("static_routes", "1.5"))
-    assert mapper.supports_node(MROUTE)
-    mapper = cast(StaticRoutesMapper, CommandMapperRegistry.get_mapper("static_routes", "1.4"))
-    assert not mapper.supports_node(MROUTE)

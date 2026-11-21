@@ -9,6 +9,8 @@ neighbor proxy and the route-map.
 The shared class holds the commands both labs have. A leaf only one version
 has, and the multicast and BFD multi-hop source trees the two versions spell
 differently, live on the version subclass in ``static_routes_versions``.
+``_VERSIONED_NODES`` maps each version-only node to the subclass path method
+that defines it; ``versioned_nodes()`` is the set of those the device has.
 """
 
 from abc import abstractmethod
@@ -19,6 +21,11 @@ from ..base import BaseFeatureMapper
 ROOT = ["protocols", "static"]
 _FAMILY_NODES = {"ipv4": "route", "ipv6": "route6"}
 
+# Version-only nodes (keys of StaticRoutesMapper._VERSIONED_NODES).
+IPV4_SEGMENTS = "route segments"
+SOURCE_PROFILE = "next-hop bfd multi-hop source profile"
+MROUTE = "mroute"
+
 
 class StaticRoutesMapper(BaseFeatureMapper):
     """Static route commands both labs share."""
@@ -27,13 +34,23 @@ class StaticRoutesMapper(BaseFeatureMapper):
     # Core
     # ========================================================================
 
+    _VERSIONED_NODES: Dict[str, str] = {
+        IPV4_SEGMENTS: "get_route_next_hop_segments",
+        SOURCE_PROFILE: "get_route_next_hop_bfd_multi_hop_source_profile",
+        MROUTE: "get_mroute",
+    }
+
     def versioned_nodes(self) -> FrozenSet[str]:
         """Version-only static leaves this device has.
 
-        The version subclass lists its leaves. Capabilities and the builder
-        read this set instead of the version string.
+        Each one is a path method on the version subclass. Capabilities, the
+        builder and the parse read this set instead of the version string.
         """
-        return frozenset()
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
 
     def supports_node(self, node: str) -> bool:
         return node in self.versioned_nodes()
@@ -100,8 +117,13 @@ class StaticRoutesMapper(BaseFeatureMapper):
     def get_route_reject_tag_delete(self, family: str, table: Optional[str], destination: str) -> List[str]:
         return self.get_route_reject(family, table, destination) + ["tag"]
 
+    def dhcp_interface_multi(self) -> bool:
+        """``dhcp-interface`` holds one value on 1.4 and a list on 1.5."""
+        return False
+
     def get_route_dhcp_interface(self, table: Optional[str], destination: str, interface: str) -> List[str]:
-        """IPv4 only; ``dhcp-interface`` is a multi leaf, so the delete keeps the value."""
+        """IPv4 only. One value on 1.4 (a set replaces it), a multi leaf on 1.5;
+        the delete names the value on both."""
         return self._route("ipv4", table, destination) + ["dhcp-interface", interface]
 
     # ========================================================================
@@ -124,15 +146,16 @@ class StaticRoutesMapper(BaseFeatureMapper):
     ) -> List[str]:
         return self._interface(family, table, destination, interface) + ["distance"]
 
-    def get_route_interface_segments(
-        self, family: str, table: Optional[str], destination: str, interface: str, value: str
+    def get_route6_interface_segments(
+        self, table: Optional[str], destination: str, interface: str, value: str
     ) -> List[str]:
-        return self._interface(family, table, destination, interface) + ["segments", value]
+        """IPv6 routes take SRv6 segments on both labs (IPv4: the 1.5 subclass)."""
+        return self._interface("ipv6", table, destination, interface) + ["segments", value]
 
-    def get_route_interface_segments_delete(
-        self, family: str, table: Optional[str], destination: str, interface: str
+    def get_route6_interface_segments_delete(
+        self, table: Optional[str], destination: str, interface: str
     ) -> List[str]:
-        return self._interface(family, table, destination, interface) + ["segments"]
+        return self._interface("ipv6", table, destination, interface) + ["segments"]
 
     def get_route_interface_vrf(
         self, family: str, table: Optional[str], destination: str, interface: str, value: str
@@ -177,9 +200,10 @@ class StaticRoutesMapper(BaseFeatureMapper):
 
     @abstractmethod
     def get_route_next_hop_bfd_multi_hop_source_delete(
-        self, family: str, table: Optional[str], destination: str, next_hop: str
+        self, family: str, table: Optional[str], destination: str, next_hop: str, source: str
     ) -> List[str]:
-        """The whole source node, so a 1.4 source profile goes with it."""
+        """One source: the 1.4 ``source <addr>`` tag (its profile goes with it)
+        or the 1.5 ``source-address`` value."""
 
     def get_route_next_hop_disable(self, family: str, table: Optional[str], destination: str, next_hop: str) -> List[str]:
         return self._next_hop(family, table, destination, next_hop) + ["disable"]
@@ -204,15 +228,15 @@ class StaticRoutesMapper(BaseFeatureMapper):
     ) -> List[str]:
         return self._next_hop(family, table, destination, next_hop) + ["interface"]
 
-    def get_route_next_hop_segments(
-        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
+    def get_route6_next_hop_segments(
+        self, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        return self._next_hop(family, table, destination, next_hop) + ["segments", value]
+        return self._next_hop("ipv6", table, destination, next_hop) + ["segments", value]
 
-    def get_route_next_hop_segments_delete(
-        self, family: str, table: Optional[str], destination: str, next_hop: str
+    def get_route6_next_hop_segments_delete(
+        self, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return self._next_hop(family, table, destination, next_hop) + ["segments"]
+        return self._next_hop("ipv6", table, destination, next_hop) + ["segments"]
 
     def get_route_next_hop_vrf(
         self, family: str, table: Optional[str], destination: str, next_hop: str, value: str

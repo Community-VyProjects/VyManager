@@ -1,7 +1,8 @@
-"""VRF feature op names that existed on the deleted mixins.
+"""VRF feature op allowlist.
 
-This is the allowlist. A global builder method is not a VRF op
-unless its name is here.
+Each name maps onto a global feature builder method run under
+``vrf name <vrf>`` (see ``vrf_protocol``). A global builder method is not
+a VRF op unless its name is here.
 """
 LEGACY_OPS = frozenset({
     'delete_vrf_dhcp',

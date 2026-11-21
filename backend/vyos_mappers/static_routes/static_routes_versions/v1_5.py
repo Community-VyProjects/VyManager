@@ -8,7 +8,7 @@ methods do not re-check the node: the builder already called
 ``require_node``.
 """
 
-from typing import FrozenSet, List, Optional
+from typing import List, Optional
 
 from ..static_routes import ROOT, StaticRoutesMapper
 
@@ -16,8 +16,29 @@ from ..static_routes import ROOT, StaticRoutesMapper
 class StaticRoutesMapperV1_5(StaticRoutesMapper):
     """VyOS 1.5 static routes mapper."""
 
-    def versioned_nodes(self) -> FrozenSet[str]:
-        return frozenset({"route segments", "mroute"})
+    def dhcp_interface_multi(self) -> bool:
+        return True
+
+    def get_route_next_hop_segments(
+        self, table: Optional[str], destination: str, next_hop: str, value: str
+    ) -> List[str]:
+        """SRv6 segments on an IPv4 route next-hop (``route6`` has them on both labs)."""
+        return self.get_route_next_hop("ipv4", table, destination, next_hop) + ["segments", value]
+
+    def get_route_next_hop_segments_delete(
+        self, table: Optional[str], destination: str, next_hop: str
+    ) -> List[str]:
+        return self.get_route_next_hop("ipv4", table, destination, next_hop) + ["segments"]
+
+    def get_route_interface_segments(
+        self, table: Optional[str], destination: str, interface: str, value: str
+    ) -> List[str]:
+        return self.get_route_interface("ipv4", table, destination, interface) + ["segments", value]
+
+    def get_route_interface_segments_delete(
+        self, table: Optional[str], destination: str, interface: str
+    ) -> List[str]:
+        return self.get_route_interface("ipv4", table, destination, interface) + ["segments"]
 
     def get_route_next_hop_bfd_multi_hop_source(
         self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
@@ -27,9 +48,9 @@ class StaticRoutesMapperV1_5(StaticRoutesMapper):
         ]
 
     def get_route_next_hop_bfd_multi_hop_source_delete(
-        self, family: str, table: Optional[str], destination: str, next_hop: str
+        self, family: str, table: Optional[str], destination: str, next_hop: str, source: str
     ) -> List[str]:
-        return self.get_route_next_hop_bfd_multi_hop(family, table, destination, next_hop) + ["source-address"]
+        return self.get_route_next_hop_bfd_multi_hop_source(family, table, destination, next_hop, source)
 
     def get_mroute(self, prefix: str) -> List[str]:
         return ROOT + ["mroute", prefix]

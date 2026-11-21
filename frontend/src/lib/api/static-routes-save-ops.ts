@@ -12,6 +12,13 @@
  * last argument may hold a comma (description, segments).
  */
 
+import {
+  isValidIPv4,
+  isValidIPv4CIDR,
+  isValidIPv6,
+  isValidIPv6CIDR,
+  isValidMACAddress,
+} from "@/lib/validators/firewall";
 import type {
   ArpEntry,
   MulticastRoute,
@@ -23,7 +30,7 @@ import type {
 export const DISTANCE_RANGE = { min: 1, max: 255 } as const;
 export const TAG_RANGE = { min: 1, max: 4294967295 } as const;
 export const TABLE_RANGE = { min: 1, max: 200 } as const;
-export const DESCRIPTION_MAX = 255;
+const DESCRIPTION_MAX = 255;
 
 export type RouteFamily = "ipv4" | "ipv6";
 
@@ -31,8 +38,13 @@ export type RouteFamily = "ipv4" | "ipv6";
 export interface StaticRouteFeatures {
   /** SRv6 `segments` on IPv4 next-hops and interfaces (IPv6 has them on both labs). */
   ipv4Segments: boolean;
-  /** 1.4 `bfd multi-hop source <addr> profile`. */
+  /**
+   * 1.4: `bfd multi-hop source <addr>` is a tag (several sources, each with a
+   * `profile`). 1.5: one `source-address` of the route's family, no profile.
+   */
   bfdSourceProfile: boolean;
+  /** `dhcp-interface` holds several values (1.5) or one (1.4). */
+  dhcpInterfaceMulti: boolean;
 }
 
 /** Where a route lives; picks the op names and the leading arguments. */
@@ -50,36 +62,42 @@ export function text(value: string | number | null | undefined): string {
   return value === null || value === undefined ? "" : String(value).trim();
 }
 
-const IPV4_OCTET = "(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)";
-const IPV4 = new RegExp(`^${IPV4_OCTET}(\\.${IPV4_OCTET}){3}$`);
-const IPV4_PREFIX = new RegExp(`^${IPV4_OCTET}(\\.${IPV4_OCTET}){3}/(3[0-2]|[12]?\\d)$`);
-const MAC = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
-
-export function isIpv4(value: string): boolean {
-  return IPV4.test(value);
+function isIpv4(value: string): boolean {
+  return value !== "" && isValidIPv4(value);
 }
 
-export function isIpv6(value: string): boolean {
-  if (!/^[0-9A-Fa-f:.]+$/.test(value) || !value.includes(":")) return false;
-  try {
-    return new URL(`http://[${value}]/`).hostname !== "";
-  } catch {
-    return false;
-  }
+function isIpv6(value: string): boolean {
+  return value.includes(":") && isValidIPv6(value);
 }
 
-function isIpv6Prefix(value: string): boolean {
-  const [address, length, extra] = value.split("/");
-  if (extra !== undefined || length === undefined || !/^\d{1,3}$/.test(length)) return false;
-  return Number(length) <= 128 && isIpv6(address);
-}
-
-export function isAddress(value: string, family: RouteFamily): boolean {
+function isAddress(value: string, family: RouteFamily): boolean {
   return family === "ipv4" ? isIpv4(value) : isIpv6(value);
 }
 
-export function isPrefix(value: string, family: RouteFamily): boolean {
-  return family === "ipv4" ? IPV4_PREFIX.test(value) : isIpv6Prefix(value);
+/** 32 or 128 address bits, most significant first. */
+function addressBits(address: string, family: RouteFamily): number[] | null {
+  if (family === "ipv4") {
+    return address.split(".").flatMap((octet) =>
+      Number(octet).toString(2).padStart(8, "0").split("").map(Number),
+    );
+  }
+  if (address.includes(".")) return null;
+  const [head, tail] = address.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  if (groups.length !== 8) return null;
+  return groups.flatMap((g) => parseInt(g || "0", 16).toString(2).padStart(16, "0").split("").map(Number));
+}
+
+/** A network in CIDR notation with no host bits (the lab `ipv4-prefix`/`ipv6-prefix` check). */
+function isPrefix(value: string, family: RouteFamily): boolean {
+  if (!value.includes("/")) return false;
+  if (!(family === "ipv4" ? isValidIPv4CIDR(value) : isValidIPv6CIDR(value))) return false;
+  const [address, length] = value.split("/");
+  if (!/^\d{1,3}$/.test(length)) return false;
+  const bits = addressBits(address, family);
+  return bits !== null && bits.slice(Number(length)).every((bit) => bit === 0);
 }
 
 function inRange(value: string, range: { min: number; max: number }): boolean {
@@ -105,7 +123,7 @@ function rangeProblem(value: string, field: RangeField, name?: string) {
 // ============================================================================
 
 /** One builder op without its scope: `leaf` is the op suffix ("" for the node). */
-export interface LeafOp {
+interface LeafOp {
   verb: "set" | "delete";
   leaf: string;
   args: string[];
@@ -145,6 +163,12 @@ function byName<T>(rows: T[], name: (row: T) => string): Map<string, T> {
 // Routes
 // ============================================================================
 
+export interface BfdSourceFields {
+  address: string;
+  /** 1.4 only. */
+  profile: string;
+}
+
 export interface NextHopFields {
   address: string;
   distance: string;
@@ -155,8 +179,8 @@ export interface NextHopFields {
   bfd: boolean;
   bfdProfile: string;
   multiHop: boolean;
-  source: string;
-  sourceProfile: string;
+  /** One entry at most on 1.5. */
+  sources: BfdSourceFields[];
 }
 
 export interface InterfaceFields {
@@ -192,9 +216,12 @@ export function emptyNextHop(): NextHopFields {
     bfd: false,
     bfdProfile: "",
     multiHop: false,
-    source: "",
-    sourceProfile: "",
+    sources: [],
   };
+}
+
+export function emptyBfdSource(): BfdSourceFields {
+  return { address: "", profile: "" };
 }
 
 export function emptyInterface(): InterfaceFields {
@@ -216,8 +243,7 @@ export function staticRouteFields(route: StaticRoute | null | undefined): Static
       bfd: nh.bfd_enable,
       bfdProfile: text(nh.bfd_profile),
       multiHop: nh.bfd_multi_hop,
-      source: text(nh.bfd_multi_hop_source),
-      sourceProfile: text(nh.bfd_multi_hop_source_profile),
+      sources: nh.bfd_multi_hop_sources.map((src) => ({ address: text(src.address), profile: text(src.profile) })),
     })),
     interfaces: (route?.interfaces ?? []).map((iface) => ({
       interface: text(iface.interface),
@@ -251,8 +277,9 @@ function normalizeNextHop(nh: NextHopFields): NextHopFields {
     bfd: nh.bfd,
     bfdProfile: text(nh.bfdProfile),
     multiHop: nh.multiHop,
-    source: text(nh.source),
-    sourceProfile: text(nh.sourceProfile),
+    sources: nh.sources
+      .map((src) => ({ address: text(src.address), profile: text(src.profile) }))
+      .filter((src) => src.address || src.profile),
   };
 }
 
@@ -269,7 +296,7 @@ function normalizeInterface(iface: InterfaceFields): InterfaceFields {
 function nextHopHasData(nh: NextHopFields): boolean {
   return Boolean(
     nh.distance || nh.disable || nh.interface || nh.vrf || nh.segments || nh.bfd ||
-      nh.bfdProfile || nh.multiHop || nh.source || nh.sourceProfile,
+      nh.bfdProfile || nh.multiHop || nh.sources.length > 0,
   );
 }
 
@@ -306,8 +333,9 @@ export type StaticRouteProblem =
   | { key: "nextHopAddressRequired" }
   | { key: "nextHopAddressInvalid"; name: string }
   | { key: "nextHopDuplicate"; name: string }
+  | { key: "sourceRequired"; name: string }
   | { key: "sourceInvalid"; name: string }
-  | { key: "sourceProfileWithoutSource"; name: string }
+  | { key: "sourceDuplicate"; name: string }
   | { key: "interfaceRequired" }
   | { key: "interfaceDuplicate"; name: string }
   | { key: "blackholeAndReject" }
@@ -323,6 +351,7 @@ export function staticRouteProblem(
   route: StaticRouteFields,
   family: RouteFamily,
   configured: string[],
+  features: StaticRouteFeatures,
 ): StaticRouteProblem | null {
   const r = normalizeRoute(route);
   if (!original) {
@@ -340,11 +369,18 @@ export function staticRouteProblem(
     hops.add(nh.address);
     const range = rangeProblem(nh.distance, "distance", nh.address);
     if (range) return range;
-    if (nh.bfd && nh.multiHop && nh.source && !isIpv4(nh.source) && !isIpv6(nh.source)) {
-      return { key: "sourceInvalid", name: nh.address };
-    }
-    if (nh.bfd && nh.multiHop && nh.sourceProfile && !nh.source) {
-      return { key: "sourceProfileWithoutSource", name: nh.address };
+    if (nh.bfd && nh.multiHop) {
+      const sources = new Set<string>();
+      for (const src of nh.sources) {
+        if (!src.address) return { key: "sourceRequired", name: nh.address };
+        // 1.4 `source` takes either family; 1.5 `source-address` the route's.
+        const valid = features.bfdSourceProfile
+          ? isIpv4(src.address) || isIpv6(src.address)
+          : isAddress(src.address, family);
+        if (!valid) return { key: "sourceInvalid", name: nh.address };
+        if (sources.has(src.address)) return { key: "sourceDuplicate", name: nh.address };
+        sources.add(src.address);
+      }
     }
   }
 
@@ -372,29 +408,28 @@ export function staticRouteProblem(
 function bfdSourceOps(
   ops: LeafOp[],
   key: string,
-  before: NextHopFields | null,
-  after: NextHopFields,
+  before: BfdSourceFields[],
+  after: BfdSourceFields[],
   features: StaticRouteFeatures,
 ): void {
-  const oldSource = before?.multiHop ? before.source : "";
-  const oldProfile = before?.multiHop && features.bfdSourceProfile ? before.sourceProfile : "";
-  const newProfile = features.bfdSourceProfile ? after.sourceProfile : "";
-  if (oldSource === after.source) {
-    if (after.source) {
-      leaf(ops, "next_hop_bfd_multi_hop_source_profile", [key, after.source], oldProfile, newProfile);
-    }
+  if (!features.bfdSourceProfile) {
+    // 1.5: one `source-address` leaf; a set replaces it.
+    const was = before[0]?.address ?? "";
+    const now = after[0]?.address ?? "";
+    if (was === now) return;
+    ops.push(now ? set("next_hop_bfd_multi_hop_source", key, now) : del("next_hop_bfd_multi_hop_source", key, was));
     return;
   }
-  // 1.4 keeps the source as a tag node, so a new address is a second node;
-  // drop the old one first. 1.5 holds one value and the set replaces it.
-  if (oldSource && (!after.source || features.bfdSourceProfile)) {
-    ops.push(del("next_hop_bfd_multi_hop_source", key));
+  // 1.4: each source is a tag with its own profile.
+  const oldSources = byName(before, (src) => src.address);
+  const newSources = byName(after, (src) => src.address);
+  for (const address of oldSources.keys()) {
+    if (!newSources.has(address)) ops.push(del("next_hop_bfd_multi_hop_source", key, address));
   }
-  if (after.source) {
-    ops.push(set("next_hop_bfd_multi_hop_source", key, after.source));
-    if (newProfile) {
-      ops.push(set("next_hop_bfd_multi_hop_source_profile", key, after.source, newProfile));
-    }
+  for (const [address, src] of newSources) {
+    const was = oldSources.get(address);
+    if (!was) ops.push(set("next_hop_bfd_multi_hop_source", key, address));
+    leaf(ops, "next_hop_bfd_multi_hop_source_profile", [key, address], was?.profile ?? "", src.profile);
   }
 }
 
@@ -432,7 +467,7 @@ function nextHopOps(
   }
   if (!after.multiHop) return;
   if (!hadMultiHop) ops.push(set("next_hop_bfd_multi_hop", key));
-  bfdSourceOps(ops, key, hadMultiHop ? was : null, after, features);
+  bfdSourceOps(ops, key, hadMultiHop && was ? was.sources : [], after.sources, features);
 }
 
 function interfaceOps(
@@ -473,7 +508,7 @@ function targetOps(
  * Leaf ops that turn `original` (null when creating) into `updated`.
  * Leaves the device does not have are not emitted.
  */
-export function staticRouteLeafOps(
+function staticRouteLeafOps(
   original: StaticRouteFields | null,
   updated: StaticRouteFields,
   family: RouteFamily,
@@ -508,7 +543,16 @@ export function staticRouteLeafOps(
     { on: after.reject, distance: after.rejectDistance, tag: after.rejectTag },
   );
 
-  if (family === "ipv4") multi(ops, "dhcp_interface", [], before?.dhcpInterfaces ?? [], after.dhcpInterfaces);
+  if (family === "ipv4") {
+    const was = before?.dhcpInterfaces ?? [];
+    if (features.dhcpInterfaceMulti) {
+      multi(ops, "dhcp_interface", [], was, after.dhcpInterfaces);
+    } else if ((was[0] ?? "") !== (after.dhcpInterfaces[0] ?? "")) {
+      // 1.4 holds one value: a set replaces it, a clear deletes it.
+      const now = after.dhcpInterfaces[0];
+      ops.push(now ? set("dhcp_interface", now) : del("dhcp_interface", was[0]));
+    }
+  }
   return ops;
 }
 
@@ -648,7 +692,7 @@ export function arpProblem(original: ArpFields | null, updated: ArpFields, confi
     if (configured.includes(`${iface}|${address}`)) return { key: "arpEntryExists", name: address };
   }
   if (!mac) return { key: "macAddressRequired" };
-  if (!MAC.test(mac)) return { key: "invalidMacAddress" };
+  if (!isValidMACAddress(mac)) return { key: "invalidMacAddress" };
   if (text(updated.description).length > DESCRIPTION_MAX) {
     return { key: "descriptionTooLong", max: DESCRIPTION_MAX };
   }

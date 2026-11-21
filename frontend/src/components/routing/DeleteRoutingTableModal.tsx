@@ -28,7 +28,8 @@ export function DeleteRoutingTableModal({
   onSuccess,
   table,
 }: DeleteRoutingTableModalProps) {
-  const t = useTranslations("staticRoutes");
+  const t = useTranslations("routingExtras");
+  const ts = useTranslations("staticRoutes");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,13 +49,13 @@ export function DeleteRoutingTableModal({
     try {
       const result = await staticRoutesService.deleteRoutingTable(table.table_id);
       if (!result.success) {
-        setError(result.error || t("deleteTableModal.failed"));
+        setError(result.error || t("deleteTable.failed"));
         return;
       }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError((err as ApiError).message || t("deleteTableModal.failed"));
+      setError((err as ApiError).message || t("deleteTable.failed"));
     } finally {
       setLoading(false);
     }
@@ -70,9 +71,9 @@ export function DeleteRoutingTableModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-destructive" />
-            {t("deleteTableModal.title")}
+            {t("deleteTable.title")}
           </DialogTitle>
-          <DialogDescription>{t("deleteTableModal.description")}</DialogDescription>
+          <DialogDescription>{t("deleteTable.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
@@ -85,21 +86,21 @@ export function DeleteRoutingTableModal({
 
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">{t("deleteTableModal.tableId")}</span>
+              <span className="text-sm text-muted-foreground">{t("deleteTable.tableId")}</span>
               <span className="text-sm font-mono font-medium">{table.table_id}</span>
             </div>
             {table.description && (
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">{t("deleteTableModal.descriptionLabel")}</span>
+                <span className="text-sm text-muted-foreground">{t("deleteArp.descriptionColon")}</span>
                 <span className="text-sm">{table.description}</span>
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">{t("deleteTableModal.ipv4Routes")}</span>
+              <span className="text-sm text-muted-foreground">{t("routingTableModal.ipv4Routes")}</span>
               <span className="text-sm font-mono">{table.ipv4_routes.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">{t("deleteTableModal.ipv6Routes")}</span>
+              <span className="text-sm text-muted-foreground">{t("routingTableModal.ipv6Routes")}</span>
               <span className="text-sm font-mono">{table.ipv6_routes.length}</span>
             </div>
           </div>
@@ -108,7 +109,7 @@ export function DeleteRoutingTableModal({
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mt-4 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
               <p className="text-sm text-destructive">
-                {t("deleteModal.tableContainsRoutes", { count: totalRoutes })}
+                {ts("deleteModal.tableContainsRoutes", { count: totalRoutes })}
               </p>
             </div>
           )}

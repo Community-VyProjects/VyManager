@@ -325,7 +325,9 @@ async def get_vrf_capabilities(request: Request):
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -345,6 +347,8 @@ async def get_vrf_config(http_request: Request, refresh: bool = False):
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
         mapper = CommandMapperRegistry.get_mapper("vrf", service.get_version())
         return VrfConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -362,38 +366,44 @@ async def vrf_batch_configure(http_request: Request, body: VrfBatchRequest):
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = VrfBatchBuilder(version=version)
+        builder = VrfBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                params = inspect.signature(method).parameters
+                count = len(params)
+                # Packed protocol ops take (vrf_name, value=None): the value is optional.
+                required = sum(1 for p in params.values() if p.default is inspect.Parameter.empty)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1 and operation.value:
-                method(operation.value)
-            elif len(params) == 2 and operation.value:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value)
+                if count == 0:
+                    method()
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                parts = operation.value.split(",", count - 1)
+                if len(parts) < required or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {required} values",
+                    )
+                method(*parts)
+        except ValueError as e:
+            # A leaf this version lacks, or a packed value with the wrong arity.
+            raise HTTPException(status_code=400, detail=str(e))
 
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
+        failed = response.status != 200 or bool(response.error)
         return VyOSResponse(
-            success=response.status == 200,
-            data={"message": "VRF configuration updated"},
-            error=response.error if response.error else None
+            success=not failed,
+            data=None if failed else {"message": "VRF configuration updated"},
+            error=response.error or None,
         )
     except HTTPException:
         raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

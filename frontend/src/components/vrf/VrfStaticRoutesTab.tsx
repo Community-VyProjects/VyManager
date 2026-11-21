@@ -27,8 +27,8 @@ import {
 import { StaticRouteModal } from "@/components/routing/StaticRouteModal";
 import { DeleteStaticRouteModal } from "@/components/routing/DeleteStaticRouteModal";
 import type { StaticRoute } from "@/lib/api/static-routes";
-import type { RouteFamily, StaticRouteFeatures } from "@/lib/api/static-routes-save-ops";
-import { VrfInstance, VrfCapabilities, vrfService } from "@/lib/api/vrf";
+import type { RouteFamily } from "@/lib/api/static-routes-save-ops";
+import { VrfInstance, VrfCapabilities, vrfService, vrfStaticRouteFeatures } from "@/lib/api/vrf";
 import type { ApiError } from "@/lib/types/api";
 
 interface VrfStaticRoutesTabProps {
@@ -45,6 +45,7 @@ export function VrfStaticRoutesTab({
   onRefresh,
 }: VrfStaticRoutesTabProps) {
   const t = useTranslations("vrf");
+  const ts = useTranslations("staticRoutes");
   const tc = useTranslations("common");
   const [family, setFamily] = useState<RouteFamily>("ipv4");
   const [search, setSearch] = useState("");
@@ -81,10 +82,7 @@ export function VrfStaticRoutesTab({
     }
   };
 
-  const features: StaticRouteFeatures = {
-    ipv4Segments: capabilities.features.static_route_ipv4_segments.supported,
-    bfdSourceProfile: capabilities.features.static_route_bfd_source_profile.supported,
-  };
+  const features = vrfStaticRouteFeatures(capabilities);
 
   const routes = family === "ipv4"
     ? (vrf.static?.routes ?? [])
@@ -121,7 +119,7 @@ export function VrfStaticRoutesTab({
     targets.push(...route.dhcp_interfaces);
     if (route.blackhole) targets.push(t("staticRoutes.typeBlackhole"));
     if (route.reject) targets.push(t("staticRoutes.typeReject"));
-    return targets.join("; ") || t("staticRoutes.noTargets");
+    return targets.join("; ") || "—";
   };
 
   return (
@@ -131,7 +129,7 @@ export function VrfStaticRoutesTab({
           <Tabs value={family} onValueChange={(v) => setFamily(v as RouteFamily)}>
             <TabsList>
               <TabsTrigger value="ipv4">
-                {t("staticRoutes.familyIpv4")}
+                {ts("family.ipv4")}
                 {(vrf.static?.routes.length ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
                     {vrf.static?.routes.length}
@@ -139,7 +137,7 @@ export function VrfStaticRoutesTab({
                 )}
               </TabsTrigger>
               <TabsTrigger value="ipv6">
-                {t("staticRoutes.familyIpv6")}
+                {ts("family.ipv6")}
                 {(vrf.static?.routes6.length ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
                     {vrf.static?.routes6.length}
@@ -182,7 +180,7 @@ export function VrfStaticRoutesTab({
               <p className="text-sm text-muted-foreground">
                 {search
                   ? t("staticRoutes.noMatch")
-                  : t("staticRoutes.noRoutes", { family: family === "ipv4" ? "IPv4" : "IPv6" })}
+                  : t("staticRoutes.noRoutes", { family: family === "ipv4" ? ts("family.ipv4") : ts("family.ipv6") })}
               </p>
             </div>
           ) : (
@@ -213,16 +211,16 @@ export function VrfStaticRoutesTab({
                         {getRouteTargets(route)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {route.description || t("staticRoutes.noTargets")}
+                        {route.description || "—"}
                       </TableCell>
                       <TableCell>
                         {hasDisabled ? (
                           <Badge variant="outline" className="text-[10px]">
-                            {t("staticRoutes.partial")}
+                            {ts("routes.partial")}
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-[10px]">
-                            {t("staticRoutes.active")}
+                            {ts("routes.active")}
                           </Badge>
                         )}
                       </TableCell>

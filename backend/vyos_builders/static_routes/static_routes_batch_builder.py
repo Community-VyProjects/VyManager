@@ -14,12 +14,12 @@ from typing import Any, Dict, List, cast
 
 from vyos_builders.base import BatchBuilder
 from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
-
-# Version-only nodes (StaticRoutesMapper.versioned_nodes).
-IPV4_SEGMENTS = "route segments"
-SOURCE_PROFILE = "next-hop bfd multi-hop source profile"
-MROUTE = "mroute"
+from vyos_mappers.static_routes.static_routes import (
+    IPV4_SEGMENTS,
+    MROUTE,
+    SOURCE_PROFILE,
+    StaticRoutesMapper,
+)
 
 
 class StaticRoutesBatchBuilder(BatchBuilder):
@@ -137,7 +137,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_set(self._versioned_path(
             IPV4_SEGMENTS, "get_route_interface_segments",
-            "ipv4", None, destination, interface, value,
+            None, destination, interface, value,
         ))
 
     def delete_ipv4_route_interface_segments(
@@ -145,7 +145,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(self._versioned_path(
             IPV4_SEGMENTS, "get_route_interface_segments_delete",
-            "ipv4", None, destination, interface,
+            None, destination, interface,
         ))
 
     def set_ipv4_route_interface_vrf(
@@ -198,10 +198,10 @@ class StaticRoutesBatchBuilder(BatchBuilder):
         )
 
     def delete_ipv4_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str
+        self, destination: str, next_hop: str, source: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(
-            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv4", None, destination, next_hop)
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv4", None, destination, next_hop, source)
         )
 
     def set_ipv4_route_next_hop_bfd_multi_hop_source_profile(
@@ -255,7 +255,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_set(self._versioned_path(
             IPV4_SEGMENTS, "get_route_next_hop_segments",
-            "ipv4", None, destination, next_hop, value,
+            None, destination, next_hop, value,
         ))
 
     def delete_ipv4_route_next_hop_segments(
@@ -263,7 +263,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(self._versioned_path(
             IPV4_SEGMENTS, "get_route_next_hop_segments_delete",
-            "ipv4", None, destination, next_hop,
+            None, destination, next_hop,
         ))
 
     def set_ipv4_route_next_hop_vrf(
@@ -357,13 +357,13 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     def set_ipv6_route_interface_segments(
         self, destination: str, interface: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        return self.add_set(self.m.get_route_interface_segments("ipv6", None, destination, interface, value))
+        return self.add_set(self.m.get_route6_interface_segments(None, destination, interface, value))
 
     def delete_ipv6_route_interface_segments(
         self, destination: str, interface: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(
-            self.m.get_route_interface_segments_delete("ipv6", None, destination, interface)
+            self.m.get_route6_interface_segments_delete(None, destination, interface)
         )
 
     def set_ipv6_route_interface_vrf(
@@ -416,10 +416,10 @@ class StaticRoutesBatchBuilder(BatchBuilder):
         )
 
     def delete_ipv6_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str
+        self, destination: str, next_hop: str, source: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(
-            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv6", None, destination, next_hop)
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv6", None, destination, next_hop, source)
         )
 
     def set_ipv6_route_next_hop_bfd_multi_hop_source_profile(
@@ -471,12 +471,12 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     def set_ipv6_route_next_hop_segments(
         self, destination: str, next_hop: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        return self.add_set(self.m.get_route_next_hop_segments("ipv6", None, destination, next_hop, value))
+        return self.add_set(self.m.get_route6_next_hop_segments(None, destination, next_hop, value))
 
     def delete_ipv6_route_next_hop_segments(
         self, destination: str, next_hop: str
     ) -> "StaticRoutesBatchBuilder":
-        return self.add_delete(self.m.get_route_next_hop_segments_delete("ipv6", None, destination, next_hop))
+        return self.add_delete(self.m.get_route6_next_hop_segments_delete(None, destination, next_hop))
 
     def set_ipv6_route_next_hop_vrf(
         self, destination: str, next_hop: str, value: str
@@ -609,7 +609,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_set(self._versioned_path(
             IPV4_SEGMENTS, "get_route_interface_segments",
-            "ipv4", table_id, destination, interface, value,
+            table_id, destination, interface, value,
         ))
 
     def delete_table_ipv4_route_interface_segments(
@@ -617,7 +617,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(self._versioned_path(
             IPV4_SEGMENTS, "get_route_interface_segments_delete",
-            "ipv4", table_id, destination, interface,
+            table_id, destination, interface,
         ))
 
     def set_table_ipv4_route_interface_vrf(
@@ -686,10 +686,10 @@ class StaticRoutesBatchBuilder(BatchBuilder):
         )
 
     def delete_table_ipv4_route_next_hop_bfd_multi_hop_source(
-        self, table_id: str, destination: str, next_hop: str
+        self, table_id: str, destination: str, next_hop: str, source: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(
-            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv4", table_id, destination, next_hop)
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv4", table_id, destination, next_hop, source)
         )
 
     def set_table_ipv4_route_next_hop_bfd_multi_hop_source_profile(
@@ -751,7 +751,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_set(self._versioned_path(
             IPV4_SEGMENTS, "get_route_next_hop_segments",
-            "ipv4", table_id, destination, next_hop, value,
+            table_id, destination, next_hop, value,
         ))
 
     def delete_table_ipv4_route_next_hop_segments(
@@ -759,7 +759,7 @@ class StaticRoutesBatchBuilder(BatchBuilder):
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(self._versioned_path(
             IPV4_SEGMENTS, "get_route_next_hop_segments_delete",
-            "ipv4", table_id, destination, next_hop,
+            table_id, destination, next_hop,
         ))
 
     def set_table_ipv4_route_next_hop_vrf(
@@ -884,14 +884,14 @@ class StaticRoutesBatchBuilder(BatchBuilder):
         self, table_id: str, destination: str, interface: str, value: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_set(
-            self.m.get_route_interface_segments("ipv6", table_id, destination, interface, value)
+            self.m.get_route6_interface_segments(table_id, destination, interface, value)
         )
 
     def delete_table_ipv6_route_interface_segments(
         self, table_id: str, destination: str, interface: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(
-            self.m.get_route_interface_segments_delete("ipv6", table_id, destination, interface)
+            self.m.get_route6_interface_segments_delete(table_id, destination, interface)
         )
 
     def set_table_ipv6_route_interface_vrf(
@@ -960,10 +960,10 @@ class StaticRoutesBatchBuilder(BatchBuilder):
         )
 
     def delete_table_ipv6_route_next_hop_bfd_multi_hop_source(
-        self, table_id: str, destination: str, next_hop: str
+        self, table_id: str, destination: str, next_hop: str, source: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(
-            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv6", table_id, destination, next_hop)
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv6", table_id, destination, next_hop, source)
         )
 
     def set_table_ipv6_route_next_hop_bfd_multi_hop_source_profile(
@@ -1024,14 +1024,14 @@ class StaticRoutesBatchBuilder(BatchBuilder):
         self, table_id: str, destination: str, next_hop: str, value: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_set(
-            self.m.get_route_next_hop_segments("ipv6", table_id, destination, next_hop, value)
+            self.m.get_route6_next_hop_segments(table_id, destination, next_hop, value)
         )
 
     def delete_table_ipv6_route_next_hop_segments(
         self, table_id: str, destination: str, next_hop: str
     ) -> "StaticRoutesBatchBuilder":
         return self.add_delete(
-            self.m.get_route_next_hop_segments_delete("ipv6", table_id, destination, next_hop)
+            self.m.get_route6_next_hop_segments_delete(table_id, destination, next_hop)
         )
 
     def set_table_ipv6_route_next_hop_vrf(
@@ -1188,6 +1188,10 @@ class StaticRoutesBatchBuilder(BatchBuilder):
                 "multicast_mroute": {
                     "supported": mapper.supports_node(MROUTE),
                     "description": "Multicast routes as one mroute node with next-hop and interface disable",
+                },
+                "route_dhcp_interface_multi": {
+                    "supported": mapper.dhcp_interface_multi(),
+                    "description": "Several DHCP interfaces per IPv4 route (one on 1.4)",
                 },
             },
         }

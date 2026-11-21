@@ -35,10 +35,14 @@ export interface NextHop {
   bfd_enable: boolean;
   bfd_profile?: string | null;
   bfd_multi_hop: boolean;
-  bfd_multi_hop_source?: string | null;
-  /** 1.4 only: profile of the multi-hop source. */
-  bfd_multi_hop_source_profile?: string | null;
+  /** 1.4: several `source <addr>` tags with a profile; 1.5: one `source-address`. */
+  bfd_multi_hop_sources: BfdSource[];
   segments?: string | null;
+}
+
+export interface BfdSource {
+  address: string;
+  profile?: string | null;
 }
 
 export interface InterfaceRoute {
@@ -140,6 +144,7 @@ export interface StaticRoutesCapabilities {
     route_ipv4_segments: FeatureFlag;
     next_hop_bfd_source_profile: FeatureFlag;
     multicast_mroute: FeatureFlag;
+    route_dhcp_interface_multi: FeatureFlag;
   };
   instance_name?: string;
   instance_id?: string;
@@ -161,6 +166,7 @@ export function staticRouteFeatures(caps: StaticRoutesCapabilities | null): Stat
   return {
     ipv4Segments: caps?.features.route_ipv4_segments.supported ?? false,
     bfdSourceProfile: caps?.features.next_hop_bfd_source_profile.supported ?? false,
+    dhcpInterfaceMulti: caps?.features.route_dhcp_interface_multi.supported ?? false,
   };
 }
 

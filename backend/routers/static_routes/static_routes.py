@@ -31,6 +31,12 @@ router = APIRouter(prefix="/vyos/static-routes", tags=["static-routes"])
 # ============================================================================
 
 
+class BfdSource(BaseModel):
+    """BFD multi-hop source of a next-hop (``profile`` exists on 1.4 only)."""
+    address: str
+    profile: Optional[str] = None
+
+
 class NextHop(BaseModel):
     """Next-hop of a static route."""
     address: str
@@ -41,8 +47,7 @@ class NextHop(BaseModel):
     bfd_enable: bool = False
     bfd_profile: Optional[str] = None
     bfd_multi_hop: bool = False
-    bfd_multi_hop_source: Optional[str] = None
-    bfd_multi_hop_source_profile: Optional[str] = None
+    bfd_multi_hop_sources: List[BfdSource] = []
     segments: Optional[str] = None
 
 

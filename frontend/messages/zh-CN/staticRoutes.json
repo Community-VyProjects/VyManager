@@ -47,9 +47,9 @@
     "interfaces": "接口",
     "distance": "距离",
     "type": "类型",
-    "blackhole": "黑洞",
     "disabledSuffix": "（已禁用）",
-    "active": "生效中"
+    "active": "生效中",
+    "partial": "部分"
   },
   "arp": {
     "searchPlaceholder": "搜索 ARP 条目...",
@@ -72,7 +72,9 @@
     "searchPlaceholder": "搜索邻居代理条目...",
     "create": "创建邻居代理",
     "emptyTitle": "没有邻居代理条目",
-    "emptyDescription": "未配置邻居代理条目（ARP 或 ND）"
+    "emptyDescription": "未配置邻居代理条目（ARP 或 ND）",
+    "arpType": "ARP (IPv4)",
+    "ndType": "ND (IPv6)"
   },
   "tables": {
     "create": "创建路由表"
@@ -81,18 +83,13 @@
     "destinationRequired": "目标为必填项",
     "destinationInvalid": "目标必须是 CIDR 格式的网络",
     "destinationExists": "到 {name} 的路由已存在",
-    "descriptionTooLong": "描述最多 {max} 个字符",
-    "nextHopAddressRequired": "每个下一跳都需要地址",
     "nextHopAddressInvalid": "下一跳 {name} 不是有效地址",
-    "nextHopDuplicate": "下一跳 {name} 重复",
     "sourceInvalid": "下一跳 {name} 的多跳源地址无效",
-    "sourceProfileWithoutSource": "下一跳 {name} 需要多跳源地址才能设置源配置文件",
     "interfaceRequired": "每个接口路由都需要接口",
-    "interfaceDuplicate": "接口 {name} 重复",
     "blackholeAndReject": "路由不能同时为黑洞和拒绝",
-    "rangeDistance": "距离必须介于 {min} 和 {max} 之间",
-    "rangeDistanceNamed": "{name} 的距离必须介于 {min} 和 {max} 之间",
-    "rangeTag": "标签必须介于 {min} 和 {max} 之间"
+    "rangeTag": "标记必须介于 {min} 和 {max} 之间",
+    "sourceRequired": "下一跳 {name} 的每个多跳源都需要地址",
+    "sourceDuplicate": "下一跳 {name} 的多跳源重复"
   },
   "modal": {
     "updateFailed": "更新路由失败",
@@ -139,7 +136,9 @@
     "segments": "SRv6 段",
     "multiHop": "多跳",
     "multiHopSource": "多跳源地址",
-    "multiHopSourceProfile": "源 BFD 配置文件"
+    "multiHopSourceProfile": "源 BFD 配置文件",
+    "multiHopSources": "多跳源",
+    "addSource": "添加源"
   },
   "deleteModal": {
     "failed": "删除路由失败",
@@ -156,23 +155,18 @@
     "deleteRoute": "删除路由",
     "tableContainsRoutes": "{count, plural, one {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。} other {此路由表包含 # 条路由。删除该表也会移除其中的全部路由。}}",
     "titleTable": "从路由表 {id} 删除路由",
-    "rejectRoute": "拒绝路由"
-  },
-  "deleteTableModal": {
-    "title": "删除路由表",
-    "description": "确定要删除此路由表吗？",
-    "failed": "删除路由表失败",
-    "tableId": "路由表 ID：",
-    "descriptionLabel": "描述：",
-    "ipv4Routes": "IPv4 路由：",
-    "ipv6Routes": "IPv6 路由："
+    "rejectRoute": "拒绝路由",
+    "titleVrf": "从 VRF {vrf} 删除路由"
   },
   "routeMap": {
-    "button": "路由映射",
     "buttonSet": "路由映射：{name}",
     "title": "静态路由映射",
     "description": "应用于安装到内核的静态路由的路由映射",
     "label": "路由映射",
     "saveFailed": "保存路由映射失败"
+  },
+  "family": {
+    "ipv4": "IPv4",
+    "ipv6": "IPv6"
   }
 }

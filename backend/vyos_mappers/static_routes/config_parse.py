@@ -4,12 +4,18 @@ Mappers own the VyOS tree shape. The router calls ``parse_config`` and
 returns the result unchanged. The route walker is shared with the VRF parse,
 which reads the same tree under ``vrf name <vrf> protocols static``.
 
-Multicast routes and the BFD multi-hop source are read from whichever form
-the device holds: ``mroute`` / ``source-address`` (1.5) or ``multicast`` /
-``source <addr> profile`` (1.4).
+The mapper's allowlist picks the version form of the two trees the labs spell
+differently: multicast routes (``mroute`` on 1.5, ``multicast route`` /
+``interface-route`` on 1.4) and the BFD multi-hop source (the 1.5
+``source-address`` leaf, or the 1.4 ``source <addr>`` tags with ``profile``).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from .static_routes import MROUTE, SOURCE_PROFILE
+
+if TYPE_CHECKING:
+    from .static_routes import StaticRoutesMapper
 
 
 def _dict(value: Any) -> Dict[str, Any]:
@@ -36,16 +42,19 @@ def _names(value: Any) -> List[str]:
     return []
 
 
-def _next_hop(address: str, raw: Any) -> Dict[str, Any]:
+def _bfd_sources(mapper: "StaticRoutesMapper", multi_hop: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if mapper.supports_node(SOURCE_PROFILE):
+        return [
+            {"address": address, "profile": _dict(cfg).get("profile")}
+            for address, cfg in _dict(multi_hop.get("source")).items()
+        ]
+    return [{"address": a, "profile": None} for a in _names(multi_hop.get("source-address"))]
+
+
+def _next_hop(mapper: "StaticRoutesMapper", address: str, raw: Any) -> Dict[str, Any]:
     cfg = _dict(raw)
     bfd = _dict(cfg.get("bfd"))
     multi_hop = _dict(bfd.get("multi-hop"))
-    source = multi_hop.get("source-address")
-    source_profile = None
-    tagged = _dict(multi_hop.get("source"))
-    if source is None and tagged:
-        source = next(iter(tagged))
-        source_profile = _dict(tagged[source]).get("profile")
     return {
         "address": address,
         "distance": _int(cfg.get("distance")),
@@ -55,8 +64,7 @@ def _next_hop(address: str, raw: Any) -> Dict[str, Any]:
         "bfd_enable": "bfd" in cfg,
         "bfd_profile": bfd.get("profile"),
         "bfd_multi_hop": "multi-hop" in bfd,
-        "bfd_multi_hop_source": source,
-        "bfd_multi_hop_source_profile": source_profile,
+        "bfd_multi_hop_sources": _bfd_sources(mapper, multi_hop),
         "segments": cfg.get("segments"),
     }
 
@@ -72,14 +80,14 @@ def _interface(name: str, raw: Any) -> Dict[str, Any]:
     }
 
 
-def parse_route(destination: str, raw: Any, route_type: str) -> Dict[str, Any]:
+def parse_route(mapper: "StaticRoutesMapper", destination: str, raw: Any, route_type: str) -> Dict[str, Any]:
     cfg = _dict(raw)
     blackhole = _dict(cfg.get("blackhole"))
     reject = _dict(cfg.get("reject"))
     return {
         "destination": destination,
         "description": cfg.get("description"),
-        "next_hops": [_next_hop(a, c) for a, c in _dict(cfg.get("next-hop")).items()],
+        "next_hops": [_next_hop(mapper, a, c) for a, c in _dict(cfg.get("next-hop")).items()],
         "interfaces": [_interface(n, c) for n, c in _dict(cfg.get("interface")).items()],
         "blackhole": "blackhole" in cfg,
         "blackhole_distance": _int(blackhole.get("distance")),
@@ -92,10 +100,10 @@ def parse_route(destination: str, raw: Any, route_type: str) -> Dict[str, Any]:
     }
 
 
-def parse_routes(scope: Any, route_type: str) -> List[Dict[str, Any]]:
+def parse_routes(mapper: "StaticRoutesMapper", scope: Any, route_type: str) -> List[Dict[str, Any]]:
     """Routes of one family below ``scope`` (``protocols static``, a table, or a VRF)."""
     node = "route" if route_type == "ipv4" else "route6"
-    return [parse_route(d, c, route_type) for d, c in _dict(_dict(scope).get(node)).items()]
+    return [parse_route(mapper, d, c, route_type) for d, c in _dict(_dict(scope).get(node)).items()]
 
 
 def _mroute_targets(raw: Any, key: str) -> List[Dict[str, Any]]:
@@ -105,7 +113,7 @@ def _mroute_targets(raw: Any, key: str) -> List[Dict[str, Any]]:
     ]
 
 
-def _mroutes(static: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _mroutes(mapper: "StaticRoutesMapper", static: Dict[str, Any]) -> List[Dict[str, Any]]:
     """One row per prefix. ``*_configured`` tells the screen which node holds
     the list, so a delete only names nodes the device has."""
     rows: Dict[str, Dict[str, Any]] = {}
@@ -119,13 +127,15 @@ def _mroutes(static: Dict[str, Any]) -> List[Dict[str, Any]]:
             "interfaces_configured": False,
         })
 
-    for prefix, raw in _dict(static.get("mroute")).items():
-        cfg = _dict(raw)
-        entry = row(prefix)
-        entry["next_hops_configured"] = "next-hop" in cfg
-        entry["interfaces_configured"] = "interface" in cfg
-        entry["next_hops"] = _mroute_targets(cfg.get("next-hop"), "address")
-        entry["interfaces"] = _mroute_targets(cfg.get("interface"), "interface")
+    if mapper.supports_node(MROUTE):
+        for prefix, raw in _dict(static.get("mroute")).items():
+            cfg = _dict(raw)
+            entry = row(prefix)
+            entry["next_hops_configured"] = "next-hop" in cfg
+            entry["interfaces_configured"] = "interface" in cfg
+            entry["next_hops"] = _mroute_targets(cfg.get("next-hop"), "address")
+            entry["interfaces"] = _mroute_targets(cfg.get("interface"), "interface")
+        return list(rows.values())
 
     multicast = _dict(static.get("multicast"))
     for prefix, raw in _dict(multicast.get("route")).items():
@@ -139,20 +149,20 @@ def _mroutes(static: Dict[str, Any]) -> List[Dict[str, Any]]:
     return list(rows.values())
 
 
-def parse_config(_mapper: Any, full_config: Any) -> Dict[str, Any]:
+def parse_config(mapper: "StaticRoutesMapper", full_config: Any) -> Dict[str, Any]:
     protocols = _dict(_dict(full_config).get("protocols"))
     static = _dict(protocols.get("static"))
     arp = _dict(_dict(static.get("arp")).get("interface"))
     proxy = _dict(static.get("neighbor-proxy"))
     return {
-        "ipv4_routes": parse_routes(static, "ipv4"),
-        "ipv6_routes": parse_routes(static, "ipv6"),
+        "ipv4_routes": parse_routes(mapper, static, "ipv4"),
+        "ipv6_routes": parse_routes(mapper, static, "ipv6"),
         "routing_tables": [
             {
                 "table_id": int(table_id),
                 "description": _dict(cfg).get("description"),
-                "ipv4_routes": parse_routes(cfg, "ipv4"),
-                "ipv6_routes": parse_routes(cfg, "ipv6"),
+                "ipv4_routes": parse_routes(mapper, cfg, "ipv4"),
+                "ipv6_routes": parse_routes(mapper, cfg, "ipv6"),
             }
             for table_id, cfg in _dict(static.get("table")).items()
         ],
@@ -171,7 +181,7 @@ def parse_config(_mapper: Any, full_config: Any) -> Dict[str, Any]:
             }
             for iface, cfg in arp.items()
         ],
-        "multicast_routes": _mroutes(static),
+        "multicast_routes": _mroutes(mapper, static),
         "neighbor_proxy": {
             "arp_entries": [
                 {"ip_address": a, "interfaces": _names(_dict(c).get("interface"))}

@@ -29,8 +29,8 @@ def _hop(parsed):
     return parsed["instances"][0]["static"]["routes"][0]["next_hops"][0]
 
 
-def _source(parsed):
-    return _hop(parsed)["bfd_multi_hop_source"]
+def _sources(parsed):
+    return _hop(parsed)["bfd_multi_hop_sources"]
 
 
 def test_empty_vrf_tree():
@@ -49,26 +49,24 @@ def test_1_5_bfd_reads_source_address():
         }
     )
     parsed = get_vrf_mapper("1.5").parse_config(tree)
-    assert _source(parsed) == "192.0.2.10"
+    assert _sources(parsed) == [{"address": "192.0.2.10", "profile": None}]
     assert _hop(parsed)["bfd_profile"] == "fast"
     assert _hop(parsed)["bfd_enable"] is True
     assert _hop(parsed)["bfd_multi_hop"] is True
-    # 1.4 mapper still reads the 1.5 leaf. Both reads are preserved.
-    assert _source(get_vrf_mapper("1.4").parse_config(tree)) == "192.0.2.10"
 
 
-def test_1_4_bfd_reads_source_tag():
+def test_1_4_bfd_reads_every_source_tag():
     tree = _bfd_tree(
-        {"multi-hop": {"source": {"10.9.9.9": {"profile": "slow"}}}}
+        {"multi-hop": {"source": {"10.9.9.9": {"profile": "slow"}, "10.9.9.8": {}}}}
     )
     parsed = get_vrf_mapper("1.4").parse_config(tree)
-    assert _source(parsed) == "10.9.9.9"
-    assert _hop(parsed)["bfd_multi_hop_source_profile"] == "slow"
-    # 1.5 mapper still reads the 1.4 tagged node.
-    assert _source(get_vrf_mapper("1.5").parse_config(tree)) == "10.9.9.9"
+    assert _sources(parsed) == [
+        {"address": "10.9.9.9", "profile": "slow"},
+        {"address": "10.9.9.8", "profile": None},
+    ]
 
 
-def test_bfd_source_address_wins_when_both_shapes_are_present():
+def test_each_version_reads_only_its_own_source_form():
     tree = _bfd_tree(
         {
             "multi-hop": {
@@ -77,8 +75,8 @@ def test_bfd_source_address_wins_when_both_shapes_are_present():
             }
         }
     )
-    assert _source(get_vrf_mapper("1.5").parse_config(tree)) == "192.0.2.10"
-    assert _source(get_vrf_mapper("1.4").parse_config(tree)) == "192.0.2.10"
+    assert _sources(get_vrf_mapper("1.5").parse_config(tree)) == [{"address": "192.0.2.10", "profile": None}]
+    assert _sources(get_vrf_mapper("1.4").parse_config(tree)) == [{"address": "10.9.9.9", "profile": None}]
 
 
 def test_parse_instance_subtrees_and_int_coercion():
@@ -228,5 +226,5 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     assert body["bind_to_all"] is True
     assert body["instances"][0]["name"] == expected["instances"][0]["name"]
     hop = body["instances"][0]["static"]["routes"][0]["next_hops"][0]
-    assert hop["bfd_multi_hop_source"] == "192.0.2.10"
+    assert hop["bfd_multi_hop_sources"] == [{"address": "192.0.2.10", "profile": None}]
     assert hop["address"] == "192.0.2.1"

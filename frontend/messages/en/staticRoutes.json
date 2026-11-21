@@ -47,9 +47,9 @@
     "interfaces": "Interfaces",
     "distance": "Distance",
     "type": "Type",
-    "blackhole": "Blackhole",
     "disabledSuffix": " (disabled)",
-    "active": "Active"
+    "active": "Active",
+    "partial": "Partial"
   },
   "arp": {
     "searchPlaceholder": "Search ARP entries...",
@@ -72,7 +72,9 @@
     "searchPlaceholder": "Search neighbor proxy entries...",
     "create": "Create Neighbor Proxy",
     "emptyTitle": "No Neighbor Proxy Entries",
-    "emptyDescription": "No neighbor proxy entries configured (ARP or ND)"
+    "emptyDescription": "No neighbor proxy entries configured (ARP or ND)",
+    "arpType": "ARP (IPv4)",
+    "ndType": "ND (IPv6)"
   },
   "tables": {
     "create": "Create Routing Table"
@@ -81,18 +83,13 @@
     "destinationRequired": "Destination is required",
     "destinationInvalid": "Destination must be a network in CIDR notation",
     "destinationExists": "A route to {name} already exists",
-    "descriptionTooLong": "Description must be at most {max} characters",
-    "nextHopAddressRequired": "Every next-hop needs an address",
     "nextHopAddressInvalid": "Next-hop {name} is not a valid address",
-    "nextHopDuplicate": "Next-hop {name} is listed twice",
     "sourceInvalid": "Multi-hop source of next-hop {name} is not a valid address",
-    "sourceProfileWithoutSource": "Next-hop {name} needs a multi-hop source for the source profile",
     "interfaceRequired": "Every interface route needs an interface",
-    "interfaceDuplicate": "Interface {name} is listed twice",
     "blackholeAndReject": "A route cannot be both blackhole and reject",
-    "rangeDistance": "Distance must be between {min} and {max}",
-    "rangeDistanceNamed": "Distance of {name} must be between {min} and {max}",
-    "rangeTag": "Tag must be between {min} and {max}"
+    "rangeTag": "Tag must be between {min} and {max}",
+    "sourceRequired": "Every multi-hop source of next-hop {name} needs an address",
+    "sourceDuplicate": "Next-hop {name} lists a multi-hop source twice"
   },
   "modal": {
     "updateFailed": "Failed to update route",
@@ -139,7 +136,9 @@
     "segments": "SRv6 Segments",
     "multiHop": "Multi-hop",
     "multiHopSource": "Multi-hop Source Address",
-    "multiHopSourceProfile": "Source BFD Profile"
+    "multiHopSourceProfile": "Source BFD Profile",
+    "multiHopSources": "Multi-hop Sources",
+    "addSource": "Add Source"
   },
   "deleteModal": {
     "failed": "Failed to delete route",
@@ -156,23 +155,18 @@
     "deleteRoute": "Delete Route",
     "tableContainsRoutes": "{count, plural, one {This table contains # route. Deleting the table will also remove all routes within it.} other {This table contains # routes. Deleting the table will also remove all routes within it.}}",
     "titleTable": "Delete Route from Table {id}",
-    "rejectRoute": "Reject Route"
-  },
-  "deleteTableModal": {
-    "title": "Delete Routing Table",
-    "description": "Are you sure you want to delete this routing table?",
-    "failed": "Failed to delete routing table",
-    "tableId": "Table ID:",
-    "descriptionLabel": "Description:",
-    "ipv4Routes": "IPv4 Routes:",
-    "ipv6Routes": "IPv6 Routes:"
+    "rejectRoute": "Reject Route",
+    "titleVrf": "Delete Route from VRF {vrf}"
   },
   "routeMap": {
-    "button": "Route-map",
     "buttonSet": "Route-map: {name}",
     "title": "Static Route-map",
     "description": "Route-map applied to static routes installed in the kernel",
     "label": "Route-map",
     "saveFailed": "Failed to save route-map"
+  },
+  "family": {
+    "ipv4": "IPv4",
+    "ipv6": "IPv6"
   }
 }

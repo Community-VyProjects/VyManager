@@ -6,10 +6,15 @@
     "macAddressRequired": "MAC 地址为必填项",
     "invalidMacAddress": "MAC 地址格式无效（格式为 XX:XX:XX:XX:XX:XX）",
     "tableIdRequired": "路由表 ID 为必填项",
-    "tableIdRange": "路由表 ID 必须是 1 到 200 之间的数字",
+    "tableIdRange": "路由表 ID 必须是 {min} 到 {max} 之间的数字",
     "arpEntryExists": "此接口上已存在 {name} 的 ARP 条目",
     "descriptionTooLong": "描述最多 {max} 个字符",
-    "tableExists": "路由表 {name} 已存在"
+    "tableExists": "路由表 {name} 已存在",
+    "nextHopAddressRequired": "每个下一跳都需要地址",
+    "nextHopDuplicate": "下一跳 {name} 重复",
+    "interfaceDuplicate": "接口 {name} 重复",
+    "distanceRange": "距离必须介于 {min} 和 {max} 之间",
+    "distanceRangeNamed": "{name} 的距离必须介于 {min} 和 {max} 之间"
   },
   "shared": {
     "interface": "接口",
@@ -60,13 +65,8 @@
     "editDescription": "修改 {prefix} 的下一跳和接口",
     "updateFailed": "更新组播路由失败",
     "mrouteExists": "{name} 的组播路由已存在",
-    "nextHopAddressRequired": "每个下一跳都需要地址",
     "nextHopAddressInvalid": "下一跳 {name} 不是有效的 IPv4 地址",
-    "nextHopDuplicate": "下一跳 {name} 重复",
-    "interfaceRequired": "每个接口条目都需要接口",
-    "interfaceDuplicate": "接口 {name} 重复",
-    "distanceRange": "距离必须介于 {min} 和 {max} 之间",
-    "distanceRangeNamed": "{name} 的距离必须介于 {min} 和 {max} 之间"
+    "interfaceRequired": "每个接口条目都需要接口"
   },
   "deleteMroute": {
     "failed": "删除组播路由失败",
@@ -77,9 +77,6 @@
     "interfaces": "接口："
   },
   "neighborProxyModal": {
-    "ipRequired": "IP 地址为必填项",
-    "interfaceRequired": "接口为必填项",
-    "invalidIpv4": "IPv4 地址格式无效",
     "invalidIpv6": "IPv6 地址格式无效",
     "createFailed": "创建邻居代理条目失败",
     "title": "创建邻居代理条目",
@@ -107,7 +104,7 @@
     "createTitle": "创建路由表",
     "editDescription": "更新此路由表的描述",
     "createDescription": "创建用于策略路由的自定义路由表",
-    "tableId": "路由表 ID（1-200）",
+    "tableId": "路由表 ID（{min}-{max}）",
     "descriptionPlaceholder": "此路由表的描述",
     "ipv4Routes": "IPv4 路由：",
     "ipv6Routes": "IPv6 路由：",
@@ -129,7 +126,12 @@
     "v4": "v4",
     "v6": "v6",
     "dhcpInterface": "DHCP：{name}",
-    "more": "+{count}",
-    "emptyCell": "—"
+    "more": "+{count}"
+  },
+  "deleteTable": {
+    "title": "删除路由表",
+    "description": "确定要删除此路由表吗？",
+    "failed": "删除路由表失败",
+    "tableId": "路由表 ID："
   }
 }

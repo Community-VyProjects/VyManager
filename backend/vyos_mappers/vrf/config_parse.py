@@ -4,20 +4,26 @@ Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
 the tree. VRF static routes are read by the global static route walker.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
+from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.static_routes.config_parse import parse_routes
+from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
 
 
-def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
+def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/vrf/config payload."""
     vrf_config = full_config.get("vrf", {})
     if not vrf_config:
         return {"bind_to_all": False, "instances": []}
 
+    # The static route tree is the global one; its mapper picks the version form.
+    static_mapper = cast(
+        StaticRoutesMapper, CommandMapperRegistry.get_mapper("static_routes", mapper.version)
+    )
     return {
         "bind_to_all": "bind-to-all" in vrf_config,
-        "instances": parse_vrf_instances(vrf_config.get("name", {})),
+        "instances": parse_vrf_instances(vrf_config.get("name", {}), static_mapper),
     }
 
 
@@ -51,7 +57,9 @@ def parse_ip_settings(config: dict, family: str) -> Dict[str, Any]:
     }
 
 
-def parse_static_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
+def parse_static_config(
+    protocols_config: dict, static_mapper: StaticRoutesMapper
+) -> Optional[Dict[str, Any]]:
     """Static routes under ``vrf name <vrf> protocols static``.
 
     The tree is the global ``protocols static`` route tree, so the global
@@ -61,8 +69,8 @@ def parse_static_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
         return None
     static_config = protocols_config.get("static")
     return {
-        "routes": parse_routes(static_config, "ipv4"),
-        "routes6": parse_routes(static_config, "ipv6"),
+        "routes": parse_routes(static_mapper, static_config, "ipv4"),
+        "routes6": parse_routes(static_mapper, static_config, "ipv6"),
     }
 
 
@@ -396,7 +404,7 @@ def parse_dhcpv6_config(service_config: dict) -> Optional[Dict[str, Any]]:
     }
 
 
-def parse_vrf_instances(names_raw: dict) -> List[Dict[str, Any]]:
+def parse_vrf_instances(names_raw: dict, static_mapper: StaticRoutesMapper) -> List[Dict[str, Any]]:
     """Parse VRF instance configurations."""
     instances = []
 
@@ -414,7 +422,7 @@ def parse_vrf_instances(names_raw: dict) -> List[Dict[str, Any]]:
         if isinstance(service_config, dict):
             services = list(service_config.keys())
 
-        static = parse_static_config(protocols_config) if isinstance(protocols_config, dict) else None
+        static = parse_static_config(protocols_config, static_mapper) if isinstance(protocols_config, dict) else None
         rpki = parse_rpki_config(protocols_config) if isinstance(protocols_config, dict) else None
         failover = parse_failover_config(protocols_config) if isinstance(protocols_config, dict) else None
         ospf = parse_ospf_summary(protocols_config) if isinstance(protocols_config, dict) else None

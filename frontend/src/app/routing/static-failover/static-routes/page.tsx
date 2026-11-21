@@ -66,6 +66,7 @@ import type { ApiError } from "@/lib/types/api";
 
 function StaticRoutesPageInner() {
   const t = useTranslations("staticRoutes");
+  const tr = useTranslations("routingExtras");
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
@@ -150,6 +151,28 @@ function StaticRoutesPageInner() {
     );
   });
 
+  const query = searchQuery.trim().toLowerCase();
+  const matches = (...values: (string | null | undefined)[]) =>
+    !query || values.some((value) => value?.toLowerCase().includes(query));
+  const filteredArp = (config?.arp_interfaces ?? [])
+    .map((iface) => ({
+      ...iface,
+      entries: iface.entries.filter((entry) =>
+        matches(iface.interface, entry.ip_address, entry.mac_address, entry.description),
+      ),
+    }))
+    .filter((iface) => iface.entries.length > 0);
+  const filteredMroutes = (config?.multicast_routes ?? []).filter((route) =>
+    matches(route.prefix, ...route.next_hops.map((nh) => nh.address), ...route.interfaces.map((i) => i.interface)),
+  );
+  const filteredProxyArp = (config?.neighbor_proxy?.arp_entries ?? []).filter((entry) =>
+    matches(entry.ip_address, ...entry.interfaces),
+  );
+  const filteredProxyNd = (config?.neighbor_proxy?.nd_entries ?? []).filter((entry) =>
+    matches(entry.ipv6_address, ...entry.interfaces),
+  );
+  const familyLabel = selectedType === "ipv4" ? t("family.ipv4") : t("family.ipv6");
+
   const routeFeatures = staticRouteFeatures(capabilities);
   const multicastFeatures = mrouteFeatures(capabilities);
   const arpConfigured = (config?.arp_interfaces ?? []).flatMap((iface) =>
@@ -211,7 +234,7 @@ function StaticRoutesPageInner() {
               <Button onClick={() => setRouteMapModalOpen(true)} variant="outline" size="sm">
                 {config?.route_map
                   ? t("routeMap.buttonSet", { name: config.route_map })
-                  : t("routeMap.button")}
+                  : t("routeMap.label")}
               </Button>
               <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -354,7 +377,7 @@ function StaticRoutesPageInner() {
                     size="sm"
                     onClick={() => setSelectedType("ipv4")}
                   >
-                    IPv4
+                    {t("family.ipv4")}
                     {totalIPv4Routes > 0 && (
                       <Badge variant="secondary" className="ml-2">
                         {totalIPv4Routes}
@@ -366,7 +389,7 @@ function StaticRoutesPageInner() {
                     size="sm"
                     onClick={() => setSelectedType("ipv6")}
                   >
-                    IPv6
+                    {t("family.ipv6")}
                     {totalIPv6Routes > 0 && (
                       <Badge variant="secondary" className="ml-2">
                         {totalIPv6Routes}
@@ -385,9 +408,9 @@ function StaticRoutesPageInner() {
                   />
                 </div>
 
-                <Button onClick={() => { setSelectedType(selectedType); setCreateModalOpen(true); }} size="sm">
+                <Button onClick={() => setCreateModalOpen(true)} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
-                  {t("routes.createRoute", { type: selectedType.toUpperCase() })}
+                  {t("routes.createRoute", { type: familyLabel })}
                 </Button>
               </div>
 
@@ -403,12 +426,12 @@ function StaticRoutesPageInner() {
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
                         {searchQuery
                           ? t("routes.noMatch")
-                          : t("routes.emptyType", { type: selectedType.toUpperCase() })}
+                          : t("routes.emptyType", { type: familyLabel })}
                       </p>
                       {!searchQuery && (
-                        <Button onClick={() => { setSelectedType(selectedType); setCreateModalOpen(true); }}>
+                        <Button onClick={() => setCreateModalOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
-                          {t("routes.createRoute", { type: selectedType.toUpperCase() })}
+                          {t("routes.createRoute", { type: familyLabel })}
                         </Button>
                       )}
                     </CardContent>
@@ -449,7 +472,12 @@ function StaticRoutesPageInner() {
                                 {isBlackhole ? (
                                   <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
                                     <Shield className="h-3 w-3 mr-1" />
-                                    {t("routes.blackhole")}
+                                    {tr("shared.blackhole")}
+                                  </Badge>
+                                ) : route.reject ? (
+                                  <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20">
+                                    <Shield className="h-3 w-3 mr-1" />
+                                    {tr("shared.reject")}
                                   </Badge>
                                 ) : hasNextHops ? (
                                   <div className="flex flex-wrap gap-1">
@@ -506,6 +534,8 @@ function StaticRoutesPageInner() {
                               <TableCell>
                                 {isBlackhole && route.blackhole_distance ? (
                                   <Badge variant="outline">{route.blackhole_distance}</Badge>
+                                ) : route.reject && route.reject_distance ? (
+                                  <Badge variant="outline">{route.reject_distance}</Badge>
                                 ) : hasNextHops ? (
                                   route.next_hops[0]?.distance ? (
                                     <Badge variant="outline">{route.next_hops[0].distance}</Badge>
@@ -527,22 +557,32 @@ function StaticRoutesPageInner() {
                                       : "bg-purple-500/10 text-purple-500 border-purple-500/20"
                                   )}
                                 >
-                                  {route.route_type.toUpperCase()}
+                                  {route.route_type === "ipv4" ? t("family.ipv4") : t("family.ipv6")}
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className="bg-green-500/10 text-green-500 border-green-500/20"
-                                >
-                                  {t("routes.active")}
-                                </Badge>
+                                {route.next_hops.some((nh) => nh.disable) || route.interfaces.some((i) => i.disable) ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-orange-500/10 text-orange-500 border-orange-500/20"
+                                  >
+                                    {t("routes.partial")}
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-green-500/10 text-green-500 border-green-500/20"
+                                  >
+                                    {t("routes.active")}
+                                  </Badge>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    aria-label={tc("edit")}
                                     onClick={() => setEditingRoute(route)}
                                   >
                                     <Pencil className="h-4 w-4" />
@@ -550,6 +590,7 @@ function StaticRoutesPageInner() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    aria-label={tc("delete")}
                                     onClick={() => setDeletingRoute(route)}
                                   >
                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -586,14 +627,14 @@ function StaticRoutesPageInner() {
 
               <Card>
                 <ScrollArea className="h-[calc(100vh-500px)]">
-                  {(!config?.arp_interfaces || config.arp_interfaces.length === 0) ? (
+                  {filteredArp.length === 0 ? (
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Cable className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
                         {t("arp.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {t("arp.emptyDescription")}
+                        {query ? t("routes.noMatch") : t("arp.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateArpModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -612,7 +653,7 @@ function StaticRoutesPageInner() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {config.arp_interfaces.flatMap((iface) =>
+                        {filteredArp.flatMap((iface) =>
                           iface.entries.map((entry) => (
                             <TableRow key={`${iface.interface}-${entry.ip_address}`} className="group">
                               <TableCell>
@@ -634,6 +675,7 @@ function StaticRoutesPageInner() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    aria-label={tc("edit")}
                                     onClick={() => setEditingArpEntry({ entry, interface: iface.interface })}
                                   >
                                     <Pencil className="h-4 w-4" />
@@ -641,6 +683,7 @@ function StaticRoutesPageInner() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    aria-label={tc("delete")}
                                     onClick={() => setDeletingArpEntry({ entry, interface: iface.interface })}
                                   >
                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -677,14 +720,14 @@ function StaticRoutesPageInner() {
 
               <Card>
                 <ScrollArea className="h-[calc(100vh-500px)]">
-                  {(!config?.multicast_routes || config.multicast_routes.length === 0) ? (
+                  {filteredMroutes.length === 0 ? (
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Radio className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
                         {t("mroute.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {t("mroute.emptyDescription")}
+                        {query ? t("routes.noMatch") : t("mroute.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateMrouteModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -702,7 +745,7 @@ function StaticRoutesPageInner() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {config.multicast_routes.map((route) => (
+                        {filteredMroutes.map((route) => (
                           <TableRow key={route.prefix} className="group">
                             <TableCell className="font-mono text-sm">
                               <div className="flex items-center gap-2">
@@ -811,15 +854,14 @@ function StaticRoutesPageInner() {
 
               <Card>
                 <ScrollArea className="h-[calc(100vh-500px)]">
-                  {((!config?.neighbor_proxy?.arp_entries || config.neighbor_proxy.arp_entries.length === 0) &&
-                    (!config?.neighbor_proxy?.nd_entries || config.neighbor_proxy.nd_entries.length === 0)) ? (
+                  {filteredProxyArp.length + filteredProxyNd.length === 0 ? (
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Users className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
                         {t("neighborProxy.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {t("neighborProxy.emptyDescription")}
+                        {query ? t("routes.noMatch") : t("neighborProxy.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateNeighborProxyModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -838,11 +880,11 @@ function StaticRoutesPageInner() {
                       </TableHeader>
                       <TableBody>
                         {/* ARP Proxy entries */}
-                        {config?.neighbor_proxy?.arp_entries?.map((entry) => (
+                        {filteredProxyArp.map((entry) => (
                           <TableRow key={`arp-${entry.ip_address}`} className="group">
                             <TableCell>
                               <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
-                                ARP (IPv4)
+                                {t("neighborProxy.arpType")}
                               </Badge>
                             </TableCell>
                             <TableCell className="font-mono text-sm">
@@ -880,11 +922,11 @@ function StaticRoutesPageInner() {
                           </TableRow>
                         ))}
                         {/* ND Proxy entries */}
-                        {config?.neighbor_proxy?.nd_entries?.map((entry) => (
+                        {filteredProxyNd.map((entry) => (
                           <TableRow key={`nd-${entry.ipv6_address}`} className="group">
                             <TableCell>
                               <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20">
-                                ND (IPv6)
+                                {t("neighborProxy.ndType")}
                               </Badge>
                             </TableCell>
                             <TableCell className="font-mono text-sm">

@@ -70,7 +70,11 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, scope, r
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {scope.kind === "table" ? t("deleteModal.titleTable", { id: String(scope.tableId) }) : t("deleteModal.title")}
+            {scope.kind === "table"
+              ? t("deleteModal.titleTable", { id: String(scope.tableId) })
+              : scope.kind === "vrf"
+                ? t("deleteModal.titleVrf", { vrf: scope.vrf })
+                : t("deleteModal.title")}
           </DialogTitle>
           <DialogDescription>
             {t("deleteModal.description")}

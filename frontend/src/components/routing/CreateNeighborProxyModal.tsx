@@ -90,11 +90,9 @@ export function CreateNeighborProxyModal({
   const problemMessage = (problem: NeighborProxyProblem): string => {
     switch (problem.key) {
       case "ipAddressRequired":
-        return t("neighborProxyModal.ipRequired");
       case "interfaceRequired":
-        return t("neighborProxyModal.interfaceRequired");
       case "invalidIpv4Address":
-        return t("neighborProxyModal.invalidIpv4");
+        return t(`validation.${problem.key}`);
       case "invalidIpv6Address":
         return t("neighborProxyModal.invalidIpv6");
       default:

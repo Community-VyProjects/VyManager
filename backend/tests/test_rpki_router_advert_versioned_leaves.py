@@ -351,9 +351,9 @@ def test_batch_commit_confirm_conflict_reaches_client(monkeypatch, module, url, 
     assert response.json()["detail"] == "A commit-confirm is already active"
 
 
-def test_vrf_empty_batch_stays_400(monkeypatch):
-    """VyOSService.execute_batch raises ValueError on an empty batch. The
-    VRF router has no is_empty() check and has always answered 400."""
+def test_vrf_empty_batch_is_500(monkeypatch):
+    """VyOSService.execute_batch raises ValueError on an empty batch. The VRF
+    router catches ValueError only around the op loop, so it stays a 500."""
 
     def execute(batch):
         if batch.is_empty():
@@ -362,5 +362,5 @@ def test_vrf_empty_batch_stays_400(monkeypatch):
 
     client, _ = _client(monkeypatch, VRF_MODULE, "1.5", execute=execute)
     response = client.post("/vyos/vrf/batch", json={"operations": []})
-    assert response.status_code == 400, response.text
-    assert response.json()["detail"] == "Cannot execute empty batch"
+    assert response.status_code == 500, response.text
+    assert response.json()["detail"] == "Internal server error"

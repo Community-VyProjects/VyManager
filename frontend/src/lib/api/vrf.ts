@@ -46,6 +46,15 @@ export interface VrfStaticConfig {
   routes6: StaticRoute[];
 }
 
+/** Static route leaves this device has, read from the VRF capabilities. */
+export function vrfStaticRouteFeatures(caps: VrfCapabilities): StaticRouteFeatures {
+  return {
+    ipv4Segments: caps.features.static_route_ipv4_segments.supported,
+    bfdSourceProfile: caps.features.static_route_bfd_source_profile.supported,
+    dhcpInterfaceMulti: caps.features.static_route_dhcp_interface_multi.supported,
+  };
+}
+
 // ============================================================================
 // RPKI Types
 // ============================================================================
@@ -272,6 +281,7 @@ export interface VrfCapabilities {
     dhcpv6_server: VrfFeatureFlag;
     static_route_ipv4_segments: VrfFeatureFlag;
     static_route_bfd_source_profile: VrfFeatureFlag;
+    static_route_dhcp_interface_multi: VrfFeatureFlag;
     ospf_retransmit_window: VrfFeatureFlag;
     ospf_redistribute_nhrp: VrfFeatureFlag;
     isis_fast_reroute: VrfFeatureFlag;

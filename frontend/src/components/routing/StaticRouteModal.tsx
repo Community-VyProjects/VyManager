@@ -18,7 +18,6 @@ import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { bfdService } from "@/lib/api/bfd";
@@ -27,10 +26,12 @@ import { staticRoutesService, type StaticRoute, type VyOSResponse } from "@/lib/
 import {
   DISTANCE_RANGE,
   TAG_RANGE,
+  emptyBfdSource,
   emptyInterface,
   emptyNextHop,
   staticRouteFields,
   staticRouteProblem,
+  type BfdSourceFields,
   type InterfaceFields,
   type NextHopFields,
   type RouteFamily,
@@ -81,6 +82,7 @@ export function StaticRouteModal({
   configured,
 }: StaticRouteModalProps) {
   const t = useTranslations("staticRoutes");
+  const tr = useTranslations("routingExtras");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
   const effectiveFamily: RouteFamily = isEdit ? existing.route_type : family;
@@ -136,23 +138,40 @@ export function StaticRouteModal({
 
   const updateNextHop = (index: number, fields: Partial<NextHopFields>) =>
     patch({ nextHops: draft.nextHops.map((nh, i) => (i === index ? { ...nh, ...fields } : nh)) });
+  const updateSource = (index: number, srcIndex: number, fields: Partial<BfdSourceFields>) =>
+    updateNextHop(index, {
+      sources: draft.nextHops[index].sources.map((src, i) => (i === srcIndex ? { ...src, ...fields } : src)),
+    });
   const updateInterface = (index: number, fields: Partial<InterfaceFields>) =>
     patch({ interfaces: draft.interfaces.map((row, i) => (i === index ? { ...row, ...fields } : row)) });
 
   const problemMessage = (problem: StaticRouteProblem): string => {
-    if (problem.key === "range") {
-      const params = { min: problem.min, max: problem.max };
-      if (problem.field === "tag") return t("validation.rangeTag", params);
-      if (problem.name) return t("validation.rangeDistanceNamed", { ...params, name: problem.name });
-      return t("validation.rangeDistance", params);
+    switch (problem.key) {
+      case "range":
+        if (problem.field === "tag") return t("validation.rangeTag", { min: problem.min, max: problem.max });
+        return problem.name
+          ? tr("validation.distanceRangeNamed", { min: problem.min, max: problem.max, name: problem.name })
+          : tr("validation.distanceRange", { min: problem.min, max: problem.max });
+      case "descriptionTooLong":
+        return tr("validation.descriptionTooLong", { max: problem.max });
+      case "nextHopAddressRequired":
+        return tr("validation.nextHopAddressRequired");
+      case "nextHopDuplicate":
+      case "interfaceDuplicate":
+        return tr(`validation.${problem.key}`, { name: problem.name });
+      case "destinationExists":
+      case "nextHopAddressInvalid":
+      case "sourceRequired":
+      case "sourceInvalid":
+      case "sourceDuplicate":
+        return t(`validation.${problem.key}`, { name: problem.name });
+      default:
+        return t(`validation.${problem.key}`);
     }
-    if (problem.key === "descriptionTooLong") return t("validation.descriptionTooLong", { max: problem.max });
-    if ("name" in problem) return t(`validation.${problem.key}`, { name: problem.name });
-    return t(`validation.${problem.key}`);
   };
 
   const handleSubmit = async () => {
-    const problem = staticRouteProblem(isEdit ? initial : null, draft, effectiveFamily, configured);
+    const problem = staticRouteProblem(isEdit ? initial : null, draft, effectiveFamily, configured, features);
     if (problem) {
       setError(problemMessage(problem));
       return;
@@ -174,7 +193,7 @@ export function StaticRouteModal({
     }
   };
 
-  const type = effectiveFamily.toUpperCase();
+  const type = effectiveFamily === "ipv4" ? t("family.ipv4") : t("family.ipv6");
   const title = (() => {
     if (scope.kind === "table") {
       return isEdit
@@ -195,7 +214,7 @@ export function StaticRouteModal({
           <DialogDescription>
             {isEdit
               ? t("modal.editDescription", { destination: existing.destination })
-              : t("modal.createDescription", { family: effectiveFamily === "ipv4" ? "IPv4" : "IPv6" })}
+              : t("modal.createDescription", { family: type })}
           </DialogDescription>
         </DialogHeader>
 
@@ -222,24 +241,33 @@ export function StaticRouteModal({
 
             <div className="space-y-2">
               <Label htmlFor="description">{tc("description")}</Label>
-              <Textarea
+              <Input
                 id="description"
                 placeholder={t("modal.descriptionPlaceholder")}
                 value={draft.description}
                 onChange={(e) => patch({ description: e.target.value })}
-                rows={2}
               />
             </div>
 
             {effectiveFamily === "ipv4" && (
               <div className="space-y-2">
                 <Label htmlFor="dhcp-interfaces">{t("modal.dhcpInterfaces")}</Label>
-                <InterfaceMultiSelect
-                  id="dhcp-interfaces"
-                  values={draft.dhcpInterfaces}
-                  onChange={(values) => patch({ dhcpInterfaces: values })}
-                  interfaces={interfaces}
-                />
+                {features.dhcpInterfaceMulti ? (
+                  <InterfaceMultiSelect
+                    id="dhcp-interfaces"
+                    values={draft.dhcpInterfaces}
+                    onChange={(values) => patch({ dhcpInterfaces: values })}
+                    interfaces={interfaces}
+                  />
+                ) : (
+                  <InterfaceSelect
+                    value={draft.dhcpInterfaces[0] ?? ""}
+                    onValueChange={(value) => patch({ dhcpInterfaces: value ? [value] : [] })}
+                    interfaces={interfaces}
+                    noneOption={{ label: tc("none"), value: "" }}
+                    placeholder={tc("none")}
+                  />
+                )}
               </div>
             )}
           </TabsContent>
@@ -268,6 +296,7 @@ export function StaticRouteModal({
                         type="button"
                         variant="ghost"
                         size="sm"
+                        aria-label={tc("delete")}
                         onClick={() => patch({ nextHops: draft.nextHops.filter((_, i) => i !== index) })}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -363,27 +392,72 @@ export function StaticRouteModal({
                           />
                           <Label htmlFor={`bfd-multi-hop-${index}`}>{t("modal.multiHop")}</Label>
                         </div>
-                        <div className="space-y-2">
+                      </div>
+                      {features.bfdSourceProfile ? (
+                        <div className="ml-6 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label>{t("modal.multiHopSources")}</Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={!nh.bfd || !nh.multiHop}
+                              onClick={() => updateNextHop(index, { sources: [...nh.sources, emptyBfdSource()] })}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              {t("modal.addSource")}
+                            </Button>
+                          </div>
+                          {nh.sources.map((src, srcIndex) => (
+                            <div key={srcIndex} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                              <div className="space-y-2">
+                                <Label>{t("modal.multiHopSource")}</Label>
+                                <Input
+                                  className="font-mono"
+                                  value={src.address}
+                                  disabled={!nh.bfd || !nh.multiHop}
+                                  onChange={(e) => updateSource(index, srcIndex, { address: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("modal.multiHopSourceProfile")}</Label>
+                                <NamedListSelect
+                                  value={src.profile}
+                                  names={bfdProfiles}
+                                  onValueChange={(value) => updateSource(index, srcIndex, { profile: value })}
+                                  disabled={!nh.bfd || !nh.multiHop}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={tc("delete")}
+                                disabled={!nh.bfd || !nh.multiHop}
+                                onClick={() =>
+                                  updateNextHop(index, { sources: nh.sources.filter((_, i) => i !== srcIndex) })
+                                }
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="ml-6 space-y-2">
                           <Label>{t("modal.multiHopSource")}</Label>
                           <Input
                             className="font-mono"
-                            value={nh.source}
+                            value={nh.sources[0]?.address ?? ""}
                             disabled={!nh.bfd || !nh.multiHop}
-                            onChange={(e) => updateNextHop(index, { source: e.target.value })}
+                            onChange={(e) =>
+                              updateNextHop(index, {
+                                sources: e.target.value ? [{ address: e.target.value, profile: "" }] : [],
+                              })
+                            }
                           />
                         </div>
-                        {features.bfdSourceProfile && (
-                          <div className="space-y-2">
-                            <Label>{t("modal.multiHopSourceProfile")}</Label>
-                            <NamedListSelect
-                              value={nh.sourceProfile}
-                              names={bfdProfiles}
-                              onValueChange={(value) => updateNextHop(index, { sourceProfile: value })}
-                              disabled={!nh.bfd || !nh.multiHop}
-                            />
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 ))
@@ -415,6 +489,7 @@ export function StaticRouteModal({
                         type="button"
                         variant="ghost"
                         size="sm"
+                        aria-label={tc("delete")}
                         onClick={() => patch({ interfaces: draft.interfaces.filter((_, i) => i !== index) })}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
