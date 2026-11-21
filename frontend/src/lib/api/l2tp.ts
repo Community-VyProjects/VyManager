@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { buildPPPOptionsOps, type L2TPPPPOptionsUpdate } from "./l2tp-ppp-save-ops";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -91,6 +92,7 @@ export interface L2TPPPPOptions {
   ipv6?: string | null;
   ipv6_interface_id?: string | null;
   ipv6_peer_interface_id?: string | null;
+  ipv6_peer_interface_id_secret?: string | null;
   ipv6_accept_peer_interface_id?: boolean;
   mppe?: string | null;
   lcp_echo_failure?: string | null;
@@ -151,10 +153,6 @@ export interface L2TPConfigResponse {
 
 export interface L2TPCapabilities {
   version: string;
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
-  };
   features: {
     general: { supported: boolean; description: string; settings: string[] };
     authentication: { supported: boolean; description: string; modes: string[]; protocols: string[] };
@@ -163,7 +161,14 @@ export interface L2TPCapabilities {
     ipsec_settings: { supported: boolean; description: string; auth_modes: string[] };
     client_ip_pools: { supported: boolean; description: string };
     client_ipv6_pools: { supported: boolean; description: string };
-    ppp_options: { supported: boolean; description: string; ipv4_modes: string[]; ipv6_modes: string[]; mppe_modes: string[] };
+    ppp_options: {
+      supported: boolean;
+      description: string;
+      ipv4_modes: string[];
+      ipv6_modes: string[];
+      mppe_modes: string[];
+      ipv6_peer_interface_id_secret: boolean;
+    };
     lns: { supported: boolean; description: string };
     limits: { supported: boolean; description: string };
     log: { supported: boolean; description: string; levels: string[] };
@@ -582,76 +587,12 @@ class L2TPService {
   // PPP Options
   // ==========================================================================
 
-  async updatePPPOptions(current: L2TPPPPOptions, config: {
-    ipv4?: string;
-    ipv6?: string;
-    mppe?: string;
-    disable_ccp?: boolean;
-    lcp_echo_failure?: string;
-    lcp_echo_interval?: string;
-    lcp_echo_timeout?: string;
-    min_mtu?: string;
-    mru?: string;
-    interface_cache?: string;
-    ipv6_interface_id?: string;
-    ipv6_peer_interface_id?: string;
-    ipv6_accept_peer_interface_id?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-
-    if (config.ipv4 !== undefined) {
-      if (config.ipv4) ops.push({ op: "set_ppp_ipv4", value: config.ipv4 });
-      else if (current.ipv4) ops.push({ op: "delete_ppp_ipv4" });
-    }
-    if (config.ipv6 !== undefined) {
-      if (config.ipv6) ops.push({ op: "set_ppp_ipv6", value: config.ipv6 });
-      else if (current.ipv6) ops.push({ op: "delete_ppp_ipv6" });
-    }
-    if (config.mppe !== undefined) {
-      if (config.mppe) ops.push({ op: "set_ppp_mppe", value: config.mppe });
-      else if (current.mppe) ops.push({ op: "delete_ppp_mppe" });
-    }
-    if (config.disable_ccp !== undefined) {
-      if (config.disable_ccp) ops.push({ op: "set_ppp_disable_ccp" });
-      else if (current.disable_ccp) ops.push({ op: "delete_ppp_disable_ccp" });
-    }
-    if (config.lcp_echo_failure !== undefined) {
-      if (config.lcp_echo_failure) ops.push({ op: "set_ppp_lcp_echo_failure", value: config.lcp_echo_failure });
-      else if (current.lcp_echo_failure) ops.push({ op: "delete_ppp_lcp_echo_failure" });
-    }
-    if (config.lcp_echo_interval !== undefined) {
-      if (config.lcp_echo_interval) ops.push({ op: "set_ppp_lcp_echo_interval", value: config.lcp_echo_interval });
-      else if (current.lcp_echo_interval) ops.push({ op: "delete_ppp_lcp_echo_interval" });
-    }
-    if (config.lcp_echo_timeout !== undefined) {
-      if (config.lcp_echo_timeout) ops.push({ op: "set_ppp_lcp_echo_timeout", value: config.lcp_echo_timeout });
-      else if (current.lcp_echo_timeout) ops.push({ op: "delete_ppp_lcp_echo_timeout" });
-    }
-    if (config.min_mtu !== undefined) {
-      if (config.min_mtu) ops.push({ op: "set_ppp_min_mtu", value: config.min_mtu });
-      else if (current.min_mtu) ops.push({ op: "delete_ppp_min_mtu" });
-    }
-    if (config.mru !== undefined) {
-      if (config.mru) ops.push({ op: "set_ppp_mru", value: config.mru });
-      else if (current.mru) ops.push({ op: "delete_ppp_mru" });
-    }
-    if (config.interface_cache !== undefined) {
-      if (config.interface_cache) ops.push({ op: "set_ppp_interface_cache", value: config.interface_cache });
-      else if (current.interface_cache) ops.push({ op: "delete_ppp_interface_cache" });
-    }
-    if (config.ipv6_interface_id !== undefined) {
-      if (config.ipv6_interface_id) ops.push({ op: "set_ppp_ipv6_interface_id", value: config.ipv6_interface_id });
-      else if (current.ipv6_interface_id) ops.push({ op: "delete_ppp_ipv6_interface_id" });
-    }
-    if (config.ipv6_peer_interface_id !== undefined) {
-      if (config.ipv6_peer_interface_id) ops.push({ op: "set_ppp_ipv6_peer_interface_id", value: config.ipv6_peer_interface_id });
-      else if (current.ipv6_peer_interface_id) ops.push({ op: "delete_ppp_ipv6_peer_interface_id" });
-    }
-    if (config.ipv6_accept_peer_interface_id !== undefined) {
-      if (config.ipv6_accept_peer_interface_id) ops.push({ op: "set_ppp_ipv6_accept_peer_interface_id" });
-      else if (current.ipv6_accept_peer_interface_id) ops.push({ op: "delete_ppp_ipv6_accept_peer_interface_id" });
-    }
-
+  async updatePPPOptions(
+    current: L2TPPPPOptions,
+    config: L2TPPPPOptionsUpdate,
+    secretSupported: boolean,
+  ): Promise<VyOSResponse> {
+    const ops = buildPPPOptionsOps(current, config, secretSupported);
     if (ops.length === 0) return { success: true };
     return this.batchConfigure("l2tp", ops);
   }

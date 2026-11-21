@@ -24,6 +24,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
 import { l2tpService, L2TPPPPOptions, L2TPCapabilities } from "@/lib/api/l2tp";
+import { pppOptionsProblem, type L2TPPPPOptionsUpdate } from "@/lib/api/l2tp-ppp-save-ops";
+import { NONE_SENTINEL, fromNamedListValue, listedNames, toNamedListValue } from "@/lib/named-list-select-options";
 import { ApiError } from "@/lib/types/api";
 
 interface PPPOptionsModalProps {
@@ -55,6 +57,7 @@ export function PPPOptionsModal({
   const [interfaceCache, setInterfaceCache] = useState("");
   const [ipv6InterfaceId, setIpv6InterfaceId] = useState("");
   const [ipv6PeerInterfaceId, setIpv6PeerInterfaceId] = useState("");
+  const [ipv6PeerInterfaceIdSecret, setIpv6PeerInterfaceIdSecret] = useState("");
   const [ipv6AcceptPeerInterfaceId, setIpv6AcceptPeerInterfaceId] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -62,9 +65,9 @@ export function PPPOptionsModal({
 
   useEffect(() => {
     if (open) {
-      setIpv4(currentOptions.ipv4 || "");
-      setIpv6(currentOptions.ipv6 || "");
-      setMppe(currentOptions.mppe || "");
+      setIpv4(toNamedListValue(currentOptions.ipv4 || ""));
+      setIpv6(toNamedListValue(currentOptions.ipv6 || ""));
+      setMppe(toNamedListValue(currentOptions.mppe || ""));
       setDisableCcp(currentOptions.disable_ccp || false);
       setLcpEchoFailure(currentOptions.lcp_echo_failure || "");
       setLcpEchoInterval(currentOptions.lcp_echo_interval || "");
@@ -74,32 +77,40 @@ export function PPPOptionsModal({
       setInterfaceCache(currentOptions.interface_cache || "");
       setIpv6InterfaceId(currentOptions.ipv6_interface_id || "");
       setIpv6PeerInterfaceId(currentOptions.ipv6_peer_interface_id || "");
+      setIpv6PeerInterfaceIdSecret(currentOptions.ipv6_peer_interface_id_secret || "");
       setIpv6AcceptPeerInterfaceId(currentOptions.ipv6_accept_peer_interface_id || false);
       setError(null);
     }
   }, [open, currentOptions]);
 
-  const clearable = (v: string) => v === "__clear__" ? "" : v;
+  const secretSupported = !!capabilities?.features.ppp_options.ipv6_peer_interface_id_secret;
 
   const handleSubmit = async () => {
+    const updated: L2TPPPPOptionsUpdate = {
+      ipv4: fromNamedListValue(ipv4),
+      ipv6: fromNamedListValue(ipv6),
+      mppe: fromNamedListValue(mppe),
+      disable_ccp: disableCcp,
+      lcp_echo_failure: lcpEchoFailure,
+      lcp_echo_interval: lcpEchoInterval,
+      lcp_echo_timeout: lcpEchoTimeout,
+      min_mtu: minMtu,
+      mru,
+      interface_cache: interfaceCache,
+      ipv6_interface_id: ipv6InterfaceId,
+      ipv6_peer_interface_id: ipv6PeerInterfaceId,
+      ipv6_peer_interface_id_secret: secretSupported ? ipv6PeerInterfaceIdSecret : undefined,
+      ipv6_accept_peer_interface_id: ipv6AcceptPeerInterfaceId,
+    };
+    const problem = pppOptionsProblem(currentOptions, updated, secretSupported);
+    if (problem) {
+      setError(t(`ppp.${problem}`));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const result = await l2tpService.updatePPPOptions(currentOptions, {
-        ipv4: clearable(ipv4),
-        ipv6: clearable(ipv6),
-        mppe: clearable(mppe),
-        disable_ccp: disableCcp,
-        lcp_echo_failure: lcpEchoFailure,
-        lcp_echo_interval: lcpEchoInterval,
-        lcp_echo_timeout: lcpEchoTimeout,
-        min_mtu: minMtu,
-        mru,
-        interface_cache: interfaceCache,
-        ipv6_interface_id: ipv6InterfaceId,
-        ipv6_peer_interface_id: ipv6PeerInterfaceId,
-        ipv6_accept_peer_interface_id: ipv6AcceptPeerInterfaceId,
-      });
+      const result = await l2tpService.updatePPPOptions(currentOptions, updated, secretSupported);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -113,9 +124,9 @@ export function PPPOptionsModal({
     }
   };
 
-  const ipv4Modes = capabilities?.features.ppp_options.ipv4_modes || ["deny", "allow", "prefer", "require"];
-  const ipv6Modes = capabilities?.features.ppp_options.ipv6_modes || ["deny", "allow", "prefer", "require"];
-  const mppeModes = capabilities?.features.ppp_options.mppe_modes || ["require", "prefer", "deny"];
+  const ipv4Modes = listedNames(capabilities?.features.ppp_options.ipv4_modes || [], fromNamedListValue(ipv4));
+  const ipv6Modes = listedNames(capabilities?.features.ppp_options.ipv6_modes || [], fromNamedListValue(ipv6));
+  const mppeModes = listedNames(capabilities?.features.ppp_options.mppe_modes || [], fromNamedListValue(mppe));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,7 +146,7 @@ export function PPPOptionsModal({
               <Select value={ipv4} onValueChange={setIpv4}>
                 <SelectTrigger><SelectValue placeholder={t("shared.select")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__clear__">{tc("default")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                   {ipv4Modes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -145,7 +156,7 @@ export function PPPOptionsModal({
               <Select value={ipv6} onValueChange={setIpv6}>
                 <SelectTrigger><SelectValue placeholder={t("shared.select")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__clear__">{tc("default")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                   {ipv6Modes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -156,7 +167,7 @@ export function PPPOptionsModal({
             <Select value={mppe} onValueChange={setMppe}>
               <SelectTrigger><SelectValue placeholder={t("shared.select")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__clear__">{tc("default")}</SelectItem>
+                <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                 {mppeModes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -205,13 +216,25 @@ export function PPPOptionsModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("ppp.interfaceId")}</Label>
-              <Input value={ipv6InterfaceId} onChange={(e) => setIpv6InterfaceId(e.target.value)} placeholder="::1" />
+              <Input value={ipv6InterfaceId} onChange={(e) => setIpv6InterfaceId(e.target.value)} placeholder="0:0:0:1" />
             </div>
             <div className="space-y-2">
               <Label>{t("ppp.peerInterfaceId")}</Label>
-              <Input value={ipv6PeerInterfaceId} onChange={(e) => setIpv6PeerInterfaceId(e.target.value)} placeholder="::2" />
+              <Input value={ipv6PeerInterfaceId} onChange={(e) => setIpv6PeerInterfaceId(e.target.value)} placeholder="0:0:0:2" />
             </div>
           </div>
+          {secretSupported && (
+            <div className="space-y-2">
+              <Label htmlFor="peer-id-secret">{t("ppp.peerInterfaceIdSecret")}</Label>
+              <Input
+                id="peer-id-secret"
+                type="password"
+                autoComplete="new-password"
+                value={ipv6PeerInterfaceIdSecret}
+                onChange={(e) => setIpv6PeerInterfaceIdSecret(e.target.value)}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Checkbox id="accept-peer-id" checked={ipv6AcceptPeerInterfaceId} onCheckedChange={(v) => setIpv6AcceptPeerInterfaceId(!!v)} />
             <Label htmlFor="accept-peer-id" className="cursor-pointer">{t("ppp.acceptPeerInterfaceId")}</Label>

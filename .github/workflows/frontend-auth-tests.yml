@@ -45,3 +45,7 @@ jobs:
       - name: Run power schedule tests
         working-directory: frontend
         run: npm run test:power-schedule
+
+      - name: Run L2TP PPP options save op tests
+        working-directory: frontend
+        run: npm run test:l2tp-ppp-save
