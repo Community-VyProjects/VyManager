@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import re
 import uuid
@@ -25,6 +25,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/power", tags=["power"])
+
+def _utcnow() -> datetime:
+    """Naive UTC now, the form scheduledTime is stored in."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+# powerctrl.py parses 'at' with strptime("%H:%M") and hands 'in' to shutdown
+# as a minute count; anything else comes back as a 200 with an error line.
+_AT_TIME = re.compile(r"(?:[01]?\d|2[0-3]):[0-5]\d")
+_IN_MINUTES = re.compile(r"[1-9]\d*", re.ASCII)
 
 
 # ========================================================================
@@ -169,21 +179,25 @@ async def reboot_system(request: Request, body: PowerActionRequest):
         path = ["now"]
         scheduled_time = None
     elif body.action == "at":
-        if not body.value:
+        if not body.value or not _AT_TIME.fullmatch(body.value):
             raise HTTPException(
                 status_code=400, detail="Time (HH:MM) required for 'at' action"
             )
         path = ["at", body.value]
         scheduled_time = None  # Will get from show command
     elif body.action == "in":
-        if not body.value:
+        if not body.value or not _IN_MINUTES.fullmatch(body.value):
             raise HTTPException(
-                status_code=400, detail="Minutes required for 'in' action"
+                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
             )
         path = ["in", body.value]
         # Calculate scheduled time
-        minutes = int(body.value)
-        scheduled_time = datetime.utcnow() + timedelta(minutes=minutes)
+        try:
+            scheduled_time = _utcnow() + timedelta(minutes=int(body.value))
+        except OverflowError:
+            raise HTTPException(
+                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
+            )
     elif body.action == "cancel":
         path = ["cancel"]
         scheduled_time = None
@@ -213,7 +227,7 @@ async def reboot_system(request: Request, body: PowerActionRequest):
 
     # Execute VyOS command
     try:
-        response = service.device.reboot(path=path)
+        response = await run_in_threadpool(service.device.reboot, path=path)
 
         if response.status != 200:
             raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
@@ -240,8 +254,7 @@ async def reboot_system(request: Request, body: PowerActionRequest):
                         scheduled_time = parsed_time
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[Power] Error in reboot: {type(e).__name__}: {str(e)}")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -326,21 +339,25 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
         path = ["now"]
         scheduled_time = None
     elif body.action == "at":
-        if not body.value:
+        if not body.value or not _AT_TIME.fullmatch(body.value):
             raise HTTPException(
                 status_code=400, detail="Time (HH:MM) required for 'at' action"
             )
         path = ["at", body.value]
         scheduled_time = None  # Will get from show command
     elif body.action == "in":
-        if not body.value:
+        if not body.value or not _IN_MINUTES.fullmatch(body.value):
             raise HTTPException(
-                status_code=400, detail="Minutes required for 'in' action"
+                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
             )
         path = ["in", body.value]
         # Calculate scheduled time
-        minutes = int(body.value)
-        scheduled_time = datetime.utcnow() + timedelta(minutes=minutes)
+        try:
+            scheduled_time = _utcnow() + timedelta(minutes=int(body.value))
+        except OverflowError:
+            raise HTTPException(
+                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
+            )
     elif body.action == "cancel":
         path = ["cancel"]
         scheduled_time = None
@@ -367,15 +384,10 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
 
     # Get VyOS timezone for proper time conversion
     vyos_timezone = await get_vyos_timezone(service)
-    if vyos_timezone:
-        print(f"[Power] VyOS timezone: {vyos_timezone}")
 
     # Execute VyOS command
     try:
-        response = service.device.poweroff(path=path)
-        print(f"[Power] VyOS response status: {response.status}")
-        print(f"[Power] VyOS response.result type: {type(response.result)}")
-        print(f"[Power] VyOS response.result: {response.result}")
+        response = await run_in_threadpool(service.device.poweroff, path=path)
 
         if response.status != 200:
             raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
@@ -387,38 +399,22 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
         # Parse scheduled time from the response only for "at" action
         # For "in" we already calculated UTC time, don't overwrite with VyOS's local time
         if body.action == "at":
-            print(f"[Power] Action is 'at', checking response.result...")
             if response.result:
-                print(f"[Power] response.result exists, type: {type(response.result)}")
                 # VyOS returns: {"success": true, "data": "Poweroff is scheduled YYYY-MM-DD HH:MM:SS\n", "error": null}
                 # The time is in VyOS's local timezone, so we convert it to UTC
                 if isinstance(response.result, dict) and "data" in response.result:
                     output = response.result["data"]
-                    print(f"[Power] VyOS output for 'at' action: {output}")
                     parsed_time = parse_scheduled_time(output, vyos_timezone)
-                    print(f"[Power] Parsed time result: {parsed_time}")
                     if parsed_time:
-                        # For "at" action, use parsed and converted time (now in UTC)
                         scheduled_time = parsed_time
-                        print(f"[Power] Parsed scheduled time (UTC): {scheduled_time}")
-                    else:
-                        print(f"[Power] WARNING: Failed to parse scheduled time from VyOS output!")
                 elif isinstance(response.result, str):
-                    # Maybe it's just a string?
-                    print(f"[Power] response.result is a string, trying to parse directly")
+                    # Result is a string directly
                     parsed_time = parse_scheduled_time(response.result, vyos_timezone)
                     if parsed_time:
                         scheduled_time = parsed_time
-                        print(f"[Power] Parsed scheduled time (UTC): {scheduled_time}")
-                else:
-                    print(f"[Power] ERROR: Unexpected response.result structure!")
-                    print(f"[Power] response.result: {response.result}")
-            else:
-                print(f"[Power] ERROR: response.result is None or empty!")
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[Power] Error in poweroff: {type(e).__name__}: {str(e)}")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -496,7 +492,7 @@ async def get_power_status(request: Request):
 
     async with request_scoped_conn(request) as conn:
         # scheduledTime is stored as naive UTC (see parse_scheduled_time and
-        # the utcnow() writes), so it must be compared against UTC, not a
+        # the _utcnow() writes), so it must be compared against UTC, not a
         # tz-aware NOW(): under a non-UTC database session timezone a bare
         # NOW() shifts the comparison by the offset and hides pending actions.
         # First, clean up expired actions
@@ -532,7 +528,7 @@ async def get_power_status(request: Request):
             # Get VyOS timezone for proper time conversion
             vyos_timezone = await get_vyos_timezone(service)
 
-            response = service.device.show(path=["reboot"])
+            response = await run_in_threadpool(service.device.show, path=["reboot"])
 
             if response.status != 200:
                 raise Exception(f"VyOS command failed: {response.error}")
