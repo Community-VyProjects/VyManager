@@ -18,7 +18,7 @@
     "enterTime": "Please enter a time (HH:MM)",
     "invalidTime": "Enter a time as HH:MM (00:00 to 23:59)",
     "enterMinutes": "Please enter number of minutes",
-    "invalidMinutes": "Enter a whole number of minutes above 0",
+    "invalidMinutes": "Enter a whole number of minutes from 1 to 9999999",
     "timeLabel": "Time (HH:MM)",
     "timeHint": "24-hour format. Hours: 00-23 (e.g., 19:30, 00:00 for midnight)",
     "minutesLabel": "Minutes",

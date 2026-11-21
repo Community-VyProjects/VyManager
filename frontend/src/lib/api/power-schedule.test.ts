@@ -25,9 +25,9 @@ describe("scheduleRequest", () => {
     }
   });
 
-  it("sends a trimmed minute count for in", () => {
-    for (const value of ["5", "05", "1440"]) {
-      assert.deepEqual(scheduleRequest("in", "", ` ${value} `), {
+  it("sends a trimmed minute count without leading zeros for in", () => {
+    for (const [raw, value] of [["5", "5"], ["05", "5"], ["1440", "1440"], ["9999999", "9999999"]]) {
+      assert.deepEqual(scheduleRequest("in", "", ` ${raw} `), {
         request: { action: "in", value },
       });
     }
@@ -38,7 +38,7 @@ describe("scheduleRequest", () => {
   });
 
   it("rejects an in value the backend returns 400 for", () => {
-    for (const value of ["0", "00", "-5", "1.5", "1e3", "five", "\u0665"]) {
+    for (const value of ["0", "00", "-5", "1.5", "1e3", "five", "\u0665", "10000000", "1".repeat(5000)]) {
       assert.deepEqual(scheduleRequest("in", "", value), { problem: "invalidMinutes" }, value);
     }
   });

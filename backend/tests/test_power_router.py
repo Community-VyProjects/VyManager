@@ -125,7 +125,9 @@ def _off_loop(client, device):
         ("at", "19:30", ["at", "19:30"]),
         ("at", "9:5", ["at", "9:5"]),
         ("in", "5", ["in", "5"]),
-        ("in", "05", ["in", "05"]),
+        ("in", "05", ["in", "5"]),
+        ("in", "9999999", ["in", "9999999"]),
+        ("in", "0" * 4300 + "5", ["in", "5"]),
     ],
 )
 def test_action_sends_the_op_path_off_the_event_loop(client, device, route, action, value, path):
@@ -158,6 +160,8 @@ def test_action_sends_the_op_path_off_the_event_loop(client, device, route, acti
         ("in", "five"),
         ("in", "\u0665"),
         ("in", "9" * 30),
+        ("in", "10000000"),
+        ("in", "1" * 5000),
     ],
 )
 def test_malformed_schedule_value_is_400_before_the_device(client, device, db, route, action, value):
@@ -173,6 +177,8 @@ def test_in_stores_the_scheduled_row(client, db, route):
     resp = client.http.post(route, json={"action": "in", "value": "10"})
     assert resp.status_code == 200, resp.text
     kind = route.rsplit("/", 1)[1]
+    deletes = [args for query, args in db["executed"] if query.startswith("DELETE")]
+    assert deletes == [("i1",)]
     inserts = [args for query, args in db["executed"] if query.startswith("INSERT")]
     assert len(inserts) == 1
     assert inserts[0][2] == kind
