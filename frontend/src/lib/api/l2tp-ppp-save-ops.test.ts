@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildPPPOptionsOps,
   firstMaskEdit,
+  maskTransferText,
   pppOptionsProblem,
   type L2TPPPPOptionsUpdate,
 } from "./l2tp-ppp-save-ops";
@@ -132,6 +133,18 @@ describe("firstMaskEdit", () => {
 
   it("takes a value that replaced the mask wholesale (autofill) as new text", () => {
     assert.equal(firstMaskEdit(MASK, "password123", [3, 3]), "password123");
+  });
+});
+
+describe("maskTransferText", () => {
+  it("drops line breaks from pasted or dropped text", () => {
+    assert.equal(maskTransferText(`${SECRET}\r\n`), SECRET);
+    assert.equal(maskTransferText(`ab\ncd`), "abcd");
+  });
+
+  it("keeps the mask when there is no text", () => {
+    assert.equal(maskTransferText(""), null);
+    assert.equal(maskTransferText("\r\n"), null);
   });
 });
 

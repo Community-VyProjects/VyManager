@@ -53,6 +53,15 @@ export function firstMaskEdit(mask: string, value: string, selection: [number, n
   return value.slice(before.length, value.length - after.length);
 }
 
+/**
+ * Text pasted or dropped onto the loaded mask, with the line breaks a
+ * single-line input drops; null when there is none, so the mask stays.
+ */
+export function maskTransferText(text: string): string | null {
+  const value = text.replace(/[\r\n]/g, "");
+  return value ? value : null;
+}
+
 /** A save the lab commit would reject, or null. */
 export function pppOptionsProblem(
   current: L2TPPPPOptions,
