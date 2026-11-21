@@ -42,7 +42,7 @@ def test_policy_list_kind_paths(kind, version):
 
 
 def test_operations_vocab_uses_family_op_names_not_generic_list():
-    from routers.policy_list import KIND_BUILDER
+    from routers.policy_list.policy_list import KIND_BUILDER
 
     for kind, (cls, set_op, delete_op) in BUILDERS.items():
         assert KIND_BUILDER[kind] is cls

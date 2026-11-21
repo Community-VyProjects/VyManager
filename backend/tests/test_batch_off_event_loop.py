@@ -111,6 +111,12 @@ IPOE_SERVER_OFFLOADED = [
     ("ipoe_batch_configure", "routers/ipoe_server/ipoe_server.py", "execute_batch", 1),
 ]
 
+POLICY_LIST_OFFLOADED = [
+    ("get_config", "routers/policy_list/policy_list.py", "get_full_config", 1),
+    ("batch_configure", "routers/policy_list/policy_list.py", "execute_batch", 1),
+    ("reorder_rules", "routers/policy_list/policy_list.py", "execute_batch", 1),
+]
+
 # handler, file, blocking attribute, expected offload count
 CONFIG_OFFLOADED = [
     ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
@@ -186,8 +192,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
