@@ -92,7 +92,7 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, scope, r
                     ? "bg-green-500/10 text-green-500 border-green-500/20"
                     : "bg-purple-500/10 text-purple-500 border-purple-500/20"
                 }>
-                  {route.route_type.toUpperCase()}
+                  {route.route_type === "ipv4" ? t("family.ipv4") : t("family.ipv6")}
                 </Badge>
               </div>
               {route.description && (

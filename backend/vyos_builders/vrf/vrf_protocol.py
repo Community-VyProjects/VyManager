@@ -349,7 +349,7 @@ def _run_feature_op(
             _call_with_packed_value(method, value)
             return _queue(owner, inner)
     if not _emit_leaf(inner, proto, verb, suffix, vrf_name, value):
-        return owner
+        raise AttributeError(f"{verb}_vrf_{proto}" + (f"_{suffix}" if suffix else ""))
     return _queue(owner, inner)
 
 
