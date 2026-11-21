@@ -101,6 +101,35 @@ HTTPS_OFFLOADED = [
     ("https_batch_configure", "routers/https/https.py", "execute_batch", 1),
 ]
 
+OSPF_OFFLOADED = [
+    ("get_ospf_config", "routers/ospf/ospf.py", "get_full_config", 1),
+    ("ospf_batch_configure", "routers/ospf/ospf.py", "execute_batch", 1),
+]
+
+IPOE_SERVER_OFFLOADED = [
+    ("get_ipoe_config", "routers/ipoe_server/ipoe_server.py", "get_full_config", 1),
+    ("ipoe_batch_configure", "routers/ipoe_server/ipoe_server.py", "execute_batch", 1),
+]
+
+POLICY_LIST_OFFLOADED = [
+    ("get_config", "routers/policy_list/policy_list.py", "get_full_config", 1),
+    ("batch_configure", "routers/policy_list/policy_list.py", "execute_batch", 1),
+    ("reorder_rules", "routers/policy_list/policy_list.py", "execute_batch", 1),
+]
+
+SEGMENT_ROUTING_OFFLOADED = [
+    ("get_segment_routing_config", "routers/segment_routing/segment_routing.py", "get_full_config", 1),
+    ("segment_routing_batch_configure", "routers/segment_routing/segment_routing.py", "execute_batch", 1),
+]
+
+# reboot_system and poweroff_system send through _run_power_action.
+POWER_OFFLOADED = [
+    ("_run_power_action", "routers/power.py", "reboot", 1),
+    ("_run_power_action", "routers/power.py", "poweroff", 1),
+    ("get_power_status", "routers/power.py", "show", 1),
+    ("get_vyos_timezone", "routers/power.py", "get_full_config", 1),
+]
+
 # handler, file, blocking attribute, expected offload count
 CONFIG_OFFLOADED = [
     ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
@@ -176,8 +205,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + POWER_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + POWER_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
@@ -232,11 +261,23 @@ HTTPS_VALUE_ERROR = [
     ("https_batch_configure", "routers/https/https.py"),
 ]
 
+OSPF_VALUE_ERROR = [
+    ("ospf_batch_configure", "routers/ospf/ospf.py"),
+]
+
+L2TP_VALUE_ERROR = [
+    ("l2tp_batch_configure", "routers/l2tp/l2tp.py"),
+]
+
+IPOE_SERVER_VALUE_ERROR = [
+    ("ipoe_batch_configure", "routers/ipoe_server/ipoe_server.py"),
+]
+
 
 @pytest.mark.parametrize(
     "name,rel",
-    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR,
-    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR],
+    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR,
+    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR],
 )
 def test_value_error_does_not_wrap_execute_batch(name, rel):
     """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""

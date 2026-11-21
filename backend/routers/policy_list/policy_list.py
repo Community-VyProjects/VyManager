@@ -1,9 +1,9 @@
 """Policy list router parameterized by community-list family."""
 
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field, create_model
+from pydantic import AfterValidator, BaseModel, Field, create_model
 from starlette.concurrency import run_in_threadpool
 
 from batch_dispatch import resolve_batch_method
@@ -13,7 +13,8 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders.community_list.community_list import CommunityListBatchBuilder
 from vyos_builders.extcommunity_list.extcommunity_list import ExtCommunityListBatchBuilder
 from vyos_builders.large_community_list.large_community_list import LargeCommunityListBatchBuilder
-from vyos_mappers.policy_list import KIND_SPEC, POLICY_LIST_KINDS
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.policy_list import KIND_SPEC, POLICY_LIST_KINDS, PolicyListMapper
 import inspect
 import logging
 
@@ -32,10 +33,14 @@ KIND_BUILDER = {
 }
 
 
+RULE_NUMBER_MIN = 1
+RULE_NUMBER_MAX = 65535
+
+
 class PolicyListRule(BaseModel):
     rule_number: int
     description: Optional[str] = None
-    action: str = "permit"
+    action: Literal["permit", "deny"] = "permit"
     regex: Optional[str] = None
 
 
@@ -51,41 +56,44 @@ class PolicyListBatchOperation(BaseModel):
 
 
 class PolicyListBatchRequest(BaseModel):
-    name: str = Field(..., description="List name")
-    rule_number: Optional[int] = Field(None, description="Rule number (optional)")
+    name: str = Field(..., min_length=1, description="List name")
+    rule_number: Optional[int] = Field(
+        None,
+        ge=0,
+        le=RULE_NUMBER_MAX,
+        description="Rule number for rule ops; omitted or 0 for list ops",
+    )
     operations: List[PolicyListBatchOperation]
 
 
 class ReorderRuleItem(BaseModel):
-    old_number: int = Field(..., description="Original rule number")
-    new_number: Optional[int] = Field(None, description="New rule number after reorder; None = delete-only")
+    old_number: int = Field(..., ge=RULE_NUMBER_MIN, le=RULE_NUMBER_MAX, description="Original rule number")
+    new_number: Optional[int] = Field(
+        None,
+        ge=RULE_NUMBER_MIN,
+        le=RULE_NUMBER_MAX,
+        description="New rule number after reorder; None = delete-only",
+    )
     rule_data: PolicyListRule = Field(..., description="Complete rule configuration")
+
+
+def _unique_rule_numbers(rules: List[ReorderRuleItem]) -> List[ReorderRuleItem]:
+    old_numbers = [rule.old_number for rule in rules]
+    if len(old_numbers) != len(set(old_numbers)):
+        raise ValueError("duplicate old_number")
+    new_numbers = [rule.new_number for rule in rules if rule.new_number is not None]
+    if len(new_numbers) != len(set(new_numbers)):
+        raise ValueError("duplicate new_number")
+    return rules
+
+
+ReorderRules = Annotated[List[ReorderRuleItem], AfterValidator(_unique_rule_numbers)]
 
 
 class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-
-
-def parse_policy_list(name: str, cl_data: dict) -> PolicyList:
-    rules = []
-    rules_raw = cl_data.get("rule", {})
-    if rules_raw:
-        for rule_num, rule_data in rules_raw.items():
-            rules.append(
-                PolicyListRule(
-                    rule_number=int(rule_num),
-                    description=rule_data.get("description"),
-                    action=rule_data.get("action", "permit"),
-                    regex=rule_data.get("regex"),
-                )
-            )
-    return PolicyList(
-        name=name,
-        description=cl_data.get("description"),
-        rules=sorted(rules, key=lambda r: r.rule_number),
-    )
 
 
 def build_router(kind: str) -> APIRouter:
@@ -105,8 +113,8 @@ def build_router(kind: str) -> APIRouter:
     ReorderModel = create_model(
         f"{ident}_ReorderRequest",
         **{
-            name_field: (str, Field(..., description=f"{label} name")),
-            "rules": (List[ReorderRuleItem], Field(..., description="List of rules with new order")),
+            name_field: (str, Field(..., min_length=1, description=f"{label} name")),
+            "rules": (ReorderRules, Field(..., min_length=1, description="List of rules with new order")),
         },
     )
 
@@ -124,6 +132,8 @@ def build_router(kind: str) -> APIRouter:
                 capabilities["instance_name"] = request.state.instance.get("name")
                 capabilities["instance_id"] = request.state.instance.get("id")
             return capabilities
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -134,11 +144,10 @@ def build_router(kind: str) -> APIRouter:
         try:
             service = get_session_vyos_service(http_request)
             full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-            raw = full_config.get("policy", {}).get(kind, {})
-            if not raw:
-                return ConfigModel(**{lists_field: [], "total": 0})
-            lists = [parse_policy_list(name, data) for name, data in raw.items()]
-            return ConfigModel(**{lists_field: lists, "total": len(lists)})
+            mapper = cast(PolicyListMapper, CommandMapperRegistry.get_mapper(ident, service.get_version()))
+            return ConfigModel(**mapper.parse_config(full_config))
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -151,20 +160,18 @@ def build_router(kind: str) -> APIRouter:
             builder = KIND_BUILDER[kind](version=service.get_version())
             for operation in body.operations:
                 method = resolve_batch_method(builder, operation.op)
-                sig = inspect.signature(method)
-                params = list(sig.parameters.keys())
-                args = []
-                if "name" in params:
-                    args.append(body.name)
-                if body.rule_number and "rule" in params:
+                params = list(inspect.signature(method).parameters)
+                args = [body.name]
+                if "rule" in params:
+                    if not body.rule_number:
+                        raise HTTPException(status_code=400, detail=f"Operation {operation.op} requires rule_number")
                     args.append(str(body.rule_number))
-                if operation.value and len(params) > len(args):
-                    for param in params[len(args):]:
-                        if param != "self":
-                            args.append(operation.value)
-                            break
+                if len(params) > len(args):
+                    if not operation.value:
+                        raise HTTPException(status_code=400, detail=f"Operation {operation.op} requires a value")
+                    args.append(operation.value)
                 method(*args)
-            response = service.execute_batch(builder)
+            response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
                 data={"message": "Configuration updated"},
@@ -192,18 +199,19 @@ def build_router(kind: str) -> APIRouter:
                     continue
                 rule_data = rule_item.rule_data
                 builder.set_rule(list_name, str(new_number))
-                if rule_data.action:
-                    builder.set_rule_action(list_name, str(new_number), rule_data.action)
+                builder.set_rule_action(list_name, str(new_number), rule_data.action)
                 if rule_data.description:
                     builder.set_rule_description(list_name, str(new_number), rule_data.description)
                 if rule_data.regex:
                     builder.set_rule_regex(list_name, str(new_number), rule_data.regex)
-            response = service.execute_batch(builder)
+            response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
                 data={"message": f"Successfully reordered {len(body.rules)} rules in {label} {list_name}"},
                 error=response.error if response.error else None,
             )
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")

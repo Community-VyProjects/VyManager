@@ -29,7 +29,8 @@ GATED_HANDLERS = {
         "as_path_list_batch_configure": "require_write_permission",
         "reorder_as_path_list_rules": "require_write_permission",
     },
-    "policy_list.py": {
+    "policy_list/policy_list.py": {
+        "get_capabilities": "require_read_permission",
         "get_config": "require_read_permission",
         "batch_configure": "require_write_permission",
         "reorder_rules": "require_write_permission",
@@ -56,7 +57,7 @@ GATED_HANDLERS = {
 DYNAMIC_DISPATCH_FILES = [
     "local_route/local_route.py",
     "as_path_list/as_path_list.py",
-    "policy_list.py",
+    "policy_list/policy_list.py",
     "route/route.py",
     "route_map/route_map.py",
     "access_list/access_list.py",

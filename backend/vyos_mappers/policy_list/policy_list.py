@@ -1,6 +1,8 @@
 """Policy list mapper parameterized by community-list family."""
 
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
+
+from ..base import BaseFeatureMapper
 
 POLICY_LIST_KINDS: Tuple[str, ...] = (
     "community-list",
@@ -30,14 +32,19 @@ KIND_SPEC = {
 }
 
 
-class PolicyListMapper:
+class PolicyListMapper(BaseFeatureMapper):
     """Mapper for policy community-list families (identical on 1.4 and 1.5)."""
 
     def __init__(self, version: str, kind: str):
         if kind not in POLICY_LIST_KINDS:
             raise ValueError(f"unsupported policy list kind: {kind}")
-        self.version = version
+        super().__init__(version)
         self.kind = kind
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_policy_list_config
+
+        return parse_policy_list_config(self, full_config)
 
     def _path(self, *parts: str) -> List[str]:
         return ["policy", self.kind, *parts]
@@ -74,40 +81,3 @@ class PolicyListMapper:
 
     def get_rule_regex_path(self, name: str, rule: str) -> List[str]:
         return self._path(name, "rule", rule, "regex")
-
-    # Names the copied mappers used; batch getattr still hits these.
-    def get_community_list(self, name: str) -> List[str]:
-        return self.get_list(name)
-
-    def get_community_list_path(self, name: str) -> List[str]:
-        return self.get_list_path(name)
-
-    def get_community_list_description(self, name: str, description: str) -> List[str]:
-        return self.get_list_description(name, description)
-
-    def get_community_list_description_path(self, name: str) -> List[str]:
-        return self.get_list_description_path(name)
-
-    def get_extcommunity_list(self, name: str) -> List[str]:
-        return self.get_list(name)
-
-    def get_extcommunity_list_path(self, name: str) -> List[str]:
-        return self.get_list_path(name)
-
-    def get_extcommunity_list_description(self, name: str, description: str) -> List[str]:
-        return self.get_list_description(name, description)
-
-    def get_extcommunity_list_description_path(self, name: str) -> List[str]:
-        return self.get_list_description_path(name)
-
-    def get_large_community_list(self, name: str) -> List[str]:
-        return self.get_list(name)
-
-    def get_large_community_list_path(self, name: str) -> List[str]:
-        return self.get_list_path(name)
-
-    def get_large_community_list_description(self, name: str, description: str) -> List[str]:
-        return self.get_list_description(name, description)
-
-    def get_large_community_list_description_path(self, name: str) -> List[str]:
-        return self.get_list_description_path(name)
