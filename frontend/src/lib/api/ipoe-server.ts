@@ -99,7 +99,7 @@ export interface IPoEInterface {
   external_dhcp?: {
     dhcp_relay?: string | null;
     giaddr?: string | null;
-  };
+  } | null;
 }
 
 export interface IPoEConfigResponse {

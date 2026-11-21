@@ -1,13 +1,20 @@
-"""Broadcast Relay Service Command Mapper."""
-from typing import List
+"""Broadcast Relay Service Command Mapper.
+
+service broadcast-relay is the same on VyOS 1.4 and 1.5. One class holds the commands.
+"""
+from typing import Any, Dict, List
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "broadcast-relay"]
 
 
 class BroadcastRelayMapper(BaseFeatureMapper):
-    def __init__(self, version: str):
-        super().__init__(version)
+    """Mapper for service broadcast-relay. Identical on VyOS 1.4 and 1.5."""
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_broadcast_relay_config
+
+        return parse_broadcast_relay_config(self, full_config)
 
     def _id(self, relay_id: str) -> List[str]:
         return BASE + ["id", relay_id]

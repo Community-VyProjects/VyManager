@@ -17,15 +17,17 @@ from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.isis.isis_batch_builder import IsisBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.ospfv3.ospfv3_batch_builder import Ospfv3BatchBuilder
+from vyos_builders.rpki.rpki_batch_builder import RpkiBatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
 from vyos_builders.vrf.feature_modes import DIRECT, DROP, FLIP
 from vyos_mappers.feature_leaves import (
     DhcpExtraLeaves,
     Dhcpv6ExtraLeaves,
     FailoverExtraLeaves,
+    RpkiExtraLeaves,
     StaticExtraLeaves,
 )
-from vyos_mappers.path_prefix import PathPrefixMapper, require_feature_version
+from vyos_mappers.path_prefix import PathPrefixMapper
 
 # Longest name first so "ospfv3" is not parsed as "ospf" and "dhcpv6" is not "dhcp".
 PROTOCOL_BUILDERS = {
@@ -41,6 +43,7 @@ FEATURE_BUILDERS = {
     "dhcp": DHCPServerBatchBuilder,
     "static": StaticRoutesBatchBuilder,
     "failover": FailoverBatchBuilder,
+    "rpki": RpkiBatchBuilder,
 }
 _ALL_BUILDERS = {**FEATURE_BUILDERS, **PROTOCOL_BUILDERS}
 _PROTO_KEYS = tuple(sorted(_ALL_BUILDERS, key=len, reverse=True))
@@ -87,22 +90,27 @@ class ArityError(ValueError):
     """Packed value does not match the global builder method's arity."""
 
 
+def _split_value(value: Optional[str], count: int) -> List[str]:
+    """Split a packed value into ``count`` parts; none may be empty.
+
+    The VRF builder names the op in front of the message.
+    """
+    if not value:
+        raise ArityError("requires a value")
+    parts = [value] if count == 1 else value.split(",", count - 1)
+    if len(parts) != count:
+        raise ArityError(f"expects {count} comma-separated value(s), got {len(parts)}")
+    if not all(parts):
+        raise ArityError("has an empty comma-separated value")
+    return parts
+
+
 def _call_with_packed_value(method: Callable[..., Any], value: Optional[str]) -> None:
     params = [p for p in inspect.signature(method).parameters if p != "self"]
     if not params:
         method()
         return
-    if value is None:
-        raise ArityError(f"{method.__name__} requires a value")
-    if len(params) == 1:
-        method(value)
-        return
-    parts = value.split(",", len(params) - 1)
-    if len(parts) != len(params):
-        raise ArityError(
-            f"{method.__name__} expects {len(params)} comma-separated value(s), got {len(parts)}"
-        )
-    method(*parts)
+    method(*_split_value(value, len(params)))
 
 
 def _mapper_path(
@@ -133,12 +141,10 @@ def _mapper_path(
         extra = max(len(params) - 1, 0)
         if extra == 0:
             return getter(vrf_name)
-        if value is None:
+        if not value:
             continue
-        if extra == 1:
-            return getter(vrf_name, value)
-        parts = value.split(",", extra - 1)
-        if len(parts) != extra:
+        parts = [value] if extra == 1 else value.split(",", extra - 1)
+        if len(parts) != extra or not all(parts):
             continue
         return getter(vrf_name, *parts)
     if verb == "delete":
@@ -168,11 +174,11 @@ def _parent_node_delete_path(
         if extra == 1:
             path = getter(vrf_name, dummy)
         else:
-            if value is None:
+            if not value:
                 return None
             need = extra - 1
             tokens = [value] if need == 1 else value.split(",", need - 1)
-            if len(tokens) != need:
+            if len(tokens) != need or not all(tokens):
                 return None
             path = getter(vrf_name, *tokens, dummy)
     except TypeError:
@@ -219,6 +225,7 @@ _LEAF_CLASSES = {
     "failover": FailoverExtraLeaves,
     "dhcp": DhcpExtraLeaves,
     "dhcpv6": Dhcpv6ExtraLeaves,
+    "rpki": RpkiExtraLeaves,
 }
 
 
@@ -242,6 +249,9 @@ def _feature_mapper_cls(proto: str):
     if proto == "static":
         from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
         return StaticRoutesMapper
+    if proto == "rpki":
+        from vyos_mappers.rpki.rpki import RpkiMapper
+        return RpkiMapper
     from vyos_mappers.failover.failover import FailoverMapper
     return FailoverMapper
 
@@ -292,17 +302,7 @@ def _emit_leaf(
     if raw is None:
         return False
     params = [p for p in inspect.signature(raw).parameters if p != "self"]
-    if not params:
-        args: tuple = ()
-    else:
-        if value is None:
-            raise ArityError(f"{gname} requires a value")
-        parts = [value] if len(params) == 1 else value.split(",", len(params) - 1)
-        if len(parts) != len(params):
-            raise ArityError(
-                f"{gname} expects {len(params)} comma-separated value(s), got {len(parts)}"
-            )
-        args = tuple(parts)
+    args = tuple(_split_value(value, len(params))) if params else ()
     wrapped = inner.mappers[inner.mapper_key] if getattr(inner, "mappers", None) else inner.m
     if not hasattr(wrapped, gname):
         wrapped = PathPrefixMapper(_LEAF_CLASSES[proto](), ["vrf", "name", vrf_name])
@@ -317,11 +317,7 @@ def _emit_leaf(
 def _drop_set_leaf(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None:
     method = getattr(inner, f"set_{_alias(proto, suffix)}")
     params = [p for p in inspect.signature(method).parameters if p != "self"]
-    tokens = [] if value is None else value.split(",")
-    if len(tokens) + 1 != len(params):
-        raise ArityError(
-            f"set_{_alias(proto, suffix)} expects {len(params) - 1} comma-separated value(s), got {len(tokens)}"
-        )
+    tokens = _split_value(value, len(params) - 1) if len(params) > 1 else []
     method(*tokens, "_")
     ops = inner.get_operations()
     inner._operations.clear()
@@ -346,7 +342,7 @@ def _run_feature_op(
     vrf_name: str,
     value: Optional[str],
 ) -> Any:
-    require_feature_version(proto, owner.version)
+    owner.mappers["vrf"].require_feature(proto)
     inner = FEATURE_BUILDERS[proto](owner.version)
     _install_prefix(inner, ["vrf", "name", vrf_name])
     key = _mode_key(proto, verb, suffix)
@@ -378,6 +374,10 @@ def run_vrf_protocol_op(
     value: Optional[str] = None,
 ) -> Any:
     """Queue one VRF-prefixed feature op onto ``owner``."""
+    if value == "":
+        # A blank value would end the path in '' or, on the delete
+        # fallthrough below, widen it to the parent node.
+        raise ArityError("requires a value")
     if proto in FEATURE_BUILDERS:
         return _run_feature_op(owner, verb, proto, suffix, vrf_name, value)
 

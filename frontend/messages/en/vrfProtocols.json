@@ -72,7 +72,21 @@
     "preference": "Preference",
     "sourceAddress": "Source address",
     "sshUsername": "SSH username",
-    "sshKey": "SSH key"
+    "sshKey": "SSH key",
+    "modalTitle": "RPKI — {vrf}",
+    "cacheNameRequired": "Each cache needs a name.",
+    "cacheNameDuplicate": "Cache {name} is listed twice.",
+    "cacheNameComma": "Cache name {name} cannot contain a comma.",
+    "portRequired": "Cache {name} needs a port.",
+    "preferenceRequired": "Cache {name} needs a preference.",
+    "sshIncomplete": "Cache {name} needs both an SSH username and an SSH key.",
+    "range": "{label} must be between {min} and {max}.",
+    "cacheRange": "Cache {name}: {label} must be between {min} and {max}.",
+    "enable": "Enable RPKI",
+    "enableDescription": "Create the RPKI node in VRF {vrf}?",
+    "remove": "Remove RPKI",
+    "removeDescription": "Delete the whole RPKI configuration of VRF {vrf}?",
+    "apply": "Apply"
   },
   "schemaEditor": {
     "select": "Select…",

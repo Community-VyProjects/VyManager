@@ -179,10 +179,14 @@ def parse_static_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
 
 
 def parse_rpki_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
-    """Parse RPKI configuration from VRF protocols."""
-    rpki_config = protocols_config.get("rpki", {})
-    if not rpki_config:
+    """Parse RPKI configuration from VRF protocols.
+
+    Presence is key membership: a bare ``protocols rpki`` parses as ``{}``
+    and is still a node the screen can remove.
+    """
+    if "rpki" not in protocols_config:
         return None
+    rpki_config = protocols_config.get("rpki") or {}
 
     caches = []
     for cache_name, cache_data in (rpki_config.get("cache", {}) or {}).items():

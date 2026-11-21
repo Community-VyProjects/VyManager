@@ -52,6 +52,8 @@ REMAINING_OFFLOADED = [
     ("get_available_ethernet_interfaces", "routers/show.py", "show", 1),
     ("get_interface_counters", "routers/show.py", "show", 1),
     ("get_system_updates", "routers/show.py", "show", 1),
+    ("get_all_interfaces", "routers/show.py", "get_full_config", 1),
+    ("get_all_interfaces", "routers/show.py", "show", 1),
     ("get_dhcp_config", "routers/dhcp_server/dhcp_server.py", "get_full_config", 1),
     ("dhcp_batch_configure", "routers/dhcp_server/dhcp_server.py", "execute_batch", 1),
     ("get_webproxy_config", "routers/webproxy/webproxy.py", "get_full_config", 1),
@@ -126,7 +128,7 @@ SEGMENT_ROUTING_OFFLOADED = [
 POWER_OFFLOADED = [
     ("_run_power_action", "routers/power.py", "reboot", 1),
     ("_run_power_action", "routers/power.py", "poweroff", 1),
-    ("get_power_status", "routers/power.py", "show", 1),
+    ("get_scheduled_power_status", "routers/power.py", "show", 1),
     ("get_vyos_timezone", "routers/power.py", "get_full_config", 1),
 ]
 
@@ -269,6 +271,11 @@ L2TP_VALUE_ERROR = [
     ("l2tp_batch_configure", "routers/l2tp/l2tp.py"),
 ]
 
+NAT66_VALUE_ERROR = [
+    ("batch_configure", "routers/nat66/nat66.py"),
+    ("reorder_nat66_rules", "routers/nat66/nat66.py"),
+]
+
 IPOE_SERVER_VALUE_ERROR = [
     ("ipoe_batch_configure", "routers/ipoe_server/ipoe_server.py"),
 ]
@@ -276,8 +283,8 @@ IPOE_SERVER_VALUE_ERROR = [
 
 @pytest.mark.parametrize(
     "name,rel",
-    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR,
-    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR],
+    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR,
+    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR],
 )
 def test_value_error_does_not_wrap_execute_batch(name, rel):
     """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""

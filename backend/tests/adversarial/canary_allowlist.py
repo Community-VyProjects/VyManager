@@ -31,8 +31,11 @@ PERMANENT_GLOBAL = {
     "routers/events.py":
         "Background banner poller: no request, no org context - it "
         "iterates every instance with active subscribers, a "
-        "deployment-wide system service. The request-path streams in "
-        "the same file use org-scoped connections per tick.",
+        "deployment-wide system service. It passes db_pool.acquire into "
+        "routers/power.py get_scheduled_power_status, so that power "
+        "status SQL (keyed on the instance id) runs unscoped from the "
+        "poller only. The request-path streams in the same file use "
+        "org-scoped connections per tick.",
     "revocation_bus.py":
         "Holds one dedicated LISTEN connection for the deployment-wide "
         "revocation channel; no request, no org context by nature.",

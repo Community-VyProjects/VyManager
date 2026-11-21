@@ -1,4 +1,11 @@
 import { apiClient } from "./client";
+import type { ApiError } from "../types/api";
+import {
+  buildRuleCreateOps,
+  buildRuleUpdateOps,
+  type NAT66RuleFields,
+  type NAT66RuleType,
+} from "./nat66-save-ops";
 
 // ==================== Type Definitions ====================
 
@@ -10,13 +17,8 @@ export interface NAT66RuleGroup {
   port_group?: string | null;
 }
 
-export interface NAT66RuleSource {
-  address?: string | null;
-  prefix?: string | null;
-  port?: string | null;
-}
-
-export interface NAT66RuleDestination {
+/** Source or destination match: source rules use `prefix`, destination rules `address`. */
+export interface NAT66RuleMatch {
   address?: string | null;
   prefix?: string | null;
   port?: string | null;
@@ -36,8 +38,8 @@ export interface NAT66SourceRule {
   log: boolean;
   protocol?: string | null;
   outbound_interface?: string | null;
-  source?: NAT66RuleSource | null;
-  destination?: NAT66RuleDestination | null;
+  source?: NAT66RuleMatch | null;
+  destination?: NAT66RuleMatch | null;
   translation?: NAT66RuleTranslation | null;
 }
 
@@ -49,8 +51,8 @@ export interface NAT66DestinationRule {
   log: boolean;
   protocol?: string | null;
   inbound_interface?: string | null;
-  source?: NAT66RuleSource | null;
-  destination?: NAT66RuleDestination | null;
+  source?: NAT66RuleMatch | null;
+  destination?: NAT66RuleMatch | null;
   translation?: NAT66RuleTranslation | null;
 }
 
@@ -62,12 +64,15 @@ export interface NAT66ConfigResponse {
 
 export interface NAT66Capabilities {
   version: string;
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
-  };
   supported: boolean;
-  features: Record<string, { supported: boolean; description: string }>;
+  features: {
+    source_nat66: { supported: boolean; description: string };
+    destination_nat66: { supported: boolean; description: string };
+    masquerade: { supported: boolean; description: string };
+    groups: { supported: boolean; description: string; group_types: string[] };
+  };
+  /** `protocol` values both labs accept. */
+  protocols: string[];
   operations: Record<string, string[]>;
 }
 
@@ -82,10 +87,43 @@ export interface NAT66BatchOperation {
   value?: string | null;
 }
 
+/** A rule's leaves without its number, as the reorder route re-sets them. */
+export type NAT66RuleData = Omit<NAT66SourceRule, "rule_number"> | Omit<NAT66DestinationRule, "rule_number">;
+
 interface ReorderRuleItem {
   old_number: number;
   new_number: number | null; // null = delete-only (removed, not recreated)
-  rule_data: Record<string, unknown>;
+  rule_data: NAT66RuleData | null;
+}
+
+const NO_CHANGES: VyOSResponse = { success: true, data: null };
+
+/**
+ * A rejected commit comes back as HTTP 200 with ``success: false``; throw an
+ * ApiError carrying the device error so the dialog stays open and shows it.
+ */
+function throwIfFailed(result: VyOSResponse): VyOSResponse {
+  if (!result.success) {
+    const error: ApiError = { message: result.error || "" };
+    throw error;
+  }
+  return result;
+}
+
+function ruleData(ruleType: NAT66RuleType, rule: NAT66SourceRule | NAT66DestinationRule): NAT66RuleData {
+  const data = {
+    description: rule.description,
+    disable: rule.disable,
+    exclude: rule.exclude,
+    log: rule.log,
+    protocol: rule.protocol,
+    source: rule.source,
+    destination: rule.destination,
+    translation: rule.translation,
+  };
+  return ruleType === "source"
+    ? { ...data, outbound_interface: (rule as NAT66SourceRule).outbound_interface }
+    : { ...data, inbound_interface: (rule as NAT66DestinationRule).inbound_interface };
 }
 
 // ==================== Service ====================
@@ -101,460 +139,74 @@ class NAT66Service {
     });
   }
 
+  /** POST one batch; an empty batch is not sent. */
   async batchConfigure(
     ruleNumber: number,
-    ruleType: "source" | "destination",
+    ruleType: NAT66RuleType,
     operations: NAT66BatchOperation[]
   ): Promise<VyOSResponse> {
+    if (operations.length === 0) return NO_CHANGES;
     const result = await apiClient.post<VyOSResponse>("/vyos/nat66/batch", {
       rule_number: ruleNumber,
       rule_type: ruleType,
       operations,
     });
-    if (!result.success) {
-      throw new Error(result.error || "Operation failed");
-    }
-    return result;
+    return throwIfFailed(result);
   }
 
-  async reorderRules(
-    ruleType: "source" | "destination",
-    rules: ReorderRuleItem[]
-  ): Promise<VyOSResponse> {
+  async reorderRules(ruleType: NAT66RuleType, rules: ReorderRuleItem[]): Promise<VyOSResponse> {
     const result = await apiClient.post<VyOSResponse>("/vyos/nat66/reorder", {
       rule_type: ruleType,
       rules,
     });
-    if (!result.success) {
-      throw new Error(result.error || "Reorder failed");
-    }
-    return result;
+    return throwIfFailed(result);
   }
 
-  // ==================== Source Rule Helpers ====================
+  // ==================== Rule Helpers ====================
 
-  async createSourceRule(config: {
-    ruleNumber: number;
-    description?: string;
-    sourcePrefix?: string;
-    sourcePort?: string;
-    destinationPrefix?: string;
-    destinationPort?: string;
-    outboundInterface?: string;
-    protocol?: string;
-    translationAddress?: string;
-    translationPort?: string;
-    exclude?: boolean;
-    log?: boolean;
-    disable?: boolean;
-  }): Promise<VyOSResponse> {
-    const operations: NAT66BatchOperation[] = [{ op: "set_source_rule" }];
-    if (config.description) {
-      operations.push({ op: "set_source_rule_description", value: config.description });
-    }
-    if (config.protocol) {
-      operations.push({ op: "set_source_rule_protocol", value: config.protocol });
-    }
-    if (config.outboundInterface) {
-      operations.push({ op: "set_source_rule_outbound_interface_name", value: config.outboundInterface });
-    }
-    if (config.sourcePrefix) {
-      operations.push({ op: "set_source_rule_source_prefix", value: config.sourcePrefix });
-    }
-    if (config.sourcePort) {
-      operations.push({ op: "set_source_rule_source_port", value: config.sourcePort });
-    }
-    if (config.destinationPrefix) {
-      operations.push({ op: "set_source_rule_destination_prefix", value: config.destinationPrefix });
-    }
-    if (config.destinationPort) {
-      operations.push({ op: "set_source_rule_destination_port", value: config.destinationPort });
-    }
-    if (config.translationAddress) {
-      operations.push({ op: "set_source_rule_translation_address", value: config.translationAddress });
-    }
-    if (config.translationPort) {
-      operations.push({ op: "set_source_rule_translation_port", value: config.translationPort });
-    }
-    if (config.exclude) {
-      operations.push({ op: "set_source_rule_exclude" });
-    }
-    if (config.log) {
-      operations.push({ op: "set_source_rule_log" });
-    }
-    if (config.disable) {
-      operations.push({ op: "set_source_rule_disable" });
-    }
-    return this.batchConfigure(config.ruleNumber, "source", operations);
-  }
-
-  async updateSourceRule(
+  async createRule(
+    ruleType: NAT66RuleType,
     ruleNumber: number,
-    current: NAT66SourceRule,
-    updated: {
-      description?: string;
-      sourcePrefix?: string;
-      sourcePort?: string;
-      destinationPrefix?: string;
-      destinationPort?: string;
-      outboundInterface?: string;
-      protocol?: string;
-      translationAddress?: string;
-      translationPort?: string;
-      exclude?: boolean;
-      log?: boolean;
-      disable?: boolean;
-    }
+    fields: NAT66RuleFields,
+    groupTypes: readonly string[]
   ): Promise<VyOSResponse> {
-    const operations: NAT66BatchOperation[] = [];
-
-    if (updated.description !== undefined) {
-      if (updated.description) {
-        operations.push({ op: "set_source_rule_description", value: updated.description });
-      } else if (current.description) {
-        operations.push({ op: "delete_source_rule_description" });
-      }
-    }
-    if (updated.protocol !== undefined) {
-      if (updated.protocol) {
-        operations.push({ op: "set_source_rule_protocol", value: updated.protocol });
-      } else if (current.protocol) {
-        operations.push({ op: "delete_source_rule_protocol" });
-      }
-    }
-    if (updated.outboundInterface !== undefined) {
-      if (updated.outboundInterface) {
-        operations.push({ op: "set_source_rule_outbound_interface_name", value: updated.outboundInterface });
-      } else if (current.outbound_interface) {
-        operations.push({ op: "delete_source_rule_outbound_interface_name" });
-      }
-    }
-    if (updated.sourcePrefix !== undefined) {
-      if (updated.sourcePrefix) {
-        operations.push({ op: "set_source_rule_source_prefix", value: updated.sourcePrefix });
-      } else if (current.source?.prefix) {
-        operations.push({ op: "delete_source_rule_source_prefix" });
-      }
-    }
-    if (updated.sourcePort !== undefined) {
-      if (updated.sourcePort) {
-        operations.push({ op: "set_source_rule_source_port", value: updated.sourcePort });
-      } else if (current.source?.port) {
-        operations.push({ op: "delete_source_rule_source_port" });
-      }
-    }
-    if (updated.destinationPrefix !== undefined) {
-      if (updated.destinationPrefix) {
-        operations.push({ op: "set_source_rule_destination_prefix", value: updated.destinationPrefix });
-      } else if (current.destination?.prefix) {
-        operations.push({ op: "delete_source_rule_destination_prefix" });
-      }
-    }
-    if (updated.destinationPort !== undefined) {
-      if (updated.destinationPort) {
-        operations.push({ op: "set_source_rule_destination_port", value: updated.destinationPort });
-      } else if (current.destination?.port) {
-        operations.push({ op: "delete_source_rule_destination_port" });
-      }
-    }
-    if (updated.translationAddress !== undefined) {
-      if (updated.translationAddress) {
-        operations.push({ op: "set_source_rule_translation_address", value: updated.translationAddress });
-      } else if (current.translation?.address) {
-        operations.push({ op: "delete_source_rule_translation_address" });
-      }
-    }
-    if (updated.translationPort !== undefined) {
-      if (updated.translationPort) {
-        operations.push({ op: "set_source_rule_translation_port", value: updated.translationPort });
-      } else if (current.translation?.port) {
-        operations.push({ op: "delete_source_rule_translation_port" });
-      }
-    }
-    if (updated.exclude !== undefined) {
-      if (updated.exclude && !current.exclude) {
-        operations.push({ op: "set_source_rule_exclude" });
-      } else if (!updated.exclude && current.exclude) {
-        operations.push({ op: "delete_source_rule_exclude" });
-      }
-    }
-    if (updated.log !== undefined) {
-      if (updated.log && !current.log) {
-        operations.push({ op: "set_source_rule_log" });
-      } else if (!updated.log && current.log) {
-        operations.push({ op: "delete_source_rule_log" });
-      }
-    }
-    if (updated.disable !== undefined) {
-      if (updated.disable && !current.disable) {
-        operations.push({ op: "set_source_rule_disable" });
-      } else if (!updated.disable && current.disable) {
-        operations.push({ op: "delete_source_rule_disable" });
-      }
-    }
-
-    if (operations.length === 0) {
-      return { success: true, data: { message: "No changes" } };
-    }
-    return this.batchConfigure(ruleNumber, "source", operations);
+    return this.batchConfigure(ruleNumber, ruleType, buildRuleCreateOps(ruleType, fields, groupTypes));
   }
 
-  async deleteSourceRule(ruleNumber: number): Promise<VyOSResponse> {
-    return this.batchConfigure(ruleNumber, "source", [{ op: "delete_source_rule" }]);
-  }
-
-  async toggleSourceRuleDisable(ruleNumber: number, currentlyDisabled: boolean): Promise<VyOSResponse> {
-    const op = currentlyDisabled ? "delete_source_rule_disable" : "set_source_rule_disable";
-    return this.batchConfigure(ruleNumber, "source", [{ op }]);
-  }
-
-  // ==================== Destination Rule Helpers ====================
-
-  async createDestinationRule(config: {
-    ruleNumber: number;
-    description?: string;
-    sourceAddress?: string;
-    sourcePort?: string;
-    destinationAddress?: string;
-    destinationPort?: string;
-    inboundInterface?: string;
-    protocol?: string;
-    translationAddress?: string;
-    translationPort?: string;
-    exclude?: boolean;
-    log?: boolean;
-    disable?: boolean;
-  }): Promise<VyOSResponse> {
-    const operations: NAT66BatchOperation[] = [{ op: "set_destination_rule" }];
-    if (config.description) {
-      operations.push({ op: "set_destination_rule_description", value: config.description });
-    }
-    if (config.protocol) {
-      operations.push({ op: "set_destination_rule_protocol", value: config.protocol });
-    }
-    if (config.inboundInterface) {
-      operations.push({ op: "set_destination_rule_inbound_interface_name", value: config.inboundInterface });
-    }
-    if (config.sourceAddress) {
-      operations.push({ op: "set_destination_rule_source_address", value: config.sourceAddress });
-    }
-    if (config.sourcePort) {
-      operations.push({ op: "set_destination_rule_source_port", value: config.sourcePort });
-    }
-    if (config.destinationAddress) {
-      operations.push({ op: "set_destination_rule_destination_address", value: config.destinationAddress });
-    }
-    if (config.destinationPort) {
-      operations.push({ op: "set_destination_rule_destination_port", value: config.destinationPort });
-    }
-    if (config.translationAddress) {
-      operations.push({ op: "set_destination_rule_translation_address", value: config.translationAddress });
-    }
-    if (config.translationPort) {
-      operations.push({ op: "set_destination_rule_translation_port", value: config.translationPort });
-    }
-    if (config.exclude) {
-      operations.push({ op: "set_destination_rule_exclude" });
-    }
-    if (config.log) {
-      operations.push({ op: "set_destination_rule_log" });
-    }
-    if (config.disable) {
-      operations.push({ op: "set_destination_rule_disable" });
-    }
-    return this.batchConfigure(config.ruleNumber, "destination", operations);
-  }
-
-  async updateDestinationRule(
-    ruleNumber: number,
-    current: NAT66DestinationRule,
-    updated: {
-      description?: string;
-      sourceAddress?: string;
-      sourcePort?: string;
-      destinationAddress?: string;
-      destinationPort?: string;
-      inboundInterface?: string;
-      protocol?: string;
-      translationAddress?: string;
-      translationPort?: string;
-      exclude?: boolean;
-      log?: boolean;
-      disable?: boolean;
-    }
+  async updateRule(
+    ruleType: NAT66RuleType,
+    current: NAT66SourceRule | NAT66DestinationRule,
+    fields: NAT66RuleFields,
+    groupTypes: readonly string[]
   ): Promise<VyOSResponse> {
-    const operations: NAT66BatchOperation[] = [];
-
-    if (updated.description !== undefined) {
-      if (updated.description) {
-        operations.push({ op: "set_destination_rule_description", value: updated.description });
-      } else if (current.description) {
-        operations.push({ op: "delete_destination_rule_description" });
-      }
-    }
-    if (updated.protocol !== undefined) {
-      if (updated.protocol) {
-        operations.push({ op: "set_destination_rule_protocol", value: updated.protocol });
-      } else if (current.protocol) {
-        operations.push({ op: "delete_destination_rule_protocol" });
-      }
-    }
-    if (updated.inboundInterface !== undefined) {
-      if (updated.inboundInterface) {
-        operations.push({ op: "set_destination_rule_inbound_interface_name", value: updated.inboundInterface });
-      } else if (current.inbound_interface) {
-        operations.push({ op: "delete_destination_rule_inbound_interface_name" });
-      }
-    }
-    if (updated.sourceAddress !== undefined) {
-      if (updated.sourceAddress) {
-        operations.push({ op: "set_destination_rule_source_address", value: updated.sourceAddress });
-      } else if (current.source?.address) {
-        operations.push({ op: "delete_destination_rule_source_address" });
-      }
-    }
-    if (updated.sourcePort !== undefined) {
-      if (updated.sourcePort) {
-        operations.push({ op: "set_destination_rule_source_port", value: updated.sourcePort });
-      } else if (current.source?.port) {
-        operations.push({ op: "delete_destination_rule_source_port" });
-      }
-    }
-    if (updated.destinationAddress !== undefined) {
-      if (updated.destinationAddress) {
-        operations.push({ op: "set_destination_rule_destination_address", value: updated.destinationAddress });
-      } else if (current.destination?.address) {
-        operations.push({ op: "delete_destination_rule_destination_address" });
-      }
-    }
-    if (updated.destinationPort !== undefined) {
-      if (updated.destinationPort) {
-        operations.push({ op: "set_destination_rule_destination_port", value: updated.destinationPort });
-      } else if (current.destination?.port) {
-        operations.push({ op: "delete_destination_rule_destination_port" });
-      }
-    }
-    if (updated.translationAddress !== undefined) {
-      if (updated.translationAddress) {
-        operations.push({ op: "set_destination_rule_translation_address", value: updated.translationAddress });
-      } else if (current.translation?.address) {
-        operations.push({ op: "delete_destination_rule_translation_address" });
-      }
-    }
-    if (updated.translationPort !== undefined) {
-      if (updated.translationPort) {
-        operations.push({ op: "set_destination_rule_translation_port", value: updated.translationPort });
-      } else if (current.translation?.port) {
-        operations.push({ op: "delete_destination_rule_translation_port" });
-      }
-    }
-    if (updated.exclude !== undefined) {
-      if (updated.exclude && !current.exclude) {
-        operations.push({ op: "set_destination_rule_exclude" });
-      } else if (!updated.exclude && current.exclude) {
-        operations.push({ op: "delete_destination_rule_exclude" });
-      }
-    }
-    if (updated.log !== undefined) {
-      if (updated.log && !current.log) {
-        operations.push({ op: "set_destination_rule_log" });
-      } else if (!updated.log && current.log) {
-        operations.push({ op: "delete_destination_rule_log" });
-      }
-    }
-    if (updated.disable !== undefined) {
-      if (updated.disable && !current.disable) {
-        operations.push({ op: "set_destination_rule_disable" });
-      } else if (!updated.disable && current.disable) {
-        operations.push({ op: "delete_destination_rule_disable" });
-      }
-    }
-
-    if (operations.length === 0) {
-      return { success: true, data: { message: "No changes" } };
-    }
-    return this.batchConfigure(ruleNumber, "destination", operations);
-  }
-
-  async deleteDestinationRule(ruleNumber: number): Promise<VyOSResponse> {
-    return this.batchConfigure(ruleNumber, "destination", [{ op: "delete_destination_rule" }]);
-  }
-
-  async toggleDestinationRuleDisable(ruleNumber: number, currentlyDisabled: boolean): Promise<VyOSResponse> {
-    const op = currentlyDisabled ? "delete_destination_rule_disable" : "set_destination_rule_disable";
-    return this.batchConfigure(ruleNumber, "destination", [{ op }]);
+    return this.batchConfigure(
+      current.rule_number,
+      ruleType,
+      buildRuleUpdateOps(ruleType, current, fields, groupTypes)
+    );
   }
 
   // ==================== Delete + Compact ====================
 
-  async deleteAndCompactSourceRules(ruleNumber: number): Promise<VyOSResponse> {
-    // Fetch config BEFORE deleting so the delete + compaction happen in ONE commit
-    // via the reorder endpoint. The deleted rule is sent with new_number=null
-    // (removed, not recreated); remaining rules compact to [100, 101, 102, ...].
-    // Splitting delete and reorder into two requests breaks under commit-confirm,
-    // which only allows one un-confirmed change at a time.
+  /**
+   * Delete one rule and renumber the rest from 100 in ONE commit via the
+   * reorder route (commit-confirm allows one un-confirmed change at a time).
+   * The config is read first so every remaining rule is re-sent in full.
+   */
+  async deleteAndCompactRules(ruleType: NAT66RuleType, ruleNumber: number): Promise<VyOSResponse> {
     const config = await this.getConfig(true);
-    const remaining = (config.source_rules ?? []).filter(r => r.rule_number !== ruleNumber);
+    const rules: (NAT66SourceRule | NAT66DestinationRule)[] =
+      ruleType === "source" ? config.source_rules ?? [] : config.destination_rules ?? [];
+    const remaining = rules.filter((r) => r.rule_number !== ruleNumber);
     const reorderItems: ReorderRuleItem[] = [
-      { old_number: ruleNumber, new_number: null, rule_data: {} },
+      { old_number: ruleNumber, new_number: null, rule_data: null },
       ...remaining.map((rule, i) => ({
         old_number: rule.rule_number,
         new_number: 100 + i,
-        rule_data: this.flattenSourceRule(rule),
+        rule_data: ruleData(ruleType, rule),
       })),
     ];
-    return this.reorderRules("source", reorderItems);
-  }
-
-  async deleteAndCompactDestinationRules(ruleNumber: number): Promise<VyOSResponse> {
-    // Fetch config BEFORE deleting so the delete + compaction happen in ONE commit
-    // (see deleteAndCompactSourceRules). The deleted rule is sent with new_number=null;
-    // remaining rules compact to [100, 101, 102, ...].
-    const config = await this.getConfig(true);
-    const remaining = (config.destination_rules ?? []).filter(r => r.rule_number !== ruleNumber);
-    const reorderItems: ReorderRuleItem[] = [
-      { old_number: ruleNumber, new_number: null, rule_data: {} },
-      ...remaining.map((rule, i) => ({
-        old_number: rule.rule_number,
-        new_number: 100 + i,
-        rule_data: this.flattenDestinationRule(rule),
-      })),
-    ];
-    return this.reorderRules("destination", reorderItems);
-  }
-
-  flattenSourceRule(rule: NAT66SourceRule): Record<string, unknown> {
-    return {
-      description: rule.description || undefined,
-      disable: rule.disable,
-      exclude: rule.exclude,
-      log: rule.log,
-      protocol: rule.protocol || undefined,
-      outbound_interface: rule.outbound_interface || undefined,
-      source_prefix: rule.source?.prefix || undefined,
-      source_port: rule.source?.port || undefined,
-      destination_prefix: rule.destination?.prefix || undefined,
-      destination_port: rule.destination?.port || undefined,
-      translation_address: rule.translation?.address || undefined,
-      translation_port: rule.translation?.port || undefined,
-    };
-  }
-
-  flattenDestinationRule(rule: NAT66DestinationRule): Record<string, unknown> {
-    return {
-      description: rule.description || undefined,
-      disable: rule.disable,
-      exclude: rule.exclude,
-      log: rule.log,
-      protocol: rule.protocol || undefined,
-      inbound_interface: rule.inbound_interface || undefined,
-      source_address: rule.source?.address || undefined,
-      source_port: rule.source?.port || undefined,
-      destination_address: rule.destination?.address || undefined,
-      destination_port: rule.destination?.port || undefined,
-      translation_address: rule.translation?.address || undefined,
-      translation_port: rule.translation?.port || undefined,
-    };
+    return this.reorderRules(ruleType, reorderItems);
   }
 }
 

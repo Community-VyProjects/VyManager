@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   type NAT66SourceRule,
   type NAT66DestinationRule,
 } from "@/lib/api/nat66";
+import type { ApiError } from "@/lib/types/api";
 
 interface NAT66DeleteDialogProps {
   open: boolean;
@@ -38,20 +39,20 @@ export function NAT66DeleteDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (open) setError(null);
+  }, [open]);
+
   const handleDelete = async () => {
     if (!rule) return;
     setSaving(true);
     setError(null);
     try {
-      if (ruleType === "source") {
-        await nat66Service.deleteAndCompactSourceRules(rule.rule_number);
-      } else {
-        await nat66Service.deleteAndCompactDestinationRules(rule.rule_number);
-      }
+      await nat66Service.deleteAndCompactRules(ruleType, rule.rule_number);
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteDialog.deleteFailed"));
+      setError((err as ApiError).message || t("deleteDialog.deleteFailed"));
     } finally {
       setSaving(false);
     }
