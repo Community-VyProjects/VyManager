@@ -6,6 +6,8 @@ the tree.
 
 from typing import Any, Dict, List
 
+MASKED_SECRET = "***"
+
 
 def _list(value: Any) -> List[str]:
     if value is None:
@@ -45,7 +47,7 @@ def _radius(cfg: Dict[str, Any]) -> Dict[str, Any]:
         srv_cfg = _node(srv_cfg)
         servers.append({
             "address": addr,
-            "key": "***" if srv_cfg.get("key") else None,
+            "key": MASKED_SECRET if srv_cfg.get("key") else None,
             "port": srv_cfg.get("port"),
             "acct_port": srv_cfg.get("acct-port"),
             "priority": srv_cfg.get("priority"),
@@ -72,7 +74,7 @@ def _radius(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "dynamic_author": {
             "server": dae.get("server"),
             "port": dae.get("port"),
-            "key": "***" if dae.get("key") else None,
+            "key": MASKED_SECRET if dae.get("key") else None,
         },
         "rate_limit": {
             "enable": "enable" in rate_limit,

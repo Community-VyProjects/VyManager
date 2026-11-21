@@ -115,6 +115,7 @@ def test_batch_global_op_ignores_the_request_item(client):
 @pytest.mark.parametrize("operation", [
     {"op": "set_description"},
     {"op": "set_description", "value": ""},
+    {"op": "set_description", "value": "   "},
     {"op": "set_auth_mac_ip_address"},
     {"op": "set_auth_mac_ip_address", "value": ""},
 ])
@@ -126,18 +127,47 @@ def test_batch_missing_value_is_400(client, operation):
     assert service.executed == []
 
 
-@pytest.mark.parametrize("value", ["00:11:22:33:44:55", "00:11:22:33:44:55-192.0.2.10"])
-def test_batch_short_composite_value_is_400(client, value):
+COMPOSITE_OPS = [
+    ("set_auth_mac_ip_address", "00:11:22:33:44:55", "192.0.2.10"),
+    ("set_auth_mac_vlan", "00:11:22:33:44:55", "10"),
+    ("set_auth_mac_rate_limit_download", "00:11:22:33:44:55", "100"),
+    ("set_auth_mac_rate_limit_upload", "00:11:22:33:44:55", "50"),
+    ("set_ipv6_pool_prefix", "2001:db8::/48", "64"),
+    ("set_ipv6_pool_delegate", "2001:db8:1::/48", "56"),
+]
+
+
+@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS)
+@pytest.mark.parametrize("shape", ["no_separator", "empty_second", "empty_first", "blank_second", "bare"])
+def test_batch_short_composite_value_is_400(client, op, first, second, shape):
+    value = {
+        "no_separator": first,
+        "empty_second": f"{first}|",
+        "empty_first": f"|{second}",
+        "blank_second": f"{first}| ",
+        "bare": "|",
+    }[shape]
     test_client, service = client
-    resp = _post(test_client, "eth1", [{"op": "set_auth_mac_ip_address", "value": value}])
+    resp = _post(test_client, "eth1", [{"op": op, "value": value}])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "Operation set_auth_mac_ip_address has an invalid value"
+    assert resp.json()["detail"] == f"Operation {op} has an invalid value"
     assert service.executed == []
 
 
-def test_batch_empty_item_name_is_422(client):
+@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS)
+def test_batch_full_composite_value_is_accepted(client, op, first, second):
     test_client, service = client
-    resp = _post(test_client, "", [{"op": "delete_interface"}])
+    resp = _post(test_client, "p1", [{"op": op, "value": f"{first}|{second}"}])
+    assert resp.status_code == 200, resp.text
+    path = service.executed[0][0]["path"]
+    assert path[-1] == second
+    assert first in path
+
+
+@pytest.mark.parametrize("item_name", ["", "   "])
+def test_batch_blank_item_name_is_422(client, item_name):
+    test_client, service = client
+    resp = _post(test_client, item_name, [{"op": "delete_interface"}])
     assert resp.status_code == 422, resp.text
     assert service.executed == []
 
@@ -200,3 +230,32 @@ def test_config_route_returns_the_parsed_lists(monkeypatch, version):
     assert body["authentication"]["radius"]["servers"][0]["key"] == "***"
     assert "s3cret" not in resp.text
     assert body["totals"]["radius_servers"] == 1
+
+
+def test_config_route_builds_the_response_model_when_unconfigured(monkeypatch):
+    test_client = _app(monkeypatch, Service(config={"service": {}}))
+    resp = test_client.get("/vyos/ipoe-server/config")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["configured"] is False
+    assert body["interfaces"] == []
+    assert body["authentication"]["interfaces"] == []
+    assert body["authentication"]["radius"]["servers"] == []
+    assert body["authentication"]["radius"]["dynamic_author"] == {
+        "server": None, "port": None, "key": None,
+    }
+    assert body["totals"]["interfaces"] == 0
+
+
+def test_config_route_model_keeps_every_parsed_key():
+    """The response model must not drop a key the screen reads."""
+    from routers.ipoe_server.ipoe_server import IPoEConfig
+    from vyos_mappers.ipoe_server import IPoEServerMapper
+
+    parsed = IPoEServerMapper("1.5").parse_config({"service": {"ipoe-server": {
+        "interface": {"eth1": {"external-dhcp": {"giaddr": "192.0.2.1"}}},
+        "authentication": {"interface": {"eth1": {"mac": {"00:11:22:33:44:55": {}}}}},
+        "client-ip-pool": {"p1": {}},
+        "client-ipv6-pool": {"v6": {"prefix": {"2001:db8::/48": {}}}},
+    }}})
+    assert IPoEConfig(**parsed).model_dump() == parsed
