@@ -1,4 +1,5 @@
 """Factory for version-specific DHCPv6 Relay mappers."""
+from ...base import is_vyos_1_4
 from ..dhcpv6_relay import DHCPv6RelayMapper
 from .v1_4 import DHCPv6RelayMapperV1_4
 from .v1_5 import DHCPv6RelayMapperV1_5
@@ -8,7 +9,7 @@ def get_dhcpv6_relay_mapper(version: str):
     """Return a version-merged DHCPv6 Relay mapper."""
     base = DHCPv6RelayMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = DHCPv6RelayMapperV1_4()
     else:
         version_specific = DHCPv6RelayMapperV1_5()

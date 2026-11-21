@@ -7,6 +7,7 @@ Version differences:
   - `ipv6 address interface-identifier` at all sub-levels
 """
 
+from ...base import is_vyos_1_4
 from ..pseudo_ethernet import PseudoEthernetInterfaceMapper
 from .v1_4 import PseudoEthernetMapper_v1_4
 from .v1_5 import PseudoEthernetMapper_v1_5
@@ -14,6 +15,6 @@ from .v1_5 import PseudoEthernetMapper_v1_5
 
 def get_pseudo_ethernet_mapper(version: str) -> PseudoEthernetInterfaceMapper:
     """Get version-specific pseudo-ethernet interface mapper."""
-    if "1.5" in version or "latest" in version:
+    if not is_vyos_1_4(version):
         return PseudoEthernetMapper_v1_5(version)
     return PseudoEthernetMapper_v1_4(version)

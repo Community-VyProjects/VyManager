@@ -1,3 +1,4 @@
+from ...base import is_vyos_1_4
 from ..high_availability import HighAvailabilityMapper
 from .v1_4 import HighAvailabilityMapperV1_4
 from .v1_5 import HighAvailabilityMapperV1_5
@@ -5,7 +6,7 @@ from .v1_5 import HighAvailabilityMapperV1_5
 
 def get_high_availability_mapper(version: str):
     base = HighAvailabilityMapper(version)
-    version_specific = HighAvailabilityMapperV1_4() if "1.4" in version else HighAvailabilityMapperV1_5()
+    version_specific = HighAvailabilityMapperV1_4() if is_vyos_1_4(version) else HighAvailabilityMapperV1_5()
 
     class MergedMapper:
         def __getattr__(self, name):

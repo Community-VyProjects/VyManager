@@ -1,4 +1,5 @@
 """Factory for version-specific LLDP mappers."""
+from ...base import is_vyos_1_4
 from ..lldp import LLDPMapper
 from .v1_4 import LLDPMapperV1_4
 from .v1_5 import LLDPMapperV1_5
@@ -8,7 +9,7 @@ def get_lldp_mapper(version: str):
     """Return a version-merged LLDP mapper."""
     base = LLDPMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = LLDPMapperV1_4()
     else:
         version_specific = LLDPMapperV1_5()

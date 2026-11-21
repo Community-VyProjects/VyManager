@@ -1,4 +1,5 @@
 """Factory for version-specific RPKI protocol mappers."""
+from ...base import is_vyos_1_4
 from ..rpki import RpkiMapper
 from .v1_4 import RpkiMapperV1_4
 from .v1_5 import RpkiMapperV1_5
@@ -8,10 +9,8 @@ def get_rpki_mapper(version: str):
     """Return a version-merged RPKI mapper."""
     base = RpkiMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = RpkiMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = RpkiMapperV1_5()
     else:
         version_specific = RpkiMapperV1_5()
 

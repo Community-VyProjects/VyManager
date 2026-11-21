@@ -4,6 +4,7 @@ Ethernet Interface Mapper - Version-Specific Implementations
 Factory module for creating version-specific ethernet interface mappers.
 """
 
+from ...base import is_vyos_1_4
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ def get_ethernet_mapper(version: str) -> "EthernetInterfaceMapper":
 
     # Substring match like every other factory: exact-key lookup silently
     # fell back to the 1.5 mapper for strings like "1.4.0" or "sagitta".
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         return EthernetMapper_v1_4(version)
     return EthernetMapper_v1_5(version)
 

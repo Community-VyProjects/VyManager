@@ -1,5 +1,6 @@
 """Factory for version-specific IPoE Server mappers."""
 
+from ...base import is_vyos_1_4
 from ..ipoe_server import IPoEServerMapper
 from .v1_4 import IPoEServerMapperV1_4
 from .v1_5 import IPoEServerMapperV1_5
@@ -8,7 +9,7 @@ from .v1_5 import IPoEServerMapperV1_5
 def get_ipoe_server_mapper(version: str) -> IPoEServerMapper:
     base = IPoEServerMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = IPoEServerMapperV1_4()
     else:
         version_specific = IPoEServerMapperV1_5()

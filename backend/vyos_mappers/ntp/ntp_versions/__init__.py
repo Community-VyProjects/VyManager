@@ -1,5 +1,6 @@
 """Factory for version-specific NTP mappers."""
 
+from ...base import is_vyos_1_4
 from ..ntp import NTPMapper
 from .v1_4 import NTPMapperV1_4
 from .v1_5 import NTPMapperV1_5
@@ -11,6 +12,6 @@ def get_ntp_mapper(version: str) -> NTPMapper:
     Substring match like the other factories: a rolling string such as
     ``2025.rolling`` is 1.5. Only a string that contains ``1.4`` is 1.4.
     """
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         return NTPMapperV1_4(version)
     return NTPMapperV1_5(version)

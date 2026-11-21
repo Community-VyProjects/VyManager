@@ -1,4 +1,5 @@
 """Factory for version-specific QoS mappers."""
+from ...base import is_vyos_1_4
 from ..qos import QoSMapper
 from .v1_4 import QoSMapperV1_4
 from .v1_5 import QoSMapperV1_5
@@ -8,7 +9,7 @@ def get_qos_mapper(version: str):
     """Return a version-merged QoS mapper."""
     base = QoSMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = QoSMapperV1_4()
     else:
         version_specific = QoSMapperV1_5()

@@ -1,4 +1,5 @@
 """Factory for version-specific DNS Dynamic mappers."""
+from ...base import is_vyos_1_4
 from ..dns_dynamic import DNSDynamicMapper
 from .v1_4 import DNSDynamicMapperV1_4
 from .v1_5 import DNSDynamicMapperV1_5
@@ -8,7 +9,7 @@ def get_dns_dynamic_mapper(version: str):
     """Return a version-merged DNS Dynamic mapper."""
     base = DNSDynamicMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = DNSDynamicMapperV1_4()
     else:
         version_specific = DNSDynamicMapperV1_5()

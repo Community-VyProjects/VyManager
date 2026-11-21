@@ -8,6 +8,7 @@ Both VyOS 1.4 and 1.5 share identical MPLS/LDP template structure,
 so version-specific mappers contain no overrides.
 """
 
+from ...base import is_vyos_1_4
 from ..mpls import MplsMapper
 from .v1_4 import MplsMapperV1_4
 from .v1_5 import MplsMapperV1_5
@@ -16,7 +17,7 @@ from .v1_5 import MplsMapperV1_5
 def get_mpls_mapper(version: str):
     base = MplsMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = MplsMapperV1_4()
     else:
         # Default to 1.5 for rolling/unknown versions

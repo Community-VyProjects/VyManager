@@ -1,4 +1,5 @@
 """Factory for version-specific Container mappers."""
+from ...base import is_vyos_1_4
 from ..container import ContainerMapper
 from .v1_4 import ContainerMapperV1_4
 from .v1_5 import ContainerMapperV1_5
@@ -8,7 +9,7 @@ def get_container_mapper(version: str):
     """Return a version-merged Container mapper."""
     base = ContainerMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = ContainerMapperV1_4()
     else:
         version_specific = ContainerMapperV1_5()

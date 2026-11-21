@@ -1,4 +1,5 @@
 """Factory for version-specific SNMP mappers."""
+from ...base import is_vyos_1_4
 from ..snmp import SNMPMapper
 from .v1_4 import SNMPMapperV1_4
 from .v1_5 import SNMPMapperV1_5
@@ -8,7 +9,7 @@ def get_snmp_mapper(version: str):
     """Return a version-merged SNMP mapper."""
     base = SNMPMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = SNMPMapperV1_4()
     else:
         version_specific = SNMPMapperV1_5()

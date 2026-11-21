@@ -1,5 +1,6 @@
 """Factory for version-specific PKI mappers."""
 
+from ...base import is_vyos_1_4
 from ..pki import PKIMapper
 from .v1_4 import PKIMapperV1_4
 from .v1_5 import PKIMapperV1_5
@@ -20,10 +21,8 @@ def get_pki_mapper(version: str) -> PKIMapper:
     """
     base = PKIMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = PKIMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = PKIMapperV1_5()
     else:
         version_specific = PKIMapperV1_5()  # Default to latest
 

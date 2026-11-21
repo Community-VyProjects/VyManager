@@ -1,5 +1,6 @@
 """Factory for version-specific DHCP server mappers."""
 
+from ...base import is_vyos_1_4
 from ..dhcp_server import DHCPServerMapper
 from .v1_4 import DHCPServerMapperV1_4
 from .v1_5 import DHCPServerMapperV1_5
@@ -10,7 +11,7 @@ def get_dhcp_server_mapper(version: str) -> DHCPServerMapper:
 
     A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
     """
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         return DHCPServerMapperV1_4(version)
     return DHCPServerMapperV1_5(version)
 

@@ -5,6 +5,7 @@ Returns a merged mapper that combines version-specific overrides with
 the base SystemMapper. Version-specific methods take priority.
 """
 
+from ...base import is_vyos_1_4
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -24,7 +25,7 @@ def get_system_mapper(version: str) -> "SystemMapper":
 
     base = SystemMapper(version)
 
-    if version.startswith("1.4"):
+    if is_vyos_1_4(version):
         version_specific = SystemMapperV1_4()
     else:
         # 1.5 and unknown versions default to 1.5 behaviour

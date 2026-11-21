@@ -5,6 +5,7 @@ Returns a MergedMapper that resolves version-specific methods first,
 then falls back to the base IsisMapper for common paths.
 """
 
+from ...base import is_vyos_1_4
 from ..isis import IsisMapper
 from .v1_4 import IsisMapperV1_4
 from .v1_5 import IsisMapperV1_5
@@ -13,7 +14,7 @@ from .v1_5 import IsisMapperV1_5
 def get_isis_mapper(version: str):
     base = IsisMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = IsisMapperV1_4()
     else:
         # Default to 1.5 for rolling/unknown versions

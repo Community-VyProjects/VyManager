@@ -1,5 +1,6 @@
 """PIM version-specific mapper factory."""
 
+from ...base import is_vyos_1_4
 from ..pim import PimMapper
 from .v1_4 import PimMapperV1_4
 from .v1_5 import PimMapperV1_5
@@ -9,7 +10,7 @@ def get_pim_mapper(version: str):
     """Factory function to get version-specific PIM mapper."""
     base = PimMapper(version)
 
-    if "1.5" in version or "latest" in version:
+    if not is_vyos_1_4(version):
         version_specific = PimMapperV1_5()
     else:
         version_specific = PimMapperV1_4()

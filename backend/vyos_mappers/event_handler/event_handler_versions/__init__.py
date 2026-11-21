@@ -1,4 +1,5 @@
 """Factory for version-specific Event Handler mappers."""
+from ...base import is_vyos_1_4
 from ..event_handler import EventHandlerMapper
 from .v1_4 import EventHandlerMapperV1_4
 from .v1_5 import EventHandlerMapperV1_5
@@ -8,7 +9,7 @@ def get_event_handler_mapper(version: str):
     """Return a version-merged Event Handler mapper."""
     base = EventHandlerMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = EventHandlerMapperV1_4()
     else:
         version_specific = EventHandlerMapperV1_5()

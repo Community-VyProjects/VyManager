@@ -4,6 +4,7 @@ The shared class is returned directly on 1.4. Section system login exists
 only on 1.5, so that version gets the subclass. There is no merge proxy
 and no empty 1.4 file.
 """
+from ...base import is_vyos_1_4
 from ..config_sync import ConfigSyncMapper
 from .v1_5 import ConfigSyncMapperV1_5
 
@@ -14,6 +15,6 @@ def get_config_sync_mapper(version: str) -> ConfigSyncMapper:
     Substring match like the other factories: a rolling string is 1.5.
     Only a string that contains ``1.4`` is 1.4.
     """
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         return ConfigSyncMapper(version)
     return ConfigSyncMapperV1_5(version)

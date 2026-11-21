@@ -12,6 +12,7 @@ VyOS 1.4 and 1.5 have significant differences in NHRP configuration:
 - 1.5-only: nhs, mtu, network-id, registration-no-unique
 """
 
+from ...base import is_vyos_1_4
 from ..nhrp import NhrpMapper
 from .v1_4 import NhrpMapperV1_4
 from .v1_5 import NhrpMapperV1_5
@@ -20,7 +21,7 @@ from .v1_5 import NhrpMapperV1_5
 def get_nhrp_mapper(version: str):
     base = NhrpMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = NhrpMapperV1_4()
     else:
         # Default to 1.5 for rolling/unknown versions

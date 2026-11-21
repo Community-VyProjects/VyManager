@@ -1,4 +1,5 @@
 """Factory for version-specific Traffic Engineering protocol mappers."""
+from ...base import is_vyos_1_4
 from ..traffic_engineering import TrafficEngineeringMapper
 from .v1_4 import TrafficEngineeringMapperV1_4
 from .v1_5 import TrafficEngineeringMapperV1_5
@@ -8,10 +9,8 @@ def get_traffic_engineering_mapper(version: str):
     """Return a version-merged Traffic Engineering mapper."""
     base = TrafficEngineeringMapper(version)
 
-    if "1.4" in version:
+    if is_vyos_1_4(version):
         version_specific = TrafficEngineeringMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = TrafficEngineeringMapperV1_5()
     else:
         version_specific = TrafficEngineeringMapperV1_5()
 
