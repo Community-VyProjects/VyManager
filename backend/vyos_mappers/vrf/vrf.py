@@ -15,9 +15,10 @@ class VrfMapper(BaseFeatureMapper):
 
     # Feature trees below ``vrf name <vrf>`` only one version has, keyed by
     # the VRF builder's feature key. A tree not listed here (static, and the
-    # routing protocols) is on both labs.
+    # other routing protocols) is on both labs.
     _VERSIONED_FEATURES: Dict[str, str] = {
         "failover": "protocols failover",
+        "rpki": "protocols rpki",
         "dhcp": "service dhcp-server",
         "dhcpv6": "service dhcpv6-server",
     }

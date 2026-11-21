@@ -10,6 +10,7 @@ Lab-checked with cli-shell-api validateTmplPath on 1.4 (100.64.64.50) and
   VALID on 1.5
 """
 
+import inspect
 from types import SimpleNamespace
 
 import pytest
@@ -19,9 +20,10 @@ from fastapi.testclient import TestClient
 from vyos_builders.router_advert.router_advert_batch_builder import RouterAdvertBatchBuilder
 from vyos_builders.rpki.rpki_batch_builder import RpkiBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
+from vyos_builders.vrf.vrf_rpki_mixin import VrfRpkiMixin
 from vyos_mappers.router_advert.router_advert import RouterAdvertMapper
 from vyos_mappers.rpki.rpki import RpkiMapper
-from vyos_mappers.vrf.vrf_rpki import VrfRpkiMapper
+from vyos_mappers.vrf.vrf_versions import VrfMapperV1_5
 
 CACHE = "192.0.2.10"
 RPKI_CACHE = ["protocols", "rpki", "cache", CACHE]
@@ -75,6 +77,7 @@ VRF_RPKI_CASES = [
      VRF_RPKI + ["cache", CACHE, "source-address", "192.0.2.1"]),
     ("delete_vrf_rpki_cache_source_address", (VRF, CACHE), "delete",
      VRF_RPKI + ["cache", CACHE, "source-address"]),
+    ("delete_vrf_rpki_cache_ssh", (VRF, CACHE), "delete", VRF_RPKI + ["cache", CACHE, "ssh"]),
     ("set_vrf_rpki_cache_ssh_key", (VRF, f"{CACHE},key1"), "set",
      VRF_RPKI + ["cache", CACHE, "ssh", "key", "key1"]),
     ("delete_vrf_rpki_cache_ssh_key", (VRF, CACHE), "delete", VRF_RPKI + ["cache", CACHE, "ssh", "key"]),
@@ -83,6 +86,15 @@ VRF_RPKI_CASES = [
     ("delete_vrf_rpki_cache_ssh_username", (VRF, CACHE), "delete",
      VRF_RPKI + ["cache", CACHE, "ssh", "username"]),
 ]
+
+
+def test_every_vrf_rpki_op_has_a_path_row():
+    ops = {
+        name for name, _ in inspect.getmembers(VrfRpkiMixin, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_")) and name in vars(VrfRpkiMixin)
+    }
+    assert ops == {case[0] for case in VRF_RPKI_CASES}
+
 
 BUILDER_CASES = (
     [(RpkiBatchBuilder, *case) for case in RPKI_CASES]
@@ -166,9 +178,28 @@ def test_ra_capabilities_read_the_mapper(monkeypatch):
 
 
 def test_vrf_rpki_capability_reads_the_mapper(monkeypatch):
-    monkeypatch.setattr(VrfRpkiMapper, "is_supported", lambda self: False)
+    monkeypatch.setattr(VrfMapperV1_5, "versioned_nodes", lambda self: frozenset())
     features = VrfBatchBuilder(version="1.5").get_capabilities()["features"]
     assert features["rpki"]["supported"] is False
+
+
+VRF_RPKI_PAIR_OPS = [
+    "set_vrf_rpki_cache_port",
+    "set_vrf_rpki_cache_preference",
+    "set_vrf_rpki_cache_source_address",
+    "set_vrf_rpki_cache_ssh_key",
+    "set_vrf_rpki_cache_ssh_username",
+]
+
+
+@pytest.mark.parametrize("method", VRF_RPKI_PAIR_OPS)
+@pytest.mark.parametrize("value", [CACHE, f"{CACHE},", ",3323", ""])
+def test_vrf_rpki_cache_pair_rejects_a_short_value(method, value):
+    """A missing cache name or value is an error, not a silently skipped op."""
+    builder = VrfBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match="RPKI cache value must be 'cache,value'"):
+        getattr(builder, method)(VRF, value)
+    assert builder.get_operations() == []
 
 
 # ---------------------------------------------------------------------------
@@ -227,6 +258,18 @@ ENDPOINT_CASES = [
      {"operations": [{"op": "set_vrf_rpki_cache", "value": f"{VRF},{CACHE}"}]},
      [("set", VRF_RPKI + ["cache", CACHE])]),
 ]
+
+
+def test_vrf_batch_rejects_a_short_rpki_cache_value_without_commit(monkeypatch):
+    client, captured = _client(monkeypatch, VRF_MODULE, "1.5")
+    body = {"operations": [
+        {"op": "set_vrf_rpki_cache", "value": f"{VRF},{CACHE}"},
+        {"op": "set_vrf_rpki_cache_port", "value": f"{VRF},{CACHE}"},
+    ]}
+    response = client.post("/vyos/vrf/batch", json=body)
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == "RPKI cache value must be 'cache,value'"
+    assert captured == []
 
 
 @pytest.mark.parametrize("module, url, body, expected", ENDPOINT_CASES)

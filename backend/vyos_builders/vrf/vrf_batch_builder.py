@@ -28,7 +28,6 @@ class VrfBatchBuilder(
         self.mappers = CommandMapperRegistry.get_mappers(
             (
                 "vrf",
-                "vrf_rpki",
                 "vrf_ospf",
                 "vrf_ospfv3",
                 "vrf_isis",
@@ -213,7 +212,7 @@ class VrfBatchBuilder(
                     "description": "Static route configuration within VRF (IPv4 and IPv6)",
                 },
                 "rpki": {
-                    "supported": self.mappers["vrf_rpki"].is_supported(),
+                    "supported": vrf_mapper.supports_feature("rpki"),
                     "description": "RPKI configuration within VRF (VyOS 1.5+ only)",
                 },
                 "failover": {

@@ -72,7 +72,20 @@
     "preference": "优先级",
     "sourceAddress": "源地址",
     "sshUsername": "SSH 用户名",
-    "sshKey": "SSH 密钥"
+    "sshKey": "SSH 密钥",
+    "modalTitle": "RPKI — {vrf}",
+    "cacheNameRequired": "每个缓存服务器都需要名称。",
+    "cacheNameDuplicate": "缓存服务器 {name} 重复。",
+    "cacheNameComma": "缓存服务器名称 {name} 不能包含逗号。",
+    "portRequired": "缓存服务器 {name} 需要端口。",
+    "preferenceRequired": "缓存服务器 {name} 需要优先级。",
+    "sshIncomplete": "缓存服务器 {name} 需要同时设置 SSH 用户名和 SSH 密钥。",
+    "range": "{label} 必须在 {min} 到 {max} 之间。",
+    "enable": "启用 RPKI",
+    "enableDescription": "在 VRF {vrf} 中创建 RPKI 节点？",
+    "remove": "移除 RPKI",
+    "removeDescription": "删除 VRF {vrf} 的全部 RPKI 配置？",
+    "apply": "应用"
   },
   "schemaEditor": {
     "select": "请选择…",

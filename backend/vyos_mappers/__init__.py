@@ -71,7 +71,7 @@ from .ospf import OspfMapper
 from .ospf.ospf_versions import get_ospf_mapper
 from .ospfv3 import Ospfv3Mapper
 from .ospfv3.ospfv3_versions import get_ospfv3_mapper
-from .vrf import VrfMapper, VrfRpkiMapper
+from .vrf import VrfMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf.vrf_versions import get_vrf_mapper
 from .system.performance_versions import get_system_performance_mapper
@@ -258,7 +258,6 @@ CommandMapperRegistry.register_feature("ospfv3", get_ospfv3_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 # VRF sub-mappers. OSPF and BGP take version so redistribute nhrp can raise on 1.4.
-CommandMapperRegistry.register_feature("vrf_rpki", VrfRpkiMapper)
 CommandMapperRegistry.register_feature("vrf_ospf", VrfOspfMapper)
 CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
 CommandMapperRegistry.register_feature("vrf_isis", VrfIsisMapper)
@@ -391,7 +390,6 @@ __all__ = [
     "OspfMapper",
     "Ospfv3Mapper",
     "VrfMapper",
-    "VrfRpkiMapper",
     "VrfOspfMapper",
     "VrfOspfv3Mapper",
     "VrfIsisMapper",

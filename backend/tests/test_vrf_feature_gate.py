@@ -1,8 +1,9 @@
-"""VRF failover and DHCP servers are gated by the VRF mapper (issue #1195).
+"""VRF failover, RPKI and DHCP servers are gated by the VRF mapper (issue #1195).
 
 The labs differ: ``vrf name <vrf>`` has ``protocols failover``,
-``service dhcp-server`` and ``service dhcpv6-server`` on 1.5 only. The
-version subclass lists them; the builder and capabilities read that list.
+``protocols rpki``, ``service dhcp-server`` and ``service dhcpv6-server`` on
+1.5 only. The version subclass lists them; the builder and capabilities read
+that list. The RPKI paths live on the subclass only.
 """
 
 from pathlib import Path
@@ -11,6 +12,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from routers.vrf.vrf import VrfConfig
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
 from vyos_builders.vrf.vrf_protocol import FEATURE_BUILDERS
 from vyos_mappers import CommandMapperRegistry
@@ -21,9 +23,15 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSIONS = ROOT / "vyos_mappers" / "vrf" / "vrf_versions"
 ROLLING = "2026.09.23-0027-rolling"
 
-ONLY_15 = {"failover": "failover", "dhcp": "dhcp_server", "dhcpv6": "dhcpv6_server"}
+ONLY_15 = {
+    "failover": "failover",
+    "rpki": "rpki",
+    "dhcp": "dhcp_server",
+    "dhcpv6": "dhcpv6_server",
+}
 LAB_15_ONLY = frozenset({
     "protocols failover",
+    "protocols rpki",
     "service dhcp-server",
     "service dhcpv6-server",
 })
@@ -33,6 +41,7 @@ def _ops(builder):
     """One op per 1.5-only feature, plus static which both labs have."""
     return {
         "failover": lambda: builder.set_vrf_failover_route("blue", "10.1.0.0/24"),
+        "rpki": lambda: builder.set_vrf_rpki_cache("blue", "192.0.2.10"),
         "dhcp": lambda: builder.set_vrf_dhcp_disable("blue"),
         "dhcpv6": lambda: builder.delete_vrf_dhcpv6("blue"),
         "static": lambda: builder.delete_vrf_static("blue"),
@@ -57,7 +66,14 @@ def test_versioned_nodes_are_the_1_5_only_lab_trees():
     assert get_vrf_mapper("1.4").versioned_nodes() == frozenset()
     assert get_vrf_mapper(ROLLING).versioned_nodes() == LAB_15_ONLY
     assert set(VrfMapper._VERSIONED_FEATURES.values()) == LAB_15_ONLY
-    assert set(VrfMapper._VERSIONED_FEATURES) < set(FEATURE_BUILDERS)
+    # Every key but rpki prefixes a global builder; rpki has its own mixin.
+    assert set(VrfMapper._VERSIONED_FEATURES) - {"rpki"} < set(FEATURE_BUILDERS)
+
+
+def test_rpki_paths_are_only_on_the_1_5_subclass():
+    rpki_paths = [n for n in vars(VrfMapperV1_5) if n.startswith("get_rpki")]
+    assert len(rpki_paths) == 11
+    assert not [n for n in dir(VrfMapper) if "rpki" in n]
 
 
 def test_parse_config_lives_on_the_mapper_class():
@@ -65,6 +81,21 @@ def test_parse_config_lives_on_the_mapper_class():
         mapper = get_vrf_mapper(version)
         assert isinstance(mapper, VrfMapper)
         assert mapper.parse_config({}) == {"bind_to_all": False, "instances": []}
+
+
+def _rpki_from(protocols):
+    raw = {"vrf": {"name": {"blue": {"table": "100", "protocols": protocols}}}}
+    config = VrfConfig(**get_vrf_mapper(ROLLING).parse_config(raw))
+    return config.instances[0].rpki
+
+
+def test_rpki_presence_is_key_membership():
+    # A bare ``protocols rpki`` commits on 1.5 and parses as {}; the screen
+    # offers Remove only when the node is reported.
+    bare = _rpki_from({"rpki": {}})
+    assert bare is not None
+    assert bare.caches == [] and bare.expire_interval is None
+    assert _rpki_from({"static": {}}) is None
 
 
 def test_path_prefix_has_no_version_check():
@@ -120,7 +151,8 @@ def test_a_version_string_cannot_close_a_tree_the_mapper_has(monkeypatch):
     ops = _ops(builder)
     for proto, key in ONLY_15.items():
         assert features[key]["supported"] is True
-        ops[proto]()
+        if proto != "rpki":  # the RPKI paths exist on the 1.5 subclass only
+            ops[proto]()
     paths = [op["path"][:5] for op in builder.get_operations()]
     assert ["vrf", "name", "blue", "protocols", "failover"] in paths
     assert ["vrf", "name", "blue", "service", "dhcp-server"] in paths
@@ -162,6 +194,8 @@ def batch_client(monkeypatch):
          "vrf service dhcp-server is not supported on this device"),
         ("delete_vrf_dhcpv6", None,
          "vrf service dhcpv6-server is not supported on this device"),
+        ("set_vrf_rpki_cache_port", "192.0.2.10,3323",
+         "vrf protocols rpki is not supported on this device"),
     ],
 )
 def test_1_4_batch_rejects_a_1_5_only_tree(batch_client, op, value, detail):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,71 +13,64 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react";
-import { vrfService, VrfBatchOperation } from "@/lib/api/vrf";
-
-type Raw = Record<string, unknown>;
-
-interface Cache {
-  name: string;
-  port: string;
-  preference: string;
-  sourceAddress: string;
-  sshUsername: string;
-  sshKey: string;
-}
+import { vrfService, type VrfRpkiConfig } from "@/lib/api/vrf";
+import {
+  RPKI_RANGES,
+  emptyVrfRpkiCache,
+  vrfRpkiFields,
+  vrfRpkiProblem,
+  type RpkiRangeField,
+  type VrfRpkiCacheFields,
+  type VrfRpkiProblem,
+} from "@/lib/api/vrf-rpki-save-ops";
+import { pkiService } from "@/lib/api/pki";
+import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  listedNames,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface RpkiModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vrfName: string;
-  rpkiRaw: Raw | null | undefined;
+  rpki: VrfRpkiConfig | null | undefined;
   canWrite: boolean;
   onSaved: () => void;
 }
 
-function str(v: unknown): string {
-  return typeof v === "string" || typeof v === "number" ? String(v) : "";
-}
+const RANGE_LABEL: Record<RpkiRangeField, "expireInterval" | "pollingPeriod" | "retryInterval" | "port" | "preference"> = {
+  expire: "expireInterval",
+  polling: "pollingPeriod",
+  retry: "retryInterval",
+  port: "port",
+  preference: "preference",
+};
 
-function parseCaches(node: unknown): Cache[] {
-  if (!node || typeof node !== "object") return [];
-  return Object.entries(node as Raw).map(([name, raw]) => {
-    const c = (raw && typeof raw === "object" ? raw : {}) as Raw;
-    const ssh = (c.ssh && typeof c.ssh === "object" ? c.ssh : {}) as Raw;
-    return {
-      name,
-      port: str(c.port),
-      preference: str(c.preference),
-      sourceAddress: str(c["source-address"]),
-      sshUsername: str(ssh.username),
-      sshKey: str(ssh.key),
-    };
-  });
-}
-
-export function RpkiModal({ open, onOpenChange, vrfName, rpkiRaw, canWrite, onSaved }: RpkiModalProps) {
+export function RpkiModal({ open, onOpenChange, vrfName, rpki, canWrite, onSaved }: RpkiModalProps) {
   const t = useTranslations("vrfProtocols");
   const tc = useTranslations("common");
-  const initial = useMemo(
-    () => ({
-      expire: str(rpkiRaw?.["expire-interval"]),
-      polling: str(rpkiRaw?.["polling-period"]),
-      retry: str(rpkiRaw?.["retry-interval"]),
-      caches: parseCaches(rpkiRaw?.cache),
-      origNames: Object.keys((rpkiRaw?.cache as Raw) ?? {}),
-    }),
-    [rpkiRaw]
-  );
+  const initial = useMemo(() => vrfRpkiFields(rpki), [rpki]);
 
   const [expire, setExpire] = useState(initial.expire);
   const [polling, setPolling] = useState(initial.polling);
   const [retry, setRetry] = useState(initial.retry);
-  const [caches, setCaches] = useState<Cache[]>(initial.caches);
+  const [caches, setCaches] = useState<VrfRpkiCacheFields[]>(initial.caches);
+  const [opensshKeys, setOpensshKeys] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const seedKey = `${open}:${initial.origNames.join(",")}`;
+  const seedKey = open ? JSON.stringify(initial) : "";
   const [seed, setSeed] = useState(seedKey);
   if (seedKey !== seed) {
     setSeed(seedKey);
@@ -88,53 +81,52 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpkiRaw, canWrite, onSa
     setError(null);
   }
 
-  const updateCache = (i: number, patch: Partial<Cache>) =>
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    pkiService
+      .getConfig()
+      .then((pki) => {
+        if (live) setOpensshKeys(pki.openssh.map((key) => key.name));
+      })
+      .catch(() => {
+        if (live) setOpensshKeys([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [open]);
+
+  const updateCache = (i: number, patch: Partial<VrfRpkiCacheFields>) =>
     setCaches(caches.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
 
-  const buildOps = (): VrfBatchOperation[] => {
-    const ops: VrfBatchOperation[] = [];
-    const globalField = (op: string, value: string) => {
-      const v = value.trim();
-      ops.push(v ? { op: `set_${op}`, value: `${vrfName},${v}` } : { op: `delete_${op}`, value: vrfName });
-    };
-    globalField("vrf_rpki_expire_interval", expire);
-    globalField("vrf_rpki_polling_period", polling);
-    globalField("vrf_rpki_retry_interval", retry);
-
-    const names = caches.map((c) => c.name.trim()).filter(Boolean);
-    for (const orig of initial.origNames) {
-      if (!names.includes(orig)) ops.push({ op: "delete_vrf_rpki_cache", value: `${vrfName},${orig}` });
+  const problemMessage = (problem: VrfRpkiProblem): string => {
+    if (problem.key === "range") {
+      return t("rpki.range", { label: t(`rpki.${RANGE_LABEL[problem.field]}`), min: problem.min, max: problem.max });
     }
-    for (const c of caches) {
-      const n = c.name.trim();
-      if (!n) continue;
-      ops.push({ op: "set_vrf_rpki_cache", value: `${vrfName},${n}` });
-      const field = (op: string, value: string) => {
-        const v = value.trim();
-        ops.push(v ? { op: `set_${op}`, value: `${vrfName},${n},${v}` } : { op: `delete_${op}`, value: `${vrfName},${n}` });
-      };
-      field("vrf_rpki_cache_port", c.port);
-      field("vrf_rpki_cache_preference", c.preference);
-      field("vrf_rpki_cache_source_address", c.sourceAddress);
-      field("vrf_rpki_cache_ssh_username", c.sshUsername);
-      field("vrf_rpki_cache_ssh_key", c.sshKey);
-    }
-    return ops;
+    if (problem.key === "cacheNameRequired") return t("rpki.cacheNameRequired");
+    return t(`rpki.${problem.key}`, { name: problem.name });
   };
 
   const handleSave = async () => {
+    const updated = { expire, polling, retry, caches };
+    const problem = vrfRpkiProblem(updated);
+    if (problem) {
+      setError(problemMessage(problem));
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      const result = await vrfService.batchConfigure(buildOps());
-      if (!result.success) {
+      const result = await vrfService.saveRpki(vrfName, initial, updated);
+      if (result && !result.success) {
         setError(result.error || tc("operationFailed"));
         return;
       }
-      onSaved();
+      if (result) onSaved();
       onOpenChange(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : tc("operationFailed"));
+      setError((e as ApiError).message || tc("operationFailed"));
     } finally {
       setSaving(false);
     }
@@ -146,7 +138,7 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpkiRaw, canWrite, onSa
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[88vh]">
         <DialogHeader>
-          <DialogTitle>RPKI — {vrfName}</DialogTitle>
+          <DialogTitle>{t("rpki.modalTitle", { vrf: vrfName })}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[64vh] pr-4">
@@ -154,9 +146,9 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpkiRaw, canWrite, onSa
             <div>
               <h4 className="text-sm font-semibold mb-2">{t("rpki.intervals")}</h4>
               <div className="grid grid-cols-3 gap-3">
-                <Field label={t("rpki.expireInterval")} value={expire} type="number" disabled={disabled} onChange={setExpire} />
-                <Field label={t("rpki.pollingPeriod")} value={polling} type="number" disabled={disabled} onChange={setPolling} />
-                <Field label={t("rpki.retryInterval")} value={retry} type="number" disabled={disabled} onChange={setRetry} />
+                <Field label={t("rpki.expireInterval")} value={expire} range="expire" disabled={disabled} onChange={setExpire} />
+                <Field label={t("rpki.pollingPeriod")} value={polling} range="polling" disabled={disabled} onChange={setPolling} />
+                <Field label={t("rpki.retryInterval")} value={retry} range="retry" disabled={disabled} onChange={setRetry} />
               </div>
             </div>
 
@@ -164,7 +156,7 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpkiRaw, canWrite, onSa
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold">{t("rpki.caches")}</h4>
                 {!disabled && (
-                  <Button size="sm" variant="outline" onClick={() => setCaches([...caches, { name: "", port: "", preference: "", sourceAddress: "", sshUsername: "", sshKey: "" }])}>
+                  <Button size="sm" variant="outline" onClick={() => setCaches([...caches, emptyVrfRpkiCache()])}>
                     <Plus className="h-3.5 w-3.5 mr-1" />
                     {t("rpki.addCache")}
                   </Button>
@@ -182,11 +174,30 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpkiRaw, canWrite, onSa
                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <Field label={t("rpki.port")} value={c.port} type="number" disabled={disabled} onChange={(v) => updateCache(i, { port: v })} />
-                    <Field label={t("rpki.preference")} value={c.preference} type="number" disabled={disabled} onChange={(v) => updateCache(i, { preference: v })} />
+                    <Field label={t("rpki.port")} value={c.port} range="port" disabled={disabled} onChange={(v) => updateCache(i, { port: v })} />
+                    <Field label={t("rpki.preference")} value={c.preference} range="preference" disabled={disabled} onChange={(v) => updateCache(i, { preference: v })} />
                     <Field label={t("rpki.sourceAddress")} value={c.sourceAddress} disabled={disabled} onChange={(v) => updateCache(i, { sourceAddress: v })} />
                     <Field label={t("rpki.sshUsername")} value={c.sshUsername} disabled={disabled} onChange={(v) => updateCache(i, { sshUsername: v })} />
-                    <Field label={t("rpki.sshKey")} value={c.sshKey} disabled={disabled} onChange={(v) => updateCache(i, { sshKey: v })} />
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">{t("rpki.sshKey")}</Label>
+                      <Select
+                        value={toNamedListValue(c.sshKey)}
+                        disabled={disabled}
+                        onValueChange={(v) => updateCache(i, { sshKey: fromNamedListValue(v) })}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
+                          {listedNames(opensshKeys, c.sshKey).map((name) => (
+                            <SelectItem key={name} value={name}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -220,18 +231,27 @@ function Field({
   value,
   onChange,
   disabled,
-  type = "text",
+  range,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   disabled: boolean;
-  type?: string;
+  range?: RpkiRangeField;
 }) {
+  const bounds = range ? RPKI_RANGES[range] : undefined;
   return (
     <div className="space-y-1">
       <Label className="text-[11px]">{label}</Label>
-      <Input className="h-8" type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <Input
+        className="h-8"
+        type={bounds ? "number" : "text"}
+        min={bounds?.min}
+        max={bounds?.max}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }

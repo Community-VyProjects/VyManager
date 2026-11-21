@@ -6,6 +6,12 @@
  */
 
 import { apiClient } from "./client";
+import {
+  buildVrfRpkiSaveOps,
+  deleteVrfRpkiOps,
+  enableVrfRpkiOps,
+  type VrfRpkiFields,
+} from "./vrf-rpki-save-ops";
 
 // ============================================================================
 // Core VRF Types
@@ -597,6 +603,29 @@ class VrfService {
     }
 
     return this.batchConfigure(ops);
+  }
+
+  // ==========================================================================
+  // RPKI
+  // ==========================================================================
+
+  /** Diff save of the RPKI tree; null when nothing changed (no request sent). */
+  async saveRpki(
+    vrfName: string,
+    original: VrfRpkiFields,
+    updated: VrfRpkiFields
+  ): Promise<VyOSResponse | null> {
+    const ops = buildVrfRpkiSaveOps(vrfName, original, updated);
+    if (ops.length === 0) return null;
+    return this.batchConfigure(ops);
+  }
+
+  async enableRpki(vrfName: string): Promise<VyOSResponse> {
+    return this.batchConfigure(enableVrfRpkiOps(vrfName));
+  }
+
+  async deleteRpki(vrfName: string): Promise<VyOSResponse> {
+    return this.batchConfigure(deleteVrfRpkiOps(vrfName));
   }
 }
 
