@@ -30,15 +30,23 @@ import {
   Plus,
   Trash2,
   AlertCircle,
-  Eye,
-  EyeOff,
   Globe,
   Network,
   Shield,
   Key,
   Code2,
 } from "lucide-react";
-import { httpsService, HTTPSConfig, HTTPSApiKey } from "@/lib/api/https";
+import { httpsService, HTTPSCapabilities, HTTPSConfig, HTTPSApiKey } from "@/lib/api/https";
+import {
+  MASKED_SECRET,
+  httpsCorsIndependent,
+  httpsGraphqlAuthTypes,
+  httpsRange,
+  httpsRestContainer,
+  httpsTlsVersions,
+  type HttpsRange,
+} from "@/lib/api/https-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { pkiService, PKICertificate, PKICA, PKIDH } from "@/lib/api/pki";
 
 interface HTTPSModalProps {
@@ -46,14 +54,21 @@ interface HTTPSModalProps {
   onClose: () => void;
   onSuccess: () => void;
   config: HTTPSConfig | null;
-  corsIndependent: boolean;
-  restContainer: boolean;
-  capsReady: boolean;
+  capabilities: HTTPSCapabilities | null;
 }
 
 interface ApiKeyRow extends HTTPSApiKey {
   key_: number;
-  revealed: boolean;
+}
+
+function outOfRange(raw: string, range: HttpsRange): boolean {
+  const value = parseInt(raw, 10);
+  if (isNaN(value)) return true;
+  return (range.min != null && value < range.min) || (range.max != null && value > range.max);
+}
+
+function rangeValues(range: HttpsRange) {
+  return { min: range.min ?? "", max: range.max ?? "" };
 }
 
 const EMPTY_CONFIG: HTTPSConfig = {
@@ -72,9 +87,22 @@ const EMPTY_CONFIG: HTTPSConfig = {
   },
 };
 
-export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, restContainer, capsReady }: HTTPSModalProps) {
+export function HTTPSModal({ open, onClose, onSuccess, config, capabilities }: HTTPSModalProps) {
   const t = useTranslations("https");
   const tc = useTranslations("common");
+  const capsReady = capabilities !== null;
+  const corsIndependent = httpsCorsIndependent(capabilities);
+  const restContainer = httpsRestContainer(capabilities);
+  const tlsOptions = httpsTlsVersions(capabilities);
+  const authTypes = httpsGraphqlAuthTypes(capabilities);
+  const portRange = httpsRange(capabilities, "port", "min", "max", "default");
+  const bodySizeRange = httpsRange(capabilities, "request_body_size_limit", "min", "max", "default");
+  const expirationRange = httpsRange(
+    capabilities, "api_graphql_auth", "token_expiration_min", "token_expiration_max", "token_expiration_default",
+  );
+  const secretLengthRange = httpsRange(
+    capabilities, "api_graphql_auth", "secret_length_min", "secret_length_max", "secret_length_default",
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,8 +120,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
   const [port, setPort] = useState("");
   const [requestBodySizeLimit, setRequestBodySizeLimit] = useState("");
   const [httpRedirect, setHttpRedirect] = useState(false);
-  const [tls12, setTls12] = useState(false);
-  const [tls13, setTls13] = useState(false);
+  const [tlsVersions, setTlsVersions] = useState<string[]>([]);
   const [vrf, setVrf] = useState("");
 
   // Tab 2 — Certificates
@@ -115,7 +142,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
   // Tab 5 — GraphQL
   const [graphqlEnabled, setGraphqlEnabled] = useState(false);
   const [graphqlIntrospection, setGraphqlIntrospection] = useState(false);
-  const [graphqlAuthType, setGraphqlAuthType] = useState("key");
+  const [graphqlAuthType, setGraphqlAuthType] = useState("");
   const [graphqlExpiration, setGraphqlExpiration] = useState("");
   const [graphqlSecretLength, setGraphqlSecretLength] = useState("");
   const [corsOrigins, setCorsOrigins] = useState<string[]>([]);
@@ -134,19 +161,14 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
     setPort(src.port != null ? String(src.port) : "");
     setRequestBodySizeLimit(src.request_body_size_limit != null ? String(src.request_body_size_limit) : "");
     setHttpRedirect(src.enable_http_redirect);
-    setTls12(src.tls_versions.includes("1.2"));
-    setTls13(src.tls_versions.includes("1.3"));
+    setTlsVersions([...src.tls_versions]);
     setVrf(src.vrf ?? "");
 
     setCertificate(src.certificates.certificate ?? "");
     setCaCertificate(src.certificates.ca_certificate ?? "");
     setDhParams(src.certificates.dh_params ?? "");
 
-    const rows: ApiKeyRow[] = src.api.keys.map((k, i) => ({
-      ...k,
-      key_: i,
-      revealed: false,
-    }));
+    const rows: ApiKeyRow[] = src.api.keys.map((k, i) => ({ ...k, key_: i }));
     setKeyRows(rows);
     setNextKeyIndex(rows.length);
     setNewKeyId("");
@@ -158,7 +180,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
 
     setGraphqlEnabled(src.api.graphql.enabled);
     setGraphqlIntrospection(src.api.graphql.introspection);
-    setGraphqlAuthType(src.api.graphql.authentication.auth_type ?? "key");
+    setGraphqlAuthType(src.api.graphql.authentication.auth_type ?? "");
     setGraphqlExpiration(src.api.graphql.authentication.expiration != null ? String(src.api.graphql.authentication.expiration) : "");
     setGraphqlSecretLength(src.api.graphql.authentication.secret_length != null ? String(src.api.graphql.authentication.secret_length) : "");
     setCorsOrigins([...src.api.graphql.cors_allow_origins]);
@@ -200,7 +222,15 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
       setError(t("modal.errors.keyIdUnique"));
       return;
     }
-    setKeyRows((prev) => [...prev, { id, key: secret, key_: nextKeyIndex, revealed: false }]);
+    if (id.includes(",")) {
+      setError(t("modal.errors.keyIdComma"));
+      return;
+    }
+    if (secret === MASKED_SECRET) {
+      setError(t("modal.errors.keySecretMasked"));
+      return;
+    }
+    setKeyRows((prev) => [...prev, { id, key: secret, key_: nextKeyIndex }]);
     setNextKeyIndex((n) => n + 1);
     setNewKeyId("");
     setNewKeySecret("");
@@ -215,26 +245,18 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
     setCorsInput("");
   }
 
-  function toggleReveal(key_: number) {
-    setKeyRows((prev) => prev.map((r) => r.key_ === key_ ? { ...r, revealed: !r.revealed } : r));
-  }
-
   function validate(): string | null {
-    if (port) {
-      const p = parseInt(port, 10);
-      if (isNaN(p) || p < 1 || p > 65535) return t("modal.errors.portRange");
+    if (port && outOfRange(port, portRange)) {
+      return t("modal.errors.portRange", rangeValues(portRange));
     }
-    if (requestBodySizeLimit) {
-      const s = parseInt(requestBodySizeLimit, 10);
-      if (isNaN(s) || s < 1 || s > 256) return t("modal.errors.bodySizeRange");
+    if (requestBodySizeLimit && outOfRange(requestBodySizeLimit, bodySizeRange)) {
+      return t("modal.errors.bodySizeRange", rangeValues(bodySizeRange));
     }
-    if (graphqlEnabled && graphqlExpiration) {
-      const e = parseInt(graphqlExpiration, 10);
-      if (isNaN(e) || e < 60 || e > 31536000) return t("modal.errors.expirationRange");
+    if (graphqlEnabled && graphqlExpiration && outOfRange(graphqlExpiration, expirationRange)) {
+      return t("modal.errors.expirationRange", rangeValues(expirationRange));
     }
-    if (graphqlEnabled && graphqlSecretLength) {
-      const s = parseInt(graphqlSecretLength, 10);
-      if (isNaN(s) || s < 16 || s > 65535) return t("modal.errors.secretLengthRange");
+    if (graphqlEnabled && graphqlSecretLength && outOfRange(graphqlSecretLength, secretLengthRange)) {
+      return t("modal.errors.secretLengthRange", rangeValues(secretLengthRange));
     }
     const ids = keyRows.map((r) => r.id);
     if (new Set(ids).size !== ids.length) return t("modal.errors.keyIdsUnique");
@@ -249,10 +271,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
     }
     setError(null);
     setLoading(true);
-
-    const tlsVersions: string[] = [];
-    if (tls12) tlsVersions.push("1.2");
-    if (tls13) tlsVersions.push("1.3");
 
     const payload: HTTPSConfig = {
       listen_addresses: listenAddresses,
@@ -274,9 +292,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
           enabled: graphqlEnabled,
           introspection: graphqlIntrospection,
           authentication: {
-            auth_type: graphqlEnabled ? (graphqlAuthType || "key") : null,
-            expiration: graphqlEnabled && graphqlAuthType === "token" && graphqlExpiration ? parseInt(graphqlExpiration, 10) : null,
-            secret_length: graphqlEnabled && graphqlAuthType === "token" && graphqlSecretLength ? parseInt(graphqlSecretLength, 10) : null,
+            auth_type: graphqlEnabled ? graphqlAuthType || null : null,
+            expiration: graphqlEnabled && graphqlExpiration ? parseInt(graphqlExpiration, 10) : null,
+            secret_length: graphqlEnabled && graphqlSecretLength ? parseInt(graphqlSecretLength, 10) : null,
           },
           cors_allow_origins: corsOrigins,
         },
@@ -284,18 +302,18 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
     };
 
     try {
-      const result = await httpsService.saveConfig(payload, {
+      const result = await httpsService.saveConfig(config ?? EMPTY_CONFIG, payload, {
         capsReady,
         corsIndependent,
         restContainer,
       });
       if (!result.success) {
-        setError(result.error ?? t("modal.errors.configurationFailed"));
+        setError(result.error || t("modal.errors.configurationFailed"));
         return;
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("modal.errors.unexpected"));
+      setError((err as ApiError).message || t("modal.errors.unexpected"));
     } finally {
       setLoading(false);
     }
@@ -405,9 +423,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                   <Input
                     id="port"
                     type="number"
-                    min={1}
-                    max={65535}
-                    placeholder={t("content.withDefault", { value: "443" })}
+                    min={portRange.min}
+                    max={portRange.max}
+                    placeholder={portRange.default != null ? t("content.withDefault", { value: String(portRange.default) }) : undefined}
                     value={port}
                     onChange={(e) => setPort(e.target.value)}
                   />
@@ -419,9 +437,9 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                   <Input
                     id="body-size"
                     type="number"
-                    min={1}
-                    max={256}
-                    placeholder={t("content.withDefault", { value: "1" })}
+                    min={bodySizeRange.min}
+                    max={bodySizeRange.max}
+                    placeholder={bodySizeRange.default != null ? t("content.withDefault", { value: String(bodySizeRange.default) }) : undefined}
                     value={requestBodySizeLimit}
                     onChange={(e) => setRequestBodySizeLimit(e.target.value)}
                   />
@@ -441,22 +459,20 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                 <div className="space-y-2">
                   <Label>{t("content.tlsVersions")}</Label>
                   <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="tls12"
-                        checked={tls12}
-                        onCheckedChange={(v) => setTls12(!!v)}
-                      />
-                      <Label htmlFor="tls12">TLS 1.2</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="tls13"
-                        checked={tls13}
-                        onCheckedChange={(v) => setTls13(!!v)}
-                      />
-                      <Label htmlFor="tls13">TLS 1.3</Label>
-                    </div>
+                    {tlsOptions.map((version) => (
+                      <div key={version} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`tls-${version}`}
+                          checked={tlsVersions.includes(version)}
+                          onCheckedChange={(v) =>
+                            setTlsVersions((prev) =>
+                              v ? [...prev.filter((x) => x !== version), version] : prev.filter((x) => x !== version),
+                            )
+                          }
+                        />
+                        <Label htmlFor={`tls-${version}`}>{version}</Label>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -477,10 +493,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
           <TabsContent value="certificates" className="flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4 py-2">
-                <p className="text-xs text-muted-foreground">
-                  {t("modal.certificatesHelp")}
-                </p>
-
                 {/* Certificate */}
                 <div className="space-y-2">
                   <Label htmlFor="cert">{t("content.certificate")}</Label>
@@ -557,10 +569,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
           <TabsContent value="keys" className="flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4 py-2">
-                <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
-                  {t("modal.keysWarning")}
-                </p>
-
                 {/* Existing keys */}
                 {keyRows.length > 0 && (
                   <div className="rounded-md border overflow-hidden">
@@ -577,18 +585,7 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                           <tr key={row.key_} className="border-t">
                             <td className="px-3 py-2 font-mono text-xs">{row.id}</td>
                             <td className="px-3 py-2 font-mono text-xs">
-                              <div className="flex items-center gap-2">
-                                <span>{row.revealed ? row.key : "••••••••"}</span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => toggleReveal(row.key_)}
-                                >
-                                  {row.revealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                                </Button>
-                              </div>
+                              {row.key ? "••••••••" : "—"}
                             </td>
                             <td className="px-3 py-2">
                               <Button
@@ -619,6 +616,8 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                       className="font-mono text-sm"
                     />
                     <Input
+                      type="password"
+                      autoComplete="new-password"
                       placeholder={t("modal.secretKeyPlaceholder")}
                       value={newKeySecret}
                       onChange={(e) => setNewKeySecret(e.target.value)}
@@ -667,7 +666,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                     />
                     <Label htmlFor="rest-debug" className={!restContainer || restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
                       {t("modal.debugLogging")}
-                      <span className="block text-xs text-muted-foreground font-normal">{t("modal.debugLoggingHelp")}</span>
                     </Label>
                   </div>
 
@@ -680,7 +678,6 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                     />
                     <Label htmlFor="rest-strict" className={!restContainer || restEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
                       {t("modal.strictPath")}
-                      <span className="block text-xs text-muted-foreground font-normal">{t("modal.strictPathHelp")}</span>
                     </Label>
                   </div>
                 </div>
@@ -719,40 +716,40 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                     />
                     <Label htmlFor="graphql-introspection" className={graphqlEnabled ? "cursor-pointer" : "cursor-not-allowed"}>
                       {t("modal.schemaIntrospection")}
-                      <span className="block text-xs text-muted-foreground font-normal">{t("modal.schemaIntrospectionHelp")}</span>
                     </Label>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="graphql-auth-type">{t("modal.authType")}</Label>
                     <Select
-                      value={graphqlAuthType}
-                      onValueChange={setGraphqlAuthType}
+                      value={graphqlAuthType || "__none__"}
+                      onValueChange={(v) => setGraphqlAuthType(v === "__none__" ? "" : v)}
                       disabled={!graphqlEnabled}
                     >
                       <SelectTrigger id="graphql-auth-type">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="key">{t("modal.authTypeKey")}</SelectItem>
-                        <SelectItem value="token">{t("modal.authTypeToken")}</SelectItem>
+                        <SelectItem value="__none__">{tc("default")}</SelectItem>
+                        {authTypes.map((type) => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {graphqlAuthType === "token" && graphqlEnabled && (
+                  {graphqlEnabled && (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="graphql-expiration">{t("modal.tokenExpiration")}</Label>
                         <Input
                           id="graphql-expiration"
                           type="number"
-                          min={60}
-                          max={31536000}
-                          placeholder={t("content.withDefault", { value: "3600" })}
+                          min={expirationRange.min}
+                          max={expirationRange.max}
+                          placeholder={expirationRange.default != null ? t("content.withDefault", { value: String(expirationRange.default) }) : undefined}
                           value={graphqlExpiration}
                           onChange={(e) => setGraphqlExpiration(e.target.value)}
-                          disabled={!graphqlEnabled}
                         />
                       </div>
                       <div className="space-y-2">
@@ -760,12 +757,11 @@ export function HTTPSModal({ open, onClose, onSuccess, config, corsIndependent, 
                         <Input
                           id="graphql-secret-length"
                           type="number"
-                          min={16}
-                          max={65535}
-                          placeholder={t("content.withDefault", { value: "32" })}
+                          min={secretLengthRange.min}
+                          max={secretLengthRange.max}
+                          placeholder={secretLengthRange.default != null ? t("content.withDefault", { value: String(secretLengthRange.default) }) : undefined}
                           value={graphqlSecretLength}
                           onChange={(e) => setGraphqlSecretLength(e.target.value)}
-                          disabled={!graphqlEnabled}
                         />
                       </div>
                     </>

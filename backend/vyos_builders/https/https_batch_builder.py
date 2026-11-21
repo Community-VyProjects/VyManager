@@ -11,29 +11,32 @@ Key sections:
   - GraphQL: authentication (expiration, secret-length, type), introspection, CORS
   - REST API: debug, strict (path differs between 1.4 and 1.5)
 
-Version differences:
+Version differences live on the mapper subclass:
   - 1.4: api/debug, api/strict, api/cors/allow-origin
   - 1.5: api/rest/debug, api/rest/strict, api/graphql/cors/allow-origin
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, List, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.https import HTTPSMapper
 from vyos_builders.base import BatchBuilder
 
 
 class HTTPSBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("https", version)
+        self.m = cast(HTTPSMapper, CommandMapperRegistry.get_mapper("https", version))
+
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a leaf only one VyOS version has; ValueError elsewhere."""
+        self.m.require_node(node)
+        return getattr(self.m, method)(*args)
 
     # -----------------------------------------------------------------------
     # Capabilities
     # -----------------------------------------------------------------------
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
-
         return {
             "version": self.version,
             "features": {
@@ -62,7 +65,8 @@ class HTTPSBatchBuilder(BatchBuilder):
                 "tls_version": {
                     "supported": True,
                     "description": "Allowed TLS versions (multi-value, default: 1.2 and 1.3)",
-                    "options": ["1.2", "1.3"],
+                    "options": self.m.tls_versions(),
+                    "defaults": self.m.tls_version_defaults(),
                 },
                 "vrf": {
                     "supported": True,
@@ -87,9 +91,11 @@ class HTTPSBatchBuilder(BatchBuilder):
                 "api_graphql_auth": {
                     "supported": True,
                     "description": "GraphQL authentication (key or JWT token)",
-                    "auth_types": ["key", "token"],
+                    "auth_types": self.m.graphql_auth_types(),
+                    "token_expiration_default": 3600,
                     "token_expiration_min": 60,
                     "token_expiration_max": 31536000,
+                    "secret_length_default": 32,
                     "secret_length_min": 16,
                     "secret_length_max": 65535,
                 },
@@ -100,15 +106,10 @@ class HTTPSBatchBuilder(BatchBuilder):
                 "api_cors": {
                     "supported": True,
                     "description": "CORS allow-origin list",
-                    "cors_scope": (
-                        "graphql"
-                        if "graphql" in self.m.get_api_cors_allow_origins_delete()
-                        else "api"
-                    ),
+                    "cors_scope": self.m.cors_scope(),
                 },
                 "api_rest": {
-                    "supported": True,
-                    "container": bool(self.m.get_api_rest()),
+                    "supported": "api rest" in self.m.versioned_nodes(),
                     "description": "REST API endpoint",
                 },
                 "api_debug": {
@@ -119,10 +120,6 @@ class HTTPSBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "Enforce strict URI path checking (presence flag)",
                 },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
             },
         }
 
@@ -248,8 +245,21 @@ class HTTPSBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_api_keys_delete())
 
     # -----------------------------------------------------------------------
-    # GraphQL authentication
+    # API node
     # -----------------------------------------------------------------------
+
+    def delete_api(self) -> "HTTPSBatchBuilder":
+        return self.add_delete(self.m.get_api_delete())
+
+    # -----------------------------------------------------------------------
+    # GraphQL
+    # -----------------------------------------------------------------------
+
+    def set_api_graphql(self) -> "HTTPSBatchBuilder":
+        return self.add_set(self.m.get_api_graphql())
+
+    def delete_api_graphql(self) -> "HTTPSBatchBuilder":
+        return self.add_delete(self.m.get_api_graphql())
 
     def set_api_graphql_auth_expiration(self, value: str) -> "HTTPSBatchBuilder":
         return self.add_set(self.m.get_api_graphql_auth_expiration(value))
@@ -305,7 +315,7 @@ class HTTPSBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_api_strict())
 
     def set_api_rest(self) -> "HTTPSBatchBuilder":
-        return self.add_set(self.m.get_api_rest())
+        return self.add_set(self._versioned_path("api rest", "get_api_rest"))
 
     def delete_api_rest(self) -> "HTTPSBatchBuilder":
-        return self.add_delete(self.m.get_api_rest())
+        return self.add_delete(self._versioned_path("api rest", "get_api_rest"))

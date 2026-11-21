@@ -164,7 +164,10 @@
     "interfaceId": "接口 ID",
     "peerInterfaceId": "对端接口 ID",
     "acceptPeerInterfaceId": "接受对端接口 ID",
-    "lcpEcho": "LCP 回显"
+    "lcpEcho": "LCP 回显",
+    "peerInterfaceIdSecret": "对端接口 ID 密钥",
+    "peerInterfaceIdSecretRequired": "calling-sid 需要对端接口 ID 密钥",
+    "peerInterfaceIdSecretInvalid": "密钥必须是 16 到 128 个可打印 ASCII 字符，且不含空格"
   },
   "advanced": {
     "updateFailed": "更新高级设置失败",

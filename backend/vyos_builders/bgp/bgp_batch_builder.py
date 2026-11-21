@@ -293,6 +293,9 @@ class BgpBatchBuilder(BatchBuilder):
     def delete_parameters_bestpath_peer_type_multipath_relax(self) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_parameters_bestpath_peer_type_multipath_relax())
 
+    def delete_parameters_bestpath(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_parameters_bestpath_delete())
+
     # ========================================================================
     # Parameters - Confederation
     # ========================================================================
@@ -1188,6 +1191,12 @@ class BgpBatchBuilder(BatchBuilder):
     def delete_af_maximum_paths(self, afi: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_af_maximum_paths_delete(afi))
 
+    def delete_af_maximum_paths_ebgp(self, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_maximum_paths_ebgp_delete(afi))
+
+    def delete_af_maximum_paths_ibgp(self, afi: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_maximum_paths_ibgp_delete(afi))
+
     # Redistribute
     def set_af_redistribute(self, afi: str, protocol: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_af_redistribute(afi, protocol))
@@ -1434,6 +1443,14 @@ class BgpBatchBuilder(BatchBuilder):
                     "supported": "as-notation" in nodes,
                     "values": self.m.as_notation_values(),
                 },
+                "bestpath_bandwidth": {
+                    "supported": True,
+                    "values": self.m.bestpath_bandwidth_values(),
+                },
+                "bestpath_med": {
+                    "supported": True,
+                    "values": self.m.bestpath_med_values(),
+                },
                 "input_queue_limit": {"supported": "input-queue-limit" in nodes},
                 "output_queue_limit": {"supported": "output-queue-limit" in nodes},
                 "update_delay": {"supported": "update-delay establish-wait" in nodes},
@@ -1443,6 +1460,7 @@ class BgpBatchBuilder(BatchBuilder):
                 "ipv6-unicast": sorted(self.m.redistribute_ipv6_protocols()),
             },
             "redistribute_table_afis": sorted(self.m.redistribute_table_afis()),
+            "maximum_paths_afis": sorted(self.m.maximum_paths_afis()),
             "address_family_types": {
                 "neighbor": [
                     "ipv4-unicast", "ipv6-unicast",
