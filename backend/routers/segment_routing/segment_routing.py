@@ -1,8 +1,7 @@
 """Segment Routing Protocol Router.
 
 API endpoints for managing VyOS Segment Routing (SRv6) configuration:
-locators and per-interface SRv6 packet acceptance. The configuration tree
-is identical on VyOS 1.4 and 1.5.
+locators and per-interface SRv6 packet acceptance.
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -154,7 +153,7 @@ async def segment_routing_batch_configure(http_request: Request, body: SegmentRo
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Segment Routing configuration updated"},
+            data={"message": "Segment Routing configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:

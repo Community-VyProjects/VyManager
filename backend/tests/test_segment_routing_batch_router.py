@@ -24,7 +24,13 @@ def _app():
 
 
 @pytest.fixture
-def client(monkeypatch):
+def commit():
+    """Status and error the stub execute_batch returns."""
+    return {"status": 200, "error": None}
+
+
+@pytest.fixture
+def client(monkeypatch, commit):
     executed = []
 
     async def allow(*_args, **_kwargs):
@@ -44,7 +50,7 @@ def client(monkeypatch):
             if batch.is_empty():
                 raise ValueError("Cannot execute empty batch")
             executed.append(batch.get_operations())
-            return SimpleNamespace(status=200, result="", error=None)
+            return SimpleNamespace(status=commit["status"], result="", error=commit["error"])
 
     monkeypatch.setattr(f"{ROUTER}.require_write_permission", allow)
     monkeypatch.setattr(f"{ROUTER}.require_read_permission", allow)
@@ -108,6 +114,15 @@ def test_batch_rejected_op_is_400(client, op, detail):
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == detail
     assert executed == []
+
+
+def test_batch_failed_commit_omits_updated_message(client, commit):
+    test_client, executed = client
+    commit.update(status=400, error="commit failed")
+    resp = _post(test_client, [{"op": "delete_segment_routing"}])
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "data": None, "error": "commit failed"}
+    assert executed == [[{"op": "delete", "path": BASE}]]
 
 
 def test_batch_empty_is_500(client):
