@@ -10,6 +10,7 @@ failover, RPKI, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
 
 from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.ospf.ospf import OspfMapper
 from vyos_mappers.static_routes.static_routes import IPV4_SEGMENTS, SOURCE_PROFILE, StaticRoutesMapper
 from vyos_mappers.vrf.vrf import VrfMapper
 from .vrf_protocol import (
@@ -35,6 +36,7 @@ class VrfBatchBuilder(BatchBuilder):
                 "vrf_isis",
                 "vrf_bgp",
                 "static_routes",
+                "ospf",
             ),
             version,
         )
@@ -186,6 +188,8 @@ class VrfBatchBuilder(BatchBuilder):
         is_1_4 = "1.4" in self.version
         vrf_mapper = cast(VrfMapper, self.mappers[self.mapper_key])
         static_mapper = cast(StaticRoutesMapper, self.mappers["static_routes"])
+        # VRF OSPF ops run the global OSPF builder, so its allowlist decides.
+        ospf_nodes = cast(OspfMapper, self.mappers["ospf"]).versioned_nodes()
 
         return {
             "version": self.version,
@@ -263,8 +267,11 @@ class VrfBatchBuilder(BatchBuilder):
                     "description": "Several DHCP interfaces per IPv4 static route (one on 1.4)",
                 },
                 "ospf_retransmit_window": {
-                    "supported": is_1_5,
-                    "description": "OSPF retransmit-window on interfaces/virtual-links (VyOS 1.5+ only)",
+                    "supported": {
+                        "interface retransmit-window",
+                        "virtual-link retransmit-window",
+                    } <= ospf_nodes,
+                    "description": "OSPF retransmit-window on interfaces and virtual-links",
                 },
                 "ospf_redistribute_nhrp": {
                     "supported": "nhrp" in self.mappers["vrf_ospf"].redistribute_protocols(),
