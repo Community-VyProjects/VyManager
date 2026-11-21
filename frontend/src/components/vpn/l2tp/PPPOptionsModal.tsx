@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -60,6 +60,8 @@ export function PPPOptionsModal({
   const [ipv6PeerInterfaceIdSecret, setIpv6PeerInterfaceIdSecret] = useState("");
   // True while the field still shows the loaded mask of a stored secret.
   const [secretMasked, setSecretMasked] = useState(false);
+  // Caret range inside the loaded mask, read by the first edit.
+  const maskSelection = useRef<[number, number]>([0, 0]);
   const [ipv6AcceptPeerInterfaceId, setIpv6AcceptPeerInterfaceId] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -81,6 +83,7 @@ export function PPPOptionsModal({
       setIpv6PeerInterfaceId(currentOptions.ipv6_peer_interface_id || "");
       setIpv6PeerInterfaceIdSecret(currentOptions.ipv6_peer_interface_id_secret || "");
       setSecretMasked(!!currentOptions.ipv6_peer_interface_id_secret);
+      maskSelection.current = [0, (currentOptions.ipv6_peer_interface_id_secret || "").length];
       setIpv6AcceptPeerInterfaceId(currentOptions.ipv6_accept_peer_interface_id || false);
       setError(null);
     }
@@ -234,10 +237,20 @@ export function PPPOptionsModal({
                 type="password"
                 autoComplete="new-password"
                 value={ipv6PeerInterfaceIdSecret}
+                onFocus={(e) => {
+                  if (!secretMasked) return;
+                  e.currentTarget.select();
+                  maskSelection.current = [0, e.currentTarget.value.length];
+                }}
+                onSelect={(e) => {
+                  if (!secretMasked) return;
+                  const input = e.currentTarget;
+                  maskSelection.current = [input.selectionStart ?? 0, input.selectionEnd ?? input.value.length];
+                }}
                 onChange={(e) => {
                   if (secretMasked) {
-                    const edit = e.nativeEvent as InputEvent;
-                    setIpv6PeerInterfaceIdSecret(firstMaskEdit(edit.inputType, edit.data));
+                    const mask = currentOptions.ipv6_peer_interface_id_secret || "";
+                    setIpv6PeerInterfaceIdSecret(firstMaskEdit(mask, e.target.value, maskSelection.current));
                     setSecretMasked(false);
                   } else {
                     setIpv6PeerInterfaceIdSecret(e.target.value);

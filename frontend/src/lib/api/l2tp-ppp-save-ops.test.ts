@@ -113,17 +113,25 @@ describe("pppOptionsProblem", () => {
 
 describe("firstMaskEdit", () => {
   it("keeps only the inserted text wherever the caret was", () => {
-    assert.equal(firstMaskEdit("insertText", "x"), "x");
-    assert.equal(firstMaskEdit("insertText", "*"), "*");
-    assert.equal(firstMaskEdit("insertFromPaste", SECRET), SECRET);
-    assert.equal(firstMaskEdit("insertFromPaste", `${MASK}${SECRET}`), `${MASK}${SECRET}`);
+    assert.equal(firstMaskEdit(MASK, "x", [0, 3]), "x");
+    assert.equal(firstMaskEdit(MASK, SECRET, [0, 3]), SECRET);
+    assert.equal(firstMaskEdit(MASK, `${MASK}${SECRET}`, [0, 3]), `${MASK}${SECRET}`);
+    assert.equal(firstMaskEdit(MASK, `x${MASK}`, [0, 0]), "x");
+    assert.equal(firstMaskEdit(MASK, "*x**", [1, 1]), "x");
+    assert.equal(firstMaskEdit(MASK, `${MASK}x`, [3, 3]), "x");
+    assert.equal(firstMaskEdit(MASK, `*${SECRET}`, [1, 3]), SECRET);
+    assert.equal(firstMaskEdit(MASK, "*", [0, 3]), "*");
   });
 
-  it("clears the field on any deletion or an edit with no inserted text", () => {
-    assert.equal(firstMaskEdit("deleteContentBackward", null), "");
-    assert.equal(firstMaskEdit("deleteContentForward", null), "");
-    assert.equal(firstMaskEdit("insertFromDrop", null), "");
-    assert.equal(firstMaskEdit(undefined, undefined), "");
+  it("clears the field on a deletion", () => {
+    assert.equal(firstMaskEdit(MASK, "**", [3, 3]), "");
+    assert.equal(firstMaskEdit(MASK, "**", [0, 0]), "");
+    assert.equal(firstMaskEdit(MASK, "", [0, 3]), "");
+    assert.equal(firstMaskEdit(MASK, "*", [0, 2]), "");
+  });
+
+  it("takes a value that replaced the mask wholesale (autofill) as new text", () => {
+    assert.equal(firstMaskEdit(MASK, "password123", [3, 3]), "password123");
   });
 });
 

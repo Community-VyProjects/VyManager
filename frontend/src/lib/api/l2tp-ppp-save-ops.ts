@@ -38,12 +38,19 @@ function secret(value: string | null | undefined): string {
 
 /**
  * Field value after the first edit of a password input that shows the loaded
- * mask: the edit replaces the whole mask with only the text it inserted,
- * wherever the caret was, and any deletion clears the field.
+ * mask. `selection` is the caret range inside the mask just before the edit.
+ * The edit replaces the whole mask with only the text it inserted, wherever
+ * the caret was; a deletion clears the field; a value that no longer holds
+ * the mask around the caret (autofill) is all new text.
  */
-export function firstMaskEdit(inputType: string | undefined, data: string | null | undefined): string {
-  if (!inputType || inputType.startsWith("delete")) return "";
-  return data ?? "";
+export function firstMaskEdit(mask: string, value: string, selection: [number, number]): string {
+  const start = Math.max(0, Math.min(selection[0], mask.length));
+  const end = Math.max(start, Math.min(selection[1], mask.length));
+  const before = mask.slice(0, start);
+  const after = mask.slice(end);
+  if (value.length < before.length + after.length) return "";
+  if (!value.startsWith(before) || !value.endsWith(after)) return value;
+  return value.slice(before.length, value.length - after.length);
 }
 
 /** A save the lab commit would reject, or null. */
