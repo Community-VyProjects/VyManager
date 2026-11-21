@@ -64,7 +64,7 @@ def client(monkeypatch, device, db):
     def _call(kind):
         def run(path):
             device["calls"].append((kind, path))
-            device["threads"].append(threading.get_ident())
+            device["threads"].append(threading.current_thread())
             device["conn_open"].append(db["open"])
             return SimpleNamespace(
                 status=device["status"], result=device["result"], error=device["error"]
@@ -101,7 +101,7 @@ def client(monkeypatch, device, db):
 
     @app.middleware("http")
     async def state(request: Request, call_next):
-        loop_threads.add(threading.get_ident())
+        loop_threads.add(threading.current_thread())
         request.state.user = {"id": "u1", "name": "User One"}
         request.state.instance = {"id": "i1"}
         return await call_next(request)
