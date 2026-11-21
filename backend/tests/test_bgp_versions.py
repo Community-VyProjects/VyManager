@@ -115,6 +115,18 @@ def test_capabilities_do_not_read_a_version_string():
     assert '"1.4"' not in text
 
 
+def test_bestpath_capability_lists_read_the_mapper(monkeypatch):
+    """A handwritten list in get_capabilities() would ignore this."""
+    monkeypatch.setattr(BgpMapper, "bestpath_bandwidth_values", lambda self: ["ignore"])
+    monkeypatch.setattr(BgpMapper, "bestpath_med_values", lambda self: ["confed"])
+    for version in ("1.4.3", "2026.09.23-rolling"):
+        features = BgpBatchBuilder(version=version).get_capabilities()["features"]
+        assert features["bestpath_bandwidth"]["supported"] is True
+        assert features["bestpath_bandwidth"]["values"] == ["ignore"]
+        assert features["bestpath_med"]["supported"] is True
+        assert features["bestpath_med"]["values"] == ["confed"]
+
+
 def test_ipv6_redistribute_protocols_match_the_lab():
     mapper = get_bgp_mapper("1.4")
     assert "ospfv3" in mapper.redistribute_ipv6_protocols()
@@ -123,6 +135,26 @@ def test_ipv6_redistribute_protocols_match_the_lab():
     assert "rip" not in mapper.redistribute_ipv6_protocols()
     with pytest.raises(ValueError, match="not supported"):
         mapper.get_af_redistribute("ipv6-unicast", "ospf")
+
+
+def test_maximum_paths_afis_match_both_labs():
+    """ipv4-unicast, ipv6-unicast, and ipv4-labeled-unicast on 1.4 and 1.5.
+    ipv6-labeled-unicast has no maximum-paths node.
+    """
+    for version in ("1.4.3", "2026.09.23-rolling"):
+        mapper = get_bgp_mapper(version)
+        assert mapper.maximum_paths_afis() == frozenset({
+            "ipv4-unicast", "ipv6-unicast", "ipv4-labeled-unicast",
+        })
+        assert mapper.get_af_maximum_paths_ebgp("ipv6-unicast", "4")[-2:] == ["ebgp", "4"]
+        with pytest.raises(ValueError, match="not supported"):
+            mapper.get_af_maximum_paths_ebgp("ipv6-labeled-unicast", "4")
+        with pytest.raises(ValueError, match="not supported"):
+            mapper.get_af_maximum_paths_ibgp_delete("l2vpn-evpn")
+    caps = BgpBatchBuilder(version="1.4").get_capabilities()
+    assert caps["maximum_paths_afis"] == [
+        "ipv4-labeled-unicast", "ipv4-unicast", "ipv6-unicast",
+    ]
 
 
 def test_parse_config_masks_password_and_reads_new_leaves():

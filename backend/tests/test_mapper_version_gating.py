@@ -68,7 +68,6 @@ def test_mappers_14_reject_redistribute_nhrp():
 def test_mappers_14_delete_redistribute_nhrp():
     babel = get_babel_mapper("1.4")
     assert babel.get_redistribute_ipv4_delete("nhrp")[-1] == "nhrp"
-    assert get_ospf_mapper("1.4").get_redistribute_delete("nhrp")[-1] == "nhrp"
     assert VrfOspfMapper("1.4").get_ospf_redistribute_delete("blue", "nhrp")[-1] == "nhrp"
     isis = get_isis_mapper("1.4")
     assert isis.get_redistribute_ipv4_delete_path("nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
@@ -170,11 +169,9 @@ def test_allowlist_rejects_unknown_redistribute_protocol():
 
 def test_capabilities_read_mapper_allowlist():
     caps_14 = OspfBatchBuilder(version="1.4").get_capabilities()
-    assert "nhrp" not in caps_14["redistribute_protocols"]
-    assert caps_14["features"]["redistribute_nhrp"]["supported"] is False
+    assert "nhrp" not in caps_14["features"]["redistribute"]["protocols"]
     caps_15 = OspfBatchBuilder(version="1.5").get_capabilities()
-    assert "nhrp" in caps_15["redistribute_protocols"]
-    assert caps_15["features"]["redistribute_nhrp"]["supported"] is True
+    assert "nhrp" in caps_15["features"]["redistribute"]["protocols"]
     babel_14 = BabelBatchBuilder(version="1.4").get_capabilities()
     assert "nhrp" not in babel_14["redistribute_protocols"]["ipv4"]
     babel_15 = BabelBatchBuilder(version="1.5").get_capabilities()

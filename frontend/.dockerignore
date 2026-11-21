@@ -4,3 +4,6 @@ Dockerfile
 !docker-entrypoint.sh
 .next
 .git
+.env
+.env.*
+!.env.example

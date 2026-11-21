@@ -14,7 +14,7 @@ from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/ospf/OspfInterfaceModal.tsx"
-API = REPO / "frontend/src/lib/api/ospf.ts"
+API = REPO / "frontend/src/lib/api/ospf-save-ops.ts"
 
 V15_CASES = [
     (
@@ -71,10 +71,8 @@ def test_ospf_15_retransmit_window_paths(method, args, op, expected_path):
 
 def test_ospf_14_set_retransmit_window_raises():
     mapper = get_ospf_mapper("1.4")
-    with pytest.raises(ValueError, match="not supported"):
-        mapper.get_interface_retransmit_window("eth0", "5")
-    with pytest.raises(ValueError, match="not supported"):
-        mapper.get_area_virtual_link_retransmit_window("0", "192.0.2.1", "5")
+    assert not hasattr(mapper, "get_interface_retransmit_window")
+    assert not hasattr(mapper, "get_area_virtual_link_retransmit_window")
     builder = OspfBatchBuilder(version="1.4")
     with pytest.raises(ValueError, match="not supported"):
         builder.set_interface_retransmit_window("eth0", "5")
@@ -82,29 +80,29 @@ def test_ospf_14_set_retransmit_window_raises():
         builder.set_area_virtual_link_retransmit_window("0", "192.0.2.1", "5")
 
 
-def test_ospf_14_delete_retransmit_window():
+def test_ospf_14_delete_retransmit_window_raises():
     builder = OspfBatchBuilder(version="1.4")
-    builder.delete_interface_retransmit_window("eth0")
-    builder.delete_area_virtual_link_retransmit_window("0", "192.0.2.1")
-    ops = builder.get_operations()
-    assert ops[0]["op"] == "delete"
-    assert ops[0]["path"] == ["protocols", "ospf", "interface", "eth0", "retransmit-window"]
-    assert ops[1]["path"][-1] == "retransmit-window"
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_interface_retransmit_window("eth0")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_area_virtual_link_retransmit_window("0", "192.0.2.1")
+    assert builder.is_empty()
 
 
 def test_ospf_capabilities_retransmit_window():
     caps_14 = OspfBatchBuilder(version="1.4").get_capabilities()
     caps_15 = OspfBatchBuilder(version="1.5").get_capabilities()
-    assert caps_14["features"]["retransmit_window"]["supported"] is False
-    assert caps_15["features"]["retransmit_window"]["supported"] is True
+    for section in ("interfaces", "virtual_links"):
+        assert caps_14["features"][section]["retransmit_window"] is False
+        assert caps_15["features"][section]["retransmit_window"] is True
 
 
 def test_interface_modal_gates_retransmit_window():
     text = MODAL.read_text()
-    assert 'id="ospf-iface-retransmit-window"' in text
+    assert '"ospf-iface-retransmit-window"' in text
     assert 't("interfaceModal.retransmitWindow")' in text
     assert en_message(REPO, "ospf.json", "interfaceModal.retransmitWindow") == "Retransmit Window"
-    assert "features?.retransmit_window?.supported" in text
+    assert "features?.interfaces?.retransmit_window" in text
     assert "VyOS 1." not in text
     assert "1.5+" not in text
     assert "1.4 only" not in text

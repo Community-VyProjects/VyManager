@@ -2,7 +2,6 @@
 L2TP VPN Router
 
 API endpoints for managing VyOS L2TP remote-access VPN configuration.
-The L2TP command tree is identical between VyOS 1.4 and 1.5.
 
 Uses session-based architecture - VyOS instance comes from user's active session.
 """
@@ -38,7 +37,7 @@ class L2TPBatchOperation(BaseModel):
 
 class L2TPBatchRequest(BaseModel):
     """Batch request for L2TP configuration changes."""
-    item_name: str = Field(..., description="Primary item name (e.g., username, pool name, or placeholder for global ops)")
+    item_name: str = Field(..., min_length=1, description="Primary item name (e.g., username, pool name, or placeholder for global ops)")
     operations: List[L2TPBatchOperation]
 
 
@@ -80,18 +79,7 @@ async def get_l2tp_capabilities(request: Request):
 
 @router.get("/config")
 async def get_l2tp_config(request: Request, refresh: bool = False):
-    """
-    Get L2TP remote-access configuration from VyOS.
-
-    Returns generalized L2TP configuration data including:
-    - General settings (outside address, gateway, MTU, DNS)
-    - Authentication (local users, RADIUS)
-    - IPSec settings
-    - Client IP pools (IPv4 and IPv6)
-    - PPP options
-    - LNS settings
-    - Limits, logging, scripts, shaper, SNMP
-    """
+    """Get L2TP remote-access configuration from VyOS, secrets masked."""
     await require_read_permission(request, FeatureGroup.L2TP)
     try:
         service = get_session_vyos_service(request)
@@ -100,83 +88,7 @@ async def get_l2tp_config(request: Request, refresh: bool = False):
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         mapper = cast(L2TPMapper, CommandMapperRegistry.get_mapper("l2tp", version))
-        config = mapper.parse_config(full_config)
-
-        # Convert local users dict to list for frontend
-        local_users = []
-        for username, data in config.get("authentication", {}).get("local_users", {}).items():
-            # Mask passwords
-            masked = {**data}
-            if masked.get("password"):
-                masked["password"] = "***"
-            local_users.append(masked)
-
-        # Convert RADIUS servers dict to list
-        radius_servers = []
-        for addr, data in config.get("authentication", {}).get("radius", {}).get("servers", {}).items():
-            radius_servers.append(data)
-
-        # Convert client IP pools dict to list
-        client_ip_pools = []
-        for name, data in config.get("client_ip_pools", {}).items():
-            client_ip_pools.append(data)
-
-        # Convert client IPv6 pools dict to list
-        client_ipv6_pools = []
-        for name, data in config.get("client_ipv6_pools", {}).items():
-            client_ipv6_pools.append(data)
-
-        auth = config.get("authentication", {})
-        radius = auth.get("radius", {})
-
-        return {
-            "configured": config.get("configured", False),
-            "description": config.get("description"),
-            "outside_address": config.get("outside_address"),
-            "gateway_address": config.get("gateway_address"),
-            "mtu": config.get("mtu"),
-            "name_servers": config.get("name_servers", []),
-            "wins_servers": config.get("wins_servers", []),
-            "default_pool": config.get("default_pool"),
-            "default_ipv6_pool": config.get("default_ipv6_pool"),
-            "max_concurrent_sessions": config.get("max_concurrent_sessions"),
-            "thread_count": config.get("thread_count"),
-            "authentication": {
-                "mode": auth.get("mode"),
-                "protocols": auth.get("protocols", []),
-                "local_users": local_users,
-                "radius": {
-                    "servers": radius_servers,
-                    "source_address": radius.get("source_address"),
-                    "timeout": radius.get("timeout"),
-                    "max_try": radius.get("max_try"),
-                    "nas_identifier": radius.get("nas_identifier"),
-                    "nas_ip_address": radius.get("nas_ip_address"),
-                    "preallocate_vif": radius.get("preallocate_vif", False),
-                    "accounting_interim_interval": radius.get("accounting_interim_interval"),
-                    "acct_interim_jitter": radius.get("acct_interim_jitter"),
-                    "acct_timeout": radius.get("acct_timeout"),
-                    "dynamic_author": radius.get("dynamic_author", {}),
-                    "rate_limit": radius.get("rate_limit", {}),
-                },
-            },
-            "ipsec_settings": config.get("ipsec_settings", {}),
-            "client_ip_pools": client_ip_pools,
-            "client_ipv6_pools": client_ipv6_pools,
-            "ppp_options": config.get("ppp_options", {}),
-            "lns": config.get("lns", {}),
-            "limits": config.get("limits", {}),
-            "log": config.get("log", {}),
-            "extended_scripts": config.get("extended_scripts", {}),
-            "shaper": config.get("shaper", {}),
-            "snmp": config.get("snmp", {}),
-            "totals": {
-                "local_users": len(local_users),
-                "radius_servers": len(radius_servers),
-                "client_ip_pools": len(client_ip_pools),
-                "client_ipv6_pools": len(client_ipv6_pools),
-            },
-        }
+        return mapper.parse_config(full_config)
     except HTTPException:
         raise
     except Exception:
@@ -191,16 +103,12 @@ async def get_l2tp_config(request: Request, refresh: bool = False):
 @router.post("/batch", response_model=VyOSResponse)
 async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest):
     """
-    Execute a batch of L2TP configuration operations.
+    Execute a batch of L2TP configuration operations in one VyOS commit.
 
-    All operations are executed in a single VyOS commit for atomicity.
-
-    The item_name field serves as the primary identifier for the operations
-    (e.g., username for local user ops, pool name for pool ops, or a
-    placeholder like "l2tp" for global settings).
-
-    Each operation's `op` field maps to a method on L2TPBatchBuilder.
-    The `value` field provides additional parameters when needed.
+    Each operation's `op` names a method on L2TPBatchBuilder. The first
+    parameter is bound to `item_name` (a username, a pool name, or a
+    placeholder such as "l2tp" for global settings); further parameters
+    come from `value`, split on "|".
     """
     await require_write_permission(http_request, FeatureGroup.L2TP)
     try:
@@ -209,40 +117,28 @@ async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest)
 
         builder = L2TPBatchBuilder(version=version)
 
-        for operation in request.operations:
+        try:
+            for operation in request.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
 
-            method = resolve_batch_method(builder, operation.op)
-
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            args = []
-            if len(params) >= 1:
-                args.append(request.item_name)
-            if len(params) >= 2:
+                if count == 1:
+                    method(request.item_name)
+                    continue
                 if not operation.value:
                     raise HTTPException(
                         status_code=400,
                         detail=f"Operation {operation.op} requires a value",
                     )
-                if len(params) >= 3:
-                    parts = operation.value.split("|", len(params) - 2)
-                    if len(parts) != len(params) - 1:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Operation {operation.op} requires a value",
-                        )
-                    args.extend(parts)
-                else:
-                    args.append(operation.value)
-
-            try:
-                method(*args)
-            except TypeError:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid parameters for operation {operation.op}",
-                )
+                parts = operation.value.split("|", count - 2)
+                if len(parts) != count - 1 or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {count - 1} values",
+                    )
+                method(request.item_name, *parts)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
         if builder.is_empty():
             return VyOSResponse(
@@ -254,7 +150,7 @@ async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest)
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "L2TP configuration updated"},
+            data={"message": "L2TP configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
