@@ -46,6 +46,22 @@ function effectiveSecret(current: L2TPPPPOptions, updated: L2TPPPPOptionsUpdate)
   return secret(updated.ipv6_peer_interface_id_secret);
 }
 
+/** True when the field still holds the mask of a secret the device has. */
+function keepsStoredSecret(current: L2TPPPPOptions, value: string): boolean {
+  return value === MASKED_SECRET && secret(current.ipv6_peer_interface_id_secret) === MASKED_SECRET;
+}
+
+/**
+ * Next value of a password field that loads the mask: typing into the mask
+ * replaces it instead of appending to it, and erasing part of it clears it.
+ */
+export function replaceMask(previous: string, next: string): string {
+  if (previous !== MASKED_SECRET) return next;
+  if (next.startsWith(MASKED_SECRET)) return next.slice(MASKED_SECRET.length);
+  if (MASKED_SECRET.startsWith(next)) return "";
+  return next;
+}
+
 /** A save the lab commit would reject, or null. */
 export function pppOptionsProblem(
   current: L2TPPPPOptions,
@@ -54,7 +70,7 @@ export function pppOptionsProblem(
 ): L2TPPPPProblem | null {
   if (!secretSupported) return null;
   const value = effectiveSecret(current, updated);
-  if (value && value !== MASKED_SECRET && !PEER_ID_SECRET_PATTERN.test(value)) {
+  if (value && !keepsStoredSecret(current, value) && !PEER_ID_SECRET_PATTERN.test(value)) {
     return "peerInterfaceIdSecretInvalid";
   }
   const peerId = updated.ipv6_peer_interface_id === undefined
@@ -118,7 +134,7 @@ export function buildPPPOptionsOps(
   }
   if (secretSupported && updated.ipv6_peer_interface_id_secret !== undefined) {
     const after = secret(updated.ipv6_peer_interface_id_secret);
-    if (after !== MASKED_SECRET) {
+    if (!keepsStoredSecret(current, after)) {
       if (after) {
         ops.push({ op: "set_ppp_ipv6_peer_interface_id_secret", value: after });
       } else if (secret(current.ipv6_peer_interface_id_secret)) {

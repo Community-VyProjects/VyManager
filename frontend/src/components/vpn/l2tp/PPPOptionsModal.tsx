@@ -24,7 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
 import { l2tpService, L2TPPPPOptions, L2TPCapabilities } from "@/lib/api/l2tp";
-import { pppOptionsProblem, type L2TPPPPOptionsUpdate } from "@/lib/api/l2tp-ppp-save-ops";
+import { pppOptionsProblem, replaceMask, type L2TPPPPOptionsUpdate } from "@/lib/api/l2tp-ppp-save-ops";
 import { NONE_SENTINEL, fromNamedListValue, listedNames, toNamedListValue } from "@/lib/named-list-select-options";
 import { ApiError } from "@/lib/types/api";
 
@@ -231,7 +231,11 @@ export function PPPOptionsModal({
                 type="password"
                 autoComplete="new-password"
                 value={ipv6PeerInterfaceIdSecret}
-                onChange={(e) => setIpv6PeerInterfaceIdSecret(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setIpv6PeerInterfaceIdSecret((prev) => replaceMask(prev, next));
+                }}
+                placeholder={t("shared.enterSecret")}
               />
             </div>
           )}

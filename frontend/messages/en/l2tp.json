@@ -167,7 +167,7 @@
     "lcpEcho": "LCP Echo",
     "peerInterfaceIdSecret": "Peer Interface ID Secret",
     "peerInterfaceIdSecretRequired": "calling-sid needs a peer interface ID secret",
-    "peerInterfaceIdSecretInvalid": "The secret must be 16 to 128 printable characters with no spaces"
+    "peerInterfaceIdSecretInvalid": "The secret must be 16 to 128 printable ASCII characters with no spaces"
   },
   "advanced": {
     "updateFailed": "Failed to update advanced settings",

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   MASKED_SECRET,
   buildPPPOptionsOps,
+  replaceMask,
   pppOptionsProblem,
   type L2TPPPPOptionsUpdate,
 } from "./l2tp-ppp-save-ops";
@@ -95,13 +96,34 @@ describe("pppOptionsProblem", () => {
   });
 
   it("rejects a secret the lab syntax refuses", () => {
-    for (const bad of ["short", "has space in it 0123", "x".repeat(129)]) {
+    for (const bad of ["short", "has space in it 0123", "x".repeat(129), "\u00e9".repeat(16)]) {
       assert.equal(
         pppOptionsProblem({}, { ipv6_peer_interface_id_secret: bad }, true),
         "peerInterfaceIdSecretInvalid",
       );
     }
     assert.equal(pppOptionsProblem({}, { ipv6_peer_interface_id_secret: SECRET }, true), null);
+  });
+
+  it("does not take a typed mask as a stored secret", () => {
+    assert.equal(
+      pppOptionsProblem(
+        {},
+        { ipv6_peer_interface_id: "calling-sid", ipv6_peer_interface_id_secret: MASKED_SECRET },
+        true,
+      ),
+      "peerInterfaceIdSecretInvalid",
+    );
+  });
+});
+
+describe("replaceMask", () => {
+  it("replaces the loaded mask instead of appending to it", () => {
+    assert.equal(replaceMask(MASKED_SECRET, `${MASKED_SECRET}${SECRET}`), SECRET);
+    assert.equal(replaceMask(MASKED_SECRET, "**"), "");
+    assert.equal(replaceMask(MASKED_SECRET, "n"), "n");
+    assert.equal(replaceMask("abc", "abcd"), "abcd");
+    assert.equal(replaceMask("", MASKED_SECRET), MASKED_SECRET);
   });
 });
 
