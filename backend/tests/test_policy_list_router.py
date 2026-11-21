@@ -233,6 +233,18 @@ def test_rejected_commit_is_success_false(monkeypatch, kind):
 
 
 @pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("rule_number", [-1, 65536])
+def test_out_of_range_rule_number_is_rejected(monkeypatch, kind, rule_number):
+    service = Service()
+    client = _app(monkeypatch, kind, service)
+
+    response = _batch(client, kind, [{"op": "delete_rule"}], rule_number=rule_number)
+
+    assert response.status_code == 422
+    assert service.executed == []
+
+
+@pytest.mark.parametrize("kind", KINDS)
 @pytest.mark.parametrize(
     "method,path,body",
     [
@@ -380,3 +392,35 @@ def test_config_route_returns_parse_config_through_the_response_model(monkeypatc
         "regex": "65000:1",
     }
     assert body[lists_field][1]["rules"] == []
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_reorder_rejected_commit_is_success_false(monkeypatch, kind):
+    service = Service(status=400, error="Commit failed")
+    client = _app(monkeypatch, kind, service)
+
+    response = _reorder(
+        client,
+        kind,
+        [{"old_number": 10, "new_number": 5, "rule_data": {"rule_number": 10}}],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is False
+    assert response.json()["error"] == "Commit failed"
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_reorder_blank_list_name_is_rejected(monkeypatch, kind):
+    service = Service()
+    client = _app(monkeypatch, kind, service)
+
+    response = _reorder(
+        client,
+        kind,
+        [{"old_number": 10, "new_number": 5, "rule_data": {"rule_number": 10}}],
+        name="",
+    )
+
+    assert response.status_code == 422
+    assert service.executed == []
