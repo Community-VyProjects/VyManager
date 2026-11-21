@@ -9,11 +9,11 @@ from vyos_mappers.base import CommandMapperRegistry
 
 VRF_MAPPER_KEYS = (
     "vrf",
-    "vrf_rpki",
     "vrf_ospf",
     "vrf_ospfv3",
     "vrf_isis",
     "vrf_bgp",
+    "static_routes",
 )
 
 

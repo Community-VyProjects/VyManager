@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle } from "lucide-react";
 import {
   nat66Service,
@@ -32,8 +33,25 @@ import {
   type NAT66DestinationRule,
   type NAT66Capabilities,
 } from "@/lib/api/nat66";
+import {
+  PORT_PROTOCOLS,
+  emptySide,
+  groupKey,
+  nat66RuleProblem,
+  sideFields,
+  type NAT66RuleFields,
+  type NAT66Side,
+  type NAT66SideFields,
+} from "@/lib/api/nat66-save-ops";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
-import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
+import type { FirewallGroup, GroupsConfigResponse } from "@/lib/api/types/firewall-groups";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  listedNames,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
+import type { ApiError } from "@/lib/types/api";
 
 interface NAT66RuleDialogProps {
   open: boolean;
@@ -44,6 +62,25 @@ interface NAT66RuleDialogProps {
   nextRuleNumber: number;
   onSuccess: () => void;
 }
+
+/** IPv6 firewall groups a nat66 group match can name, per CLI group type. */
+const GROUP_OPTIONS: Record<string, (config: GroupsConfigResponse) => FirewallGroup[]> = {
+  "address-group": (config) => config.ipv6_address_groups,
+  "domain-group": (config) => config.domain_groups,
+  "mac-group": (config) => config.mac_groups,
+  "network-group": (config) => config.ipv6_network_groups,
+  "port-group": (config) => config.port_groups,
+};
+
+const GROUP_LABELS = {
+  "address-group": "ruleDialog.ipv6AddressGroup",
+  "domain-group": "ruleDialog.domainGroup",
+  "mac-group": "ruleDialog.macGroup",
+  "network-group": "ruleDialog.ipv6NetworkGroup",
+  "port-group": "ruleDialog.portGroup",
+} as const;
+
+const NO_GROUP_TYPES: string[] = [];
 
 export function NAT66RuleDialog({
   open,
@@ -58,36 +95,25 @@ export function NAT66RuleDialog({
   const tc = useTranslations("common");
   const isEditing = !!editingRule;
   const isSource = ruleType === "source";
+  const matchKey = isSource ? "prefix" : "address";
   const groupsSupported = capabilities?.features?.groups?.supported ?? false;
+  const groupTypes = useMemo(
+    () => (groupsSupported ? capabilities?.features.groups.group_types || NO_GROUP_TYPES : NO_GROUP_TYPES),
+    [groupsSupported, capabilities]
+  );
+  const protocols = capabilities?.protocols || [];
 
-  // Dropdown data
-  const [groups, setGroups] = useState<FirewallGroup[]>([]);
+  const [groupsConfig, setGroupsConfig] = useState<GroupsConfigResponse | null>(null);
 
   // Form fields
   const [description, setDescription] = useState("");
-  const [protocol, setProtocol] = useState("all");
+  const [protocol, setProtocol] = useState("");
   const [interfaceName, setInterfaceName] = useState("");
-
-  // Source
-  const [sourceValue, setSourceValue] = useState("");
-  const [sourcePort, setSourcePort] = useState("");
-
-  // Destination - radio toggle: user input vs firewall group
-  const [destinationType, setDestinationType] = useState<"input" | "group">("input");
-  const [destinationValue, setDestinationValue] = useState("");
-  const [destinationGroupType, setDestinationGroupType] = useState("");
-  const [destinationGroupName, setDestinationGroupName] = useState("");
-  // Destination port - radio toggle: user input vs port group
-  const [destPortType, setDestPortType] = useState<"input" | "group">("input");
-  const [destinationPort, setDestinationPort] = useState("");
-  const [destPortGroupName, setDestPortGroupName] = useState("");
-
-  // Translation
+  const [source, setSource] = useState<NAT66SideFields>(emptySide);
+  const [destination, setDestination] = useState<NAT66SideFields>(emptySide);
   const [translationType, setTranslationType] = useState<"address" | "masquerade">("address");
   const [translationAddress, setTranslationAddress] = useState("");
   const [translationPort, setTranslationPort] = useState("");
-
-  // Flags
   const [disable, setDisable] = useState(false);
   const [exclude, setExclude] = useState(false);
   const [log, setLog] = useState(false);
@@ -97,305 +123,157 @@ export function NAT66RuleDialog({
 
   // Load firewall groups on open
   useEffect(() => {
-    if (open) {
-      if (groupsSupported) {
-        loadGroups();
-      }
+    if (open && groupsSupported) {
+      firewallGroupsService
+        .getConfig()
+        .then(setGroupsConfig)
+        .catch(() => setError(t("ruleDialog.groupsLoadFailed")));
     }
-  }, [open, groupsSupported]);
+  }, [open, groupsSupported, t]);
 
-  const loadGroups = async () => {
-    try {
-      const config = await firewallGroupsService.getConfig();
-      // NAT66 is IPv6-only: only ipv6-address, ipv6-network, mac, domain, port groups
-      const allGroups = [
-        ...config.ipv6_address_groups,
-        ...config.ipv6_network_groups,
-        ...config.port_groups,
-        ...config.mac_groups,
-        ...config.domain_groups,
-      ];
-      setGroups(allGroups);
-    } catch (err) {
-      console.error("Failed to load firewall groups:", err);
-    }
-  };
-
-  // Group filter helpers - IPv6 only
-  const getAddressGroups = () => (groups || []).filter(g => g.type === "ipv6-address-group");
-  const getNetworkGroups = () => (groups || []).filter(g => g.type === "ipv6-network-group");
-  const getDomainGroups = () => (groups || []).filter(g => g.type === "domain-group");
-  const getMacGroups = () => (groups || []).filter(g => g.type === "mac-group");
-  const getPortGroups = () => (groups || []).filter(g => g.type === "port-group");
-
-  const getGroupsByType = (groupType: string) => {
-    switch (groupType) {
-      case "address-group": return getAddressGroups();
-      case "network-group": return getNetworkGroups();
-      case "domain-group": return getDomainGroups();
-      case "mac-group": return getMacGroups();
-      default: return [];
-    }
-  };
-
-  const resetForm = useCallback(() => {
-    setDescription("");
-    setProtocol("all");
-    setInterfaceName("");
-    setSourceValue("");
-    setSourcePort("");
-    setDestinationType("input");
-    setDestinationValue("");
-    setDestinationGroupType("");
-    setDestinationGroupName("");
-    setDestPortType("input");
-    setDestinationPort("");
-    setDestPortGroupName("");
-    setTranslationType(isSource ? "masquerade" : "address");
-    setTranslationAddress("");
-    setTranslationPort("");
-    setDisable(false);
-    setExclude(false);
-    setLog(false);
-    setError(null);
-  }, [isSource]);
-
-  // Reset form when dialog opens
+  // Load the form when the dialog opens
   useEffect(() => {
-    if (open) {
-      setError(null);
-      if (editingRule) {
-        setDescription(editingRule.description || "");
-        setProtocol(editingRule.protocol || "all");
-        setDisable(editingRule.disable);
-        setExclude(editingRule.exclude);
-        setLog(editingRule.log);
-
-        if (isSource) {
-          const rule = editingRule as NAT66SourceRule;
-          setInterfaceName(rule.outbound_interface || "");
-          setSourceValue(rule.source?.prefix || "");
-          setSourcePort(rule.source?.port || "");
-          // Destination address group or user input
-          const dstGroup = rule.destination?.group;
-          const dstHasAddrGroup = dstGroup && (dstGroup.address_group || dstGroup.network_group || dstGroup.domain_group || dstGroup.mac_group);
-          if (dstHasAddrGroup) {
-            setDestinationType("group");
-            if (dstGroup.address_group) { setDestinationGroupType("address-group"); setDestinationGroupName(dstGroup.address_group); }
-            else if (dstGroup.network_group) { setDestinationGroupType("network-group"); setDestinationGroupName(dstGroup.network_group); }
-            else if (dstGroup.domain_group) { setDestinationGroupType("domain-group"); setDestinationGroupName(dstGroup.domain_group); }
-            else if (dstGroup.mac_group) { setDestinationGroupType("mac-group"); setDestinationGroupName(dstGroup.mac_group); }
-            setDestinationValue("");
-          } else {
-            setDestinationType("input");
-            setDestinationValue(rule.destination?.prefix || "");
-            setDestinationGroupType("");
-            setDestinationGroupName("");
-          }
-          // Destination port: port group or user input
-          if (dstGroup?.port_group) {
-            setDestPortType("group");
-            setDestPortGroupName(dstGroup.port_group);
-            setDestinationPort("");
-          } else if (rule.destination?.port) {
-            setDestPortType("input");
-            setDestinationPort(rule.destination.port);
-            setDestPortGroupName("");
-          } else {
-            setDestPortType("input");
-            setDestinationPort("");
-            setDestPortGroupName("");
-          }
-        } else {
-          const rule = editingRule as NAT66DestinationRule;
-          setInterfaceName(rule.inbound_interface || "");
-          setSourceValue(rule.source?.address || "");
-          setSourcePort(rule.source?.port || "");
-          // Destination address group or user input
-          const dstGroup = rule.destination?.group;
-          const dstHasAddrGroup = dstGroup && (dstGroup.address_group || dstGroup.network_group || dstGroup.domain_group || dstGroup.mac_group);
-          if (dstHasAddrGroup) {
-            setDestinationType("group");
-            if (dstGroup.address_group) { setDestinationGroupType("address-group"); setDestinationGroupName(dstGroup.address_group); }
-            else if (dstGroup.network_group) { setDestinationGroupType("network-group"); setDestinationGroupName(dstGroup.network_group); }
-            else if (dstGroup.domain_group) { setDestinationGroupType("domain-group"); setDestinationGroupName(dstGroup.domain_group); }
-            else if (dstGroup.mac_group) { setDestinationGroupType("mac-group"); setDestinationGroupName(dstGroup.mac_group); }
-            setDestinationValue("");
-          } else {
-            setDestinationType("input");
-            setDestinationValue(rule.destination?.address || "");
-            setDestinationGroupType("");
-            setDestinationGroupName("");
-          }
-          // Destination port
-          if (dstGroup?.port_group) {
-            setDestPortType("group");
-            setDestPortGroupName(dstGroup.port_group);
-            setDestinationPort("");
-          } else if (rule.destination?.port) {
-            setDestPortType("input");
-            setDestinationPort(rule.destination.port);
-            setDestPortGroupName("");
-          } else {
-            setDestPortType("input");
-            setDestinationPort("");
-            setDestPortGroupName("");
-          }
-        }
-
-        const isMasq = isSource && editingRule.translation?.address === "masquerade";
-        setTranslationType(isMasq ? "masquerade" : "address");
-        setTranslationAddress(isMasq ? "" : editingRule.translation?.address || "");
-        setTranslationPort(editingRule.translation?.port || "");
-      } else {
-        resetForm();
-      }
+    if (!open) return;
+    setError(null);
+    if (editingRule) {
+      setDescription(editingRule.description || "");
+      setProtocol(editingRule.protocol || "");
+      setDisable(editingRule.disable);
+      setExclude(editingRule.exclude);
+      setLog(editingRule.log);
+      setInterfaceName(
+        (isSource
+          ? (editingRule as NAT66SourceRule).outbound_interface
+          : (editingRule as NAT66DestinationRule).inbound_interface) || ""
+      );
+      setSource(sideFields(editingRule.source, matchKey));
+      setDestination(sideFields(editingRule.destination, matchKey));
+      const isMasq = isSource && editingRule.translation?.address === "masquerade";
+      setTranslationType(isMasq ? "masquerade" : "address");
+      setTranslationAddress(isMasq ? "" : editingRule.translation?.address || "");
+      setTranslationPort(editingRule.translation?.port || "");
+    } else {
+      setDescription("");
+      setProtocol("");
+      setInterfaceName("");
+      setSource(emptySide());
+      setDestination(emptySide());
+      setTranslationType(isSource ? "masquerade" : "address");
+      setTranslationAddress("");
+      setTranslationPort("");
+      setDisable(false);
+      setExclude(false);
+      setLog(false);
     }
-  }, [open, editingRule, isSource, resetForm]);
+  }, [open, editingRule, isSource, matchKey]);
+
+  const showPortFields = PORT_PROTOCOLS.includes(protocol);
 
   const handleSave = async () => {
+    const fields: NAT66RuleFields = {
+      description,
+      protocol,
+      interfaceName,
+      source,
+      destination,
+      translationAddress: isSource && translationType === "masquerade" ? "masquerade" : translationAddress,
+      translationPort,
+      disable,
+      exclude,
+      log,
+    };
+    const problem = nat66RuleProblem(fields);
+    if (problem) {
+      setError(t(`ruleDialog.${problem}`));
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      const effectiveTranslationAddress =
-        translationType === "masquerade" && isSource
-          ? "masquerade"
-          : translationAddress || undefined;
-
-      // Determine source/dest values based on radio selection
-      const effectiveSourceValue = sourceValue;
-      const effectiveDestValue = destinationType === "input" ? destinationValue : undefined;
-      const effectiveSourcePort = sourcePort;
-      const effectiveDestPort = destPortType === "input" ? destinationPort : undefined;
-
-      if (isSource) {
-        if (isEditing) {
-          await nat66Service.updateSourceRule(
-            editingRule!.rule_number,
-            editingRule as NAT66SourceRule,
-            {
-              description,
-              sourcePrefix: effectiveSourceValue,
-              sourcePort: effectiveSourcePort,
-              destinationPrefix: effectiveDestValue,
-              destinationPort: effectiveDestPort,
-              outboundInterface: interfaceName,
-              protocol: protocol === "all" ? "" : protocol,
-              translationAddress: effectiveTranslationAddress,
-              translationPort,
-              exclude,
-              log,
-              disable,
-            }
-          );
-        } else {
-          await nat66Service.createSourceRule({
-            ruleNumber: nextRuleNumber,
-            description: description || undefined,
-            sourcePrefix: effectiveSourceValue || undefined,
-            sourcePort: effectiveSourcePort || undefined,
-            destinationPrefix: effectiveDestValue || undefined,
-            destinationPort: effectiveDestPort || undefined,
-            outboundInterface: interfaceName || undefined,
-            protocol: protocol && protocol !== "all" ? protocol : undefined,
-            translationAddress: effectiveTranslationAddress,
-            translationPort: translationPort || undefined,
-            exclude,
-            log,
-            disable,
-          });
-        }
-
-        // Handle destination address groups
-        if (destinationType === "group" && destinationGroupType && destinationGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "source",
-            [{ op: "set_source_rule_destination_group", value: `${destinationGroupType}:${destinationGroupName}` }]
-          );
-        }
-        // Handle destination port group
-        if (destPortType === "group" && destPortGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "source",
-            [{ op: "set_source_rule_destination_group", value: `port-group:${destPortGroupName}` }]
-          );
-        }
+      if (editingRule) {
+        await nat66Service.updateRule(ruleType, editingRule, fields, groupTypes);
       } else {
-        if (isEditing) {
-          await nat66Service.updateDestinationRule(
-            editingRule!.rule_number,
-            editingRule as NAT66DestinationRule,
-            {
-              description,
-              sourceAddress: effectiveSourceValue,
-              sourcePort: effectiveSourcePort,
-              destinationAddress: effectiveDestValue,
-              destinationPort: effectiveDestPort,
-              inboundInterface: interfaceName,
-              protocol: protocol === "all" ? "" : protocol,
-              translationAddress: translationAddress || undefined,
-              translationPort,
-              exclude,
-              log,
-              disable,
-            }
-          );
-        } else {
-          await nat66Service.createDestinationRule({
-            ruleNumber: nextRuleNumber,
-            description: description || undefined,
-            sourceAddress: effectiveSourceValue || undefined,
-            sourcePort: effectiveSourcePort || undefined,
-            destinationAddress: effectiveDestValue || undefined,
-            destinationPort: effectiveDestPort || undefined,
-            inboundInterface: interfaceName || undefined,
-            protocol: protocol && protocol !== "all" ? protocol : undefined,
-            translationAddress: translationAddress || undefined,
-            translationPort: translationPort || undefined,
-            exclude,
-            log,
-            disable,
-          });
-        }
-
-        // Handle destination address groups
-        if (destinationType === "group" && destinationGroupType && destinationGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "destination",
-            [{ op: "set_destination_rule_destination_group", value: `${destinationGroupType}:${destinationGroupName}` }]
-          );
-        }
-        // Handle destination port group
-        if (destPortType === "group" && destPortGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "destination",
-            [{ op: "set_destination_rule_destination_group", value: `port-group:${destPortGroupName}` }]
-          );
-        }
+        await nat66Service.createRule(ruleType, nextRuleNumber, fields, groupTypes);
       }
-
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSaving(false);
     }
   };
 
-  const showPortFields = protocol === "tcp" || protocol === "udp" || protocol === "tcp_udp";
+  const groupLabel = (type: string) =>
+    type in GROUP_LABELS ? t(GROUP_LABELS[type as keyof typeof GROUP_LABELS]) : type;
+
+  const renderSide = (
+    side: NAT66Side,
+    fields: NAT66SideFields,
+    setFields: (fields: NAT66SideFields) => void
+  ) => {
+    const isSourceSide = side === "source";
+    const matchLabel = isSource
+      ? isSourceSide ? t("ruleDialog.sourcePrefix") : t("ruleDialog.destinationPrefix")
+      : isSourceSide ? t("ruleDialog.sourceAddress") : t("ruleDialog.destinationAddress");
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor={`nat66-${side}-match`}>{matchLabel}</Label>
+          <Input
+            id={`nat66-${side}-match`}
+            value={fields.match}
+            onChange={(e) => setFields({ ...fields, match: e.target.value })}
+            placeholder={isSource ? (isSourceSide ? "fd00::/64" : "fd01::/64") : (isSourceSide ? "fd00::1" : "fd01::1")}
+            className="font-mono"
+          />
+        </div>
+
+        {showPortFields && (
+          <div className="space-y-2">
+            <Label htmlFor={`nat66-${side}-port`}>
+              {isSourceSide ? t("ruleDialog.sourcePort") : t("ruleDialog.destinationPort")}
+            </Label>
+            <Input
+              id={`nat66-${side}-port`}
+              value={fields.port}
+              onChange={(e) => setFields({ ...fields, port: e.target.value })}
+              placeholder={isSourceSide ? t("ruleDialog.sourcePortPlaceholder") : t("ruleDialog.destinationPortPlaceholder")}
+              className="font-mono"
+            />
+          </div>
+        )}
+
+        {groupTypes
+          .filter((type) => type !== "port-group" || showPortFields)
+          .map((type) => {
+            const key = groupKey(type);
+            const names = (groupsConfig && GROUP_OPTIONS[type] ? GROUP_OPTIONS[type](groupsConfig) : []).map(
+              (group) => group.name
+            );
+            return (
+              <div key={type} className="space-y-2">
+                <Label htmlFor={`nat66-${side}-${type}`}>{groupLabel(type)}</Label>
+                <NamedListSelect
+                  id={`nat66-${side}-${type}`}
+                  value={fields.groups[key] ?? ""}
+                  names={names}
+                  onValueChange={(value) => setFields({ ...fields, groups: { ...fields.groups, [key]: value } })}
+                />
+              </div>
+            );
+          })}
+      </>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing
-              ? t("ruleDialog.editTitle", { type: ruleType, number: String(editingRule!.rule_number) })
+            {editingRule
+              ? t("ruleDialog.editTitle", { type: ruleType, number: String(editingRule.rule_number) })
               : t("ruleDialog.createTitle", { type: ruleType })}
           </DialogTitle>
           <DialogDescription>
@@ -420,11 +298,8 @@ export function NAT66RuleDialog({
           <div className="space-y-2 bg-muted/30 border border-muted rounded-lg p-4">
             <Label>{t("ruleDialog.ruleNumberAuto")}</Label>
             <div className="text-2xl font-mono font-bold text-primary">
-              {isEditing ? editingRule!.rule_number : nextRuleNumber}
+              {editingRule ? editingRule.rule_number : nextRuleNumber}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t("ruleDialog.autoAssignedHint", { number: String(isEditing ? editingRule!.rule_number : nextRuleNumber) })}
-            </p>
           </div>
 
           {/* Description */}
@@ -449,7 +324,6 @@ export function NAT66RuleDialog({
 
             {/* Basic Tab */}
             <TabsContent value="basic" className="space-y-4">
-              {/* Interface - dropdown from /vyos/show/all-interfaces */}
               <div className="space-y-2">
                 <Label htmlFor="nat66-iface">
                   {isSource ? t("ruleDialog.outboundInterface") : t("ruleDialog.inboundInterface")}
@@ -459,10 +333,10 @@ export function NAT66RuleDialog({
                   onValueChange={setInterfaceName}
                   id="nat66-iface"
                   placeholder={tc("selectInterface")}
+                  noneOption={{ label: tc("none"), value: "" }}
                 />
               </div>
 
-              {/* Translation */}
               {isSource && (
                 <div className="space-y-2">
                   <Label>{t("ruleDialog.translationType")}</Label>
@@ -507,143 +381,28 @@ export function NAT66RuleDialog({
                 </div>
               )}
 
-              {/* Protocol */}
               <div className="space-y-2">
                 <Label htmlFor="nat66-protocol">{t("ruleDialog.protocol")}</Label>
-                <Select value={protocol} onValueChange={setProtocol}>
+                <Select value={toNamedListValue(protocol)} onValueChange={(v) => setProtocol(fromNamedListValue(v))}>
                   <SelectTrigger id="nat66-protocol">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">{t("ruleDialog.protocolAll")}</SelectItem>
-                    <SelectItem value="tcp">TCP</SelectItem>
-                    <SelectItem value="udp">UDP</SelectItem>
-                    <SelectItem value="tcp_udp">{t("ruleDialog.protocolTcpUdp")}</SelectItem>
-                    <SelectItem value="icmpv6">ICMPv6</SelectItem>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                    {listedNames(protocols, protocol).map((name) => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </TabsContent>
 
-            {/* Source Tab */}
             <TabsContent value="source" className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nat66-source-input">{isSource ? t("ruleDialog.sourcePrefix") : t("ruleDialog.sourceAddress")}</Label>
-                <Input
-                  id="nat66-source-input"
-                  value={sourceValue}
-                  onChange={(e) => setSourceValue(e.target.value)}
-                  placeholder={isSource ? "fd00::/64" : "fd00::1"}
-                  className="font-mono"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="nat66-source-port">{t("ruleDialog.sourcePort")}</Label>
-                <Input
-                  id="nat66-source-port"
-                  value={sourcePort}
-                  onChange={(e) => setSourcePort(e.target.value)}
-                  placeholder={t("ruleDialog.sourcePortPlaceholder")}
-                  className="font-mono"
-                />
-              </div>
+              {renderSide("source", source, setSource)}
             </TabsContent>
 
-            {/* Destination Tab */}
             <TabsContent value="destination" className="space-y-4">
-              {/* Destination address/prefix vs firewall group — independent of port */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">{isSource ? t("ruleDialog.destinationPrefix") : t("ruleDialog.destinationAddress")}</Label>
-                <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "input" | "group")}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="input" id="nat66-dest-input-radio" />
-                    <Label htmlFor="nat66-dest-input-radio">{t("ruleDialog.addressNetwork")}</Label>
-                  </div>
-                  {groupsSupported && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="group" id="nat66-dest-group-radio" />
-                      <Label htmlFor="nat66-dest-group-radio">{t("ruleDialog.firewallGroup")}</Label>
-                    </div>
-                  )}
-                </RadioGroup>
-
-                {destinationType === "input" ? (
-                  <Input
-                    id="nat66-dest-input"
-                    value={destinationValue}
-                    onChange={(e) => setDestinationValue(e.target.value)}
-                    placeholder={isSource ? "fd01::/64" : "fd01::1"}
-                    className="font-mono"
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <Select value={destinationGroupType} onValueChange={(v) => { setDestinationGroupType(v); setDestinationGroupName(""); }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("ruleDialog.selectGroupType")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="address-group">{t("ruleDialog.ipv6AddressGroup")}</SelectItem>
-                        <SelectItem value="network-group">{t("ruleDialog.ipv6NetworkGroup")}</SelectItem>
-                        <SelectItem value="domain-group">{t("ruleDialog.domainGroup")}</SelectItem>
-                        <SelectItem value="mac-group">{t("ruleDialog.macGroup")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={destinationGroupName} onValueChange={setDestinationGroupName}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("ruleDialog.selectGroup")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getGroupsByType(destinationGroupType).map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              {/* Destination port vs port group — independent of address */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">{t("ruleDialog.destinationPort")}</Label>
-                <RadioGroup value={destPortType} onValueChange={(v) => {
-                  setDestPortType(v as "input" | "group");
-                  if (v === "input") setDestPortGroupName("");
-                  if (v === "group") setDestinationPort("");
-                }}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="input" id="nat66-dest-port-input-radio" />
-                    <Label htmlFor="nat66-dest-port-input-radio">{t("ruleDialog.port")}</Label>
-                  </div>
-                  {groupsSupported && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="group" id="nat66-dest-port-group-radio" />
-                      <Label htmlFor="nat66-dest-port-group-radio">{t("ruleDialog.portGroup")}</Label>
-                    </div>
-                  )}
-                </RadioGroup>
-
-                {destPortType === "input" ? (
-                  <Input
-                    id="nat66-dest-port"
-                    value={destinationPort}
-                    onChange={(e) => setDestinationPort(e.target.value)}
-                    placeholder={t("ruleDialog.destinationPortPlaceholder")}
-                    className="font-mono"
-                  />
-                ) : (
-                  <Select value={destPortGroupName} onValueChange={setDestPortGroupName}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("ruleDialog.selectPortGroup")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getPortGroups().map((g) => (
-                        <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+              {renderSide("destination", destination, setDestination)}
             </TabsContent>
 
             {/* Advanced Tab */}

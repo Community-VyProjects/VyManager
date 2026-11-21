@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ApiError } from "@/lib/types/api";
 import { staticRoutesService, type NeighborProxyArp, type NeighborProxyNd } from "@/lib/api/static-routes";
 
 interface DeleteNeighborProxyModalProps {
@@ -34,6 +35,12 @@ export function DeleteNeighborProxyModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    if (!next) setError(null);
+    onOpenChange(next);
+  };
+
   const handleDelete = async () => {
     if (!entry) return;
 
@@ -41,17 +48,18 @@ export function DeleteNeighborProxyModal({
     setLoading(true);
 
     try {
-      if (proxyType === "arp") {
-        const arpEntry = entry as NeighborProxyArp;
-        await staticRoutesService.deleteNeighborProxyArp(arpEntry.ip_address);
-      } else {
-        const ndEntry = entry as NeighborProxyNd;
-        await staticRoutesService.deleteNeighborProxyNd(ndEntry.ipv6_address);
+      const address = proxyType === "arp"
+        ? (entry as NeighborProxyArp).ip_address
+        : (entry as NeighborProxyNd).ipv6_address;
+      const result = await staticRoutesService.deleteNeighborProxy(proxyType, address);
+      if (!result.success) {
+        setError(result.error || t("deleteNeighborProxy.failed"));
+        return;
       }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteNeighborProxy.failed"));
+      setError((err as ApiError).message || t("deleteNeighborProxy.failed"));
     } finally {
       setLoading(false);
     }
@@ -64,7 +72,7 @@ export function DeleteNeighborProxyModal({
     : (entry as NeighborProxyNd).ipv6_address;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -80,7 +88,7 @@ export function DeleteNeighborProxyModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2 mb-4">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
@@ -109,7 +117,7 @@ export function DeleteNeighborProxyModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>

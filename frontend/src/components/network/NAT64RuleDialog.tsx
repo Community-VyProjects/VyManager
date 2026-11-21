@@ -16,6 +16,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle } from "lucide-react";
 import { nat64Service, type NAT64SourceRule } from "@/lib/api/nat64";
+import {
+  MATCH_MARK_RANGE,
+  nat64RuleProblem,
+  type NAT64RuleFields,
+} from "@/lib/api/nat64-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface NAT64RuleDialogProps {
   open: boolean;
@@ -63,26 +69,21 @@ export function NAT64RuleDialog({
     setSaving(true);
     setError(null);
     try {
+      const fields: NAT64RuleFields = { description, sourcePrefix, matchMark, disable };
+      const problem = nat64RuleProblem(fields);
+      if (problem) {
+        setError(t(`ruleDialog.${problem}`, MATCH_MARK_RANGE));
+        return;
+      }
       if (isEditing) {
-        await nat64Service.updateRule(rule.rule_number, rule, {
-          description,
-          sourcePrefix,
-          matchMark,
-          disable,
-        });
+        await nat64Service.updateRule(rule, fields);
       } else {
-        await nat64Service.createRule({
-          ruleNumber: nextRuleNumber,
-          description: description || undefined,
-          sourcePrefix: sourcePrefix || undefined,
-          matchMark: matchMark || undefined,
-          disable,
-        });
+        await nat64Service.createRule(nextRuleNumber, fields);
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSaving(false);
     }

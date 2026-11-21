@@ -47,9 +47,9 @@
     "interfaces": "Interfaces",
     "distance": "Distance",
     "type": "Type",
-    "blackhole": "Blackhole",
     "disabledSuffix": " (disabled)",
-    "active": "Active"
+    "active": "Active",
+    "partial": "Partial"
   },
   "arp": {
     "searchPlaceholder": "Search ARP entries...",
@@ -58,7 +58,8 @@
     "emptyDescription": "No static ARP entries configured",
     "interface": "Interface",
     "ipAddress": "IP Address",
-    "macAddress": "MAC Address"
+    "macAddress": "MAC Address",
+    "noMatch": "No ARP entries match your search"
   },
   "mroute": {
     "searchPlaceholder": "Search multicast routes...",
@@ -66,20 +67,32 @@
     "emptyTitle": "No Multicast Routes",
     "emptyDescription": "No static multicast routes configured",
     "prefix": "Prefix",
-    "distanceSuffix": " (d:{distance})"
+    "distanceSuffix": " (d:{distance})",
+    "noMatch": "No multicast routes match your search"
   },
   "neighborProxy": {
     "searchPlaceholder": "Search neighbor proxy entries...",
     "create": "Create Neighbor Proxy",
     "emptyTitle": "No Neighbor Proxy Entries",
-    "emptyDescription": "No neighbor proxy entries configured (ARP or ND)"
+    "emptyDescription": "No neighbor proxy entries configured (ARP or ND)",
+    "arpType": "ARP (IPv4)",
+    "ndType": "ND (IPv6)",
+    "noMatch": "No neighbor proxy entries match your search"
   },
   "tables": {
     "create": "Create Routing Table"
   },
   "validation": {
     "destinationRequired": "Destination is required",
-    "routingMethodRequired": "At least one routing method is required (next-hop, interface, blackhole, or reject)"
+    "destinationInvalid": "Destination must be a network in CIDR notation",
+    "destinationExists": "A route to {name} already exists",
+    "nextHopAddressInvalid": "Next-hop {name} is not a valid address",
+    "sourceInvalid": "Multi-hop source of next-hop {name} is not a valid address",
+    "interfaceRequired": "Every interface route needs an interface",
+    "blackholeAndReject": "A route cannot be both blackhole and reject",
+    "rangeTag": "Tag must be between {min} and {max}",
+    "sourceRequired": "Every multi-hop source of next-hop {name} needs an address",
+    "sourceDuplicate": "Next-hop {name} lists a multi-hop source twice"
   },
   "modal": {
     "updateFailed": "Failed to update route",
@@ -90,13 +103,10 @@
     "createDescription": "Configure a new static route for {family} traffic",
     "tabs": {
       "basic": "Basic",
-      "routing": "Routing",
-      "advanced": "Advanced"
+      "routing": "Routing"
     },
     "destinationNetwork": "Destination Network",
     "example": "e.g., {value}",
-    "destinationLocked": "Destination cannot be changed. Delete and recreate to change destination.",
-    "cidrHint": "Network in CIDR notation",
     "descriptionPlaceholder": "Optional description for this route",
     "nextHops": "Next-Hops",
     "addNextHop": "Add Next-Hop",
@@ -106,7 +116,6 @@
     "defaultOne": "Default: 1",
     "enableBfd": "Enable BFD Monitoring",
     "bfdProfile": "BFD Profile",
-    "bfdProfilePlaceholder": "BFD profile name (optional)",
     "disableNextHop": "Disable this next-hop",
     "noNextHops": "No next-hops configured. Click \"Add Next-Hop\" to add one.",
     "interfaceRoutes": "Interface Routes",
@@ -115,16 +124,24 @@
     "disableInterface": "Disable this interface route",
     "noInterfaces": "No interface routes configured. Click \"Add Interface\" to add one.",
     "blackholeRoute": "Blackhole Route (Drop silently)",
-    "blackholeHelp": "Packets matching this route will be dropped without notification.",
     "tag": "Tag",
     "rejectRoute": "Reject Route (ICMP unreachable)",
-    "rejectHelp": "Packets matching this route will be rejected with ICMP unreachable response.",
-    "dhcpInterface": "DHCP Interface",
-    "dhcpHelp": "Use gateway from DHCP on this interface",
-    "noAdvanced": "No advanced options available on this device.",
     "updating": "Updating...",
     "updateRoute": "Update Route",
-    "createRoute": "Create Route"
+    "createRoute": "Create Route",
+    "createTitleTable": "Create {type} Route in Table {id}",
+    "editTitleTable": "Edit Route in Table {id}",
+    "createTitleVrf": "Create {type} Route in VRF {vrf}",
+    "editTitleVrf": "Edit Route in VRF {vrf}",
+    "dhcpInterfaces": "DHCP Interfaces",
+    "nextHopInterface": "Outgoing Interface",
+    "vrf": "VRF",
+    "segments": "SRv6 Segments",
+    "multiHop": "Multi-hop",
+    "multiHopSource": "Multi-hop Source Address",
+    "multiHopSourceProfile": "Source BFD Profile",
+    "multiHopSources": "Multi-hop Sources",
+    "addSource": "Add Source"
   },
   "deleteModal": {
     "failed": "Failed to delete route",
@@ -139,6 +156,20 @@
     "warningTitle": "This will permanently delete the route",
     "warningBody": "Traffic destined for {destination} will no longer use this route. Make sure you have alternative routing configured if needed.",
     "deleteRoute": "Delete Route",
-    "tableContainsRoutes": "{count, plural, one {This table contains # route. Deleting the table will also remove all routes within it.} other {This table contains # routes. Deleting the table will also remove all routes within it.}}"
+    "tableContainsRoutes": "{count, plural, one {This table contains # route. Deleting the table will also remove all routes within it.} other {This table contains # routes. Deleting the table will also remove all routes within it.}}",
+    "titleTable": "Delete Route from Table {id}",
+    "rejectRoute": "Reject Route",
+    "titleVrf": "Delete Route from VRF {vrf}"
+  },
+  "routeMap": {
+    "buttonSet": "Route-map: {name}",
+    "title": "Static Route-map",
+    "description": "Route-map applied to static routes installed in the kernel",
+    "label": "Route-map",
+    "saveFailed": "Failed to save route-map"
+  },
+  "family": {
+    "ipv4": "IPv4",
+    "ipv6": "IPv6"
   }
 }

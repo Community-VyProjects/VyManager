@@ -1,8 +1,9 @@
-"""Broadcast relay GET /config parse lives on the mapper (issue #966)."""
+"""Broadcast relay GET /config parse lives on the shared mapper (issues #966, #1185)."""
 
-from vyos_mappers.broadcast_relay.broadcast_relay_versions import (
-    get_broadcast_relay_mapper,
-)
+from pathlib import Path
+
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.broadcast_relay import BroadcastRelayMapper
 
 
 def _tree():
@@ -29,14 +30,28 @@ def _tree():
     }
 
 
-def test_parse_config_is_explicit_and_version_falls_through():
-    mapper = get_broadcast_relay_mapper("1.4")
-    assert "parse_config" in type(mapper).__dict__
-    assert mapper.version == "1.4"
+def test_registry_returns_shared_mapper():
+    """Both labs have the same leaves, so the registry returns the one class."""
+    for version in ("1.4", "1.4.3", "1.5", "2026.09.23-0027-rolling"):
+        mapper = CommandMapperRegistry.get_mapper("broadcast_relay", version)
+        assert type(mapper) is BroadcastRelayMapper
+        assert mapper.version == version
+        assert "parse_config" in type(mapper).__dict__
+    registered = CommandMapperRegistry.get_mapper("broadcast_relay", "1.5")
+    assert isinstance(registered, BroadcastRelayMapper)
+    assert registered.parse_config(_tree()) == BroadcastRelayMapper("1.5").parse_config(_tree())
+    versions = (
+        Path(__file__).resolve().parents[1]
+        / "vyos_mappers"
+        / "broadcast_relay"
+        / "broadcast_relay_versions"
+    )
+    for name in ("__init__.py", "v1_4.py", "v1_5.py"):
+        assert not (versions / name).exists()
 
 
 def test_instances_sorted_by_int_id():
-    parsed = get_broadcast_relay_mapper("1.5").parse_config(_tree())
+    parsed = BroadcastRelayMapper("1.5").parse_config(_tree())
     assert parsed["globally_disabled"] is True
     assert [item["id"] for item in parsed["instances"]] == ["2", "3", "10"]
     disabled = parsed["instances"][0]
@@ -51,24 +66,23 @@ def test_instances_sorted_by_int_id():
     assert late["address"] == "255.255.255.255"
     assert late["description"] == "late"
     assert late["disabled"] is False
-    assert get_broadcast_relay_mapper("1.4").parse_config(_tree()) == parsed
+    assert BroadcastRelayMapper("1.4").parse_config(_tree()) == parsed
 
 
 def test_empty_tree():
     empty = {"globally_disabled": False, "instances": []}
-    assert get_broadcast_relay_mapper("1.5").parse_config({}) == empty
+    assert BroadcastRelayMapper("1.5").parse_config({}) == empty
     assert (
-        get_broadcast_relay_mapper("1.4").parse_config(
+        BroadcastRelayMapper("1.4").parse_config(
             {"service": {"broadcast-relay": {}}}
         )
         == empty
     )
 
 
-
 def test_get_config_returns_mapper_parse(monkeypatch):
     tree = _tree()
-    expected = get_broadcast_relay_mapper("1.5").parse_config(tree)
+    expected = BroadcastRelayMapper("1.5").parse_config(tree)
 
     async def allow(*_args, **_kwargs):
         return None

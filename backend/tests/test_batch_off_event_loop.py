@@ -52,6 +52,8 @@ REMAINING_OFFLOADED = [
     ("get_available_ethernet_interfaces", "routers/show.py", "show", 1),
     ("get_interface_counters", "routers/show.py", "show", 1),
     ("get_system_updates", "routers/show.py", "show", 1),
+    ("get_all_interfaces", "routers/show.py", "get_full_config", 1),
+    ("get_all_interfaces", "routers/show.py", "show", 1),
     ("get_dhcp_config", "routers/dhcp_server/dhcp_server.py", "get_full_config", 1),
     ("dhcp_batch_configure", "routers/dhcp_server/dhcp_server.py", "execute_batch", 1),
     ("get_webproxy_config", "routers/webproxy/webproxy.py", "get_full_config", 1),
@@ -122,11 +124,21 @@ SEGMENT_ROUTING_OFFLOADED = [
     ("segment_routing_batch_configure", "routers/segment_routing/segment_routing.py", "execute_batch", 1),
 ]
 
+VRF_OFFLOADED = [
+    ("get_vrf_config", "routers/vrf/vrf.py", "get_full_config", 1),
+    ("vrf_batch_configure", "routers/vrf/vrf.py", "execute_batch", 1),
+]
+
+STATIC_ROUTES_OFFLOADED = [
+    ("get_static_routes_config", "routers/static_routes/static_routes.py", "get_full_config", 1),
+    ("static_routes_batch_configure", "routers/static_routes/static_routes.py", "execute_batch", 1),
+]
+
 # reboot_system and poweroff_system send through _run_power_action.
 POWER_OFFLOADED = [
     ("_run_power_action", "routers/power.py", "reboot", 1),
     ("_run_power_action", "routers/power.py", "poweroff", 1),
-    ("get_power_status", "routers/power.py", "show", 1),
+    ("get_scheduled_power_status", "routers/power.py", "show", 1),
     ("get_vyos_timezone", "routers/power.py", "get_full_config", 1),
 ]
 
@@ -205,8 +217,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + POWER_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + POWER_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
@@ -269,15 +281,28 @@ L2TP_VALUE_ERROR = [
     ("l2tp_batch_configure", "routers/l2tp/l2tp.py"),
 ]
 
+NAT66_VALUE_ERROR = [
+    ("batch_configure", "routers/nat66/nat66.py"),
+    ("reorder_nat66_rules", "routers/nat66/nat66.py"),
+]
+
 IPOE_SERVER_VALUE_ERROR = [
     ("ipoe_batch_configure", "routers/ipoe_server/ipoe_server.py"),
+]
+
+STATIC_ROUTES_VALUE_ERROR = [
+    ("static_routes_batch_configure", "routers/static_routes/static_routes.py"),
+]
+
+VRF_VALUE_ERROR = [
+    ("vrf_batch_configure", "routers/vrf/vrf.py"),
 ]
 
 
 @pytest.mark.parametrize(
     "name,rel",
-    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR,
-    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR],
+    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR + STATIC_ROUTES_VALUE_ERROR + VRF_VALUE_ERROR,
+    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR + STATIC_ROUTES_VALUE_ERROR + VRF_VALUE_ERROR],
 )
 def test_value_error_does_not_wrap_execute_batch(name, rel):
     """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""

@@ -43,6 +43,14 @@ class FailoverExtraLeaves:
     def get_root_delete(self) -> List[str]:
         return ['protocols', 'failover']
 
+class RpkiExtraLeaves:
+
+    def get_root(self) -> List[str]:
+        return ['protocols', 'rpki']
+
+    def get_root_delete(self) -> List[str]:
+        return ['protocols', 'rpki']
+
 class DhcpExtraLeaves:
 
     def get_root_delete(self) -> List[str]:

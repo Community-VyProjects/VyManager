@@ -31,6 +31,7 @@ import {
   type NAT66Capabilities,
   type NAT66SourceRule,
   type NAT66DestinationRule,
+  type NAT66RuleMatch,
 } from "@/lib/api/nat66";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { GroupsConfigResponse } from "@/lib/api/types/firewall-groups";
@@ -46,6 +47,7 @@ import { NAT66RuleDialog } from "@/components/network/NAT66RuleDialog";
 import { NAT66DeleteDialog } from "@/components/network/NAT66DeleteDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import type { ApiError } from "@/lib/types/api";
 
 type RuleType = "source" | "destination";
 
@@ -57,6 +59,7 @@ export default function NAT66Page() {
   const [config, setConfig] = useState<NAT66ConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<NAT66Capabilities | null>(null);
   const [groupsConfig, setGroupsConfig] = useState<GroupsConfigResponse | null>(null);
+  const [groupsFailed, setGroupsFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,21 +74,29 @@ export default function NAT66Page() {
     try {
       setLoading(true);
       setError(null);
-      const data = await nat66Service.getConfig(refresh);
+      // Capabilities come with every (re)load so a failed first read is retried too.
+      const [data, caps] = await Promise.all([
+        nat66Service.getConfig(refresh),
+        nat66Service.getCapabilities(),
+      ]);
       setConfig(data);
+      setCapabilities(caps);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.loadFailed"));
+      setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
+    }
+    try {
+      setGroupsConfig(await firewallGroupsService.getConfig());
+      setGroupsFailed(false);
+    } catch {
+      setGroupsFailed(true);
     }
   }, [t]);
 
   useEffect(() => {
     fetchConfig();
-    nat66Service.getCapabilities().then(setCapabilities).catch(console.error);
-    firewallGroupsService.getConfig().then(setGroupsConfig).catch(console.error);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchConfig]);
 
   const sourceRules = config?.source_rules ?? [];
   const destinationRules = config?.destination_rules ?? [];
@@ -171,11 +182,56 @@ export default function NAT66Page() {
                 ))}
               </ul>
             ) : (
-              <p className="text-muted-foreground">{t("page.noMembers")}</p>
+              <p className="text-muted-foreground">
+                {groupsFailed ? t("ruleDialog.groupsLoadFailed") : t("page.noMembers")}
+              </p>
             )}
           </div>
         </TooltipContent>
       </Tooltip>
+    );
+  };
+
+  // Address, network, MAC and domain group badges of one rule side
+  const renderAddressGroups = (side: NAT66RuleMatch | null | undefined) => {
+    const group = side?.group;
+    if (!groupsSupported || !group) return null;
+    if (!group.network_group && !group.address_group && !group.mac_group && !group.domain_group) return null;
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {group.network_group && (
+          <GroupBadgeWithTooltip label={t("page.groupLabels.net")} groupName={group.network_group} groupType="net" />
+        )}
+        {group.address_group && (
+          <GroupBadgeWithTooltip label={t("page.groupLabels.addr")} groupName={group.address_group} groupType="addr" />
+        )}
+        {group.mac_group && (
+          <GroupBadgeWithTooltip label={t("page.groupLabels.mac")} groupName={group.mac_group} groupType="mac" />
+        )}
+        {group.domain_group && (
+          <GroupBadgeWithTooltip label={t("page.groupLabels.domain")} groupName={group.domain_group} groupType="domain" />
+        )}
+      </div>
+    );
+  };
+
+  // Port and port group of one rule side
+  const renderPort = (side: NAT66RuleMatch | null | undefined) => {
+    const portGroup = groupsSupported ? side?.group?.port_group : null;
+    if (!side?.port && !portGroup) {
+      return <span className="text-xs text-muted-foreground">-</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {side?.port && (
+          <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
+            {side.port}
+          </code>
+        )}
+        {portGroup && (
+          <GroupBadgeWithTooltip label={t("page.groupLabels.port")} groupName={portGroup} groupType="port" />
+        )}
+      </div>
     );
   };
 
@@ -405,48 +461,16 @@ export default function NAT66Page() {
                               <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
                                 {sourceDisplay}
                               </code>
+                              {renderAddressGroups(rule.source)}
                             </TableCell>
-                            <TableCell>
-                              {rule.source?.port ? (
-                                <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-                                  {rule.source.port}
-                                </code>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
+                            <TableCell>{renderPort(rule.source)}</TableCell>
                             <TableCell>
                               <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
                                 {destDisplay}
                               </code>
-                              {groupsSupported && rule.destination?.group && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {rule.destination.group.network_group && (
-                                    <GroupBadgeWithTooltip label={t("page.groupLabels.net")} groupName={rule.destination.group.network_group} groupType="net" />
-                                  )}
-                                  {rule.destination.group.address_group && (
-                                    <GroupBadgeWithTooltip label={t("page.groupLabels.addr")} groupName={rule.destination.group.address_group} groupType="addr" />
-                                  )}
-                                  {rule.destination.group.mac_group && (
-                                    <GroupBadgeWithTooltip label={t("page.groupLabels.mac")} groupName={rule.destination.group.mac_group} groupType="mac" />
-                                  )}
-                                  {rule.destination.group.domain_group && (
-                                    <GroupBadgeWithTooltip label={t("page.groupLabels.domain")} groupName={rule.destination.group.domain_group} groupType="domain" />
-                                  )}
-                                </div>
-                              )}
+                              {renderAddressGroups(rule.destination)}
                             </TableCell>
-                            <TableCell>
-                              {rule.destination?.port ? (
-                                <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-                                  {rule.destination.port}
-                                </code>
-                              ) : rule.destination?.group?.port_group ? (
-                                <GroupBadgeWithTooltip label={t("page.groupLabels.port")}groupName={rule.destination.group.port_group} groupType="port" />
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
+                            <TableCell>{renderPort(rule.destination)}</TableCell>
                             <TableCell>
                               {isMasquerade ? (
                                 <Badge

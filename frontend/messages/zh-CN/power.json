@@ -12,7 +12,12 @@
     "poweroffScheduled": "已计划系统关机",
     "inCountdown": "{countdown} 后 • ",
     "scheduledBy": "由 {name} 计划",
-    "cancelling": "正在取消..."
+    "cancelling": "正在取消...",
+    "cancelReboot": "取消重启",
+    "cancelPoweroff": "取消关机",
+    "cancelRebootTitle": "取消已计划的重启？",
+    "cancelPoweroffTitle": "取消已计划的关机？",
+    "cancelFailed": "取消计划操作失败"
   },
   "modal": {
     "enterTime": "请输入时间（HH:MM）",

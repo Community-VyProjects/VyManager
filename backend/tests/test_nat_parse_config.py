@@ -65,4 +65,4 @@ def test_nat66_parse_config_reads_source_and_destination_rules():
     assert destination.inbound_interface == "eth1"
     assert destination.destination is not None and destination.destination.address == "2001:db8::1"
     assert destination.source is None
-    assert mapper.parse_config({}) == {"source_rules": [], "destination_rules": []}
+    assert mapper.parse_config({}) == {"source_rules": [], "destination_rules": [], "total": 0}

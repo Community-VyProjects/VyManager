@@ -19,9 +19,10 @@ from fastapi.testclient import TestClient
 from vyos_builders.router_advert.router_advert_batch_builder import RouterAdvertBatchBuilder
 from vyos_builders.rpki.rpki_batch_builder import RpkiBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
+from vyos_builders.vrf.legacy_ops import LEGACY_OPS
 from vyos_mappers.router_advert.router_advert import RouterAdvertMapper
 from vyos_mappers.rpki.rpki import RpkiMapper
-from vyos_mappers.vrf.vrf_rpki import VrfRpkiMapper
+from vyos_mappers.vrf.vrf_versions import VrfMapperV1_5
 
 CACHE = "192.0.2.10"
 RPKI_CACHE = ["protocols", "rpki", "cache", CACHE]
@@ -75,6 +76,7 @@ VRF_RPKI_CASES = [
      VRF_RPKI + ["cache", CACHE, "source-address", "192.0.2.1"]),
     ("delete_vrf_rpki_cache_source_address", (VRF, CACHE), "delete",
      VRF_RPKI + ["cache", CACHE, "source-address"]),
+    ("delete_vrf_rpki_cache_ssh", (VRF, CACHE), "delete", VRF_RPKI + ["cache", CACHE, "ssh"]),
     ("set_vrf_rpki_cache_ssh_key", (VRF, f"{CACHE},key1"), "set",
      VRF_RPKI + ["cache", CACHE, "ssh", "key", "key1"]),
     ("delete_vrf_rpki_cache_ssh_key", (VRF, CACHE), "delete", VRF_RPKI + ["cache", CACHE, "ssh", "key"]),
@@ -83,6 +85,15 @@ VRF_RPKI_CASES = [
     ("delete_vrf_rpki_cache_ssh_username", (VRF, CACHE), "delete",
      VRF_RPKI + ["cache", CACHE, "ssh", "username"]),
 ]
+
+
+def test_every_vrf_rpki_op_has_a_path_row():
+    # The screen replaces port, preference and the SSH leaves with a set and
+    # removes them with the cache or ``ssh`` delete (the lab refuses each
+    # leaf delete alone); their delete ops stay for the leaves the lab has.
+    ops = {name for name in LEGACY_OPS if name.startswith(("set_vrf_rpki", "delete_vrf_rpki"))}
+    assert ops == {case[0] for case in VRF_RPKI_CASES}
+
 
 BUILDER_CASES = (
     [(RpkiBatchBuilder, *case) for case in RPKI_CASES]
@@ -166,9 +177,58 @@ def test_ra_capabilities_read_the_mapper(monkeypatch):
 
 
 def test_vrf_rpki_capability_reads_the_mapper(monkeypatch):
-    monkeypatch.setattr(VrfRpkiMapper, "is_supported", lambda self: False)
+    monkeypatch.setattr(VrfMapperV1_5, "versioned_nodes", lambda self: frozenset())
     features = VrfBatchBuilder(version="1.5").get_capabilities()["features"]
     assert features["rpki"]["supported"] is False
+
+
+VRF_RPKI_PAIR_OPS = [
+    "set_vrf_rpki_cache_port",
+    "set_vrf_rpki_cache_preference",
+    "set_vrf_rpki_cache_source_address",
+    "set_vrf_rpki_cache_ssh_key",
+    "set_vrf_rpki_cache_ssh_username",
+]
+
+
+@pytest.mark.parametrize("method", VRF_RPKI_PAIR_OPS)
+@pytest.mark.parametrize("value", [CACHE, f"{CACHE},", ",3323", ""])
+def test_vrf_rpki_cache_pair_rejects_a_short_value(method, value):
+    """A missing cache name or value is an error, not a silently skipped op."""
+    builder = VrfBatchBuilder(version="1.5")
+    with pytest.raises(
+        ValueError, match="requires a value|expects 2 comma-separated|has an empty comma-separated value"
+    ):
+        getattr(builder, method)(VRF, value)
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["set_vrf_rpki_cache", "delete_vrf_rpki_cache", "delete_vrf_rpki_cache_port", "delete_vrf_rpki_cache_ssh"],
+)
+def test_vrf_rpki_cache_op_rejects_an_empty_cache_name(method):
+    builder = VrfBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match=f"^Operation {method} requires a value$"):
+        getattr(builder, method)(VRF, "")
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize(
+    "method, value",
+    [
+        ("delete_vrf_dhcp_global_parameters", ""),
+        ("delete_vrf_bgp_neighbor", ""),
+        ("set_vrf_rpki_cache_port", f"{CACHE},"),
+        ("set_vrf_rpki_cache_port", ",3323"),
+    ],
+)
+def test_vrf_prefixed_op_never_builds_an_empty_segment(method, value):
+    """Feature, leaf and protocol delete paths all reject a blank part."""
+    builder = VrfBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match=f"^Operation {method} "):
+        getattr(builder, method)(VRF, value)
+    assert builder.get_operations() == []
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +289,20 @@ ENDPOINT_CASES = [
 ]
 
 
+def test_vrf_batch_rejects_a_short_rpki_cache_value_without_commit(monkeypatch):
+    client, captured = _client(monkeypatch, VRF_MODULE, "1.5")
+    body = {"operations": [
+        {"op": "set_vrf_rpki_cache", "value": f"{VRF},{CACHE}"},
+        {"op": "set_vrf_rpki_cache_port", "value": f"{VRF},{CACHE}"},
+    ]}
+    response = client.post("/vyos/vrf/batch", json=body)
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == (
+        "Operation set_vrf_rpki_cache_port expects 2 comma-separated value(s), got 1"
+    )
+    assert captured == []
+
+
 @pytest.mark.parametrize("module, url, body, expected", ENDPOINT_CASES)
 def test_batch_writes_leaf_on_1_5(monkeypatch, module, url, body, expected):
     client, captured = _client(monkeypatch, module, "1.5")
@@ -277,9 +351,9 @@ def test_batch_commit_confirm_conflict_reaches_client(monkeypatch, module, url, 
     assert response.json()["detail"] == "A commit-confirm is already active"
 
 
-def test_vrf_empty_batch_stays_400(monkeypatch):
-    """VyOSService.execute_batch raises ValueError on an empty batch. The
-    VRF router has no is_empty() check and has always answered 400."""
+def test_vrf_empty_batch_is_500(monkeypatch):
+    """VyOSService.execute_batch raises ValueError on an empty batch. The VRF
+    router catches ValueError only around the op loop, so it stays a 500."""
 
     def execute(batch):
         if batch.is_empty():
@@ -288,5 +362,5 @@ def test_vrf_empty_batch_stays_400(monkeypatch):
 
     client, _ = _client(monkeypatch, VRF_MODULE, "1.5", execute=execute)
     response = client.post("/vyos/vrf/batch", json={"operations": []})
-    assert response.status_code == 400, response.text
-    assert response.json()["detail"] == "Cannot execute empty batch"
+    assert response.status_code == 500, response.text
+    assert response.json()["detail"] == "Internal server error"

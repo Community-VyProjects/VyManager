@@ -12,14 +12,13 @@ import asyncio
 import json
 import logging
 from typing import Any, Dict, Optional
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from session_vyos_service import get_session_vyos_service, _session_device_registry
-from fastapi_permissions import require_read_permission
+from fastapi_permissions import has_permission, require_read_permission
 from org_scope import org_id_from_state, request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
 from stream_auth import fail_closed
@@ -31,6 +30,7 @@ from events.event_manager import (
     EVENT_POWER_STATUS,
 )
 import commit_confirm_state
+from routers.power import get_scheduled_power_status
 
 logger = logging.getLogger(__name__)
 
@@ -217,50 +217,50 @@ async def _gather_banner_state(request: Request) -> Dict[str, Any]:
     }
 
 
-async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
-    """Get config diff state without going through the HTTP endpoint."""
+def _no_config_changes() -> Dict[str, Any]:
+    return {
+        "has_changes": False,
+        "added": {},
+        "removed": {},
+        "modified": {},
+        "summary": {"added": 0, "removed": 0, "modified": 0},
+    }
+
+
+async def _config_diff_for(instance_id: str, service: Any) -> Dict[str, Any]:
+    """Diff the device config against the saved baseline (SSE push and poller)."""
     from routers.config.config import deep_diff
     from config_state import reconcile_baseline, set_saved_config
 
+    current_config = await run_in_threadpool(service.get_full_config, refresh=True)
+
+    baseline = reconcile_baseline(instance_id, current_config)
+    if baseline is None:
+        set_saved_config(instance_id, current_config)
+        return _no_config_changes()
+
+    added, removed, modified = deep_diff(current_config, baseline)
+    return {
+        "has_changes": bool(added or removed or modified),
+        "added": added,
+        "removed": removed,
+        "modified": modified,
+        "summary": {
+            "added": len(added),
+            "removed": len(removed),
+            "modified": len(modified),
+        },
+    }
+
+
+async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
+    """Get config diff state without going through the HTTP endpoint."""
     try:
         service = get_session_vyos_service(request)
-        instance_id = request.state.instance["id"]
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-
-        baseline = reconcile_baseline(instance_id, current_config)
-        if baseline is None:
-            set_saved_config(instance_id, current_config)
-            return {
-                "has_changes": False,
-                "added": {},
-                "removed": {},
-                "modified": {},
-                "summary": {"added": 0, "removed": 0, "modified": 0},
-            }
-
-        added, removed, modified = deep_diff(current_config, baseline)
-        has_changes = bool(added or removed or modified)
-
-        return {
-            "has_changes": has_changes,
-            "added": added,
-            "removed": removed,
-            "modified": modified,
-            "summary": {
-                "added": len(added),
-                "removed": len(removed),
-                "modified": len(modified),
-            },
-        }
+        return await _config_diff_for(request.state.instance["id"], service)
     except Exception:
         logger.exception("Failed to get config diff for SSE")
-        return {
-            "has_changes": False,
-            "added": {},
-            "removed": {},
-            "modified": {},
-            "summary": {"added": 0, "removed": 0, "modified": 0},
-        }
+        return _no_config_changes()
 
 
 def _get_commit_confirm_state(instance_id: str) -> Dict[str, Any]:
@@ -272,52 +272,20 @@ def _get_commit_confirm_state(instance_id: str) -> Dict[str, Any]:
 
 
 async def _get_power_status_state(request: Request) -> Dict[str, Any]:
-    """Get power status from the database."""
+    """Get power status: the stored row, checked against the device.
+
+    The stream itself needs CONFIGURATION read; power status is sent only to
+    callers with POWER read, the same gate as GET /vyos/power/status.
+    """
     try:
-        instance_id = request.state.instance["id"]
-
-        # scheduledTime is naive UTC; compare against UTC, not a tz-aware
-        # NOW(), or a non-UTC DB session timezone hides pending actions.
-        async with request_scoped_conn(request) as conn:
-            await conn.execute(
-                """
-                DELETE FROM scheduled_power_actions
-                WHERE "instanceId" = $1
-                  AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
-                """,
-                instance_id,
-            )
-
-            result = await conn.fetchrow(
-                """
-                SELECT "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
-                       cancelled, "cancelledBy", "cancelledByName"
-                FROM scheduled_power_actions
-                WHERE "instanceId" = $1
-                  AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
-                ORDER BY "createdAt" DESC
-                LIMIT 1
-                """,
-                instance_id,
-            )
-
-            if not result:
-                return {"scheduled": False}
-
-            scheduled_time = result["scheduledTime"]
-            if scheduled_time and (not hasattr(scheduled_time, 'tzinfo') or scheduled_time.tzinfo is None):
-                scheduled_time = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
-
-            return {
-                "scheduled": True,
-                "action_type": result["actionType"],
-                "scheduled_time": scheduled_time.isoformat() if scheduled_time else None,
-                "scheduled_by": result["scheduledBy"],
-                "scheduled_by_name": result["scheduledByName"],
-                "cancelled": result["cancelled"],
-                "cancelled_by": result["cancelledBy"],
-                "cancelled_by_name": result["cancelledByName"],
-            }
+        if not await has_permission(request, FeatureGroup.POWER, PermissionLevel.READ):
+            return {"scheduled": False}
+        status = await get_scheduled_power_status(
+            lambda: request_scoped_conn(request),
+            request.state.instance["id"],
+            lambda: get_session_vyos_service(request),
+        )
+        return status.model_dump(mode="json")
     except Exception:
         logger.exception("Failed to get power status for SSE")
         return {"scheduled": False}
@@ -335,41 +303,13 @@ async def _poll_banner_state_for_instance(
     Poll the current banner state for a single instance and emit events
     only if the state has changed since the last poll.
     """
-    from routers.config.config import deep_diff
-    from config_state import reconcile_baseline, set_saved_config
-
     # --- Config diff ---
     try:
-        service = _session_device_registry.get(instance_id)
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-
-        baseline = reconcile_baseline(instance_id, current_config)
-        if baseline is None:
-            set_saved_config(instance_id, current_config)
-            config_diff_data = {
-                "has_changes": False,
-                "added": {},
-                "removed": {},
-                "modified": {},
-                "summary": {"added": 0, "removed": 0, "modified": 0},
-            }
-        else:
-            added, removed, modified = deep_diff(current_config, baseline)
-            has_changes = bool(added or removed or modified)
-            config_diff_data = {
-                "has_changes": has_changes,
-                "added": added,
-                "removed": removed,
-                "modified": modified,
-                "summary": {
-                    "added": len(added),
-                    "removed": len(removed),
-                    "modified": len(modified),
-                },
-            }
-
+        config_diff_data = await _config_diff_for(
+            instance_id, _session_device_registry.get(instance_id)
+        )
         if event_manager.update_last_state(instance_id, EVENT_CONFIG_DIFF, config_diff_data):
-            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, config_diff_data)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
     except Exception:
         logger.debug("Poller: failed to get config diff for instance %s", instance_id)
 
@@ -377,7 +317,7 @@ async def _poll_banner_state_for_instance(
     try:
         cc_data = _get_commit_confirm_state(instance_id)
         if event_manager.update_last_state(instance_id, EVENT_COMMIT_CONFIRM, cc_data):
-            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, cc_data)
+            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, {"commit_confirm": cc_data})
     except Exception:
         logger.debug("Poller: failed to get commit-confirm for instance %s", instance_id)
 
@@ -385,48 +325,17 @@ async def _poll_banner_state_for_instance(
     try:
         db_pool = app_state.db_pool
         if db_pool:
-            async with db_pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    DELETE FROM scheduled_power_actions
-                    WHERE "instanceId" = $1
-                      AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
-                    """,
-                    instance_id,
-                )
-
-                result = await conn.fetchrow(
-                    """
-                    SELECT "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
-                           cancelled, "cancelledBy", "cancelledByName"
-                    FROM scheduled_power_actions
-                    WHERE "instanceId" = $1
-                      AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
-                    ORDER BY "createdAt" DESC
-                    LIMIT 1
-                    """,
-                    instance_id,
-                )
-
-                if not result:
-                    power_data = {"scheduled": False}
-                else:
-                    scheduled_time = result["scheduledTime"]
-                    if scheduled_time and (not hasattr(scheduled_time, 'tzinfo') or scheduled_time.tzinfo is None):
-                        scheduled_time = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
-                    power_data = {
-                        "scheduled": True,
-                        "action_type": result["actionType"],
-                        "scheduled_time": scheduled_time.isoformat() if scheduled_time else None,
-                        "scheduled_by": result["scheduledBy"],
-                        "scheduled_by_name": result["scheduledByName"],
-                        "cancelled": result["cancelled"],
-                        "cancelled_by": result["cancelledBy"],
-                        "cancelled_by_name": result["cancelledByName"],
-                    }
-
-                if event_manager.update_last_state(instance_id, EVENT_POWER_STATUS, power_data):
-                    event_manager.emit(instance_id, EVENT_POWER_STATUS, power_data)
+            status = await get_scheduled_power_status(
+                db_pool.acquire,
+                instance_id,
+                lambda: _session_device_registry.get(instance_id),
+            )
+            # Subscribers may lack POWER read, so send the refetch signal and
+            # let each client re-read through the POWER-gated GET /status.
+            if event_manager.update_last_state(
+                instance_id, EVENT_POWER_STATUS, status.model_dump(mode="json")
+            ):
+                event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
     except Exception:
         logger.debug("Poller: failed to get power status for instance %s", instance_id)
 

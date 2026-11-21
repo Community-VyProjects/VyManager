@@ -1,151 +1,52 @@
-"""VyOS 1.4 specific static routes commands."""
-from typing import List
+"""VyOS 1.4 static routes mapper.
+
+1.4 spells multicast routes as ``multicast route`` (next-hops) and
+``multicast interface-route`` (``next-hop-interface``), without ``disable``.
+A BFD multi-hop source is a tag node ``source <addr>`` with its own
+``profile``; a next-hop may hold several (one FRR session each). Path methods do not re-check the node: the builder already
+called ``require_node``.
+"""
+
+from typing import List, Optional
+
+from ..static_routes import ROOT, StaticRoutesMapper
 
 
-class StaticRoutesMapperV1_4:
-    """
-    Version-specific mapper for VyOS 1.4.
+class StaticRoutesMapperV1_4(StaticRoutesMapper):
+    """VyOS 1.4 static routes mapper."""
 
-    Key differences from VyOS 1.5:
-    - Multicast routes use "multicast" instead of "mroute"
-    - Multicast routes have separate "route" and "interface-route" subtypes
-    - Interface routes use "next-hop-interface" instead of "interface"
-    """
-
-    # ========================================================================
-    # Multicast Routes (1.4 specific - uses "multicast" instead of "mroute")
-    # VyOS 1.4 structure:
-    #   multicast route <dst> next-hop <ip> [distance <n>]
-    #   multicast interface-route <dst> next-hop-interface <interface> [distance <n>]
-    # ========================================================================
-
-    def get_mroute_path(self, prefix: str) -> List[str]:
-        """Get command path for multicast route (1.4 - route type)."""
-        return ["protocols", "static", "multicast", "route", prefix]
-
-    def get_mroute_next_hop_path(self, prefix: str, next_hop: str) -> List[str]:
-        """Get command path for mroute next-hop (1.4)."""
-        return [
-            "protocols", "static", "multicast", "route",
-            prefix, "next-hop", next_hop
-        ]
-
-    def get_mroute_next_hop_distance(
-        self, prefix: str, next_hop: str, distance: str
+    def get_route_next_hop_bfd_multi_hop_source(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        """Get command path for mroute next-hop distance (1.4)."""
-        return [
-            "protocols", "static", "multicast", "route",
-            prefix, "next-hop", next_hop, "distance", distance
-        ]
+        return self.get_route_next_hop_bfd_multi_hop(family, table, destination, next_hop) + ["source", value]
 
-    def get_mroute_interface_route_path(self, prefix: str) -> List[str]:
-        """Get command path for multicast interface-route (1.4)."""
-        return ["protocols", "static", "multicast", "interface-route", prefix]
-
-    def get_mroute_interface_path(self, prefix: str, interface: str) -> List[str]:
-        """Get command path for mroute interface (1.4 - uses interface-route)."""
-        return [
-            "protocols", "static", "multicast", "interface-route",
-            prefix, "next-hop-interface", interface
-        ]
-
-    def get_mroute_interface_distance(
-        self, prefix: str, interface: str, distance: str
+    def get_route_next_hop_bfd_multi_hop_source_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, source: str
     ) -> List[str]:
-        """Get command path for mroute interface distance (1.4)."""
-        return [
-            "protocols", "static", "multicast", "interface-route",
-            prefix, "next-hop-interface", interface, "distance", distance
-        ]
+        return self.get_route_next_hop_bfd_multi_hop_source(family, table, destination, next_hop, source)
 
-    # Note: VyOS 1.4 multicast routes don't have disable option
-    def get_mroute_interface_disable(self, prefix: str, interface: str) -> List[str]:
-        """Not supported in VyOS 1.4 - returns empty path."""
-        return []
-
-    def get_mroute_next_hop_disable(self, prefix: str, next_hop: str) -> List[str]:
-        """Not supported in VyOS 1.4 - returns empty path."""
-        return []
-
-    def get_ipv4_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str, source: str
+    def get_route_next_hop_bfd_multi_hop_source_profile(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, source: str, value: str
     ) -> List[str]:
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source", source, "profile",
-        ]
+        return self.get_route_next_hop_bfd_multi_hop_source(
+            family, table, destination, next_hop, source
+        ) + ["profile", value]
 
-    def get_ipv4_route_next_hop_bfd_multi_hop_source_delete(
-        self, destination: str, next_hop: str
+    def get_route_next_hop_bfd_multi_hop_source_profile_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, source: str
     ) -> List[str]:
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source",
-        ]
+        return self.get_route_next_hop_bfd_multi_hop_source(
+            family, table, destination, next_hop, source
+        ) + ["profile"]
 
-    def get_ipv6_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str, source: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source", source, "profile",
-        ]
+    def get_mroute_next_hop_root(self, prefix: str) -> List[str]:
+        return ROOT + ["multicast", "route", prefix]
 
-    def get_ipv6_route_next_hop_bfd_multi_hop_source_delete(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source",
-        ]
+    def get_mroute_interface_root(self, prefix: str) -> List[str]:
+        return ROOT + ["multicast", "interface-route", prefix]
 
-    def get_ipv4_route_next_hop_segments(
-        self, destination: str, next_hop: str, segments: str
-    ) -> List[str]:
-        return []
+    def get_mroute_next_hop(self, prefix: str, next_hop: str) -> List[str]:
+        return self.get_mroute_next_hop_root(prefix) + ["next-hop", next_hop]
 
-    def get_ipv4_route_next_hop_segments_delete(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        return []
-
-    def get_ipv4_route_interface_segments(
-        self, destination: str, interface: str, segments: str
-    ) -> List[str]:
-        return []
-
-    def get_ipv4_route_interface_segments_delete(
-        self, destination: str, interface: str
-    ) -> List[str]:
-        return []
-
-    # ========================================================================
-    # DHCP Interface Routes (available in 1.4)
-    # ========================================================================
-
-    def get_ipv4_route_dhcp_interface(
-        self, destination: str, interface: str
-    ) -> List[str]:
-        """Get command path for DHCP interface route."""
-        return [
-            "protocols", "static", "route", destination,
-            "dhcp-interface", interface
-        ]
-
-    def get_ipv4_route_dhcp_interface_distance(
-        self, destination: str, interface: str, distance: str
-    ) -> List[str]:
-        """Get command path for DHCP interface distance."""
-        return [
-            "protocols", "static", "route", destination,
-            "dhcp-interface", interface, "distance", distance
-        ]
-
-    # ========================================================================
-    # Config key for parsing
-    # ========================================================================
-
-    def get_multicast_config_key(self) -> str:
-        """Return the config key for multicast routes in VyOS 1.4."""
-        return "multicast"
+    def get_mroute_interface(self, prefix: str, interface: str) -> List[str]:
+        return self.get_mroute_interface_root(prefix) + ["next-hop-interface", interface]

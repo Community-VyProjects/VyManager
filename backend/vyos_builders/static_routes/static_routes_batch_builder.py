@@ -1,1339 +1,1197 @@
 """
 Static Routes Batch Builder
 
-Provides all batch operations for static route configuration.
-Handles version-specific differences through the mapper layer.
+Batch operations for ``protocols static``: IPv4 and IPv6 routes (global and
+inside a routing table), routing tables, the route-map, static ARP,
+multicast routes and neighbor proxy. The VRF builder runs the global route
+ops under ``vrf name <vrf>``.
+
+Version differences live on the mapper subclasses. A leaf only one version
+has goes through ``_versioned_path`` and raises ``ValueError`` elsewhere.
 """
 
-from typing import Dict, Any, cast
-from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
+from typing import Any, Dict, List, cast
+
 from vyos_builders.base import BatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.static_routes.static_routes import (
+    IPV4_SEGMENTS,
+    MROUTE,
+    SOURCE_PROFILE,
+    StaticRoutesMapper,
+)
 
 
 class StaticRoutesBatchBuilder(BatchBuilder):
-    """Complete batch builder for static routes operations"""
+    """Complete batch builder for static routes operations."""
 
     def __init__(self, version: str):
-        """Initialize builder with VyOS version."""
         super().__init__(version)
-
         self.mapper_key = "static_routes"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     # ========================================================================
-    # Core Batch Operations
+    # Core
     # ========================================================================
 
-    def clear(self) -> None:
-        """Clear all operations from the batch."""
-        self._operations = []
+    @property
+    def m(self) -> StaticRoutesMapper:
+        return cast(StaticRoutesMapper, self.mappers[self.mapper_key])
 
-    def operation_count(self) -> int:
-        """Get the number of operations in the batch."""
-        return len(self._operations)
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a leaf only one VyOS version has; ValueError elsewhere."""
+        mapper = self.m
+        mapper.require_node(node)
+        return getattr(mapper, method)(*args)
 
     # ========================================================================
-    # IPv4 Route Operations
+    # IPv4 Routes
     # ========================================================================
 
     def set_ipv4_route(self, destination: str) -> "StaticRoutesBatchBuilder":
-        """Create IPv4 route."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_path(destination)
-        return self.add_set(path)
+        return self.add_set(self.m.get_route("ipv4", None, destination))
 
     def delete_ipv4_route(self, destination: str) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_path(destination)
-        return self.add_delete(path)
+        return self.add_delete(self.m.get_route("ipv4", None, destination))
 
-    def set_ipv4_route_description(
-        self, destination: str, description: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route description."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_description(
-            destination, description
-        )
-        return self.add_set(path)
+    def set_ipv4_route_description(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_description("ipv4", None, destination, value))
 
-    def delete_ipv4_route_description(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route description."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_path(destination) + [
-            "description"
-        ]
-        return self.add_delete(path)
+    def delete_ipv4_route_description(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_description_delete("ipv4", None, destination))
 
-    def set_ipv4_route_next_hop(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop(
-            destination, next_hop
-        )
-        return self.add_set(path)
+    def set_ipv4_route_blackhole(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole("ipv4", None, destination))
 
-    def delete_ipv4_route_next_hop(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop(
-            destination, next_hop
-        )
-        return self.add_delete(path)
+    def delete_ipv4_route_blackhole(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_blackhole("ipv4", None, destination))
 
-    def set_ipv4_route_next_hop_distance(
-        self, destination: str, next_hop: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route next-hop distance."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_distance(
-            destination, next_hop, distance
-        )
-        return self.add_set(path)
+    def set_ipv4_route_blackhole_distance(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole_distance("ipv4", None, destination, value))
 
-    def set_ipv4_route_next_hop_disable(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_disable(
-            destination, next_hop
-        )
-        return self.add_set(path)
+    def delete_ipv4_route_blackhole_distance(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_blackhole_distance_delete("ipv4", None, destination))
 
-    def delete_ipv4_route_next_hop_disable(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_disable(
-            destination, next_hop
-        )
-        return self.add_delete(path)
+    def set_ipv4_route_blackhole_tag(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole_tag("ipv4", None, destination, value))
 
-    def set_ipv4_route_interface(
-        self, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route interface."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_interface(
-            destination, interface
-        )
-        return self.add_set(path)
+    def delete_ipv4_route_blackhole_tag(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_blackhole_tag_delete("ipv4", None, destination))
 
-    def delete_ipv4_route_interface(
-        self, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route interface."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_interface(
-            destination, interface
-        )
-        return self.add_delete(path)
+    def set_ipv4_route_reject(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject("ipv4", None, destination))
 
-    def set_ipv4_route_interface_distance(
-        self, destination: str, interface: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route interface distance."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_interface_distance(
-            destination, interface, distance
-        )
-        return self.add_set(path)
+    def delete_ipv4_route_reject(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject("ipv4", None, destination))
 
-    def set_ipv4_route_interface_disable(
-        self, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route interface disable."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_interface_disable(
-            destination, interface
-        )
-        return self.add_set(path)
+    def set_ipv4_route_reject_distance(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject_distance("ipv4", None, destination, value))
 
-    def set_ipv4_route_blackhole(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route to blackhole."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_blackhole(destination)
-        return self.add_set(path)
+    def delete_ipv4_route_reject_distance(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_distance_delete("ipv4", None, destination))
 
-    def delete_ipv4_route_blackhole(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route blackhole."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_blackhole_path(destination)
-        return self.add_delete(path)
+    def set_ipv4_route_reject_tag(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject_tag("ipv4", None, destination, value))
 
-    def set_ipv4_route_blackhole_distance(
-        self, destination: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route blackhole distance."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_blackhole_distance(
-            destination, distance
-        )
-        return self.add_set(path)
+    def delete_ipv4_route_reject_tag(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_tag_delete("ipv4", None, destination))
 
-    def set_ipv4_route_blackhole_tag(
-        self, destination: str, tag: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route blackhole tag."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_blackhole_tag(
-            destination, tag
-        )
-        return self.add_set(path)
-
-    def set_ipv4_route_reject(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route to reject."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_reject(destination)
-        return self.add_set(path)
-
-    def delete_ipv4_route_reject(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route reject."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_reject_path(destination)
-        return self.add_delete(path)
-
-    def set_ipv4_route_reject_distance(
-        self, destination: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route reject distance."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_reject_distance(
-            destination, distance
-        )
-        return self.add_set(path)
-
-    def set_ipv4_route_reject_tag(
-        self, destination: str, tag: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route reject tag."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_reject_tag(
-            destination, tag
-        )
-        return self.add_set(path)
-
-    # ========================================================================
-    # IPv6 Route Operations
-    # ========================================================================
-
-    def set_ipv6_route(self, destination: str) -> "StaticRoutesBatchBuilder":
-        """Create IPv6 route."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_path(destination)
-        return self.add_set(path)
-
-    def delete_ipv6_route(self, destination: str) -> "StaticRoutesBatchBuilder":
-        """Delete IPv6 route."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_path(destination)
-        return self.add_delete(path)
-
-    def set_ipv6_route_description(
-        self, destination: str, description: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route description."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_description(
-            destination, description
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_next_hop(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop(
-            destination, next_hop
-        )
-        return self.add_set(path)
-
-    def delete_ipv6_route_next_hop(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop(
-            destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def set_ipv6_route_next_hop_distance(
-        self, destination: str, next_hop: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route next-hop distance."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_distance(
-            destination, next_hop, distance
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_interface(
-        self, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route interface."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_interface(
-            destination, interface
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_interface_distance(
-        self, destination: str, interface: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route interface distance."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_interface_distance(
-            destination, interface, distance
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_interface_disable(
-        self, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route interface disable."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_interface_disable(
-            destination, interface
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_blackhole(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route to blackhole."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_blackhole(destination)
-        return self.add_set(path)
-
-    def delete_ipv6_route_blackhole(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv6 route blackhole."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_blackhole_path(destination)
-        return self.add_delete(path)
-
-    def set_ipv6_route_blackhole_distance(
-        self, destination: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route blackhole distance."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_blackhole_distance(
-            destination, distance
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_blackhole_tag(
-        self, destination: str, tag: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route blackhole tag."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_blackhole_tag(
-            destination, tag
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_reject(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route to reject."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_reject(destination)
-        return self.add_set(path)
-
-    def delete_ipv6_route_reject(
-        self, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv6 route reject."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_reject_path(destination)
-        return self.add_delete(path)
-
-    def set_ipv6_route_reject_distance(
-        self, destination: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route reject distance."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_reject_distance(
-            destination, distance
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_reject_tag(
-        self, destination: str, tag: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route reject tag."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_reject_tag(
-            destination, tag
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_next_hop_segments(
-        self, destination: str, next_hop: str, segments: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route next-hop segments (SRv6)."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_segments(
-            destination, next_hop, segments
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_interface_segments(
-        self, destination: str, interface: str, segments: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route interface segments (SRv6)."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_interface_segments(
-            destination, interface, segments
-        )
-        return self.add_set(path)
-
-    # ========================================================================
-    # IPv4 Next-hop VRF and BFD Operations
-    # ========================================================================
-
-    def set_ipv4_route_next_hop_vrf(
-        self, destination: str, next_hop: str, vrf: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route next-hop VRF."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_vrf(
-            destination, next_hop, vrf
-        )
-        return self.add_set(path)
-
-    def delete_ipv4_route_next_hop_vrf(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route next-hop VRF."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop(
-            destination, next_hop
-        ) + ["vrf"]
-        return self.add_delete(path)
-
-    def set_ipv4_route_next_hop_interface(
-        self, destination: str, next_hop: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route next-hop interface."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_interface(
-            destination, next_hop, interface
-        )
-        return self.add_set(path)
-
-    def set_ipv4_route_next_hop_bfd(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable BFD for IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_bfd(
-            destination, next_hop
-        )
-        return self.add_set(path)
-
-    def delete_ipv4_route_next_hop_bfd(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable BFD for IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_bfd(
-            destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def set_ipv4_route_next_hop_bfd_profile(
-        self, destination: str, next_hop: str, profile: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set BFD profile for IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_bfd_profile(
-            destination, next_hop, profile
-        )
-        return self.add_set(path)
-
-    def set_ipv4_route_next_hop_bfd_multi_hop(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable BFD multi-hop for IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_bfd_multi_hop(
-            destination, next_hop
-        )
-        return self.add_set(path)
-
-    def set_ipv4_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str, source: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set BFD multi-hop source address for IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_next_hop_bfd_multi_hop_source(
-            destination, next_hop, source
-        )
-        return self.add_set(path)
-
-    def delete_ipv4_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
-        path = mapper.get_ipv4_route_next_hop_bfd_multi_hop_source_delete(
-            destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def delete_ipv6_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
-        path = mapper.get_ipv6_route_next_hop_bfd_multi_hop_source_delete(
-            destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def set_ipv4_route_next_hop_segments(
-        self, destination: str, next_hop: str, segments: str
-    ) -> "StaticRoutesBatchBuilder":
-        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
-        path = mapper.get_ipv4_route_next_hop_segments(
-            destination, next_hop, segments
-        )
-        return self.add_set(path)
-
-    def delete_ipv4_route_next_hop_segments(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
-        path = mapper.get_ipv4_route_next_hop_segments_delete(
-            destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def set_ipv4_route_interface_segments(
-        self, destination: str, interface: str, segments: str
-    ) -> "StaticRoutesBatchBuilder":
-        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
-        path = mapper.get_ipv4_route_interface_segments(
-            destination, interface, segments
-        )
-        return self.add_set(path)
-
-    def delete_ipv4_route_interface_segments(
-        self, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        mapper = cast(StaticRoutesMapper, self.mappers[self.mapper_key])
-        path = mapper.get_ipv4_route_interface_segments_delete(
-            destination, interface
-        )
-        return self.add_delete(path)
-
-    def set_ipv4_route_interface_vrf(
-        self, destination: str, interface: str, vrf: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route interface VRF."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_interface_vrf(
-            destination, interface, vrf
-        )
-        return self.add_set(path)
-
-    def set_ipv4_route_dhcp_interface(
-        self, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv4 route DHCP interface."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_dhcp_interface(
-            destination, interface
-        )
-        return self.add_set(path)
+    def set_ipv4_route_dhcp_interface(self, destination: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_dhcp_interface(None, destination, interface))
 
     def delete_ipv4_route_dhcp_interface(
         self, destination: str, interface: str
     ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route DHCP interface."""
-        path = self.mappers[self.mapper_key].get_ipv4_route_dhcp_interface(
-            destination, interface
-        )
-        return self.add_delete(path)
+        return self.add_delete(self.m.get_route_dhcp_interface(None, destination, interface))
 
-    # ========================================================================
-    # IPv6 Next-hop VRF and BFD Operations
-    # ========================================================================
+    def set_ipv4_route_interface(self, destination: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface("ipv4", None, destination, interface))
 
-    def set_ipv6_route_next_hop_vrf(
-        self, destination: str, next_hop: str, vrf: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route next-hop VRF."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_vrf(
-            destination, next_hop, vrf
-        )
-        return self.add_set(path)
+    def delete_ipv4_route_interface(self, destination: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface("ipv4", None, destination, interface))
 
-    def delete_ipv6_route_next_hop_vrf(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv6 route next-hop VRF."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop(
-            destination, next_hop
-        ) + ["vrf"]
-        return self.add_delete(path)
-
-    def set_ipv6_route_next_hop_interface(
-        self, destination: str, next_hop: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route next-hop interface."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_interface(
-            destination, next_hop, interface
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_next_hop_bfd(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable BFD for IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_bfd(
-            destination, next_hop
-        )
-        return self.add_set(path)
-
-    def delete_ipv6_route_next_hop_bfd(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable BFD for IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_bfd(
-            destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def set_ipv6_route_next_hop_bfd_profile(
-        self, destination: str, next_hop: str, profile: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set BFD profile for IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_bfd_profile(
-            destination, next_hop, profile
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_next_hop_bfd_multi_hop(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable BFD multi-hop for IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_bfd_multi_hop(
-            destination, next_hop
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str, source: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set BFD multi-hop source address for IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_bfd_multi_hop_source(
-            destination, next_hop, source
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_interface_vrf(
-        self, destination: str, interface: str, vrf: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set IPv6 route interface VRF."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_interface_vrf(
-            destination, interface, vrf
-        )
-        return self.add_set(path)
-
-    def set_ipv6_route_next_hop_disable(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_disable(
-            destination, next_hop
-        )
-        return self.add_set(path)
-
-    def delete_ipv6_route_next_hop_disable(
-        self, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_next_hop_disable(
-            destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def delete_ipv6_route_interface(
+    def set_ipv4_route_interface_disable(
         self, destination: str, interface: str
     ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv6 route interface."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_interface(
-            destination, interface
+        return self.add_set(self.m.get_route_interface_disable("ipv4", None, destination, interface))
+
+    def delete_ipv4_route_interface_disable(
+        self, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface_disable("ipv4", None, destination, interface))
+
+    def set_ipv4_route_interface_distance(
+        self, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_distance("ipv4", None, destination, interface, value))
+
+    def delete_ipv4_route_interface_distance(
+        self, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_interface_distance_delete("ipv4", None, destination, interface)
         )
-        return self.add_delete(path)
+
+    def set_ipv4_route_interface_segments(
+        self, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_interface_segments",
+            None, destination, interface, value,
+        ))
+
+    def delete_ipv4_route_interface_segments(
+        self, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_interface_segments_delete",
+            None, destination, interface,
+        ))
+
+    def set_ipv4_route_interface_vrf(
+        self, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_vrf("ipv4", None, destination, interface, value))
+
+    def delete_ipv4_route_interface_vrf(self, destination: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface_vrf_delete("ipv4", None, destination, interface))
+
+    def set_ipv4_route_next_hop(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop("ipv4", None, destination, next_hop))
+
+    def delete_ipv4_route_next_hop(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop("ipv4", None, destination, next_hop))
+
+    def set_ipv4_route_next_hop_bfd(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd("ipv4", None, destination, next_hop))
+
+    def delete_ipv4_route_next_hop_bfd(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_bfd("ipv4", None, destination, next_hop))
+
+    def set_ipv4_route_next_hop_bfd_profile(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd_profile("ipv4", None, destination, next_hop, value))
+
+    def delete_ipv4_route_next_hop_bfd_profile(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_profile_delete("ipv4", None, destination, next_hop)
+        )
+
+    def set_ipv4_route_next_hop_bfd_multi_hop(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd_multi_hop("ipv4", None, destination, next_hop))
+
+    def delete_ipv4_route_next_hop_bfd_multi_hop(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_bfd_multi_hop("ipv4", None, destination, next_hop))
+
+    def set_ipv4_route_next_hop_bfd_multi_hop_source(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_bfd_multi_hop_source("ipv4", None, destination, next_hop, value)
+        )
+
+    def delete_ipv4_route_next_hop_bfd_multi_hop_source(
+        self, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv4", None, destination, next_hop, source)
+        )
+
+    def set_ipv4_route_next_hop_bfd_multi_hop_source_profile(
+        self, destination: str, next_hop: str, source: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile",
+            "ipv4", None, destination, next_hop, source, value,
+        ))
+
+    def delete_ipv4_route_next_hop_bfd_multi_hop_source_profile(
+        self, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile_delete",
+            "ipv4", None, destination, next_hop, source,
+        ))
+
+    def set_ipv4_route_next_hop_disable(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_disable("ipv4", None, destination, next_hop))
+
+    def delete_ipv4_route_next_hop_disable(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_disable("ipv4", None, destination, next_hop))
+
+    def set_ipv4_route_next_hop_distance(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_distance("ipv4", None, destination, next_hop, value))
+
+    def delete_ipv4_route_next_hop_distance(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_distance_delete("ipv4", None, destination, next_hop))
+
+    def set_ipv4_route_next_hop_interface(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_interface("ipv4", None, destination, next_hop, value))
+
+    def delete_ipv4_route_next_hop_interface(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_interface_delete("ipv4", None, destination, next_hop)
+        )
+
+    def set_ipv4_route_next_hop_segments(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_next_hop_segments",
+            None, destination, next_hop, value,
+        ))
+
+    def delete_ipv4_route_next_hop_segments(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_next_hop_segments_delete",
+            None, destination, next_hop,
+        ))
+
+    def set_ipv4_route_next_hop_vrf(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_vrf("ipv4", None, destination, next_hop, value))
+
+    def delete_ipv4_route_next_hop_vrf(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_vrf_delete("ipv4", None, destination, next_hop))
+
+    # ========================================================================
+    # IPv6 Routes
+    # ========================================================================
+
+    def set_ipv6_route(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route("ipv6", None, destination))
+
+    def delete_ipv6_route(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route("ipv6", None, destination))
+
+    def set_ipv6_route_description(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_description("ipv6", None, destination, value))
+
+    def delete_ipv6_route_description(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_description_delete("ipv6", None, destination))
+
+    def set_ipv6_route_blackhole(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole("ipv6", None, destination))
+
+    def delete_ipv6_route_blackhole(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_blackhole("ipv6", None, destination))
+
+    def set_ipv6_route_blackhole_distance(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole_distance("ipv6", None, destination, value))
+
+    def delete_ipv6_route_blackhole_distance(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_blackhole_distance_delete("ipv6", None, destination))
+
+    def set_ipv6_route_blackhole_tag(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole_tag("ipv6", None, destination, value))
+
+    def delete_ipv6_route_blackhole_tag(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_blackhole_tag_delete("ipv6", None, destination))
+
+    def set_ipv6_route_reject(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject("ipv6", None, destination))
+
+    def delete_ipv6_route_reject(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject("ipv6", None, destination))
+
+    def set_ipv6_route_reject_distance(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject_distance("ipv6", None, destination, value))
+
+    def delete_ipv6_route_reject_distance(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_distance_delete("ipv6", None, destination))
+
+    def set_ipv6_route_reject_tag(self, destination: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject_tag("ipv6", None, destination, value))
+
+    def delete_ipv6_route_reject_tag(self, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_tag_delete("ipv6", None, destination))
+
+    def set_ipv6_route_interface(self, destination: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface("ipv6", None, destination, interface))
+
+    def delete_ipv6_route_interface(self, destination: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface("ipv6", None, destination, interface))
+
+    def set_ipv6_route_interface_disable(
+        self, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_disable("ipv6", None, destination, interface))
 
     def delete_ipv6_route_interface_disable(
         self, destination: str, interface: str
     ) -> "StaticRoutesBatchBuilder":
-        """Enable IPv6 route interface."""
-        path = self.mappers[self.mapper_key].get_ipv6_route_interface_disable(
-            destination, interface
+        return self.add_delete(self.m.get_route_interface_disable("ipv6", None, destination, interface))
+
+    def set_ipv6_route_interface_distance(
+        self, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_distance("ipv6", None, destination, interface, value))
+
+    def delete_ipv6_route_interface_distance(
+        self, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_interface_distance_delete("ipv6", None, destination, interface)
         )
-        return self.add_delete(path)
+
+    def set_ipv6_route_interface_segments(
+        self, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route6_interface_segments(None, destination, interface, value))
+
+    def delete_ipv6_route_interface_segments(
+        self, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route6_interface_segments_delete(None, destination, interface)
+        )
+
+    def set_ipv6_route_interface_vrf(
+        self, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_vrf("ipv6", None, destination, interface, value))
+
+    def delete_ipv6_route_interface_vrf(self, destination: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface_vrf_delete("ipv6", None, destination, interface))
+
+    def set_ipv6_route_next_hop(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop("ipv6", None, destination, next_hop))
+
+    def delete_ipv6_route_next_hop(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop("ipv6", None, destination, next_hop))
+
+    def set_ipv6_route_next_hop_bfd(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd("ipv6", None, destination, next_hop))
+
+    def delete_ipv6_route_next_hop_bfd(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_bfd("ipv6", None, destination, next_hop))
+
+    def set_ipv6_route_next_hop_bfd_profile(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd_profile("ipv6", None, destination, next_hop, value))
+
+    def delete_ipv6_route_next_hop_bfd_profile(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_profile_delete("ipv6", None, destination, next_hop)
+        )
+
+    def set_ipv6_route_next_hop_bfd_multi_hop(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd_multi_hop("ipv6", None, destination, next_hop))
+
+    def delete_ipv6_route_next_hop_bfd_multi_hop(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_bfd_multi_hop("ipv6", None, destination, next_hop))
+
+    def set_ipv6_route_next_hop_bfd_multi_hop_source(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_bfd_multi_hop_source("ipv6", None, destination, next_hop, value)
+        )
+
+    def delete_ipv6_route_next_hop_bfd_multi_hop_source(
+        self, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv6", None, destination, next_hop, source)
+        )
+
+    def set_ipv6_route_next_hop_bfd_multi_hop_source_profile(
+        self, destination: str, next_hop: str, source: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile",
+            "ipv6", None, destination, next_hop, source, value,
+        ))
+
+    def delete_ipv6_route_next_hop_bfd_multi_hop_source_profile(
+        self, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile_delete",
+            "ipv6", None, destination, next_hop, source,
+        ))
+
+    def set_ipv6_route_next_hop_disable(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_disable("ipv6", None, destination, next_hop))
+
+    def delete_ipv6_route_next_hop_disable(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_disable("ipv6", None, destination, next_hop))
+
+    def set_ipv6_route_next_hop_distance(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_distance("ipv6", None, destination, next_hop, value))
+
+    def delete_ipv6_route_next_hop_distance(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_distance_delete("ipv6", None, destination, next_hop))
+
+    def set_ipv6_route_next_hop_interface(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_interface("ipv6", None, destination, next_hop, value))
+
+    def delete_ipv6_route_next_hop_interface(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_interface_delete("ipv6", None, destination, next_hop)
+        )
+
+    def set_ipv6_route_next_hop_segments(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route6_next_hop_segments(None, destination, next_hop, value))
+
+    def delete_ipv6_route_next_hop_segments(
+        self, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route6_next_hop_segments_delete(None, destination, next_hop))
+
+    def set_ipv6_route_next_hop_vrf(
+        self, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_vrf("ipv6", None, destination, next_hop, value))
+
+    def delete_ipv6_route_next_hop_vrf(self, destination: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_vrf_delete("ipv6", None, destination, next_hop))
 
     # ========================================================================
-    # Static ARP Operations
+    # Routing Table IPv4 Routes
     # ========================================================================
 
-    def set_arp_interface(self, interface: str) -> "StaticRoutesBatchBuilder":
-        """Create ARP interface entry."""
-        path = self.mappers[self.mapper_key].get_arp_interface_path(interface)
-        return self.add_set(path)
+    def set_table_ipv4_route(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route("ipv4", table_id, destination))
 
-    def delete_arp_interface(self, interface: str) -> "StaticRoutesBatchBuilder":
-        """Delete ARP interface entry."""
-        path = self.mappers[self.mapper_key].get_arp_interface_path(interface)
-        return self.add_delete(path)
-
-    def set_arp_entry(
-        self, interface: str, ip_address: str, mac_address: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set static ARP entry."""
-        path = self.mappers[self.mapper_key].get_arp_interface_address_mac(
-            interface, ip_address, mac_address
-        )
-        return self.add_set(path)
-
-    def delete_arp_entry(
-        self, interface: str, ip_address: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete static ARP entry."""
-        path = self.mappers[self.mapper_key].get_arp_interface_address_path(
-            interface, ip_address
-        )
-        return self.add_delete(path)
-
-    def set_arp_entry_description(
-        self, interface: str, ip_address: str, description: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set static ARP entry description."""
-        path = self.mappers[self.mapper_key].get_arp_interface_address_description(
-            interface, ip_address, description
-        )
-        return self.add_set(path)
-
-    # ========================================================================
-    # Multicast Route (mroute) Operations
-    # ========================================================================
-
-    def set_mroute(self, prefix: str) -> "StaticRoutesBatchBuilder":
-        """Create multicast route."""
-        path = self.mappers[self.mapper_key].get_mroute_path(prefix)
-        return self.add_set(path)
-
-    def delete_mroute(self, prefix: str) -> "StaticRoutesBatchBuilder":
-        """Delete multicast route."""
-        path = self.mappers[self.mapper_key].get_mroute_path(prefix)
-        return self.add_delete(path)
-
-    def set_mroute_interface(
-        self, prefix: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set multicast route interface."""
-        path = self.mappers[self.mapper_key].get_mroute_interface_path(prefix, interface)
-        return self.add_set(path)
-
-    def delete_mroute_interface(
-        self, prefix: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete multicast route interface."""
-        path = self.mappers[self.mapper_key].get_mroute_interface_path(prefix, interface)
-        return self.add_delete(path)
-
-    def set_mroute_interface_disable(
-        self, prefix: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable multicast route interface."""
-        path = self.mappers[self.mapper_key].get_mroute_interface_disable(prefix, interface)
-        return self.add_set(path)
-
-    def delete_mroute_interface_disable(
-        self, prefix: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable multicast route interface."""
-        path = self.mappers[self.mapper_key].get_mroute_interface_disable(prefix, interface)
-        return self.add_delete(path)
-
-    def set_mroute_interface_distance(
-        self, prefix: str, interface: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set multicast route interface distance."""
-        path = self.mappers[self.mapper_key].get_mroute_interface_distance(
-            prefix, interface, distance
-        )
-        return self.add_set(path)
-
-    def set_mroute_next_hop(
-        self, prefix: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set multicast route next-hop."""
-        path = self.mappers[self.mapper_key].get_mroute_next_hop_path(prefix, next_hop)
-        return self.add_set(path)
-
-    def delete_mroute_next_hop(
-        self, prefix: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete multicast route next-hop."""
-        path = self.mappers[self.mapper_key].get_mroute_next_hop_path(prefix, next_hop)
-        return self.add_delete(path)
-
-    def set_mroute_next_hop_disable(
-        self, prefix: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable multicast route next-hop."""
-        path = self.mappers[self.mapper_key].get_mroute_next_hop_disable(prefix, next_hop)
-        return self.add_set(path)
-
-    def delete_mroute_next_hop_disable(
-        self, prefix: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable multicast route next-hop."""
-        path = self.mappers[self.mapper_key].get_mroute_next_hop_disable(prefix, next_hop)
-        return self.add_delete(path)
-
-    def set_mroute_next_hop_distance(
-        self, prefix: str, next_hop: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set multicast route next-hop distance."""
-        path = self.mappers[self.mapper_key].get_mroute_next_hop_distance(
-            prefix, next_hop, distance
-        )
-        return self.add_set(path)
-
-    # ========================================================================
-    # Neighbor Proxy Operations
-    # ========================================================================
-
-    def set_neighbor_proxy_arp(
-        self, ip_address: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set neighbor proxy ARP entry."""
-        path = self.mappers[self.mapper_key].get_neighbor_proxy_arp_interface(
-            ip_address, interface
-        )
-        return self.add_set(path)
-
-    def delete_neighbor_proxy_arp(
-        self, ip_address: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete neighbor proxy ARP entry."""
-        path = self.mappers[self.mapper_key].get_neighbor_proxy_arp_path(ip_address)
-        return self.add_delete(path)
-
-    def delete_neighbor_proxy_arp_interface(
-        self, ip_address: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete neighbor proxy ARP interface."""
-        path = self.mappers[self.mapper_key].get_neighbor_proxy_arp_interface(
-            ip_address, interface
-        )
-        return self.add_delete(path)
-
-    def set_neighbor_proxy_nd(
-        self, ipv6_address: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set neighbor proxy ND entry."""
-        path = self.mappers[self.mapper_key].get_neighbor_proxy_nd_interface(
-            ipv6_address, interface
-        )
-        return self.add_set(path)
-
-    def delete_neighbor_proxy_nd(
-        self, ipv6_address: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete neighbor proxy ND entry."""
-        path = self.mappers[self.mapper_key].get_neighbor_proxy_nd_path(ipv6_address)
-        return self.add_delete(path)
-
-    def delete_neighbor_proxy_nd_interface(
-        self, ipv6_address: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete neighbor proxy ND interface."""
-        path = self.mappers[self.mapper_key].get_neighbor_proxy_nd_interface(
-            ipv6_address, interface
-        )
-        return self.add_delete(path)
-
-    # ========================================================================
-    # Routing Table Operations
-    # ========================================================================
-
-    def set_table(self, table_id: str) -> "StaticRoutesBatchBuilder":
-        """Create routing table."""
-        path = self.mappers[self.mapper_key].get_table_path(table_id)
-        return self.add_set(path)
-
-    def delete_table(self, table_id: str) -> "StaticRoutesBatchBuilder":
-        """Delete routing table."""
-        path = self.mappers[self.mapper_key].get_table_path(table_id)
-        return self.add_delete(path)
-
-    def set_table_description(
-        self, table_id: str, description: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set routing table description."""
-        path = self.mappers[self.mapper_key].get_table_description(
-            table_id, description
-        )
-        return self.add_set(path)
-
-    # ========================================================================
-    # Table IPv4 Route Operations
-    # ========================================================================
-
-    def set_table_ipv4_route(
-        self, table_id: str, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Create IPv4 route in table."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_path(table_id, destination)
-        return self.add_set(path)
-
-    def delete_table_ipv4_route(
-        self, table_id: str, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv4 route from table."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_path(table_id, destination)
-        return self.add_delete(path)
+    def delete_table_ipv4_route(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route("ipv4", table_id, destination))
 
     def set_table_ipv4_route_description(
-        self, table_id: str, destination: str, description: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route description."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_description(
-            table_id, destination, description
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_description("ipv4", table_id, destination, value))
 
-    def set_table_ipv4_route_next_hop(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop(
-            table_id, destination, next_hop
-        )
-        return self.add_set(path)
-
-    def delete_table_ipv4_route_next_hop(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop(
-            table_id, destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def set_table_ipv4_route_next_hop_distance(
-        self, table_id: str, destination: str, next_hop: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route next-hop distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop_distance(
-            table_id, destination, next_hop, distance
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_next_hop_disable(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable table IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop_disable(
-            table_id, destination, next_hop
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_next_hop_interface(
-        self, table_id: str, destination: str, next_hop: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route next-hop interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop_interface(
-            table_id, destination, next_hop, interface
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_next_hop_vrf(
-        self, table_id: str, destination: str, next_hop: str, vrf: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route next-hop VRF."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop_vrf(
-            table_id, destination, next_hop, vrf
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_next_hop_bfd(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable BFD for table IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop_bfd(
-            table_id, destination, next_hop
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_next_hop_bfd_profile(
-        self, table_id: str, destination: str, next_hop: str, profile: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set BFD profile for table IPv4 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_next_hop_bfd_profile(
-            table_id, destination, next_hop, profile
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_interface(
-        self, table_id: str, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_interface(
-            table_id, destination, interface
-        )
-        return self.add_set(path)
-
-    def delete_table_ipv4_route_interface(
-        self, table_id: str, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv4 route interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_interface(
-            table_id, destination, interface
-        )
-        return self.add_delete(path)
-
-    def set_table_ipv4_route_interface_distance(
-        self, table_id: str, destination: str, interface: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route interface distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_interface_distance(
-            table_id, destination, interface, distance
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_interface_disable(
-        self, table_id: str, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable table IPv4 route interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_interface_disable(
-            table_id, destination, interface
-        )
-        return self.add_set(path)
-
-    def set_table_ipv4_route_blackhole(
+    def delete_table_ipv4_route_description(
         self, table_id: str, destination: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route to blackhole."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_blackhole(table_id, destination)
-        return self.add_set(path)
+        return self.add_delete(self.m.get_route_description_delete("ipv4", table_id, destination))
+
+    def set_table_ipv4_route_blackhole(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole("ipv4", table_id, destination))
 
     def delete_table_ipv4_route_blackhole(
         self, table_id: str, destination: str
     ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv4 route blackhole."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_blackhole(table_id, destination)
-        return self.add_delete(path)
+        return self.add_delete(self.m.get_route_blackhole("ipv4", table_id, destination))
 
     def set_table_ipv4_route_blackhole_distance(
-        self, table_id: str, destination: str, distance: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route blackhole distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_blackhole_distance(
-            table_id, destination, distance
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_blackhole_distance("ipv4", table_id, destination, value))
+
+    def delete_table_ipv4_route_blackhole_distance(
+        self, table_id: str, destination: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_blackhole_distance_delete("ipv4", table_id, destination))
 
     def set_table_ipv4_route_blackhole_tag(
-        self, table_id: str, destination: str, tag: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route blackhole tag."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_blackhole_tag(
-            table_id, destination, tag
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_blackhole_tag("ipv4", table_id, destination, value))
 
-    def set_table_ipv4_route_reject(
+    def delete_table_ipv4_route_blackhole_tag(
         self, table_id: str, destination: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route to reject."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_reject(table_id, destination)
-        return self.add_set(path)
+        return self.add_delete(self.m.get_route_blackhole_tag_delete("ipv4", table_id, destination))
 
-    def delete_table_ipv4_route_reject(
-        self, table_id: str, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv4 route reject."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_reject(table_id, destination)
-        return self.add_delete(path)
+    def set_table_ipv4_route_reject(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject("ipv4", table_id, destination))
+
+    def delete_table_ipv4_route_reject(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject("ipv4", table_id, destination))
 
     def set_table_ipv4_route_reject_distance(
-        self, table_id: str, destination: str, distance: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route reject distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_reject_distance(
-            table_id, destination, distance
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_reject_distance("ipv4", table_id, destination, value))
+
+    def delete_table_ipv4_route_reject_distance(
+        self, table_id: str, destination: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_distance_delete("ipv4", table_id, destination))
 
     def set_table_ipv4_route_reject_tag(
-        self, table_id: str, destination: str, tag: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route reject tag."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_reject_tag(
-            table_id, destination, tag
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_reject_tag("ipv4", table_id, destination, value))
+
+    def delete_table_ipv4_route_reject_tag(
+        self, table_id: str, destination: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_tag_delete("ipv4", table_id, destination))
 
     def set_table_ipv4_route_dhcp_interface(
         self, table_id: str, destination: str, interface: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv4 route DHCP interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_dhcp_interface(
-            table_id, destination, interface
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_dhcp_interface(table_id, destination, interface))
 
     def delete_table_ipv4_route_dhcp_interface(
         self, table_id: str, destination: str, interface: str
     ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv4 route DHCP interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv4_route_dhcp_interface(
-            table_id, destination, interface
+        return self.add_delete(self.m.get_route_dhcp_interface(table_id, destination, interface))
+
+    def set_table_ipv4_route_interface(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface("ipv4", table_id, destination, interface))
+
+    def delete_table_ipv4_route_interface(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface("ipv4", table_id, destination, interface))
+
+    def set_table_ipv4_route_interface_disable(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_disable("ipv4", table_id, destination, interface))
+
+    def delete_table_ipv4_route_interface_disable(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface_disable("ipv4", table_id, destination, interface))
+
+    def set_table_ipv4_route_interface_distance(
+        self, table_id: str, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_interface_distance("ipv4", table_id, destination, interface, value)
         )
-        return self.add_delete(path)
+
+    def delete_table_ipv4_route_interface_distance(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_interface_distance_delete("ipv4", table_id, destination, interface)
+        )
+
+    def set_table_ipv4_route_interface_segments(
+        self, table_id: str, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_interface_segments",
+            table_id, destination, interface, value,
+        ))
+
+    def delete_table_ipv4_route_interface_segments(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_interface_segments_delete",
+            table_id, destination, interface,
+        ))
+
+    def set_table_ipv4_route_interface_vrf(
+        self, table_id: str, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_vrf("ipv4", table_id, destination, interface, value))
+
+    def delete_table_ipv4_route_interface_vrf(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_interface_vrf_delete("ipv4", table_id, destination, interface)
+        )
+
+    def set_table_ipv4_route_next_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop("ipv4", table_id, destination, next_hop))
+
+    def delete_table_ipv4_route_next_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop("ipv4", table_id, destination, next_hop))
+
+    def set_table_ipv4_route_next_hop_bfd(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd("ipv4", table_id, destination, next_hop))
+
+    def delete_table_ipv4_route_next_hop_bfd(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_bfd("ipv4", table_id, destination, next_hop))
+
+    def set_table_ipv4_route_next_hop_bfd_profile(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_bfd_profile("ipv4", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv4_route_next_hop_bfd_profile(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_profile_delete("ipv4", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv4_route_next_hop_bfd_multi_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd_multi_hop("ipv4", table_id, destination, next_hop))
+
+    def delete_table_ipv4_route_next_hop_bfd_multi_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_multi_hop("ipv4", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv4_route_next_hop_bfd_multi_hop_source(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_bfd_multi_hop_source("ipv4", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv4_route_next_hop_bfd_multi_hop_source(
+        self, table_id: str, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv4", table_id, destination, next_hop, source)
+        )
+
+    def set_table_ipv4_route_next_hop_bfd_multi_hop_source_profile(
+        self, table_id: str, destination: str, next_hop: str, source: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile",
+            "ipv4", table_id, destination, next_hop, source, value,
+        ))
+
+    def delete_table_ipv4_route_next_hop_bfd_multi_hop_source_profile(
+        self, table_id: str, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile_delete",
+            "ipv4", table_id, destination, next_hop, source,
+        ))
+
+    def set_table_ipv4_route_next_hop_disable(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_disable("ipv4", table_id, destination, next_hop))
+
+    def delete_table_ipv4_route_next_hop_disable(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_disable("ipv4", table_id, destination, next_hop))
+
+    def set_table_ipv4_route_next_hop_distance(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_distance("ipv4", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv4_route_next_hop_distance(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_distance_delete("ipv4", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv4_route_next_hop_interface(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_interface("ipv4", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv4_route_next_hop_interface(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_interface_delete("ipv4", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv4_route_next_hop_segments(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_next_hop_segments",
+            table_id, destination, next_hop, value,
+        ))
+
+    def delete_table_ipv4_route_next_hop_segments(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            IPV4_SEGMENTS, "get_route_next_hop_segments_delete",
+            table_id, destination, next_hop,
+        ))
+
+    def set_table_ipv4_route_next_hop_vrf(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_vrf("ipv4", table_id, destination, next_hop, value))
+
+    def delete_table_ipv4_route_next_hop_vrf(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_vrf_delete("ipv4", table_id, destination, next_hop))
 
     # ========================================================================
-    # Table IPv6 Route Operations
+    # Routing Table IPv6 Routes
     # ========================================================================
 
-    def set_table_ipv6_route(
-        self, table_id: str, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Create IPv6 route in table."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_path(table_id, destination)
-        return self.add_set(path)
+    def set_table_ipv6_route(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route("ipv6", table_id, destination))
 
-    def delete_table_ipv6_route(
-        self, table_id: str, destination: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete IPv6 route from table."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_path(table_id, destination)
-        return self.add_delete(path)
+    def delete_table_ipv6_route(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route("ipv6", table_id, destination))
 
     def set_table_ipv6_route_description(
-        self, table_id: str, destination: str, description: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route description."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_description(
-            table_id, destination, description
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_description("ipv6", table_id, destination, value))
 
-    def set_table_ipv6_route_next_hop(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_next_hop(
-            table_id, destination, next_hop
-        )
-        return self.add_set(path)
-
-    def delete_table_ipv6_route_next_hop(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_next_hop(
-            table_id, destination, next_hop
-        )
-        return self.add_delete(path)
-
-    def set_table_ipv6_route_next_hop_distance(
-        self, table_id: str, destination: str, next_hop: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route next-hop distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_next_hop_distance(
-            table_id, destination, next_hop, distance
-        )
-        return self.add_set(path)
-
-    def set_table_ipv6_route_next_hop_disable(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable table IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_next_hop_disable(
-            table_id, destination, next_hop
-        )
-        return self.add_set(path)
-
-    def set_table_ipv6_route_next_hop_interface(
-        self, table_id: str, destination: str, next_hop: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route next-hop interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_next_hop_interface(
-            table_id, destination, next_hop, interface
-        )
-        return self.add_set(path)
-
-    def set_table_ipv6_route_next_hop_vrf(
-        self, table_id: str, destination: str, next_hop: str, vrf: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route next-hop VRF."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_next_hop_vrf(
-            table_id, destination, next_hop, vrf
-        )
-        return self.add_set(path)
-
-    def set_table_ipv6_route_next_hop_bfd(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Enable BFD for table IPv6 route next-hop."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_next_hop_bfd(
-            table_id, destination, next_hop
-        )
-        return self.add_set(path)
-
-    def set_table_ipv6_route_interface(
-        self, table_id: str, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_interface(
-            table_id, destination, interface
-        )
-        return self.add_set(path)
-
-    def delete_table_ipv6_route_interface(
-        self, table_id: str, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv6 route interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_interface(
-            table_id, destination, interface
-        )
-        return self.add_delete(path)
-
-    def set_table_ipv6_route_interface_distance(
-        self, table_id: str, destination: str, interface: str, distance: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route interface distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_interface_distance(
-            table_id, destination, interface, distance
-        )
-        return self.add_set(path)
-
-    def set_table_ipv6_route_interface_disable(
-        self, table_id: str, destination: str, interface: str
-    ) -> "StaticRoutesBatchBuilder":
-        """Disable table IPv6 route interface."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_interface_disable(
-            table_id, destination, interface
-        )
-        return self.add_set(path)
-
-    def set_table_ipv6_route_blackhole(
+    def delete_table_ipv6_route_description(
         self, table_id: str, destination: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route to blackhole."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_blackhole(table_id, destination)
-        return self.add_set(path)
+        return self.add_delete(self.m.get_route_description_delete("ipv6", table_id, destination))
+
+    def set_table_ipv6_route_blackhole(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole("ipv6", table_id, destination))
 
     def delete_table_ipv6_route_blackhole(
         self, table_id: str, destination: str
     ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv6 route blackhole."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_blackhole(table_id, destination)
-        return self.add_delete(path)
+        return self.add_delete(self.m.get_route_blackhole("ipv6", table_id, destination))
 
     def set_table_ipv6_route_blackhole_distance(
-        self, table_id: str, destination: str, distance: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route blackhole distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_blackhole_distance(
-            table_id, destination, distance
-        )
-        return self.add_set(path)
+        return self.add_set(self.m.get_route_blackhole_distance("ipv6", table_id, destination, value))
 
-    def set_table_ipv6_route_reject(
+    def delete_table_ipv6_route_blackhole_distance(
         self, table_id: str, destination: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route to reject."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_reject(table_id, destination)
-        return self.add_set(path)
+        return self.add_delete(self.m.get_route_blackhole_distance_delete("ipv6", table_id, destination))
 
-    def delete_table_ipv6_route_reject(
+    def set_table_ipv6_route_blackhole_tag(
+        self, table_id: str, destination: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_blackhole_tag("ipv6", table_id, destination, value))
+
+    def delete_table_ipv6_route_blackhole_tag(
         self, table_id: str, destination: str
     ) -> "StaticRoutesBatchBuilder":
-        """Delete table IPv6 route reject."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_reject(table_id, destination)
-        return self.add_delete(path)
+        return self.add_delete(self.m.get_route_blackhole_tag_delete("ipv6", table_id, destination))
+
+    def set_table_ipv6_route_reject(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject("ipv6", table_id, destination))
+
+    def delete_table_ipv6_route_reject(self, table_id: str, destination: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject("ipv6", table_id, destination))
 
     def set_table_ipv6_route_reject_distance(
-        self, table_id: str, destination: str, distance: str
+        self, table_id: str, destination: str, value: str
     ) -> "StaticRoutesBatchBuilder":
-        """Set table IPv6 route reject distance."""
-        path = self.mappers[self.mapper_key].get_table_ipv6_route_reject_distance(
-            table_id, destination, distance
+        return self.add_set(self.m.get_route_reject_distance("ipv6", table_id, destination, value))
+
+    def delete_table_ipv6_route_reject_distance(
+        self, table_id: str, destination: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_distance_delete("ipv6", table_id, destination))
+
+    def set_table_ipv6_route_reject_tag(
+        self, table_id: str, destination: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_reject_tag("ipv6", table_id, destination, value))
+
+    def delete_table_ipv6_route_reject_tag(
+        self, table_id: str, destination: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_reject_tag_delete("ipv6", table_id, destination))
+
+    def set_table_ipv6_route_interface(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface("ipv6", table_id, destination, interface))
+
+    def delete_table_ipv6_route_interface(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface("ipv6", table_id, destination, interface))
+
+    def set_table_ipv6_route_interface_disable(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_disable("ipv6", table_id, destination, interface))
+
+    def delete_table_ipv6_route_interface_disable(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_interface_disable("ipv6", table_id, destination, interface))
+
+    def set_table_ipv6_route_interface_distance(
+        self, table_id: str, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_interface_distance("ipv6", table_id, destination, interface, value)
         )
-        return self.add_set(path)
+
+    def delete_table_ipv6_route_interface_distance(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_interface_distance_delete("ipv6", table_id, destination, interface)
+        )
+
+    def set_table_ipv6_route_interface_segments(
+        self, table_id: str, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route6_interface_segments(table_id, destination, interface, value)
+        )
+
+    def delete_table_ipv6_route_interface_segments(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route6_interface_segments_delete(table_id, destination, interface)
+        )
+
+    def set_table_ipv6_route_interface_vrf(
+        self, table_id: str, destination: str, interface: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_interface_vrf("ipv6", table_id, destination, interface, value))
+
+    def delete_table_ipv6_route_interface_vrf(
+        self, table_id: str, destination: str, interface: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_interface_vrf_delete("ipv6", table_id, destination, interface)
+        )
+
+    def set_table_ipv6_route_next_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop("ipv6", table_id, destination, next_hop))
+
+    def delete_table_ipv6_route_next_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop("ipv6", table_id, destination, next_hop))
+
+    def set_table_ipv6_route_next_hop_bfd(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd("ipv6", table_id, destination, next_hop))
+
+    def delete_table_ipv6_route_next_hop_bfd(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_bfd("ipv6", table_id, destination, next_hop))
+
+    def set_table_ipv6_route_next_hop_bfd_profile(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_bfd_profile("ipv6", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv6_route_next_hop_bfd_profile(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_profile_delete("ipv6", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv6_route_next_hop_bfd_multi_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_bfd_multi_hop("ipv6", table_id, destination, next_hop))
+
+    def delete_table_ipv6_route_next_hop_bfd_multi_hop(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_multi_hop("ipv6", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv6_route_next_hop_bfd_multi_hop_source(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_bfd_multi_hop_source("ipv6", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv6_route_next_hop_bfd_multi_hop_source(
+        self, table_id: str, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_bfd_multi_hop_source_delete("ipv6", table_id, destination, next_hop, source)
+        )
+
+    def set_table_ipv6_route_next_hop_bfd_multi_hop_source_profile(
+        self, table_id: str, destination: str, next_hop: str, source: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile",
+            "ipv6", table_id, destination, next_hop, source, value,
+        ))
+
+    def delete_table_ipv6_route_next_hop_bfd_multi_hop_source_profile(
+        self, table_id: str, destination: str, next_hop: str, source: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            SOURCE_PROFILE, "get_route_next_hop_bfd_multi_hop_source_profile_delete",
+            "ipv6", table_id, destination, next_hop, source,
+        ))
+
+    def set_table_ipv6_route_next_hop_disable(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_disable("ipv6", table_id, destination, next_hop))
+
+    def delete_table_ipv6_route_next_hop_disable(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_disable("ipv6", table_id, destination, next_hop))
+
+    def set_table_ipv6_route_next_hop_distance(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_distance("ipv6", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv6_route_next_hop_distance(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_distance_delete("ipv6", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv6_route_next_hop_interface(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route_next_hop_interface("ipv6", table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv6_route_next_hop_interface(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route_next_hop_interface_delete("ipv6", table_id, destination, next_hop)
+        )
+
+    def set_table_ipv6_route_next_hop_segments(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(
+            self.m.get_route6_next_hop_segments(table_id, destination, next_hop, value)
+        )
+
+    def delete_table_ipv6_route_next_hop_segments(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(
+            self.m.get_route6_next_hop_segments_delete(table_id, destination, next_hop)
+        )
+
+    def set_table_ipv6_route_next_hop_vrf(
+        self, table_id: str, destination: str, next_hop: str, value: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_next_hop_vrf("ipv6", table_id, destination, next_hop, value))
+
+    def delete_table_ipv6_route_next_hop_vrf(
+        self, table_id: str, destination: str, next_hop: str
+    ) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_route_next_hop_vrf_delete("ipv6", table_id, destination, next_hop))
+
+
+    # ========================================================================
+    # Routing Tables
+    # ========================================================================
+
+    def set_table(self, table_id: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_table(table_id))
+
+    def delete_table(self, table_id: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_table(table_id))
+
+    def set_table_description(self, table_id: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_table_description(table_id, value))
+
+    def delete_table_description(self, table_id: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_table_description_delete(table_id))
 
     # ========================================================================
     # Route-map
     # ========================================================================
 
-    def set_route_map(self, route_map_name: str) -> "StaticRoutesBatchBuilder":
-        """Set route-map."""
-        path = self.mappers[self.mapper_key].get_route_map(route_map_name)
-        return self.add_set(path)
+    def set_route_map(self, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_route_map(value))
 
     def delete_route_map(self) -> "StaticRoutesBatchBuilder":
-        """Delete route-map."""
-        path = ["protocols", "static", "route-map"]
-        return self.add_delete(path)
+        return self.add_delete(self.m.get_route_map_delete())
+
+    # ========================================================================
+    # Static ARP
+    # ========================================================================
+
+    def set_arp_interface(self, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_arp_interface(interface))
+
+    def delete_arp_interface(self, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_arp_interface(interface))
+
+    def set_arp_entry(self, interface: str, address: str, mac: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_arp_entry_mac(interface, address, mac))
+
+    def delete_arp_entry(self, interface: str, address: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_arp_entry(interface, address))
+
+    def set_arp_entry_description(self, interface: str, address: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_arp_entry_description(interface, address, value))
+
+    def delete_arp_entry_description(self, interface: str, address: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_arp_entry_description_delete(interface, address))
+
+    # ========================================================================
+    # Multicast Routes
+    # ========================================================================
+
+    def set_mroute(self, prefix: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(MROUTE, "get_mroute", prefix))
+
+    def delete_mroute(self, prefix: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(MROUTE, "get_mroute", prefix))
+
+    def delete_mroute_next_hops(self, prefix: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_mroute_next_hop_root(prefix))
+
+    def delete_mroute_interfaces(self, prefix: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_mroute_interface_root(prefix))
+
+    def set_mroute_next_hop(self, prefix: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_mroute_next_hop(prefix, next_hop))
+
+    def delete_mroute_next_hop(self, prefix: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_mroute_next_hop(prefix, next_hop))
+
+    def set_mroute_next_hop_distance(self, prefix: str, next_hop: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_mroute_next_hop_distance(prefix, next_hop, value))
+
+    def delete_mroute_next_hop_distance(self, prefix: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_mroute_next_hop_distance_delete(prefix, next_hop))
+
+    def set_mroute_next_hop_disable(self, prefix: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(MROUTE, "get_mroute_next_hop_disable", prefix, next_hop))
+
+    def delete_mroute_next_hop_disable(self, prefix: str, next_hop: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(MROUTE, "get_mroute_next_hop_disable", prefix, next_hop))
+
+    def set_mroute_interface(self, prefix: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_mroute_interface(prefix, interface))
+
+    def delete_mroute_interface(self, prefix: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_mroute_interface(prefix, interface))
+
+    def set_mroute_interface_distance(self, prefix: str, interface: str, value: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_mroute_interface_distance(prefix, interface, value))
+
+    def delete_mroute_interface_distance(self, prefix: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_mroute_interface_distance_delete(prefix, interface))
+
+    def set_mroute_interface_disable(self, prefix: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self._versioned_path(MROUTE, "get_mroute_interface_disable", prefix, interface))
+
+    def delete_mroute_interface_disable(self, prefix: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self._versioned_path(MROUTE, "get_mroute_interface_disable", prefix, interface))
+
+    # ========================================================================
+    # Neighbor Proxy
+    # ========================================================================
+
+    def set_neighbor_proxy_arp(self, address: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_neighbor_proxy_interface("arp", address, interface))
+
+    def delete_neighbor_proxy_arp(self, address: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_proxy("arp", address))
+
+    def delete_neighbor_proxy_arp_interface(self, address: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_proxy_interface("arp", address, interface))
+
+    def set_neighbor_proxy_nd(self, address: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_set(self.m.get_neighbor_proxy_interface("nd", address, interface))
+
+    def delete_neighbor_proxy_nd(self, address: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_proxy("nd", address))
+
+    def delete_neighbor_proxy_nd_interface(self, address: str, interface: str) -> "StaticRoutesBatchBuilder":
+        return self.add_delete(self.m.get_neighbor_proxy_interface("nd", address, interface))
 
     # ========================================================================
     # Capabilities
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        """Get capabilities for the current VyOS version."""
-        is_1_5 = "1.5" in self.version or "latest" in self.version
-        is_1_4 = "1.4" in self.version
-
+        """Flags for the leaves only one VyOS version has."""
+        mapper = self.m
         return {
             "version": self.version,
             "features": {
-                "ipv4_routes": {
-                    "supported": True,
-                    "description": "IPv4 static routes",
+                "route_ipv4_segments": {
+                    "supported": mapper.supports_node(IPV4_SEGMENTS),
+                    "description": "SRv6 segments on IPv4 route next-hops and interfaces",
                 },
-                "ipv6_routes": {
-                    "supported": True,
-                    "description": "IPv6 static routes",
+                "next_hop_bfd_source_profile": {
+                    "supported": mapper.supports_node(SOURCE_PROFILE),
+                    "description": "BFD profile per multi-hop source address",
                 },
-                "routing_tables": {
-                    "supported": True,
-                    "description": "Custom routing tables (1-200)",
+                "multicast_mroute": {
+                    "supported": mapper.supports_node(MROUTE),
+                    "description": "Multicast routes as one mroute node with next-hop and interface disable",
                 },
-                "blackhole_routes": {
-                    "supported": True,
-                    "description": "Blackhole routes for filtering",
+                "route_dhcp_interface_multi": {
+                    "supported": mapper.dhcp_interface_multi(),
+                    "description": "Several DHCP interfaces per IPv4 route (one on 1.4)",
                 },
-                "reject_routes": {
-                    "supported": True,
-                    "description": "Reject routes (ICMP unreachable)",
-                },
-                "interface_routes": {
-                    "supported": True,
-                    "description": "Interface-based routes",
-                },
-                "next_hop_bfd": {
-                    "supported": True,
-                    "description": "BFD monitoring for next-hop",
-                },
-                "next_hop_vrf": {
-                    "supported": True,
-                    "description": "VRF for next-hop",
-                },
-                "multicast_routes": {
-                    "supported": True,
-                    "description": "Multicast static routes",
-                },
-                "multicast_route_disable": {
-                    "supported": is_1_5,
-                    "description": "Disable option for multicast routes (VyOS 1.5+)",
-                },
-                "dhcp_interface": {
-                    "supported": True,
-                    "description": "DHCP interface routes",
-                },
-                "segments_ipv6": {
-                    "supported": True,
-                    "description": "SRv6 segments for IPv6 routes",
-                },
-                "route_map": {
-                    "supported": True,
-                    "description": "Route-map for static routes",
-                },
-                "arp": {
-                    "supported": True,
-                    "description": "Static ARP entries",
-                },
-                "neighbor_proxy": {
-                    "supported": True,
-                    "description": "Neighbor proxy (ARP and NDP)",
-                },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
-                "multicast_command": "multicast" if is_1_4 else "mroute",
-                "multicast_interface_key": "interface-route" if is_1_4 else "interface",
-                "multicast_interface_value_key": "next-hop-interface" if is_1_4 else "interface",
             },
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,155 +15,169 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { staticRoutesService, type MrouteNextHop, type MrouteInterface } from "@/lib/api/static-routes";
-import { showService, InterfaceName } from "@/lib/api/show";
+import { staticRoutesService, type MulticastRoute } from "@/lib/api/static-routes";
+import {
+  DISTANCE_RANGE,
+  emptyMrouteTarget,
+  mrouteFields,
+  mrouteProblem,
+  type MrouteFeatures,
+  type MrouteFields,
+  type MrouteProblem,
+  type MrouteTargetFields,
+} from "@/lib/api/static-routes-save-ops";
+import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { lockedIdentity, modalIsEdit } from "@/lib/modal-mode";
+import type { ApiError } from "@/lib/types/api";
 
 interface CreateMrouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  existing?: MulticastRoute | null;
+  features: MrouteFeatures;
+  /** Prefixes the device already has. */
+  configured: string[];
 }
 
-interface NextHopEntry {
-  address: string;
-  distance: string;
-  disable: boolean;
-}
-
-interface InterfaceEntry {
-  interface: string;
-  distance: string;
-  disable: boolean;
-}
+type TargetList = "nextHops" | "interfaces";
 
 export function CreateMrouteModal({
   open,
   onOpenChange,
   onSuccess,
+  existing,
+  features,
+  configured,
 }: CreateMrouteModalProps) {
   const t = useTranslations("routingExtras");
   const tc = useTranslations("common");
+  const isEdit = modalIsEdit(existing);
+  const initial = useMemo(() => mrouteFields(existing), [existing]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
+  const [draft, setDraft] = useState<MrouteFields>(initial);
 
-  // Form fields
-  const [prefix, setPrefix] = useState("");
-  const [nextHops, setNextHops] = useState<NextHopEntry[]>([]);
-  const [interfaces, setInterfaces] = useState<InterfaceEntry[]>([]);
+  const seedKey = open ? JSON.stringify(initial) : "";
+  const [seed, setSeed] = useState(seedKey);
+  if (seedKey !== seed) {
+    setSeed(seedKey);
+    setDraft(initial);
+    setError(null);
+  }
 
   useEffect(() => {
-    if (open) {
-      loadInterfaces();
-      resetForm();
-    }
+    if (!open) return;
+    let live = true;
+    showService
+      .getAllInterfaces()
+      .then((response) => {
+        if (live) setAvailableInterfaces(response.interfaces);
+      })
+      .catch(() => {
+        if (live) setAvailableInterfaces([]);
+      });
+    return () => {
+      live = false;
+    };
   }, [open]);
 
-  const loadInterfaces = async () => {
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
+  const lockedPrefix = lockedIdentity(existing, (route) => route.prefix, draft.prefix);
+
+  const addTarget = (list: TargetList) =>
+    setDraft((d) => ({ ...d, [list]: [...d[list], emptyMrouteTarget()] }));
+  const removeTarget = (list: TargetList, index: number) =>
+    setDraft((d) => ({ ...d, [list]: d[list].filter((_, i) => i !== index) }));
+  const updateTarget = (list: TargetList, index: number, fields: Partial<MrouteTargetFields>) =>
+    setDraft((d) => ({ ...d, [list]: d[list].map((row, i) => (i === index ? { ...row, ...fields } : row)) }));
+
+  const problemMessage = (problem: MrouteProblem): string => {
+    switch (problem.key) {
+      case "range":
+        return problem.name
+          ? t("validation.distanceRangeNamed", { min: problem.min, max: problem.max, name: problem.name })
+          : t("validation.distanceRange", { min: problem.min, max: problem.max });
+      case "nextHopDuplicate":
+      case "interfaceDuplicate":
+        return t(`validation.${problem.key}`, { name: problem.name });
+      case "nextHopAddressRequired":
+        return t("validation.nextHopAddressRequired");
+      case "mrouteExists":
+      case "nextHopAddressInvalid":
+        return t(`mrouteModal.${problem.key}`, { name: problem.name });
+      case "prefixRequired":
+        return t("mrouteModal.prefixRequired");
+      case "prefixInvalid":
+        return t("mrouteModal.invalidPrefix");
+      case "targetRequired":
+        return t("mrouteModal.nextHopOrInterfaceRequired");
+      default:
+        return t("mrouteModal.interfaceRequired");
     }
-  };
-
-  const resetForm = () => {
-    setPrefix("");
-    setNextHops([]);
-    setInterfaces([]);
-    setError(null);
-  };
-
-  const addNextHop = () => {
-    setNextHops([...nextHops, { address: "", distance: "", disable: false }]);
-  };
-
-  const removeNextHop = (index: number) => {
-    setNextHops(nextHops.filter((_, i) => i !== index));
-  };
-
-  const updateNextHop = (index: number, field: keyof NextHopEntry, value: string | boolean) => {
-    const updated = [...nextHops];
-    updated[index] = { ...updated[index], [field]: value };
-    setNextHops(updated);
-  };
-
-  const addInterface = () => {
-    setInterfaces([...interfaces, { interface: "", distance: "", disable: false }]);
-  };
-
-  const removeInterface = (index: number) => {
-    setInterfaces(interfaces.filter((_, i) => i !== index));
-  };
-
-  const updateInterface = (index: number, field: keyof InterfaceEntry, value: string | boolean) => {
-    const updated = [...interfaces];
-    updated[index] = { ...updated[index], [field]: value };
-    setInterfaces(updated);
   };
 
   const handleSubmit = async () => {
+    const problem = mrouteProblem(isEdit ? initial : null, draft, configured, features);
+    if (problem) {
+      setError(problemMessage(problem));
+      return;
+    }
+    const failed = isEdit ? t("mrouteModal.updateFailed") : t("mrouteModal.createFailed");
     setError(null);
-
-    // Validation
-    if (!prefix) {
-      setError(t("mrouteModal.prefixRequired"));
-      return;
-    }
-
-    // Validate prefix format (IPv4 CIDR)
-    const prefixRegex = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
-    if (!prefixRegex.test(prefix)) {
-      setError(t("mrouteModal.invalidPrefix"));
-      return;
-    }
-
-    if (nextHops.length === 0 && interfaces.length === 0) {
-      setError(t("mrouteModal.nextHopOrInterfaceRequired"));
-      return;
-    }
-
     setLoading(true);
-
     try {
-      const mrouteNextHops: MrouteNextHop[] = nextHops
-        .filter(nh => nh.address)
-        .map(nh => ({
-          address: nh.address,
-          distance: nh.distance ? parseInt(nh.distance) : undefined,
-          disable: nh.disable,
-        }));
-
-      const mrouteInterfaces: MrouteInterface[] = interfaces
-        .filter(iface => iface.interface)
-        .map(iface => ({
-          interface: iface.interface,
-          distance: iface.distance ? parseInt(iface.distance) : undefined,
-          disable: iface.disable,
-        }));
-
-      await staticRoutesService.createMroute(prefix, {
-        next_hops: mrouteNextHops,
-        interfaces: mrouteInterfaces,
-      });
-      onSuccess();
+      const result = await staticRoutesService.saveMroute(isEdit ? existing : null, draft, features);
+      if (result && !result.success) {
+        setError(result.error || failed);
+        return;
+      }
+      if (result) onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("mrouteModal.createFailed"));
+      setError((err as ApiError).message || failed);
     } finally {
       setLoading(false);
     }
   };
 
+  const disableToggle = (list: TargetList, index: number, row: MrouteTargetFields) =>
+    features.mroute && (
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={`${list}-disable-${index}`}
+          checked={row.disable}
+          onCheckedChange={(checked) => updateTarget(list, index, { disable: checked === true })}
+        />
+        <Label htmlFor={`${list}-disable-${index}`} className="text-sm">{t("shared.disable")}</Label>
+      </div>
+    );
+
+  const distanceInput = (list: TargetList, index: number, row: MrouteTargetFields) => (
+    <Input
+      placeholder={t("shared.distance")}
+      type="number"
+      min={DISTANCE_RANGE.min}
+      max={DISTANCE_RANGE.max}
+      value={row.distance}
+      onChange={(e) => updateTarget(list, index, { distance: e.target.value })}
+      className="w-24"
+    />
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("mrouteModal.title")}</DialogTitle>
+          <DialogTitle>{isEdit ? t("mrouteModal.editTitle") : t("mrouteModal.title")}</DialogTitle>
           <DialogDescription>
-            {t("mrouteModal.description")}
+            {isEdit ? t("mrouteModal.editDescription", { prefix: existing.prefix }) : t("mrouteModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -171,7 +185,7 @@ export function CreateMrouteModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
@@ -180,116 +194,88 @@ export function CreateMrouteModal({
             <Input
               id="prefix"
               placeholder="224.0.0.0/4"
-              value={prefix}
-              onChange={(e) => setPrefix(e.target.value)}
+              value={lockedPrefix.value}
+              disabled={lockedPrefix.disabled}
+              className={lockedPrefix.disabled ? "bg-muted" : undefined}
+              onChange={(e) => setDraft((d) => ({ ...d, prefix: e.target.value }))}
             />
           </div>
 
-          {/* Next Hops */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>{t("shared.nextHops")}</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addNextHop}>
+              <Button type="button" variant="outline" size="sm" onClick={() => addTarget("nextHops")}>
                 <Plus className="h-4 w-4 mr-1" />
                 {tc("add")}
               </Button>
             </div>
-            {nextHops.map((nh, index) => (
+            {draft.nextHops.map((nh, index) => (
               <div key={index} className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Input
                     placeholder={t("shared.nextHopAddress")}
-                    value={nh.address}
-                    onChange={(e) => updateNextHop(index, "address", e.target.value)}
+                    value={nh.name}
+                    onChange={(e) => updateTarget("nextHops", index, { name: e.target.value })}
                     className="flex-1"
                   />
-                  <Input
-                    placeholder={t("shared.distance")}
-                    type="number"
-                    min="1"
-                    max="255"
-                    value={nh.distance}
-                    onChange={(e) => updateNextHop(index, "distance", e.target.value)}
-                    className="w-24"
-                  />
+                  {distanceInput("nextHops", index, nh)}
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeNextHop(index)}
+                    aria-label={tc("delete")}
+                    onClick={() => removeTarget("nextHops", index)}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id={`nh-disable-${index}`}
-                    checked={nh.disable}
-                    onCheckedChange={(checked) => updateNextHop(index, "disable", !!checked)}
-                  />
-                  <Label htmlFor={`nh-disable-${index}`} className="text-sm">{t("shared.disable")}</Label>
-                </div>
+                {disableToggle("nextHops", index, nh)}
               </div>
             ))}
           </div>
 
-          {/* Interfaces */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>{t("shared.interfaces")}</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addInterface}>
+              <Button type="button" variant="outline" size="sm" onClick={() => addTarget("interfaces")}>
                 <Plus className="h-4 w-4 mr-1" />
                 {tc("add")}
               </Button>
             </div>
-            {interfaces.map((iface, index) => (
+            {draft.interfaces.map((iface, index) => (
               <div key={index} className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <InterfaceSelect
-                    value={iface.interface}
-                    onValueChange={(value) => updateInterface(index, "interface", value)}
+                    value={iface.name}
+                    onValueChange={(value) => updateTarget("interfaces", index, { name: value })}
                     interfaces={availableInterfaces}
                     className="flex-1"
                     placeholder={t("shared.selectInterface")}
                   />
-                  <Input
-                    placeholder={t("shared.distance")}
-                    type="number"
-                    min="1"
-                    max="255"
-                    value={iface.distance}
-                    onChange={(e) => updateInterface(index, "distance", e.target.value)}
-                    className="w-24"
-                  />
+                  {distanceInput("interfaces", index, iface)}
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeInterface(index)}
+                    aria-label={tc("delete")}
+                    onClick={() => removeTarget("interfaces", index)}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id={`iface-disable-${index}`}
-                    checked={iface.disable}
-                    onCheckedChange={(checked) => updateInterface(index, "disable", !!checked)}
-                  />
-                  <Label htmlFor={`iface-disable-${index}`} className="text-sm">{t("shared.disable")}</Label>
-                </div>
+                {disableToggle("interfaces", index, iface)}
               </div>
             ))}
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {t("shared.createRoute")}
+            {isEdit ? tc("saveChanges") : t("shared.createRoute")}
           </Button>
         </DialogFooter>
       </DialogContent>

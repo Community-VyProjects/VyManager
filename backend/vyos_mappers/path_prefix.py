@@ -8,16 +8,6 @@ from __future__ import annotations
 
 from typing import Any, List
 
-_VRF_15_ONLY = frozenset({"dhcp", "dhcpv6", "failover"})
-
-
-def require_feature_version(proto: str, version: str) -> None:
-    """Raise when a 1.5-only VRF feature is asked to emit on 1.4."""
-    if proto not in _VRF_15_ONLY:
-        return
-    if "1.4" in version and "1.5" not in version:
-        raise ValueError(f"{proto} is not supported on this device")
-
 
 class PathPrefixMapper:
     """Wrap a feature mapper and prepend ``prefix`` to each path it returns."""

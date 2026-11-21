@@ -25,6 +25,7 @@ from .interfaces.vpp_versions import get_vpp_mapper
 from .interfaces.vti_versions import get_vti_mapper
 from .interfaces.wireless_versions import get_wireless_mapper
 from .interfaces.wwan_versions import get_wwan_mapper
+from .interfaces.catalog_versions import get_interface_catalog_mapper
 from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
@@ -34,7 +35,6 @@ from .firewall.bridge_versions import get_bridge_firewall_mapper
 from .nat import NATMapper
 from .nat.nat_versions import get_nat_mapper
 from .nat64 import NAT64Mapper
-from .nat64.nat64_versions import get_nat64_mapper
 from .nat66 import NAT66Mapper
 from .nat66.nat66_versions import get_nat66_mapper
 from .dhcp_server import DHCPServerMapper
@@ -71,7 +71,7 @@ from .ospf import OspfMapper
 from .ospf.ospf_versions import get_ospf_mapper
 from .ospfv3 import Ospfv3Mapper
 from .ospfv3.ospfv3_versions import get_ospfv3_mapper
-from .vrf import VrfMapper, VrfRpkiMapper
+from .vrf import VrfMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf.vrf_versions import get_vrf_mapper
 from .system.performance_versions import get_system_performance_mapper
@@ -110,7 +110,7 @@ from .segment_routing import SegmentRoutingMapper
 from .segment_routing.segment_routing_versions import get_segment_routing_mapper
 from .traffic_engineering import TrafficEngineeringMapper
 from .traffic_engineering.traffic_engineering_versions import get_traffic_engineering_mapper
-from .broadcast_relay.broadcast_relay_versions import get_broadcast_relay_mapper
+from .broadcast_relay import BroadcastRelayMapper
 from .dhcp_relay import DHCPRelayMapper
 from .dhcp_relay.dhcp_relay_versions import get_dhcp_relay_mapper
 from .dhcpv6_relay import DHCPv6RelayMapper
@@ -197,6 +197,8 @@ CommandMapperRegistry.register_feature("interface_vti", get_vti_mapper)
 CommandMapperRegistry.register_feature("interface_wireless", get_wireless_mapper)
 # WWAN uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_wwan", get_wwan_mapper)
+# Interface catalog op commands; 1.5 adds show interfaces kernel
+CommandMapperRegistry.register_feature("interface_catalog", get_interface_catalog_mapper)
 # Firewall groups uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_groups", get_firewall_groups_mapper)
 # Firewall IPv4 uses factory for version-specific mappers
@@ -205,8 +207,8 @@ CommandMapperRegistry.register_feature("firewall_ipv4", get_firewall_ipv4_mapper
 CommandMapperRegistry.register_feature("firewall_ipv6", get_firewall_ipv6_mapper)
 # NAT uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("nat", get_nat_mapper)
-# NAT64 uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("nat64", get_nat64_mapper)
+# NAT64 uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("nat64", NAT64Mapper)
 # NAT66 uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("nat66", get_nat66_mapper)
 # DHCP uses factory for version-specific mappers
@@ -256,7 +258,6 @@ CommandMapperRegistry.register_feature("ospfv3", get_ospfv3_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 # VRF sub-mappers. OSPF and BGP take version so redistribute nhrp can raise on 1.4.
-CommandMapperRegistry.register_feature("vrf_rpki", VrfRpkiMapper)
 CommandMapperRegistry.register_feature("vrf_ospf", VrfOspfMapper)
 CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
 CommandMapperRegistry.register_feature("vrf_isis", VrfIsisMapper)
@@ -299,8 +300,8 @@ CommandMapperRegistry.register_feature("rpki", get_rpki_mapper)
 CommandMapperRegistry.register_feature("segment_routing", get_segment_routing_mapper)
 # Traffic Engineering uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("traffic_engineering", get_traffic_engineering_mapper)
-# Broadcast Relay uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("broadcast_relay", get_broadcast_relay_mapper)
+# Broadcast Relay uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("broadcast_relay", BroadcastRelayMapper)
 # DHCP Relay uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dhcp_relay", get_dhcp_relay_mapper)
 # DHCPv6 Relay uses factory for version-specific mappers
@@ -389,7 +390,6 @@ __all__ = [
     "OspfMapper",
     "Ospfv3Mapper",
     "VrfMapper",
-    "VrfRpkiMapper",
     "VrfOspfMapper",
     "VrfOspfv3Mapper",
     "VrfIsisMapper",
@@ -422,6 +422,7 @@ __all__ = [
     "ConfigSyncMapper",
     "ConntrackSyncMapper",
     "ConsoleServerMapper",
+    "BroadcastRelayMapper",
     "DHCPRelayMapper",
     "DHCPv6RelayMapper",
     "DNSForwardingMapper",

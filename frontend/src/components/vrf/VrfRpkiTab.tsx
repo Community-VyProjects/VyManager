@@ -4,14 +4,19 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Code, Settings2, Shield } from "lucide-react";
+import { AlertCircle, Code, Loader2, Power, Settings2, Shield, Trash2 } from "lucide-react";
 import {
+  vrfService,
   VrfInstance,
   VrfCapabilities,
+  type VyOSResponse,
 } from "@/lib/api/vrf";
+import type { ApiError } from "@/lib/types/api";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -29,8 +34,52 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
   const t = useTranslations("vrfProtocols");
   const [modalOpen, setModalOpen] = useState(false);
   const [rawOpen, setRawOpen] = useState(false);
+  // The action keeps the dialog text stable while it closes; openedFor is
+  // whether the RPKI node existed when the dialog opened.
+  const [action, setAction] = useState<"enable" | "remove">("enable");
+  const [openedFor, setOpenedFor] = useState<boolean | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const tc = useTranslations("common");
   const rpki = vrf.rpki;
   const caches = rpki?.caches ?? [];
+  // A refresh that flips the RPKI node ends the dialog it opened for.
+  if (openedFor !== null && openedFor !== Boolean(rpki)) {
+    setOpenedFor(null);
+    setConfirmError(null);
+  }
+  const confirmOpen = openedFor !== null;
+
+  const openConfirm = (next: "enable" | "remove") => {
+    setAction(next);
+    setOpenedFor(Boolean(rpki));
+    setConfirmError(null);
+  };
+
+  const closeConfirm = (open: boolean) => {
+    if (open || applying) return;
+    setOpenedFor(null);
+    setConfirmError(null);
+  };
+
+  const handleApply = async () => {
+    setApplying(true);
+    setConfirmError(null);
+    try {
+      const result: VyOSResponse =
+        action === "remove" ? await vrfService.deleteRpki(vrf.name) : await vrfService.enableRpki(vrf.name);
+      if (!result.success) {
+        setConfirmError(result.error || tc("operationFailed"));
+        return;
+      }
+      setOpenedFor(null);
+      onRefresh();
+    } catch (e) {
+      setConfirmError((e as ApiError).message || tc("operationFailed"));
+    } finally {
+      setApplying(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -85,6 +134,18 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
       )}
 
       <div className="flex justify-end gap-2">
+        {canWrite && !rpki && (
+          <Button variant="outline" size="sm" onClick={() => openConfirm("enable")}>
+            <Power className="h-3.5 w-3.5 mr-1.5" />
+            {t("rpki.enable")}
+          </Button>
+        )}
+        {canWrite && rpki && (
+          <Button variant="outline" size="sm" className="text-destructive" onClick={() => openConfirm("remove")}>
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            {t("rpki.remove")}
+          </Button>
+        )}
         {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setModalOpen(true)}>
             <Settings2 className="h-3.5 w-3.5 mr-1.5" />
@@ -103,10 +164,42 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
         open={modalOpen}
         onOpenChange={setModalOpen}
         vrfName={vrf.name}
-        rpkiRaw={rpki?.raw_config}
+        rpki={rpki}
         canWrite={canWrite}
         onSaved={onRefresh}
       />
+
+      <Dialog open={confirmOpen} onOpenChange={closeConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{action === "remove" ? t("rpki.remove") : t("rpki.enable")}</DialogTitle>
+            <DialogDescription>
+              {action === "remove"
+                ? t("rpki.removeDescription", { vrf: vrf.name })
+                : t("rpki.enableDescription", { vrf: vrf.name })}
+            </DialogDescription>
+          </DialogHeader>
+          {confirmError && (
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <pre className="whitespace-pre-wrap break-words font-mono text-xs">{confirmError}</pre>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => closeConfirm(false)} disabled={applying}>
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant={action === "remove" ? "destructive" : "default"}
+              onClick={handleApply}
+              disabled={applying}
+            >
+              {applying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("rpki.apply")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={rawOpen} onOpenChange={setRawOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">

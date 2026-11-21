@@ -5,20 +5,23 @@ Provides all batch operations for VRF (Virtual Routing and Forwarding) configura
 Handles version-specific differences through the mapper layer.
 
 Prefixes global feature builders for OSPF, OSPFv3, ISIS, BGP, static,
-failover, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
+failover, RPKI, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
-from .vrf_rpki_mixin import VrfRpkiMixin
-from .vrf_protocol import parse_vrf_protocol_op, run_vrf_protocol_op, vrf_protocol_op_exists
+from vyos_mappers.static_routes.static_routes import IPV4_SEGMENTS, SOURCE_PROFILE, StaticRoutesMapper
+from vyos_mappers.vrf.vrf import VrfMapper
+from .vrf_protocol import (
+    ArityError,
+    parse_vrf_protocol_op,
+    run_vrf_protocol_op,
+    vrf_protocol_op_exists,
+)
 from vyos_builders.base import BatchBuilder
 
 
-class VrfBatchBuilder(
-    VrfRpkiMixin,
-    BatchBuilder,
-):
+class VrfBatchBuilder(BatchBuilder):
     """Complete batch builder for VRF operations."""
 
     def __init__(self, version: str):
@@ -27,11 +30,11 @@ class VrfBatchBuilder(
         self.mappers = CommandMapperRegistry.get_mappers(
             (
                 "vrf",
-                "vrf_rpki",
                 "vrf_ospf",
                 "vrf_ospfv3",
                 "vrf_isis",
                 "vrf_bgp",
+                "static_routes",
             ),
             version,
         )
@@ -45,7 +48,10 @@ class VrfBatchBuilder(
             raise AttributeError(name)
 
         def _op(vrf_name: str, value: str | None = None) -> "VrfBatchBuilder":
-            return run_vrf_protocol_op(self, verb, proto, suffix, vrf_name, value)
+            try:
+                return run_vrf_protocol_op(self, verb, proto, suffix, vrf_name, value)
+            except ArityError as e:
+                raise ArityError(f"Operation {name} {e}") from e
 
         return _op
 
@@ -127,11 +133,11 @@ class VrfBatchBuilder(
 
     def set_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Set IP protocol route-map. Value format: 'protocol,route-map-name'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers[self.mapper_key].get_vrf_ip_protocol_route_map(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
+        protocol, _, route_map = value.partition(",")
+        if not protocol or not route_map:
+            raise ArityError(f"Operation set_vrf_ip_protocol_route_map requires 'protocol,route-map'")
+        path = self.mappers[self.mapper_key].get_vrf_ip_protocol_route_map(name, protocol, route_map)
+        return self.add_set(path)
 
     def delete_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IP protocol route-map. Value is the protocol name."""
@@ -160,11 +166,11 @@ class VrfBatchBuilder(
 
     def set_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Set IPv6 protocol route-map. Value format: 'protocol,route-map-name'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers[self.mapper_key].get_vrf_ipv6_protocol_route_map(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
+        protocol, _, route_map = value.partition(",")
+        if not protocol or not route_map:
+            raise ArityError(f"Operation set_vrf_ipv6_protocol_route_map requires 'protocol,route-map'")
+        path = self.mappers[self.mapper_key].get_vrf_ipv6_protocol_route_map(name, protocol, route_map)
+        return self.add_set(path)
 
     def delete_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IPv6 protocol route-map. Value is the protocol name."""
@@ -178,6 +184,8 @@ class VrfBatchBuilder(
     def get_capabilities(self) -> Dict[str, Any]:
         is_1_5 = "1.5" in self.version or "latest" in self.version
         is_1_4 = "1.4" in self.version
+        vrf_mapper = cast(VrfMapper, self.mappers[self.mapper_key])
+        static_mapper = cast(StaticRoutesMapper, self.mappers["static_routes"])
 
         return {
             "version": self.version,
@@ -211,11 +219,11 @@ class VrfBatchBuilder(
                     "description": "Static route configuration within VRF (IPv4 and IPv6)",
                 },
                 "rpki": {
-                    "supported": self.mappers["vrf_rpki"].is_supported(),
+                    "supported": vrf_mapper.supports_feature("rpki"),
                     "description": "RPKI configuration within VRF (VyOS 1.5+ only)",
                 },
                 "failover": {
-                    "supported": is_1_5,
+                    "supported": vrf_mapper.supports_feature("failover"),
                     "description": "Failover route configuration within VRF (VyOS 1.5+ only)",
                 },
                 "ospf": {
@@ -235,16 +243,24 @@ class VrfBatchBuilder(
                     "description": "BGP configuration within VRF",
                 },
                 "dhcp_server": {
-                    "supported": is_1_5,
+                    "supported": vrf_mapper.supports_feature("dhcp"),
                     "description": "DHCP server configuration within VRF (VyOS 1.5+ only)",
                 },
                 "dhcpv6_server": {
-                    "supported": is_1_5,
+                    "supported": vrf_mapper.supports_feature("dhcpv6"),
                     "description": "DHCPv6 server configuration within VRF (VyOS 1.5+ only)",
                 },
                 "static_route_ipv4_segments": {
-                    "supported": is_1_5,
-                    "description": "SRv6 segments on IPv4 static route next-hops (VyOS 1.5+ only)",
+                    "supported": static_mapper.supports_node(IPV4_SEGMENTS),
+                    "description": "SRv6 segments on IPv4 static route next-hops and interfaces",
+                },
+                "static_route_bfd_source_profile": {
+                    "supported": static_mapper.supports_node(SOURCE_PROFILE),
+                    "description": "BFD profile per static route multi-hop source address",
+                },
+                "static_route_dhcp_interface_multi": {
+                    "supported": static_mapper.dhcp_interface_multi(),
+                    "description": "Several DHCP interfaces per IPv4 static route (one on 1.4)",
                 },
                 "ospf_retransmit_window": {
                     "supported": is_1_5,
