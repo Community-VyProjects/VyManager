@@ -47,7 +47,7 @@ class PowerService {
   }
 
   /**
-   * Get power action status (for polling)
+   * Get power action status (re-read on the SSE power_status signal)
    */
   async getStatus(): Promise<PowerStatusResponse> {
     return apiClient.get<PowerStatusResponse>("/vyos/power/status");

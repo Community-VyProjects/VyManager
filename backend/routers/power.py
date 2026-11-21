@@ -458,7 +458,7 @@ async def get_power_status(request: Request):
     """
     Check if a reboot or poweroff is scheduled for the current instance.
 
-    The banner re-reads this on the SSE power_status signal and after a cancel.
+    The banner re-reads this on the SSE power_status signal.
     Requires READ permission on POWER feature.
     """
     await require_read_permission(request, FeatureGroup.POWER)
