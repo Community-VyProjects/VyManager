@@ -35,9 +35,10 @@ def _utcnow() -> datetime:
 # powerctrl.py parses 'at' with strptime("%H:%M") and hands 'in' to shutdown
 # as a minute count; anything else comes back as a 200 with an error line.
 _AT_TIME = re.compile(r"(?:[01]?\d|2[0-3]):[0-5]?\d", re.ASCII)
-# At most 7 significant digits (under 10 million minutes) after leading zeros,
-# so int() and the timedelta below cannot fail. The modal uses the same bound.
-_IN_MINUTES = re.compile(r"0*([1-9]\d{0,6})", re.ASCII)
+# At most 7 significant digits (under 10 million minutes) once leading zeros
+# are stripped, so int() and the timedelta below cannot fail. The modal uses
+# the same bound.
+_IN_MINUTES = re.compile(r"[1-9]\d{0,6}", re.ASCII)
 _AT_DETAIL = "Time (HH:MM) required for 'at' action"
 _IN_DETAIL = "Minutes (a whole number from 1 to 9999999) required for 'in' action"
 # powerctrl.py answers a rejected request with HTTP 200 and one of these lines.
@@ -161,10 +162,9 @@ def _action_path(body: PowerActionRequest) -> tuple[list[str], Optional[datetime
             raise HTTPException(status_code=400, detail=_AT_DETAIL)
         return ["at", body.value], None
     if body.action == "in":
-        match = _IN_MINUTES.fullmatch(body.value or "")
-        if not match:
+        minutes = (body.value or "").lstrip("0")
+        if not _IN_MINUTES.fullmatch(minutes):
             raise HTTPException(status_code=400, detail=_IN_DETAIL)
-        minutes = match.group(1)
         return ["in", minutes], _utcnow() + timedelta(minutes=int(minutes))
     return [body.action], None
 

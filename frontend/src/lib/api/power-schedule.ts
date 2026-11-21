@@ -4,7 +4,7 @@ import type { PowerActionRequest } from "./power";
 // (24-hour) and 'in' as a whole number of minutes, here 1 to 9999999
 // (leading zeros dropped).
 const AT_TIME = /^(?:[01]?[0-9]|2[0-3]):[0-5]?[0-9]$/;
-const IN_MINUTES = /^0*([1-9][0-9]{0,6})$/;
+const IN_MINUTES = /^[1-9][0-9]{0,6}$/;
 
 export type ScheduleProblem = "enterTime" | "invalidTime" | "enterMinutes" | "invalidMinutes";
 
@@ -27,9 +27,9 @@ export function scheduleRequest(
   if (action === "in") {
     const value = minutesValue.trim();
     if (!value) return { problem: "enterMinutes" };
-    const match = IN_MINUTES.exec(value);
-    if (!match) return { problem: "invalidMinutes" };
-    return { request: { action, value: match[1] } };
+    const minutes = value.replace(/^0+/, "");
+    if (!IN_MINUTES.test(minutes)) return { problem: "invalidMinutes" };
+    return { request: { action, value: minutes } };
   }
   return { request: { action } };
 }
