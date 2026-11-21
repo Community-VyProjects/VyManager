@@ -25,6 +25,7 @@ from .interfaces.vpp_versions import get_vpp_mapper
 from .interfaces.vti_versions import get_vti_mapper
 from .interfaces.wireless_versions import get_wireless_mapper
 from .interfaces.wwan_versions import get_wwan_mapper
+from .interfaces.catalog_versions import get_interface_catalog_mapper
 from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
@@ -196,6 +197,8 @@ CommandMapperRegistry.register_feature("interface_vti", get_vti_mapper)
 CommandMapperRegistry.register_feature("interface_wireless", get_wireless_mapper)
 # WWAN uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_wwan", get_wwan_mapper)
+# Interface catalog op commands; 1.5 adds show interfaces kernel
+CommandMapperRegistry.register_feature("interface_catalog", get_interface_catalog_mapper)
 # Firewall groups uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_groups", get_firewall_groups_mapper)
 # Firewall IPv4 uses factory for version-specific mappers
