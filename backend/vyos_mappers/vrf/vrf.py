@@ -2,8 +2,8 @@
 VRF Command Mapper
 
 Handles command path generation for VRF (Virtual Routing and Forwarding) configuration.
-Trees only one version has are listed on that version's subclass in
-``vrf_versions``.
+The shared class names the trees only one version has; that version's
+subclass in ``vrf_versions`` turns them on.
 """
 
 from typing import Any, Dict, FrozenSet, List

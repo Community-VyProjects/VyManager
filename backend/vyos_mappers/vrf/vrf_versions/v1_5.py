@@ -9,8 +9,4 @@ class VrfMapperV1_5(VrfMapper):
     """VyOS 1.5 adds failover and the DHCP servers under ``vrf name <vrf>``."""
 
     def versioned_nodes(self) -> FrozenSet[str]:
-        return frozenset({
-            "protocols failover",
-            "service dhcp-server",
-            "service dhcpv6-server",
-        })
+        return frozenset(self._VERSIONED_FEATURES.values())
