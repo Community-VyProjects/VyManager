@@ -58,7 +58,8 @@
     "emptyDescription": "No static ARP entries configured",
     "interface": "Interface",
     "ipAddress": "IP Address",
-    "macAddress": "MAC Address"
+    "macAddress": "MAC Address",
+    "noMatch": "No ARP entries match your search"
   },
   "mroute": {
     "searchPlaceholder": "Search multicast routes...",
@@ -74,7 +75,8 @@
     "emptyTitle": "No Neighbor Proxy Entries",
     "emptyDescription": "No neighbor proxy entries configured (ARP or ND)",
     "arpType": "ARP (IPv4)",
-    "ndType": "ND (IPv6)"
+    "ndType": "ND (IPv6)",
+    "noMatch": "No neighbor proxy entries match your search"
   },
   "tables": {
     "create": "Create Routing Table"

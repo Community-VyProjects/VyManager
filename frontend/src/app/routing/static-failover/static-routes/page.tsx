@@ -138,22 +138,18 @@ function StaticRoutesPageInner() {
     ? (config?.ipv4_routes || [])
     : (config?.ipv6_routes || []);
 
-  // Filter routes based on search
-  const filteredRoutes = currentRoutes.filter((route) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-
-    return (
-      route.destination.toLowerCase().includes(query) ||
-      route.description?.toLowerCase().includes(query) ||
-      route.next_hops.some((nh) => nh.address.toLowerCase().includes(query)) ||
-      route.interfaces.some((iface) => iface.interface.toLowerCase().includes(query))
-    );
-  });
 
   const query = searchQuery.trim().toLowerCase();
   const matches = (...values: (string | null | undefined)[]) =>
     !query || values.some((value) => value?.toLowerCase().includes(query));
+  const filteredRoutes = currentRoutes.filter((route) =>
+    matches(
+      route.destination,
+      route.description,
+      ...route.next_hops.map((nh) => nh.address),
+      ...route.interfaces.map((iface) => iface.interface),
+    ),
+  );
   const filteredArp = (config?.arp_interfaces ?? [])
     .map((iface) => ({
       ...iface,
@@ -424,11 +420,11 @@ function StaticRoutesPageInner() {
                         {t("routes.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {searchQuery
+                        {query
                           ? t("routes.noMatch")
                           : t("routes.emptyType", { type: familyLabel })}
                       </p>
-                      {!searchQuery && (
+                      {!query && (
                         <Button onClick={() => setCreateModalOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
                           {t("routes.createRoute", { type: familyLabel })}
@@ -634,7 +630,7 @@ function StaticRoutesPageInner() {
                         {t("arp.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {query ? t("routes.noMatch") : t("arp.emptyDescription")}
+                        {query ? t("arp.noMatch") : t("arp.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateArpModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -861,7 +857,7 @@ function StaticRoutesPageInner() {
                         {t("neighborProxy.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {query ? t("routes.noMatch") : t("neighborProxy.emptyDescription")}
+                        {query ? t("neighborProxy.noMatch") : t("neighborProxy.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateNeighborProxyModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />

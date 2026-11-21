@@ -58,7 +58,8 @@
     "emptyDescription": "未配置静态 ARP 条目",
     "interface": "接口",
     "ipAddress": "IP 地址",
-    "macAddress": "MAC 地址"
+    "macAddress": "MAC 地址",
+    "noMatch": "没有与搜索匹配的 ARP 条目"
   },
   "mroute": {
     "searchPlaceholder": "搜索组播路由...",
@@ -74,7 +75,8 @@
     "emptyTitle": "没有邻居代理条目",
     "emptyDescription": "未配置邻居代理条目（ARP 或 ND）",
     "arpType": "ARP (IPv4)",
-    "ndType": "ND (IPv6)"
+    "ndType": "ND (IPv6)",
+    "noMatch": "没有与搜索匹配的邻居代理条目"
   },
   "tables": {
     "create": "创建路由表"

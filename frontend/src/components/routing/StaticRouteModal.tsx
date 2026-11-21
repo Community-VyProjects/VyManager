@@ -261,6 +261,7 @@ export function StaticRouteModal({
                   />
                 ) : (
                   <InterfaceSelect
+                    id="dhcp-interfaces"
                     value={draft.dhcpInterfaces[0] ?? ""}
                     onValueChange={(value) => patch({ dhcpInterfaces: value ? [value] : [] })}
                     interfaces={interfaces}
