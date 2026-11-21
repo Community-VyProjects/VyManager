@@ -42,14 +42,6 @@ FEATURE_BUILDERS = {
     "static": StaticRoutesBatchBuilder,
     "failover": FailoverBatchBuilder,
 }
-# CLI tree below ``vrf name <vrf>`` each feature builder writes. The VRF
-# mapper's ``feature_nodes`` says which of them this device has.
-FEATURE_NODES = {
-    "dhcpv6": "service dhcpv6-server",
-    "dhcp": "service dhcp-server",
-    "static": "protocols static",
-    "failover": "protocols failover",
-}
 _ALL_BUILDERS = {**FEATURE_BUILDERS, **PROTOCOL_BUILDERS}
 _PROTO_KEYS = tuple(sorted(_ALL_BUILDERS, key=len, reverse=True))
 
@@ -354,7 +346,7 @@ def _run_feature_op(
     vrf_name: str,
     value: Optional[str],
 ) -> Any:
-    owner.mappers["vrf"].require_feature(FEATURE_NODES[proto])
+    owner.mappers["vrf"].require_feature(proto)
     inner = FEATURE_BUILDERS[proto](owner.version)
     _install_prefix(inner, ["vrf", "name", vrf_name])
     key = _mode_key(proto, verb, suffix)

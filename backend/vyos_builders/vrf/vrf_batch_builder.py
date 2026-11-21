@@ -12,12 +12,7 @@ from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.vrf.vrf import VrfMapper
 from .vrf_rpki_mixin import VrfRpkiMixin
-from .vrf_protocol import (
-    FEATURE_NODES,
-    parse_vrf_protocol_op,
-    run_vrf_protocol_op,
-    vrf_protocol_op_exists,
-)
+from .vrf_protocol import parse_vrf_protocol_op, run_vrf_protocol_op, vrf_protocol_op_exists
 from vyos_builders.base import BatchBuilder
 
 
@@ -184,7 +179,7 @@ class VrfBatchBuilder(
     def get_capabilities(self) -> Dict[str, Any]:
         is_1_5 = "1.5" in self.version or "latest" in self.version
         is_1_4 = "1.4" in self.version
-        feature_nodes = cast(VrfMapper, self.mappers[self.mapper_key]).feature_nodes()
+        vrf_mapper = cast(VrfMapper, self.mappers[self.mapper_key])
 
         return {
             "version": self.version,
@@ -222,7 +217,7 @@ class VrfBatchBuilder(
                     "description": "RPKI configuration within VRF (VyOS 1.5+ only)",
                 },
                 "failover": {
-                    "supported": FEATURE_NODES["failover"] in feature_nodes,
+                    "supported": vrf_mapper.supports_feature("failover"),
                     "description": "Failover route configuration within VRF (VyOS 1.5+ only)",
                 },
                 "ospf": {
@@ -242,11 +237,11 @@ class VrfBatchBuilder(
                     "description": "BGP configuration within VRF",
                 },
                 "dhcp_server": {
-                    "supported": FEATURE_NODES["dhcp"] in feature_nodes,
+                    "supported": vrf_mapper.supports_feature("dhcp"),
                     "description": "DHCP server configuration within VRF (VyOS 1.5+ only)",
                 },
                 "dhcpv6_server": {
-                    "supported": FEATURE_NODES["dhcpv6"] in feature_nodes,
+                    "supported": vrf_mapper.supports_feature("dhcpv6"),
                     "description": "DHCPv6 server configuration within VRF (VyOS 1.5+ only)",
                 },
                 "static_route_ipv4_segments": {

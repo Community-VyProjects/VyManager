@@ -13,26 +13,35 @@ from ..base import BaseFeatureMapper
 class VrfMapper(BaseFeatureMapper):
     """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
 
-    # Global feature trees the VRF builder reuses under ``vrf name <vrf>``
-    # through the global feature builders, as the CLI path below the VRF.
-    # Both labs have these. A version subclass adds the trees only its lab
-    # has.
-    FEATURE_NODES: FrozenSet[str] = frozenset({"protocols static"})
+    # Feature trees below ``vrf name <vrf>`` only one version has, keyed by
+    # the VRF builder's feature key. A tree not listed here (static, and the
+    # routing protocols) is on both labs.
+    _VERSIONED_FEATURES: Dict[str, str] = {
+        "failover": "protocols failover",
+        "dhcp": "service dhcp-server",
+        "dhcpv6": "service dhcpv6-server",
+    }
 
     # ========================================================================
     # Core
     # ========================================================================
 
-    def feature_nodes(self) -> FrozenSet[str]:
-        """Global feature trees under ``vrf name <vrf>`` this device has.
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only trees below ``vrf name <vrf>`` this device has.
 
-        Capabilities and the builder read this set instead of the version
-        string.
+        The version subclass lists its trees. Capabilities and the builder
+        read this set instead of the version string.
         """
-        return self.FEATURE_NODES
+        return frozenset()
 
-    def require_feature(self, node: str) -> None:
-        if node not in self.feature_nodes():
+    def supports_feature(self, feature: str) -> bool:
+        """Whether this device has the VRF tree of builder key ``feature``."""
+        node = self._VERSIONED_FEATURES.get(feature)
+        return node is None or node in self.versioned_nodes()
+
+    def require_feature(self, feature: str) -> None:
+        if not self.supports_feature(feature):
+            node = self._VERSIONED_FEATURES[feature]
             raise ValueError(f"vrf {node} is not supported on this device")
 
     def parse_config(self, full_config: Any) -> Dict[str, Any]:

@@ -8,9 +8,11 @@ version subclass lists them; the builder and capabilities read that list.
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
-from vyos_builders.vrf.vrf_protocol import FEATURE_BUILDERS, FEATURE_NODES
+from vyos_builders.vrf.vrf_protocol import FEATURE_BUILDERS
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.vrf.vrf import VrfMapper
 from vyos_mappers.vrf.vrf_versions import VrfMapperV1_5, get_vrf_mapper
@@ -20,6 +22,11 @@ VERSIONS = ROOT / "vyos_mappers" / "vrf" / "vrf_versions"
 ROLLING = "2026.09.23-0027-rolling"
 
 ONLY_15 = {"failover": "failover", "dhcp": "dhcp_server", "dhcpv6": "dhcpv6_server"}
+LAB_15_ONLY = frozenset({
+    "protocols failover",
+    "service dhcp-server",
+    "service dhcpv6-server",
+})
 
 
 def _ops(builder):
@@ -46,15 +53,11 @@ def test_versions_package_has_no_merge_proxy_or_empty_file():
     assert "MergedMapper" not in (VERSIONS / "__init__.py").read_text()
 
 
-def test_feature_nodes_match_the_lab_templates():
-    assert get_vrf_mapper("1.4").feature_nodes() == {"protocols static"}
-    assert get_vrf_mapper(ROLLING).feature_nodes() == {
-        "protocols static",
-        "protocols failover",
-        "service dhcp-server",
-        "service dhcpv6-server",
-    }
-    assert set(FEATURE_NODES) == set(FEATURE_BUILDERS)
+def test_versioned_nodes_are_the_1_5_only_lab_trees():
+    assert get_vrf_mapper("1.4").versioned_nodes() == frozenset()
+    assert get_vrf_mapper(ROLLING).versioned_nodes() == LAB_15_ONLY
+    assert set(VrfMapper._VERSIONED_FEATURES.values()) == LAB_15_ONLY
+    assert set(VrfMapper._VERSIONED_FEATURES) < set(FEATURE_BUILDERS)
 
 
 def test_parse_config_lives_on_the_mapper_class():
@@ -99,7 +102,7 @@ def test_ops_follow_the_mapper(version):
 def test_a_version_string_cannot_open_a_tree_the_mapper_lacks(monkeypatch):
     # 1.5 string, mapper without the trees: capabilities and ops follow the
     # mapper, so a handwritten version check would fail here.
-    monkeypatch.setattr(VrfMapperV1_5, "FEATURE_NODES", VrfMapper.FEATURE_NODES)
+    monkeypatch.setattr(VrfMapperV1_5, "versioned_nodes", lambda self: frozenset())
     builder = VrfBatchBuilder("1.5")
     features = builder.get_capabilities()["features"]
     ops = _ops(builder)
@@ -111,9 +114,7 @@ def test_a_version_string_cannot_open_a_tree_the_mapper_lacks(monkeypatch):
 
 
 def test_a_version_string_cannot_close_a_tree_the_mapper_has(monkeypatch):
-    monkeypatch.setattr(
-        VrfMapper, "FEATURE_NODES", VrfMapperV1_5.FEATURE_NODES
-    )
+    monkeypatch.setattr(VrfMapper, "versioned_nodes", lambda self: LAB_15_ONLY)
     builder = VrfBatchBuilder("1.4")
     features = builder.get_capabilities()["features"]
     ops = _ops(builder)
@@ -124,3 +125,50 @@ def test_a_version_string_cannot_close_a_tree_the_mapper_has(monkeypatch):
     assert ["vrf", "name", "blue", "protocols", "failover"] in paths
     assert ["vrf", "name", "blue", "service", "dhcp-server"] in paths
     assert ["vrf", "name", "blue", "service", "dhcpv6-server"] in paths
+
+
+@pytest.fixture
+def batch_client(monkeypatch):
+    calls = []
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class FakeService:
+        def get_version(self):
+            return "1.4.3"
+
+        def execute_batch(self, builder):
+            calls.append(builder.get_operations())
+            raise AssertionError("a rejected op must not reach the device")
+
+    monkeypatch.setattr("routers.vrf.vrf.require_write_permission", allow)
+    monkeypatch.setattr(
+        "routers.vrf.vrf.get_session_vyos_service", lambda _req: FakeService()
+    )
+    from routers.vrf.vrf import router
+
+    app = FastAPI()
+    app.include_router(router)
+    return TestClient(app), calls
+
+
+@pytest.mark.parametrize(
+    ("op", "value", "detail"),
+    [
+        ("set_vrf_failover_route", "10.1.0.0/24",
+         "vrf protocols failover is not supported on this device"),
+        ("set_vrf_dhcp_disable", None,
+         "vrf service dhcp-server is not supported on this device"),
+        ("delete_vrf_dhcpv6", None,
+         "vrf service dhcpv6-server is not supported on this device"),
+    ],
+)
+def test_1_4_batch_rejects_a_1_5_only_tree(batch_client, op, value, detail):
+    client, calls = batch_client
+    operations = [{"op": "delete_vrf_static", "value": "blue"}]
+    operations.append({"op": op, "value": f"blue,{value}" if value else "blue"})
+    response = client.post("/vyos/vrf/batch", json={"operations": operations})
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == detail
+    assert calls == []
