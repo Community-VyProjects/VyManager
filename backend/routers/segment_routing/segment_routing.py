@@ -87,6 +87,8 @@ async def get_segment_routing_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_segment_routing_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -107,6 +109,8 @@ async def get_segment_routing_config(http_request: Request, refresh: bool = Fals
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
         mapper = CommandMapperRegistry.get_mapper("segment_routing", service.get_version())
         return SegmentRoutingConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_segment_routing_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -127,35 +131,26 @@ async def segment_routing_batch_configure(http_request: Request, body: SegmentRo
         builder = SegmentRoutingBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            if operation.op.startswith("_"):
+            method = resolve_batch_method(builder, operation.op)
+            count = len(inspect.signature(method).parameters)
+
+            if count == 0:
+                method()
+                continue
+            if not operation.value:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid operation: {operation.op}")
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+                    detail=f"Operation {operation.op} requires a value",
+                )
+            parts = operation.value.split(",", count - 1)
+            if len(parts) != count or not all(parts):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} requires {count} values",
+                )
+            method(*parts)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is None:
-                    # Silently skipping used to make the batch report
-                    # success while applying fewer ops than requested.
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value")
-                method(operation.value)
-            elif len(params) == 2:
-                values = (operation.value or "").split(",", 1)
-                if len(values) != 2 or not values[0] or not values[1]:
-                    # Padding with "" built broken paths like `hmac ""`.
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires two "
-                               'comma-separated values')
-                method(values[0], values[1])
-
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -164,8 +159,6 @@ async def segment_routing_batch_configure(http_request: Request, body: SegmentRo
         )
     except HTTPException:
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception:
         logger.exception("Unhandled error in segment_routing_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
