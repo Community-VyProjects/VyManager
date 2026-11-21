@@ -117,9 +117,7 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
         "auto_cost_reference_bandwidth": _safe_int(
             _deep_get(ospf_config, "auto-cost", "reference-bandwidth")
         ),
-        "log_adjacency_changes": (
-            "log-adjacency-changes" in ospf_config if ospf_config else None
-        ),
+        "log_adjacency_changes": "log-adjacency-changes" in ospf_config,
         "log_adjacency_changes_detail": (
             "detail" in (ospf_config.get("log-adjacency-changes", {}) or {})
             if isinstance(log_adj, dict)

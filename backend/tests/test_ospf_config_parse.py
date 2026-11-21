@@ -104,7 +104,7 @@ def test_empty_tree_leaves_absent_flags_unset():
     empty_node = get_ospf_mapper("1.4").parse_config({"protocols": {"ospf": {}}})
     assert empty_node["configured"] is True
     assert empty_node["areas"] == [] and empty_node["interfaces"] == []
-    assert empty_node["log_adjacency_changes"] is None
+    assert empty_node["log_adjacency_changes"] is False
 
 
 def test_present_node_without_log_flag_is_false():
