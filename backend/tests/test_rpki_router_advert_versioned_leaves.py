@@ -196,7 +196,9 @@ VRF_RPKI_PAIR_OPS = [
 def test_vrf_rpki_cache_pair_rejects_a_short_value(method, value):
     """A missing cache name or value is an error, not a silently skipped op."""
     builder = VrfBatchBuilder(version="1.5")
-    with pytest.raises(ValueError, match="requires a value|expects 2 comma-separated"):
+    with pytest.raises(
+        ValueError, match="requires a value|expects 2 comma-separated|has an empty comma-separated value"
+    ):
         getattr(builder, method)(VRF, value)
     assert builder.get_operations() == []
 
@@ -207,8 +209,25 @@ def test_vrf_rpki_cache_pair_rejects_a_short_value(method, value):
 )
 def test_vrf_rpki_cache_op_rejects_an_empty_cache_name(method):
     builder = VrfBatchBuilder(version="1.5")
-    with pytest.raises(ValueError, match="requires a value"):
+    with pytest.raises(ValueError, match=f"^Operation {method} requires a value$"):
         getattr(builder, method)(VRF, "")
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize(
+    "method, value",
+    [
+        ("delete_vrf_dhcp_global_parameters", ""),
+        ("delete_vrf_bgp_neighbor", ""),
+        ("set_vrf_rpki_cache_port", f"{CACHE},"),
+        ("set_vrf_rpki_cache_port", ",3323"),
+    ],
+)
+def test_vrf_prefixed_op_never_builds_an_empty_segment(method, value):
+    """Feature, leaf and protocol delete paths all reject a blank part."""
+    builder = VrfBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match=f"^Operation {method} "):
+        getattr(builder, method)(VRF, value)
     assert builder.get_operations() == []
 
 
@@ -278,7 +297,9 @@ def test_vrf_batch_rejects_a_short_rpki_cache_value_without_commit(monkeypatch):
     ]}
     response = client.post("/vyos/vrf/batch", json=body)
     assert response.status_code == 400, response.text
-    assert response.json()["detail"] == "set_cache_port expects 2 comma-separated value(s), got 1"
+    assert response.json()["detail"] == (
+        "Operation set_vrf_rpki_cache_port expects 2 comma-separated value(s), got 1"
+    )
     assert captured == []
 
 

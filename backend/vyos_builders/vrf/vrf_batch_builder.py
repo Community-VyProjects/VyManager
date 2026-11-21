@@ -11,7 +11,12 @@ failover, RPKI, DHCP, and DHCPv6 (vrf name <vrf> + the global feature tree).
 from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.vrf.vrf import VrfMapper
-from .vrf_protocol import parse_vrf_protocol_op, run_vrf_protocol_op, vrf_protocol_op_exists
+from .vrf_protocol import (
+    ArityError,
+    parse_vrf_protocol_op,
+    run_vrf_protocol_op,
+    vrf_protocol_op_exists,
+)
 from vyos_builders.base import BatchBuilder
 
 
@@ -41,7 +46,10 @@ class VrfBatchBuilder(BatchBuilder):
             raise AttributeError(name)
 
         def _op(vrf_name: str, value: str | None = None) -> "VrfBatchBuilder":
-            return run_vrf_protocol_op(self, verb, proto, suffix, vrf_name, value)
+            try:
+                return run_vrf_protocol_op(self, verb, proto, suffix, vrf_name, value)
+            except ArityError as e:
+                raise ArityError(f"Operation {name} {e}") from e
 
         return _op
 
