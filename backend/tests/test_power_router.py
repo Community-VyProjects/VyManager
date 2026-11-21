@@ -309,7 +309,7 @@ def test_status_reports_a_recent_cancel_without_the_device(client, device, db):
     assert body["scheduled"] is False
     assert body["cancelled"] is True
     assert body["cancelled_by_name"] == "User Two"
-    assert body["cancelled_at"] is not None
+    assert body["id"] == "r1"
     assert body["action_type"] == "reboot"
     assert device["calls"] == []
     deletes = [args for query, args in db["executed"] if query.startswith("DELETE")]

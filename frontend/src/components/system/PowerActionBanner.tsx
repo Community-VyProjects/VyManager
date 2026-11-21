@@ -23,14 +23,14 @@ interface PowerActionBannerProps {
 
 /** Identifies one cancellation, so its notice shows once however often it is pushed. */
 function cancelNoticeKey(status: PowerStatusResponse): string | null {
-  if (!status.cancelled || !status.cancelled_at) return null;
-  return `${status.action_type ?? ""}|${status.cancelled_at}`;
+  if (!status.cancelled || !status.id) return null;
+  return status.id;
 }
 
-/** Identifies one scheduled action, so the confirm dialog belongs to it. */
+/** The stored row of the pending action, so the confirm dialog belongs to it alone. */
 function scheduleKey(status: PowerStatusResponse | null): string | null {
-  if (!status?.scheduled) return null;
-  return `${status.action_type ?? ""}|${status.scheduled_time ?? ""}`;
+  if (!status?.scheduled || !status.id) return null;
+  return status.id;
 }
 
 export function PowerActionBanner({ powerStatus: status }: PowerActionBannerProps) {

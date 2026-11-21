@@ -86,6 +86,7 @@ class PowerStatusResponse(BaseModel):
     """Response for power status check."""
 
     scheduled: bool
+    id: Optional[str] = None
     action_type: Optional[str] = None
     scheduled_time: Optional[datetime] = None
     scheduled_by: Optional[str] = None
@@ -93,7 +94,6 @@ class PowerStatusResponse(BaseModel):
     cancelled: bool = False
     cancelled_by: Optional[str] = None
     cancelled_by_name: Optional[str] = None
-    cancelled_at: Optional[datetime] = None
 
 
 
@@ -205,6 +205,7 @@ async def get_scheduled_power_status(
     def status(scheduled: bool) -> PowerStatusResponse:
         return PowerStatusResponse(
             scheduled=scheduled,
+            id=result["id"],
             action_type=result["actionType"],
             scheduled_time=_utc(result["scheduledTime"]),
             scheduled_by=result["scheduledBy"],
@@ -212,7 +213,6 @@ async def get_scheduled_power_status(
             cancelled=result["cancelled"],
             cancelled_by=result["cancelledBy"],
             cancelled_by_name=result["cancelledByName"],
-            cancelled_at=_utc(result["cancelledAt"]),
         )
 
     if result["cancelled"]:

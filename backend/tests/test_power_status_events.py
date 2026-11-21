@@ -169,6 +169,7 @@ def test_sse_checks_show_reboot_off_the_event_loop(sse, device, db, loop_thread)
     status = sse.call()
     assert status["scheduled"] is True
     assert status["action_type"] == "reboot"
+    assert status["id"] == "r1"
     assert status["scheduled_time"].endswith("Z")
     assert device["calls"] == [["reboot"]]
     assert loop_thread["id"] not in device["threads"]
@@ -207,7 +208,7 @@ def test_sse_reports_a_recent_cancel_without_the_device(sse, device, db):
     assert status["scheduled"] is False
     assert status["cancelled"] is True
     assert status["cancelled_by_name"] == "User Two"
-    assert status["cancelled_at"].endswith("Z")
+    assert status["id"] == "r1"
     assert status["action_type"] == "reboot"
     assert device["calls"] == []
     assert _deletes(db) == [(INSTANCE,)]
@@ -219,6 +220,7 @@ def test_sse_reads_an_old_cancel_as_nothing_scheduled(sse, device, db):
     assert status["scheduled"] is False
     assert status["cancelled"] is False
     assert status["action_type"] is None
+    assert status["id"] is None
     assert device["calls"] == []
 
 

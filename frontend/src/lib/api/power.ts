@@ -17,6 +17,7 @@ export interface PowerActionResponse {
 
 export interface PowerStatusResponse {
   scheduled: boolean;
+  id?: string;
   action_type?: "reboot" | "poweroff";
   scheduled_time?: string;
   scheduled_by?: string;
@@ -24,7 +25,6 @@ export interface PowerStatusResponse {
   cancelled?: boolean;
   cancelled_by?: string;
   cancelled_by_name?: string;
-  cancelled_at?: string;
 }
 
 // ============================================================================

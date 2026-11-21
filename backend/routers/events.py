@@ -13,7 +13,7 @@ import json
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -258,6 +258,10 @@ async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
     try:
         service = get_session_vyos_service(request)
         return await _config_diff_for(request.state.instance["id"], service)
+    except HTTPException as exc:
+        # No VyOS session yet: expected on connect, so no traceback.
+        logger.debug("No config diff for SSE: %s", exc.detail)
+        return _no_config_changes()
     except Exception:
         logger.exception("Failed to get config diff for SSE")
         return _no_config_changes()
