@@ -14,6 +14,7 @@ VRF_MAPPER_KEYS = (
     "vrf_isis",
     "vrf_bgp",
     "static_routes",
+    "ospf",
 )
 
 
