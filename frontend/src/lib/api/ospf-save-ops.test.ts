@@ -131,6 +131,13 @@ describe("authentication", () => {
     assert.equal(ospfAuthProblem(md5, draft), "plaintextPasswordRequired");
   });
 
+  it("drops a second stored mode (1.4 allows md5 and a password together) on save", () => {
+    const both = { md5_key_ids: { "1": MASKED_SECRET }, plaintext_password: MASKED_SECRET, null: false };
+    assert.deepEqual(ospfAuthOps("interface", "eth0", both, ospfAuthFromDraft(ospfAuthDraft(both))), [
+      { op: "delete_interface_authentication_plaintext_password", value: "eth0" },
+    ]);
+  });
+
   it("skips an unchanged masked password, sets null, and clears with the parent delete", () => {
     const plain = { md5_key_ids: {}, plaintext_password: MASKED_SECRET, null: false };
     assert.deepEqual(ospfAuthOps("interface", "eth0", plain, ospfAuthFromDraft(ospfAuthDraft(plain))), []);

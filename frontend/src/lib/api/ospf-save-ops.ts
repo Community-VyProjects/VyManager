@@ -221,13 +221,14 @@ export function ospfAuthOps(
     if (before !== "") ops.push({ op: `delete_${p}_authentication`, value: target });
     return ops;
   }
-  if (before !== after) {
-    if (before === "md5") ops.push({ op: `delete_${p}_authentication_md5`, value: target });
-    if (before === "plaintext-password") {
-      ops.push({ op: `delete_${p}_authentication_plaintext_password`, value: target });
-    }
-    if (before === "null") ops.push({ op: `delete_${p}_authentication_null`, value: target });
+  // 1.4 commits several modes on one node; drop every stored mode except the target.
+  if (after !== "md5" && beforeKeys.size > 0) {
+    ops.push({ op: `delete_${p}_authentication_md5`, value: target });
   }
+  if (after !== "plaintext-password" && ospfText(original?.plaintext_password)) {
+    ops.push({ op: `delete_${p}_authentication_plaintext_password`, value: target });
+  }
+  if (after !== "null" && original?.null) ops.push({ op: `delete_${p}_authentication_null`, value: target });
   if (after === "md5") {
     if (before === "md5") {
       for (const id of beforeKeys.keys()) {
