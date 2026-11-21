@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,22 +14,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { RoutingTable } from "@/lib/api/static-routes";
-import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import { staticRoutesService, type RoutingTable } from "@/lib/api/static-routes";
 import {
-  emptyRoutingTableDraft,
-  routingTableDraftFrom,
-  submitRoutingTableCreate,
-  submitRoutingTableUpdate,
-  validateRoutingTableCreate,
-  type RoutingTableDraft,
-} from "./static-routes-form";
+  TABLE_RANGE,
+  routingTableProblem,
+  type RoutingTableFields,
+  type RoutingTableProblem,
+} from "@/lib/api/static-routes-save-ops";
+import { lockedIdentity, modalIsEdit } from "@/lib/modal-mode";
+import type { ApiError } from "@/lib/types/api";
 
 interface RoutingTableModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existing?: RoutingTable | null;
+  /** Table ids the device already has. */
+  configured: number[];
+}
+
+function tableFields(table: RoutingTable | null | undefined): RoutingTableFields {
+  return { tableId: table ? String(table.table_id) : "", description: table?.description ?? "" };
 }
 
 export function RoutingTableModal({
@@ -37,60 +42,72 @@ export function RoutingTableModal({
   onOpenChange,
   onSuccess,
   existing,
+  configured,
 }: RoutingTableModalProps) {
   const t = useTranslations("routingExtras");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
-  const [loading, setLoading] = useState(false);
+  const initial = useMemo(() => tableFields(existing), [existing]);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<RoutingTableDraft>(emptyRoutingTableDraft());
+  const [draft, setDraft] = useState<RoutingTableFields>(initial);
 
-  useEffect(() => {
-    if (!open) return;
-    if (existing) {
-      setDraft(routingTableDraftFrom(existing));
-    } else {
-      setDraft(emptyRoutingTableDraft());
-    }
+  const seedKey = open ? JSON.stringify(initial) : "";
+  const [seed, setSeed] = useState(seedKey);
+  if (seedKey !== seed) {
+    setSeed(seedKey);
+    setDraft(initial);
     setError(null);
-  }, [open, existing]);
+  }
 
-  const patch = (fields: Partial<RoutingTableDraft>) => setDraft((d) => ({ ...d, ...fields }));
-  const lockedTableId = lockedIdentity(existing, (t) => t.table_id.toString(), draft.tableId);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && saving) return;
+    onOpenChange(next);
+  };
+
+  const patch = (fields: Partial<RoutingTableFields>) => setDraft((d) => ({ ...d, ...fields }));
+  const lockedTableId = lockedIdentity(existing, (table) => table.table_id.toString(), draft.tableId);
+
+  const problemMessage = (problem: RoutingTableProblem): string => {
+    switch (problem.key) {
+      case "tableIdRange":
+        return t("validation.tableIdRange", { min: problem.min, max: problem.max });
+      case "tableExists":
+        return t("validation.tableExists", { name: problem.name });
+      case "descriptionTooLong":
+        return t("validation.descriptionTooLong", { max: problem.max });
+      default:
+        return t("validation.tableIdRequired");
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!isEdit) {
-      const validationError = validateRoutingTableCreate(draft);
-      if (validationError) {
-        setError(t(`validation.${validationError}`));
-        return;
-      }
+    const original = isEdit ? initial : null;
+    const problem = routingTableProblem(original, draft, configured);
+    if (problem) {
+      setError(problemMessage(problem));
+      return;
     }
-
-    const write = modalWriteKind(existing ? { name: existing.table_id.toString() } : null);
-    setLoading(true);
+    const failed = isEdit ? t("routingTableModal.updateFailed") : t("routingTableModal.createFailed");
+    setSaving(true);
     setError(null);
-
     try {
-      const result =
-        write.kind === "update" && existing
-          ? await submitRoutingTableUpdate(existing, draft)
-          : await submitRoutingTableCreate(draft);
-      if (result && result.success === false) {
-        setError(result.error || tc("operationFailed"));
+      const result = await staticRoutesService.saveRoutingTable(original, draft);
+      if (result && !result.success) {
+        setError(result.error || failed);
         return;
       }
-      onSuccess();
+      if (result) onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? t("routingTableModal.updateFailed") : t("routingTableModal.createFailed"));
+      setError((err as ApiError).message || failed);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -107,17 +124,17 @@ export function RoutingTableModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="table-id">{t("routingTableModal.tableId")}</Label>
+            <Label htmlFor="table-id">{t("routingTableModal.tableId", { min: TABLE_RANGE.min, max: TABLE_RANGE.max })}</Label>
             <Input
               id="table-id"
               type="number"
-              min="1"
-              max="200"
+              min={TABLE_RANGE.min}
+              max={TABLE_RANGE.max}
               placeholder="100"
               value={lockedTableId.value}
               disabled={lockedTableId.disabled}
@@ -151,11 +168,11 @@ export function RoutingTableModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <Button onClick={handleSubmit} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {isEdit ? tc("saveChanges") : t("routingTableModal.createTable")}
           </Button>
         </DialogFooter>

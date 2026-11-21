@@ -19,7 +19,7 @@ from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.ospfv3.ospfv3_batch_builder import Ospfv3BatchBuilder
 from vyos_builders.rpki.rpki_batch_builder import RpkiBatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
-from vyos_builders.vrf.feature_modes import DIRECT, DROP, FLIP
+from vyos_builders.vrf.feature_modes import DIRECT, DROP
 from vyos_mappers.feature_leaves import (
     DhcpExtraLeaves,
     Dhcpv6ExtraLeaves,
@@ -325,15 +325,6 @@ def _drop_set_leaf(inner: Any, proto: str, suffix: str, value: Optional[str]) ->
         inner.add_delete(op["path"][:-1])
 
 
-def _flip_set(inner: Any, proto: str, suffix: str, value: Optional[str]) -> None:
-    method = getattr(inner, f"set_{_alias(proto, suffix)}")
-    _call_with_packed_value(method, value)
-    ops = list(inner.get_operations())
-    inner._operations.clear()
-    for op in ops:
-        inner.add_delete(list(op["path"]))
-
-
 def _run_feature_op(
     owner: Any,
     verb: str,
@@ -348,9 +339,6 @@ def _run_feature_op(
     key = _mode_key(proto, verb, suffix)
     if suffix and key in DIRECT:
         _call_aliased(inner, verb, proto, suffix, value)
-        return _queue(owner, inner)
-    if suffix and key in FLIP:
-        _flip_set(inner, proto, suffix, value)
         return _queue(owner, inner)
     if suffix and key in DROP:
         _drop_set_leaf(inner, proto, suffix, value)

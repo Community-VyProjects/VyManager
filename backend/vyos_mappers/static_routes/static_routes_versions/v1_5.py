@@ -1,60 +1,53 @@
-"""VyOS 1.5 specific static routes commands."""
-from typing import List
+"""VyOS 1.5 static routes mapper.
+
+1.5 spells multicast routes as one ``mroute <prefix>`` node with
+``next-hop`` and ``interface`` children that both take ``disable``, and a
+BFD multi-hop source as the single leaf ``source-address``. IPv4 routes take
+SRv6 ``segments`` on 1.5 only (IPv6 routes have them on both labs). Path
+methods do not re-check the node: the builder already called
+``require_node``.
+"""
+
+from typing import FrozenSet, List, Optional
+
+from ..static_routes import ROOT, StaticRoutesMapper
 
 
-class StaticRoutesMapperV1_5:
-    """
-    Version-specific mapper for VyOS 1.5.
+class StaticRoutesMapperV1_5(StaticRoutesMapper):
+    """VyOS 1.5 static routes mapper."""
 
-    Key differences from VyOS 1.4:
-    - Multicast routes use "mroute" instead of "multicast"
-    - Multicast routes combine next-hop and interface under same prefix
-    - Uses "interface" directly instead of separate "interface-route" type
-    """
+    def versioned_nodes(self) -> FrozenSet[str]:
+        return frozenset({"route segments", "mroute"})
 
-    # ========================================================================
-    # Multicast Routes (1.5 specific - uses "mroute" instead of "multicast")
-    # VyOS 1.5 structure:
-    #   mroute <dst> next-hop <ip> [distance <n>] [disable]
-    #   mroute <dst> interface <interface> [distance <n>] [disable]
-    # ========================================================================
-
-    def get_mroute_path(self, prefix: str) -> List[str]:
-        """Get command path for mroute (1.5)."""
-        return ["protocols", "static", "mroute", prefix]
-
-    def get_mroute_interface_path(self, prefix: str, interface: str) -> List[str]:
-        """Get command path for mroute interface (1.5)."""
-        return ["protocols", "static", "mroute", prefix, "interface", interface]
-
-    def get_mroute_interface_disable(self, prefix: str, interface: str) -> List[str]:
-        """Get command path for mroute interface disable (1.5)."""
-        return ["protocols", "static", "mroute", prefix, "interface", interface, "disable"]
-
-    def get_mroute_interface_distance(
-        self, prefix: str, interface: str, distance: str
+    def get_route_next_hop_bfd_multi_hop_source(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        """Get command path for mroute interface distance (1.5)."""
-        return ["protocols", "static", "mroute", prefix, "interface", interface, "distance", distance]
+        return self.get_route_next_hop_bfd_multi_hop(family, table, destination, next_hop) + [
+            "source-address", value,
+        ]
 
-    def get_mroute_next_hop_path(self, prefix: str, next_hop: str) -> List[str]:
-        """Get command path for mroute next-hop (1.5)."""
-        return ["protocols", "static", "mroute", prefix, "next-hop", next_hop]
+    def get_route_next_hop_bfd_multi_hop_source_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
+    ) -> List[str]:
+        return self.get_route_next_hop_bfd_multi_hop(family, table, destination, next_hop) + ["source-address"]
+
+    def get_mroute(self, prefix: str) -> List[str]:
+        return ROOT + ["mroute", prefix]
+
+    def get_mroute_next_hop_root(self, prefix: str) -> List[str]:
+        return self.get_mroute(prefix) + ["next-hop"]
+
+    def get_mroute_interface_root(self, prefix: str) -> List[str]:
+        return self.get_mroute(prefix) + ["interface"]
+
+    def get_mroute_next_hop(self, prefix: str, next_hop: str) -> List[str]:
+        return self.get_mroute_next_hop_root(prefix) + [next_hop]
+
+    def get_mroute_interface(self, prefix: str, interface: str) -> List[str]:
+        return self.get_mroute_interface_root(prefix) + [interface]
 
     def get_mroute_next_hop_disable(self, prefix: str, next_hop: str) -> List[str]:
-        """Get command path for mroute next-hop disable (1.5)."""
-        return ["protocols", "static", "mroute", prefix, "next-hop", next_hop, "disable"]
+        return self.get_mroute_next_hop(prefix, next_hop) + ["disable"]
 
-    def get_mroute_next_hop_distance(
-        self, prefix: str, next_hop: str, distance: str
-    ) -> List[str]:
-        """Get command path for mroute next-hop distance (1.5)."""
-        return ["protocols", "static", "mroute", prefix, "next-hop", next_hop, "distance", distance]
-
-    # ========================================================================
-    # Config key for parsing
-    # ========================================================================
-
-    def get_multicast_config_key(self) -> str:
-        """Return the config key for multicast routes in VyOS 1.5."""
-        return "mroute"
+    def get_mroute_interface_disable(self, prefix: str, interface: str) -> List[str]:
+        return self.get_mroute_interface(prefix, interface) + ["disable"]

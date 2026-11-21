@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ApiError } from "@/lib/types/api";
 import { staticRoutesService, type ArpEntry } from "@/lib/api/static-routes";
 
 interface DeleteArpEntryModalProps {
@@ -20,6 +21,8 @@ interface DeleteArpEntryModalProps {
   onSuccess: () => void;
   interfaceName: string;
   entry: ArpEntry | null;
+  /** Entries on the interface; deleting the last one removes the interface node. */
+  entriesOnInterface: number;
 }
 
 export function DeleteArpEntryModal({
@@ -28,11 +31,18 @@ export function DeleteArpEntryModal({
   onSuccess,
   interfaceName,
   entry,
+  entriesOnInterface,
 }: DeleteArpEntryModalProps) {
   const t = useTranslations("routingExtras");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    if (!next) setError(null);
+    onOpenChange(next);
+  };
 
   const handleDelete = async () => {
     if (!entry) return;
@@ -41,11 +51,15 @@ export function DeleteArpEntryModal({
     setLoading(true);
 
     try {
-      await staticRoutesService.deleteArpEntry(interfaceName, entry.ip_address);
+      const result = await staticRoutesService.deleteArpEntry(interfaceName, entry.ip_address, entriesOnInterface);
+      if (!result.success) {
+        setError(result.error || t("deleteArp.failed"));
+        return;
+      }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteArp.failed"));
+      setError((err as ApiError).message || t("deleteArp.failed"));
     } finally {
       setLoading(false);
     }
@@ -54,7 +68,7 @@ export function DeleteArpEntryModal({
   if (!entry) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -70,7 +84,7 @@ export function DeleteArpEntryModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2 mb-4">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
@@ -97,7 +111,7 @@ export function DeleteArpEntryModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>

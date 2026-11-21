@@ -36,8 +36,11 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  mrouteFeatures,
+  staticRouteFeatures,
   staticRoutesService,
   type StaticRoute,
+  type StaticRoutesCapabilities,
   type StaticRoutesConfig,
   type ArpEntry,
   type MulticastRoute,
@@ -57,12 +60,16 @@ import { CreateNeighborProxyModal } from "@/components/routing/CreateNeighborPro
 import { DeleteNeighborProxyModal } from "@/components/routing/DeleteNeighborProxyModal";
 import { RoutingTableModal } from "@/components/routing/RoutingTableModal";
 import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccordion";
+import { StaticRouteMapModal } from "@/components/routing/StaticRouteMapModal";
+import type { NeighborProxyFields } from "@/lib/api/static-routes-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 function StaticRoutesPageInner() {
   const t = useTranslations("staticRoutes");
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
+  const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,10 +88,12 @@ function StaticRoutesPageInner() {
 
   // Modal states for Multicast Routes
   const [createMrouteModalOpen, setCreateMrouteModalOpen] = useState(false);
+  const [editingMroute, setEditingMroute] = useState<MulticastRoute | null>(null);
   const [deletingMroute, setDeletingMroute] = useState<MulticastRoute | null>(null);
 
   // Modal states for Neighbor Proxy
   const [createNeighborProxyModalOpen, setCreateNeighborProxyModalOpen] = useState(false);
+  const [editingNeighborProxy, setEditingNeighborProxy] = useState<NeighborProxyFields | null>(null);
   const [deletingNeighborProxy, setDeletingNeighborProxy] = useState<{
     entry: NeighborProxyArp | NeighborProxyNd;
     type: "arp" | "nd";
@@ -92,18 +101,20 @@ function StaticRoutesPageInner() {
 
   // Modal states for Routing Tables
   const [createTableModalOpen, setCreateTableModalOpen] = useState(false);
+  const [routeMapModalOpen, setRouteMapModalOpen] = useState(false);
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
-      const configData = await staticRoutesService.getConfig(refresh);
+      const [configData, caps] = await Promise.all([
+        staticRoutesService.getConfig(refresh),
+        staticRoutesService.getCapabilities(),
+      ]);
       setConfig(configData);
+      setCapabilities(caps);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("errors.loadFailed")
-      );
-      console.error("Error fetching static routes config:", err);
+      setError((err as ApiError).message || t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -138,6 +149,18 @@ function StaticRoutesPageInner() {
       route.interfaces.some((iface) => iface.interface.toLowerCase().includes(query))
     );
   });
+
+  const routeFeatures = staticRouteFeatures(capabilities);
+  const multicastFeatures = mrouteFeatures(capabilities);
+  const arpConfigured = (config?.arp_interfaces ?? []).flatMap((iface) =>
+    iface.entries.map((entry) => `${iface.interface}|${entry.ip_address}`),
+  );
+  const proxyConfigured = [
+    ...(config?.neighbor_proxy?.arp_entries ?? []).map((entry) => `arp|${entry.ip_address}`),
+    ...(config?.neighbor_proxy?.nd_entries ?? []).map((entry) => `nd|${entry.ipv6_address}`),
+  ];
+  const entriesOnArpInterface = (name: string) =>
+    config?.arp_interfaces.find((iface) => iface.interface === name)?.entries.length ?? 0;
 
   // Calculate stats
   const totalIPv4Routes = config?.ipv4_routes.length || 0;
@@ -185,6 +208,11 @@ function StaticRoutesPageInner() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <Button onClick={() => setRouteMapModalOpen(true)} variant="outline" size="sm">
+                {config?.route_map
+                  ? t("routeMap.buttonSet", { name: config.route_map })
+                  : t("routeMap.button")}
+              </Button>
               <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 {tc("refresh")}
@@ -739,6 +767,15 @@ function StaticRoutesPageInner() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  aria-label={tc("edit")}
+                                  onClick={() => setEditingMroute(route)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={tc("delete")}
                                   onClick={() => setDeletingMroute(route)}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -823,6 +860,17 @@ function StaticRoutesPageInner() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  aria-label={tc("edit")}
+                                  onClick={() =>
+                                    setEditingNeighborProxy({ kind: "arp", address: entry.ip_address, interfaces: entry.interfaces })
+                                  }
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={tc("delete")}
                                   onClick={() => setDeletingNeighborProxy({ entry, type: "arp" })}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -854,6 +902,17 @@ function StaticRoutesPageInner() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  aria-label={tc("edit")}
+                                  onClick={() =>
+                                    setEditingNeighborProxy({ kind: "nd", address: entry.ipv6_address, interfaces: entry.interfaces })
+                                  }
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={tc("delete")}
                                   onClick={() => setDeletingNeighborProxy({ entry, type: "nd" })}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -880,6 +939,7 @@ function StaticRoutesPageInner() {
 
               <RoutingTablesAccordion
                 tables={config?.routing_tables || []}
+                features={routeFeatures}
                 onRefresh={() => fetchConfig(true)}
               />
             </TabsContent>
@@ -897,14 +957,18 @@ function StaticRoutesPageInner() {
           }
         }}
         onSuccess={() => fetchConfig(true)}
-        routeType={selectedType}
+        scope={{ kind: "global" }}
+        family={selectedType}
         existing={editingRoute}
+        features={routeFeatures}
+        configured={currentRoutes.map((route) => route.destination)}
       />
 
       <DeleteStaticRouteModal
         open={deletingRoute !== null}
         onOpenChange={(open) => !open && setDeletingRoute(null)}
         onSuccess={() => fetchConfig(true)}
+        scope={{ kind: "global" }}
         route={deletingRoute}
       />
 
@@ -919,6 +983,7 @@ function StaticRoutesPageInner() {
         }}
         onSuccess={() => fetchConfig(true)}
         existing={editingArpEntry}
+        configured={arpConfigured}
       />
 
       <DeleteArpEntryModal
@@ -927,13 +992,22 @@ function StaticRoutesPageInner() {
         onSuccess={() => fetchConfig(true)}
         interfaceName={deletingArpEntry?.interface || ""}
         entry={deletingArpEntry?.entry || null}
+        entriesOnInterface={entriesOnArpInterface(deletingArpEntry?.interface || "")}
       />
 
       {/* Modals for Multicast Routes */}
       <CreateMrouteModal
-        open={createMrouteModalOpen}
-        onOpenChange={setCreateMrouteModalOpen}
+        open={createMrouteModalOpen || editingMroute !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateMrouteModalOpen(false);
+            setEditingMroute(null);
+          }
+        }}
         onSuccess={() => fetchConfig(true)}
+        existing={editingMroute}
+        features={multicastFeatures}
+        configured={(config?.multicast_routes ?? []).map((route) => route.prefix)}
       />
 
       <DeleteMrouteModal
@@ -941,13 +1015,21 @@ function StaticRoutesPageInner() {
         onOpenChange={(open) => !open && setDeletingMroute(null)}
         onSuccess={() => fetchConfig(true)}
         route={deletingMroute}
+        features={multicastFeatures}
       />
 
       {/* Modals for Neighbor Proxy */}
       <CreateNeighborProxyModal
-        open={createNeighborProxyModalOpen}
-        onOpenChange={setCreateNeighborProxyModalOpen}
+        open={createNeighborProxyModalOpen || editingNeighborProxy !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateNeighborProxyModalOpen(false);
+            setEditingNeighborProxy(null);
+          }
+        }}
         onSuccess={() => fetchConfig(true)}
+        existing={editingNeighborProxy}
+        configured={proxyConfigured}
       />
 
       <DeleteNeighborProxyModal
@@ -963,6 +1045,14 @@ function StaticRoutesPageInner() {
         open={createTableModalOpen}
         onOpenChange={setCreateTableModalOpen}
         onSuccess={() => fetchConfig(true)}
+        configured={(config?.routing_tables ?? []).map((table) => table.table_id)}
+      />
+
+      <StaticRouteMapModal
+        open={routeMapModalOpen}
+        onOpenChange={setRouteMapModalOpen}
+        onSuccess={() => fetchConfig(true)}
+        current={config?.route_map ?? ""}
       />
     </>
   );

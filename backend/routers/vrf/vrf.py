@@ -24,6 +24,7 @@ from rbac_permissions import FeatureGroup
 import inspect
 import logging
 from batch_dispatch import resolve_batch_method
+from routers.static_routes.static_routes import StaticRoute
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vrf", tags=["vrf"])
@@ -52,53 +53,10 @@ class VrfIpSettings(BaseModel):
 # ============================================================================
 
 
-class VrfStaticRouteBfd(BaseModel):
-    """BFD configuration for a static route next-hop."""
-    profile: Optional[str] = None
-    multi_hop_source: Optional[str] = None
-
-
-class VrfStaticRouteNextHop(BaseModel):
-    """Next-hop for a static route."""
-    address: str
-    disable: bool = False
-    distance: Optional[int] = None
-    interface: Optional[str] = None
-    vrf: Optional[str] = None
-    bfd: Optional[VrfStaticRouteBfd] = None
-    segments: Optional[str] = None
-
-
-class VrfStaticRouteInterface(BaseModel):
-    """Interface route for a static route."""
-    name: str
-    disable: bool = False
-    distance: Optional[int] = None
-    vrf: Optional[str] = None
-    segments: Optional[str] = None
-
-
-class VrfStaticRouteBlackhole(BaseModel):
-    """Blackhole/reject settings."""
-    distance: Optional[int] = None
-    tag: Optional[int] = None
-
-
-class VrfStaticRoute(BaseModel):
-    """A single static route (IPv4 or IPv6)."""
-    destination: str
-    description: Optional[str] = None
-    dhcp_interface: Optional[str] = None
-    next_hops: List[VrfStaticRouteNextHop] = []
-    interfaces: List[VrfStaticRouteInterface] = []
-    blackhole: Optional[VrfStaticRouteBlackhole] = None
-    reject: Optional[VrfStaticRouteBlackhole] = None
-
-
 class VrfStaticConfig(BaseModel):
-    """Static route configuration within a VRF."""
-    routes: List[VrfStaticRoute] = []
-    routes6: List[VrfStaticRoute] = []
+    """Static route configuration within a VRF (the global route tree)."""
+    routes: List[StaticRoute] = []
+    routes6: List[StaticRoute] = []
 
 
 # ============================================================================

@@ -3,12 +3,9 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
-import { VrfSelect } from "@/components/ui/vrf-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { InterfaceSelect } from "@/components/ui/interface-select";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -18,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AlertCircle, Loader2, Pencil, Plus, Route, Search, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,27 +24,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertCircle,
-  Loader2,
-  Plus,
-  Route,
-  Search,
-  Trash2,
-} from "lucide-react";
-import {
-  VrfInstance,
-  VrfCapabilities,
-  VrfStaticRoute,
-  vrfService,
-} from "@/lib/api/vrf";
+import { StaticRouteModal } from "@/components/routing/StaticRouteModal";
+import { DeleteStaticRouteModal } from "@/components/routing/DeleteStaticRouteModal";
+import type { StaticRoute } from "@/lib/api/static-routes";
+import type { RouteFamily, StaticRouteFeatures } from "@/lib/api/static-routes-save-ops";
+import { VrfInstance, VrfCapabilities, vrfService } from "@/lib/api/vrf";
+import type { ApiError } from "@/lib/types/api";
 
 interface VrfStaticRoutesTabProps {
   vrf: VrfInstance;
@@ -57,30 +40,51 @@ interface VrfStaticRoutesTabProps {
 
 export function VrfStaticRoutesTab({
   vrf,
+  capabilities,
   canWrite,
   onRefresh,
 }: VrfStaticRoutesTabProps) {
   const t = useTranslations("vrf");
   const tc = useTranslations("common");
-  const [family, setFamily] = useState<"ipv4" | "ipv6">("ipv4");
+  const [family, setFamily] = useState<RouteFamily>("ipv4");
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [deleteRoute, setDeleteRoute] = useState<{ dest: string; family: "route" | "route6" } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [editRoute, setEditRoute] = useState<StaticRoute | null>(null);
+  const [deleteRoute, setDeleteRoute] = useState<StaticRoute | null>(null);
+  // VRF the "remove static routing" dialog was opened for.
+  const [clearFor, setClearFor] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const clearOpen = clearFor === vrf.name && vrf.static !== null;
 
-  // Create form state
-  const [newDest, setNewDest] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [newType, setNewType] = useState<"empty" | "next-hop" | "interface" | "blackhole" | "reject">("next-hop");
-  const [newNextHop, setNewNextHop] = useState("");
-  const [newInterface, setNewInterface] = useState("");
-  const [newDistance, setNewDistance] = useState("");
-  const [newNhVrf, setNewNhVrf] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const closeClear = (open: boolean) => {
+    if (open || clearing) return;
+    setClearFor(null);
+    setClearError(null);
+  };
 
-  // Delete state
-  const [deleting, setDeleting] = useState(false);
+  const handleClear = async () => {
+    setClearing(true);
+    setClearError(null);
+    try {
+      const result = await vrfService.deleteStatic(vrf.name);
+      if (!result.success) {
+        setClearError(result.error || t("staticRoutes.clearFailed"));
+        return;
+      }
+      setClearFor(null);
+      onRefresh();
+    } catch (err) {
+      setClearError((err as ApiError).message || t("staticRoutes.clearFailed"));
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const features: StaticRouteFeatures = {
+    ipv4Segments: capabilities.features.static_route_ipv4_segments.supported,
+    bfdSourceProfile: capabilities.features.static_route_bfd_source_profile.supported,
+  };
 
   const routes = family === "ipv4"
     ? (vrf.static?.routes ?? [])
@@ -93,136 +97,41 @@ export function VrfStaticRoutesTab({
       )
     : routes;
 
-  const getRouteTypeDisplay = (route: VrfStaticRoute): string => {
+  const getRouteTypeDisplay = (route: StaticRoute): string => {
     const types: string[] = [];
     if (route.next_hops.length > 0) types.push(t("staticRoutes.nextHopCount", { count: route.next_hops.length }));
     if (route.interfaces.length > 0) types.push(t("staticRoutes.interfaceCount", { count: route.interfaces.length }));
     if (route.blackhole) types.push(t("staticRoutes.typeBlackhole"));
     if (route.reject) types.push(t("staticRoutes.typeReject"));
+    if (route.dhcp_interfaces.length > 0) {
+      types.push(t("staticRoutes.dhcpInterfaceCount", { count: route.dhcp_interfaces.length }));
+    }
     return types.join(", ") || t("staticRoutes.typeEmpty");
   };
 
-  const getRouteTargets = (route: VrfStaticRoute): string => {
+  const getRouteTargets = (route: StaticRoute): string => {
     const targets: string[] = [];
     for (const nh of route.next_hops) {
-      let t = nh.address;
-      if (nh.interface) t += ` via ${nh.interface}`;
-      if (nh.vrf) t += ` (vrf: ${nh.vrf})`;
-      targets.push(t);
+      const name = nh.interface ? t("staticRoutes.targetVia", { name: nh.address, via: nh.interface }) : nh.address;
+      targets.push(nh.vrf ? t("staticRoutes.targetVrf", { name, vrf: nh.vrf }) : name);
     }
     for (const iface of route.interfaces) {
-      let t = iface.name;
-      if (iface.vrf) t += ` (vrf: ${iface.vrf})`;
-      targets.push(t);
+      targets.push(iface.vrf ? t("staticRoutes.targetVrf", { name: iface.interface, vrf: iface.vrf }) : iface.interface);
     }
-    if (route.blackhole) targets.push("blackhole");
-    if (route.reject) targets.push("reject");
-    return targets.join("; ") || "—";
-  };
-
-  const resetCreateForm = () => {
-    setNewDest("");
-    setNewDesc("");
-    setNewType("next-hop");
-    setNewNextHop("");
-    setNewInterface("");
-    setNewDistance("");
-    setNewNhVrf("");
-    setCreateError(null);
-  };
-
-  const handleCreate = async () => {
-    if (!newDest.trim()) {
-      setCreateError(t("staticRoutes.destinationRequired"));
-      return;
-    }
-
-    setCreating(true);
-    setCreateError(null);
-
-    try {
-      const routeFamily = family === "ipv4" ? "route" : "route6";
-      const config: Parameters<typeof vrfService.createStaticRoute>[1] = {
-        destination: newDest.trim(),
-        family: routeFamily,
-        description: newDesc.trim() || undefined,
-      };
-
-      if (newType === "empty") {
-        // Empty type: just destination and description, no route target
-      } else if (newType === "next-hop" && newNextHop.trim()) {
-        config.next_hops = [{
-          address: newNextHop.trim(),
-          distance: newDistance.trim() || undefined,
-          interface: newInterface.trim() || undefined,
-          vrf: newNhVrf.trim() || undefined,
-        }];
-      } else if (newType === "interface" && newInterface.trim()) {
-        config.interfaces = [{
-          name: newInterface.trim(),
-          distance: newDistance.trim() || undefined,
-          vrf: newNhVrf.trim() || undefined,
-        }];
-      } else if (newType === "blackhole") {
-        config.blackhole = {
-          distance: newDistance.trim() || undefined,
-        };
-      } else if (newType === "reject") {
-        config.reject = {
-          distance: newDistance.trim() || undefined,
-        };
-      }
-
-      const result = await vrfService.createStaticRoute(vrf.name, config);
-      if (!result.success) throw new Error(result.error || t("staticRoutes.createFailed"));
-
-      resetCreateForm();
-      setCreateOpen(false);
-      onRefresh();
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : t("staticRoutes.createFailed"));
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteRoute) return;
-    setDeleting(true);
-    setError(null);
-
-    try {
-      const result = await vrfService.deleteStaticRoute(
-        vrf.name,
-        deleteRoute.dest,
-        deleteRoute.family
-      );
-      if (!result.success) throw new Error(result.error || t("staticRoutes.deleteFailed"));
-      setDeleteRoute(null);
-      onRefresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("staticRoutes.deleteFailed"));
-    } finally {
-      setDeleting(false);
-    }
+    targets.push(...route.dhcp_interfaces);
+    if (route.blackhole) targets.push(t("staticRoutes.typeBlackhole"));
+    if (route.reject) targets.push(t("staticRoutes.typeReject"));
+    return targets.join("; ") || t("staticRoutes.noTargets");
   };
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
-          {error}
-        </div>
-      )}
-
-      {/* Header controls */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Tabs value={family} onValueChange={(v) => setFamily(v as "ipv4" | "ipv6")}>
+          <Tabs value={family} onValueChange={(v) => setFamily(v as RouteFamily)}>
             <TabsList>
               <TabsTrigger value="ipv4">
-                IPv4
+                {t("staticRoutes.familyIpv4")}
                 {(vrf.static?.routes.length ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
                     {vrf.static?.routes.length}
@@ -230,7 +139,7 @@ export function VrfStaticRoutesTab({
                 )}
               </TabsTrigger>
               <TabsTrigger value="ipv6">
-                IPv6
+                {t("staticRoutes.familyIpv6")}
                 {(vrf.static?.routes6.length ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
                     {vrf.static?.routes6.length}
@@ -250,14 +159,21 @@ export function VrfStaticRoutesTab({
           </div>
         </div>
         {canWrite && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t("addRoute")}
-          </Button>
+          <div className="flex items-center gap-2">
+            {vrf.static !== null && (
+              <Button size="sm" variant="outline" onClick={() => setClearFor(vrf.name)}>
+                <Trash2 className="h-4 w-4 mr-1.5 text-destructive" />
+                {t("staticRoutes.clear")}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              {t("addRoute")}
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* Routes Table */}
       <Card>
         <CardContent className="p-0">
           {filteredRoutes.length === 0 ? (
@@ -278,7 +194,7 @@ export function VrfStaticRoutesTab({
                   <TableHead>{t("staticRoutes.targets")}</TableHead>
                   <TableHead>{tc("description")}</TableHead>
                   <TableHead>{tc("status")}</TableHead>
-                  {canWrite && <TableHead className="w-[60px]" />}
+                  {canWrite && <TableHead className="w-[90px]" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -297,7 +213,7 @@ export function VrfStaticRoutesTab({
                         {getRouteTargets(route)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {route.description || "—"}
+                        {route.description || t("staticRoutes.noTargets")}
                       </TableCell>
                       <TableCell>
                         {hasDisabled ? (
@@ -312,18 +228,24 @@ export function VrfStaticRoutesTab({
                       </TableCell>
                       {canWrite && (
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              setDeleteRoute({
-                                dest: route.destination,
-                                family: family === "ipv4" ? "route" : "route6",
-                              })
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={tc("edit")}
+                              onClick={() => setEditRoute(route)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={tc("delete")}
+                              onClick={() => setDeleteRoute(route)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -335,138 +257,50 @@ export function VrfStaticRoutesTab({
         </CardContent>
       </Card>
 
-      {/* Create Route Modal */}
-      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) resetCreateForm(); setCreateOpen(o); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t("staticRoutes.addTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("staticRoutes.addDescription", { family: family === "ipv4" ? "IPv4" : "IPv6", name: vrf.name })}
-            </DialogDescription>
-          </DialogHeader>
+      <StaticRouteModal
+        open={createOpen || editRoute !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateOpen(false);
+            setEditRoute(null);
+          }
+        }}
+        onSuccess={onRefresh}
+        scope={{ kind: "vrf", vrf: vrf.name }}
+        family={family}
+        existing={editRoute}
+        features={features}
+        configured={routes.map((route) => route.destination)}
+      />
 
-          <div className="space-y-4">
-            {createError && (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {createError}
-              </div>
-            )}
+      <DeleteStaticRouteModal
+        open={deleteRoute !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteRoute(null);
+        }}
+        onSuccess={onRefresh}
+        scope={{ kind: "vrf", vrf: vrf.name }}
+        route={deleteRoute}
+      />
 
-            <div className="space-y-2">
-              <Label>{t("staticRoutes.destinationLabel")}</Label>
-              <Input
-                placeholder={t("example", { value: family === "ipv4" ? "10.0.0.0/8" : "2001:db8::/32" })}
-                value={newDest}
-                onChange={(e) => setNewDest(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>{tc("description")}</Label>
-              <Input
-                placeholder={tc("optional")}
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t("staticRoutes.routeType")}</Label>
-              <Select value={newType} onValueChange={(v) => setNewType(v as typeof newType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="empty">{t("staticRoutes.optionEmpty")}</SelectItem>
-                  <SelectItem value="next-hop">{t("staticRoutes.optionNextHop")}</SelectItem>
-                  <SelectItem value="interface">{t("interface")}</SelectItem>
-                  <SelectItem value="blackhole">{t("staticRoutes.optionBlackhole")}</SelectItem>
-                  <SelectItem value="reject">{t("staticRoutes.optionReject")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {newType === "next-hop" && (
-              <div className="space-y-2">
-                <Label>{t("staticRoutes.nextHopAddressLabel")}</Label>
-                <Input
-                  placeholder={t("example", { value: family === "ipv4" ? "192.168.1.1" : "2001:db8::1" })}
-                  value={newNextHop}
-                  onChange={(e) => setNewNextHop(e.target.value)}
-                />
-              </div>
-            )}
-
-            {(newType === "next-hop" || newType === "interface") && (
-              <div className="space-y-2">
-                <Label>{newType === "interface" ? t("staticRoutes.interfaceNameLabel") : t("staticRoutes.interfaceOptionalLabel")}</Label>
-                <InterfaceSelect
-                  value={newInterface}
-                  onValueChange={setNewInterface}
-                  noneOption={newType === "next-hop" ? { label: tc("none"), value: "" } : undefined}
-                />
-              </div>
-            )}
-
-            {newType !== "empty" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t("staticRoutes.distance")}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={255}
-                    placeholder="1-255"
-                    value={newDistance}
-                    onChange={(e) => setNewDistance(e.target.value)}
-                  />
-                </div>
-                {(newType === "next-hop" || newType === "interface") && (
-                  <div className="space-y-2">
-                    <Label>{t("staticRoutes.vrfRouteLeaking")}</Label>
-                    <VrfSelect
-                      placeholder={t("staticRoutes.targetVrf")}
-                      value={newNhVrf}
-                      onValueChange={setNewNhVrf}
-                      extraOptions={[{ label: tc("default"), value: "default" }]}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { resetCreateForm(); setCreateOpen(false); }} disabled={creating}>
-              {tc("cancel")}
-            </Button>
-            <Button onClick={handleCreate} disabled={creating}>
-              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {t("addRoute")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Route Confirmation */}
-      <Dialog open={!!deleteRoute} onOpenChange={(o) => { if (!o) setDeleteRoute(null); }}>
+      <Dialog open={clearOpen} onOpenChange={closeClear}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-destructive">{t("staticRoutes.deleteTitle")}</DialogTitle>
-            <DialogDescription>
-              {t.rich("staticRoutes.deleteConfirm", {
-                dest: deleteRoute?.dest ?? "",
-                strong: (chunks) => <strong className="font-mono">{chunks}</strong>,
-              })}
-            </DialogDescription>
+            <DialogTitle className="text-destructive">{t("staticRoutes.clear")}</DialogTitle>
+            <DialogDescription>{t("staticRoutes.clearConfirm", { name: vrf.name })}</DialogDescription>
           </DialogHeader>
+          {clearError && (
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <p className="whitespace-pre-wrap">{clearError}</p>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteRoute(null)} disabled={deleting}>
+            <Button variant="outline" onClick={() => closeClear(false)} disabled={clearing}>
               {tc("cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button variant="destructive" onClick={handleClear} disabled={clearing}>
+              {clearing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {tc("delete")}
             </Button>
           </DialogFooter>

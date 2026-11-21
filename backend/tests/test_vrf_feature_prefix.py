@@ -155,7 +155,7 @@ def test_static_bfd_source_follows_version():
         "blue", "10.0.0.0/24,192.0.2.1,192.0.2.2"
     )
     assert old.get_operations()[-1]["path"][:3] == ["vrf", "name", "blue"]
-    assert old.get_operations()[-1]["path"][-3:] == ["source", "192.0.2.2", "profile"]
+    assert old.get_operations()[-1]["path"][-2:] == ["source", "192.0.2.2"]
     new = VrfBatchBuilder("1.5")
     new.set_vrf_static_route_next_hop_bfd_multi_hop_source(
         "blue", "10.0.0.0/24,192.0.2.1,192.0.2.2"
@@ -173,9 +173,10 @@ def test_static_root_set_is_not_an_op():
     ]
 
 
-def test_ipv4_segments_set_is_a_noop_on_1_4():
+def test_ipv4_segments_set_is_rejected_on_1_4():
     builder = VrfBatchBuilder("1.4")
-    builder.set_vrf_static_route_next_hop_segments("blue", "10.0.0.0/24,192.0.2.1,1")
+    with pytest.raises(ValueError, match="route segments is not supported"):
+        builder.set_vrf_static_route_next_hop_segments("blue", "10.0.0.0/24,192.0.2.1,1")
     assert builder.get_operations() == []
 
 
@@ -190,13 +191,21 @@ def test_ui_schema_feature_ops_resolve():
     import re
 
     root = Path(__file__).resolve().parents[2] / "frontend" / "src"
+    sources = [
+        p.read_text()
+        for p in list((root / "components" / "vrf").rglob("*.ts"))
+        + list((root / "components" / "vrf").rglob("*.tsx"))
+        + [root / "lib" / "api" / "vrf.ts"]
+        # VRF static routes emit `${verb}_vrf_static_${node}...` from the shared module.
+        + [root / "lib" / "api" / "static-routes-save-ops.ts"]
+    ]
+    # An op written with its verb ("delete_vrf_static") must resolve as is;
+    # a verbless name is a leaf the screen both sets and deletes.
+    exact = set()
     ops = set()
-    for path in list((root / "components" / "vrf").rglob("*.ts")) + list(
-        (root / "components" / "vrf").rglob("*.tsx")
-    ):
-        ops.update(re.findall(r"vrf_(?:static|failover|dhcpv6|dhcp)[a-z0-9_]*", path.read_text()))
-    api = (root / "lib" / "api" / "vrf.ts").read_text()
-    ops.update(re.findall(r"vrf_(?:static|failover|dhcpv6|dhcp)[a-z0-9_]*", api))
+    for text in sources:
+        exact.update(re.findall(r"(?:set|delete)_vrf_(?:static|failover|dhcpv6|dhcp)[a-z0-9_]*", text))
+        ops.update(re.findall(r"(?<!set_)(?<!delete_)vrf_(?:static|failover|dhcpv6|dhcp)[a-z0-9_]*", text))
     # FailoverRouteModal builds `vrf_failover_route_${kind}` plus these leaves.
     for kind in ("next_hop", "dhcp_interface"):
         ops.add(f"vrf_failover_route_{kind}")
@@ -215,6 +224,11 @@ def test_ui_schema_feature_ops_resolve():
             ops.add(f"vrf_failover_route_{kind}_{leaf}")
     builder = VrfBatchBuilder("1.5")
     missing = []
+    for op in sorted(exact):
+        try:
+            getattr(builder, op)
+        except AttributeError:
+            missing.append(op)
     for op in sorted(ops):
         if op.endswith("_"):
             continue
@@ -358,11 +372,15 @@ def test_dhcpv6_lease_time_uses_the_global_builder(monkeypatch):
     assert builder.get_operations()[-1]["path"][-3:] == ["lease-time", "default", "3600"]
 
 
-def test_ipv4_segments_delete_is_a_noop_on_1_4():
+def test_ipv4_segments_delete_is_rejected_on_1_4():
     builder = VrfBatchBuilder("1.4")
-    builder.delete_vrf_static_route_next_hop_segments("blue", "10.0.0.0/24,192.0.2.1")
-    builder.delete_vrf_static_route_interface_segments("blue", "10.0.0.0/24,eth0")
-    builder.set_vrf_static_route_interface_segments("blue", "10.0.0.0/24,eth0,1")
+    for op, value in (
+        ("delete_vrf_static_route_next_hop_segments", "10.0.0.0/24,192.0.2.1"),
+        ("delete_vrf_static_route_interface_segments", "10.0.0.0/24,eth0"),
+        ("set_vrf_static_route_interface_segments", "10.0.0.0/24,eth0,1"),
+    ):
+        with pytest.raises(ValueError, match="route segments is not supported"):
+            getattr(builder, op)("blue", value)
     assert builder.get_operations() == []
 
 
@@ -382,7 +400,7 @@ def test_route6_bfd_source_follows_version():
     )
     assert old.get_operations()[-1]["path"] == [
         "vrf", "name", "blue", "protocols", "static", "route6", "2001:db8::/64",
-        "next-hop", "2001:db8::1", "bfd", "multi-hop", "source", "2001:db8::2", "profile",
+        "next-hop", "2001:db8::1", "bfd", "multi-hop", "source", "2001:db8::2",
     ]
     old.delete_vrf_static_route6_next_hop_bfd_multi_hop_source(
         "blue", "2001:db8::/64,2001:db8::1"

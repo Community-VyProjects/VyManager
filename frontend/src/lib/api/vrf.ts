@@ -6,6 +6,14 @@
  */
 
 import { apiClient } from "./client";
+import type { StaticRoute } from "./static-routes";
+import {
+  deleteStaticRouteOps,
+  staticRouteSaveOps,
+  type RouteFamily,
+  type StaticRouteFeatures,
+  type StaticRouteFields,
+} from "./static-routes-save-ops";
 import {
   buildVrfRpkiSaveOps,
   deleteVrfRpkiOps,
@@ -32,47 +40,10 @@ export interface VrfIpSettings {
 // Static Routes Types
 // ============================================================================
 
-export interface VrfStaticRouteBfd {
-  profile: string | null;
-  multi_hop_source: string | null;
-}
-
-export interface VrfStaticRouteNextHop {
-  address: string;
-  disable: boolean;
-  distance: number | null;
-  interface: string | null;
-  vrf: string | null;
-  bfd: VrfStaticRouteBfd | null;
-  segments: string | null;
-}
-
-export interface VrfStaticRouteInterface {
-  name: string;
-  disable: boolean;
-  distance: number | null;
-  vrf: string | null;
-  segments: string | null;
-}
-
-export interface VrfStaticRouteBlackhole {
-  distance: number | null;
-  tag: number | null;
-}
-
-export interface VrfStaticRoute {
-  destination: string;
-  description: string | null;
-  dhcp_interface: string | null;
-  next_hops: VrfStaticRouteNextHop[];
-  interfaces: VrfStaticRouteInterface[];
-  blackhole: VrfStaticRouteBlackhole | null;
-  reject: VrfStaticRouteBlackhole | null;
-}
-
+/** `vrf name <vrf> protocols static` is the global route tree. */
 export interface VrfStaticConfig {
-  routes: VrfStaticRoute[];
-  routes6: VrfStaticRoute[];
+  routes: StaticRoute[];
+  routes6: StaticRoute[];
 }
 
 // ============================================================================
@@ -300,6 +271,7 @@ export interface VrfCapabilities {
     dhcp_server: VrfFeatureFlag;
     dhcpv6_server: VrfFeatureFlag;
     static_route_ipv4_segments: VrfFeatureFlag;
+    static_route_bfd_source_profile: VrfFeatureFlag;
     ospf_retransmit_window: VrfFeatureFlag;
     ospf_redistribute_nhrp: VrfFeatureFlag;
     isis_fast_reroute: VrfFeatureFlag;
@@ -522,87 +494,26 @@ class VrfService {
   // Static Route Operations
   // ==========================================================================
 
-  async deleteStaticRoute(
+  /** Create (original null) or diff-save a route below the VRF. */
+  async saveStaticRoute(
     vrfName: string,
-    destination: string,
-    family: "route" | "route6"
-  ): Promise<VyOSResponse> {
-    return this.batchConfigure([
-      { op: family === "route" ? "delete_vrf_static_route" : "delete_vrf_static_route6", value: `${vrfName},${destination}` },
-    ]);
+    family: RouteFamily,
+    original: StaticRouteFields | null,
+    updated: StaticRouteFields,
+    features: StaticRouteFeatures,
+  ): Promise<VyOSResponse | null> {
+    const ops = staticRouteSaveOps({ kind: "vrf", vrf: vrfName }, family, original, updated, features);
+    if (ops.length === 0) return null;
+    return this.batchConfigure(ops);
   }
 
-  async createStaticRoute(
-    vrfName: string,
-    route: {
-      destination: string;
-      family: "route" | "route6";
-      description?: string;
-      next_hops?: Array<{ address: string; distance?: string; interface?: string; vrf?: string }>;
-      interfaces?: Array<{ name: string; distance?: string; vrf?: string }>;
-      blackhole?: { distance?: string; tag?: string };
-      reject?: { distance?: string; tag?: string };
-    }
-  ): Promise<VyOSResponse> {
-    const ops: VrfBatchOperation[] = [];
-    const prefix = route.family === "route" ? "set_vrf_static_route" : "set_vrf_static_route6";
-    const dest = route.destination;
+  async deleteStaticRoute(vrfName: string, family: RouteFamily, destination: string): Promise<VyOSResponse> {
+    return this.batchConfigure(deleteStaticRouteOps({ kind: "vrf", vrf: vrfName }, family, destination));
+  }
 
-    // Create route node
-    ops.push({ op: prefix, value: `${vrfName},${dest}` });
-
-    if (route.description) {
-      ops.push({ op: `${prefix}_description`, value: `${vrfName},${dest},${route.description}` });
-    }
-
-    // Next-hops
-    for (const nh of route.next_hops ?? []) {
-      ops.push({ op: `${prefix}_next_hop`, value: `${vrfName},${dest},${nh.address}` });
-      if (nh.distance) {
-        ops.push({ op: `${prefix}_next_hop_distance`, value: `${vrfName},${dest},${nh.address},${nh.distance}` });
-      }
-      if (nh.interface) {
-        ops.push({ op: `${prefix}_next_hop_interface`, value: `${vrfName},${dest},${nh.address},${nh.interface}` });
-      }
-      if (nh.vrf) {
-        ops.push({ op: `${prefix}_next_hop_vrf`, value: `${vrfName},${dest},${nh.address},${nh.vrf}` });
-      }
-    }
-
-    // Interface routes
-    for (const iface of route.interfaces ?? []) {
-      ops.push({ op: `${prefix}_interface`, value: `${vrfName},${dest},${iface.name}` });
-      if (iface.distance) {
-        ops.push({ op: `${prefix}_interface_distance`, value: `${vrfName},${dest},${iface.name},${iface.distance}` });
-      }
-      if (iface.vrf) {
-        ops.push({ op: `${prefix}_interface_vrf`, value: `${vrfName},${dest},${iface.name},${iface.vrf}` });
-      }
-    }
-
-    // Blackhole
-    if (route.blackhole) {
-      ops.push({ op: `${prefix}_blackhole`, value: `${vrfName},${dest}` });
-      if (route.blackhole.distance) {
-        ops.push({ op: `${prefix}_blackhole_distance`, value: `${vrfName},${dest},${route.blackhole.distance}` });
-      }
-      if (route.blackhole.tag) {
-        ops.push({ op: `${prefix}_blackhole_tag`, value: `${vrfName},${dest},${route.blackhole.tag}` });
-      }
-    }
-
-    // Reject
-    if (route.reject) {
-      ops.push({ op: `${prefix}_reject`, value: `${vrfName},${dest}` });
-      if (route.reject.distance) {
-        ops.push({ op: `${prefix}_reject_distance`, value: `${vrfName},${dest},${route.reject.distance}` });
-      }
-      if (route.reject.tag) {
-        ops.push({ op: `${prefix}_reject_tag`, value: `${vrfName},${dest},${route.reject.tag}` });
-      }
-    }
-
-    return this.batchConfigure(ops);
+  /** Removes `vrf name <vrf> protocols static`, routes included. */
+  async deleteStatic(vrfName: string): Promise<VyOSResponse> {
+    return this.batchConfigure([{ op: "delete_vrf_static", value: vrfName }]);
   }
 
   // ==========================================================================

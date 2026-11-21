@@ -12,13 +12,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ApiError } from "@/lib/types/api";
 import { staticRoutesService, type MulticastRoute } from "@/lib/api/static-routes";
+import type { MrouteFeatures } from "@/lib/api/static-routes-save-ops";
 
 interface DeleteMrouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   route: MulticastRoute | null;
+  features: MrouteFeatures;
 }
 
 export function DeleteMrouteModal({
@@ -26,11 +29,18 @@ export function DeleteMrouteModal({
   onOpenChange,
   onSuccess,
   route,
+  features,
 }: DeleteMrouteModalProps) {
   const t = useTranslations("routingExtras");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    if (!next) setError(null);
+    onOpenChange(next);
+  };
 
   const handleDelete = async () => {
     if (!route) return;
@@ -39,11 +49,15 @@ export function DeleteMrouteModal({
     setLoading(true);
 
     try {
-      await staticRoutesService.deleteMroute(route.prefix);
+      const result = await staticRoutesService.deleteMroute(route, features);
+      if (!result.success) {
+        setError(result.error || t("deleteMroute.failed"));
+        return;
+      }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteMroute.failed"));
+      setError((err as ApiError).message || t("deleteMroute.failed"));
     } finally {
       setLoading(false);
     }
@@ -52,7 +66,7 @@ export function DeleteMrouteModal({
   if (!route) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -68,7 +82,7 @@ export function DeleteMrouteModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2 mb-4">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
@@ -93,7 +107,7 @@ export function DeleteMrouteModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>

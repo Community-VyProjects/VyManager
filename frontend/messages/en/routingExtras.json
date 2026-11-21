@@ -1,16 +1,15 @@
 {
   "validation": {
-    "destinationRequired": "Destination is required",
-    "invalidIpv4Cidr": "Invalid IPv4 CIDR format (e.g., 10.0.0.0/8)",
-    "invalidIpv6Cidr": "Invalid IPv6 CIDR format (e.g., 2001:db8::/32)",
-    "routingMethodRequired": "At least one next-hop, interface, blackhole, or reject is required",
     "interfaceRequired": "Interface is required",
     "ipAddressRequired": "IP address is required",
     "invalidIpv4Address": "Invalid IPv4 address format",
     "macAddressRequired": "MAC address is required",
     "invalidMacAddress": "Invalid MAC address format (use XX:XX:XX:XX:XX:XX)",
     "tableIdRequired": "Table ID is required",
-    "tableIdRange": "Table ID must be a number between 1 and 200"
+    "tableIdRange": "Table ID must be a number between 1 and 200",
+    "arpEntryExists": "An ARP entry for {name} already exists on this interface",
+    "descriptionTooLong": "Description must be at most {max} characters",
+    "tableExists": "Table {name} already exists"
   },
   "shared": {
     "interface": "Interface",
@@ -38,7 +37,6 @@
     "editDescription": "Modify static ARP entry for {ip} on {interface}",
     "createDescription": "Add a static ARP entry to map an IP address to a MAC address",
     "ipAddress": "IP Address",
-    "ipLocked": "IP address cannot be changed. Delete and recreate to change it.",
     "macAddress": "MAC Address",
     "descriptionPlaceholder": "Description for this ARP entry",
     "updateEntry": "Update Entry"
@@ -57,7 +55,18 @@
     "createFailed": "Failed to create multicast route",
     "title": "Create Multicast Route",
     "description": "Add a static multicast route for the Multicast RIB",
-    "prefixCidr": "Prefix (CIDR)"
+    "prefixCidr": "Prefix (CIDR)",
+    "editTitle": "Edit Multicast Route",
+    "editDescription": "Modify next-hops and interfaces of {prefix}",
+    "updateFailed": "Failed to update multicast route",
+    "mrouteExists": "A multicast route for {name} already exists",
+    "nextHopAddressRequired": "Every next-hop needs an address",
+    "nextHopAddressInvalid": "Next-hop {name} is not a valid IPv4 address",
+    "nextHopDuplicate": "Next-hop {name} is listed twice",
+    "interfaceRequired": "Every interface entry needs an interface",
+    "interfaceDuplicate": "Interface {name} is listed twice",
+    "distanceRange": "Distance must be between {min} and {max}",
+    "distanceRangeNamed": "Distance of {name} must be between {min} and {max}"
   },
   "deleteMroute": {
     "failed": "Failed to delete multicast route",
@@ -76,7 +85,11 @@
     "title": "Create Neighbor Proxy Entry",
     "description": "Add a neighbor proxy entry for ARP (IPv4) or ND (IPv6)",
     "ipv4Address": "IPv4 Address",
-    "ipv6Address": "IPv6 Address"
+    "ipv6Address": "IPv6 Address",
+    "editTitle": "Edit Neighbor Proxy Entry",
+    "editDescription": "Change the interfaces that proxy {address}",
+    "updateFailed": "Failed to update neighbor proxy entry",
+    "exists": "A proxy entry for {name} already exists"
   },
   "deleteNeighborProxy": {
     "failed": "Failed to delete neighbor proxy entry",
@@ -100,33 +113,23 @@
     "ipv6Routes": "IPv6 Routes:",
     "createTable": "Create Table"
   },
-  "tableRouteModal": {
-    "updateFailed": "Failed to update route",
-    "createFailed": "Failed to create route",
-    "editTitle": "Edit Route in Table {id}",
-    "addTitle": "Add Route to Table {id}",
-    "editDescription": "Modify route {destination} ({type})",
-    "createDescription": "Create a new static route in this routing table",
-    "destinationCidr": "Destination (CIDR)",
-    "destinationLocked": "Destination cannot be changed. Delete and recreate to change destination.",
-    "routeType": "Route Type",
-    "descriptionPlaceholder": "Route description"
-  },
   "accordion": {
-    "updateDescriptionFailed": "Failed to update description",
-    "deleteTableConfirm": "Are you sure you want to delete table {id}? This will remove all routes in the table.",
-    "deleteTableFailed": "Failed to delete table",
-    "deleteRouteFailed": "Failed to delete route",
     "emptyTitle": "No Routing Tables",
     "emptyDescription": "No custom routing tables configured. Create one to get started.",
-    "descriptionPlaceholder": "Enter description...",
     "noDescription": "No description",
-    "addRoute": "Add Route",
     "noRoutes": "No routes in this table",
-    "addRouteHint": "Click \"Add Route\" to create one",
     "type": "Type",
     "destination": "Destination",
     "nextHopInterface": "Next Hop / Interface",
-    "action": "Action"
+    "action": "Action",
+    "addIpv4Route": "Add IPv4 Route",
+    "addIpv6Route": "Add IPv6 Route",
+    "ipv4Count": "{count} IPv4",
+    "ipv6Count": "{count} IPv6",
+    "v4": "v4",
+    "v6": "v6",
+    "dhcpInterface": "DHCP: {name}",
+    "more": "+{count}",
+    "emptyCell": "—"
   }
 }

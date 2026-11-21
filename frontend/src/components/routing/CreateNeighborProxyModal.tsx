@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,111 +12,130 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { staticRoutesService } from "@/lib/api/static-routes";
-import { showService, InterfaceName } from "@/lib/api/show";
-import { InterfaceSelect } from "@/components/ui/interface-select";
+import {
+  neighborProxyProblem,
+  type NeighborProxyFields,
+  type NeighborProxyKind,
+  type NeighborProxyProblem,
+} from "@/lib/api/static-routes-save-ops";
+import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { lockedIdentity, modalIsEdit } from "@/lib/modal-mode";
+import type { ApiError } from "@/lib/types/api";
 
 interface CreateNeighborProxyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  existing?: NeighborProxyFields | null;
+  /** `kind|address` of every entry on the device. */
+  configured: string[];
+}
+
+function emptyProxy(): NeighborProxyFields {
+  return { kind: "arp", address: "", interfaces: [] };
 }
 
 export function CreateNeighborProxyModal({
   open,
   onOpenChange,
   onSuccess,
+  existing,
+  configured,
 }: CreateNeighborProxyModalProps) {
   const t = useTranslations("routingExtras");
   const tc = useTranslations("common");
+  const isEdit = modalIsEdit(existing);
+  const initial = useMemo(() => existing ?? emptyProxy(), [existing]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [proxyType, setProxyType] = useState<"arp" | "nd">("arp");
+  const [draft, setDraft] = useState<NeighborProxyFields>(initial);
 
-  // Form fields
-  const [ipAddress, setIpAddress] = useState("");
-  const [interfaceName, setInterfaceName] = useState("");
+  const seedKey = open ? JSON.stringify(initial) : "";
+  const [seed, setSeed] = useState(seedKey);
+  if (seedKey !== seed) {
+    setSeed(seedKey);
+    setDraft(initial);
+    setError(null);
+  }
 
   useEffect(() => {
-    if (open) {
-      loadInterfaces();
-      resetForm();
-    }
+    if (!open) return;
+    let live = true;
+    showService
+      .getAllInterfaces()
+      .then((response) => {
+        if (live) setAvailableInterfaces(response.interfaces);
+      })
+      .catch(() => {
+        if (live) setAvailableInterfaces([]);
+      });
+    return () => {
+      live = false;
+    };
   }, [open]);
 
-  const loadInterfaces = async () => {
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
-    }
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
-  const resetForm = () => {
-    setIpAddress("");
-    setInterfaceName("");
-    setProxyType("arp");
-    setError(null);
+  const lockedAddress = lockedIdentity(existing, (entry) => entry.address, draft.address);
+
+  const problemMessage = (problem: NeighborProxyProblem): string => {
+    switch (problem.key) {
+      case "ipAddressRequired":
+        return t("neighborProxyModal.ipRequired");
+      case "interfaceRequired":
+        return t("neighborProxyModal.interfaceRequired");
+      case "invalidIpv4Address":
+        return t("neighborProxyModal.invalidIpv4");
+      case "invalidIpv6Address":
+        return t("neighborProxyModal.invalidIpv6");
+      default:
+        return t("neighborProxyModal.exists", { name: problem.name });
+    }
   };
 
   const handleSubmit = async () => {
+    const original = isEdit ? initial : null;
+    const problem = neighborProxyProblem(original, draft, configured);
+    if (problem) {
+      setError(problemMessage(problem));
+      return;
+    }
+    const failed = isEdit ? t("neighborProxyModal.updateFailed") : t("neighborProxyModal.createFailed");
     setError(null);
-
-    // Validation
-    if (!ipAddress) {
-      setError(t("neighborProxyModal.ipRequired"));
-      return;
-    }
-    if (!interfaceName) {
-      setError(t("neighborProxyModal.interfaceRequired"));
-      return;
-    }
-
-    // Validate IP address format based on proxy type
-    if (proxyType === "arp") {
-      const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-      if (!ipv4Regex.test(ipAddress)) {
-        setError(t("neighborProxyModal.invalidIpv4"));
-        return;
-      }
-    } else {
-      // Basic IPv6 validation
-      const ipv6Regex = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
-      if (!ipv6Regex.test(ipAddress)) {
-        setError(t("neighborProxyModal.invalidIpv6"));
-        return;
-      }
-    }
-
     setLoading(true);
-
     try {
-      if (proxyType === "arp") {
-        await staticRoutesService.createNeighborProxyArp(ipAddress, [interfaceName]);
-      } else {
-        await staticRoutesService.createNeighborProxyNd(ipAddress, [interfaceName]);
+      const result = await staticRoutesService.saveNeighborProxy(original, draft);
+      if (result && !result.success) {
+        setError(result.error || failed);
+        return;
       }
-      onSuccess();
+      if (result) onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("neighborProxyModal.createFailed"));
+      setError((err as ApiError).message || failed);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("neighborProxyModal.title")}</DialogTitle>
+          <DialogTitle>{isEdit ? t("neighborProxyModal.editTitle") : t("neighborProxyModal.title")}</DialogTitle>
           <DialogDescription>
-            {t("neighborProxyModal.description")}
+            {isEdit
+              ? t("neighborProxyModal.editDescription", { address: existing.address })
+              : t("neighborProxyModal.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -124,59 +143,54 @@ export function CreateNeighborProxyModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
-          <Tabs value={proxyType} onValueChange={(v) => setProxyType(v as "arp" | "nd")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="arp">{t("shared.arpProxy")}</TabsTrigger>
-              <TabsTrigger value="nd">{t("shared.ndProxy")}</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="arp" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="ipv4-address">{t("neighborProxyModal.ipv4Address")}</Label>
-                <Input
-                  id="ipv4-address"
-                  placeholder="192.168.1.100"
-                  value={ipAddress}
-                  onChange={(e) => setIpAddress(e.target.value)}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="nd" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="ipv6-address">{t("neighborProxyModal.ipv6Address")}</Label>
-                <Input
-                  id="ipv6-address"
-                  placeholder="2001:db8::1"
-                  value={ipAddress}
-                  onChange={(e) => setIpAddress(e.target.value)}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
+          {!isEdit && (
+            <Tabs
+              value={draft.kind}
+              onValueChange={(v) => setDraft((d) => ({ ...d, kind: v as NeighborProxyKind }))}
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="arp">{t("shared.arpProxy")}</TabsTrigger>
+                <TabsTrigger value="nd">{t("shared.ndProxy")}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
 
           <div className="space-y-2">
-            <Label htmlFor="interface">{t("shared.interface")}</Label>
-            <InterfaceSelect
-              value={interfaceName}
-              onValueChange={setInterfaceName}
+            <Label htmlFor="proxy-address">
+              {draft.kind === "arp" ? t("neighborProxyModal.ipv4Address") : t("neighborProxyModal.ipv6Address")}
+            </Label>
+            <Input
+              id="proxy-address"
+              placeholder={draft.kind === "arp" ? "192.168.1.100" : "2001:db8::1"}
+              value={lockedAddress.value}
+              disabled={lockedAddress.disabled}
+              className={lockedAddress.disabled ? "bg-muted" : undefined}
+              onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="proxy-interfaces">{t("shared.interfaces")}</Label>
+            <InterfaceMultiSelect
+              id="proxy-interfaces"
+              values={draft.interfaces}
+              onChange={(values) => setDraft((d) => ({ ...d, interfaces: values }))}
               interfaces={availableInterfaces}
-              placeholder={t("shared.selectInterface")}
             />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {t("shared.createEntry")}
+            {isEdit ? tc("saveChanges") : t("shared.createEntry")}
           </Button>
         </DialogFooter>
       </DialogContent>

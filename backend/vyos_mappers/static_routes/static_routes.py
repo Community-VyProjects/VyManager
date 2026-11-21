@@ -1,745 +1,311 @@
 """
 Static Routes Command Mapper
 
-Handles command path generation for static route configuration.
-Version-specific logic is in version-specific files.
+Paths for ``protocols static``: IPv4 and IPv6 routes (global or inside a
+routing table; the VRF builder runs the same paths under ``vrf name <vrf>``
+through ``PathPrefixMapper``), routing tables, static ARP, multicast routes,
+neighbor proxy and the route-map.
+
+The shared class holds the commands both labs have. A leaf only one version
+has, and the multicast and BFD multi-hop source trees the two versions spell
+differently, live on the version subclass in ``static_routes_versions``.
 """
 
-from typing import List
+from abc import abstractmethod
+from typing import Any, Dict, FrozenSet, List, Optional
+
 from ..base import BaseFeatureMapper
+
+ROOT = ["protocols", "static"]
+_FAMILY_NODES = {"ipv4": "route", "ipv6": "route6"}
 
 
 class StaticRoutesMapper(BaseFeatureMapper):
-    """Base mapper with common operations"""
-
-    def __init__(self, version: str):
-        """Initialize with VyOS version."""
-        super().__init__(version)
+    """Static route commands both labs share."""
 
     # ========================================================================
-    # Common IPv4 Route Paths
+    # Core
     # ========================================================================
 
-    def get_ipv4_route_path(self, destination: str) -> List[str]:
-        """Get command path for IPv4 route."""
-        return ["protocols", "static", "route", destination]
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only static leaves this device has.
 
-    def get_ipv4_route_description(self, destination: str, description: str) -> List[str]:
-        """Get command path for route description."""
-        return ["protocols", "static", "route", destination, "description", description]
+        The version subclass lists its leaves. Capabilities and the builder
+        read this set instead of the version string.
+        """
+        return frozenset()
 
-    def get_ipv4_route_next_hop(self, destination: str, next_hop: str) -> List[str]:
-        """Get command path for next-hop address."""
-        return ["protocols", "static", "route", destination, "next-hop", next_hop]
+    def supports_node(self, node: str) -> bool:
+        return node in self.versioned_nodes()
 
-    def get_ipv4_route_next_hop_distance(
-        self, destination: str, next_hop: str, distance: str
-    ) -> List[str]:
-        """Get command path for next-hop distance."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "distance", distance
-        ]
+    def require_node(self, node: str) -> None:
+        if not self.supports_node(node):
+            raise ValueError(f"protocols static {node} is not supported on this device")
 
-    def get_ipv4_route_next_hop_disable(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        """Get command path for disabling next-hop."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "disable"
-        ]
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_static_config
 
-    def get_ipv4_route_interface(self, destination: str, interface: str) -> List[str]:
-        """Get command path for interface route."""
-        return ["protocols", "static", "route", destination, "interface", interface]
+        return parse_static_config(self, full_config)
 
-    def get_ipv4_route_interface_distance(
-        self, destination: str, interface: str, distance: str
-    ) -> List[str]:
-        """Get command path for interface distance."""
-        return [
-            "protocols", "static", "route", destination,
-            "interface", interface, "distance", distance
-        ]
+    def _route(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        scope = ROOT + ["table", table] if table else list(ROOT)
+        return scope + [_FAMILY_NODES[family], destination]
 
-    def get_ipv4_route_interface_disable(
-        self, destination: str, interface: str
-    ) -> List[str]:
-        """Get command path for disabling interface route."""
-        return [
-            "protocols", "static", "route", destination,
-            "interface", interface, "disable"
-        ]
+    def _next_hop(self, family: str, table: Optional[str], destination: str, next_hop: str) -> List[str]:
+        return self._route(family, table, destination) + ["next-hop", next_hop]
 
-    def get_ipv4_route_blackhole(self, destination: str) -> List[str]:
-        """Get command path for blackhole route."""
-        return ["protocols", "static", "route", destination, "blackhole"]
-
-    def get_ipv4_route_blackhole_distance(
-        self, destination: str, distance: str
-    ) -> List[str]:
-        """Get command path for blackhole distance."""
-        return [
-            "protocols", "static", "route", destination,
-            "blackhole", "distance", distance
-        ]
-
-    def get_ipv4_route_blackhole_path(self, destination: str) -> List[str]:
-        """Get command path for blackhole (for deletion)."""
-        return ["protocols", "static", "route", destination, "blackhole"]
-
-    def get_ipv4_route_blackhole_tag(
-        self, destination: str, tag: str
-    ) -> List[str]:
-        """Get command path for blackhole tag."""
-        return [
-            "protocols", "static", "route", destination,
-            "blackhole", "tag", tag
-        ]
-
-    def get_ipv4_route_reject(self, destination: str) -> List[str]:
-        """Get command path for reject route."""
-        return ["protocols", "static", "route", destination, "reject"]
-
-    def get_ipv4_route_reject_path(self, destination: str) -> List[str]:
-        """Get command path for reject (for deletion)."""
-        return ["protocols", "static", "route", destination, "reject"]
-
-    def get_ipv4_route_reject_distance(
-        self, destination: str, distance: str
-    ) -> List[str]:
-        """Get command path for reject distance."""
-        return [
-            "protocols", "static", "route", destination,
-            "reject", "distance", distance
-        ]
-
-    def get_ipv4_route_reject_tag(
-        self, destination: str, tag: str
-    ) -> List[str]:
-        """Get command path for reject tag."""
-        return [
-            "protocols", "static", "route", destination,
-            "reject", "tag", tag
-        ]
+    def _interface(self, family: str, table: Optional[str], destination: str, interface: str) -> List[str]:
+        return self._route(family, table, destination) + ["interface", interface]
 
     # ========================================================================
-    # Common IPv6 Route Paths
+    # Route
     # ========================================================================
 
-    def get_ipv6_route_path(self, destination: str) -> List[str]:
-        """Get command path for IPv6 route."""
-        return ["protocols", "static", "route6", destination]
+    def get_route(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self._route(family, table, destination)
 
-    def get_ipv6_route_description(self, destination: str, description: str) -> List[str]:
-        """Get command path for IPv6 route description."""
-        return ["protocols", "static", "route6", destination, "description", description]
+    def get_route_description(self, family: str, table: Optional[str], destination: str, value: str) -> List[str]:
+        return self._route(family, table, destination) + ["description", value]
 
-    def get_ipv6_route_next_hop(self, destination: str, next_hop: str) -> List[str]:
-        """Get command path for IPv6 next-hop address."""
-        return ["protocols", "static", "route6", destination, "next-hop", next_hop]
+    def get_route_description_delete(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self._route(family, table, destination) + ["description"]
 
-    def get_ipv6_route_next_hop_distance(
-        self, destination: str, next_hop: str, distance: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop distance."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "distance", distance
-        ]
+    def get_route_blackhole(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self._route(family, table, destination) + ["blackhole"]
 
-    def get_ipv6_route_next_hop_disable(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        """Get command path for disabling IPv6 next-hop."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "disable"
-        ]
+    def get_route_blackhole_distance(self, family: str, table: Optional[str], destination: str, value: str) -> List[str]:
+        return self.get_route_blackhole(family, table, destination) + ["distance", value]
 
-    def get_ipv6_route_interface(self, destination: str, interface: str) -> List[str]:
-        """Get command path for IPv6 interface route."""
-        return ["protocols", "static", "route6", destination, "interface", interface]
+    def get_route_blackhole_distance_delete(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self.get_route_blackhole(family, table, destination) + ["distance"]
 
-    def get_ipv6_route_interface_distance(
-        self, destination: str, interface: str, distance: str
-    ) -> List[str]:
-        """Get command path for IPv6 interface distance."""
-        return [
-            "protocols", "static", "route6", destination,
-            "interface", interface, "distance", distance
-        ]
+    def get_route_blackhole_tag(self, family: str, table: Optional[str], destination: str, value: str) -> List[str]:
+        return self.get_route_blackhole(family, table, destination) + ["tag", value]
 
-    def get_ipv6_route_interface_disable(
-        self, destination: str, interface: str
-    ) -> List[str]:
-        """Get command path for disabling IPv6 interface route."""
-        return [
-            "protocols", "static", "route6", destination,
-            "interface", interface, "disable"
-        ]
+    def get_route_blackhole_tag_delete(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self.get_route_blackhole(family, table, destination) + ["tag"]
 
-    def get_ipv6_route_blackhole(self, destination: str) -> List[str]:
-        """Get command path for IPv6 blackhole route."""
-        return ["protocols", "static", "route6", destination, "blackhole"]
+    def get_route_reject(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self._route(family, table, destination) + ["reject"]
 
-    def get_ipv6_route_blackhole_distance(
-        self, destination: str, distance: str
-    ) -> List[str]:
-        """Get command path for IPv6 blackhole distance."""
-        return [
-            "protocols", "static", "route6", destination,
-            "blackhole", "distance", distance
-        ]
+    def get_route_reject_distance(self, family: str, table: Optional[str], destination: str, value: str) -> List[str]:
+        return self.get_route_reject(family, table, destination) + ["distance", value]
 
-    def get_ipv6_route_blackhole_path(self, destination: str) -> List[str]:
-        """Get command path for IPv6 blackhole (for deletion)."""
-        return ["protocols", "static", "route6", destination, "blackhole"]
+    def get_route_reject_distance_delete(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self.get_route_reject(family, table, destination) + ["distance"]
 
-    def get_ipv6_route_blackhole_tag(
-        self, destination: str, tag: str
-    ) -> List[str]:
-        """Get command path for IPv6 blackhole tag."""
-        return [
-            "protocols", "static", "route6", destination,
-            "blackhole", "tag", tag
-        ]
+    def get_route_reject_tag(self, family: str, table: Optional[str], destination: str, value: str) -> List[str]:
+        return self.get_route_reject(family, table, destination) + ["tag", value]
 
-    def get_ipv6_route_reject(self, destination: str) -> List[str]:
-        """Get command path for IPv6 reject route."""
-        return ["protocols", "static", "route6", destination, "reject"]
+    def get_route_reject_tag_delete(self, family: str, table: Optional[str], destination: str) -> List[str]:
+        return self.get_route_reject(family, table, destination) + ["tag"]
 
-    def get_ipv6_route_reject_path(self, destination: str) -> List[str]:
-        """Get command path for IPv6 reject (for deletion)."""
-        return ["protocols", "static", "route6", destination, "reject"]
-
-    def get_ipv6_route_reject_distance(
-        self, destination: str, distance: str
-    ) -> List[str]:
-        """Get command path for IPv6 reject distance."""
-        return [
-            "protocols", "static", "route6", destination,
-            "reject", "distance", distance
-        ]
-
-    def get_ipv6_route_reject_tag(
-        self, destination: str, tag: str
-    ) -> List[str]:
-        """Get command path for IPv6 reject tag."""
-        return [
-            "protocols", "static", "route6", destination,
-            "reject", "tag", tag
-        ]
-
-    def get_ipv6_route_next_hop_segments(
-        self, destination: str, next_hop: str, segments: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop segments (SRv6)."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "segments", segments
-        ]
-
-    def get_ipv6_route_interface_segments(
-        self, destination: str, interface: str, segments: str
-    ) -> List[str]:
-        """Get command path for IPv6 interface segments (SRv6)."""
-        return [
-            "protocols", "static", "route6", destination,
-            "interface", interface, "segments", segments
-        ]
+    def get_route_dhcp_interface(self, table: Optional[str], destination: str, interface: str) -> List[str]:
+        """IPv4 only; ``dhcp-interface`` is a multi leaf, so the delete keeps the value."""
+        return self._route("ipv4", table, destination) + ["dhcp-interface", interface]
 
     # ========================================================================
-    # Routing Table Paths
+    # Interface
     # ========================================================================
 
-    def get_table_path(self, table_id: str) -> List[str]:
-        """Get command path for routing table."""
-        return ["protocols", "static", "table", table_id]
+    def get_route_interface(self, family: str, table: Optional[str], destination: str, interface: str) -> List[str]:
+        return self._interface(family, table, destination, interface)
 
-    def get_table_description(self, table_id: str, description: str) -> List[str]:
-        """Get command path for table description."""
-        return ["protocols", "static", "table", table_id, "description", description]
+    def get_route_interface_disable(self, family: str, table: Optional[str], destination: str, interface: str) -> List[str]:
+        return self._interface(family, table, destination, interface) + ["disable"]
 
-    def get_table_ipv4_route_path(self, table_id: str, destination: str) -> List[str]:
-        """Get command path for table IPv4 route."""
-        return ["protocols", "static", "table", table_id, "route", destination]
-
-    def get_table_ipv6_route_path(self, table_id: str, destination: str) -> List[str]:
-        """Get command path for table IPv6 route."""
-        return ["protocols", "static", "table", table_id, "route6", destination]
-
-    # Table IPv4 Route Details
-    def get_table_ipv4_route_description(
-        self, table_id: str, destination: str, description: str
+    def get_route_interface_distance(
+        self, family: str, table: Optional[str], destination: str, interface: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "description", description]
+        return self._interface(family, table, destination, interface) + ["distance", value]
 
-    def get_table_ipv4_route_next_hop(
-        self, table_id: str, destination: str, next_hop: str
+    def get_route_interface_distance_delete(
+        self, family: str, table: Optional[str], destination: str, interface: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "next-hop", next_hop]
+        return self._interface(family, table, destination, interface) + ["distance"]
 
-    def get_table_ipv4_route_next_hop_distance(
-        self, table_id: str, destination: str, next_hop: str, distance: str
+    def get_route_interface_segments(
+        self, family: str, table: Optional[str], destination: str, interface: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "next-hop", next_hop, "distance", distance]
+        return self._interface(family, table, destination, interface) + ["segments", value]
 
-    def get_table_ipv4_route_next_hop_disable(
-        self, table_id: str, destination: str, next_hop: str
+    def get_route_interface_segments_delete(
+        self, family: str, table: Optional[str], destination: str, interface: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "next-hop", next_hop, "disable"]
+        return self._interface(family, table, destination, interface) + ["segments"]
 
-    def get_table_ipv4_route_next_hop_interface(
-        self, table_id: str, destination: str, next_hop: str, interface: str
+    def get_route_interface_vrf(
+        self, family: str, table: Optional[str], destination: str, interface: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "next-hop", next_hop, "interface", interface]
+        return self._interface(family, table, destination, interface) + ["vrf", value]
 
-    def get_table_ipv4_route_next_hop_vrf(
-        self, table_id: str, destination: str, next_hop: str, vrf: str
+    def get_route_interface_vrf_delete(
+        self, family: str, table: Optional[str], destination: str, interface: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "next-hop", next_hop, "vrf", vrf]
+        return self._interface(family, table, destination, interface) + ["vrf"]
 
-    def get_table_ipv4_route_next_hop_bfd(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "next-hop", next_hop, "bfd"]
+    # ========================================================================
+    # Next-hop
+    # ========================================================================
 
-    def get_table_ipv4_route_next_hop_bfd_profile(
-        self, table_id: str, destination: str, next_hop: str, profile: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "next-hop", next_hop, "bfd", "profile", profile]
+    def get_route_next_hop(self, family: str, table: Optional[str], destination: str, next_hop: str) -> List[str]:
+        return self._next_hop(family, table, destination, next_hop)
 
-    def get_table_ipv4_route_interface(
-        self, table_id: str, destination: str, interface: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "interface", interface]
+    def get_route_next_hop_bfd(self, family: str, table: Optional[str], destination: str, next_hop: str) -> List[str]:
+        return self._next_hop(family, table, destination, next_hop) + ["bfd"]
 
-    def get_table_ipv4_route_interface_distance(
-        self, table_id: str, destination: str, interface: str, distance: str
+    def get_route_next_hop_bfd_profile(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "interface", interface, "distance", distance]
+        return self.get_route_next_hop_bfd(family, table, destination, next_hop) + ["profile", value]
 
-    def get_table_ipv4_route_interface_disable(
-        self, table_id: str, destination: str, interface: str
+    def get_route_next_hop_bfd_profile_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "interface", interface, "disable"]
+        return self.get_route_next_hop_bfd(family, table, destination, next_hop) + ["profile"]
 
-    def get_table_ipv4_route_blackhole(
-        self, table_id: str, destination: str
+    def get_route_next_hop_bfd_multi_hop(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "blackhole"]
+        return self.get_route_next_hop_bfd(family, table, destination, next_hop) + ["multi-hop"]
 
-    def get_table_ipv4_route_blackhole_distance(
-        self, table_id: str, destination: str, distance: str
+    @abstractmethod
+    def get_route_next_hop_bfd_multi_hop_source(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "blackhole", "distance", distance]
+        """1.4 ``multi-hop source <addr>`` (a tag); 1.5 ``multi-hop source-address <addr>``."""
 
-    def get_table_ipv4_route_blackhole_tag(
-        self, table_id: str, destination: str, tag: str
+    @abstractmethod
+    def get_route_next_hop_bfd_multi_hop_source_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "blackhole", "tag", tag]
+        """The whole source node, so a 1.4 source profile goes with it."""
 
-    def get_table_ipv4_route_reject(
-        self, table_id: str, destination: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "reject"]
+    def get_route_next_hop_disable(self, family: str, table: Optional[str], destination: str, next_hop: str) -> List[str]:
+        return self._next_hop(family, table, destination, next_hop) + ["disable"]
 
-    def get_table_ipv4_route_reject_distance(
-        self, table_id: str, destination: str, distance: str
+    def get_route_next_hop_distance(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "reject", "distance", distance]
+        return self._next_hop(family, table, destination, next_hop) + ["distance", value]
 
-    def get_table_ipv4_route_reject_tag(
-        self, table_id: str, destination: str, tag: str
+    def get_route_next_hop_distance_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "reject", "tag", tag]
+        return self._next_hop(family, table, destination, next_hop) + ["distance"]
 
-    def get_table_ipv4_route_dhcp_interface(
-        self, table_id: str, destination: str, interface: str
+    def get_route_next_hop_interface(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route", destination, "dhcp-interface", interface]
+        return self._next_hop(family, table, destination, next_hop) + ["interface", value]
 
-    # Table IPv6 Route Details
-    def get_table_ipv6_route_description(
-        self, table_id: str, destination: str, description: str
+    def get_route_next_hop_interface_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "description", description]
+        return self._next_hop(family, table, destination, next_hop) + ["interface"]
 
-    def get_table_ipv6_route_next_hop(
-        self, table_id: str, destination: str, next_hop: str
+    def get_route_next_hop_segments(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "next-hop", next_hop]
+        return self._next_hop(family, table, destination, next_hop) + ["segments", value]
 
-    def get_table_ipv6_route_next_hop_distance(
-        self, table_id: str, destination: str, next_hop: str, distance: str
+    def get_route_next_hop_segments_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "next-hop", next_hop, "distance", distance]
+        return self._next_hop(family, table, destination, next_hop) + ["segments"]
 
-    def get_table_ipv6_route_next_hop_disable(
-        self, table_id: str, destination: str, next_hop: str
+    def get_route_next_hop_vrf(
+        self, family: str, table: Optional[str], destination: str, next_hop: str, value: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "next-hop", next_hop, "disable"]
+        return self._next_hop(family, table, destination, next_hop) + ["vrf", value]
 
-    def get_table_ipv6_route_next_hop_interface(
-        self, table_id: str, destination: str, next_hop: str, interface: str
+    def get_route_next_hop_vrf_delete(
+        self, family: str, table: Optional[str], destination: str, next_hop: str
     ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "next-hop", next_hop, "interface", interface]
+        return self._next_hop(family, table, destination, next_hop) + ["vrf"]
 
-    def get_table_ipv6_route_next_hop_vrf(
-        self, table_id: str, destination: str, next_hop: str, vrf: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "next-hop", next_hop, "vrf", vrf]
+    # ========================================================================
+    # Routing Tables
+    # ========================================================================
 
-    def get_table_ipv6_route_next_hop_bfd(
-        self, table_id: str, destination: str, next_hop: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "next-hop", next_hop, "bfd"]
+    def get_table(self, table: str) -> List[str]:
+        return ROOT + ["table", table]
 
-    def get_table_ipv6_route_interface(
-        self, table_id: str, destination: str, interface: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "interface", interface]
+    def get_table_description(self, table: str, value: str) -> List[str]:
+        return self.get_table(table) + ["description", value]
 
-    def get_table_ipv6_route_interface_distance(
-        self, table_id: str, destination: str, interface: str, distance: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "interface", interface, "distance", distance]
-
-    def get_table_ipv6_route_interface_disable(
-        self, table_id: str, destination: str, interface: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "interface", interface, "disable"]
-
-    def get_table_ipv6_route_blackhole(
-        self, table_id: str, destination: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "blackhole"]
-
-    def get_table_ipv6_route_blackhole_distance(
-        self, table_id: str, destination: str, distance: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "blackhole", "distance", distance]
-
-    def get_table_ipv6_route_reject(
-        self, table_id: str, destination: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "reject"]
-
-    def get_table_ipv6_route_reject_distance(
-        self, table_id: str, destination: str, distance: str
-    ) -> List[str]:
-        return ["protocols", "static", "table", table_id, "route6", destination, "reject", "distance", distance]
+    def get_table_description_delete(self, table: str) -> List[str]:
+        return self.get_table(table) + ["description"]
 
     # ========================================================================
     # Route-map
     # ========================================================================
 
-    def get_route_map(self, route_map_name: str) -> List[str]:
-        """Get command path for route-map."""
-        return ["protocols", "static", "route-map", route_map_name]
+    def get_route_map(self, value: str) -> List[str]:
+        return ROOT + ["route-map", value]
+
+    def get_route_map_delete(self) -> List[str]:
+        return ROOT + ["route-map"]
 
     # ========================================================================
-    # IPv4 Next-hop VRF and BFD Paths
+    # Static ARP
     # ========================================================================
 
-    def get_ipv4_route_next_hop_vrf(
-        self, destination: str, next_hop: str, vrf: str
-    ) -> List[str]:
-        """Get command path for next-hop VRF."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "vrf", vrf
-        ]
+    def get_arp_interface(self, interface: str) -> List[str]:
+        return ROOT + ["arp", "interface", interface]
 
-    def get_ipv4_route_next_hop_interface(
-        self, destination: str, next_hop: str, interface: str
-    ) -> List[str]:
-        """Get command path for next-hop interface."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "interface", interface
-        ]
+    def get_arp_entry(self, interface: str, address: str) -> List[str]:
+        return self.get_arp_interface(interface) + ["address", address]
 
-    def get_ipv4_route_next_hop_bfd(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        """Get command path for next-hop BFD."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "bfd"
-        ]
+    def get_arp_entry_mac(self, interface: str, address: str, mac: str) -> List[str]:
+        return self.get_arp_entry(interface, address) + ["mac", mac]
 
-    def get_ipv4_route_next_hop_bfd_profile(
-        self, destination: str, next_hop: str, profile: str
-    ) -> List[str]:
-        """Get command path for next-hop BFD profile."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "bfd", "profile", profile
-        ]
+    def get_arp_entry_description(self, interface: str, address: str, value: str) -> List[str]:
+        return self.get_arp_entry(interface, address) + ["description", value]
 
-    def get_ipv4_route_next_hop_bfd_multi_hop(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        """Get command path for next-hop BFD multi-hop."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "bfd", "multi-hop"
-        ]
-
-    def get_ipv4_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str, source: str
-    ) -> List[str]:
-        """Get command path for next-hop BFD multi-hop source address."""
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source-address", source
-        ]
-
-    def get_ipv4_route_next_hop_bfd_multi_hop_source_delete(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source-address",
-        ]
-
-    def get_ipv6_route_next_hop_bfd_multi_hop_source_delete(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source-address",
-        ]
-
-    def get_ipv4_route_next_hop_segments(
-        self, destination: str, next_hop: str, segments: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "segments", segments,
-        ]
-
-    def get_ipv4_route_next_hop_segments_delete(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route", destination,
-            "next-hop", next_hop, "segments",
-        ]
-
-    def get_ipv4_route_interface_segments(
-        self, destination: str, interface: str, segments: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route", destination,
-            "interface", interface, "segments", segments,
-        ]
-
-    def get_ipv4_route_interface_segments_delete(
-        self, destination: str, interface: str
-    ) -> List[str]:
-        return [
-            "protocols", "static", "route", destination,
-            "interface", interface, "segments",
-        ]
-
-    def get_ipv4_route_interface_vrf(
-        self, destination: str, interface: str, vrf: str
-    ) -> List[str]:
-        """Get command path for interface VRF."""
-        return [
-            "protocols", "static", "route", destination,
-            "interface", interface, "vrf", vrf
-        ]
-
-    def get_ipv4_route_dhcp_interface(
-        self, destination: str, interface: str
-    ) -> List[str]:
-        """Get command path for DHCP interface."""
-        return [
-            "protocols", "static", "route", destination,
-            "dhcp-interface", interface
-        ]
+    def get_arp_entry_description_delete(self, interface: str, address: str) -> List[str]:
+        return self.get_arp_entry(interface, address) + ["description"]
 
     # ========================================================================
-    # IPv6 Next-hop VRF and BFD Paths
+    # Multicast Routes
     # ========================================================================
 
-    def get_ipv6_route_next_hop_vrf(
-        self, destination: str, next_hop: str, vrf: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop VRF."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "vrf", vrf
-        ]
+    @abstractmethod
+    def get_mroute_next_hop_root(self, prefix: str) -> List[str]:
+        """The node that holds this prefix's next-hops."""
 
-    def get_ipv6_route_next_hop_interface(
-        self, destination: str, next_hop: str, interface: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop interface."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "interface", interface
-        ]
+    @abstractmethod
+    def get_mroute_interface_root(self, prefix: str) -> List[str]:
+        """The node that holds this prefix's interfaces."""
 
-    def get_ipv6_route_next_hop_bfd(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop BFD."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "bfd"
-        ]
+    @abstractmethod
+    def get_mroute_next_hop(self, prefix: str, next_hop: str) -> List[str]:
+        """One next-hop of the prefix."""
 
-    def get_ipv6_route_next_hop_bfd_profile(
-        self, destination: str, next_hop: str, profile: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop BFD profile."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "bfd", "profile", profile
-        ]
+    @abstractmethod
+    def get_mroute_interface(self, prefix: str, interface: str) -> List[str]:
+        """One interface of the prefix."""
 
-    def get_ipv6_route_next_hop_bfd_multi_hop(
-        self, destination: str, next_hop: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop BFD multi-hop."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "bfd", "multi-hop"
-        ]
+    def get_mroute_next_hop_distance(self, prefix: str, next_hop: str, value: str) -> List[str]:
+        return self.get_mroute_next_hop(prefix, next_hop) + ["distance", value]
 
-    def get_ipv6_route_next_hop_bfd_multi_hop_source(
-        self, destination: str, next_hop: str, source: str
-    ) -> List[str]:
-        """Get command path for IPv6 next-hop BFD multi-hop source address."""
-        return [
-            "protocols", "static", "route6", destination,
-            "next-hop", next_hop, "bfd", "multi-hop", "source-address", source
-        ]
+    def get_mroute_next_hop_distance_delete(self, prefix: str, next_hop: str) -> List[str]:
+        return self.get_mroute_next_hop(prefix, next_hop) + ["distance"]
 
-    def get_ipv6_route_interface_vrf(
-        self, destination: str, interface: str, vrf: str
-    ) -> List[str]:
-        """Get command path for IPv6 interface VRF."""
-        return [
-            "protocols", "static", "route6", destination,
-            "interface", interface, "vrf", vrf
-        ]
+    def get_mroute_interface_distance(self, prefix: str, interface: str, value: str) -> List[str]:
+        return self.get_mroute_interface(prefix, interface) + ["distance", value]
+
+    def get_mroute_interface_distance_delete(self, prefix: str, interface: str) -> List[str]:
+        return self.get_mroute_interface(prefix, interface) + ["distance"]
 
     # ========================================================================
-    # Static ARP Paths
+    # Neighbor Proxy
     # ========================================================================
 
-    def get_arp_interface_path(self, interface: str) -> List[str]:
-        """Get command path for ARP interface."""
-        return ["protocols", "static", "arp", "interface", interface]
+    def get_neighbor_proxy(self, kind: str, address: str) -> List[str]:
+        """``kind`` is ``arp`` (IPv4) or ``nd`` (IPv6)."""
+        return ROOT + ["neighbor-proxy", kind, address]
 
-    def get_arp_interface_address_path(
-        self, interface: str, ip_address: str
-    ) -> List[str]:
-        """Get command path for ARP interface address."""
-        return [
-            "protocols", "static", "arp", "interface", interface,
-            "address", ip_address
-        ]
-
-    def get_arp_interface_address_mac(
-        self, interface: str, ip_address: str, mac_address: str
-    ) -> List[str]:
-        """Get command path for ARP interface address MAC."""
-        return [
-            "protocols", "static", "arp", "interface", interface,
-            "address", ip_address, "mac", mac_address
-        ]
-
-    def get_arp_interface_address_description(
-        self, interface: str, ip_address: str, description: str
-    ) -> List[str]:
-        """Get command path for ARP interface address description."""
-        return [
-            "protocols", "static", "arp", "interface", interface,
-            "address", ip_address, "description", description
-        ]
-
-    # ========================================================================
-    # Multicast Routes (mroute) Paths
-    # ========================================================================
-
-    def get_mroute_path(self, prefix: str) -> List[str]:
-        """Get command path for multicast route."""
-        return ["protocols", "static", "mroute", prefix]
-
-    def get_mroute_interface_path(self, prefix: str, interface: str) -> List[str]:
-        """Get command path for mroute interface."""
-        return ["protocols", "static", "mroute", prefix, "interface", interface]
-
-    def get_mroute_interface_disable(self, prefix: str, interface: str) -> List[str]:
-        """Get command path for mroute interface disable."""
-        return [
-            "protocols", "static", "mroute", prefix,
-            "interface", interface, "disable"
-        ]
-
-    def get_mroute_interface_distance(
-        self, prefix: str, interface: str, distance: str
-    ) -> List[str]:
-        """Get command path for mroute interface distance."""
-        return [
-            "protocols", "static", "mroute", prefix,
-            "interface", interface, "distance", distance
-        ]
-
-    def get_mroute_next_hop_path(self, prefix: str, next_hop: str) -> List[str]:
-        """Get command path for mroute next-hop."""
-        return ["protocols", "static", "mroute", prefix, "next-hop", next_hop]
-
-    def get_mroute_next_hop_disable(self, prefix: str, next_hop: str) -> List[str]:
-        """Get command path for mroute next-hop disable."""
-        return [
-            "protocols", "static", "mroute", prefix,
-            "next-hop", next_hop, "disable"
-        ]
-
-    def get_mroute_next_hop_distance(
-        self, prefix: str, next_hop: str, distance: str
-    ) -> List[str]:
-        """Get command path for mroute next-hop distance."""
-        return [
-            "protocols", "static", "mroute", prefix,
-            "next-hop", next_hop, "distance", distance
-        ]
-
-    # ========================================================================
-    # Neighbor Proxy Paths
-    # ========================================================================
-
-    def get_neighbor_proxy_arp_path(self, ip_address: str) -> List[str]:
-        """Get command path for neighbor proxy ARP entry."""
-        return ["protocols", "static", "neighbor-proxy", "arp", ip_address]
-
-    def get_neighbor_proxy_arp_interface(
-        self, ip_address: str, interface: str
-    ) -> List[str]:
-        """Get command path for neighbor proxy ARP interface."""
-        return [
-            "protocols", "static", "neighbor-proxy", "arp",
-            ip_address, "interface", interface
-        ]
-
-    def get_neighbor_proxy_nd_path(self, ipv6_address: str) -> List[str]:
-        """Get command path for neighbor proxy ND entry."""
-        return ["protocols", "static", "neighbor-proxy", "nd", ipv6_address]
-
-    def get_neighbor_proxy_nd_interface(
-        self, ipv6_address: str, interface: str
-    ) -> List[str]:
-        """Get command path for neighbor proxy ND interface."""
-        return [
-            "protocols", "static", "neighbor-proxy", "nd",
-            ipv6_address, "interface", interface
-        ]
+    def get_neighbor_proxy_interface(self, kind: str, address: str, interface: str) -> List[str]:
+        """``interface`` is a multi leaf, so the delete keeps the value."""
+        return self.get_neighbor_proxy(kind, address) + ["interface", interface]

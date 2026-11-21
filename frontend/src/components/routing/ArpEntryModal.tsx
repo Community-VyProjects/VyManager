@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,19 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { showService, InterfaceName } from "@/lib/api/show";
+import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
-import type { ArpEntry } from "@/lib/api/static-routes";
-import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+import { staticRoutesService, type ArpEntry } from "@/lib/api/static-routes";
 import {
-  arpDraftFrom,
-  emptyArpDraft,
-  submitArpCreate,
-  submitArpUpdate,
-  validateArpCreate,
-  validateArpEdit,
-  type ArpDraft,
-} from "./static-routes-form";
+  arpFields,
+  arpProblem,
+  type ArpFields,
+  type ArpProblem,
+} from "@/lib/api/static-routes-save-ops";
+import { lockedIdentity, modalIsEdit } from "@/lib/modal-mode";
+import type { ApiError } from "@/lib/types/api";
 
 export interface ArpExisting {
   interface: string;
@@ -38,6 +36,8 @@ interface ArpEntryModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existing?: ArpExisting | null;
+  /** `interface|address` of every entry on the device. */
+  configured: string[];
 }
 
 export function ArpEntryModal({
@@ -45,66 +45,91 @@ export function ArpEntryModal({
   onOpenChange,
   onSuccess,
   existing,
+  configured,
 }: ArpEntryModalProps) {
   const t = useTranslations("routingExtras");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
+  const initial = useMemo(
+    () => arpFields(existing?.interface ?? "", existing?.entry),
+    [existing],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [draft, setDraft] = useState<ArpDraft>(emptyArpDraft());
+  const [draft, setDraft] = useState<ArpFields>(initial);
+
+  const seedKey = open ? JSON.stringify(initial) : "";
+  const [seed, setSeed] = useState(seedKey);
+  if (seedKey !== seed) {
+    setSeed(seedKey);
+    setDraft(initial);
+    setError(null);
+  }
 
   useEffect(() => {
     if (!open) return;
-    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch((err) => {
-      console.error("Failed to load interfaces:", err);
-    });
-    if (existing) {
-      setDraft(arpDraftFrom(existing.interface, existing.entry));
-    } else {
-      setDraft(emptyArpDraft());
-    }
-    setError(null);
-  }, [open, existing]);
+    let live = true;
+    showService
+      .getAllInterfaces()
+      .then((res) => {
+        if (live) setAvailableInterfaces(res.interfaces);
+      })
+      .catch(() => {
+        if (live) setAvailableInterfaces([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [open]);
 
-  const patch = (fields: Partial<ArpDraft>) => setDraft((d) => ({ ...d, ...fields }));
-  const lockedInterface = lockedIdentity(existing, (e) => e.interface, draft.interfaceName);
-  const lockedIp = lockedIdentity(existing, (e) => e.entry.ip_address, draft.ipAddress);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
+  const patch = (fields: Partial<ArpFields>) => setDraft((d) => ({ ...d, ...fields }));
+  const lockedInterface = lockedIdentity(existing, (e) => e.interface, draft.interface);
+  const lockedIp = lockedIdentity(existing, (e) => e.entry.ip_address, draft.address);
+
+  const problemMessage = (problem: ArpProblem): string => {
+    switch (problem.key) {
+      case "arpEntryExists":
+        return t("validation.arpEntryExists", { name: problem.name });
+      case "descriptionTooLong":
+        return t("validation.descriptionTooLong", { max: problem.max });
+      default:
+        return t(`validation.${problem.key}`);
+    }
+  };
 
   const handleSubmit = async () => {
-    const validationError = isEdit ? validateArpEdit(draft) : validateArpCreate(draft);
-    if (validationError) {
-      setError(t(`validation.${validationError}`));
+    const original = isEdit ? initial : null;
+    const problem = arpProblem(original, draft, configured);
+    if (problem) {
+      setError(problemMessage(problem));
       return;
     }
-
-    const write = modalWriteKind(existing ? { name: existing.entry.ip_address } : null);
+    const failed = isEdit ? t("arpModal.updateFailed") : t("arpModal.createFailed");
     setLoading(true);
     setError(null);
-
     try {
-      const result =
-        write.kind === "update" && existing
-          ? await submitArpUpdate(
-              { interfaceName: existing.interface, entry: existing.entry },
-              draft,
-            )
-          : await submitArpCreate(draft);
-      if (result && result.success === false) {
-        setError(result.error || tc("operationFailed"));
+      const result = await staticRoutesService.saveArpEntry(original, draft);
+      if (result && !result.success) {
+        setError(result.error || failed);
         return;
       }
-      onSuccess();
+      if (result) onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEdit ? t("arpModal.updateFailed") : t("arpModal.createFailed"));
+      setError((err as ApiError).message || failed);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? t("arpModal.editTitle") : t("arpModal.createTitle")}</DialogTitle>
@@ -119,7 +144,7 @@ export function ArpEntryModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
@@ -129,8 +154,8 @@ export function ArpEntryModal({
               <Input value={lockedInterface.value} disabled className="bg-muted" />
             ) : (
               <InterfaceSelect
-                value={draft.interfaceName}
-                onValueChange={(value) => patch({ interfaceName: value })}
+                value={draft.interface}
+                onValueChange={(value) => patch({ interface: value })}
                 interfaces={availableInterfaces}
                 placeholder={t("shared.selectInterface")}
               />
@@ -145,13 +170,8 @@ export function ArpEntryModal({
               value={lockedIp.value}
               disabled={lockedIp.disabled}
               className={lockedIp.disabled ? "bg-muted" : undefined}
-              onChange={(e) => patch({ ipAddress: e.target.value })}
+              onChange={(e) => patch({ address: e.target.value })}
             />
-            {isEdit && (
-              <p className="text-xs text-muted-foreground">
-                {t("arpModal.ipLocked")}
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -159,8 +179,8 @@ export function ArpEntryModal({
             <Input
               id="mac-address"
               placeholder="00:11:22:33:44:55"
-              value={draft.macAddress}
-              onChange={(e) => patch({ macAddress: e.target.value })}
+              value={draft.mac}
+              onChange={(e) => patch({ mac: e.target.value })}
             />
           </div>
 
@@ -176,7 +196,7 @@ export function ArpEntryModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

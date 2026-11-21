@@ -25,9 +25,12 @@ def _bfd_tree(bfd):
     }
 
 
+def _hop(parsed):
+    return parsed["instances"][0]["static"]["routes"][0]["next_hops"][0]
+
+
 def _source(parsed):
-    hop = parsed["instances"][0]["static"]["routes"][0]["next_hops"][0]
-    return hop["bfd"]["multi_hop_source"]
+    return _hop(parsed)["bfd_multi_hop_source"]
 
 
 def test_empty_vrf_tree():
@@ -47,20 +50,20 @@ def test_1_5_bfd_reads_source_address():
     )
     parsed = get_vrf_mapper("1.5").parse_config(tree)
     assert _source(parsed) == "192.0.2.10"
-    assert (
-        parsed["instances"][0]["static"]["routes"][0]["next_hops"][0]["bfd"]["profile"]
-        == "fast"
-    )
+    assert _hop(parsed)["bfd_profile"] == "fast"
+    assert _hop(parsed)["bfd_enable"] is True
+    assert _hop(parsed)["bfd_multi_hop"] is True
     # 1.4 mapper still reads the 1.5 leaf. Both reads are preserved.
     assert _source(get_vrf_mapper("1.4").parse_config(tree)) == "192.0.2.10"
 
 
 def test_1_4_bfd_reads_source_tag():
     tree = _bfd_tree(
-        {"multi-hop": {"source": {"10.9.9.9": {"profile": {}}}}}
+        {"multi-hop": {"source": {"10.9.9.9": {"profile": "slow"}}}}
     )
     parsed = get_vrf_mapper("1.4").parse_config(tree)
     assert _source(parsed) == "10.9.9.9"
+    assert _hop(parsed)["bfd_multi_hop_source_profile"] == "slow"
     # 1.5 mapper still reads the 1.4 tagged node.
     assert _source(get_vrf_mapper("1.5").parse_config(tree)) == "10.9.9.9"
 
@@ -160,7 +163,12 @@ def test_parse_instance_subtrees_and_int_coercion():
     ]
     assert inst["ipv6"]["disable_forwarding"] is False
     assert inst["static"]["routes"][0]["next_hops"][0]["distance"] == 10
-    assert inst["static"]["routes"][0]["blackhole"] == {"distance": 255, "tag": 1}
+    route = inst["static"]["routes"][0]
+    assert route["route_type"] == "ipv4"
+    assert route["description"] == "lan"
+    assert (route["blackhole"], route["blackhole_distance"], route["blackhole_tag"]) == (True, 255, 1)
+    assert route["reject"] is False
+    assert inst["static"]["routes6"] == []
     assert inst["ospf"]["router_id"] == "1.1.1.1"
     assert inst["ospf"]["areas"] == ["0"]
     assert inst["ospf"]["redistribute"] == ["connected"]
@@ -219,9 +227,6 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     body = response.json()
     assert body["bind_to_all"] is True
     assert body["instances"][0]["name"] == expected["instances"][0]["name"]
-    assert (
-        body["instances"][0]["static"]["routes"][0]["next_hops"][0]["bfd"][
-            "multi_hop_source"
-        ]
-        == "192.0.2.10"
-    )
+    hop = body["instances"][0]["static"]["routes"][0]["next_hops"][0]
+    assert hop["bfd_multi_hop_source"] == "192.0.2.10"
+    assert hop["address"] == "192.0.2.1"
