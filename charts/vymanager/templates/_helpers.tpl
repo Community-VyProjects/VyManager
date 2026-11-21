@@ -40,17 +40,33 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end }}
 
+{{/*
+An empty image tag means the release this chart belongs to. Release images
+are published as v<version>, so Chart.AppVersion gets the v prefix.
+*/}}
+{{- define "vymanager.appVersionTag" -}}
+{{- printf "v%s" (trimPrefix "v" .Chart.AppVersion) }}
+{{- end }}
+
+{{- define "vymanager.frontendTag" -}}
+{{- default (include "vymanager.appVersionTag" .) .Values.frontend.image.tag }}
+{{- end }}
+
+{{- define "vymanager.backendTag" -}}
+{{- default (include "vymanager.appVersionTag" .) .Values.backend.image.tag }}
+{{- end }}
+
 {{- define "vymanager.frontendImage" -}}
-{{- printf "%s:%s" .Values.frontend.image.repository .Values.frontend.image.tag }}
+{{- printf "%s:%s" .Values.frontend.image.repository (include "vymanager.frontendTag" .) }}
 {{- end }}
 
 {{- define "vymanager.backendImage" -}}
-{{- printf "%s:%s" .Values.backend.image.repository .Values.backend.image.tag }}
+{{- printf "%s:%s" .Values.backend.image.repository (include "vymanager.backendTag" .) }}
 {{- end }}
 
 {{- define "vymanager.migrationImage" -}}
 {{- $repository := default .Values.frontend.image.repository .Values.migrations.image.repository -}}
-{{- $tag := default .Values.frontend.image.tag .Values.migrations.image.tag -}}
+{{- $tag := default (include "vymanager.frontendTag" .) .Values.migrations.image.tag -}}
 {{- printf "%s:%s" $repository $tag }}
 {{- end }}
 
@@ -66,7 +82,7 @@ Always
 {{- end }}
 
 {{- define "vymanager.migrationPullPolicy" -}}
-{{- $tag := default .Values.frontend.image.tag .Values.migrations.image.tag -}}
+{{- $tag := default (include "vymanager.frontendTag" .) .Values.migrations.image.tag -}}
 {{- $policy := default .Values.frontend.image.pullPolicy .Values.migrations.image.pullPolicy -}}
 {{- include "vymanager.pullPolicyFor" (dict "tag" $tag "policy" $policy) }}
 {{- end }}
