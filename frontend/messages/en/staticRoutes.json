@@ -67,7 +67,8 @@
     "emptyTitle": "No Multicast Routes",
     "emptyDescription": "No static multicast routes configured",
     "prefix": "Prefix",
-    "distanceSuffix": " (d:{distance})"
+    "distanceSuffix": " (d:{distance})",
+    "noMatch": "No multicast routes match your search"
   },
   "neighborProxy": {
     "searchPlaceholder": "Search neighbor proxy entries...",

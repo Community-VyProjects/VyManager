@@ -723,7 +723,7 @@ function StaticRoutesPageInner() {
                         {t("mroute.emptyTitle")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {query ? t("routes.noMatch") : t("mroute.emptyDescription")}
+                        {query ? t("mroute.noMatch") : t("mroute.emptyDescription")}
                       </p>
                       <Button onClick={() => setCreateMrouteModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />

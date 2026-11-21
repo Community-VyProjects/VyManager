@@ -88,12 +88,16 @@ export function VrfStaticRoutesTab({
     ? (vrf.static?.routes ?? [])
     : (vrf.static?.routes6 ?? []);
 
-  const filteredRoutes = search
-    ? routes.filter((r) =>
-        r.destination.toLowerCase().includes(search.toLowerCase()) ||
-        r.description?.toLowerCase().includes(search.toLowerCase())
-      )
-    : routes;
+  const query = search.trim().toLowerCase();
+  const filteredRoutes = routes.filter((route) =>
+    !query ||
+    [
+      route.destination,
+      route.description,
+      ...route.next_hops.map((nh) => nh.address),
+      ...route.interfaces.map((iface) => iface.interface),
+    ].some((value) => value?.toLowerCase().includes(query)),
+  );
 
   const getRouteTypeDisplay = (route: StaticRoute): string => {
     const types: string[] = [];
@@ -178,7 +182,7 @@ export function VrfStaticRoutesTab({
             <div className="flex flex-col items-center justify-center py-12">
               <Route className="h-10 w-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">
-                {search
+                {query
                   ? t("staticRoutes.noMatch")
                   : t("staticRoutes.noRoutes", { family: family === "ipv4" ? ts("family.ipv4") : ts("family.ipv6") })}
               </p>

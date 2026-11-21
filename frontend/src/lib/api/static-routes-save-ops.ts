@@ -799,9 +799,10 @@ export function mrouteProblem(
     if (!prefix) return { key: "prefixRequired" };
     if (!isPrefix(prefix, "ipv4")) return { key: "prefixInvalid" };
     if (configured.includes(prefix)) return { key: "mrouteExists", name: prefix };
-    // 1.4 has no node for the prefix itself; it exists only through a target.
-    if (!features.mroute && hops.length === 0 && ifaces.length === 0) return { key: "targetRequired" };
   }
+  // 1.4 has no node for the prefix itself; it exists only through a target,
+  // so an edit that drops every target would delete the route.
+  if (!features.mroute && hops.length === 0 && ifaces.length === 0) return { key: "targetRequired" };
   const seenHops = new Set<string>();
   for (const nh of hops) {
     if (!nh.name) return { key: "nextHopAddressRequired" };

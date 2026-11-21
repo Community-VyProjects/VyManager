@@ -342,6 +342,11 @@ describe("multicast route ops", () => {
     create.prefix = "233.252.0.0/24";
     assert.equal(mrouteProblem(null, create, [], { mroute: false })?.key, "targetRequired");
     assert.equal(mrouteProblem(null, create, [], { mroute: true }), null);
+    const emptied = mrouteFields(loaded);
+    emptied.nextHops = [];
+    emptied.interfaces = [];
+    assert.equal(mrouteProblem(mrouteFields(loaded), emptied, [], { mroute: false })?.key, "targetRequired");
+    assert.equal(mrouteProblem(mrouteFields(loaded), emptied, [], { mroute: true }), null);
     assert.deepEqual(deleteMrouteOps(loaded, { mroute: false }), [
       { op: "delete_mroute_next_hops", value: "233.252.0.0/24" },
       { op: "delete_mroute_interfaces", value: "233.252.0.0/24" },

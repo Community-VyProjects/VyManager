@@ -67,7 +67,8 @@
     "emptyTitle": "没有组播路由",
     "emptyDescription": "未配置静态组播路由",
     "prefix": "前缀",
-    "distanceSuffix": "（距离:{distance}）"
+    "distanceSuffix": "（距离:{distance}）",
+    "noMatch": "没有与搜索匹配的组播路由"
   },
   "neighborProxy": {
     "searchPlaceholder": "搜索邻居代理条目...",

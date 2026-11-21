@@ -151,9 +151,10 @@ export function ArpEntryModal({
           <div className="space-y-2">
             <Label htmlFor="interface">{t("shared.interface")}</Label>
             {lockedInterface.disabled ? (
-              <Input value={lockedInterface.value} disabled className="bg-muted" />
+              <Input id="interface" value={lockedInterface.value} disabled className="bg-muted" />
             ) : (
               <InterfaceSelect
+                id="interface"
                 value={draft.interface}
                 onValueChange={(value) => patch({ interface: value })}
                 interfaces={availableInterfaces}
