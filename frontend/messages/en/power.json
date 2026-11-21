@@ -17,7 +17,6 @@
     "cancelPoweroff": "Cancel Poweroff",
     "cancelRebootTitle": "Cancel the scheduled reboot?",
     "cancelPoweroffTitle": "Cancel the scheduled poweroff?",
-    "keepScheduled": "Keep Scheduled",
     "cancelFailed": "Failed to cancel the scheduled action"
   },
   "modal": {

@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { AlertCircle, AlertTriangle, Power, PowerOff, X } from "lucide-react";
 import { powerService, PowerStatusResponse } from "@/lib/api/power";
+import { FeatureGroup } from "@/lib/api/user-management";
 import type { ApiError } from "@/lib/types/api";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface PowerActionBannerProps {
   powerStatus: PowerStatusResponse | null;
@@ -21,25 +23,28 @@ interface PowerActionBannerProps {
 
 /** Identifies one cancellation, so its notice shows once however often it is pushed. */
 function cancelNoticeKey(status: PowerStatusResponse): string | null {
-  if (!status.cancelled) return null;
-  return `${status.action_type ?? ""}|${status.scheduled_time ?? ""}|${status.cancelled_by ?? ""}`;
+  if (!status.cancelled || !status.cancelled_at) return null;
+  return `${status.action_type ?? ""}|${status.cancelled_at}`;
 }
 
-export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
+/** Identifies one scheduled action, so the confirm dialog belongs to it. */
+function scheduleKey(status: PowerStatusResponse | null): string | null {
+  if (!status?.scheduled) return null;
+  return `${status.action_type ?? ""}|${status.scheduled_time ?? ""}`;
+}
+
+export function PowerActionBanner({ powerStatus: status }: PowerActionBannerProps) {
   const t = useTranslations("power.banner");
-  const [local, setLocal] = useState<{
-    from: PowerStatusResponse | null;
-    status: PowerStatusResponse;
-  } | null>(null);
-  const [countdown, setCountdown] = useState<string>("");
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const tc = useTranslations("common");
+  const { canWrite } = usePermissions();
+  const [countdown, setCountdown] = useState<{ for: string; text: string } | null>(null);
+  const [confirmFor, setConfirmFor] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [dismissedNotice, setDismissedNotice] = useState<string | null>(null);
 
-  // The SSE-driven prop wins; a status fetched after a cancel shows until the
-  // next push replaces the prop.
-  const status = local && local.from === powerStatus ? local.status : powerStatus;
+  const currentSchedule = scheduleKey(status);
+  const confirmOpen = confirmFor !== null && confirmFor === currentSchedule;
   const noticeKey = status ? cancelNoticeKey(status) : null;
   const showCancelledMessage = noticeKey !== null && noticeKey !== dismissedNotice;
 
@@ -52,15 +57,17 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
 
   // Update countdown every second
   useEffect(() => {
-    if (!status?.scheduled || !status.scheduled_time) return;
+    const scheduledFor = status?.scheduled ? status.scheduled_time : undefined;
+    if (!scheduledFor) return;
 
     const updateCountdown = () => {
-      const scheduledTime = new Date(status.scheduled_time!);
+      const setText = (text: string) => setCountdown({ for: scheduledFor, text });
+      const scheduledTime = new Date(scheduledFor);
       const now = new Date();
       const diff = scheduledTime.getTime() - now.getTime();
 
       if (diff <= 0) {
-        setCountdown(t("executingNow"));
+        setText(t("executingNow"));
         return;
       }
 
@@ -69,11 +76,11 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
       if (hours > 0) {
-        setCountdown(t("countdownHours", { hours, minutes, seconds }));
+        setText(t("countdownHours", { hours, minutes, seconds }));
       } else if (minutes > 0) {
-        setCountdown(t("countdownMinutes", { minutes, seconds }));
+        setText(t("countdownMinutes", { minutes, seconds }));
       } else {
-        setCountdown(t("countdownSeconds", { seconds }));
+        setText(t("countdownSeconds", { seconds }));
       }
     };
 
@@ -83,9 +90,14 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
     return () => clearInterval(interval);
   }, [status, t]);
 
+  const openConfirm = () => {
+    setCancelError(null);
+    setConfirmFor(currentSchedule);
+  };
+
   const closeConfirm = () => {
     if (cancelling) return;
-    setConfirmOpen(false);
+    setConfirmFor(null);
     setCancelError(null);
   };
 
@@ -105,16 +117,10 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
       setCancelling(false);
       return;
     }
+    // The cancel route sends the power_status signal; useBannerEvents then
+    // re-reads GET /status and the prop switches to the cancelled notice.
     setCancelling(false);
-    setConfirmOpen(false);
-
-    // SSE will push updated status shortly; also fetch eagerly
-    try {
-      const result = await powerService.getStatus();
-      setLocal({ from: powerStatus, status: result });
-    } catch {
-      // The SSE refresh delivers the same status
-    }
+    setConfirmFor(null);
   };
 
   // Don't show banner if no scheduled action
@@ -182,7 +188,8 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
                 {isReboot ? t("rebootScheduled") : t("poweroffScheduled")}
               </p>
               <p className={`text-xs ${subtextColor}`}>
-                {countdown && t("inCountdown", { countdown })}
+                {countdown && countdown.for === status?.scheduled_time &&
+                  t("inCountdown", { countdown: countdown.text })}
                 {t("scheduledBy", { name: status?.scheduled_by_name || t("unknown") })}
                 {status?.scheduled_time &&
                   ` • ${new Date(status.scheduled_time).toLocaleString()}`}
@@ -190,15 +197,17 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConfirmOpen(true)}
-            disabled={cancelling}
-            className="border-current"
-          >
-            {cancelling ? t("cancelling") : isReboot ? t("cancelReboot") : t("cancelPoweroff")}
-          </Button>
+          {canWrite(FeatureGroup.POWER) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openConfirm}
+              disabled={cancelling}
+              className="border-current"
+            >
+              {cancelling ? t("cancelling") : tc("cancel")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -227,7 +236,7 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
 
           <DialogFooter>
             <Button variant="outline" onClick={closeConfirm} disabled={cancelling}>
-              {t("keepScheduled")}
+              {tc("cancel")}
             </Button>
             <Button variant="destructive" onClick={handleConfirmCancel} disabled={cancelling}>
               {cancelling ? t("cancelling") : isReboot ? t("cancelReboot") : t("cancelPoweroff")}

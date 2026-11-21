@@ -18,7 +18,7 @@ from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from session_vyos_service import get_session_vyos_service, _session_device_registry
-from fastapi_permissions import require_read_permission
+from fastapi_permissions import has_permission, require_read_permission
 from org_scope import org_id_from_state, request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
 from stream_auth import fail_closed
@@ -217,50 +217,50 @@ async def _gather_banner_state(request: Request) -> Dict[str, Any]:
     }
 
 
-async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
-    """Get config diff state without going through the HTTP endpoint."""
+def _no_config_changes() -> Dict[str, Any]:
+    return {
+        "has_changes": False,
+        "added": {},
+        "removed": {},
+        "modified": {},
+        "summary": {"added": 0, "removed": 0, "modified": 0},
+    }
+
+
+async def _config_diff_for(instance_id: str, service: Any) -> Dict[str, Any]:
+    """Diff the device config against the saved baseline (SSE push and poller)."""
     from routers.config.config import deep_diff
     from config_state import reconcile_baseline, set_saved_config
 
+    current_config = await run_in_threadpool(service.get_full_config, refresh=True)
+
+    baseline = reconcile_baseline(instance_id, current_config)
+    if baseline is None:
+        set_saved_config(instance_id, current_config)
+        return _no_config_changes()
+
+    added, removed, modified = deep_diff(current_config, baseline)
+    return {
+        "has_changes": bool(added or removed or modified),
+        "added": added,
+        "removed": removed,
+        "modified": modified,
+        "summary": {
+            "added": len(added),
+            "removed": len(removed),
+            "modified": len(modified),
+        },
+    }
+
+
+async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
+    """Get config diff state without going through the HTTP endpoint."""
     try:
         service = get_session_vyos_service(request)
-        instance_id = request.state.instance["id"]
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-
-        baseline = reconcile_baseline(instance_id, current_config)
-        if baseline is None:
-            set_saved_config(instance_id, current_config)
-            return {
-                "has_changes": False,
-                "added": {},
-                "removed": {},
-                "modified": {},
-                "summary": {"added": 0, "removed": 0, "modified": 0},
-            }
-
-        added, removed, modified = deep_diff(current_config, baseline)
-        has_changes = bool(added or removed or modified)
-
-        return {
-            "has_changes": has_changes,
-            "added": added,
-            "removed": removed,
-            "modified": modified,
-            "summary": {
-                "added": len(added),
-                "removed": len(removed),
-                "modified": len(modified),
-            },
-        }
+        return await _config_diff_for(request.state.instance["id"], service)
     except Exception:
         logger.exception("Failed to get config diff for SSE")
-        return {
-            "has_changes": False,
-            "added": {},
-            "removed": {},
-            "modified": {},
-            "summary": {"added": 0, "removed": 0, "modified": 0},
-        }
+        return _no_config_changes()
 
 
 def _get_commit_confirm_state(instance_id: str) -> Dict[str, Any]:
@@ -272,8 +272,14 @@ def _get_commit_confirm_state(instance_id: str) -> Dict[str, Any]:
 
 
 async def _get_power_status_state(request: Request) -> Dict[str, Any]:
-    """Get power status: the stored row, checked against the device."""
+    """Get power status: the stored row, checked against the device.
+
+    The stream itself needs CONFIGURATION read; power status is sent only to
+    callers with POWER read, the same gate as GET /vyos/power/status.
+    """
     try:
+        if not await has_permission(request, FeatureGroup.POWER, PermissionLevel.READ):
+            return {"scheduled": False}
         status = await get_scheduled_power_status(
             lambda: request_scoped_conn(request),
             request.state.instance["id"],
@@ -297,39 +303,11 @@ async def _poll_banner_state_for_instance(
     Poll the current banner state for a single instance and emit events
     only if the state has changed since the last poll.
     """
-    from routers.config.config import deep_diff
-    from config_state import reconcile_baseline, set_saved_config
-
     # --- Config diff ---
     try:
-        service = _session_device_registry.get(instance_id)
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-
-        baseline = reconcile_baseline(instance_id, current_config)
-        if baseline is None:
-            set_saved_config(instance_id, current_config)
-            config_diff_data = {
-                "has_changes": False,
-                "added": {},
-                "removed": {},
-                "modified": {},
-                "summary": {"added": 0, "removed": 0, "modified": 0},
-            }
-        else:
-            added, removed, modified = deep_diff(current_config, baseline)
-            has_changes = bool(added or removed or modified)
-            config_diff_data = {
-                "has_changes": has_changes,
-                "added": added,
-                "removed": removed,
-                "modified": modified,
-                "summary": {
-                    "added": len(added),
-                    "removed": len(removed),
-                    "modified": len(modified),
-                },
-            }
-
+        config_diff_data = await _config_diff_for(
+            instance_id, _session_device_registry.get(instance_id)
+        )
         if event_manager.update_last_state(instance_id, EVENT_CONFIG_DIFF, config_diff_data):
             event_manager.emit(instance_id, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
     except Exception:
@@ -352,9 +330,12 @@ async def _poll_banner_state_for_instance(
                 instance_id,
                 lambda: _session_device_registry.get(instance_id),
             )
-            power_data = status.model_dump(mode="json")
-            if event_manager.update_last_state(instance_id, EVENT_POWER_STATUS, power_data):
-                event_manager.emit(instance_id, EVENT_POWER_STATUS, {"power_status": power_data})
+            # Subscribers may lack POWER read, so send the refetch signal and
+            # let each client re-read through the POWER-gated GET /status.
+            if event_manager.update_last_state(
+                instance_id, EVENT_POWER_STATUS, status.model_dump(mode="json")
+            ):
+                event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
     except Exception:
         logger.debug("Poller: failed to get power status for instance %s", instance_id)
 

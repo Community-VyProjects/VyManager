@@ -17,7 +17,6 @@
     "cancelPoweroff": "取消关机",
     "cancelRebootTitle": "取消已计划的重启？",
     "cancelPoweroffTitle": "取消已计划的关机？",
-    "keepScheduled": "保留计划",
     "cancelFailed": "取消计划操作失败"
   },
   "modal": {

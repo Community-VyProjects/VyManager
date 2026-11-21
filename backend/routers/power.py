@@ -2,7 +2,8 @@
 System Power Management Router
 
 API endpoints for managing VyOS system power actions (reboot, poweroff).
-Uses RBAC permission system - requires WRITE permission on POWER feature.
+Uses RBAC permission system - actions require WRITE and GET /status requires
+READ permission on the POWER feature.
 
 Uses session-based architecture - VyOS instance comes from user's active session.
 """
@@ -10,13 +11,12 @@ Uses session-based architecture - VyOS instance comes from user's active session
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Any, Callable, Literal, Optional
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import re
 import uuid
 from contextlib import AbstractAsyncContextManager
-from typing import Any, Callable
 
 from session_vyos_service import get_session_vyos_service
 from vyos_service import VyOSService
@@ -38,6 +38,11 @@ def _utcnow() -> datetime:
 def _utc(scheduled_time: Optional[datetime]) -> Optional[datetime]:
     """Timezone-aware UTC for JSON serialization."""
     return scheduled_time.replace(tzinfo=ZoneInfo("UTC")) if scheduled_time else None
+
+
+# How long a cancelled action is still reported as cancelled, so the banner
+# can show the notice; after that the row reads as nothing scheduled.
+CANCELLED_NOTICE_WINDOW = timedelta(seconds=30)
 
 
 # powerctrl.py parses 'at' with strptime("%H:%M") and hands 'in' to shutdown
@@ -88,6 +93,7 @@ class PowerStatusResponse(BaseModel):
     cancelled: bool = False
     cancelled_by: Optional[str] = None
     cancelled_by_name: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
 
 
 
@@ -162,9 +168,12 @@ async def get_scheduled_power_status(
     a tz-aware NOW(): under a non-UTC database session timezone a bare NOW()
     shifts the comparison by the offset and hides pending actions.
 
-    A cancelled row is reported as cancelled without asking the device (the
-    cancel already ran shutdown -c). For a pending row, `show reboot` decides:
-    nothing scheduled there drops the row; a failed check, or no service to
+    A cancelled row is reported as cancelled, without asking the device (the
+    cancel already ran shutdown -c), for CANCELLED_NOTICE_WINDOW after the
+    cancel, and as nothing scheduled after that. For a pending row,
+    `show reboot` decides: nothing scheduled there drops that row (by id, and
+    only while it is still not cancelled, so a cancel or a new schedule that
+    lands during the device call survives); a failed check, or no service to
     check with, keeps it.
     """
     async with conn_factory() as conn:
@@ -179,8 +188,8 @@ async def get_scheduled_power_status(
 
         result = await conn.fetchrow(
             """
-            SELECT "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
-                   cancelled, "cancelledBy", "cancelledByName"
+            SELECT id, "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
+                   cancelled, "cancelledBy", "cancelledByName", "cancelledAt"
             FROM scheduled_power_actions
             WHERE "instanceId" = $1
               AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
@@ -203,10 +212,14 @@ async def get_scheduled_power_status(
             cancelled=result["cancelled"],
             cancelled_by=result["cancelledBy"],
             cancelled_by_name=result["cancelledByName"],
+            cancelled_at=_utc(result["cancelledAt"]),
         )
 
     if result["cancelled"]:
-        return status(scheduled=False)
+        cancelled_at = result["cancelledAt"]
+        if cancelled_at and cancelled_at > _utcnow() - CANCELLED_NOTICE_WINDOW:
+            return status(scheduled=False)
+        return PowerStatusResponse(scheduled=False)
 
     # The connection above is closed first so no DB connection is held across
     # the device call. Only whether a time is present matters here, so no
@@ -218,8 +231,10 @@ async def get_scheduled_power_status(
             raise RuntimeError(f"VyOS command failed: {response.error}")
         output = response.result if isinstance(response.result, str) else ""
         still_scheduled = parse_scheduled_time(output) is not None
-    except Exception:
-        logger.warning("Could not check the scheduled power action", exc_info=True)
+    except Exception as exc:
+        # The poller runs this every 10 s; log the expected failures (no
+        # session yet, device unreachable) without a traceback.
+        logger.debug("Could not check the scheduled power action: %r", exc)
         still_scheduled = True
 
     if not still_scheduled:
@@ -227,12 +242,10 @@ async def get_scheduled_power_status(
             await conn.execute(
                 """
                 DELETE FROM scheduled_power_actions
-                WHERE "instanceId" = $1
-                  AND "actionType" = $2
-                  AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
+                WHERE id = $1
+                  AND cancelled = false
                 """,
-                instance_id,
-                result["actionType"],
+                result["id"],
             )
         return PowerStatusResponse(scheduled=False)
 
@@ -287,13 +300,14 @@ async def _mark_cancelled(request: Request, user, instance_id) -> None:
             SET cancelled = true,
                 "cancelledBy" = $1,
                 "cancelledByName" = $2,
-                "cancelledAt" = NOW()
+                "cancelledAt" = $4
             WHERE "instanceId" = $3
               AND cancelled = false
             """,
             user["id"],
             user["name"],
             instance_id,
+            _utcnow(),
         )
 
 
@@ -444,7 +458,7 @@ async def get_power_status(request: Request):
     """
     Check if a reboot or poweroff is scheduled for the current instance.
 
-    This endpoint is polled by the frontend to display the banner.
+    The banner re-reads this on the SSE power_status signal and after a cancel.
     Requires READ permission on POWER feature.
     """
     await require_read_permission(request, FeatureGroup.POWER)
