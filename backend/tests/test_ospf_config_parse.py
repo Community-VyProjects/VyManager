@@ -10,11 +10,17 @@ def _tree():
                 "parameters": {"router-id": "1.1.1.1", "opaque-lsa": {}},
                 "area": {
                     "0": {
-                        "area-type": {"nssa": {"no-summary": {}, "default-cost": "20"}},
+                        "area-type": {
+                            "nssa": {"no-summary": {}, "default-cost": "20", "translate": "always"}
+                        },
                         "network": {"10.0.0.0/24": {}},
                         "range": {"10.0.0.0/16": {"cost": "10", "not-advertise": {}}},
                         "virtual-link": {
-                            "192.0.2.1": {"retransmit-window": "8", "hello-interval": "5"}
+                            "192.0.2.1": {
+                                "retransmit-window": "8",
+                                "hello-interval": "5",
+                                "authentication": {"md5": {"key-id": {"2": {"md5-key": "vlsecret"}}}},
+                            }
                         },
                         "authentication": "md5",
                     }
@@ -30,6 +36,7 @@ def _tree():
                             "plaintext-password": "pw",
                         },
                         "passive": {"disable": {}},
+                        "bfd": {"profile": "P1"},
                     },
                     "eth1": {"area": "0"},
                 },
@@ -67,6 +74,8 @@ def _tree():
                     },
                 },
                 "neighbor": {"192.0.2.9": {"poll-interval": "30", "priority": "1"}},
+                "access-list": {"10": {"export": ["bgp", "static"]}, "20": {"export": "rip"}},
+                "default-metric": "30",
                 "mpls-te": {"enable": {}, "router-address": "192.0.2.1"},
                 "summary-address": {"10.1.0.0/16": {"no-advertise": {}, "tag": "7"}},
                 "segment-routing": {
@@ -75,10 +84,11 @@ def _tree():
                         "high-label-value": "23999",
                     },
                     "maximum-label-depth": "3",
+                    "prefix": {"10.0.0.1/32": {"index": {"value": "5", "explicit-null": {}}}},
                 },
                 "auto-cost": {"reference-bandwidth": "100000"},
                 "log-adjacency-changes": {"detail": {}},
-                "passive-interface": {"default": {}},
+                "passive-interface": "default",
                 "maximum-paths": "4",
                 "ldp-sync": {"holddown": "15"},
                 "refresh": {"timers": "10"},
@@ -91,7 +101,10 @@ def _tree():
 
 def test_empty_tree_leaves_absent_flags_unset():
     assert get_ospf_mapper("1.5").parse_config({}) == {}
-    assert get_ospf_mapper("1.4").parse_config({"protocols": {"ospf": {}}}) == {}
+    empty_node = get_ospf_mapper("1.4").parse_config({"protocols": {"ospf": {}}})
+    assert empty_node["configured"] is True
+    assert empty_node["areas"] == [] and empty_node["interfaces"] == []
+    assert empty_node["log_adjacency_changes"] is False
 
 
 def test_present_node_without_log_flag_is_false():
@@ -100,6 +113,15 @@ def test_present_node_without_log_flag_is_false():
     )
     assert parsed["log_adjacency_changes"] is False
     assert parsed["parameters"]["router_id"] == "1.1.1.1"
+    assert parsed["configured"] is True
+
+
+def test_configured_flag_reaches_the_response_model():
+    from routers.ospf.ospf import OspfConfig
+
+    assert OspfConfig(**get_ospf_mapper("1.5").parse_config({})).configured is False
+    tree = {"protocols": {"ospf": {"parameters": {"router-id": "1.1.1.1"}}}}
+    assert OspfConfig(**get_ospf_mapper("1.5").parse_config(tree)).configured is True
 
 
 def test_parse_nested_ospf_config():
@@ -117,7 +139,8 @@ def test_parse_nested_ospf_config():
     assert area0["ranges"][0]["cost"] == 10
     assert area0["virtual_links"][0]["retransmit_window"] == 8
     synthesized = next(area for area in parsed["areas"] if area["area_id"] == "1")
-    assert set(synthesized) == {"area_id"}
+    assert synthesized == {"area_id": "1", "configured": False}
+    assert area0["configured"] is True
     eth0 = next(iface for iface in parsed["interfaces"] if iface["name"] == "eth0")
     assert eth0["cost"] == 10
     assert eth0["ldp_sync"] is True
@@ -125,8 +148,24 @@ def test_parse_nested_ospf_config():
     assert eth0["ldp_sync_holddown"] == 5
     assert eth0["passive"] is False
     assert eth0["passive_disable"] is True
-    assert eth0["authentication"]["md5_key_ids"] == {"1": "secret"}
-    assert eth0["authentication"]["plaintext_password"] == "pw"
+    assert eth0["authentication"] == {
+        "md5_key_ids": {"1": "***"},
+        "plaintext_password": "***",
+        "null": False,
+    }
+    assert eth0["bfd"] is True
+    assert eth0["bfd_profile"] == "P1"
+    assert area0["area_type_translate"] == "always"
+    assert area0["virtual_links"][0]["authentication"] == {
+        "md5_key_ids": {"2": "***"},
+        "plaintext_password": None,
+        "null": False,
+    }
+    assert parsed["access_lists"] == [
+        {"acl": "10", "export": ["bgp", "static"]},
+        {"acl": "20", "export": ["rip"]},
+    ]
+    assert parsed["default_metric"] == 30
     tables = [item for item in parsed["redistribute"] if item["protocol"] == "table"]
     assert tables[0]["table"] == "100"
     assert tables[0]["metric"] == "5"
@@ -192,3 +231,37 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     area_ids = {area["area_id"] for area in body["areas"]}
     assert area_ids == {"0", "1"}
     assert body["auto_cost_reference_bandwidth"] == 100000
+    assert "secret" not in response.text
+    assert "vlsecret" not in response.text
+    assert '"pw"' not in response.text
+    eth0 = next(iface for iface in body["interfaces"] if iface["name"] == "eth0")
+    assert eth0["authentication"]["md5_key_ids"] == {"1": "***"}
+    assert eth0["bfd_profile"] == "P1"
+    assert body["access_lists"][0] == {"acl": "10", "export": ["bgp", "static"]}
+    assert body["default_metric"] == 30
+    area0 = next(area for area in body["areas"] if area["area_id"] == "0")
+    assert area0["virtual_links"][0]["authentication"]["md5_key_ids"] == {"2": "***"}
+    assert body["segment_routing"]["prefixes"] == [
+        {"prefix": "10.0.0.1/32", "index_value": 5, "explicit_null": True, "no_php_flag": False}
+    ]
+
+
+def test_bare_graceful_restart_and_originate_parse_as_enabled():
+    """Both bare nodes commit on 1.4 and 1.5 and come back as {}."""
+    parsed = get_ospf_mapper("1.4").parse_config({
+        "protocols": {"ospf": {"graceful-restart": {}, "default-information": {"originate": {}}}}
+    })
+    assert parsed["graceful_restart"]["enabled"] is True
+    assert parsed["default_information"]["enabled"] is True
+    assert parsed["default_information"]["always"] is False
+
+
+def test_null_authentication_parses_by_key_membership():
+    parsed = get_ospf_mapper("1.5").parse_config({
+        "protocols": {"ospf": {"interface": {"eth0": {"authentication": {"null": {}}}}}}
+    })
+    assert parsed["interfaces"][0]["authentication"] == {
+        "md5_key_ids": {},
+        "plaintext_password": None,
+        "null": True,
+    }

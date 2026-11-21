@@ -37,3 +37,7 @@ jobs:
       - name: Run HTTPS save op tests
         working-directory: frontend
         run: npm run test:https-save
+
+      - name: Run OSPF save op tests
+        working-directory: frontend
+        run: npm run test:ospf-save
