@@ -53,3 +53,11 @@ jobs:
       - name: Run NAT64 save op tests
         working-directory: frontend
         run: npm run test:nat64-save
+
+      - name: Run NAT66 save op tests
+        working-directory: frontend
+        run: npm run test:nat66-save
+
+      - name: Run VRF RPKI save op tests
+        working-directory: frontend
+        run: npm run test:vrf-rpki-save

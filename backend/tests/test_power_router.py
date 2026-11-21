@@ -64,7 +64,7 @@ def client(monkeypatch, device, db):
     def _call(kind):
         def run(path):
             device["calls"].append((kind, path))
-            device["threads"].append(threading.get_ident())
+            device["threads"].append(threading.current_thread())
             device["conn_open"].append(db["open"])
             return SimpleNamespace(
                 status=device["status"], result=device["result"], error=device["error"]
@@ -101,7 +101,7 @@ def client(monkeypatch, device, db):
 
     @app.middleware("http")
     async def state(request: Request, call_next):
-        loop_threads.add(threading.get_ident())
+        loop_threads.add(threading.current_thread())
         request.state.user = {"id": "u1", "name": "User One"}
         request.state.instance = {"id": "i1"}
         return await call_next(request)
@@ -231,11 +231,15 @@ def test_cancel_marks_every_pending_action(client, db, route):
     assert len(updates) == 1
     query, args = updates[0]
     assert '"actionType"' not in query
-    assert args == ("u1", "User One", "i1")
+    assert args[:3] == ("u1", "User One", "i1")
+    # cancelledAt is naive UTC from the app, like scheduledTime
+    assert args[3].tzinfo is None
+    assert abs(args[3] - _utcnow()) < timedelta(seconds=5)
 
 
 def _stored_row():
     return {
+        "id": "r1",
         "actionType": "reboot",
         "scheduledTime": _utcnow() + timedelta(hours=1),
         "scheduledBy": "u1",
@@ -243,6 +247,7 @@ def _stored_row():
         "cancelled": False,
         "cancelledBy": None,
         "cancelledByName": None,
+        "cancelledAt": None,
     }
 
 
@@ -274,7 +279,9 @@ def test_status_clears_the_row_when_the_device_has_nothing(client, device, db):
     assert resp.status_code == 200
     assert resp.json()["scheduled"] is False
     deletes = [args for query, args in db["executed"] if query.startswith("DELETE")]
-    assert deletes[-1] == ("i1", "reboot")
+    assert deletes[-1] == ("r1",)
+    query = [q for q, args in db["executed"] if args == ("r1",)][0]
+    assert "WHERE id = $1 AND cancelled = false" in query
 
 
 @pytest.mark.parametrize("status,error", [(400, "boom"), (200, "boom")])
@@ -286,6 +293,41 @@ def test_status_keeps_the_row_when_the_device_check_fails(client, device, db, st
     assert resp.json()["scheduled"] is True
     deletes = [args for query, args in db["executed"] if query.startswith("DELETE")]
     assert deletes == [("i1",)]
+
+
+def test_status_reports_a_recent_cancel_without_the_device(client, device, db):
+    db["row"] = {
+        **_stored_row(),
+        "cancelled": True,
+        "cancelledBy": "u2",
+        "cancelledByName": "User Two",
+        "cancelledAt": _utcnow() - timedelta(seconds=5),
+    }
+    resp = client.http.get("/vyos/power/status")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["scheduled"] is False
+    assert body["cancelled"] is True
+    assert body["cancelled_by_name"] == "User Two"
+    assert body["id"] == "r1"
+    assert body["action_type"] == "reboot"
+    assert device["calls"] == []
+    deletes = [args for query, args in db["executed"] if query.startswith("DELETE")]
+    assert deletes == [("i1",)]
+
+
+def test_status_reads_an_old_cancel_as_nothing_scheduled(client, device, db):
+    db["row"] = {
+        **_stored_row(),
+        "cancelled": True,
+        "cancelledByName": "User Two",
+        "cancelledAt": _utcnow() - timedelta(minutes=5),
+    }
+    body = client.http.get("/vyos/power/status").json()
+    assert body["scheduled"] is False
+    assert body["cancelled"] is False
+    assert body["action_type"] is None
+    assert device["calls"] == []
 
 
 @pytest.mark.parametrize(

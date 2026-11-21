@@ -12,7 +12,12 @@
     "poweroffScheduled": "System Poweroff Scheduled",
     "inCountdown": "In {countdown} • ",
     "scheduledBy": "Scheduled by {name}",
-    "cancelling": "Cancelling..."
+    "cancelling": "Cancelling...",
+    "cancelReboot": "Cancel Reboot",
+    "cancelPoweroff": "Cancel Poweroff",
+    "cancelRebootTitle": "Cancel the scheduled reboot?",
+    "cancelPoweroffTitle": "Cancel the scheduled poweroff?",
+    "cancelFailed": "Failed to cancel the scheduled action"
   },
   "modal": {
     "enterTime": "Please enter a time (HH:MM)",

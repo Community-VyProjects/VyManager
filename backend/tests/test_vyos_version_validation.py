@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from routers.session.session import InstanceCreateRequest, InstanceUpdateRequest
 from vyos_mappers.base import is_vyos_1_4
 from vyos_mappers.nat66.nat66_versions import get_nat66_mapper
-from vyos_mappers.nat66.nat66_versions.v1_5 import NAT66Mapper_v1_5
+from vyos_mappers.nat66.nat66_versions.v1_5 import NAT66MapperV1_5
 from vyos_mappers.pim6 import pim6_versions
 from vyos_mappers.pim6.pim6_versions import get_pim6_mapper
 
@@ -42,7 +42,7 @@ def test_is_vyos_1_4(version, expected):
 @pytest.mark.parametrize("version", ["latest", "1.6", "rolling"])
 def test_factories_agree_on_unknown_versions(version, monkeypatch):
     # Legacy rows may hold free text; every factory must pick 1.5 for it.
-    assert isinstance(get_nat66_mapper(version), NAT66Mapper_v1_5)
+    assert isinstance(get_nat66_mapper(version), NAT66MapperV1_5)
     monkeypatch.setattr(pim6_versions, "Pim6MapperV1_4", type("V14", (), {"which": "1.4"}))
     monkeypatch.setattr(pim6_versions, "Pim6MapperV1_5", type("V15", (), {"which": "1.5"}))
     assert get_pim6_mapper(version).which == "1.5"
