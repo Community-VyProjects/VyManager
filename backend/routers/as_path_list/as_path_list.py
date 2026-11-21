@@ -235,7 +235,7 @@ async def as_path_list_batch_configure(http_request: Request, body: AsPathListBa
             method(*args)
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -306,7 +306,7 @@ async def reorder_as_path_list_rules(http_request: Request, body: ReorderAsPathL
                 builder.set_rule_regex(body.as_path_list_name, str(new_number), rule_data.regex)
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

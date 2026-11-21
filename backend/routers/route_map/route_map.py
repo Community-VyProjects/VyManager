@@ -551,7 +551,7 @@ async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRe
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -823,7 +823,7 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

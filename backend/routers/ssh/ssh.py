@@ -175,7 +175,7 @@ async def ssh_batch_configure(http_request: Request, body: SSHBatchRequest):
                 elif operation.value:
                     method(operation.value)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "SSH configuration updated"},

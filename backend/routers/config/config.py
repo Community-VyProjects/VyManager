@@ -241,7 +241,7 @@ async def save_config(request: Request):
         instance_id = request.state.instance['id']
 
         # Always the device default path. A client-supplied file is not accepted.
-        response = service.config_file_save()
+        response = await run_in_threadpool(service.config_file_save)
 
         if response.status != 200:
             return SaveConfigResponse(

@@ -730,7 +730,7 @@ async def static_routes_batch_configure(http_request: Request, body: StaticRoute
             method(*args)
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -784,7 +784,7 @@ async def arp_batch_configure(http_request: Request, body: ArpBatchRequest):
 
             method(*args)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -834,7 +834,7 @@ async def mroute_batch_configure(http_request: Request, body: MrouteBatchRequest
 
             method(*args)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -886,7 +886,7 @@ async def neighbor_proxy_batch_configure(http_request: Request, body: NeighborPr
 
             method(*args)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -936,7 +936,7 @@ async def table_batch_configure(http_request: Request, body: RoutingTableBatchRe
 
             method(*args)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -991,7 +991,7 @@ async def table_route_batch_configure(http_request: Request, body: TableRouteBat
 
             method(*args)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,

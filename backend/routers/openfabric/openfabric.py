@@ -258,7 +258,7 @@ async def openfabric_batch_configure(http_request: Request, body: OpenfabricBatc
                     elif len(parts) == 2:
                         method(parts[0], parts[1])
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "OpenFabric configuration updated"},

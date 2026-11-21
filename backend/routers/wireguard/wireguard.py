@@ -311,7 +311,7 @@ async def generate_keypair(request: Request):
         service = get_session_vyos_service(request)
 
         # Use pyvyos generate method with wireguard key-pair path
-        response = service.device.generate(path=["pki", "wireguard", "key-pair"])
+        response = await run_in_threadpool(service.device.generate, path=["pki", "wireguard", "key-pair"])
 
         if response.status != 200:
             return VyOSResponse(
@@ -366,7 +366,7 @@ async def generate_psk(request: Request):
         service = get_session_vyos_service(request)
 
         # Use pyvyos generate method with preshared-key path
-        response = service.device.generate(path=["pki", "wireguard", "preshared-key"])
+        response = await run_in_threadpool(service.device.generate, path=["pki", "wireguard", "preshared-key"])
 
         if response.status != 200:
             return VyOSResponse(
@@ -410,8 +410,9 @@ async def get_interface_status(request: Request, interface_name: str):
 
         # Use VyOS show command to get WireGuard interface summary
         # Command: show interfaces wireguard <interface> summary
-        response = service.device.show(
-            path=["interfaces", "wireguard", interface_name, "summary"]
+        response = await run_in_threadpool(
+            service.device.show,
+            path=["interfaces", "wireguard", interface_name, "summary"],
         )
 
         if response.status != 200:
@@ -590,8 +591,9 @@ async def get_interface_public_key(request: Request, interface_name: str):
 
         # Use VyOS show command to get WireGuard interface summary
         # This returns the public key along with other interface info
-        response = service.device.show(
-            path=["interfaces", "wireguard", interface_name, "summary"]
+        response = await run_in_threadpool(
+            service.device.show,
+            path=["interfaces", "wireguard", interface_name, "summary"],
         )
 
         if response.status != 200:

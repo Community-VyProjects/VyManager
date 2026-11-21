@@ -733,7 +733,7 @@ async def route_batch_configure(http_request: Request, body: RouteBatchRequest):
             method(*args)
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
@@ -1273,7 +1273,7 @@ async def reorder_rules(http_request: Request, body: ReorderRequest):
                 builder.set_action_drop(body.policy_type, body.policy_name, str(new_rule_num))
 
         # Execute batch
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
 
         # Refresh config cache
         await run_in_threadpool(service.get_full_config, refresh=True)

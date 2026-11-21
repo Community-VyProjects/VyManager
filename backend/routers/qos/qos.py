@@ -331,7 +331,7 @@ async def qos_batch_configure(http_request: Request, body: QoSBatchRequest):
                 elif operation.value:
                     method(operation.value)
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "QoS configuration updated"},
