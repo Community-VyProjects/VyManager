@@ -127,7 +127,7 @@ def test_batch_missing_value_is_400(client, operation):
     assert service.executed == []
 
 
-COMPOSITE_OPS = [
+COMPOSITE_OPS_CASES = [
     ("set_auth_mac_ip_address", "00:11:22:33:44:55", "192.0.2.10"),
     ("set_auth_mac_vlan", "00:11:22:33:44:55", "10"),
     ("set_auth_mac_rate_limit_download", "00:11:22:33:44:55", "100"),
@@ -137,7 +137,7 @@ COMPOSITE_OPS = [
 ]
 
 
-@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS)
+@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS_CASES)
 @pytest.mark.parametrize("shape", ["no_separator", "empty_second", "empty_first", "blank_second", "bare"])
 def test_batch_short_composite_value_is_400(client, op, first, second, shape):
     value = {
@@ -154,7 +154,7 @@ def test_batch_short_composite_value_is_400(client, op, first, second, shape):
     assert service.executed == []
 
 
-@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS)
+@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS_CASES)
 def test_batch_full_composite_value_is_accepted(client, op, first, second):
     test_client, service = client
     resp = _post(test_client, "p1", [{"op": op, "value": f"{first}|{second}"}])
@@ -162,6 +162,34 @@ def test_batch_full_composite_value_is_accepted(client, op, first, second):
     path = service.executed[0][0]["path"]
     assert path[-1] == second
     assert first in path
+
+
+def test_composite_op_list_matches_the_builder_ops_that_split_on_pipe():
+    from routers.ipoe_server.ipoe_server import COMPOSITE_OPS
+    from vyos_builders.ipoe_server import IPoEServerBatchBuilder
+
+    splitting = {
+        name
+        for name, method in inspect.getmembers(IPoEServerBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+        and 'split("|"' in inspect.getsource(method)
+    }
+    assert set(COMPOSITE_OPS) == splitting
+    assert {op for op, _first, _second in COMPOSITE_OPS_CASES} == splitting
+
+
+@pytest.mark.parametrize("item_name,op,value,path_tail", [
+    ("192.0.2.2", "set_radius_server_key", "abc|", ["server", "192.0.2.2", "key", "abc|"]),
+    ("ipoe", "set_radius_dynamic_author_key", "|abc", ["dynamic-author", "key", "|abc"]),
+    ("ipoe", "set_description", "WAN || LAN", ["description", "WAN || LAN"]),
+    ("eth1", "set_interface_lua_username", "|", ["lua-username", "|"]),
+])
+def test_batch_non_composite_value_keeps_its_pipes(client, item_name, op, value, path_tail):
+    test_client, service = client
+    resp = _post(test_client, item_name, [{"op": op, "value": value}])
+    assert resp.status_code == 200, resp.text
+    path = service.executed[0][0]["path"]
+    assert path[-len(path_tail):] == path_tail
 
 
 @pytest.mark.parametrize("item_name", ["", "   "])

@@ -22,6 +22,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/ipoe-server", tags=["ipoe-server"])
 
+# Builder ops that split their value on "|" themselves (mac|ip, prefix|mask).
+COMPOSITE_OPS = frozenset({
+    "set_auth_mac_ip_address",
+    "set_auth_mac_vlan",
+    "set_auth_mac_rate_limit_download",
+    "set_auth_mac_rate_limit_upload",
+    "set_ipv6_pool_prefix",
+    "set_ipv6_pool_delegate",
+})
+
 
 # ========================================================================
 # Pydantic Models
@@ -270,9 +280,10 @@ async def ipoe_batch_configure(http_request: Request, body: IPoEBatchRequest):
                     status_code=400,
                     detail=f"Operation {operation.op} requires a value",
                 )
-            # Composite values (mac|ip, prefix|mask) are split by the builder;
-            # an empty part would become an empty path node.
-            if not all(part.strip() for part in operation.value.split("|")):
+            # An empty part of a composite value would become an empty path node.
+            if operation.op in COMPOSITE_OPS and not all(
+                part.strip() for part in operation.value.split("|")
+            ):
                 raise HTTPException(
                     status_code=400,
                     detail=f"Operation {operation.op} has an invalid value",
@@ -280,7 +291,7 @@ async def ipoe_batch_configure(http_request: Request, body: IPoEBatchRequest):
             try:
                 method(body.item_name, operation.value)
             except ValueError:
-                # A composite value the builder splits itself (mac|ip) is short.
+                # A composite value with no "|" fails the builder's split.
                 raise HTTPException(
                     status_code=400,
                     detail=f"Operation {operation.op} has an invalid value",
