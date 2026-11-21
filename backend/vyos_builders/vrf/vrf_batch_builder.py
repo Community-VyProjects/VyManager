@@ -133,11 +133,11 @@ class VrfBatchBuilder(BatchBuilder):
 
     def set_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Set IP protocol route-map. Value format: 'protocol,route-map-name'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers[self.mapper_key].get_vrf_ip_protocol_route_map(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
+        protocol, _, route_map = value.partition(",")
+        if not protocol or not route_map:
+            raise ArityError(f"Operation set_vrf_ip_protocol_route_map requires 'protocol,route-map'")
+        path = self.mappers[self.mapper_key].get_vrf_ip_protocol_route_map(name, protocol, route_map)
+        return self.add_set(path)
 
     def delete_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IP protocol route-map. Value is the protocol name."""
@@ -166,11 +166,11 @@ class VrfBatchBuilder(BatchBuilder):
 
     def set_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Set IPv6 protocol route-map. Value format: 'protocol,route-map-name'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers[self.mapper_key].get_vrf_ipv6_protocol_route_map(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
+        protocol, _, route_map = value.partition(",")
+        if not protocol or not route_map:
+            raise ArityError(f"Operation set_vrf_ipv6_protocol_route_map requires 'protocol,route-map'")
+        path = self.mappers[self.mapper_key].get_vrf_ipv6_protocol_route_map(name, protocol, route_map)
+        return self.add_set(path)
 
     def delete_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IPv6 protocol route-map. Value is the protocol name."""

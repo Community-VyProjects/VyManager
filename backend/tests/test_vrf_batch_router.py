@@ -137,6 +137,23 @@ def test_unresolvable_protocol_op_is_400(client, commit, version):
     assert client.executed == []
 
 
+@pytest.mark.parametrize("family", ["ip", "ipv6"])
+@pytest.mark.parametrize("value", ["T-V,bgp", "T-V,bgp,", "T-V,,T-RM"])
+def test_protocol_route_map_without_both_parts_is_400(client, family, value):
+    resp = _post(client, [{"op": f"set_vrf_{family}_protocol_route_map", "value": value}])
+    assert resp.status_code == 400, resp.text
+    assert "requires 'protocol,route-map'" in resp.json()["detail"]
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("family", ["ip", "ipv6"])
+def test_protocol_route_map_sets_the_path(client, family):
+    resp = _post(client, [{"op": f"set_vrf_{family}_protocol_route_map", "value": "T-V,bgp,T-RM"}])
+    assert resp.status_code == 200, resp.text
+    [ops] = client.executed
+    assert ops[0]["path"] == ["vrf", "name", "T-V", family, "protocol", "bgp", "route-map", "T-RM"]
+
+
 def test_1_5_static_leaf_on_1_4_is_400(client):
     resp = _post(client, [
         {"op": "set_vrf", "value": "T-V"},
