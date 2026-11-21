@@ -282,7 +282,6 @@ const INTERFACE_LEAVES: [keyof OspfInterface, string][] = [
   ["bandwidth", "bandwidth"],
 ];
 
-/** Error key under ``interfaceModal`` for an interface the lab would reject. */
 /** Lab range of interface and virtual-link retransmit-window (1.5 only). */
 export const OSPF_RETRANSMIT_WINDOW = { min: 20, max: 1000 };
 
@@ -293,6 +292,7 @@ function retransmitWindowBad(value: number | string | null | undefined): boolean
   return !Number.isInteger(n) || n < OSPF_RETRANSMIT_WINDOW.min || n > OSPF_RETRANSMIT_WINDOW.max;
 }
 
+/** Error key under ``interfaceModal`` for an interface the lab would reject. */
 export function ospfInterfaceProblem(
   updated: OspfInterface,
 ): "helloMultiplierDeadInterval" | "retransmitWindowRange" | null {

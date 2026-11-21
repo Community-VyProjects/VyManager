@@ -210,8 +210,8 @@ class OspfSegmentRouting(BaseModel):
 
 
 class OspfConfig(BaseModel):
-    configured: bool = False
     """Complete OSPF configuration."""
+    configured: bool = False
     parameters: OspfParameters = OspfParameters()
     areas: List[OspfArea] = []
     interfaces: List[OspfInterface] = []

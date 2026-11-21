@@ -74,9 +74,11 @@ def parse_access_lists(raw: Any) -> List[Dict[str, Any]]:
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/ospf/config payload."""
-    ospf_config = full_config.get("protocols", {}).get("ospf", {})
-    if not ospf_config:
+    protocols = full_config.get("protocols", {})
+    if "ospf" not in protocols:
         return {}
+    # An empty `protocols ospf {}` node still exists and can be deleted.
+    ospf_config = protocols["ospf"] or {}
 
     areas = parse_areas(ospf_config.get("area", {}))
     interfaces = parse_interfaces(ospf_config.get("interface", {}))
