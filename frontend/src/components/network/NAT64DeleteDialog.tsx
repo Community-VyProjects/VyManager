@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   type NAT64SourceRule,
   type NAT64TranslationPool,
 } from "@/lib/api/nat64";
+import type { ApiError } from "@/lib/types/api";
 
 interface NAT64DeleteDialogProps {
   open: boolean;
@@ -40,6 +41,10 @@ export function NAT64DeleteDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (open) setError(null);
+  }, [open]);
+
   const handleDelete = async () => {
     if (!target) return;
     setSaving(true);
@@ -56,7 +61,7 @@ export function NAT64DeleteDialog({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteDialog.deleteFailed"));
+      setError((err as ApiError).message || t("deleteDialog.deleteFailed"));
     } finally {
       setSaving(false);
     }

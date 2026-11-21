@@ -131,13 +131,9 @@ class NAT64BatchBuilder(BatchBuilder):
     # ==================== Capabilities ====================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        """Return version-aware capabilities for NAT64."""
+        """Return NAT64 capabilities. Both labs have the same nat64 tree."""
         return {
             "version": self.version,
-            "version_info": {
-                "is_1_4": "1.4" in self.version,
-                "is_1_5": "1.5" in self.version,
-            },
             "supported": True,
             "features": {
                 "source_nat64": {

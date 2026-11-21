@@ -5,7 +5,6 @@
     "accessDeniedMessage": "你没有查看 NAT64 配置的权限。请联系管理员获取访问权限。",
     "ruleCount": "{count, plural, other {# 条规则}}",
     "addRule": "添加规则",
-    "failedToLoad": "加载失败",
     "noRulesSidebar": "尚未配置 NAT64 规则。添加一条规则以开始使用。",
     "ruleTitle": "规则 {number}",
     "disabledBadge": "已禁用",
@@ -40,7 +39,9 @@
     "sourcePrefix": "源前缀",
     "matchMark": "匹配标记",
     "matchMarkPlaceholder": "可选的防火墙标记",
-    "disableRule": "禁用规则"
+    "disableRule": "禁用规则",
+    "sourcePrefixRequired": "源前缀为必填项",
+    "matchMarkRange": "匹配标记必须是 {min} 到 {max} 之间的数字"
   },
   "poolDialog": {
     "editTitle": "编辑地址池 {pool}（规则 {rule}）",
@@ -52,7 +53,9 @@
     "descriptionPlaceholder": "转换地址池描述",
     "port": "端口",
     "protocol": "协议",
-    "disablePool": "禁用地址池"
+    "disablePool": "禁用地址池",
+    "addressRequired": "地址为必填项",
+    "portRequired": "端口为必填项"
   },
   "deleteDialog": {
     "deleteFailed": "删除失败",
@@ -60,5 +63,11 @@
     "poolTitle": "删除地址池 {number}",
     "ruleMessage": "这将永久删除规则 {rule}{pools, plural, =0 {} other {及其 # 个转换地址池}}。其余规则将从 100 开始重新编号。",
     "poolMessage": "这将永久删除规则 {rule} 中的地址池 {pool}。此操作无法撤销。"
+  },
+  "toggleDialog": {
+    "enableTitle": "启用规则 {number}",
+    "disableTitle": "禁用规则 {number}",
+    "enableMessage": "规则 {number} 将开始转换流量。",
+    "disableMessage": "规则 {number} 将停止转换流量，直到再次启用。"
   }
 }
