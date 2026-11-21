@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -21,10 +22,23 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { AlertCircle, Loader2 } from "lucide-react";
 import type { OspfInterface, OspfCapabilities } from "@/lib/api/ospf";
+import {
+  ospfAuthDraft,
+  ospfAuthFromDraft,
+  ospfAuthProblem,
+  OSPF_RETRANSMIT_WINDOW,
+  ospfInterfaceProblem,
+  ospfPassiveMode,
+  type OspfAuthDraft,
+  type OspfPassiveMode,
+} from "@/lib/api/ospf-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { OspfAuthFields } from "./OspfAuthFields";
 import { useTranslations } from "next-intl";
 
 interface OspfInterfaceModalProps {
@@ -33,7 +47,15 @@ interface OspfInterfaceModalProps {
   onSubmit: (config: OspfInterface) => Promise<void>;
   existingInterface?: OspfInterface | null;
   capabilities?: OspfCapabilities | null;
+  bfdProfileNames: string[];
+  /** Area IDs the area leaf can name (protocols ospf area). */
+  areaIds: string[];
+  /** Interfaces already under protocols ospf; Add does not offer them. */
+  configuredInterfaces: string[];
 }
+
+const toText = (value: number | string | null | undefined) => (value == null ? "" : String(value));
+const toInt = (value: string) => (value.trim() ? parseInt(value.trim(), 10) : null);
 
 export function OspfInterfaceModal({
   open,
@@ -41,10 +63,16 @@ export function OspfInterfaceModal({
   onSubmit,
   existingInterface,
   capabilities,
+  bfdProfileNames,
+  areaIds,
+  configuredInterfaces,
 }: OspfInterfaceModalProps) {
   const t = useTranslations("ospf");
   const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
+  const showRetransmitWindow = capabilities?.features?.interfaces?.retransmit_window === true;
+  const networkTypes = capabilities?.features?.interfaces?.network_types || [];
+  const authModes = capabilities?.features?.interfaces?.authentication_modes || [];
 
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
@@ -52,191 +80,139 @@ export function OspfInterfaceModal({
   const [priority, setPriority] = useState("");
   const [helloInterval, setHelloInterval] = useState("");
   const [deadInterval, setDeadInterval] = useState("");
+  const [helloMultiplier, setHelloMultiplier] = useState("");
   const [retransmitInterval, setRetransmitInterval] = useState("");
   const [retransmitWindow, setRetransmitWindow] = useState("");
   const [transmitDelay, setTransmitDelay] = useState("");
   const [network, setNetwork] = useState("");
-  const [passive, setPassive] = useState(false);
+  const [passive, setPassive] = useState<OspfPassiveMode>("");
   const [bfd, setBfd] = useState(false);
+  const [bfdProfile, setBfdProfile] = useState("");
   const [mtuIgnore, setMtuIgnore] = useState(false);
   const [ldpSync, setLdpSync] = useState(false);
   const [ldpSyncDisable, setLdpSyncDisable] = useState(false);
   const [ldpSyncHolddown, setLdpSyncHolddown] = useState("");
   const [bandwidth, setBandwidth] = useState("");
-
-  // Authentication
-  const [md5Keys, setMd5Keys] = useState<Array<{ keyId: string; keyValue: string }>>([]);
-  const [plaintextPassword, setPlaintextPassword] = useState("");
+  const [auth, setAuth] = useState<OspfAuthDraft>(ospfAuthDraft(null));
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
-  const loadInterfaces = async () => {
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
-    }
-  };
-
   useEffect(() => {
-    if (open) {
-      loadInterfaces();
-      if (existingInterface) {
-        setName(existingInterface.name);
-        setArea(existingInterface.area || "");
-        setCost(existingInterface.cost != null ? String(existingInterface.cost) : "");
-        setPriority(existingInterface.priority != null ? String(existingInterface.priority) : "");
-        setHelloInterval(existingInterface.hello_interval != null ? String(existingInterface.hello_interval) : "");
-        setDeadInterval(existingInterface.dead_interval != null ? String(existingInterface.dead_interval) : "");
-        setRetransmitInterval(existingInterface.retransmit_interval != null ? String(existingInterface.retransmit_interval) : "");
-        setRetransmitWindow(existingInterface.retransmit_window != null ? String(existingInterface.retransmit_window) : "");
-        setTransmitDelay(existingInterface.transmit_delay != null ? String(existingInterface.transmit_delay) : "");
-        setNetwork(existingInterface.network || "");
-        setPassive(existingInterface.passive === true);
-        setBfd(existingInterface.bfd);
-        setMtuIgnore(existingInterface.mtu_ignore);
-        setLdpSync(existingInterface.ldp_sync);
-        setLdpSyncDisable(existingInterface.ldp_sync_disable);
-        setLdpSyncHolddown(existingInterface.ldp_sync_holddown != null ? String(existingInterface.ldp_sync_holddown) : "");
-        setBandwidth(existingInterface.bandwidth != null ? String(existingInterface.bandwidth) : "");
-        setPlaintextPassword(existingInterface.authentication.plaintext_password || "");
-        const keys = Object.entries(existingInterface.authentication.md5_key_ids).map(
-          ([keyId, keyValue]) => ({ keyId, keyValue })
-        );
-        setMd5Keys(keys.length > 0 ? keys : []);
-      } else {
-        resetForm();
-      }
-    }
+    if (!open) return;
+    showService.getAllInterfaces()
+      .then((response) => setAvailableInterfaces(response.interfaces))
+      .catch(() => setAvailableInterfaces([]));
+    const src = existingInterface;
+    setName(src?.name ?? "");
+    setArea(src?.area ?? "");
+    setCost(toText(src?.cost));
+    setPriority(toText(src?.priority));
+    setHelloInterval(toText(src?.hello_interval));
+    setDeadInterval(toText(src?.dead_interval));
+    setHelloMultiplier(toText(src?.hello_multiplier));
+    setRetransmitInterval(toText(src?.retransmit_interval));
+    setRetransmitWindow(toText(src?.retransmit_window));
+    setTransmitDelay(toText(src?.transmit_delay));
+    setNetwork(src?.network ?? "");
+    setPassive(ospfPassiveMode(src));
+    setBfd(src?.bfd ?? false);
+    setBfdProfile(src?.bfd_profile ?? "");
+    setMtuIgnore(src?.mtu_ignore ?? false);
+    setLdpSync(src?.ldp_sync ?? false);
+    setLdpSyncDisable(src?.ldp_sync_disable ?? false);
+    setLdpSyncHolddown(toText(src?.ldp_sync_holddown));
+    setBandwidth(toText(src?.bandwidth));
+    setAuth(ospfAuthDraft(src?.authentication));
+    setError(null);
   }, [open, existingInterface]);
 
-  const resetForm = () => {
-    setName("");
-    setArea("");
-    setCost("");
-    setPriority("");
-    setHelloInterval("");
-    setDeadInterval("");
-    setRetransmitInterval("");
-    setRetransmitWindow("");
-    setTransmitDelay("");
-    setNetwork("");
-    setPassive(false);
-    setBfd(false);
-    setMtuIgnore(false);
-    setLdpSync(false);
-    setLdpSyncDisable(false);
-    setLdpSyncHolddown("");
-    setBandwidth("");
-    setMd5Keys([]);
-    setPlaintextPassword("");
-    setError(null);
-  };
+  const handleClose = () => onOpenChange(false);
 
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
+  const buildConfig = (): OspfInterface => ({
+    name: name.trim(),
+    area: area.trim() || null,
+    cost: toInt(cost),
+    priority: toInt(priority),
+    hello_interval: toInt(helloInterval),
+    dead_interval: toInt(deadInterval),
+    hello_multiplier: toInt(helloMultiplier),
+    retransmit_interval: toInt(retransmitInterval),
+    retransmit_window: showRetransmitWindow ? toInt(retransmitWindow) : null,
+    transmit_delay: toInt(transmitDelay),
+    network: network || null,
+    passive: passive === "passive",
+    passive_disable: passive === "disable",
+    bfd,
+    bfd_profile: bfd ? bfdProfile || null : null,
+    mtu_ignore: mtuIgnore,
+    bandwidth: toInt(bandwidth),
+    authentication: ospfAuthFromDraft(auth),
+    ldp_sync: ldpSync,
+    ldp_sync_disable: ldpSync && ldpSyncDisable,
+    ldp_sync_holddown: ldpSync ? toInt(ldpSyncHolddown) : null,
+  });
 
-  const addMd5Key = () => {
-    setMd5Keys([...md5Keys, { keyId: "", keyValue: "" }]);
-  };
-
-  const removeMd5Key = (idx: number) => {
-    setMd5Keys(md5Keys.filter((_, i) => i !== idx));
-  };
-
-  const updateMd5Key = (idx: number, field: "keyId" | "keyValue", value: string) => {
-    const updated = [...md5Keys];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setMd5Keys(updated);
-  };
-
-  const validateForm = (): string | null => {
-    if (!name) return t("interfaceModal.selectInterface");
-    if (cost.trim()) {
-      const val = parseInt(cost.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65535) return t("interfaceModal.costRange");
+  const validateForm = (config: OspfInterface): string | null => {
+    if (!config.name) return t("interfaceModal.selectInterface");
+    if (config.cost != null && (isNaN(config.cost) || config.cost < 1 || config.cost > 65535)) {
+      return t("interfaceModal.costRange");
     }
-    if (priority.trim()) {
-      const val = parseInt(priority.trim(), 10);
-      if (isNaN(val) || val < 0 || val > 255) return t("interfaceModal.priorityRange");
+    if (config.priority != null && (isNaN(config.priority) || config.priority < 0 || config.priority > 255)) {
+      return t("interfaceModal.priorityRange");
     }
-    if (ldpSyncHolddown.trim()) {
-      const val = parseInt(ldpSyncHolddown.trim(), 10);
-      if (isNaN(val) || val < 0 || val > 10000) return t("interfaceModal.ldpSyncHolddownRange");
+    if (config.ldp_sync_holddown != null && (isNaN(config.ldp_sync_holddown) || config.ldp_sync_holddown < 0 || config.ldp_sync_holddown > 10000)) {
+      return t("interfaceModal.ldpSyncHolddownRange");
     }
-    for (const key of md5Keys) {
-      if (key.keyId && !key.keyValue) return t("interfaceModal.md5KeyValueRequired");
-      if (!key.keyId && key.keyValue) return t("interfaceModal.md5KeyIdRequired");
-    }
+    const ifaceProblem = ospfInterfaceProblem(config);
+    if (ifaceProblem === "retransmitWindowRange") return t("interfaceModal.retransmitWindowRange", OSPF_RETRANSMIT_WINDOW);
+    if (ifaceProblem) return t(`interfaceModal.${ifaceProblem}`);
+    const authProblem = ospfAuthProblem(existingInterface?.authentication, auth);
+    if (authProblem) return t(`auth.${authProblem}`);
     return null;
   };
 
-  const showRetransmitWindow = capabilities?.features?.retransmit_window?.supported === true;
-
   const handleSubmit = async () => {
-    const validationError = validateForm();
+    const config = buildConfig();
+    const validationError = validateForm(config);
     if (validationError) {
       setError(validationError);
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      const md5KeyIds: Record<string, string> = {};
-      for (const key of md5Keys) {
-        if (key.keyId.trim()) {
-          md5KeyIds[key.keyId.trim()] = key.keyValue;
-        }
-      }
-
-      const config: OspfInterface = {
-        name: name.trim(),
-        area: area.trim() || null,
-        cost: cost.trim() ? parseInt(cost.trim(), 10) : null,
-        priority: priority.trim() ? parseInt(priority.trim(), 10) : null,
-        hello_interval: helloInterval.trim() ? parseInt(helloInterval.trim(), 10) : null,
-        dead_interval: deadInterval.trim() ? parseInt(deadInterval.trim(), 10) : null,
-        retransmit_interval: retransmitInterval.trim() ? parseInt(retransmitInterval.trim(), 10) : null,
-        retransmit_window: showRetransmitWindow
-          ? (retransmitWindow.trim() ? parseInt(retransmitWindow.trim(), 10) : null)
-          : (existingInterface?.retransmit_window ?? null),
-        transmit_delay: transmitDelay.trim() ? parseInt(transmitDelay.trim(), 10) : null,
-        network: network || null,
-        passive: passive || null,
-        passive_disable: false,
-        bfd,
-        mtu_ignore: mtuIgnore,
-        bandwidth: bandwidth.trim() ? parseInt(bandwidth.trim(), 10) : null,
-        hello_multiplier: null,
-        authentication: {
-          md5_key_ids: md5KeyIds,
-          plaintext_password: plaintextPassword.trim() || null,
-        },
-        ldp_sync: ldpSync,
-        ldp_sync_disable: ldpSyncDisable,
-        ldp_sync_holddown: ldpSyncHolddown.trim() ? parseInt(ldpSyncHolddown.trim(), 10) : null,
-      };
-
       await onSubmit(config);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const networkTypes = capabilities?.network_types || [
-    "broadcast", "non-broadcast", "point-to-multipoint", "point-to-point",
-  ];
+  const numberField = (
+    id: string,
+    label: string,
+    value: string,
+    setValue: (v: string) => void,
+    placeholder?: string,
+    range?: { min: number; max: number },
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        min={range?.min}
+        max={range?.max}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -254,7 +230,6 @@ export function OspfInterfaceModal({
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-6 pb-2">
-            {/* Basic Settings */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="ospf-iface-name">{t("fields.interface")}</Label>
@@ -264,27 +239,27 @@ export function OspfInterfaceModal({
                   disabled={isEditMode}
                   id="ospf-iface-name"
                   className={isEditMode ? "bg-muted" : ""}
-                  interfaces={availableInterfaces}
+                  interfaces={
+                    isEditMode
+                      ? availableInterfaces
+                      : availableInterfaces.filter((i) => !configuredInterfaces.includes(i.name))
+                  }
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="ospf-iface-area">{t("fields.area")}</Label>
-                <Input
-                  id="ospf-iface-area"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  placeholder={t("interfaceModal.areaPlaceholder")}
-                />
+                <NamedListSelect id="ospf-iface-area" value={area} names={areaIds} onValueChange={setArea} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="ospf-iface-network">{t("fields.networkType")}</Label>
-                <Select value={network} onValueChange={setNetwork}>
+                <Select value={network || NONE_SENTINEL} onValueChange={(v) => setNetwork(v === NONE_SENTINEL ? "" : v)}>
                   <SelectTrigger id="ospf-iface-network">
                     <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                     {networkTypes.map((nt) => (
                       <SelectItem key={nt} value={nt}>{nt}</SelectItem>
                     ))}
@@ -293,218 +268,104 @@ export function OspfInterfaceModal({
               </div>
             </div>
 
-            {/* Cost & Priority */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t("interfaceModal.costAndPriority")}</h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-cost">{t("fields.cost")}</Label>
-                  <Input
-                    id="ospf-iface-cost"
-                    type="number"
-                    value={cost}
-                    onChange={(e) => setCost(e.target.value)}
-                    placeholder="1-65535"
-                    min={1}
-                    max={65535}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-priority">{t("fields.priority")}</Label>
-                  <Input
-                    id="ospf-iface-priority"
-                    type="number"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    placeholder="0-255"
-                    min={0}
-                    max={255}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-bandwidth">{t("interfaceModal.bandwidth")}</Label>
-                  <Input
-                    id="ospf-iface-bandwidth"
-                    type="number"
-                    value={bandwidth}
-                    onChange={(e) => setBandwidth(e.target.value)}
-                    placeholder={t("interfaceModal.bandwidthPlaceholder")}
-                  />
-                </div>
+                {numberField("ospf-iface-cost", t("fields.cost"), cost, setCost)}
+                {numberField("ospf-iface-priority", t("fields.priority"), priority, setPriority)}
+                {numberField("ospf-iface-bandwidth", t("interfaceModal.bandwidth"), bandwidth, setBandwidth, t("interfaceModal.bandwidthPlaceholder"))}
               </div>
             </div>
 
-            {/* Timers */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t("interfaceModal.timers")}</h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-hello">{t("interfaceModal.helloInterval")}</Label>
-                  <Input
-                    id="ospf-iface-hello"
-                    type="number"
-                    value={helloInterval}
-                    onChange={(e) => setHelloInterval(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-dead">{t("interfaceModal.deadInterval")}</Label>
-                  <Input
-                    id="ospf-iface-dead"
-                    type="number"
-                    value={deadInterval}
-                    onChange={(e) => setDeadInterval(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-retransmit">{t("interfaceModal.retransmitInterval")}</Label>
-                  <Input
-                    id="ospf-iface-retransmit"
-                    type="number"
-                    value={retransmitInterval}
-                    onChange={(e) => setRetransmitInterval(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
-                {showRetransmitWindow && (
-                  <div className="space-y-2">
-                    <Label htmlFor="ospf-iface-retransmit-window">{t("interfaceModal.retransmitWindow")}</Label>
-                    <Input
-                      id="ospf-iface-retransmit-window"
-                      type="number"
-                      value={retransmitWindow}
-                      onChange={(e) => setRetransmitWindow(e.target.value)}
-                      placeholder={t("interfaceModal.packets")}
-                    />
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="ospf-iface-transmit-delay">{t("interfaceModal.transmitDelay")}</Label>
-                  <Input
-                    id="ospf-iface-transmit-delay"
-                    type="number"
-                    value={transmitDelay}
-                    onChange={(e) => setTransmitDelay(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
+                {numberField("ospf-iface-hello", t("interfaceModal.helloInterval"), helloInterval, setHelloInterval, t("interfaceModal.seconds"))}
+                {numberField("ospf-iface-dead", t("interfaceModal.deadInterval"), deadInterval, setDeadInterval, t("interfaceModal.seconds"))}
+                {numberField("ospf-iface-hello-multiplier", t("interfaceModal.helloMultiplier"), helloMultiplier, setHelloMultiplier)}
+                {numberField("ospf-iface-retransmit", t("interfaceModal.retransmitInterval"), retransmitInterval, setRetransmitInterval, t("interfaceModal.seconds"))}
+                {showRetransmitWindow &&
+                  numberField(
+                    "ospf-iface-retransmit-window",
+                    t("interfaceModal.retransmitWindow"),
+                    retransmitWindow,
+                    setRetransmitWindow,
+                    t("interfaceModal.packets"),
+                    OSPF_RETRANSMIT_WINDOW,
+                  )}
+                {numberField("ospf-iface-transmit-delay", t("interfaceModal.transmitDelay"), transmitDelay, setTransmitDelay, t("interfaceModal.seconds"))}
               </div>
             </div>
 
-            {/* Flags */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t("fields.options")}</h4>
+              <div className="space-y-2">
+                <Label htmlFor="ospf-iface-passive">{t("fields.passive")}</Label>
+                <Select value={passive || NONE_SENTINEL} onValueChange={(v) => setPassive(v === NONE_SENTINEL ? "" : (v as OspfPassiveMode))}>
+                  <SelectTrigger id="ospf-iface-passive">
+                    <SelectValue placeholder={tc("default")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                    <SelectItem value="passive">{t("fields.passive")}</SelectItem>
+                    <SelectItem value="disable">{t("interfaceModal.passiveDisable")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
-                  <Checkbox
-                    id="ospf-iface-passive"
-                    checked={passive}
-                    onCheckedChange={(checked) => setPassive(checked === true)}
-                  />
-                  <Label htmlFor="ospf-iface-passive" className="cursor-pointer text-sm">
-                    {t("fields.passive")}
-                  </Label>
+                  <Checkbox id="ospf-iface-bfd" checked={bfd} onCheckedChange={(checked) => setBfd(checked === true)} />
+                  <Label htmlFor="ospf-iface-bfd" className="cursor-pointer text-sm">{t("fields.bfd")}</Label>
                 </div>
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
-                  <Checkbox
-                    id="ospf-iface-bfd"
-                    checked={bfd}
-                    onCheckedChange={(checked) => setBfd(checked === true)}
-                  />
-                  <Label htmlFor="ospf-iface-bfd" className="cursor-pointer text-sm">
-                    BFD
-                  </Label>
+                  <Checkbox id="ospf-iface-mtu-ignore" checked={mtuIgnore} onCheckedChange={(checked) => setMtuIgnore(checked === true)} />
+                  <Label htmlFor="ospf-iface-mtu-ignore" className="cursor-pointer text-sm">{t("interfaceModal.mtuIgnore")}</Label>
                 </div>
                 <div className="flex items-center space-x-3 rounded-lg border p-3">
-                  <Checkbox
-                    id="ospf-iface-mtu-ignore"
-                    checked={mtuIgnore}
-                    onCheckedChange={(checked) => setMtuIgnore(checked === true)}
-                  />
-                  <Label htmlFor="ospf-iface-mtu-ignore" className="cursor-pointer text-sm">
-                    {t("interfaceModal.mtuIgnore")}
-                  </Label>
+                  <Checkbox id="ospf-iface-ldp-sync" checked={ldpSync} onCheckedChange={(checked) => setLdpSync(checked === true)} />
+                  <Label htmlFor="ospf-iface-ldp-sync" className="cursor-pointer text-sm">{t("interfaceModal.ldpSync")}</Label>
                 </div>
-                <div className="flex items-center space-x-3 rounded-lg border p-3">
-                  <Checkbox
-                    id="ospf-iface-ldp-sync"
-                    checked={ldpSync}
-                    onCheckedChange={(checked) => setLdpSync(checked === true)}
-                  />
-                  <Label htmlFor="ospf-iface-ldp-sync" className="cursor-pointer text-sm">
-                    {t("interfaceModal.ldpSync")}
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-3 rounded-lg border p-3">
-                  <Checkbox
-                    id="ospf-iface-ldp-sync-disable"
-                    checked={ldpSyncDisable}
-                    onCheckedChange={(checked) => setLdpSyncDisable(checked === true)}
-                  />
-                  <Label htmlFor="ospf-iface-ldp-sync-disable" className="cursor-pointer text-sm">
-                    {t("interfaceModal.disableLdpSync")}
-                  </Label>
-                </div>
+                {ldpSync && (
+                  <div className="flex items-center space-x-3 rounded-lg border p-3">
+                    <Checkbox
+                      id="ospf-iface-ldp-sync-disable"
+                      checked={ldpSyncDisable}
+                      onCheckedChange={(checked) => setLdpSyncDisable(checked === true)}
+                    />
+                    <Label htmlFor="ospf-iface-ldp-sync-disable" className="cursor-pointer text-sm">
+                      {t("interfaceModal.disableLdpSync")}
+                    </Label>
+                  </div>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ospf-iface-ldp-sync-holddown">{t("interfaceModal.ldpSyncHolddown")}</Label>
-                <Input
-                  id="ospf-iface-ldp-sync-holddown"
-                  type="number"
-                  value={ldpSyncHolddown}
-                  onChange={(e) => setLdpSyncHolddown(e.target.value)}
-                  placeholder={t("interfaceModal.seconds")}
-                  min={0}
-                  max={10000}
-                />
-              </div>
+              {bfd && (
+                <div className="space-y-2">
+                  <Label htmlFor="ospf-iface-bfd-profile">{t("interfaceModal.bfdProfile")}</Label>
+                  <NamedListSelect
+                    id="ospf-iface-bfd-profile"
+                    value={bfdProfile}
+                    names={bfdProfileNames}
+                    onValueChange={setBfdProfile}
+                  />
+                </div>
+              )}
+              {ldpSync && (
+                <div className="space-y-2">
+                  <Label htmlFor="ospf-iface-ldp-sync-holddown">{t("interfaceModal.ldpSyncHolddown")}</Label>
+                  <Input
+                    id="ospf-iface-ldp-sync-holddown"
+                    type="number"
+                    value={ldpSyncHolddown}
+                    onChange={(e) => setLdpSyncHolddown(e.target.value)}
+                    placeholder={t("interfaceModal.seconds")}
+                    min={0}
+                    max={10000}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Authentication */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium">{t("fields.authentication")}</h4>
-              <div className="space-y-2">
-                <Label htmlFor="ospf-iface-plaintext">{t("fields.plaintextPassword")}</Label>
-                <Input
-                  id="ospf-iface-plaintext"
-                  type="password"
-                  value={plaintextPassword}
-                  onChange={(e) => setPlaintextPassword(e.target.value)}
-                  placeholder={t("interfaceModal.plaintextPasswordPlaceholder")}
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>{t("interfaceModal.md5Keys")}</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addMd5Key}>
-                    <Plus className="h-3 w-3 mr-1" />
-                    {t("interfaceModal.addKey")}
-                  </Button>
-                </div>
-                {md5Keys.map((key, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      value={key.keyId}
-                      onChange={(e) => updateMd5Key(idx, "keyId", e.target.value)}
-                      placeholder={t("interfaceModal.keyId")}
-                      className="w-24"
-                    />
-                    <Input
-                      type="password"
-                      value={key.keyValue}
-                      onChange={(e) => updateMd5Key(idx, "keyValue", e.target.value)}
-                      placeholder={t("interfaceModal.md5Key")}
-                      className="flex-1"
-                    />
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeMd5Key(idx)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <OspfAuthFields idPrefix="ospf-iface" draft={auth} onChange={setAuth} modes={authModes} />
           </div>
         </ScrollArea>
 

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, PowerOff } from "lucide-react";
 import { powerService } from "@/lib/api/power";
+import { scheduleRequest } from "@/lib/api/power-schedule";
 import { ApiError } from "@/lib/types/api";
 
 interface PoweroffModalProps {
@@ -32,25 +33,14 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
     setLoading(true);
 
     try {
-      let value: string | undefined;
-
-      if (action === "at") {
-        if (!timeValue.trim()) {
-          setError(t("modal.enterTime"));
-          setLoading(false);
-          return;
-        }
-        value = timeValue;
-      } else if (action === "in") {
-        if (!minutesValue.trim()) {
-          setError(t("modal.enterMinutes"));
-          setLoading(false);
-          return;
-        }
-        value = minutesValue;
+      const check = scheduleRequest(action, timeValue, minutesValue);
+      if (check.problem) {
+        setError(t(`modal.${check.problem}`));
+        setLoading(false);
+        return;
       }
 
-      await powerService.poweroff({ action, value });
+      await powerService.poweroff(check.request);
 
       handleClose();
       onSuccess();

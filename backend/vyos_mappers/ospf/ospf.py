@@ -7,38 +7,98 @@ distance, timers, max-metric, graceful-restart, neighbors, access-list,
 auto-cost, log-adjacency-changes, passive-interface, maximum-paths,
 ldp-sync, mpls-te, summary-address, segment-routing, aggregation, capability.
 
-Version-specific logic is in version-specific files.
+The shared class holds the commands both labs have. 1.5-only path methods live
+on the subclass in ``ospf_versions``.
 """
 
-from typing import FrozenSet, List
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class OspfMapper(BaseFeatureMapper):
-    """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
+    """Shared OSPF commands. 1.5-only path methods live on the subclass."""
 
+    # protocols ospf redistribute (both labs). nhrp is 1.5-only.
     _REDIST = (
         "connected", "static", "bgp", "kernel", "rip", "isis", "babel",
     )
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    # Leaves only 1.5 has, mapped to the path method the subclass defines.
+    _VERSIONED_NODES = {
+        "interface retransmit-window": "get_interface_retransmit_window",
+        "virtual-link retransmit-window": "get_area_virtual_link_retransmit_window",
+        "interface authentication null": "get_interface_authentication_null",
+        "virtual-link authentication null": "get_area_virtual_link_authentication_null",
+    }
 
-    def redistribute_protocols(self) -> FrozenSet[str]:
-        if "1.4" in self.version:
-            return frozenset(self._REDIST)
-        return frozenset(self._REDIST) | {"nhrp"}
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only leaves this device has.
+
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"{node} is not supported on this device")
+
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_ospf_config
+
+        return parse_ospf_config(self, full_config)
 
     def redistribute_protocol_list(self) -> List[str]:
-        protocols: List[str] = list(self._REDIST)
-        if "1.4" not in self.version:
-            protocols.append("nhrp")
-        return protocols
+        return list(self._REDIST)
+
+    def redistribute_protocols(self) -> FrozenSet[str]:
+        return frozenset(self.redistribute_protocol_list())
 
     def _require_redistribute(self, protocol: str) -> None:
         if protocol not in self.redistribute_protocols():
             raise ValueError(
                 f"redistribute {protocol} is not supported on this device")
+
+    # ========================================================================
+    # Allowed values (lab ``allowed:`` lines, identical on 1.4 and 1.5)
+    # ========================================================================
+
+    def network_types(self) -> List[str]:
+        return ["broadcast", "non-broadcast", "point-to-multipoint", "point-to-point"]
+
+    def area_types(self) -> List[str]:
+        return ["stub", "nssa", "normal"]
+
+    def abr_types(self) -> List[str]:
+        return ["cisco", "ibm", "shortcut", "standard"]
+
+    def area_shortcut_values(self) -> List[str]:
+        return ["default", "disable", "enable"]
+
+    def area_authentication_values(self) -> List[str]:
+        return ["plaintext-password", "md5"]
+
+    def nssa_translate_values(self) -> List[str]:
+        return ["always", "candidate", "never"]
+
+    def metric_types(self) -> List[str]:
+        """External metric-type (val_help 1-2) for redistribute and originate."""
+        return ["1", "2"]
+
+    def segment_routing_prefix_flags(self) -> List[str]:
+        """Valueless leaves under segment-routing prefix index; the lab allows one at a time."""
+        return ["explicit-null", "no-php-flag"]
+
+    def access_list_export_values(self) -> List[str]:
+        return ["bgp", "connected", "kernel", "rip", "static"]
+
+    def authentication_modes(self) -> List[str]:
+        """Interface and virtual-link authentication modes. 1.5 adds null."""
+        return ["plaintext-password", "md5"]
 
     # ========================================================================
     # Helper base paths
@@ -97,6 +157,9 @@ class OspfMapper(BaseFeatureMapper):
     def get_area_type_stub_default_cost(self, area_id: str, value: str) -> List[str]:
         return self._area(area_id) + ["area-type", "stub", "default-cost", value]
 
+    def get_area_type_stub_default_cost_delete(self, area_id: str) -> List[str]:
+        return self._area(area_id) + ["area-type", "stub", "default-cost"]
+
     def get_area_type_nssa(self, area_id: str) -> List[str]:
         return self._area(area_id) + ["area-type", "nssa"]
 
@@ -105,6 +168,15 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_area_type_nssa_default_cost(self, area_id: str, value: str) -> List[str]:
         return self._area(area_id) + ["area-type", "nssa", "default-cost", value]
+
+    def get_area_type_nssa_default_cost_delete(self, area_id: str) -> List[str]:
+        return self._area(area_id) + ["area-type", "nssa", "default-cost"]
+
+    def get_area_type_nssa_translate(self, area_id: str, value: str) -> List[str]:
+        return self._area(area_id) + ["area-type", "nssa", "translate", value]
+
+    def get_area_type_nssa_translate_delete(self, area_id: str) -> List[str]:
+        return self._area(area_id) + ["area-type", "nssa", "translate"]
 
     def get_area_type_normal(self, area_id: str) -> List[str]:
         return self._area(area_id) + ["area-type", "normal"]
@@ -124,11 +196,17 @@ class OspfMapper(BaseFeatureMapper):
     def get_area_range_cost(self, area_id: str, prefix: str, value: str) -> List[str]:
         return self._area(area_id) + ["range", prefix, "cost", value]
 
+    def get_area_range_cost_delete(self, area_id: str, prefix: str) -> List[str]:
+        return self._area(area_id) + ["range", prefix, "cost"]
+
     def get_area_range_not_advertise(self, area_id: str, prefix: str) -> List[str]:
         return self._area(area_id) + ["range", prefix, "not-advertise"]
 
     def get_area_range_substitute(self, area_id: str, prefix: str, value: str) -> List[str]:
         return self._area(area_id) + ["range", prefix, "substitute", value]
+
+    def get_area_range_substitute_delete(self, area_id: str, prefix: str) -> List[str]:
+        return self._area(area_id) + ["range", prefix, "substitute"]
 
     def get_area_range_delete(self, area_id: str, prefix: str) -> List[str]:
         return self._area(area_id) + ["range", prefix]
@@ -158,32 +236,61 @@ class OspfMapper(BaseFeatureMapper):
         return self._area(area_id) + ["import-list"]
 
     # Area virtual-link
-    def get_area_virtual_link(self, area_id: str, address: str) -> List[str]:
+    def _virtual_link(self, area_id: str, address: str) -> List[str]:
         return self._area(area_id) + ["virtual-link", address]
 
-    def get_area_virtual_link_dead_interval(self, area_id: str, address: str, value: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address, "dead-interval", value]
-
-    def get_area_virtual_link_hello_interval(self, area_id: str, address: str, value: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address, "hello-interval", value]
-
-    def get_area_virtual_link_retransmit_interval(self, area_id: str, address: str, value: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address, "retransmit-interval", value]
-
-    def get_area_virtual_link_transmit_delay(self, area_id: str, address: str, value: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address, "transmit-delay", value]
-
-    def get_area_virtual_link_authentication_md5_key_id(self, area_id: str, address: str, key_id: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address, "authentication", "md5", "key-id", key_id]
-
-    def get_area_virtual_link_authentication_md5_key_id_md5_key(self, area_id: str, address: str, key_id: str, value: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address, "authentication", "md5", "key-id", key_id, "md5-key", value]
-
-    def get_area_virtual_link_authentication_plaintext_password(self, area_id: str, address: str, value: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address, "authentication", "plaintext-password", value]
+    def get_area_virtual_link(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address)
 
     def get_area_virtual_link_delete(self, area_id: str, address: str) -> List[str]:
-        return self._area(area_id) + ["virtual-link", address]
+        return self._virtual_link(area_id, address)
+
+    def get_area_virtual_link_dead_interval(self, area_id: str, address: str, value: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["dead-interval", value]
+
+    def get_area_virtual_link_dead_interval_delete(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["dead-interval"]
+
+    def get_area_virtual_link_hello_interval(self, area_id: str, address: str, value: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["hello-interval", value]
+
+    def get_area_virtual_link_hello_interval_delete(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["hello-interval"]
+
+    def get_area_virtual_link_retransmit_interval(self, area_id: str, address: str, value: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["retransmit-interval", value]
+
+    def get_area_virtual_link_retransmit_interval_delete(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["retransmit-interval"]
+
+    def get_area_virtual_link_transmit_delay(self, area_id: str, address: str, value: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["transmit-delay", value]
+
+    def get_area_virtual_link_transmit_delay_delete(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["transmit-delay"]
+
+    # Virtual-link authentication
+    def get_area_virtual_link_authentication_delete(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["authentication"]
+
+    def get_area_virtual_link_authentication_md5_key_id(self, area_id: str, address: str, key_id: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["authentication", "md5", "key-id", key_id]
+
+    def get_area_virtual_link_authentication_md5_key_id_md5_key(
+        self, area_id: str, address: str, key_id: str, value: str
+    ) -> List[str]:
+        return self._virtual_link(area_id, address) + [
+            "authentication", "md5", "key-id", key_id, "md5-key", value,
+        ]
+
+    def get_area_virtual_link_authentication_md5_delete(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["authentication", "md5"]
+
+    def get_area_virtual_link_authentication_plaintext_password(self, area_id: str, address: str, value: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["authentication", "plaintext-password", value]
+
+    def get_area_virtual_link_authentication_plaintext_password_delete(self, area_id: str, address: str) -> List[str]:
+        return self._virtual_link(area_id, address) + ["authentication", "plaintext-password"]
 
     # ========================================================================
     # Interfaces
@@ -258,6 +365,12 @@ class OspfMapper(BaseFeatureMapper):
     def get_interface_bfd_delete(self, iface: str) -> List[str]:
         return self._interface(iface) + ["bfd"]
 
+    def get_interface_bfd_profile(self, iface: str, value: str) -> List[str]:
+        return self._interface(iface) + ["bfd", "profile", value]
+
+    def get_interface_bfd_profile_delete(self, iface: str) -> List[str]:
+        return self._interface(iface) + ["bfd", "profile"]
+
     def get_interface_mtu_ignore(self, iface: str) -> List[str]:
         return self._interface(iface) + ["mtu-ignore"]
 
@@ -283,8 +396,14 @@ class OspfMapper(BaseFeatureMapper):
     def get_interface_authentication_md5_key_id_md5_key(self, iface: str, key_id: str, value: str) -> List[str]:
         return self._interface(iface) + ["authentication", "md5", "key-id", key_id, "md5-key", value]
 
+    def get_interface_authentication_md5_delete(self, iface: str) -> List[str]:
+        return self._interface(iface) + ["authentication", "md5"]
+
     def get_interface_authentication_plaintext_password(self, iface: str, value: str) -> List[str]:
         return self._interface(iface) + ["authentication", "plaintext-password", value]
+
+    def get_interface_authentication_plaintext_password_delete(self, iface: str) -> List[str]:
+        return self._interface(iface) + ["authentication", "plaintext-password"]
 
     def get_interface_authentication_delete(self, iface: str) -> List[str]:
         return self._interface(iface) + ["authentication"]
@@ -328,7 +447,20 @@ class OspfMapper(BaseFeatureMapper):
         self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["route-map", value]
 
+    def get_redistribute_metric_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
+        return self._redistribute(protocol) + ["metric"]
+
+    def get_redistribute_metric_type_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
+        return self._redistribute(protocol) + ["metric-type"]
+
+    def get_redistribute_route_map_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
+        return self._redistribute(protocol) + ["route-map"]
+
     def get_redistribute_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._redistribute(protocol)
 
     def get_redistribute_table(self, table: str) -> List[str]:
@@ -342,6 +474,15 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_redistribute_table_route_map(self, table: str, value: str) -> List[str]:
         return self._ospf() + ["redistribute", "table", table, "route-map", value]
+
+    def get_redistribute_table_metric_delete(self, table: str) -> List[str]:
+        return self._ospf() + ["redistribute", "table", table, "metric"]
+
+    def get_redistribute_table_metric_type_delete(self, table: str) -> List[str]:
+        return self._ospf() + ["redistribute", "table", table, "metric-type"]
+
+    def get_redistribute_table_route_map_delete(self, table: str) -> List[str]:
+        return self._ospf() + ["redistribute", "table", table, "route-map"]
 
     def get_redistribute_table_delete(self, table: str) -> List[str]:
         return self._ospf() + ["redistribute", "table", table]
@@ -365,8 +506,27 @@ class OspfMapper(BaseFeatureMapper):
     def get_default_information_originate_route_map(self, value: str) -> List[str]:
         return self._ospf() + ["default-information", "originate", "route-map", value]
 
+    def get_default_information_originate_metric_delete(self) -> List[str]:
+        return self._ospf() + ["default-information", "originate", "metric"]
+
+    def get_default_information_originate_metric_type_delete(self) -> List[str]:
+        return self._ospf() + ["default-information", "originate", "metric-type"]
+
+    def get_default_information_originate_route_map_delete(self) -> List[str]:
+        return self._ospf() + ["default-information", "originate", "route-map"]
+
     def get_default_information_originate_delete(self) -> List[str]:
         return self._ospf() + ["default-information", "originate"]
+
+    # ========================================================================
+    # Default Metric
+    # ========================================================================
+
+    def get_default_metric(self, value: str) -> List[str]:
+        return self._ospf() + ["default-metric", value]
+
+    def get_default_metric_delete(self) -> List[str]:
+        return self._ospf() + ["default-metric"]
 
     # ========================================================================
     # Distance
@@ -387,6 +547,15 @@ class OspfMapper(BaseFeatureMapper):
     def get_distance_ospf_intra_area(self, value: str) -> List[str]:
         return self._ospf() + ["distance", "ospf", "intra-area", value]
 
+    def get_distance_ospf_external_delete(self) -> List[str]:
+        return self._ospf() + ["distance", "ospf", "external"]
+
+    def get_distance_ospf_inter_area_delete(self) -> List[str]:
+        return self._ospf() + ["distance", "ospf", "inter-area"]
+
+    def get_distance_ospf_intra_area_delete(self) -> List[str]:
+        return self._ospf() + ["distance", "ospf", "intra-area"]
+
     def get_distance_ospf_delete(self) -> List[str]:
         return self._ospf() + ["distance", "ospf"]
 
@@ -402,6 +571,15 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_timers_throttle_spf_max_holdtime(self, value: str) -> List[str]:
         return self._ospf() + ["timers", "throttle", "spf", "max-holdtime", value]
+
+    def get_timers_throttle_spf_delay_delete(self) -> List[str]:
+        return self._ospf() + ["timers", "throttle", "spf", "delay"]
+
+    def get_timers_throttle_spf_initial_holdtime_delete(self) -> List[str]:
+        return self._ospf() + ["timers", "throttle", "spf", "initial-holdtime"]
+
+    def get_timers_throttle_spf_max_holdtime_delete(self) -> List[str]:
+        return self._ospf() + ["timers", "throttle", "spf", "max-holdtime"]
 
     def get_timers_throttle_spf_delete(self) -> List[str]:
         return self._ospf() + ["timers", "throttle", "spf"]
@@ -419,6 +597,12 @@ class OspfMapper(BaseFeatureMapper):
     def get_max_metric_router_lsa_on_startup(self, value: str) -> List[str]:
         return self._ospf() + ["max-metric", "router-lsa", "on-startup", value]
 
+    def get_max_metric_router_lsa_on_shutdown_delete(self) -> List[str]:
+        return self._ospf() + ["max-metric", "router-lsa", "on-shutdown"]
+
+    def get_max_metric_router_lsa_on_startup_delete(self) -> List[str]:
+        return self._ospf() + ["max-metric", "router-lsa", "on-startup"]
+
     def get_max_metric_router_lsa_delete(self) -> List[str]:
         return self._ospf() + ["max-metric", "router-lsa"]
 
@@ -431,6 +615,9 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_graceful_restart_grace_period(self, value: str) -> List[str]:
         return self._ospf() + ["graceful-restart", "grace-period", value]
+
+    def get_graceful_restart_grace_period_delete(self) -> List[str]:
+        return self._ospf() + ["graceful-restart", "grace-period"]
 
     def get_graceful_restart_helper_enable(self) -> List[str]:
         return self._ospf() + ["graceful-restart", "helper", "enable"]
@@ -450,6 +637,12 @@ class OspfMapper(BaseFeatureMapper):
     def get_graceful_restart_helper_supported_grace_time(self, value: str) -> List[str]:
         return self._ospf() + ["graceful-restart", "helper", "supported-grace-time", value]
 
+    def get_graceful_restart_helper_supported_grace_time_delete(self) -> List[str]:
+        return self._ospf() + ["graceful-restart", "helper", "supported-grace-time"]
+
+    def get_graceful_restart_helper_delete(self) -> List[str]:
+        return self._ospf() + ["graceful-restart", "helper"]
+
     def get_graceful_restart_delete(self) -> List[str]:
         return self._ospf() + ["graceful-restart"]
 
@@ -465,6 +658,12 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_neighbor_priority(self, address: str, value: str) -> List[str]:
         return self._ospf() + ["neighbor", address, "priority", value]
+
+    def get_neighbor_poll_interval_delete(self, address: str) -> List[str]:
+        return self._ospf() + ["neighbor", address, "poll-interval"]
+
+    def get_neighbor_priority_delete(self, address: str) -> List[str]:
+        return self._ospf() + ["neighbor", address, "priority"]
 
     def get_neighbor_delete(self, address: str) -> List[str]:
         return self._ospf() + ["neighbor", address]
@@ -513,7 +712,7 @@ class OspfMapper(BaseFeatureMapper):
         return self._ospf() + ["passive-interface", "default"]
 
     def get_passive_interface_default_delete(self) -> List[str]:
-        return self._ospf() + ["passive-interface", "default"]
+        return self._ospf() + ["passive-interface"]
 
     # ========================================================================
     # Maximum Paths
@@ -545,6 +744,9 @@ class OspfMapper(BaseFeatureMapper):
     def get_mpls_te_router_address(self, value: str) -> List[str]:
         return self._ospf() + ["mpls-te", "router-address", value]
 
+    def get_mpls_te_router_address_delete(self) -> List[str]:
+        return self._ospf() + ["mpls-te", "router-address"]
+
     def get_mpls_te_delete(self) -> List[str]:
         return self._ospf() + ["mpls-te"]
 
@@ -560,6 +762,9 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_summary_address_tag(self, prefix: str, value: str) -> List[str]:
         return self._ospf() + ["summary-address", prefix, "tag", value]
+
+    def get_summary_address_tag_delete(self, prefix: str) -> List[str]:
+        return self._ospf() + ["summary-address", prefix, "tag"]
 
     def get_summary_address_delete(self, prefix: str) -> List[str]:
         return self._ospf() + ["summary-address", prefix]
@@ -593,6 +798,15 @@ class OspfMapper(BaseFeatureMapper):
     def get_segment_routing_maximum_label_depth(self, value: str) -> List[str]:
         return self._ospf() + ["segment-routing", "maximum-label-depth", value]
 
+    def get_segment_routing_maximum_label_depth_delete(self) -> List[str]:
+        return self._ospf() + ["segment-routing", "maximum-label-depth"]
+
+    def get_segment_routing_global_block_delete(self) -> List[str]:
+        return self._ospf() + ["segment-routing", "global-block"]
+
+    def get_segment_routing_local_block_delete(self) -> List[str]:
+        return self._ospf() + ["segment-routing", "local-block"]
+
     def get_segment_routing_prefix(self, prefix: str, index_value: str) -> List[str]:
         return self._ospf() + ["segment-routing", "prefix", prefix, "index", "value", index_value]
 
@@ -601,6 +815,9 @@ class OspfMapper(BaseFeatureMapper):
 
     def get_segment_routing_prefix_no_php_flag(self, prefix: str) -> List[str]:
         return self._ospf() + ["segment-routing", "prefix", prefix, "index", "no-php-flag"]
+
+    def get_segment_routing_prefix_delete(self, prefix: str) -> List[str]:
+        return self._ospf() + ["segment-routing", "prefix", prefix]
 
     def get_segment_routing_delete(self) -> List[str]:
         return self._ospf() + ["segment-routing"]

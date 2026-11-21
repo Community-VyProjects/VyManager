@@ -52,6 +52,9 @@ from .local_route.local_route_versions import get_local_route_mapper
 from .route import RouteMapper
 from .route.route_versions import get_route_mapper
 from .as_path_list import AsPathListMapper
+from .community_list import CommunityListMapper
+from .extcommunity_list import ExtCommunityListMapper
+from .large_community_list import LargeCommunityListMapper
 from .firewall_global_options import FirewallGlobalOptionsMapper
 from .firewall_global_options.firewall_global_options_versions import get_firewall_global_options_mapper
 from .wireguard import WireGuardMapper
@@ -222,6 +225,10 @@ CommandMapperRegistry.register_feature("local_route", get_local_route_mapper)
 CommandMapperRegistry.register_feature("route", get_route_mapper)
 # AS Path List uses direct class (no version differences)
 CommandMapperRegistry.register_feature("as_path_list", AsPathListMapper)
+# Community-list families share PolicyListMapper (no version differences)
+CommandMapperRegistry.register_feature("community_list", CommunityListMapper)
+CommandMapperRegistry.register_feature("extcommunity_list", ExtCommunityListMapper)
+CommandMapperRegistry.register_feature("large_community_list", LargeCommunityListMapper)
 # Firewall Global Options uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_global_options", get_firewall_global_options_mapper)
 # WireGuard uses factory for version-specific mappers
@@ -366,6 +373,9 @@ __all__ = [
     "LocalRouteMapper",
     "RouteMapper",
     "AsPathListMapper",
+    "CommunityListMapper",
+    "ExtCommunityListMapper",
+    "LargeCommunityListMapper",
     "FirewallGlobalOptionsMapper",
     "WireGuardMapper",
     "BridgeFirewallMapper",

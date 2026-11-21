@@ -14,7 +14,7 @@ from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/ospf/OspfInterfaceModal.tsx"
-API = REPO / "frontend/src/lib/api/ospf.ts"
+API = REPO / "frontend/src/lib/api/ospf-save-ops.ts"
 
 CASES = [
     (
