@@ -288,6 +288,20 @@ def test_status_keeps_the_row_when_the_device_check_fails(client, device, db, st
     assert deletes == [("i1",)]
 
 
+def test_status_reports_a_cancelled_row_without_the_device(client, device, db):
+    db["row"] = {**_stored_row(), "cancelled": True, "cancelledBy": "u2", "cancelledByName": "User Two"}
+    resp = client.http.get("/vyos/power/status")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["scheduled"] is False
+    assert body["cancelled"] is True
+    assert body["cancelled_by_name"] == "User Two"
+    assert body["action_type"] == "reboot"
+    assert device["calls"] == []
+    deletes = [args for query, args in db["executed"] if query.startswith("DELETE")]
+    assert deletes == [("i1",)]
+
+
 @pytest.mark.parametrize(
     "method,route,body",
     [

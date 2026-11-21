@@ -15,9 +15,11 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import re
 import uuid
-from typing import Any, Callable, Dict
+from contextlib import AbstractAsyncContextManager
+from typing import Any, Callable
 
 from session_vyos_service import get_session_vyos_service
+from vyos_service import VyOSService
 from fastapi_permissions import require_read_permission, require_write_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
@@ -31,6 +33,11 @@ router = APIRouter(prefix="/vyos/power", tags=["power"])
 def _utcnow() -> datetime:
     """Naive UTC now, the form scheduledTime is stored in."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _utc(scheduled_time: Optional[datetime]) -> Optional[datetime]:
+    """Timezone-aware UTC for JSON serialization."""
+    return scheduled_time.replace(tzinfo=ZoneInfo("UTC")) if scheduled_time else None
 
 
 # powerctrl.py parses 'at' with strptime("%H:%M") and hands 'in' to shutdown
@@ -143,11 +150,23 @@ def parse_scheduled_time(output: str, vyos_timezone: Optional[str] = None) -> Op
 
 
 async def get_scheduled_power_status(
-    conn_factory: Callable[[], Any],
+    conn_factory: Callable[[], AbstractAsyncContextManager[Any]],
     instance_id: str,
-    service: Any,
-) -> Dict[str, Any]:
-    """Clean up and reconcile the latest scheduled power action."""
+    get_service: Callable[[], VyOSService],
+) -> PowerStatusResponse:
+    """Latest stored power action for the instance, checked against the device.
+
+    Shared by GET /status, the SSE initial push and the banner poller.
+    scheduledTime is stored as naive UTC (see parse_scheduled_time and the
+    _utcnow() writes), so it is compared against NOW() AT TIME ZONE 'UTC', not
+    a tz-aware NOW(): under a non-UTC database session timezone a bare NOW()
+    shifts the comparison by the offset and hides pending actions.
+
+    A cancelled row is reported as cancelled without asking the device (the
+    cancel already ran shutdown -c). For a pending row, `show reboot` decides:
+    nothing scheduled there drops the row; a failed check, or no service to
+    check with, keeps it.
+    """
     async with conn_factory() as conn:
         await conn.execute(
             """
@@ -172,9 +191,28 @@ async def get_scheduled_power_status(
         )
 
     if not result:
-        return {"scheduled": False}
+        return PowerStatusResponse(scheduled=False)
 
+    def status(scheduled: bool) -> PowerStatusResponse:
+        return PowerStatusResponse(
+            scheduled=scheduled,
+            action_type=result["actionType"],
+            scheduled_time=_utc(result["scheduledTime"]),
+            scheduled_by=result["scheduledBy"],
+            scheduled_by_name=result["scheduledByName"],
+            cancelled=result["cancelled"],
+            cancelled_by=result["cancelledBy"],
+            cancelled_by_name=result["cancelledByName"],
+        )
+
+    if result["cancelled"]:
+        return status(scheduled=False)
+
+    # The connection above is closed first so no DB connection is held across
+    # the device call. Only whether a time is present matters here, so no
+    # timezone conversion is needed.
     try:
+        service = get_service()
         response = await run_in_threadpool(service.device.show, path=["reboot"])
         if response.status != 200 or response.error:
             raise RuntimeError(f"VyOS command failed: {response.error}")
@@ -196,24 +234,9 @@ async def get_scheduled_power_status(
                 instance_id,
                 result["actionType"],
             )
-        return {"scheduled": False}
+        return PowerStatusResponse(scheduled=False)
 
-    scheduled_time = result["scheduledTime"]
-    if scheduled_time and (
-        not hasattr(scheduled_time, "tzinfo") or scheduled_time.tzinfo is None
-    ):
-        scheduled_time = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
-
-    return {
-        "scheduled": True,
-        "action_type": result["actionType"],
-        "scheduled_time": scheduled_time,
-        "scheduled_by": result["scheduledBy"],
-        "scheduled_by_name": result["scheduledByName"],
-        "cancelled": result["cancelled"],
-        "cancelled_by": result["cancelledBy"],
-        "cancelled_by_name": result["cancelledByName"],
-    }
+    return status(scheduled=True)
 
 
 async def get_vyos_timezone(service) -> Optional[str]:
@@ -347,11 +370,6 @@ async def _run_power_action(
     return scheduled_time
 
 
-def _utc(scheduled_time: Optional[datetime]) -> Optional[datetime]:
-    """Timezone-aware UTC for JSON serialization."""
-    return scheduled_time.replace(tzinfo=ZoneInfo("UTC")) if scheduled_time else None
-
-
 # ========================================================================
 # Endpoint: Reboot
 # ========================================================================
@@ -433,9 +451,8 @@ async def get_power_status(request: Request):
 
     service = get_session_vyos_service(request)
     instance_id = request.state.instance["id"]
-    status = await get_scheduled_power_status(
+    return await get_scheduled_power_status(
         lambda: request_scoped_conn(request),
         instance_id,
-        service,
+        lambda: service,
     )
-    return PowerStatusResponse(**status)

@@ -3,43 +3,56 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Power, PowerOff, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertCircle, AlertTriangle, Power, PowerOff, X } from "lucide-react";
 import { powerService, PowerStatusResponse } from "@/lib/api/power";
+import type { ApiError } from "@/lib/types/api";
 
 interface PowerActionBannerProps {
   powerStatus: PowerStatusResponse | null;
 }
 
+/** Identifies one cancellation, so its notice shows once however often it is pushed. */
+function cancelNoticeKey(status: PowerStatusResponse): string | null {
+  if (!status.cancelled) return null;
+  return `${status.action_type ?? ""}|${status.scheduled_time ?? ""}|${status.cancelled_by ?? ""}`;
+}
+
 export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
   const t = useTranslations("power.banner");
-  const tc = useTranslations("common");
-  const [status, setStatus] = useState<PowerStatusResponse | null>(null);
+  const [local, setLocal] = useState<{
+    from: PowerStatusResponse | null;
+    status: PowerStatusResponse;
+  } | null>(null);
   const [countdown, setCountdown] = useState<string>("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [showCancelledMessage, setShowCancelledMessage] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [dismissedNotice, setDismissedNotice] = useState<string | null>(null);
 
-  // Sync SSE-driven props into local state
+  // The SSE-driven prop wins; a status fetched after a cancel shows until the
+  // next push replaces the prop.
+  const status = local && local.from === powerStatus ? local.status : powerStatus;
+  const noticeKey = status ? cancelNoticeKey(status) : null;
+  const showCancelledMessage = noticeKey !== null && noticeKey !== dismissedNotice;
+
+  // A cancellation notice shows for 5 seconds, once per cancellation.
   useEffect(() => {
-    if (powerStatus === null) return;
-
-    setStatus(powerStatus);
-
-    // If action was just cancelled, show message briefly
-    if (powerStatus.cancelled && !showCancelledMessage) {
-      setShowCancelledMessage(true);
-      setTimeout(() => {
-        setShowCancelledMessage(false);
-        setStatus(null);
-      }, 5000);
-    }
-  }, [powerStatus, showCancelledMessage]);
+    if (!showCancelledMessage) return;
+    const timer = setTimeout(() => setDismissedNotice(noticeKey), 5000);
+    return () => clearTimeout(timer);
+  }, [showCancelledMessage, noticeKey]);
 
   // Update countdown every second
   useEffect(() => {
-    if (!status?.scheduled || !status.scheduled_time) {
-      setCountdown("");
-      return;
-    }
+    if (!status?.scheduled || !status.scheduled_time) return;
 
     const updateCountdown = () => {
       const scheduledTime = new Date(status.scheduled_time!);
@@ -70,29 +83,37 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
     return () => clearInterval(interval);
   }, [status, t]);
 
-  const handleCancel = async () => {
+  const closeConfirm = () => {
+    if (cancelling) return;
+    setConfirmOpen(false);
+    setCancelError(null);
+  };
+
+  const handleConfirmCancel = async () => {
     if (!status?.action_type) return;
 
     setCancelling(true);
+    setCancelError(null);
     try {
       if (status.action_type === "reboot") {
         await powerService.reboot({ action: "cancel" });
       } else {
         await powerService.poweroff({ action: "cancel" });
       }
-
-      // SSE will push updated status shortly; also fetch eagerly
-      const result = await powerService.getStatus();
-      setStatus(result);
-      setShowCancelledMessage(true);
-      setTimeout(() => {
-        setShowCancelledMessage(false);
-        setStatus(null);
-      }, 5000);
     } catch (err) {
-      console.error("Failed to cancel power action:", err);
-    } finally {
+      setCancelError((err as ApiError).message || t("cancelFailed"));
       setCancelling(false);
+      return;
+    }
+    setCancelling(false);
+    setConfirmOpen(false);
+
+    // SSE will push updated status shortly; also fetch eagerly
+    try {
+      const result = await powerService.getStatus();
+      setLocal({ from: powerStatus, status: result });
+    } catch {
+      // The SSE refresh delivers the same status
     }
   };
 
@@ -121,10 +142,7 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setShowCancelledMessage(false);
-                setStatus(null);
-              }}
+              onClick={() => setDismissedNotice(noticeKey)}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -175,14 +193,48 @@ export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleCancel}
+            onClick={() => setConfirmOpen(true)}
             disabled={cancelling}
             className="border-current"
           >
-            {cancelling ? t("cancelling") : tc("cancel")}
+            {cancelling ? t("cancelling") : isReboot ? t("cancelReboot") : t("cancelPoweroff")}
           </Button>
         </div>
       </div>
+
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) closeConfirm();
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>{isReboot ? t("cancelRebootTitle") : t("cancelPoweroffTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("scheduledBy", { name: status?.scheduled_by_name || t("unknown") })}
+              {status?.scheduled_time &&
+                ` • ${new Date(status.scheduled_time).toLocaleString()}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {cancelError && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+              <p className="text-sm text-destructive">{cancelError}</p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeConfirm} disabled={cancelling}>
+              {t("keepScheduled")}
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmCancel} disabled={cancelling}>
+              {cancelling ? t("cancelling") : isReboot ? t("cancelReboot") : t("cancelPoweroff")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

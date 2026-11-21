@@ -272,18 +272,14 @@ def _get_commit_confirm_state(instance_id: str) -> Dict[str, Any]:
 
 
 async def _get_power_status_state(request: Request) -> Dict[str, Any]:
-    """Get power status from the database."""
+    """Get power status: the stored row, checked against the device."""
     try:
-        instance_id = request.state.instance["id"]
-        service = get_session_vyos_service(request)
         status = await get_scheduled_power_status(
             lambda: request_scoped_conn(request),
-            instance_id,
-            service,
+            request.state.instance["id"],
+            lambda: get_session_vyos_service(request),
         )
-        if status["scheduled"] and status["scheduled_time"]:
-            status["scheduled_time"] = status["scheduled_time"].isoformat()
-        return status
+        return status.model_dump(mode="json")
     except Exception:
         logger.exception("Failed to get power status for SSE")
         return {"scheduled": False}
@@ -335,7 +331,7 @@ async def _poll_banner_state_for_instance(
             }
 
         if event_manager.update_last_state(instance_id, EVENT_CONFIG_DIFF, config_diff_data):
-            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, config_diff_data)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
     except Exception:
         logger.debug("Poller: failed to get config diff for instance %s", instance_id)
 
@@ -343,7 +339,7 @@ async def _poll_banner_state_for_instance(
     try:
         cc_data = _get_commit_confirm_state(instance_id)
         if event_manager.update_last_state(instance_id, EVENT_COMMIT_CONFIRM, cc_data):
-            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, cc_data)
+            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, {"commit_confirm": cc_data})
     except Exception:
         logger.debug("Poller: failed to get commit-confirm for instance %s", instance_id)
 
@@ -351,17 +347,14 @@ async def _poll_banner_state_for_instance(
     try:
         db_pool = app_state.db_pool
         if db_pool:
-            service = _session_device_registry.get(instance_id)
-            power_data = await get_scheduled_power_status(
+            status = await get_scheduled_power_status(
                 db_pool.acquire,
                 instance_id,
-                service,
+                lambda: _session_device_registry.get(instance_id),
             )
-            if power_data["scheduled"] and power_data["scheduled_time"]:
-                power_data["scheduled_time"] = power_data["scheduled_time"].isoformat()
-
+            power_data = status.model_dump(mode="json")
             if event_manager.update_last_state(instance_id, EVENT_POWER_STATUS, power_data):
-                event_manager.emit(instance_id, EVENT_POWER_STATUS, power_data)
+                event_manager.emit(instance_id, EVENT_POWER_STATUS, {"power_status": power_data})
     except Exception:
         logger.debug("Poller: failed to get power status for instance %s", instance_id)
 
