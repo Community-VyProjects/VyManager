@@ -75,7 +75,7 @@ def loop_thread():
 def service(device, db):
     def show(path):
         device["calls"].append(path)
-        device["threads"].append(threading.get_ident())
+        device["threads"].append(threading.current_thread())
         device["conn_open"].append(db["open"])
         return SimpleNamespace(status=device["status"], result=device["result"], error=device["error"])
 
@@ -99,7 +99,7 @@ def _conn_factory(db):
 
 def _run(coro, loop_thread):
     async def main():
-        loop_thread["id"] = threading.get_ident()
+        loop_thread["thread"] = threading.current_thread()
         return await coro
 
     return asyncio.run(main())
@@ -172,7 +172,7 @@ def test_sse_checks_show_reboot_off_the_event_loop(sse, device, db, loop_thread)
     assert status["id"] == "r1"
     assert status["scheduled_time"].endswith("Z")
     assert device["calls"] == [["reboot"]]
-    assert loop_thread["id"] not in device["threads"]
+    assert loop_thread["thread"] not in device["threads"]
     assert device["conn_open"] == [False]
 
 
@@ -276,7 +276,7 @@ def test_poller_clears_the_row_off_the_event_loop(poller, db, device, loop_threa
     assert poller.states["power_status"]["scheduled"] is False
     assert _deletes(db)[-1] == ("r1",)
     assert "WHERE id = $1 AND cancelled = false" in _row_delete_query(db)[0]
-    assert loop_thread["id"] not in device["threads"]
+    assert loop_thread["thread"] not in device["threads"]
     assert device["conn_open"] == [False]
 
 

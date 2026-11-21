@@ -32,11 +32,11 @@ class Service:
         return self.version
 
     def get_full_config(self, refresh=False):
-        self.device_threads.append(threading.get_ident())
+        self.device_threads.append(threading.current_thread())
         return self.config
 
     def execute_batch(self, batch):
-        self.device_threads.append(threading.get_ident())
+        self.device_threads.append(threading.current_thread())
         if batch.is_empty():
             raise ValueError("Cannot execute empty batch")
         self.executed.append(batch.get_operations())
@@ -63,7 +63,7 @@ def _app(monkeypatch, service, calls=None):
 
     @app.middleware("http")
     async def record_loop_thread(request: Request, call_next):
-        loop_threads.add(threading.get_ident())
+        loop_threads.add(threading.current_thread())
         return await call_next(request)
 
     app.include_router(router)
