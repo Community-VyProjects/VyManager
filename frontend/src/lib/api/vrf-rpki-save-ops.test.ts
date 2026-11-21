@@ -186,11 +186,13 @@ describe("vrfRpkiProblem", () => {
       key: "range",
       field: "port",
       ...RPKI_RANGES.port,
+      name: "192.0.2.10",
     });
     assert.deepEqual(vrfRpkiProblem(fields({ caches: [cache({ preference: "1.5" })] })), {
       key: "range",
       field: "preference",
       ...RPKI_RANGES.preference,
+      name: "192.0.2.10",
     });
     assert.equal(vrfRpkiProblem(fields({ expire: String(max), polling: "86400" })), null);
   });

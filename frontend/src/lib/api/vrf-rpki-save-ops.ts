@@ -34,7 +34,7 @@ export type VrfRpkiProblem =
   | { key: "portRequired"; name: string }
   | { key: "preferenceRequired"; name: string }
   | { key: "sshIncomplete"; name: string }
-  | { key: "range"; field: RpkiRangeField; min: number; max: number };
+  | { key: "range"; field: RpkiRangeField; min: number; max: number; name?: string };
 
 /** Every value as both the save check and the emit read it. */
 function text(value: string | number | null | undefined): string {
@@ -84,11 +84,11 @@ function cacheRows(fields: VrfRpkiFields): VrfRpkiCacheFields[] {
   return fields.caches.map(normalizeCache).filter((cache) => cache.name || hasData(cache));
 }
 
-function outOfRange(value: string, field: RpkiRangeField): VrfRpkiProblem | null {
+function outOfRange(value: string, field: RpkiRangeField, name?: string): VrfRpkiProblem | null {
   if (!value) return null;
   const { min, max } = RPKI_RANGES[field];
   if (!/^[0-9]{1,6}$/.test(value) || Number(value) < min || Number(value) > max) {
-    return { key: "range", field, min, max };
+    return name ? { key: "range", field, min, max, name } : { key: "range", field, min, max };
   }
   return null;
 }
@@ -116,7 +116,8 @@ export function vrfRpkiProblem(fields: VrfRpkiFields): VrfRpkiProblem | null {
     seen.add(cache.name);
     if (!cache.port) return { key: "portRequired", name: cache.name };
     if (!cache.preference) return { key: "preferenceRequired", name: cache.name };
-    const problem = outOfRange(cache.port, "port") || outOfRange(cache.preference, "preference");
+    const problem =
+      outOfRange(cache.port, "port", cache.name) || outOfRange(cache.preference, "preference", cache.name);
     if (problem) return problem;
     if (Boolean(cache.sshUsername) !== Boolean(cache.sshKey)) {
       return { key: "sshIncomplete", name: cache.name };

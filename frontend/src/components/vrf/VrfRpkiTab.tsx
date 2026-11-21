@@ -34,19 +34,31 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
   const t = useTranslations("vrfProtocols");
   const [modalOpen, setModalOpen] = useState(false);
   const [rawOpen, setRawOpen] = useState(false);
-  const [confirm, setConfirm] = useState<"enable" | "remove" | null>(null);
+  // The action keeps the dialog text stable while it closes; openedFor is
+  // whether the RPKI node existed when the dialog opened.
+  const [action, setAction] = useState<"enable" | "remove">("enable");
+  const [openedFor, setOpenedFor] = useState<boolean | null>(null);
   const [applying, setApplying] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const tc = useTranslations("common");
   const rpki = vrf.rpki;
   const caches = rpki?.caches ?? [];
-  // The dialog applies to the state it opened for; a refresh that flips the
-  // RPKI node closes it instead of offering the other action.
-  const confirmOpen = confirm === (rpki ? "remove" : "enable");
+  // A refresh that flips the RPKI node ends the dialog it opened for.
+  if (openedFor !== null && openedFor !== Boolean(rpki)) {
+    setOpenedFor(null);
+    setConfirmError(null);
+  }
+  const confirmOpen = openedFor !== null;
+
+  const openConfirm = (next: "enable" | "remove") => {
+    setAction(next);
+    setOpenedFor(Boolean(rpki));
+    setConfirmError(null);
+  };
 
   const closeConfirm = (open: boolean) => {
     if (open || applying) return;
-    setConfirm(null);
+    setOpenedFor(null);
     setConfirmError(null);
   };
 
@@ -55,12 +67,12 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
     setConfirmError(null);
     try {
       const result: VyOSResponse =
-        confirm === "remove" ? await vrfService.deleteRpki(vrf.name) : await vrfService.enableRpki(vrf.name);
+        action === "remove" ? await vrfService.deleteRpki(vrf.name) : await vrfService.enableRpki(vrf.name);
       if (!result.success) {
         setConfirmError(result.error || tc("operationFailed"));
         return;
       }
-      setConfirm(null);
+      setOpenedFor(null);
       onRefresh();
     } catch (e) {
       setConfirmError((e as ApiError).message || tc("operationFailed"));
@@ -123,13 +135,13 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
 
       <div className="flex justify-end gap-2">
         {canWrite && !rpki && (
-          <Button variant="outline" size="sm" onClick={() => setConfirm("enable")}>
+          <Button variant="outline" size="sm" onClick={() => openConfirm("enable")}>
             <Power className="h-3.5 w-3.5 mr-1.5" />
             {t("rpki.enable")}
           </Button>
         )}
         {canWrite && rpki && (
-          <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirm("remove")}>
+          <Button variant="outline" size="sm" className="text-destructive" onClick={() => openConfirm("remove")}>
             <Trash2 className="h-3.5 w-3.5 mr-1.5" />
             {t("rpki.remove")}
           </Button>
@@ -160,17 +172,17 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
       <Dialog open={confirmOpen} onOpenChange={closeConfirm}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{confirm === "remove" ? t("rpki.remove") : t("rpki.enable")}</DialogTitle>
+            <DialogTitle>{action === "remove" ? t("rpki.remove") : t("rpki.enable")}</DialogTitle>
             <DialogDescription>
-              {confirm === "remove"
+              {action === "remove"
                 ? t("rpki.removeDescription", { vrf: vrf.name })
                 : t("rpki.enableDescription", { vrf: vrf.name })}
             </DialogDescription>
           </DialogHeader>
           {confirmError && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              {confirmError}
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <pre className="whitespace-pre-wrap break-words font-mono text-xs">{confirmError}</pre>
             </div>
           )}
           <DialogFooter>
@@ -178,7 +190,7 @@ export function VrfRpkiTab({ vrf, canWrite, onRefresh }: VrfRpkiTabProps) {
               {tc("cancel")}
             </Button>
             <Button
-              variant={confirm === "remove" ? "destructive" : "default"}
+              variant={action === "remove" ? "destructive" : "default"}
               onClick={handleApply}
               disabled={applying}
             >

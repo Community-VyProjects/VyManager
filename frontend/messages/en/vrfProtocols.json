@@ -81,6 +81,7 @@
     "preferenceRequired": "Cache {name} needs a preference.",
     "sshIncomplete": "Cache {name} needs both an SSH username and an SSH key.",
     "range": "{label} must be between {min} and {max}.",
+    "cacheRange": "Cache {name}: {label} must be between {min} and {max}.",
     "enable": "Enable RPKI",
     "enableDescription": "Create the RPKI node in VRF {vrf}?",
     "remove": "Remove RPKI",

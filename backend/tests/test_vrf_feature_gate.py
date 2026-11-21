@@ -3,7 +3,7 @@
 The labs differ: ``vrf name <vrf>`` has ``protocols failover``,
 ``protocols rpki``, ``service dhcp-server`` and ``service dhcpv6-server`` on
 1.5 only. The version subclass lists them; the builder and capabilities read
-that list. The RPKI paths live on the subclass only.
+that list. Each tree is the global feature builder under the VRF prefix.
 """
 
 from pathlib import Path
@@ -66,14 +66,7 @@ def test_versioned_nodes_are_the_1_5_only_lab_trees():
     assert get_vrf_mapper("1.4").versioned_nodes() == frozenset()
     assert get_vrf_mapper(ROLLING).versioned_nodes() == LAB_15_ONLY
     assert set(VrfMapper._VERSIONED_FEATURES.values()) == LAB_15_ONLY
-    # Every key but rpki prefixes a global builder; rpki has its own mixin.
-    assert set(VrfMapper._VERSIONED_FEATURES) - {"rpki"} < set(FEATURE_BUILDERS)
-
-
-def test_rpki_paths_are_only_on_the_1_5_subclass():
-    rpki_paths = [n for n in vars(VrfMapperV1_5) if n.startswith("get_rpki")]
-    assert len(rpki_paths) == 11
-    assert not [n for n in dir(VrfMapper) if "rpki" in n]
+    assert set(VrfMapper._VERSIONED_FEATURES) < set(FEATURE_BUILDERS)
 
 
 def test_parse_config_lives_on_the_mapper_class():
@@ -151,10 +144,10 @@ def test_a_version_string_cannot_close_a_tree_the_mapper_has(monkeypatch):
     ops = _ops(builder)
     for proto, key in ONLY_15.items():
         assert features[key]["supported"] is True
-        if proto != "rpki":  # the RPKI paths exist on the 1.5 subclass only
-            ops[proto]()
+        ops[proto]()
     paths = [op["path"][:5] for op in builder.get_operations()]
     assert ["vrf", "name", "blue", "protocols", "failover"] in paths
+    assert ["vrf", "name", "blue", "protocols", "rpki"] in paths
     assert ["vrf", "name", "blue", "service", "dhcp-server"] in paths
     assert ["vrf", "name", "blue", "service", "dhcpv6-server"] in paths
 

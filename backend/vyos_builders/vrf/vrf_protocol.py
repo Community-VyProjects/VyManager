@@ -17,12 +17,14 @@ from vyos_builders.failover.failover_batch_builder import FailoverBatchBuilder
 from vyos_builders.isis.isis_batch_builder import IsisBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.ospfv3.ospfv3_batch_builder import Ospfv3BatchBuilder
+from vyos_builders.rpki.rpki_batch_builder import RpkiBatchBuilder
 from vyos_builders.static_routes.static_routes_batch_builder import StaticRoutesBatchBuilder
 from vyos_builders.vrf.feature_modes import DIRECT, DROP, FLIP
 from vyos_mappers.feature_leaves import (
     DhcpExtraLeaves,
     Dhcpv6ExtraLeaves,
     FailoverExtraLeaves,
+    RpkiExtraLeaves,
     StaticExtraLeaves,
 )
 from vyos_mappers.path_prefix import PathPrefixMapper
@@ -41,6 +43,7 @@ FEATURE_BUILDERS = {
     "dhcp": DHCPServerBatchBuilder,
     "static": StaticRoutesBatchBuilder,
     "failover": FailoverBatchBuilder,
+    "rpki": RpkiBatchBuilder,
 }
 _ALL_BUILDERS = {**FEATURE_BUILDERS, **PROTOCOL_BUILDERS}
 _PROTO_KEYS = tuple(sorted(_ALL_BUILDERS, key=len, reverse=True))
@@ -92,13 +95,13 @@ def _call_with_packed_value(method: Callable[..., Any], value: Optional[str]) ->
     if not params:
         method()
         return
-    if value is None:
+    if not value:
         raise ArityError(f"{method.__name__} requires a value")
     if len(params) == 1:
         method(value)
         return
     parts = value.split(",", len(params) - 1)
-    if len(parts) != len(params):
+    if len(parts) != len(params) or not all(parts):
         raise ArityError(
             f"{method.__name__} expects {len(params)} comma-separated value(s), got {len(parts)}"
         )
@@ -219,6 +222,7 @@ _LEAF_CLASSES = {
     "failover": FailoverExtraLeaves,
     "dhcp": DhcpExtraLeaves,
     "dhcpv6": Dhcpv6ExtraLeaves,
+    "rpki": RpkiExtraLeaves,
 }
 
 
@@ -242,6 +246,9 @@ def _feature_mapper_cls(proto: str):
     if proto == "static":
         from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
         return StaticRoutesMapper
+    if proto == "rpki":
+        from vyos_mappers.rpki.rpki import RpkiMapper
+        return RpkiMapper
     from vyos_mappers.failover.failover import FailoverMapper
     return FailoverMapper
 

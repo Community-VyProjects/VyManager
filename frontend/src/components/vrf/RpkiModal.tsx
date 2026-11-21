@@ -13,13 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react";
 import { vrfService, type VrfRpkiConfig } from "@/lib/api/vrf";
 import {
@@ -33,12 +27,6 @@ import {
 } from "@/lib/api/vrf-rpki-save-ops";
 import { pkiService } from "@/lib/api/pki";
 import type { ApiError } from "@/lib/types/api";
-import {
-  NONE_SENTINEL,
-  fromNamedListValue,
-  listedNames,
-  toNamedListValue,
-} from "@/lib/named-list-select-options";
 
 interface RpkiModalProps {
   open: boolean;
@@ -97,12 +85,20 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpki, canWrite, onSaved
     };
   }, [open]);
 
+  // A save in flight keeps the modal open so its result is shown.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && saving) return;
+    onOpenChange(next);
+  };
+
   const updateCache = (i: number, patch: Partial<VrfRpkiCacheFields>) =>
     setCaches(caches.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
 
   const problemMessage = (problem: VrfRpkiProblem): string => {
     if (problem.key === "range") {
-      return t("rpki.range", { label: t(`rpki.${RANGE_LABEL[problem.field]}`), min: problem.min, max: problem.max });
+      const label = t(`rpki.${RANGE_LABEL[problem.field]}`);
+      if (problem.name) return t("rpki.cacheRange", { name: problem.name, label, min: problem.min, max: problem.max });
+      return t("rpki.range", { label, min: problem.min, max: problem.max });
     }
     if (problem.key === "cacheNameRequired") return t("rpki.cacheNameRequired");
     return t(`rpki.${problem.key}`, { name: problem.name });
@@ -135,7 +131,7 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpki, canWrite, onSaved
   const disabled = !canWrite || saving;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[88vh]">
         <DialogHeader>
           <DialogTitle>{t("rpki.modalTitle", { vrf: vrfName })}</DialogTitle>
@@ -180,23 +176,12 @@ export function RpkiModal({ open, onOpenChange, vrfName, rpki, canWrite, onSaved
                     <Field label={t("rpki.sshUsername")} value={c.sshUsername} disabled={disabled} onChange={(v) => updateCache(i, { sshUsername: v })} />
                     <div className="space-y-1">
                       <Label className="text-[11px]">{t("rpki.sshKey")}</Label>
-                      <Select
-                        value={toNamedListValue(c.sshKey)}
+                      <NamedListSelect
+                        value={c.sshKey}
+                        names={opensshKeys}
                         disabled={disabled}
-                        onValueChange={(v) => updateCache(i, { sshKey: fromNamedListValue(v) })}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
-                          {listedNames(opensshKeys, c.sshKey).map((name) => (
-                            <SelectItem key={name} value={name}>
-                              {name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onValueChange={(v) => updateCache(i, { sshKey: v })}
+                      />
                     </div>
                   </div>
                 </div>

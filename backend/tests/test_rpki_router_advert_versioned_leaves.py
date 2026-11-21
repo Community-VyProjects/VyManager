@@ -10,7 +10,6 @@ Lab-checked with cli-shell-api validateTmplPath on 1.4 (100.64.64.50) and
   VALID on 1.5
 """
 
-import inspect
 from types import SimpleNamespace
 
 import pytest
@@ -20,7 +19,7 @@ from fastapi.testclient import TestClient
 from vyos_builders.router_advert.router_advert_batch_builder import RouterAdvertBatchBuilder
 from vyos_builders.rpki.rpki_batch_builder import RpkiBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
-from vyos_builders.vrf.vrf_rpki_mixin import VrfRpkiMixin
+from vyos_builders.vrf.legacy_ops import LEGACY_OPS
 from vyos_mappers.router_advert.router_advert import RouterAdvertMapper
 from vyos_mappers.rpki.rpki import RpkiMapper
 from vyos_mappers.vrf.vrf_versions import VrfMapperV1_5
@@ -89,10 +88,10 @@ VRF_RPKI_CASES = [
 
 
 def test_every_vrf_rpki_op_has_a_path_row():
-    ops = {
-        name for name, _ in inspect.getmembers(VrfRpkiMixin, inspect.isfunction)
-        if name.startswith(("set_", "delete_", "create_")) and name in vars(VrfRpkiMixin)
-    }
+    # The screen replaces port, preference and the SSH leaves with a set and
+    # removes them with the cache or ``ssh`` delete (the lab refuses each
+    # leaf delete alone); their delete ops stay for the leaves the lab has.
+    ops = {name for name in LEGACY_OPS if name.startswith(("set_vrf_rpki", "delete_vrf_rpki"))}
     assert ops == {case[0] for case in VRF_RPKI_CASES}
 
 
@@ -197,8 +196,19 @@ VRF_RPKI_PAIR_OPS = [
 def test_vrf_rpki_cache_pair_rejects_a_short_value(method, value):
     """A missing cache name or value is an error, not a silently skipped op."""
     builder = VrfBatchBuilder(version="1.5")
-    with pytest.raises(ValueError, match="RPKI cache value must be 'cache,value'"):
+    with pytest.raises(ValueError, match="requires a value|expects 2 comma-separated"):
         getattr(builder, method)(VRF, value)
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["set_vrf_rpki_cache", "delete_vrf_rpki_cache", "delete_vrf_rpki_cache_port", "delete_vrf_rpki_cache_ssh"],
+)
+def test_vrf_rpki_cache_op_rejects_an_empty_cache_name(method):
+    builder = VrfBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match="requires a value"):
+        getattr(builder, method)(VRF, "")
     assert builder.get_operations() == []
 
 
@@ -268,7 +278,7 @@ def test_vrf_batch_rejects_a_short_rpki_cache_value_without_commit(monkeypatch):
     ]}
     response = client.post("/vyos/vrf/batch", json=body)
     assert response.status_code == 400, response.text
-    assert response.json()["detail"] == "RPKI cache value must be 'cache,value'"
+    assert response.json()["detail"] == "set_cache_port expects 2 comma-separated value(s), got 1"
     assert captured == []
 
 
