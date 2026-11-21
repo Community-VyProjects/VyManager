@@ -122,9 +122,10 @@ SEGMENT_ROUTING_OFFLOADED = [
     ("segment_routing_batch_configure", "routers/segment_routing/segment_routing.py", "execute_batch", 1),
 ]
 
+# reboot_system and poweroff_system send through _run_power_action.
 POWER_OFFLOADED = [
-    ("reboot_system", "routers/power.py", "reboot", 1),
-    ("poweroff_system", "routers/power.py", "poweroff", 1),
+    ("_run_power_action", "routers/power.py", "reboot", 1),
+    ("_run_power_action", "routers/power.py", "poweroff", 1),
     ("get_power_status", "routers/power.py", "show", 1),
     ("get_vyos_timezone", "routers/power.py", "get_full_config", 1),
 ]

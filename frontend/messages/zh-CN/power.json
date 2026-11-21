@@ -16,7 +16,9 @@
   },
   "modal": {
     "enterTime": "请输入时间（HH:MM）",
+    "invalidTime": "请按 HH:MM 输入时间（00:00 至 23:59）",
     "enterMinutes": "请输入分钟数",
+    "invalidMinutes": "请输入大于 0 的整数分钟数",
     "timeLabel": "时间（HH:MM）",
     "timeHint": "24 小时制。小时：00-23（例如 19:30，00:00 表示午夜）",
     "minutesLabel": "分钟",

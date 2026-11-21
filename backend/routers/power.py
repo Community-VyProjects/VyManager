@@ -34,8 +34,12 @@ def _utcnow() -> datetime:
 
 # powerctrl.py parses 'at' with strptime("%H:%M") and hands 'in' to shutdown
 # as a minute count; anything else comes back as a 200 with an error line.
-_AT_TIME = re.compile(r"(?:[01]?\d|2[0-3]):[0-5]\d")
-_IN_MINUTES = re.compile(r"[1-9]\d*", re.ASCII)
+_AT_TIME = re.compile(r"(?:[01]?\d|2[0-3]):[0-5]?\d", re.ASCII)
+_IN_MINUTES = re.compile(r"0*[1-9]\d*", re.ASCII)
+_AT_DETAIL = "Time (HH:MM) required for 'at' action"
+_IN_DETAIL = "Minutes (a whole number above 0) required for 'in' action"
+# powerctrl.py answers a rejected request with HTTP 200 and one of these lines.
+_REJECTED_MARKERS = ("Invalid", "Error", "Failed", "Could not", "Incorrect")
 
 
 # ========================================================================
@@ -143,11 +147,133 @@ async def get_vyos_timezone(service) -> Optional[str]:
     """
     try:
         full_config = await run_in_threadpool(service.get_full_config)
-        system_config = full_config.get("system", {})
-        timezone = system_config.get("time-zone")
-        return timezone
+        return full_config.get("system", {}).get("time-zone")
     except Exception:
         return None
+
+
+def _action_path(body: PowerActionRequest) -> tuple[list[str], Optional[datetime]]:
+    """Op path for the action and, for 'in', the UTC time it fires; 400 on a bad value."""
+    if body.action == "at":
+        if not body.value or not _AT_TIME.fullmatch(body.value):
+            raise HTTPException(status_code=400, detail=_AT_DETAIL)
+        return ["at", body.value], None
+    if body.action == "in":
+        if not body.value or not _IN_MINUTES.fullmatch(body.value):
+            raise HTTPException(status_code=400, detail=_IN_DETAIL)
+        try:
+            return ["in", body.value], _utcnow() + timedelta(minutes=int(body.value))
+        except OverflowError:
+            raise HTTPException(status_code=400, detail=_IN_DETAIL)
+    return [body.action], None
+
+
+def _check_reply(response) -> None:
+    """500 when the device call failed, 400 when powerctrl rejected the request."""
+    if response.status != 200 or response.error:
+        raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
+    if isinstance(response.result, str) and any(
+        marker in response.result for marker in _REJECTED_MARKERS
+    ):
+        raise HTTPException(status_code=400, detail=response.result.strip())
+
+
+async def _mark_cancelled(request: Request, user, instance_id) -> None:
+    """Mark every pending action cancelled: powerctrl cancel runs shutdown -c,
+    which drops whichever reboot or poweroff is scheduled."""
+    async with request_scoped_conn(request) as conn:
+        await conn.execute(
+            """
+            UPDATE scheduled_power_actions
+            SET cancelled = true,
+                "cancelledBy" = $1,
+                "cancelledByName" = $2,
+                "cancelledAt" = NOW()
+            WHERE "instanceId" = $3
+              AND cancelled = false
+            """,
+            user["id"],
+            user["name"],
+            instance_id,
+        )
+
+
+async def _store_schedule(request: Request, kind: str, scheduled_time: datetime, user, instance_id) -> None:
+    """Replace the stored schedule of this kind for the instance."""
+    async with request_scoped_conn(request) as conn:
+        await conn.execute(
+            """
+            DELETE FROM scheduled_power_actions
+            WHERE "instanceId" = $1 AND "actionType" = $2
+            """,
+            instance_id,
+            kind,
+        )
+
+        # Generate CUID-like id
+        action_id = f"c{uuid.uuid4().hex[:24]}"
+
+        await conn.execute(
+            """
+            INSERT INTO scheduled_power_actions
+            (id, "instanceId", "actionType", "scheduledTime", "scheduledBy", "scheduledByName")
+            VALUES ($1, $2, $3, $4, $5, $6)
+            """,
+            action_id,
+            instance_id,
+            kind,
+            scheduled_time,
+            user["id"],
+            user["name"],
+        )
+
+
+async def _run_power_action(
+    request: Request, body: PowerActionRequest, kind: Literal["reboot", "poweroff"]
+) -> Optional[datetime]:
+    """Send the action to the device and update the stored schedule.
+
+    Returns the scheduled UTC time for 'at' and 'in', else None.
+    """
+    service = get_session_vyos_service(request)
+    user = request.state.user
+    instance_id = request.state.instance["id"]
+
+    path, scheduled_time = _action_path(body)
+
+    # 'at' replies with the device-local time, so the timezone converts it.
+    vyos_timezone = await get_vyos_timezone(service) if body.action == "at" else None
+
+    try:
+        if kind == "reboot":
+            response = await run_in_threadpool(service.device.reboot, path=path)
+        else:
+            response = await run_in_threadpool(service.device.poweroff, path=path)
+        _check_reply(response)
+
+        if body.action == "at":
+            scheduled_time = parse_scheduled_time(response.result, vyos_timezone)
+            if not scheduled_time:
+                logger.warning("Could not read the scheduled %s time from %r", kind, response.result)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    if body.action == "cancel":
+        await _mark_cancelled(request, user, instance_id)
+    elif scheduled_time:
+        await _store_schedule(request, kind, scheduled_time, user, instance_id)
+
+    # Notify SSE subscribers of power status change
+    event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
+    return scheduled_time
+
+
+def _utc(scheduled_time: Optional[datetime]) -> Optional[datetime]:
+    """Timezone-aware UTC for JSON serialization."""
+    return scheduled_time.replace(tzinfo=ZoneInfo("UTC")) if scheduled_time else None
 
 
 # ========================================================================
@@ -166,149 +292,20 @@ async def reboot_system(request: Request, body: PowerActionRequest):
     - in: Reboot in X minutes
     - cancel: Cancel a pending reboot
     """
-    # Check RBAC permissions - requires WRITE on POWER feature
     await require_write_permission(request, FeatureGroup.POWER)
 
-    # Get VyOS service and instance info
-    service = get_session_vyos_service(request)
-    user = request.state.user
-    instance = request.state.instance
-    instance_id = instance["id"]
+    scheduled_time = await _run_power_action(request, body, "reboot")
 
-    # Build VyOS command path
-    if body.action == "now":
-        path = ["now"]
-        scheduled_time = None
-    elif body.action == "at":
-        if not body.value or not _AT_TIME.fullmatch(body.value):
-            raise HTTPException(
-                status_code=400, detail="Time (HH:MM) required for 'at' action"
-            )
-        path = ["at", body.value]
-        scheduled_time = None  # Will get from show command
-    elif body.action == "in":
-        if not body.value or not _IN_MINUTES.fullmatch(body.value):
-            raise HTTPException(
-                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
-            )
-        path = ["in", body.value]
-        # Calculate scheduled time
-        try:
-            scheduled_time = _utcnow() + timedelta(minutes=int(body.value))
-        except OverflowError:
-            raise HTTPException(
-                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
-            )
-    elif body.action == "cancel":
-        path = ["cancel"]
-        scheduled_time = None
-    else:
-        raise HTTPException(status_code=400, detail="Invalid action")
-
-    # Get VyOS timezone for proper time conversion
-    vyos_timezone = await get_vyos_timezone(service)
-
-    # Execute VyOS command
-    try:
-        response = await run_in_threadpool(service.device.reboot, path=path)
-
-        if response.status != 200:
-            raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
-
-        # Check if VyOS returned an error message (even with 200 status)
-        if isinstance(response.result, str) and ("Invalid" in response.result or "Error" in response.result or "Failed" in response.result):
-            raise HTTPException(status_code=400, detail=response.result.strip())
-
-        # Parse scheduled time from the response only for "at" action
-        # For "in" we already calculated UTC time, don't overwrite with VyOS's local time
-        if body.action == "at":
-            if response.result:
-                # VyOS returns: {"success": true, "data": "Reboot is scheduled YYYY-MM-DD HH:MM:SS\n", "error": null}
-                # The time is in VyOS's local timezone, so we convert it to UTC
-                if isinstance(response.result, dict) and "data" in response.result:
-                    output = response.result["data"]
-                    parsed_time = parse_scheduled_time(output, vyos_timezone)
-                    if parsed_time:
-                        scheduled_time = parsed_time
-                elif isinstance(response.result, str):
-                    # Result is a string directly
-                    parsed_time = parse_scheduled_time(response.result, vyos_timezone)
-                    if parsed_time:
-                        scheduled_time = parsed_time
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-    # Mark as cancelled in database once the device accepted the cancel
-    if body.action == "cancel":
-        async with request_scoped_conn(request) as conn:
-            await conn.execute(
-                """
-                UPDATE scheduled_power_actions
-                SET cancelled = true,
-                    "cancelledBy" = $1,
-                    "cancelledByName" = $2,
-                    "cancelledAt" = NOW()
-                WHERE "instanceId" = $3
-                  AND "actionType" = 'reboot'
-                  AND cancelled = false
-                """,
-                user["id"],
-                user["name"],
-                instance_id,
-            )
-
-    # Store scheduled action in database (except for 'now' and 'cancel')
-    if body.action in ["at", "in"] and scheduled_time:
-        async with request_scoped_conn(request) as conn:
-            # Delete any existing scheduled reboots for this instance
-            await conn.execute(
-                """
-                DELETE FROM scheduled_power_actions
-                WHERE "instanceId" = $1 AND "actionType" = 'reboot'
-                """,
-                instance_id,
-            )
-
-            # Generate CUID-like id
-            action_id = f"c{uuid.uuid4().hex[:24]}"
-
-            # Insert new scheduled action
-            await conn.execute(
-                """
-                INSERT INTO scheduled_power_actions
-                (id, "instanceId", "actionType", "scheduledTime", "scheduledBy", "scheduledByName")
-                VALUES ($1, $2, $3, $4, $5, $6)
-                """,
-                action_id,
-                instance_id,
-                "reboot",
-                scheduled_time,
-                user["id"],
-                user["name"],
-            )
-
-    # Build response message
     if body.action == "now":
         message = "System is rebooting now"
     elif body.action == "cancel":
         message = "Reboot cancelled"
-    else:
+    elif scheduled_time:
         message = f"Reboot scheduled for {scheduled_time}"
+    else:
+        message = "Reboot scheduled"
 
-    # Convert to timezone-aware UTC for proper JSON serialization
-    scheduled_time_utc = None
-    if scheduled_time:
-        scheduled_time_utc = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
-
-    # Notify SSE subscribers of power status change
-    event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
-
-    return PowerActionResponse(
-        success=True, message=message, scheduled_time=scheduled_time_utc
-    )
+    return PowerActionResponse(success=True, message=message, scheduled_time=_utc(scheduled_time))
 
 
 # ========================================================================
@@ -327,149 +324,20 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
     - in: Poweroff in X minutes
     - cancel: Cancel a pending poweroff
     """
-    # Check RBAC permissions - requires WRITE on POWER feature
     await require_write_permission(request, FeatureGroup.POWER)
 
-    # Get VyOS service and instance info
-    service = get_session_vyos_service(request)
-    user = request.state.user
-    instance = request.state.instance
-    instance_id = instance["id"]
+    scheduled_time = await _run_power_action(request, body, "poweroff")
 
-    # Build VyOS command path
-    if body.action == "now":
-        path = ["now"]
-        scheduled_time = None
-    elif body.action == "at":
-        if not body.value or not _AT_TIME.fullmatch(body.value):
-            raise HTTPException(
-                status_code=400, detail="Time (HH:MM) required for 'at' action"
-            )
-        path = ["at", body.value]
-        scheduled_time = None  # Will get from show command
-    elif body.action == "in":
-        if not body.value or not _IN_MINUTES.fullmatch(body.value):
-            raise HTTPException(
-                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
-            )
-        path = ["in", body.value]
-        # Calculate scheduled time
-        try:
-            scheduled_time = _utcnow() + timedelta(minutes=int(body.value))
-        except OverflowError:
-            raise HTTPException(
-                status_code=400, detail="Minutes (a whole number above 0) required for 'in' action"
-            )
-    elif body.action == "cancel":
-        path = ["cancel"]
-        scheduled_time = None
-    else:
-        raise HTTPException(status_code=400, detail="Invalid action")
-
-    # Get VyOS timezone for proper time conversion
-    vyos_timezone = await get_vyos_timezone(service)
-
-    # Execute VyOS command
-    try:
-        response = await run_in_threadpool(service.device.poweroff, path=path)
-
-        if response.status != 200:
-            raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
-
-        # Check if VyOS returned an error message (even with 200 status)
-        if isinstance(response.result, str) and ("Invalid" in response.result or "Error" in response.result or "Failed" in response.result):
-            raise HTTPException(status_code=400, detail=response.result.strip())
-
-        # Parse scheduled time from the response only for "at" action
-        # For "in" we already calculated UTC time, don't overwrite with VyOS's local time
-        if body.action == "at":
-            if response.result:
-                # VyOS returns: {"success": true, "data": "Poweroff is scheduled YYYY-MM-DD HH:MM:SS\n", "error": null}
-                # The time is in VyOS's local timezone, so we convert it to UTC
-                if isinstance(response.result, dict) and "data" in response.result:
-                    output = response.result["data"]
-                    parsed_time = parse_scheduled_time(output, vyos_timezone)
-                    if parsed_time:
-                        scheduled_time = parsed_time
-                elif isinstance(response.result, str):
-                    # Result is a string directly
-                    parsed_time = parse_scheduled_time(response.result, vyos_timezone)
-                    if parsed_time:
-                        scheduled_time = parsed_time
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-    # Mark as cancelled in database once the device accepted the cancel
-    if body.action == "cancel":
-        async with request_scoped_conn(request) as conn:
-            await conn.execute(
-                """
-                UPDATE scheduled_power_actions
-                SET cancelled = true,
-                    "cancelledBy" = $1,
-                    "cancelledByName" = $2,
-                    "cancelledAt" = NOW()
-                WHERE "instanceId" = $3
-                  AND "actionType" = 'poweroff'
-                  AND cancelled = false
-                """,
-                user["id"],
-                user["name"],
-                instance_id,
-            )
-
-    # Store scheduled action in database (except for 'now' and 'cancel')
-    if body.action in ["at", "in"] and scheduled_time:
-        async with request_scoped_conn(request) as conn:
-            # Delete any existing scheduled poweroffs for this instance
-            await conn.execute(
-                """
-                DELETE FROM scheduled_power_actions
-                WHERE "instanceId" = $1 AND "actionType" = 'poweroff'
-                """,
-                instance_id,
-            )
-
-            # Generate CUID-like id
-            action_id = f"c{uuid.uuid4().hex[:24]}"
-
-            # Insert new scheduled action
-            await conn.execute(
-                """
-                INSERT INTO scheduled_power_actions
-                (id, "instanceId", "actionType", "scheduledTime", "scheduledBy", "scheduledByName")
-                VALUES ($1, $2, $3, $4, $5, $6)
-                """,
-                action_id,
-                instance_id,
-                "poweroff",
-                scheduled_time,
-                user["id"],
-                user["name"],
-            )
-
-    # Build response message
     if body.action == "now":
         message = "System is powering off now"
     elif body.action == "cancel":
         message = "Poweroff cancelled"
-    else:
+    elif scheduled_time:
         message = f"Poweroff scheduled for {scheduled_time}"
+    else:
+        message = "Poweroff scheduled"
 
-    # Convert to timezone-aware UTC for proper JSON serialization
-    scheduled_time_utc = None
-    if scheduled_time:
-        scheduled_time_utc = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
-
-    # Notify SSE subscribers of power status change
-    event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
-
-    return PowerActionResponse(
-        success=True, message=message, scheduled_time=scheduled_time_utc
-    )
+    return PowerActionResponse(success=True, message=message, scheduled_time=_utc(scheduled_time))
 
 
 # ========================================================================
@@ -485,13 +353,10 @@ async def get_power_status(request: Request):
     This endpoint is polled by the frontend to display the banner.
     Requires READ permission on POWER feature.
     """
-    # Check RBAC permissions - requires READ on POWER feature
     await require_read_permission(request, FeatureGroup.POWER)
 
-    # Get VyOS service and instance info
     service = get_session_vyos_service(request)
-    instance = request.state.instance
-    instance_id = instance["id"]
+    instance_id = request.state.instance["id"]
 
     async with request_scoped_conn(request) as conn:
         # scheduledTime is stored as naive UTC (see parse_scheduled_time and
@@ -522,60 +387,49 @@ async def get_power_status(request: Request):
             instance_id,
         )
 
-        if not result:
-            # No scheduled action
-            return PowerStatusResponse(scheduled=False)
+    if not result:
+        return PowerStatusResponse(scheduled=False)
 
-        # Check if VyOS still has it scheduled (verify with 'show reboot')
-        try:
-            # Get VyOS timezone for proper time conversion
-            vyos_timezone = await get_vyos_timezone(service)
+    # Check if VyOS still has it scheduled. The connection above is closed
+    # first so no DB connection is held across the device call. Only whether
+    # a time is present matters here, so no timezone conversion is needed.
+    try:
+        response = await run_in_threadpool(service.device.show, path=["reboot"])
+        if response.status != 200 or response.error:
+            raise RuntimeError(f"VyOS command failed: {response.error}")
+        output = response.result if isinstance(response.result, str) else ""
+        still_scheduled = parse_scheduled_time(output) is not None
+    except Exception:
+        # If we can't check VyOS status, assume it's still scheduled
+        logger.warning("Could not check the scheduled power action", exc_info=True)
+        still_scheduled = True
 
-            response = await run_in_threadpool(service.device.show, path=["reboot"])
+    if not still_scheduled:
+        async with request_scoped_conn(request) as conn:
+            await conn.execute(
+                """
+                DELETE FROM scheduled_power_actions
+                WHERE "instanceId" = $1
+                  AND "actionType" = $2
+                  AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
+                """,
+                instance_id,
+                result["actionType"],
+            )
+        return PowerStatusResponse(scheduled=False)
 
-            if response.status != 200:
-                raise Exception(f"VyOS command failed: {response.error}")
+    # Convert scheduled_time to timezone-aware UTC for proper JSON serialization
+    scheduled_time_utc = result["scheduledTime"]
+    if scheduled_time_utc and scheduled_time_utc.tzinfo is None:
+        scheduled_time_utc = scheduled_time_utc.replace(tzinfo=ZoneInfo("UTC"))
 
-            # VyOS returns: {"success": true, "data": "Reboot is scheduled...", "error": null}
-            output = ""
-            if isinstance(response.result, dict) and "data" in response.result:
-                output = response.result["data"]
-            elif isinstance(response.result, str):
-                output = response.result
-
-            vyos_scheduled_time = parse_scheduled_time(output, vyos_timezone) if output else None
-
-            # If VyOS doesn't have it scheduled, clean up database
-            if not vyos_scheduled_time:
-                await conn.execute(
-                    """
-                    DELETE FROM scheduled_power_actions
-                    WHERE "instanceId" = $1
-                      AND "actionType" = $2
-                      AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
-                    """,
-                    instance_id,
-                    result["actionType"],
-                )
-                return PowerStatusResponse(scheduled=False)
-
-        except Exception:
-            # If we can't check VyOS status, assume it's still scheduled
-            pass
-
-        # Convert scheduled_time to timezone-aware UTC for proper JSON serialization
-        scheduled_time_utc = result["scheduledTime"]
-        if scheduled_time_utc:
-            if not hasattr(scheduled_time_utc, 'tzinfo') or scheduled_time_utc.tzinfo is None:
-                scheduled_time_utc = scheduled_time_utc.replace(tzinfo=ZoneInfo("UTC"))
-
-        return PowerStatusResponse(
-            scheduled=True,
-            action_type=result["actionType"],
-            scheduled_time=scheduled_time_utc,
-            scheduled_by=result["scheduledBy"],
-            scheduled_by_name=result["scheduledByName"],
-            cancelled=result["cancelled"],
-            cancelled_by=result["cancelledBy"],
-            cancelled_by_name=result["cancelledByName"],
-        )
+    return PowerStatusResponse(
+        scheduled=True,
+        action_type=result["actionType"],
+        scheduled_time=scheduled_time_utc,
+        scheduled_by=result["scheduledBy"],
+        scheduled_by_name=result["scheduledByName"],
+        cancelled=result["cancelled"],
+        cancelled_by=result["cancelledBy"],
+        cancelled_by_name=result["cancelledByName"],
+    )
