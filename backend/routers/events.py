@@ -12,7 +12,6 @@ import asyncio
 import json
 import logging
 from typing import Any, Dict, Optional
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -31,6 +30,7 @@ from events.event_manager import (
     EVENT_POWER_STATUS,
 )
 import commit_confirm_state
+from routers.power import get_scheduled_power_status
 
 logger = logging.getLogger(__name__)
 
@@ -275,49 +275,15 @@ async def _get_power_status_state(request: Request) -> Dict[str, Any]:
     """Get power status from the database."""
     try:
         instance_id = request.state.instance["id"]
-
-        # scheduledTime is naive UTC; compare against UTC, not a tz-aware
-        # NOW(), or a non-UTC DB session timezone hides pending actions.
-        async with request_scoped_conn(request) as conn:
-            await conn.execute(
-                """
-                DELETE FROM scheduled_power_actions
-                WHERE "instanceId" = $1
-                  AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
-                """,
-                instance_id,
-            )
-
-            result = await conn.fetchrow(
-                """
-                SELECT "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
-                       cancelled, "cancelledBy", "cancelledByName"
-                FROM scheduled_power_actions
-                WHERE "instanceId" = $1
-                  AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
-                ORDER BY "createdAt" DESC
-                LIMIT 1
-                """,
-                instance_id,
-            )
-
-            if not result:
-                return {"scheduled": False}
-
-            scheduled_time = result["scheduledTime"]
-            if scheduled_time and (not hasattr(scheduled_time, 'tzinfo') or scheduled_time.tzinfo is None):
-                scheduled_time = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
-
-            return {
-                "scheduled": True,
-                "action_type": result["actionType"],
-                "scheduled_time": scheduled_time.isoformat() if scheduled_time else None,
-                "scheduled_by": result["scheduledBy"],
-                "scheduled_by_name": result["scheduledByName"],
-                "cancelled": result["cancelled"],
-                "cancelled_by": result["cancelledBy"],
-                "cancelled_by_name": result["cancelledByName"],
-            }
+        service = get_session_vyos_service(request)
+        status = await get_scheduled_power_status(
+            lambda: request_scoped_conn(request),
+            instance_id,
+            service,
+        )
+        if status["scheduled"] and status["scheduled_time"]:
+            status["scheduled_time"] = status["scheduled_time"].isoformat()
+        return status
     except Exception:
         logger.exception("Failed to get power status for SSE")
         return {"scheduled": False}
@@ -385,48 +351,17 @@ async def _poll_banner_state_for_instance(
     try:
         db_pool = app_state.db_pool
         if db_pool:
-            async with db_pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    DELETE FROM scheduled_power_actions
-                    WHERE "instanceId" = $1
-                      AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
-                    """,
-                    instance_id,
-                )
+            service = _session_device_registry.get(instance_id)
+            power_data = await get_scheduled_power_status(
+                db_pool.acquire,
+                instance_id,
+                service,
+            )
+            if power_data["scheduled"] and power_data["scheduled_time"]:
+                power_data["scheduled_time"] = power_data["scheduled_time"].isoformat()
 
-                result = await conn.fetchrow(
-                    """
-                    SELECT "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
-                           cancelled, "cancelledBy", "cancelledByName"
-                    FROM scheduled_power_actions
-                    WHERE "instanceId" = $1
-                      AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
-                    ORDER BY "createdAt" DESC
-                    LIMIT 1
-                    """,
-                    instance_id,
-                )
-
-                if not result:
-                    power_data = {"scheduled": False}
-                else:
-                    scheduled_time = result["scheduledTime"]
-                    if scheduled_time and (not hasattr(scheduled_time, 'tzinfo') or scheduled_time.tzinfo is None):
-                        scheduled_time = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
-                    power_data = {
-                        "scheduled": True,
-                        "action_type": result["actionType"],
-                        "scheduled_time": scheduled_time.isoformat() if scheduled_time else None,
-                        "scheduled_by": result["scheduledBy"],
-                        "scheduled_by_name": result["scheduledByName"],
-                        "cancelled": result["cancelled"],
-                        "cancelled_by": result["cancelledBy"],
-                        "cancelled_by_name": result["cancelledByName"],
-                    }
-
-                if event_manager.update_last_state(instance_id, EVENT_POWER_STATUS, power_data):
-                    event_manager.emit(instance_id, EVENT_POWER_STATUS, power_data)
+            if event_manager.update_last_state(instance_id, EVENT_POWER_STATUS, power_data):
+                event_manager.emit(instance_id, EVENT_POWER_STATUS, power_data)
     except Exception:
         logger.debug("Poller: failed to get power status for instance %s", instance_id)
 

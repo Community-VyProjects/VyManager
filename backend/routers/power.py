@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import re
 import uuid
+from typing import Any, Callable, Dict
 
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
@@ -139,6 +140,80 @@ def parse_scheduled_time(output: str, vyos_timezone: Optional[str] = None) -> Op
             return None
 
     return None
+
+
+async def get_scheduled_power_status(
+    conn_factory: Callable[[], Any],
+    instance_id: str,
+    service: Any,
+) -> Dict[str, Any]:
+    """Clean up and reconcile the latest scheduled power action."""
+    async with conn_factory() as conn:
+        await conn.execute(
+            """
+            DELETE FROM scheduled_power_actions
+            WHERE "instanceId" = $1
+              AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
+            """,
+            instance_id,
+        )
+
+        result = await conn.fetchrow(
+            """
+            SELECT "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
+                   cancelled, "cancelledBy", "cancelledByName"
+            FROM scheduled_power_actions
+            WHERE "instanceId" = $1
+              AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
+            ORDER BY "createdAt" DESC
+            LIMIT 1
+            """,
+            instance_id,
+        )
+
+    if not result:
+        return {"scheduled": False}
+
+    try:
+        response = await run_in_threadpool(service.device.show, path=["reboot"])
+        if response.status != 200 or response.error:
+            raise RuntimeError(f"VyOS command failed: {response.error}")
+        output = response.result if isinstance(response.result, str) else ""
+        still_scheduled = parse_scheduled_time(output) is not None
+    except Exception:
+        logger.warning("Could not check the scheduled power action", exc_info=True)
+        still_scheduled = True
+
+    if not still_scheduled:
+        async with conn_factory() as conn:
+            await conn.execute(
+                """
+                DELETE FROM scheduled_power_actions
+                WHERE "instanceId" = $1
+                  AND "actionType" = $2
+                  AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
+                """,
+                instance_id,
+                result["actionType"],
+            )
+        return {"scheduled": False}
+
+    scheduled_time = result["scheduledTime"]
+    if scheduled_time and (
+        not hasattr(scheduled_time, "tzinfo") or scheduled_time.tzinfo is None
+    ):
+        scheduled_time = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
+
+    return {
+        "scheduled": True,
+        "action_type": result["actionType"],
+        "scheduled_time": scheduled_time,
+        "scheduled_by": result["scheduledBy"],
+        "scheduled_by_name": result["scheduledByName"],
+        "cancelled": result["cancelled"],
+        "cancelled_by": result["cancelledBy"],
+        "cancelled_by_name": result["cancelledByName"],
+    }
 
 
 async def get_vyos_timezone(service) -> Optional[str]:
@@ -358,79 +433,9 @@ async def get_power_status(request: Request):
 
     service = get_session_vyos_service(request)
     instance_id = request.state.instance["id"]
-
-    async with request_scoped_conn(request) as conn:
-        # scheduledTime is stored as naive UTC (see parse_scheduled_time and
-        # the _utcnow() writes), so it must be compared against UTC, not a
-        # tz-aware NOW(): under a non-UTC database session timezone a bare
-        # NOW() shifts the comparison by the offset and hides pending actions.
-        # First, clean up expired actions
-        await conn.execute(
-            """
-            DELETE FROM scheduled_power_actions
-            WHERE "instanceId" = $1
-              AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
-            """,
-            instance_id,
-        )
-
-        # Get most recent non-expired scheduled action
-        result = await conn.fetchrow(
-            """
-            SELECT "actionType", "scheduledTime", "scheduledBy", "scheduledByName",
-                   cancelled, "cancelledBy", "cancelledByName"
-            FROM scheduled_power_actions
-            WHERE "instanceId" = $1
-              AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
-            ORDER BY "createdAt" DESC
-            LIMIT 1
-            """,
-            instance_id,
-        )
-
-    if not result:
-        return PowerStatusResponse(scheduled=False)
-
-    # Check if VyOS still has it scheduled. The connection above is closed
-    # first so no DB connection is held across the device call. Only whether
-    # a time is present matters here, so no timezone conversion is needed.
-    try:
-        response = await run_in_threadpool(service.device.show, path=["reboot"])
-        if response.status != 200 or response.error:
-            raise RuntimeError(f"VyOS command failed: {response.error}")
-        output = response.result if isinstance(response.result, str) else ""
-        still_scheduled = parse_scheduled_time(output) is not None
-    except Exception:
-        # If we can't check VyOS status, assume it's still scheduled
-        logger.warning("Could not check the scheduled power action", exc_info=True)
-        still_scheduled = True
-
-    if not still_scheduled:
-        async with request_scoped_conn(request) as conn:
-            await conn.execute(
-                """
-                DELETE FROM scheduled_power_actions
-                WHERE "instanceId" = $1
-                  AND "actionType" = $2
-                  AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
-                """,
-                instance_id,
-                result["actionType"],
-            )
-        return PowerStatusResponse(scheduled=False)
-
-    # Convert scheduled_time to timezone-aware UTC for proper JSON serialization
-    scheduled_time_utc = result["scheduledTime"]
-    if scheduled_time_utc and scheduled_time_utc.tzinfo is None:
-        scheduled_time_utc = scheduled_time_utc.replace(tzinfo=ZoneInfo("UTC"))
-
-    return PowerStatusResponse(
-        scheduled=True,
-        action_type=result["actionType"],
-        scheduled_time=scheduled_time_utc,
-        scheduled_by=result["scheduledBy"],
-        scheduled_by_name=result["scheduledByName"],
-        cancelled=result["cancelled"],
-        cancelled_by=result["cancelledBy"],
-        cancelled_by_name=result["cancelledByName"],
+    status = await get_scheduled_power_status(
+        lambda: request_scoped_conn(request),
+        instance_id,
+        service,
     )
+    return PowerStatusResponse(**status)
