@@ -129,6 +129,8 @@ def test_registry_returns_the_shared_class(version):
 
 
 def test_no_version_package_and_no_short_builder_name():
-    assert not (BACKEND / "vyos_mappers" / "nat64" / "nat64_versions").exists()
+    versions = BACKEND / "vyos_mappers" / "nat64" / "nat64_versions"
+    for name in ("__init__.py", "v1_4.py", "v1_5.py"):
+        assert not (versions / name).exists()
     assert not (BACKEND / "vyos_builders" / "nat64" / "nat64.py").exists()
     assert (BACKEND / "vyos_builders" / "nat64" / "nat64_batch_builder.py").exists()

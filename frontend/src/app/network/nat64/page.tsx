@@ -70,19 +70,18 @@ export default function NAT64Page() {
       setError(null);
       const data = await nat64Service.getConfig(refresh);
       setConfig(data);
-      // Update selectedRule with fresh data
-      if (selectedRule) {
-        const updated = data.source_rules.find(
-          (r) => r.rule_number === selectedRule.rule_number
-        );
-        setSelectedRule(updated || null);
-      }
+      // Update selectedRule with fresh data; a rule cleared meanwhile stays cleared.
+      setSelectedRule((current) =>
+        current
+          ? data.source_rules.find((r) => r.rule_number === current.rule_number) ?? null
+          : null
+      );
     } catch (err) {
       setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [selectedRule, t]);
+  }, [t]);
 
   useEffect(() => {
     fetchConfig();
