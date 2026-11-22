@@ -1,6 +1,6 @@
 """IS-IS leaves only the VyOS 1.5 template tree has."""
 
-from typing import FrozenSet, List, Tuple
+from typing import Dict, FrozenSet, List, Optional, Tuple
 
 from ..isis import BASE, IsisMapper
 
@@ -23,6 +23,9 @@ class IsisMapperV1_5(IsisMapper):
 
     def srv6_node_msd_types(self) -> List[str]:
         return ["max-end-d", "max-end-pop", "max-h-encaps", "max-segs-left"]
+
+    def lsp_timer_defaults(self) -> Optional[Dict[str, int]]:
+        return {"lsp_gen_interval": 30, "lsp_refresh_interval": 900, "max_lsp_lifetime": 1200}
 
     # -----------------------------------------------------------------------
     # Interface fast-reroute
@@ -114,9 +117,10 @@ class IsisMapperV1_5(IsisMapper):
         return self.get_sr_srv6_path() + ["interface"]
 
     def get_sr_srv6_node_msd_path(self, msd_type: str, val: str) -> List[str]:
-        return self.get_sr_srv6_path() + ["node-msd", msd_type, val]
+        return self.get_sr_srv6_node_msd_delete_path(msd_type) + [val]
 
     def get_sr_srv6_node_msd_delete_path(self, msd_type: str) -> List[str]:
+        self._require_choice("node-msd", msd_type, self.srv6_node_msd_types())
         return self.get_sr_srv6_path() + ["node-msd", msd_type]
 
     # -----------------------------------------------------------------------

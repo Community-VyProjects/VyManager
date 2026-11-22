@@ -45,7 +45,7 @@ class IsisSpfDelayIetf(BaseModel):
 
 class IsisGlobalConfig(BaseModel):
     """IS-IS global process settings."""
-    net: List[str] = []
+    net: Optional[str] = None
     level: Optional[str] = None
     metric_style: Optional[str] = None
     dynamic_hostname: bool = False
@@ -65,6 +65,7 @@ class IsisGlobalConfig(BaseModel):
     area_password_plaintext: Optional[str] = None
     domain_password_md5: Optional[str] = None
     domain_password_plaintext: Optional[str] = None
+    ldp_sync: bool = False
     ldp_sync_holddown: Optional[int] = None
     spf_delay_ietf: IsisSpfDelayIetf = IsisSpfDelayIetf()
 
@@ -193,11 +194,12 @@ class IsisFrrTiebreaker(BaseModel):
 class IsisFrrRemotePrefixList(BaseModel):
     """Global LFA remote prefix-list entry."""
     prefix_list: str
-    level: str
+    level: Optional[str] = None
 
 
 class IsisFrrGlobal(BaseModel):
     """Global Fast Reroute LFA configuration."""
+    lfa_load_sharing_disable: bool = False
     lfa_load_sharing_disable_level1: bool = False
     lfa_load_sharing_disable_level2: bool = False
     lfa_priority_limit: List[IsisFrrPriorityLimit] = []

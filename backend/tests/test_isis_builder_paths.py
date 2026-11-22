@@ -1,6 +1,6 @@
 """Golden (method, args, op, expected_path) cases for IsisBatchBuilder.
 
-Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+Paths checked with validateTmplPath on 1.4 (100.64.64.4) and 1.5 (100.64.64.5).
 Generated for issue #737; edit the tables directly if the mapper changes.
 """
 
@@ -60,7 +60,7 @@ COMMON_CASES = [
     ('delete_lsp_refresh_interval', (), 'delete', ['protocols', 'isis', 'lsp-refresh-interval']),
     ('delete_max_lsp_lifetime', (), 'delete', ['protocols', 'isis', 'max-lsp-lifetime']),
     ('delete_metric_style', (), 'delete', ['protocols', 'isis', 'metric-style']),
-    ('delete_net', ('49.0001.1921.6800.1001.00',), 'delete', ['protocols', 'isis', 'net', '49.0001.1921.6800.1001.00']),
+    ('delete_net', (), 'delete', ['protocols', 'isis', 'net']),
     ('delete_overload_bit', (), 'delete', ['protocols', 'isis', 'set-overload-bit']),
     ('delete_purge_originator', (), 'delete', ['protocols', 'isis', 'purge-originator']),
     ('delete_redistribute_ipv4', ('bgp', 'level-1'), 'delete', ['protocols', 'isis', 'redistribute', 'ipv4', 'bgp', 'level-1']),
@@ -174,6 +174,12 @@ COMMON_CASES = [
     ('delete_sr_prefix_absolute', ('10.0.0.0/8',), 'delete', ['protocols', 'isis', 'segment-routing', 'prefix', '10.0.0.0/8', 'absolute']),
     ('delete_frr_lfa_tiebreaker_index', ('downstream', '1', 'level-1'), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'tiebreaker', 'downstream', 'index', '1', 'level-1']),
     ('delete_frr_lfa_remote_prefix_list', ('FOO', 'level-1'), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'remote', 'prefix-list', 'FOO', 'level-1']),
+    ('set_frr_lfa_remote_prefix_list_all_levels', ('FOO',), 'set', ['protocols', 'isis', 'fast-reroute', 'lfa', 'remote', 'prefix-list', 'FOO']),
+    ('delete_frr_lfa_remote_prefix_list_all_levels', ('FOO',), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'remote', 'prefix-list', 'FOO']),
+    ('set_frr_lfa_load_sharing_disable', (), 'set', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'load-sharing', 'disable']),
+    ('delete_frr_lfa_load_sharing_disable', (), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'load-sharing', 'disable']),
+    ('set_ldp_sync', (), 'set', ['protocols', 'isis', 'ldp-sync']),
+    ('delete_ldp_sync_holddown', (), 'delete', ['protocols', 'isis', 'ldp-sync', 'holddown']),
 ]
 
 
@@ -315,20 +321,35 @@ def test_isis_capabilities_read_mapper_allowlists():
     assert v15["domain_password_modes"] == ["md5", "plaintext-password"]
     assert v14["srv6_node_msd_types"] == []
     assert v15["srv6_node_msd_types"] == ["max-end-d", "max-end-pop", "max-h-encaps", "max-segs-left"]
-    assert v14["features"]["lfa_priority_limit"]["values"] == ["critical", "high", "medium"]
-    assert v14["features"]["lfa_tiebreaker"]["values"] == [
+    assert v14["lfa_priority_limit_values"] == ["critical", "high", "medium"]
+    assert v14["lfa_tiebreaker_values"] == [
         "downstream", "lowest-backup-metric", "node-protecting",
     ]
-    assert v14["features"]["redistribute_nhrp"]["supported"] is False
-    assert v15["features"]["redistribute_nhrp"]["supported"] is True
+    assert v14["lsp_timer_defaults"] is None
+    assert v15["lsp_timer_defaults"] == {
+        "lsp_gen_interval": 30, "lsp_refresh_interval": 900, "max_lsp_lifetime": 1200,
+    }
+    assert set(v14["features"]) == {"interface_fast_reroute", "srv6", "te_export"}
     assert "babel" in v14["redistribute_protocols"]["ipv4"]
     assert "nhrp" not in v14["redistribute_protocols"]["ipv4"]
     assert "nhrp" in v15["redistribute_protocols"]["ipv4"]
     assert "connected" in v14["redistribute_protocols"]["ipv6"]
     assert "nhrp" not in v14["redistribute_protocols"]["ipv6"]
-    assert v14["features"]["lfa_priority_limit"]["supported"] is True
-    assert v14["features"]["lfa_tiebreaker"]["supported"] is True
-    assert v14["features"]["lfa_remote_prefix_list"]["supported"] is True
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("method, args", [
+    ("set_frr_lfa_priority_limit", ("urgent", "level-1")),
+    ("delete_frr_lfa_priority_limit", ("urgent", "level-1")),
+    ("set_frr_lfa_tiebreaker_index", ("random", "1", "level-1")),
+    ("set_sr_srv6_node_msd", ("max-foo", "5")),
+    ("delete_sr_srv6_node_msd", ("max-foo",)),
+])
+def test_builder_rejects_values_the_lab_does_not_allow(version, method, args):
+    builder = IsisBatchBuilder(version=version)
+    with pytest.raises(ValueError, match="not supported on this device"):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []
 
 
 def test_isis_14_builder_rejects_nhrp():

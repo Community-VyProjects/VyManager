@@ -8,7 +8,7 @@ def _tree():
     return {
         "protocols": {
             "isis": {
-                "net": {"49.0001.1921.6800.1001.00": {}},
+                "net": "49.0001.1921.6800.1001.00",
                 "level": "level-2",
                 "metric-style": "wide",
                 "dynamic-hostname": {},
@@ -17,7 +17,7 @@ def _tree():
                 "domain-password": {"plaintext-password": "dom"},
                 "ldp-sync": {"holddown": "30"},
                 "spf-delay-ietf": {"init-delay": "50", "short-delay": "200"},
-                "topology": {"ipv6-unicast": {}},
+                "topology": "ipv6-unicast",
                 "interface": {
                     "eth1": {
                         "metric": "10",
@@ -63,7 +63,7 @@ def _tree():
                         "low-label-value": "16000",
                         "high-label-value": "23999",
                     },
-                    "srv6": {"locator": {"LOC1": {}}},
+                    "srv6": {"locator": "LOC1", "interface": "dum0"},
                     "prefix": {
                         "10.0.0.0/24": {
                             "index": {
@@ -148,6 +148,30 @@ def test_srv6_interface_node_msd_and_locator_names():
     assert get_isis_mapper("1.5").parse_config(_tree())["srv6_locator_names"] == []
 
 
+def test_bare_load_sharing_disable_and_remote_prefix_list_parse():
+    tree = _tree()
+    frr = tree["protocols"]["isis"]["fast-reroute"]["lfa"]
+    frr["local"]["load-sharing"] = {"disable": {}}
+    frr["remote"] = {"prefix-list": {"PL9": {}}}
+    parsed = get_isis_mapper("1.4").parse_config(tree)["fast_reroute"]
+    assert parsed["lfa_load_sharing_disable"] is True
+    assert parsed["lfa_load_sharing_disable_level1"] is False
+    assert parsed["lfa_remote_prefix_list"] == [{"prefix_list": "PL9", "level": None}]
+    leveled = get_isis_mapper("1.4").parse_config(_tree())["fast_reroute"]
+    assert leveled["lfa_load_sharing_disable"] is False
+    assert leveled["lfa_load_sharing_disable_level1"] is True
+
+
+def test_bare_ldp_sync_is_enabled_without_holddown():
+    tree = _tree()
+    tree["protocols"]["isis"]["ldp-sync"] = {}
+    gc = get_isis_mapper("1.5").parse_config(tree)["global_config"]
+    assert gc["ldp_sync"] is True
+    assert gc["ldp_sync_holddown"] is None
+    absent = get_isis_mapper("1.5").parse_config({"protocols": {"isis": {}}})["global_config"]
+    assert absent["ldp_sync"] is False
+
+
 def test_bare_ti_lfa_node_is_enabled():
     tree = _tree()
     tree["protocols"]["isis"]["interface"]["eth0"]["fast-reroute"] = {"ti-lfa": {}}
@@ -159,7 +183,9 @@ def test_bare_ti_lfa_node_is_enabled():
 def test_isis_parses_distinctive_fields():
     parsed = get_isis_mapper("1.5").parse_config(_tree())
     assert parsed["enabled"] is True
-    assert parsed["global_config"]["net"] == ["49.0001.1921.6800.1001.00"]
+    assert parsed["global_config"]["net"] == "49.0001.1921.6800.1001.00"
+    assert parsed["global_config"]["ldp_sync"] is True
+    assert parsed["global_config"]["ldp_sync_holddown"] == 30
     assert parsed["global_config"]["lsp_mtu"] == 1492
     assert parsed["global_config"]["topology"] == "ipv6-unicast"
     assert parsed["global_config"]["area_password_md5"] == MASKED_SECRET

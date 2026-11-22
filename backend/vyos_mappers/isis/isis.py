@@ -7,7 +7,7 @@ redistribute ipv4 nhrp exist only on VyOS 1.5; the subclass in
 ``isis_versions`` adds them.
 """
 
-from typing import Any, Dict, FrozenSet, List, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from ..base import BaseFeatureMapper
 
@@ -135,6 +135,20 @@ class IsisMapper(BaseFeatureMapper):
         """``segment-routing srv6 node-msd`` children; none on 1.4."""
         return []
 
+    def lsp_timer_defaults(self) -> Optional[Dict[str, int]]:
+        """Defaults for the LSP timer cross-checks verify runs, or None.
+
+        1.5 verify rejects ``lsp-gen-interval >= lsp-refresh-interval`` and
+        ``max-lsp-lifetime < lsp-refresh-interval + 300``, filling unset
+        timers with these defaults. 1.4 verify has neither check.
+        """
+        return None
+
+    @staticmethod
+    def _require_choice(kind: str, value: str, allowed: List[str]) -> None:
+        if value not in allowed:
+            raise ValueError(f"{kind} {value} is not supported on this device")
+
     # -----------------------------------------------------------------------
     # Delete the entire IS-IS process
     # -----------------------------------------------------------------------
@@ -148,6 +162,9 @@ class IsisMapper(BaseFeatureMapper):
 
     def get_net_path(self, net: str) -> List[str]:
         return BASE + ["net", net]
+
+    def get_net_delete_path(self) -> List[str]:
+        return BASE + ["net"]
 
     # -----------------------------------------------------------------------
     # Global — basic scalars
@@ -290,6 +307,9 @@ class IsisMapper(BaseFeatureMapper):
     def get_ldp_sync_holddown_path(self, val: str) -> List[str]:
         return BASE + ["ldp-sync", "holddown", val]
 
+    def get_ldp_sync_holddown_delete_path(self) -> List[str]:
+        return BASE + ["ldp-sync", "holddown"]
+
     def get_ldp_sync_path(self) -> List[str]:
         return BASE + ["ldp-sync"]
 
@@ -297,24 +317,34 @@ class IsisMapper(BaseFeatureMapper):
     # Global — Fast Reroute (LFA load-sharing, priority-limit, tiebreaker, remote)
     # -----------------------------------------------------------------------
 
+    def get_frr_lfa_load_sharing_disable_path(self) -> List[str]:
+        """Bare ``load-sharing disable``: FRR disables it on every level."""
+        return BASE + ["fast-reroute", "lfa", "local", "load-sharing", "disable"]
+
     def get_frr_lfa_load_sharing_disable_level1_path(self) -> List[str]:
-        return BASE + ["fast-reroute", "lfa", "local", "load-sharing", "disable", "level-1"]
+        return self.get_frr_lfa_load_sharing_disable_path() + ["level-1"]
 
     def get_frr_lfa_load_sharing_disable_level2_path(self) -> List[str]:
-        return BASE + ["fast-reroute", "lfa", "local", "load-sharing", "disable", "level-2"]
+        return self.get_frr_lfa_load_sharing_disable_path() + ["level-2"]
 
     def get_frr_lfa_priority_limit_path(self, priority: str, level: str) -> List[str]:
+        self._require_choice("priority-limit", priority, self.lfa_priority_limit_values())
         return BASE + ["fast-reroute", "lfa", "local", "priority-limit", priority, level]
 
     def get_frr_lfa_tiebreaker_index_path(
         self, tb_type: str, index: str, level: str
     ) -> List[str]:
+        self._require_choice("tiebreaker", tb_type, self.lfa_tiebreaker_values())
         return BASE + [
             "fast-reroute", "lfa", "local", "tiebreaker", tb_type, "index", index, level,
         ]
 
+    def get_frr_lfa_remote_prefix_list_name_path(self, prefix_list: str) -> List[str]:
+        """Bare ``remote prefix-list <name>``: FRR applies it on every level."""
+        return BASE + ["fast-reroute", "lfa", "remote", "prefix-list", prefix_list]
+
     def get_frr_lfa_remote_prefix_list_path(self, prefix_list: str, level: str) -> List[str]:
-        return BASE + ["fast-reroute", "lfa", "remote", "prefix-list", prefix_list, level]
+        return self.get_frr_lfa_remote_prefix_list_name_path(prefix_list) + [level]
 
     # -----------------------------------------------------------------------
     # Interface

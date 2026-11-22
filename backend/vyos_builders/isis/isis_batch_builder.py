@@ -47,14 +47,6 @@ class IsisBatchBuilder(BatchBuilder):
         return {
             "version": self.version,
             "features": {
-                "isis": {
-                    "supported": True,
-                    "description": "IS-IS routing protocol",
-                },
-                "segment_routing": {
-                    "supported": True,
-                    "description": "IS-IS Segment Routing (SR-MPLS)",
-                },
                 "interface_fast_reroute": {
                     "supported": _FAST_REROUTE in nodes,
                     "description": "Interface LFA, remote LFA and TI-LFA",
@@ -67,29 +59,14 @@ class IsisBatchBuilder(BatchBuilder):
                     "supported": _TE_EXPORT in nodes,
                     "description": "Traffic Engineering Database export",
                 },
-                "redistribute_nhrp": {
-                    "supported": "nhrp" in self.m.redistribute_ipv4_protocols(),
-                    "description": "Redistribute NHRP into IS-IS",
-                },
-                "lfa_priority_limit": {
-                    "supported": True,
-                    "description": "Global LFA local priority-limit",
-                    "values": self.m.lfa_priority_limit_values(),
-                },
-                "lfa_tiebreaker": {
-                    "supported": True,
-                    "description": "Global LFA local tiebreaker",
-                    "values": self.m.lfa_tiebreaker_values(),
-                },
-                "lfa_remote_prefix_list": {
-                    "supported": True,
-                    "description": "Global LFA remote prefix-list",
-                },
             },
             "lsp_refresh_interval": {"min": lsp_refresh_min, "max": lsp_refresh_max},
+            "lsp_timer_defaults": self.m.lsp_timer_defaults(),
             "area_password_modes": self.m.area_password_modes(),
             "domain_password_modes": self.m.domain_password_modes(),
             "srv6_node_msd_types": self.m.srv6_node_msd_types(),
+            "lfa_priority_limit_values": self.m.lfa_priority_limit_values(),
+            "lfa_tiebreaker_values": self.m.lfa_tiebreaker_values(),
             "redistribute_protocols": {
                 "ipv4": sorted(self.m.redistribute_ipv4_protocols()),
                 "ipv6": sorted(self.m.redistribute_ipv6_protocols()),
@@ -110,8 +87,8 @@ class IsisBatchBuilder(BatchBuilder):
     def set_net(self, net: str) -> "IsisBatchBuilder":
         return self.add_set(self.m.get_net_path(net))
 
-    def delete_net(self, net: str) -> "IsisBatchBuilder":
-        return self.add_delete(self.m.get_net_path(net))
+    def delete_net(self) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_net_delete_path())
 
     # -----------------------------------------------------------------------
     # Global — scalars
@@ -271,8 +248,15 @@ class IsisBatchBuilder(BatchBuilder):
     # Global — LDP sync
     # -----------------------------------------------------------------------
 
+    def set_ldp_sync(self) -> "IsisBatchBuilder":
+        """Bare ``ldp-sync``: FRR renders it as ``mpls ldp-sync``."""
+        return self.add_set(self.m.get_ldp_sync_path())
+
     def set_ldp_sync_holddown(self, val: str) -> "IsisBatchBuilder":
         return self.add_set(self.m.get_ldp_sync_holddown_path(val))
+
+    def delete_ldp_sync_holddown(self) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_ldp_sync_holddown_delete_path())
 
     def delete_ldp_sync(self) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_ldp_sync_path())
@@ -280,6 +264,12 @@ class IsisBatchBuilder(BatchBuilder):
     # -----------------------------------------------------------------------
     # Global — Fast Reroute LFA
     # -----------------------------------------------------------------------
+
+    def set_frr_lfa_load_sharing_disable(self) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_frr_lfa_load_sharing_disable_path())
+
+    def delete_frr_lfa_load_sharing_disable(self) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_frr_lfa_load_sharing_disable_path())
 
     def set_frr_lfa_load_sharing_disable_level1(self) -> "IsisBatchBuilder":
         return self.add_set(self.m.get_frr_lfa_load_sharing_disable_level1_path())
@@ -308,6 +298,12 @@ class IsisBatchBuilder(BatchBuilder):
         self, tb_type: str, index: str, level: str
     ) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_frr_lfa_tiebreaker_index_path(tb_type, index, level))
+
+    def set_frr_lfa_remote_prefix_list_all_levels(self, prefix_list: str) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_frr_lfa_remote_prefix_list_name_path(prefix_list))
+
+    def delete_frr_lfa_remote_prefix_list_all_levels(self, prefix_list: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_frr_lfa_remote_prefix_list_name_path(prefix_list))
 
     def set_frr_lfa_remote_prefix_list(
         self, prefix_list: str, level: str

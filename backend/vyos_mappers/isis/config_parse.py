@@ -55,8 +55,7 @@ def parse_global(raw: dict) -> Dict[str, Any]:
     area_md5, area_plain = _masked_passwords(raw.get("area-password"))
     domain_md5, domain_plain = _masked_passwords(raw.get("domain-password"))
 
-    net_raw = raw.get("net", {})
-    net = list(net_raw.keys()) if isinstance(net_raw, dict) else _to_list(net_raw)
+    net = _single_value(raw.get("net"))
 
     return {
         "net": net,
@@ -79,6 +78,7 @@ def parse_global(raw: dict) -> Dict[str, Any]:
         "area_password_plaintext": area_plain,
         "domain_password_md5": domain_md5,
         "domain_password_plaintext": domain_plain,
+        "ldp_sync": "ldp-sync" in raw,
         "ldp_sync_holddown": _safe_int((raw.get("ldp-sync", {}) or {}).get("holddown")),
         "spf_delay_ietf": {
             "init_delay": _safe_int(spf_delay_raw.get("init-delay")),
@@ -337,15 +337,21 @@ def parse_frr_global(raw: dict) -> Dict[str, Any]:
                         {"tb_type": tb_type, "index": str(index), "level": level}
                     )
 
-    remote_pl: List[Dict[str, str]] = []
+    remote_pl: List[Dict[str, Any]] = []
     if isinstance(pl_list_raw, dict):
         for prefix_list, levels in pl_list_raw.items():
-            if not isinstance(levels, dict):
+            if not isinstance(levels, dict) or not levels:
+                # A bare ``prefix-list <name>`` applies on every level.
+                remote_pl.append({"prefix_list": prefix_list, "level": None})
                 continue
             for level in levels:
                 remote_pl.append({"prefix_list": prefix_list, "level": level})
 
     return {
+        # A bare ``load-sharing disable`` disables it on every level.
+        "lfa_load_sharing_disable": (
+            isinstance(ls_raw, dict) and "disable" in ls_raw and not disable_raw
+        ),
         "lfa_load_sharing_disable_level1": (
             "level-1" in disable_raw if isinstance(disable_raw, dict) else False
         ),
@@ -357,7 +363,7 @@ def parse_frr_global(raw: dict) -> Dict[str, Any]:
             tiebreaker, key=lambda x: (x["tb_type"], x["index"], x["level"])
         ),
         "lfa_remote_prefix_list": sorted(
-            remote_pl, key=lambda x: (x["prefix_list"], x["level"])
+            remote_pl, key=lambda x: (x["prefix_list"], x["level"] or "")
         ),
     }
 
