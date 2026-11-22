@@ -47,13 +47,8 @@
     "editTitle": "编辑接口",
     "editDescription": "修改 {name} 的 IGMP 代理配置。",
     "addDescription": "向 IGMP 代理配置添加新接口。",
-    "interfaceHelp": "参与 IGMP 代理的网络接口。",
     "role": "角色",
-    "selectRole": "选择接口角色",
-    "roleHelp": "上游接口从源网络接收组播，下游接口将组播转发到客户端网络。",
-    "thresholdHelp": "组播数据包被转发所需的最小 TTL（1-255）。",
-    "altSubnetsHelp": "允许来自直连子网之外的源的组播，通常用于上游接口。",
-    "whitelistHelp": "仅代理这些组地址范围的组播流量。留空则允许所有组。"
+    "selectRole": "选择接口角色"
   },
   "setupModal": {
     "upstreamRequired": "上游接口为必填项",
@@ -72,5 +67,13 @@
     "downstreamInterface": "下游接口",
     "downstreamHelp": "将组播流量转发到客户端网络。",
     "settingUp": "正在设置..."
+  },
+  "confirm": {
+    "title": "应用 IGMP 代理更改",
+    "apply": "应用",
+    "disableProxy": "禁用 IGMP 代理？",
+    "enableProxy": "启用 IGMP 代理？",
+    "disableQuickleave": "禁用快速离开 (Quickleave)？",
+    "enableQuickleave": "启用快速离开 (Quickleave)？"
   }
 }

@@ -9,6 +9,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,6 +37,7 @@ import {
   ArrowDownToLine,
   Network,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -40,6 +51,13 @@ import { IgmpProxyInterfaceModal } from "./IgmpProxyInterfaceModal";
 import { DeleteIgmpProxyInterfaceModal } from "./DeleteIgmpProxyInterfaceModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import type { ApiError } from "@/lib/types/api";
+
+/** A page toggle waiting for Cancel / Apply; `value` is the state it turns the leaf to. */
+interface PendingToggle {
+  kind: "disable" | "quickleave";
+  value: boolean;
+}
 
 export function IgmpProxyContent() {
   const t = useTranslations("igmpProxy");
@@ -53,9 +71,11 @@ export function IgmpProxyContent() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Global settings loading states
-  const [disableLoading, setDisableLoading] = useState(false);
-  const [quickleaveLoading, setQuickleaveLoading] = useState(false);
+  // Global settings confirm dialog. The toggle stays set after close so the text does not change while it animates out.
+  const [toggle, setToggle] = useState<PendingToggle | null>(null);
+  const [toggleOpen, setToggleOpen] = useState(false);
+  const [toggleSaving, setToggleSaving] = useState(false);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   // Modal state
   const [setupModalOpen, setSetupModalOpen] = useState(false);
@@ -74,7 +94,7 @@ export function IgmpProxyContent() {
       setConfig(configData);
       setCapabilities(capData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
+      setError((err as ApiError).message || t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -111,32 +131,48 @@ export function IgmpProxyContent() {
   // Global settings handlers
   // ==========================================================================
 
-  const handleToggleDisable = async () => {
+  const openToggle = (kind: PendingToggle["kind"]) => {
     if (!config || !hasWritePermission) return;
-    const newValue = !config.disabled;
-    setDisableLoading(true);
-    try {
-      await igmpProxyService.setDisabled(newValue);
-      await loadData(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.updateStatusFailed"));
-    } finally {
-      setDisableLoading(false);
-    }
+    const value = kind === "disable" ? !config.disabled : !config.disable_quickleave;
+    setToggle({ kind, value });
+    setToggleError(null);
+    setToggleOpen(true);
   };
 
-  const handleToggleQuickleave = async () => {
-    if (!config || !hasWritePermission) return;
-    const newValue = !config.disable_quickleave;
-    setQuickleaveLoading(true);
+  const handleToggleOpenChange = (next: boolean) => {
+    if (next || toggleSaving) return;
+    setToggleOpen(false);
+  };
+
+  const handleToggleApply = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (!toggle) return;
+    setToggleSaving(true);
+    setToggleError(null);
     try {
-      await igmpProxyService.setDisableQuickleave(newValue);
-      await loadData(true);
+      if (toggle.kind === "disable") {
+        await igmpProxyService.setDisabled(toggle.value);
+      } else {
+        await igmpProxyService.setDisableQuickleave(toggle.value);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.updateQuickleaveFailed"));
-    } finally {
-      setQuickleaveLoading(false);
+      setToggleError(
+        (err as ApiError).message ||
+          t(toggle.kind === "disable" ? "content.updateStatusFailed" : "content.updateQuickleaveFailed")
+      );
+      setToggleSaving(false);
+      return;
     }
+    setToggleSaving(false);
+    setToggleOpen(false);
+    await loadData(true);
+  };
+
+  const toggleDescription = (pending: PendingToggle) => {
+    if (pending.kind === "disable") {
+      return pending.value ? t("confirm.disableProxy") : t("confirm.enableProxy");
+    }
+    return pending.value ? t("confirm.disableQuickleave") : t("confirm.enableQuickleave");
   };
 
   // ==========================================================================
@@ -256,18 +292,12 @@ export function IgmpProxyContent() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {disableLoading ? (
-                      <div className="rounded-md p-2 bg-muted">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : (
-                      <Checkbox
-                        id="igmp-proxy-enabled"
-                        checked={!config?.disabled}
-                        onCheckedChange={handleToggleDisable}
-                        disabled={!hasWritePermission || disableLoading}
-                      />
-                    )}
+                    <Checkbox
+                      id="igmp-proxy-enabled"
+                      checked={!config?.disabled}
+                      onCheckedChange={() => openToggle("disable")}
+                      disabled={!hasWritePermission}
+                    />
                     <div className="min-w-0">
                       <label
                         htmlFor="igmp-proxy-enabled"
@@ -289,18 +319,12 @@ export function IgmpProxyContent() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {quickleaveLoading ? (
-                      <div className="rounded-md p-2 bg-muted">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : (
-                      <Checkbox
-                        id="igmp-quickleave"
-                        checked={!config?.disable_quickleave}
-                        onCheckedChange={handleToggleQuickleave}
-                        disabled={!hasWritePermission || quickleaveLoading}
-                      />
-                    )}
+                    <Checkbox
+                      id="igmp-quickleave"
+                      checked={!config?.disable_quickleave}
+                      onCheckedChange={() => openToggle("quickleave")}
+                      disabled={!hasWritePermission}
+                    />
                     <div className="min-w-0">
                       <label
                         htmlFor="igmp-quickleave"
@@ -534,6 +558,7 @@ export function IgmpProxyContent() {
           if (!open) setEditingInterface(null);
         }}
         existingInterface={editingInterface}
+        configuredNames={config?.interfaces.map((i) => i.name) ?? []}
         onSubmit={editingInterface ? handleUpdateInterface : handleCreateInterface}
       />
 
@@ -545,6 +570,30 @@ export function IgmpProxyContent() {
         interfaceName={deletingInterface ?? ""}
         onConfirm={handleDeleteInterface}
       />
+
+      <AlertDialog open={toggleOpen} onOpenChange={handleToggleOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirm.title")}</AlertDialogTitle>
+            <AlertDialogDescription>{toggle && toggleDescription(toggle)}</AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {toggleError && (
+            <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p className="whitespace-pre-wrap">{toggleError}</p>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={toggleSaving}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleToggleApply} disabled={toggleSaving}>
+              {toggleSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("confirm.apply")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

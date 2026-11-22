@@ -25,12 +25,15 @@ import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import type { ApiError } from "@/lib/types/api";
 
 interface IgmpProxyInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (iface: IgmpProxyInterface) => Promise<void>;
   existingInterface?: IgmpProxyInterface | null;
+  /** Interfaces already under the IGMP proxy; the add picker leaves them out. */
+  configuredNames: string[];
 }
 
 export function IgmpProxyInterfaceModal({
@@ -38,6 +41,7 @@ export function IgmpProxyInterfaceModal({
   onOpenChange,
   onSubmit,
   existingInterface,
+  configuredNames,
 }: IgmpProxyInterfaceModalProps) {
   const t = useTranslations("igmpProxy");
   const tc = useTranslations("common");
@@ -105,6 +109,15 @@ export function IgmpProxyInterfaceModal({
   const handleClose = () => {
     resetForm();
     onOpenChange(false);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true);
+      return;
+    }
+    if (loading) return;
+    handleClose();
   };
 
   const validateForm = (): string | null => {
@@ -192,15 +205,14 @@ export function IgmpProxyInterfaceModal({
       await onSubmit(iface);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -229,12 +241,10 @@ export function IgmpProxyInterfaceModal({
                   value={name}
                   onValueChange={setName}
                   interfaces={availableInterfaces}
+                  filter={(iface) => !configuredNames.includes(iface.name)}
                   placeholder={tc("selectInterface")}
                 />
               )}
-              <p className="text-xs text-muted-foreground">
-                {t("interfaceModal.interfaceHelp")}
-              </p>
             </div>
 
             {/* Role */}
@@ -250,9 +260,6 @@ export function IgmpProxyInterfaceModal({
                   <SelectItem value="disabled">{tc("disabled")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                {t("interfaceModal.roleHelp")}
-              </p>
             </div>
 
             {/* Threshold */}
@@ -267,19 +274,11 @@ export function IgmpProxyInterfaceModal({
                 min={1}
                 max={255}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("interfaceModal.thresholdHelp")}
-              </p>
             </div>
 
             {/* Alt Subnets */}
             <div className="space-y-3">
-              <div>
-                <Label>{t("alternateSubnets")}</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("interfaceModal.altSubnetsHelp")}
-                </p>
-              </div>
+              <Label>{t("alternateSubnets")}</Label>
 
               {altSubnets.length > 0 && (
                 <div className="space-y-2">
@@ -326,12 +325,7 @@ export function IgmpProxyInterfaceModal({
 
             {/* Whitelists */}
             <div className="space-y-3">
-              <div>
-                <Label>{t("whitelist")}</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("interfaceModal.whitelistHelp")}
-                </p>
-              </div>
+              <Label>{t("whitelist")}</Label>
 
               {whitelists.length > 0 && (
                 <div className="space-y-2">
