@@ -23,7 +23,7 @@ Security / safety notes:
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Request
@@ -34,6 +34,8 @@ from fastapi_permissions import require_read_permission
 from org_scope import org_enforcement_enabled, request_scoped_conn
 from rbac_permissions import FeatureGroup
 from system_updates import SystemUpdatesInfo, parse_system_updates
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.system.updates import SystemUpdatesMapper
 from vyos_service import VyOSDeviceConfig, VyOSService
 
 import logging
@@ -123,16 +125,18 @@ def _check_one_instance(inst: asyncpg.Record) -> InstanceUpdateStatus:
             timeout=inst["timeout"] or 10,
         )
         service = VyOSService(config)
-        response = service.device.show(path=["system", "updates"])
+        mapper = cast(
+            SystemUpdatesMapper,
+            CommandMapperRegistry.get_mapper("system_updates", config.version),
+        )
+        response = service.device.show(path=mapper.get_updates_show_path())
 
-        if response.status != 200:
+        # pyvyos sets ``error`` on an HTTP 200 the device refused and unwraps
+        # the reply's ``data`` into ``result``, a str for op commands.
+        if response.status != 200 or response.error:
             return InstanceUpdateStatus(status="error", **base)
 
-        output = ""
-        if isinstance(response.result, dict) and "data" in response.result:
-            output = response.result["data"] or ""
-        elif isinstance(response.result, str):
-            output = response.result
+        output = response.result if isinstance(response.result, str) else ""
 
         info: SystemUpdatesInfo = parse_system_updates(output)
         if not info.configured:
@@ -252,7 +256,7 @@ async def get_site_updates(request: Request, site_id: str, refresh: bool = False
 
         cached = _cache.get(inst["id"])
         if not refresh and cached and (now - cached[0]) < _CACHE_TTL_SECONDS:
-            hit = cached[1].copy(update={"cached": True})
+            hit = cached[1].model_copy(update={"cached": True})
             results.append(hit)
         else:
             to_fetch.append(inst)

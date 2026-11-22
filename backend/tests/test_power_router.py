@@ -16,6 +16,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
 from rbac_permissions import FeatureGroup
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.power import PowerMapper
 
 ROUTER = "routers.power"
 ROUTES = ["/vyos/power/reboot", "/vyos/power/poweroff"]
@@ -47,7 +49,15 @@ def db():
 @pytest.fixture
 def device():
     """Reply each stub device call returns, plus the calls and threads it saw."""
-    return {"result": "", "status": 200, "error": False, "calls": [], "threads": [], "conn_open": []}
+    return {
+        "version": "1.4.3",
+        "result": "",
+        "status": 200,
+        "error": False,
+        "calls": [],
+        "threads": [],
+        "conn_open": [],
+    }
 
 
 @pytest.fixture
@@ -77,6 +87,9 @@ def client(monkeypatch, device, db):
             self.device = SimpleNamespace(
                 reboot=_call("reboot"), poweroff=_call("poweroff"), show=_call("show")
             )
+
+        def get_version(self):
+            return device["version"]
 
         def get_full_config(self, refresh=False):
             return {"system": {"time-zone": "UTC"}}
@@ -116,6 +129,7 @@ def _off_loop(client, device):
     assert not set(device["threads"]) & client.loop_threads
 
 
+@pytest.mark.parametrize("version", ["1.4.3", "2026.09.23-0027-rolling"])
 @pytest.mark.parametrize("route", ROUTES)
 @pytest.mark.parametrize(
     "action,value,path",
@@ -130,8 +144,13 @@ def _off_loop(client, device):
         ("in", "0" * 4300 + "5", ["in", "5"]),
     ],
 )
-def test_action_sends_the_op_path_off_the_event_loop(client, device, route, action, value, path):
-    device.update(result="Reboot is scheduled 2030-01-01 19:30:00\n" if action == "at" else "")
+def test_action_sends_the_op_path_off_the_event_loop(
+    client, device, version, route, action, value, path
+):
+    device.update(
+        version=version,
+        result="Reboot is scheduled 2030-01-01 19:30:00\n" if action == "at" else "",
+    )
     resp = client.http.post(route, json={"action": action, "value": value})
     assert resp.status_code == 200, resp.text
     kind = route.rsplit("/", 1)[1]
@@ -347,3 +366,46 @@ def test_session_400_passes_through(client, monkeypatch, method, route, body):
     resp = getattr(client.http, method)(route, **kwargs)
     assert resp.status_code == 400
     assert resp.json()["detail"] == "No active VyOS session"
+
+
+class _MarkedPowerMapper(PowerMapper):
+    """Stand-in that tags every path, so a path the router builds itself shows up."""
+
+    def get_now_path(self):
+        return ["now", "mapper"]
+
+    def get_cancel_path(self):
+        return ["cancel", "mapper"]
+
+    def get_at_path(self, time):
+        return ["at", time, "mapper"]
+
+    def get_in_path(self, minutes):
+        return ["in", minutes, "mapper"]
+
+    def get_status_show_path(self):
+        return ["reboot", "mapper"]
+
+
+@pytest.mark.parametrize(
+    "action,value,path",
+    [
+        ("now", None, ["now", "mapper"]),
+        ("cancel", None, ["cancel", "mapper"]),
+        ("at", "19:30", ["at", "19:30", "mapper"]),
+        ("in", "05", ["in", "5", "mapper"]),
+    ],
+)
+def test_action_paths_come_from_the_power_mapper(client, device, monkeypatch, action, value, path):
+    monkeypatch.setitem(CommandMapperRegistry._features, "power", _MarkedPowerMapper)
+    resp = client.http.post(ROUTES[0], json={"action": action, "value": value})
+    assert resp.status_code == 200, resp.text
+    assert device["calls"] == [("reboot", path)]
+
+
+def test_status_path_comes_from_the_power_mapper(client, device, db, monkeypatch):
+    monkeypatch.setitem(CommandMapperRegistry._features, "power", _MarkedPowerMapper)
+    db["row"] = _stored_row()
+    device.update(result="Reboot is scheduled 2030-01-01 10:00:00\n")
+    assert client.http.get("/vyos/power/status").json()["scheduled"] is True
+    assert device["calls"] == [("show", ["reboot", "mapper"])]
