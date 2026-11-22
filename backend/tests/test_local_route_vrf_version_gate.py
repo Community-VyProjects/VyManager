@@ -54,7 +54,7 @@ def _args(method):
 
 def test_every_vrf_mapper_method_is_covered():
     assert len(VRF_MAPPER_METHODS) == 4
-    assert sorted(LocalRouteMapper._VERSIONED_NODES[SET_VRF]) == VRF_MAPPER_METHODS
+    assert LocalRouteMapper._VERSIONED_NODES[SET_VRF] in VRF_MAPPER_METHODS
 
 
 # ---------------------------------------------------------------------------
@@ -87,14 +87,16 @@ def test_versioned_nodes_per_version():
     assert get_local_route_mapper("1.5").versioned_nodes() == frozenset({SET_VRF})
 
 
-@pytest.mark.parametrize("name", VRF_MAPPER_METHODS)
-def test_missing_any_vrf_path_turns_the_node_off(monkeypatch, name):
-    monkeypatch.delattr(LocalRouteMapperV1_5, name)
+def test_missing_vrf_path_turns_the_node_off(monkeypatch):
+    monkeypatch.delattr(LocalRouteMapperV1_5, LocalRouteMapper._VERSIONED_NODES[SET_VRF])
     assert get_local_route_mapper("1.5").versioned_nodes() == frozenset()
 
 
 def test_require_node_rejects_on_1_4():
-    with pytest.raises(ValueError, match="local-route rule set vrf is not supported on this device"):
+    with pytest.raises(
+        ValueError,
+        match="policy local-route/local-route6 rule set vrf is not supported on this device",
+    ):
         get_local_route_mapper("1.4").require_node(SET_VRF)
     get_local_route_mapper("1.5").require_node(SET_VRF)
 

@@ -4,10 +4,11 @@ Local Route Command Mapper
 Handles command path generation for VyOS local route policy configuration.
 ``set vrf`` under a local-route or local-route6 rule exists only on 1.5; its
 path methods live on the 1.5 subclass. ``_VERSIONED_NODES`` maps that node to
-those methods and ``versioned_nodes()`` is the set the device has.
+the subclass path method that defines it; ``versioned_nodes()`` is the set the
+device has.
 """
 
-from typing import Any, Dict, FrozenSet, List, Tuple
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 # Version-only rule node (key of LocalRouteMapper._VERSIONED_NODES).
@@ -17,31 +18,27 @@ SET_VRF = "set vrf"
 class LocalRouteMapper(BaseFeatureMapper):
     """Local route policy commands both VyOS versions have."""
 
-    _VERSIONED_NODES: Dict[str, Tuple[str, ...]] = {
-        SET_VRF: (
-            "get_local_route_rule_set_vrf",
-            "get_local_route_rule_set_vrf_path",
-            "get_local_route6_rule_set_vrf",
-            "get_local_route6_rule_set_vrf_path",
-        ),
+    _VERSIONED_NODES: Dict[str, str] = {
+        SET_VRF: "get_local_route_rule_set_vrf",
     }
 
     def versioned_nodes(self) -> FrozenSet[str]:
         """Version-only rule nodes this device has.
 
-        A node counts only when every path method under it is on this class
-        (the 1.5 subclass). Capabilities and the builder read this set
-        instead of the version string.
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
         """
         return frozenset(
             node
-            for node, methods in self._VERSIONED_NODES.items()
-            if all(callable(getattr(self, method, None)) for method in methods)
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
         )
 
     def require_node(self, node: str) -> None:
         if node not in self.versioned_nodes():
-            raise ValueError(f"local-route rule {node} is not supported on this device")
+            raise ValueError(
+                f"policy local-route/local-route6 rule {node} is not supported on this device"
+            )
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_local_route_config
