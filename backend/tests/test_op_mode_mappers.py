@@ -234,7 +234,8 @@ def test_site_check_reads_the_mapper_path(site, holder):
     assert status.status == "ok"
     assert status.available_version == "2026.11.22-0018-rolling"
     assert holder["paths"] == [["system", "updates"]]
-    assert site["version"] == "1.4.3"
+    # VyOSDeviceConfig reduces a stored "1.4.3" to "1.4"
+    assert site["version"] == "1.4"
 
 
 def test_site_check_unset_url_is_not_configured(site, holder):
