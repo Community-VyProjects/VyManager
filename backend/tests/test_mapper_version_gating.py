@@ -68,7 +68,8 @@ def test_mappers_14_reject_redistribute_nhrp():
 
 def test_mappers_14_delete_redistribute_nhrp():
     babel = get_babel_mapper("1.4")
-    assert babel.get_redistribute_ipv4_delete("nhrp")[-1] == "nhrp"
+    with pytest.raises(ValueError, match="not supported"):
+        babel.get_redistribute_ipv4_delete("nhrp")
     assert VrfOspfMapper("1.4").get_ospf_redistribute_delete("blue", "nhrp")[-1] == "nhrp"
     isis = get_isis_mapper("1.4")
     assert isis.get_redistribute_delete_path("ipv4", "nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
@@ -100,8 +101,9 @@ def test_babel_14_rejects_redistribute_nhrp():
     # supported protocols still pass through
     builder.set_redistribute_ipv4("bgp")
     assert builder.get_operations()
-    builder.delete_redistribute_ipv4("nhrp")
-    assert builder.get_operations()[-1]["op"] == "delete"
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_redistribute_ipv4("nhrp")
+    assert len(builder.get_operations()) == 1
 
 
 def test_babel_15_allows_redistribute_nhrp():

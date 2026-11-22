@@ -19,9 +19,6 @@ class BabelMapper(BaseFeatureMapper):
         {"bgp", "connected", "isis", "kernel", "openfabric", "ospfv3", "ripng", "static"}
     )
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
         return self._REDIST_IPV4
 
@@ -142,6 +139,7 @@ class BabelMapper(BaseFeatureMapper):
         return ["protocols", "babel", "redistribute", "ipv4", protocol]
 
     def get_redistribute_ipv4_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute_ipv4(protocol)
         return ["protocols", "babel", "redistribute", "ipv4", protocol]
 
     def get_redistribute_ipv6(self, protocol: str) -> List[str]:
@@ -149,6 +147,7 @@ class BabelMapper(BaseFeatureMapper):
         return ["protocols", "babel", "redistribute", "ipv6", protocol]
 
     def get_redistribute_ipv6_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute_ipv6(protocol)
         return ["protocols", "babel", "redistribute", "ipv6", protocol]
 
     # ========================================================================
@@ -324,6 +323,10 @@ class BabelMapper(BaseFeatureMapper):
 
     def get_distribute_list_ipv6_iface_delete(self, interface: str) -> List[str]:
         return ["protocols", "babel", "distribute-list", "ipv6", "interface", interface]
+
+    # ========================================================================
+    # Config Parse
+    # ========================================================================
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_babel_config
