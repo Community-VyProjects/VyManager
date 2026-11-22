@@ -137,6 +137,7 @@ STATIC_ROUTES_OFFLOADED = [
 BFD_OFFLOADED = [
     ("get_bfd_config", "routers/bfd/bfd.py", "get_full_config", 1),
     ("bfd_batch_configure", "routers/bfd/bfd.py", "execute_batch", 1),
+    ("get_bfd_status", "routers/bfd/bfd.py", "show", 1),
 ]
 
 # reboot_system and poweroff_system send through _run_power_action.

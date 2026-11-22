@@ -1,8 +1,7 @@
 """BFD operational peer status.
 
-Parses the text output of the op-mode ``show bfd peers`` command (fetched via the
-GraphQL ``Show`` op built by ``BfdMapper.peers_show_query``) into structured
-per-session data.
+Parses the text output of the op-mode ``show bfd peers`` command (path from
+``BfdMapper.get_peers_show_path``) into structured per-session data.
 
 This surfaces *running* BFD sessions — including ``dynamic`` peers created by a
 routing protocol (BGP/OSPF/IS-IS with ``bfd`` enabled), which never appear under

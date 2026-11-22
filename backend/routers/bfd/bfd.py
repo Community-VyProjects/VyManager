@@ -16,9 +16,8 @@ from vyos_builders.bfd import BfdBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from bfd_status import BfdPeerStatus, parse_bfd_peers
+from requests.exceptions import RequestException
 import inspect
-import json
-import httpx
 import logging
 from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
@@ -153,7 +152,7 @@ async def get_bfd_config(http_request: Request, refresh: bool = False):
 
 @router.get("/status", response_model=BfdStatusResponse)
 async def get_bfd_status(request: Request):
-    """Get live BFD sessions via the GraphQL ``Show`` op (``show bfd peers``).
+    """Get live BFD sessions from the op-mode ``show bfd peers`` command.
 
     Unlike ``/config``, this reflects the running BFD daemon and therefore
     includes ``dynamic`` peers created by routing protocols (BGP/OSPF/IS-IS with
@@ -164,25 +163,22 @@ async def get_bfd_status(request: Request):
     try:
         service = get_session_vyos_service(request)
         mapper = cast(BfdMapper, CommandMapperRegistry.get_mapper("bfd", service.get_version()))
-        api_key = str(service.config.apikey)
-        url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
-        payload = mapper.peers_show_query(json.dumps(api_key))
-
-        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
-            resp = await client.post(url, json=payload, auth=("vyos", api_key))
-
-        if resp.status_code != 200:
-            logger.error("BFD status GraphQL HTTP error %d", resp.status_code)
+        try:
+            response = await run_in_threadpool(
+                service.device.show, path=mapper.get_peers_show_path()
+            )
+        except RequestException as e:
+            logger.warning("BFD status request failed: %s", e)
             raise HTTPException(status_code=502, detail="Failed to fetch BFD status")
 
-        body = resp.json()
-        if "errors" in body:
-            logger.warning("BFD status GraphQL field errors: %s", body["errors"])
+        if response.status != 200 or response.error:
+            logger.warning(
+                "BFD status show failed (status %s): %s", response.status, response.error
+            )
+            raise HTTPException(status_code=502, detail="Failed to fetch BFD status")
 
-        node = (body.get("data") or {}).get("BfdPeers") or {}
-        result = (node.get("data") or {}).get("result")
-        peers = parse_bfd_peers(result if isinstance(result, str) else "")
-        return BfdStatusResponse(peers=peers)
+        output = response.result if isinstance(response.result, str) else ""
+        return BfdStatusResponse(peers=parse_bfd_peers(output))
     except HTTPException:
         raise
     except Exception:

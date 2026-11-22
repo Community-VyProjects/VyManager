@@ -1,16 +1,17 @@
-"""BFD routes: comma-split batch args, HTTP 400 on a missing value, and the
-session lookup's HTTPException surviving every handler.
+"""BFD routes: comma-split batch args, HTTP 400 on a missing value, a failed
+live-status read as 502, and the session lookup's HTTPException surviving every
+handler.
 
 execute_batch and get_full_config run through run_in_threadpool (locked in
 test_batch_off_event_loop.py). These tests drive the handlers end to end with
-a stub service so the emitted ops and the 400/500 paths are checked.
+a stub service so the emitted ops and the 400/500/502 paths are checked.
 """
 
 import inspect
-import json
 from types import SimpleNamespace
 
 import pytest
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
@@ -22,14 +23,25 @@ ROUTER = "routers.bfd.bfd"
 BASE = ["protocols", "bfd"]
 
 
+class Device:
+    def __init__(self):
+        self.shown = []
+        self.show_reply = SimpleNamespace(status=200, error=False, result="")
+        self.show_raises = None
+
+    def show(self, path=None):
+        self.shown.append(path)
+        if self.show_raises is not None:
+            raise self.show_raises
+        return self.show_reply
+
+
 class Service:
-    def __init__(self, status=200, error=None):
-        self.status = status
-        self.error = error
+    def __init__(self):
+        self.status = 200
+        self.error = None
         self.executed = []
-        self.config = SimpleNamespace(
-            apikey="secret", protocol="https", hostname="r1", port=443, verify=False,
-        )
+        self.device = Device()
 
     def get_version(self):
         return "1.5"
@@ -196,46 +208,58 @@ def test_session_lookup_400_survives_every_route(monkeypatch, method, path):
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5", "1.5-rolling-202511010000"])
-def test_peers_show_query_is_unchanged(version):
-    """The query moved onto the mapper; the device must receive the same body."""
+def test_peers_show_path(version):
+    """Both labs run ``show bfd peers`` (vtysh -c "show bfd peers")."""
     mapper = CommandMapperRegistry.get_mapper("bfd", version)
     assert isinstance(mapper, BfdMapper)
-    key = json.dumps('k"ey')
-    assert mapper.peers_show_query(key) == {
-        "query": '{ BfdPeers: Show(data: {key: "k\\"ey", path: ["bfd", "peers"]}) { data { result } } }'
-    }
+    assert mapper.get_peers_show_path() == ["bfd", "peers"]
 
 
-def test_status_posts_the_mapper_query(monkeypatch):
-    sent = {}
+PEERS_TEXT = """BFD Peers:
+\tpeer 192.0.2.1 vrf default
+\t\tID: 1
+\t\tStatus: up
+\t\tUptime: 10 second(s)
+\t\tPeer Type: dynamic
+\t\tActive mode
+\t\tLocal timers:
+\t\t\tDetect-multiplier: 3
+\t\t\tReceive interval: 300ms
+"""
 
-    class Response:
-        status_code = 200
 
-        def json(self):
-            return {"data": {"BfdPeers": {"data": {"result": ""}}}}
-
-    class AsyncClient:
-        def __init__(self, **kwargs):
-            sent["client"] = kwargs
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_exc):
-            return False
-
-        async def post(self, url, json, auth):
-            sent.update(url=url, json=json, auth=auth)
-            return Response()
-
-    service = Service()
-    monkeypatch.setattr(f"{ROUTER}.httpx.AsyncClient", AsyncClient)
-    test_client = _app(monkeypatch, lambda _req: service)
-
+def test_status_reads_the_mapper_show_path(client):
+    test_client, service = client
+    service.device.show_reply = SimpleNamespace(status=200, error=False, result=PEERS_TEXT)
     resp = test_client.get("/vyos/bfd/status")
     assert resp.status_code == 200, resp.text
-    assert resp.json() == {"peers": []}
-    assert sent["url"] == "https://r1:443/graphql"
-    assert sent["json"] == BfdMapper("1.5").peers_show_query(json.dumps("secret"))
-    assert sent["auth"] == ("vyos", "secret")
+    assert service.device.shown == [["bfd", "peers"]]
+    peers = resp.json()["peers"]
+    assert [(p["peer"], p["status"], p["peer_type"], p["receive_interval"]) for p in peers] == [
+        ("192.0.2.1", "up", "dynamic", 300),
+    ]
+
+
+@pytest.mark.parametrize("status,error", [
+    (400, "Not authorized"),
+    (200, "Invalid command"),
+    (500, False),
+])
+def test_status_failed_show_is_502(client, status, error):
+    test_client, service = client
+    service.device.show_reply = SimpleNamespace(status=status, error=error, result="")
+    resp = test_client.get("/vyos/bfd/status")
+    assert resp.status_code == 502, resp.text
+    assert resp.json()["detail"] == "Failed to fetch BFD status"
+
+
+@pytest.mark.parametrize("exc", [
+    requests.exceptions.ConnectionError("Network error"),
+    requests.exceptions.Timeout("Request timed out"),
+])
+def test_status_unreachable_device_is_502(client, exc):
+    test_client, service = client
+    service.device.show_raises = exc
+    resp = test_client.get("/vyos/bfd/status")
+    assert resp.status_code == 502, resp.text
+    assert resp.json()["detail"] == "Failed to fetch BFD status"
