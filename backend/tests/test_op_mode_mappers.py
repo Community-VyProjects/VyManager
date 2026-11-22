@@ -6,7 +6,9 @@ every version. The routers load the mapper and send its path unchanged.
 """
 
 import ast
+import asyncio
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -18,6 +20,7 @@ from fastapi.testclient import TestClient
 
 import routers.show as show
 import routers.site_updates.site_updates as site_updates
+from rbac_permissions import FeatureGroup, PermissionLevel
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.power import PowerMapper
 from vyos_mappers.system.updates import SystemUpdatesMapper
@@ -262,3 +265,75 @@ def test_site_check_path_comes_from_the_mapper(site, holder, monkeypatch):
     monkeypatch.setitem(CommandMapperRegistry._features, "system_updates", Marked)
     site_updates._check_one_instance(cast(asyncpg.Record, INSTANCE))
     assert holder["paths"] == [["system", "updates", "mapper"]]
+
+
+class SiteConn:
+    """Stub org connection: the caller's site role and the site's instances."""
+
+    def __init__(self, role):
+        self.role = role
+
+    async def fetchval(self, query, *_args):
+        return self.role if "FROM users" in query else None
+
+    async def fetch(self, _query, *_args):
+        return [dict(INSTANCE, id="i1", name="r1"), dict(INSTANCE, id="i2", name="r2")]
+
+
+@pytest.fixture
+def fan_out(monkeypatch, site, holder):
+    state = {"role": "VIEWER", "readable": {"i1"}, "checks": []}
+
+    @asynccontextmanager
+    async def scoped(_request):
+        yield SiteConn(state["role"])
+
+    async def allow(_request, _feature):
+        return None
+
+    async def check_permission(_conn, user_id, instance_id, feature, level, org_id=None):
+        state["checks"].append((user_id, instance_id, feature, level))
+        return instance_id in state["readable"]
+
+    monkeypatch.setattr(site_updates, "_cache", {})
+    monkeypatch.setattr(site_updates, "request_scoped_conn", scoped)
+    monkeypatch.setattr(site_updates, "require_read_permission", allow)
+    monkeypatch.setattr(site_updates, "check_permission", check_permission)
+    monkeypatch.setattr("org_scope.ORG_ENFORCEMENT", False)
+    request = SimpleNamespace(state=SimpleNamespace(user={"id": "u1"}))
+
+    def call():
+        return asyncio.run(site_updates.get_site_updates(cast(Request, request), "s1"))
+
+    state["call"] = call
+    return state
+
+
+def test_site_rollup_skips_instances_without_system_read(fan_out, holder):
+    summary = fan_out["call"]()
+    assert [i.instance_id for i in summary.instances] == ["i1"]
+    assert summary.total == 1
+    assert holder["paths"] == [["system", "updates"]]
+    assert fan_out["checks"] == [
+        ("u1", "i1", FeatureGroup.SYSTEM, PermissionLevel.READ),
+        ("u1", "i2", FeatureGroup.SYSTEM, PermissionLevel.READ),
+    ]
+
+
+def test_site_rollup_serves_no_cached_status_without_system_read(fan_out, holder):
+    fan_out["readable"] = {"i1", "i2"}
+    fan_out["call"]()
+    fan_out["readable"] = {"i1"}
+    holder["paths"].clear()
+    summary = fan_out["call"]()
+    assert [i.instance_id for i in summary.instances] == ["i1"]
+    assert summary.instances[0].cached is True
+    assert holder["paths"] == []
+
+
+def test_site_admin_sees_every_instance_without_feature_checks(fan_out):
+    fan_out["role"] = "ADMIN"
+    fan_out["readable"] = set()
+    summary = fan_out["call"]()
+    assert [i.instance_id for i in summary.instances] == ["i1", "i2"]
+    assert fan_out["checks"] == []

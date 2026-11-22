@@ -10,8 +10,9 @@ Security / safety notes:
 - Authorization reuses the exact RBAC-filtered instance query used by
   ``/session/sites/{site_id}/instances`` (site ADMIN sees all; everyone else
   is restricted to ``user_instance_roles`` matching instanceId or siteId), then
-  additionally requires SYSTEM read. A foreign/invalid site_id yields an empty
-  list, not data.
+  additionally requires SYSTEM read on the active instance and, for everyone
+  but a site or org ADMIN, on each listed instance. A foreign/invalid site_id
+  yields an empty list, not data.
 - The fan-out is the only new resource risk, so it is bounded: per-instance
   timeout (each instance's configured timeout), a concurrency semaphore, and a
   short server-side TTL cache keyed by instance id (shared across users/sites)
@@ -31,8 +32,8 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from fastapi_permissions import require_read_permission
-from org_scope import org_enforcement_enabled, request_scoped_conn
-from rbac_permissions import FeatureGroup
+from org_scope import org_enforcement_enabled, org_id_from_state, request_scoped_conn
+from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
 from system_updates import SystemUpdatesInfo, parse_system_updates
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.system.updates import SystemUpdatesMapper
@@ -134,6 +135,12 @@ def _check_one_instance(inst: asyncpg.Record) -> InstanceUpdateStatus:
         # pyvyos sets ``error`` on an HTTP 200 the device refused and unwraps
         # the reply's ``data`` into ``result``, a str for op commands.
         if response.status != 200 or response.error:
+            logger.warning(
+                "Update check refused for instance %s (status %s): %s",
+                inst["id"],
+                response.status,
+                response.error,
+            )
             return InstanceUpdateStatus(status="error", **base)
 
         output = response.result if isinstance(response.result, str) else ""
@@ -234,6 +241,22 @@ async def get_site_updates(request: Request, site_id: str, refresh: bool = False
                 site_id,
                 user_id,
             )
+            # A role on the instance or its site is not SYSTEM read: an
+            # OPERATOR/VIEWER's feature grants decide, per instance, as
+            # require_read_permission does for the active instance.
+            org_id = org_id_from_state(request)
+            instances = [
+                inst
+                for inst in instances
+                if await check_permission(
+                    conn,
+                    user_id,
+                    inst["id"],
+                    FeatureGroup.SYSTEM,
+                    PermissionLevel.READ,
+                    org_id=org_id,
+                )
+            ]
 
     now = time.monotonic()
     to_fetch: List[asyncpg.Record] = []

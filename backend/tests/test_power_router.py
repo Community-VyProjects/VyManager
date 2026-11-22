@@ -221,7 +221,7 @@ def test_failed_device_call_is_500(client, device, db, route, status, error):
     device.update(status=status, error=error)
     resp = client.http.post(route, json={"action": "now"})
     assert resp.status_code == 500
-    assert resp.json()["detail"] == "VyOS command failed: boom"
+    assert resp.json()["detail"] == "VyOS command failed"
     assert db["executed"] == []
 
 

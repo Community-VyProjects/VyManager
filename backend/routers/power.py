@@ -302,7 +302,10 @@ def _action_path(
 def _check_reply(response) -> None:
     """500 when the device call failed, 400 when powerctrl rejected the request."""
     if response.status != 200 or response.error:
-        raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
+        logger.warning(
+            "Power action failed (status %s): %s", response.status, response.error
+        )
+        raise HTTPException(status_code=500, detail="VyOS command failed")
     if isinstance(response.result, str) and any(
         marker in response.result for marker in _REJECTED_MARKERS
     ):
