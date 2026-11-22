@@ -2,8 +2,9 @@
 VRF Command Mapper
 
 Handles command path generation for VRF (Virtual Routing and Forwarding) configuration.
-The shared class names the trees only one version has; that version's
-subclass in ``vrf_versions`` turns them on.
+The shared class is the VyOS 1.4 tree: it names the feature trees only 1.5 has
+and returns the 1.4 ``ip``/``ipv6 protocol`` values. The 1.5 subclass in
+``vrf_versions`` turns those trees on and returns its own protocol values.
 """
 
 from typing import Any, Dict, FrozenSet, List
@@ -11,7 +12,7 @@ from ..base import BaseFeatureMapper
 
 
 class VrfMapper(BaseFeatureMapper):
-    """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
+    """VRF paths for both labs, with the VyOS 1.4 version-only values."""
 
     # Feature trees below ``vrf name <vrf>`` only one version has, keyed by
     # the VRF builder's feature key. A tree not listed here (static, and the
@@ -44,6 +45,12 @@ class VrfMapper(BaseFeatureMapper):
         if not self.supports_feature(feature):
             node = self._VERSIONED_FEATURES[feature]
             raise ValueError(f"vrf {node} is not supported on this device")
+
+    def require_protocol(self, family: str, protocol: str) -> None:
+        """Reject an ``ip``/``ipv6 protocol`` value this device does not accept."""
+        allowed = self.ip_protocols() if family == "ip" else self.ipv6_protocols()
+        if protocol not in allowed:
+            raise ValueError(f"vrf {family} protocol {protocol} is not supported on this device")
 
     def parse_config(self, full_config: Any) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_vrf_config
@@ -86,6 +93,13 @@ class VrfMapper(BaseFeatureMapper):
     def get_vrf_ip_nht_no_resolve_via_default(self, name: str) -> List[str]:
         return ["vrf", "name", name, "ip", "nht", "no-resolve-via-default"]
 
+    def ip_protocols(self) -> List[str]:
+        """``vrf name <vrf> ip protocol`` values this device accepts."""
+        return [
+            "any", "babel", "bgp", "connected", "eigrp", "isis",
+            "kernel", "ospf", "rip", "static", "table",
+        ]
+
     def get_vrf_ip_protocol_route_map(self, name: str, protocol: str, route_map: str) -> List[str]:
         return ["vrf", "name", name, "ip", "protocol", protocol, "route-map", route_map]
 
@@ -98,6 +112,13 @@ class VrfMapper(BaseFeatureMapper):
 
     def get_vrf_ipv6_nht_no_resolve_via_default(self, name: str) -> List[str]:
         return ["vrf", "name", name, "ipv6", "nht", "no-resolve-via-default"]
+
+    def ipv6_protocols(self) -> List[str]:
+        """``vrf name <vrf> ipv6 protocol`` values this device accepts."""
+        return [
+            "any", "babel", "bgp", "connected", "isis",
+            "kernel", "ospfv3", "ripng", "static", "table",
+        ]
 
     def get_vrf_ipv6_protocol_route_map(self, name: str, protocol: str, route_map: str) -> List[str]:
         return ["vrf", "name", name, "ipv6", "protocol", protocol, "route-map", route_map]

@@ -142,11 +142,13 @@ class VrfBatchBuilder(BatchBuilder):
         protocol, _, route_map = value.partition(",")
         if not protocol or not route_map:
             raise ArityError(f"Operation set_vrf_ip_protocol_route_map requires 'protocol,route-map'")
+        self.m.require_protocol("ip", protocol)
         path = self.m.get_vrf_ip_protocol_route_map(name, protocol, route_map)
         return self.add_set(path)
 
     def delete_vrf_ip_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IP protocol route-map. Value is the protocol name."""
+        self.m.require_protocol("ip", value)
         path = self.m.get_vrf_path(name) + ["ip", "protocol", value, "route-map"]
         return self.add_delete(path)
 
@@ -175,11 +177,13 @@ class VrfBatchBuilder(BatchBuilder):
         protocol, _, route_map = value.partition(",")
         if not protocol or not route_map:
             raise ArityError(f"Operation set_vrf_ipv6_protocol_route_map requires 'protocol,route-map'")
+        self.m.require_protocol("ipv6", protocol)
         path = self.m.get_vrf_ipv6_protocol_route_map(name, protocol, route_map)
         return self.add_set(path)
 
     def delete_vrf_ipv6_protocol_route_map(self, name: str, value: str) -> "VrfBatchBuilder":
         """Delete IPv6 protocol route-map. Value is the protocol name."""
+        self.m.require_protocol("ipv6", value)
         path = self.m.get_vrf_path(name) + ["ipv6", "protocol", value, "route-map"]
         return self.add_delete(path)
 
@@ -188,8 +192,6 @@ class VrfBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_5 = "1.5" in self.version or "latest" in self.version
-        is_1_4 = "1.4" in self.version
         vrf_mapper = self.m
         static_mapper = cast(StaticRoutesMapper, self.mappers["static_routes"])
         # VRF OSPF ops run the global OSPF builder, so its allowlist decides.
@@ -224,6 +226,8 @@ class VrfBatchBuilder(BatchBuilder):
                 "protocol_route_maps": {
                     "supported": True,
                     "description": "Per-protocol route-map assignment in VRF",
+                    "ip_protocols": vrf_mapper.ip_protocols(),
+                    "ipv6_protocols": vrf_mapper.ipv6_protocols(),
                 },
                 "static_routes": {
                     "supported": True,
@@ -305,9 +309,5 @@ class VrfBatchBuilder(BatchBuilder):
                     "supported": bool(vrf_bgp.l2vpn_evpn_control_flags()),
                     "description": "BGP L2VPN EVPN address-family control flags",
                 },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
             },
         }
