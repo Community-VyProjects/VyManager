@@ -30,6 +30,7 @@ import {
 import {
   buildSchemaOps,
   initialSchemaValue,
+  isSecretField,
   schemaFieldKey,
   schemaSecretProblem,
   type SchemaRaw,
@@ -303,8 +304,8 @@ function FieldControl({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <Input
-        type={field.secret ? "password" : field.type === "number" ? "number" : "text"}
-        autoComplete={field.secret ? "new-password" : undefined}
+        type={isSecretField(field) ? "password" : field.type === "number" ? "number" : "text"}
+        autoComplete={isSecretField(field) ? "new-password" : undefined}
         value={(value as string) || ""}
         placeholder={field.placeholder}
         disabled={disabled}

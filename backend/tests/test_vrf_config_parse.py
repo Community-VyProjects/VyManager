@@ -363,6 +363,31 @@ def test_dhcp_summary_comes_from_global_read_model():
     assert [n["name"] for n in glob["shared_networks"]] == ["LAN"]
 
 
+def test_bare_protocol_and_service_roots_are_present():
+    tree = {
+        "vrf": {
+            "name": {
+                "BLUE": {
+                    "protocols": {"ospf": {}, "ospfv3": None, "isis": {}, "bgp": {}, "failover": {}},
+                    "service": {"dhcpv6-server": {}},
+                }
+            }
+        }
+    }
+    for version in ("1.4", "1.5"):
+        inst = get_vrf_mapper(version).parse_config(tree)["instances"][0]
+        for key in ("ospf", "ospfv3", "isis", "bgp"):
+            assert inst[key]["configured"] is True, (version, key)
+            assert inst[key]["raw_config"] == {}, (version, key)
+        assert inst["failover"] == {"routes": [], "raw_config": {}}
+        assert inst["dhcpv6"]["configured"] is True
+        assert inst["dhcpv6"]["shared_networks"] == []
+    absent = {"vrf": {"name": {"BLUE": {"protocols": {}, "service": {}}}}}
+    inst = get_vrf_mapper("1.5").parse_config(absent)["instances"][0]
+    for key in ("ospf", "ospfv3", "isis", "bgp", "failover", "dhcp", "dhcpv6"):
+        assert inst[key] is None, key
+
+
 def test_bare_vrf_dhcp_server_is_configured():
     tree = {"vrf": {"name": {"BLUE": {"service": {"dhcp-server": {"disable": {}}}}}}}
     dhcp = get_vrf_mapper("1.5").parse_config(tree)["instances"][0]["dhcp"]

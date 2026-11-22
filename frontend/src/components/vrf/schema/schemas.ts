@@ -52,10 +52,10 @@ export const ISIS_SCHEMA: SectionSpec[] = [
   {
     title: "Passwords",
     fields: [
-      { op: "vrf_isis_area_password_plaintext_password", label: "Area password (plaintext)", type: "text", secret: true, path: ["area-password", "plaintext-password"] },
-      { op: "vrf_isis_area_password_md5", label: "Area password (MD5)", type: "text", secret: true, path: ["area-password", "md5"] },
-      { op: "vrf_isis_domain_password_plaintext_password", label: "Domain password (plaintext)", type: "text", secret: true, path: ["domain-password", "plaintext-password"] },
-      { op: "vrf_isis_domain_password_md5", label: "Domain password (MD5)", type: "text", secret: true, path: ["domain-password", "md5"] },
+      { op: "vrf_isis_area_password_plaintext_password", label: "Area password (plaintext)", type: "text", path: ["area-password", "plaintext-password"] },
+      { op: "vrf_isis_area_password_md5", label: "Area password (MD5)", type: "text", path: ["area-password", "md5"] },
+      { op: "vrf_isis_domain_password_plaintext_password", label: "Domain password (plaintext)", type: "text", path: ["domain-password", "plaintext-password"] },
+      { op: "vrf_isis_domain_password_md5", label: "Domain password (MD5)", type: "text", path: ["domain-password", "md5"] },
     ],
   },
   {

@@ -196,9 +196,9 @@ def _parse_failover_check(check_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_failover_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse failover configuration from VRF protocols."""
-    failover_config = protocols_config.get("failover", {})
-    if not failover_config:
+    if "failover" not in protocols_config:
         return None
+    failover_config = protocols_config["failover"] or {}
 
     routes = []
     for dest, dest_data in (failover_config.get("route", {}) or {}).items():
@@ -246,9 +246,9 @@ def parse_failover_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_ospf_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse OSPF summary from VRF protocols."""
-    ospf_config = protocols_config.get("ospf", {})
-    if not ospf_config:
+    if "ospf" not in protocols_config:
         return None
+    ospf_config = protocols_config["ospf"] or {}
 
     router_id = None
     params = ospf_config.get("parameters", {})
@@ -271,9 +271,9 @@ def parse_ospf_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_ospfv3_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse OSPFv3 summary from VRF protocols."""
-    ospfv3_config = protocols_config.get("ospfv3", {})
-    if not ospfv3_config:
+    if "ospfv3" not in protocols_config:
         return None
+    ospfv3_config = protocols_config["ospfv3"] or {}
 
     router_id = None
     params = ospfv3_config.get("parameters", {})
@@ -296,9 +296,9 @@ def parse_ospfv3_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_isis_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse IS-IS summary from VRF protocols."""
-    isis_config = protocols_config.get("isis", {})
-    if not isis_config:
+    if "isis" not in protocols_config:
         return None
+    isis_config = protocols_config["isis"] or {}
 
     net = isis_config.get("net")
     interfaces = list(isis_config.get("interface", {}).keys()) if isinstance(isis_config.get("interface"), dict) else []
@@ -326,9 +326,9 @@ def parse_isis_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_bgp_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse BGP summary from VRF protocols."""
-    bgp_config = protocols_config.get("bgp", {})
-    if not bgp_config:
+    if "bgp" not in protocols_config:
         return None
+    bgp_config = protocols_config["bgp"] or {}
 
     system_as = None
     as_val = bgp_config.get("system-as")
@@ -414,9 +414,9 @@ def parse_dhcp_config(
 
 def parse_dhcpv6_config(service_config: dict) -> Optional[Dict[str, Any]]:
     """Parse DHCPv6 server configuration from VRF service."""
-    dhcpv6_config = service_config.get("dhcpv6-server", {})
-    if not dhcpv6_config:
+    if "dhcpv6-server" not in service_config:
         return None
+    dhcpv6_config = service_config["dhcpv6-server"] or {}
 
     shared_networks = []
     for net_name, net_data in (dhcpv6_config.get("shared-network-name", {}) or {}).items():

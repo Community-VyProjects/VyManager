@@ -33,7 +33,7 @@ const INTERFACE_MD5_GROUP: EntityGroupSpec = {
     {
       title: "MD5 Key",
       fields: [
-        { op: "vrf_ospf_interface_authentication_md5_key_id_md5_key", label: "MD5 key", type: "text", secret: true, path: ["md5-key"] },
+        { op: "vrf_ospf_interface_authentication_md5_key_id_md5_key", label: "MD5 key", type: "text", path: ["md5-key"] },
       ],
     },
   ],
@@ -70,7 +70,7 @@ const INTERFACE_SCHEMA: SectionSpec[] = [
   {
     title: "Authentication",
     fields: [
-      { op: "vrf_ospf_interface_authentication_plaintext_password", delOp: "vrf_ospf_interface_authentication", label: "Plaintext password", type: "text", secret: true, path: ["authentication", "plaintext-password"] },
+      { op: "vrf_ospf_interface_authentication_plaintext_password", delOp: "vrf_ospf_interface_authentication", label: "Plaintext password", type: "text", path: ["authentication", "plaintext-password"] },
       { op: "vrf_ospf_interface_authentication_null", delOp: "vrf_ospf_interface_authentication", label: "Null authentication", type: "toggle", path: ["authentication", "null"] },
     ],
   },
@@ -102,7 +102,7 @@ const VIRTUAL_LINK_MD5_GROUP: EntityGroupSpec = {
     {
       title: "MD5 Key",
       fields: [
-        { op: "vrf_ospf_area_virtual_link_authentication_md5_key_id_md5_key", label: "MD5 key", type: "text", secret: true, path: ["md5-key"] },
+        { op: "vrf_ospf_area_virtual_link_authentication_md5_key_id_md5_key", label: "MD5 key", type: "text", path: ["md5-key"] },
       ],
     },
   ],
@@ -127,7 +127,7 @@ const AREA_VIRTUAL_LINK_GROUP: EntityGroupSpec = {
     {
       title: "Authentication",
       fields: [
-        { op: "vrf_ospf_area_virtual_link_authentication_plaintext_password", delOp: "vrf_ospf_area_virtual_link_authentication", label: "Plaintext password", type: "text", secret: true, path: ["authentication", "plaintext-password"] },
+        { op: "vrf_ospf_area_virtual_link_authentication_plaintext_password", delOp: "vrf_ospf_area_virtual_link_authentication", label: "Plaintext password", type: "text", path: ["authentication", "plaintext-password"] },
         { op: "vrf_ospf_area_virtual_link_authentication_null", delOp: "vrf_ospf_area_virtual_link_authentication", label: "Null authentication", type: "toggle", path: ["authentication", "null"] },
       ],
     },
