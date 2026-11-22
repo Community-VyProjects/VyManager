@@ -60,6 +60,10 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is None:
         return False
+    if _versioned_path_node(mapper, proto, suffix) is not None:
+        # Exists so dispatch reaches require_node and a version without the
+        # node gets its ValueError, not an unknown-op error.
+        return True
     return any(
         hasattr(mapper, candidate)
         for candidate in (
@@ -68,6 +72,35 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
             f"get_{proto}_{suffix}_delete",
         )
     )
+
+
+def _mapper_getter_names(verb: str, proto: str, suffix: str) -> Tuple[str, ...]:
+    """VRF mapper path methods an op may resolve to, in lookup order.
+
+    A delete also takes the set path (its value dropped); a set never takes
+    a delete path.
+    """
+    if verb == "delete":
+        return (
+            f"get_{proto}_{suffix}_delete",
+            f"get_{suffix}_delete",
+            f"get_{proto}_{suffix}",
+            f"get_{suffix}",
+        )
+    return (f"get_{proto}_{suffix}", f"get_{suffix}")
+
+
+def _versioned_path_node(mapper: Any, proto: str, suffix: str) -> Optional[str]:
+    """Version-only node the VRF mapper path of this op sits under, if any.
+
+    A VRF protocol mapper with version-only paths lists them behind
+    ``path_node``; the other VRF protocol mappers have none.
+    """
+    path_node = getattr(mapper, "path_node", None)
+    if path_node is None:
+        return None
+    # The same set-path names _mapper_path looks up.
+    return path_node(f"get_{proto}_{suffix}") or path_node(f"get_{suffix}")
 
 
 def parse_vrf_protocol_op(name: str) -> Optional[Tuple[str, str, Optional[str]]]:
@@ -121,25 +154,15 @@ def _mapper_path(
     value: Optional[str],
     verb: str,
 ) -> Optional[List[str]]:
-    if verb == "delete":
-        candidates = (
-            f"get_{proto}_{suffix}_delete",
-            f"get_{suffix}_delete",
-            f"get_{proto}_{suffix}",
-            f"get_{suffix}",
-        )
-    else:
-        candidates = (
-            f"get_{proto}_{suffix}",
-            f"get_{suffix}",
-        )
-    for candidate in candidates:
+    for candidate in _mapper_getter_names(verb, proto, suffix):
         getter = getattr(mapper, candidate, None)
         if getter is None:
             continue
         params = [p for p in inspect.signature(getter).parameters if p != "self"]
         extra = max(len(params) - 1, 0)
         if extra == 0:
+            if value:
+                continue
             return getter(vrf_name)
         if not value:
             continue
@@ -159,7 +182,12 @@ def _parent_node_delete_path(
     vrf_name: str,
     value: Optional[str],
 ) -> Optional[List[str]]:
-    """UI number/select clear omits the leaf. Drop the last SET-path element."""
+    """UI number/select clear omits the leaf. Drop the last SET-path element.
+
+    Only when the omitted argument is the leaf value (the getter's last
+    parameter is ``value``). An omitted level, family or protocol is a node
+    name: dropping it would widen the delete to its parent.
+    """
     getter = getattr(mapper, f"get_{proto}_{suffix}", None) or getattr(
         mapper, f"get_{suffix}", None
     )
@@ -167,7 +195,7 @@ def _parent_node_delete_path(
         return None
     params = [p for p in inspect.signature(getter).parameters if p != "self"]
     extra = max(len(params) - 1, 0)
-    if extra < 1:
+    if extra < 1 or params[-1] != "value":
         return None
     dummy = "_"
     try:
@@ -183,7 +211,9 @@ def _parent_node_delete_path(
             path = getter(vrf_name, *tokens, dummy)
     except TypeError:
         return None
-    if not path:
+    if not path or path[-1] != dummy:
+        # The omitted value is not the last element (a level in the middle
+        # of the path), so dropping it would send the dummy to the device.
         return None
     return path[:-1]
 
@@ -377,6 +407,8 @@ def run_vrf_protocol_op(
     inner = PROTOCOL_BUILDERS[proto](owner.version)
     inner_name = f"{verb}_{suffix}"
     method = getattr(inner, inner_name, None)
+    # The op exists but its packed value fits no path.
+    misfit = False
     if method is not None:
         try:
             _call_with_packed_value(method, value)
@@ -385,6 +417,7 @@ def run_vrf_protocol_op(
                 raise
             # A delete that does not fit the global method's arity (usually
             # the leaf value is omitted) falls through to the mapper path.
+            misfit = True
         else:
             for op in inner.get_operations():
                 path = op.get("path") or []
@@ -393,8 +426,15 @@ def run_vrf_protocol_op(
 
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is not None:
+        node = _versioned_path_node(mapper, proto, suffix)
+        if node is not None:
+            mapper.require_node(node)
         path = _mapper_path(mapper, proto, suffix, vrf_name, value, verb)
         if path is not None:
             return owner.add_set(path) if verb == "set" else owner.add_delete(path)
+        if any(hasattr(mapper, candidate) for candidate in _mapper_getter_names(verb, proto, suffix)):
+            misfit = True
 
+    if misfit:
+        raise ArityError("has the wrong number of comma-separated values")
     raise AttributeError(inner_name)

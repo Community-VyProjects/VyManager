@@ -128,12 +128,14 @@ def test_unknown_op_is_400(client):
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_unresolvable_protocol_op_is_400(client, commit, version):
-    """A packed protocol op whose value names no mapper path raises
-    AttributeError in vrf_protocol; the client sent it, so it is a 400."""
+    """A packed protocol op whose value fits no mapper path raises
+    ArityError in vrf_protocol; the client sent it, so it is a 400 naming the op."""
     commit["version"] = version
     resp = _post(client, [{"op": "set_vrf_ospf_parameters_router_id", "value": "red"}])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"].startswith("Unknown operation: ")
+    assert resp.json()["detail"] == (
+        "Operation set_vrf_ospf_parameters_router_id has the wrong number of comma-separated values"
+    )
     assert client.executed == []
 
 
@@ -161,6 +163,18 @@ def test_1_5_static_leaf_on_1_4_is_400(client):
     ])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "protocols static route segments is not supported on this device"
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("operation, node", [
+    ({"op": "set_vrf_isis_interface_fr_ti_lfa_level", "value": "T-V,eth0,level-1"}, "interface fast-reroute"),
+    ({"op": "delete_vrf_isis_segment_routing_srv6_locator", "value": "T-V,T-LOC"}, "segment-routing srv6"),
+    ({"op": "set_vrf_isis_traffic_engineering_export", "value": "T-V"}, "traffic-engineering export"),
+])
+def test_1_5_isis_leaf_on_1_4_is_400(client, operation, node):
+    resp = _post(client, [{"op": "set_vrf_isis_net", "value": "T-V,49.0001.1921.6800.1002.00"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"{node} is not supported on this device"
     assert client.executed == []
 
 

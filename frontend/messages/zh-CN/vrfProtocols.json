@@ -151,9 +151,6 @@
       "area": {
         "label": "区域"
       },
-      "areaPasswordAuthenticateSnp": {
-        "label": "区域 authenticate-snp"
-      },
       "areaPasswordMd5": {
         "label": "区域密码（MD5）"
       },
@@ -324,9 +321,6 @@
       },
       "distributeListImport": {
         "label": "Distribute-list 导入"
-      },
-      "domainPasswordAuthenticateSnp": {
-        "label": "域 authenticate-snp"
       },
       "domainPasswordMd5": {
         "label": "域密码（MD5）"
@@ -976,9 +970,6 @@
       "setOverloadBit": {
         "label": "设置过载位"
       },
-      "setOverloadBitOnStartup": {
-        "label": "启动时过载位（秒）"
-      },
       "shortcut": {
         "label": "Shortcut"
       },
@@ -1050,9 +1041,6 @@
       },
       "trafficEngineeringExport": {
         "label": "TE 导出"
-      },
-      "trafficEngineeringInterArea": {
-        "label": "TE 跨区域"
       },
       "transmitDelay": {
         "label": "发送延迟"
@@ -1143,8 +1131,10 @@
       "ipv4Multicast": "IPv4 组播",
       "ipv4Unicast": "IPv4 单播",
       "ipv4Vpn": "IPv4 VPN",
+      "ipv6Dstsrc": "IPv6 源/目的",
       "ipv6Flowspec": "IPv6 flowspec",
       "ipv6LabeledUnicast": "IPv6 labeled-unicast",
+      "ipv6Mgmt": "IPv6 管理",
       "ipv6Multicast": "IPv6 组播",
       "ipv6Unicast": "IPv6 单播",
       "ipv6Vpn": "IPv6 VPN",
@@ -1176,13 +1166,11 @@
       "rsClient": "RS 客户端",
       "rsServer": "RS 服务器",
       "secondary": "备",
-      "sendOnly": "仅发送",
       "shortcut": "Shortcut",
       "standard": "标准",
       "static": "静态",
       "stub": "Stub",
       "transition": "Transition",
-      "validate": "验证",
       "wide": "Wide"
     },
     "bgpAf": {
