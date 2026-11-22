@@ -201,6 +201,7 @@ export function RipContent() {
 
   const saveOverview = async () => {
     if (!config) return;
+    let globalsSaved = false;
     try {
       setOverviewSaving(true);
       setOverviewError(null);
@@ -220,11 +221,14 @@ export function RipContent() {
       };
 
       await ripService.updateGlobalSettings(config, updatedConfig);
+      globalsSaved = true;
       await ripService.updateTimers(config.timers, updatedTimers);
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
       setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
+      // The global settings already committed; re-read so a retry diffs against the device.
+      if (globalsSaved) await loadData(true);
     } finally {
       setOverviewSaving(false);
     }
