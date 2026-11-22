@@ -85,9 +85,3 @@ export type GroupType =
   | "mac-group"
   | "domain-group"
   | "remote-group";
-
-export interface GroupTypeFilter {
-  type: GroupType | "all";
-  label: string;
-  count: number;
-}

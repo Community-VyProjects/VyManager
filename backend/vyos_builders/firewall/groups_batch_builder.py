@@ -603,5 +603,4 @@ class FirewallGroupsBatchBuilder(BatchBuilder):
         }
 
 
-# Export as FirewallGroupsBatchBuilder for consistency
 __all__ = ["FirewallGroupsBatchBuilder"]
