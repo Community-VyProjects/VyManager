@@ -37,8 +37,6 @@ export interface GroupTypeInfo {
 // Capabilities
 export interface FirewallGroupsCapabilities {
   version: string;
-  version_number: number;
-  device_name?: string;
   group_types: {
     address_group: GroupTypeInfo;
     ipv6_address_group: GroupTypeInfo;
@@ -55,6 +53,8 @@ export interface FirewallGroupsCapabilities {
     total_group_types: number;
     total_operations: number;
   };
+  instance_name?: string;
+  instance_id?: string;
 }
 
 // Batch operation types

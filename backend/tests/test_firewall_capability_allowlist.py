@@ -5,13 +5,19 @@ prerouting raw, and directional IPsec exist only on 1.5. validateTmplPath on
 100.64.64.50 and 100.64.64.5.
 """
 
+import inspect
+from pathlib import Path
+
 import pytest
 
 from vyos_builders.firewall.family import FirewallFamilyBatchBuilder
-from vyos_builders.firewall.groups import FirewallGroupsBatchBuilder
+from vyos_builders.firewall.groups_batch_builder import FirewallGroupsBatchBuilder
 from vyos_builders.firewall.zones import FirewallZonesBatchBuilder
+from vyos_mappers.firewall import groups_versions
 from vyos_mappers.firewall.family import FirewallFamilyMapper
 from vyos_mappers.firewall.groups import FirewallGroupsMapper
+from vyos_mappers.firewall.groups_versions import get_firewall_groups_mapper
+from vyos_mappers.firewall.groups_versions.v1_5 import FirewallGroupsMapperV1_5
 from vyos_mappers.firewall.zones import FirewallZonesMapper
 
 
@@ -28,18 +34,57 @@ def test_domain_group_flag_follows_the_device_tree():
 
 
 def test_group_path_follows_the_mapper_allowlist(monkeypatch):
-    """Path methods must follow the same set the capability flag reads."""
+    """Remote-group paths follow the same set the capability flag reads."""
     monkeypatch.setattr(
-        FirewallGroupsMapper,
-        "supported_group_types",
-        lambda self: frozenset({"domain-group"}),
+        FirewallGroupsMapperV1_5,
+        "versioned_nodes",
+        lambda self: frozenset(),
     )
     builder = FirewallGroupsBatchBuilder(version="1.5")
     with pytest.raises(ValueError, match="not supported"):
-        builder.set_address_group("G1")
+        builder.set_remote_group("G1")
     assert builder.get_operations() == []
     builder.set_domain_group("G1")
     assert builder.get_operations()[0]["path"] == ["firewall", "group", "domain-group", "G1"]
+
+
+def test_group_mapper_factory_follows_the_version_string():
+    """Only a string that contains 1.4 is 1.4; a rolling string is 1.5."""
+    assert type(get_firewall_groups_mapper("1.4.3")) is FirewallGroupsMapper
+    for version in ("1.5", "2026.09.23-0027-rolling", "latest"):
+        assert isinstance(get_firewall_groups_mapper(version), FirewallGroupsMapperV1_5)
+    shared = FirewallGroupsMapper("1.4")
+    assert not hasattr(shared, "get_remote_group")
+    assert shared.versioned_nodes() == frozenset()
+    assert FirewallGroupsMapperV1_5("1.5").versioned_nodes() == frozenset({"remote-group"})
+
+
+def test_group_versions_package_has_no_empty_1_4_file():
+    package = Path(groups_versions.__file__).parent
+    assert sorted(p.name for p in package.glob("*.py")) == ["__init__.py", "v1_5.py"]
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_group_capability_ops_match_the_builder(version):
+    """Every advertised op is a builder method, and every builder op is advertised."""
+    builder = FirewallGroupsBatchBuilder(version=version)
+    caps = builder.get_capabilities()
+    advertised = {op for ops in caps["operations"].values() for op in ops}
+    supported = {key for key, flag in caps["group_types"].items() if flag["supported"]}
+    assert set(caps["operations"]) == supported
+    for op in advertised:
+        assert callable(getattr(builder, op, None)), op
+    builder_ops = {
+        name for name, _ in inspect.getmembers(builder, callable)
+        if name.startswith(("set_", "delete_"))
+    }
+    if version == "1.4":
+        builder_ops = {name for name in builder_ops if "remote_group" not in name}
+    assert advertised == builder_ops
+    assert caps["statistics"]["total_operations"] == len(advertised)
+    assert "set_address_group_include" in caps["operations"]["address_group"]
+    assert "delete_mac_group_include" in caps["operations"]["mac_group"]
+    assert "version_number" not in caps
 
 
 def test_nondirectional_ipsec_follows_the_allowlist():
