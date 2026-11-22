@@ -211,26 +211,27 @@ export function IgmpProxyContent() {
     setDeleteOpen(true);
   };
 
+  // Each handler resolves once the commit succeeds, so the dialog closes on the commit and the
+  // refresh runs after it (write controls stay disabled while `refreshing`).
   const handleSetup = async (interfaces: IgmpProxyInterface[]) => {
     await igmpProxyService.setupInterfaces(interfaces);
-    await reload();
+    void reload();
   };
 
   const handleCreateInterface = async (iface: IgmpProxyInterface) => {
     await igmpProxyService.createInterface(iface);
-    await reload();
+    void reload();
   };
 
   const handleUpdateInterface = async (iface: IgmpProxyInterface) => {
     if (!editingInterface) return;
     await igmpProxyService.updateInterface(editingInterface, iface);
-    await reload();
+    void reload();
   };
 
   const handleDeleteInterface = async () => {
     await igmpProxyService.deleteInterface(deletingInterface);
     setDeleteOpen(false);
-    // Not awaited: the dialog's Removing state ends with the commit, not with the refresh.
     void reload();
   };
 
