@@ -1,12 +1,15 @@
 """Read-model for IS-IS config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. TI-LFA, remote LFA, and SRv6 locator are 1.5-only nodes; the
-router parser reads them on every version, so the result does not differ
-by mapper.version.
+the tree. Interface fast-reroute, SRv6 and TE export are 1.5-only nodes; the
+parser reads them on every version, so the result does not differ by
+mapper.version. Passwords come back as ``MASKED_SECRET`` when set.
 """
 
 from typing import Any, Dict, List, Optional, Tuple
+
+MASKED_SECRET = "***"
+SRV6_NODE_MSD_KEYS = ("max-end-d", "max-end-pop", "max-h-encaps", "max-segs-left")
 
 
 def _safe_int(val) -> Optional[int]:
@@ -28,27 +31,32 @@ def _to_list(val) -> List[str]:
     return [str(val)]
 
 
+def _single_value(raw: Any) -> Optional[str]:
+    """A single-value leaf; a reader may hand it back as {value: {}}."""
+    if isinstance(raw, dict):
+        return next(iter(raw), None)
+    if isinstance(raw, str):
+        return raw
+    return None
+
+
+def _masked_passwords(raw: Any) -> Tuple[Optional[str], Optional[str]]:
+    """(md5, plaintext-password) under a password node, each masked when set."""
+    if not isinstance(raw, dict):
+        return None, None
+    md5 = MASKED_SECRET if raw.get("md5") else None
+    plain = MASKED_SECRET if raw.get("plaintext-password") else None
+    return md5, plain
+
+
 def parse_global(raw: dict) -> Dict[str, Any]:
     spf_delay_raw = raw.get("spf-delay-ietf", {}) or {}
 
-    area_pwd = raw.get("area-password", {}) or {}
-    area_md5 = area_pwd.get("md5") if isinstance(area_pwd, dict) else None
-    area_plain = area_pwd.get("plaintext-password") if isinstance(area_pwd, dict) else None
-
-    domain_pwd = raw.get("domain-password", {}) or {}
-    domain_md5 = domain_pwd.get("md5") if isinstance(domain_pwd, dict) else None
-    domain_plain = domain_pwd.get("plaintext-password") if isinstance(domain_pwd, dict) else None
+    area_md5, area_plain = _masked_passwords(raw.get("area-password"))
+    domain_md5, domain_plain = _masked_passwords(raw.get("domain-password"))
 
     net_raw = raw.get("net", {})
     net = list(net_raw.keys()) if isinstance(net_raw, dict) else _to_list(net_raw)
-
-    topology_raw = raw.get("topology")
-    topology = None
-    if topology_raw is not None:
-        if isinstance(topology_raw, dict):
-            topology = list(topology_raw.keys())[0] if topology_raw else None
-        elif isinstance(topology_raw, str):
-            topology = topology_raw
 
     return {
         "net": net,
@@ -61,7 +69,7 @@ def parse_global(raw: dict) -> Dict[str, Any]:
         "set_attached_bit": "set-attached-bit" in raw,
         "set_overload_bit": "set-overload-bit" in raw,
         "log_adjacency_changes": "log-adjacency-changes" in raw,
-        "topology": topology,
+        "topology": _single_value(raw.get("topology")),
         "lsp_mtu": _safe_int(raw.get("lsp-mtu")),
         "lsp_gen_interval": _safe_int(raw.get("lsp-gen-interval")),
         "lsp_refresh_interval": _safe_int(raw.get("lsp-refresh-interval")),
@@ -100,10 +108,20 @@ def _parse_rlfa_level(lraw) -> Tuple[bool, Optional[int], bool]:
     return enabled, max_metric, tunnel_ldp
 
 
+def _parse_ti_lfa_level(level_raw) -> Tuple[bool, bool, bool]:
+    """(level set, node-protection, link-fallback) for one TI-LFA level."""
+    if not isinstance(level_raw, dict):
+        return False, False, False
+    protection = level_raw.get("node-protection")
+    return (
+        True,
+        isinstance(protection, dict),
+        isinstance(protection, dict) and "link-fallback" in protection,
+    )
+
+
 def parse_one_interface(name: str, cfg: dict) -> Dict[str, Any]:
-    pwd_raw = cfg.get("password", {}) or {}
-    pwd_md5 = pwd_raw.get("md5") if isinstance(pwd_raw, dict) else None
-    pwd_plain = pwd_raw.get("plaintext-password") if isinstance(pwd_raw, dict) else None
+    pwd_md5, pwd_plain = _masked_passwords(cfg.get("password"))
 
     bfd_raw = cfg.get("bfd")
     bfd_enabled = bfd_raw is not None
@@ -116,31 +134,21 @@ def parse_one_interface(name: str, cfg: dict) -> Dict[str, Any]:
     ldp_disable = "disable" in ldp_raw if isinstance(ldp_raw, dict) else False
 
     frr_raw = cfg.get("fast-reroute", {}) or {}
-    lfa_raw = (frr_raw.get("lfa", {}) or {}) if isinstance(frr_raw, dict) else {}
+    if not isinstance(frr_raw, dict):
+        frr_raw = {}
+    lfa_raw = frr_raw.get("lfa", {}) or {}
 
     lfa_l1_en, lfa_l1_excl = _parse_lfa_level(lfa_raw.get("level-1"))
     lfa_l2_en, lfa_l2_excl = _parse_lfa_level(lfa_raw.get("level-2"))
 
-    # TI-LFA (v1.5+)
-    ti_lfa_raw = frr_raw.get("ti-lfa", {}) or {} if isinstance(frr_raw, dict) else {}
-    ti_lfa = {
-        "enabled": bool(ti_lfa_raw),
-        "level1_enabled": "level-1" in ti_lfa_raw,
-        "level1_node_protection": isinstance(ti_lfa_raw.get("level-1"), dict)
-        and "node-protection" in ti_lfa_raw.get("level-1", {}),
-        "level1_link_fallback": isinstance(ti_lfa_raw.get("level-1"), dict)
-        and isinstance(ti_lfa_raw["level-1"].get("node-protection"), dict)
-        and "link-fallback" in ti_lfa_raw["level-1"]["node-protection"],
-        "level2_enabled": "level-2" in ti_lfa_raw,
-        "level2_node_protection": isinstance(ti_lfa_raw.get("level-2"), dict)
-        and "node-protection" in ti_lfa_raw.get("level-2", {}),
-        "level2_link_fallback": isinstance(ti_lfa_raw.get("level-2"), dict)
-        and isinstance(ti_lfa_raw["level-2"].get("node-protection"), dict)
-        and "link-fallback" in ti_lfa_raw["level-2"]["node-protection"],
-    }
+    # TI-LFA (v1.5+). A bare ``fast-reroute ti-lfa`` node parses as {} and
+    # is still set, so ``enabled`` is key membership.
+    ti_lfa_raw = frr_raw.get("ti-lfa", {}) or {}
+    ti1, ti1_np, ti1_lf = _parse_ti_lfa_level(ti_lfa_raw.get("level-1"))
+    ti2, ti2_np, ti2_lf = _parse_ti_lfa_level(ti_lfa_raw.get("level-2"))
 
     # Remote LFA (v1.5+)
-    rlfa_raw = frr_raw.get("remote-lfa", {}) or {} if isinstance(frr_raw, dict) else {}
+    rlfa_raw = frr_raw.get("remote-lfa", {}) or {}
     rl1_en, rl1_mm, rl1_ldp = _parse_rlfa_level(rlfa_raw.get("level-1"))
     rl2_en, rl2_mm, rl2_ldp = _parse_rlfa_level(rlfa_raw.get("level-2"))
 
@@ -169,7 +177,15 @@ def parse_one_interface(name: str, cfg: dict) -> Dict[str, Any]:
             "level2_enabled": lfa_l2_en,
             "level2_exclude_interfaces": lfa_l2_excl,
         },
-        "ti_lfa": ti_lfa,
+        "ti_lfa": {
+            "enabled": "ti-lfa" in frr_raw,
+            "level1_enabled": ti1,
+            "level1_node_protection": ti1_np,
+            "level1_link_fallback": ti1_lf,
+            "level2_enabled": ti2,
+            "level2_node_protection": ti2_np,
+            "level2_link_fallback": ti2_lf,
+        },
         "remote_lfa": {
             "level1_enabled": rl1_en,
             "level1_max_metric": rl1_mm,
@@ -234,29 +250,17 @@ def parse_default_info(raw: dict) -> List[Dict[str, Any]]:
 
 
 def parse_segment_routing(raw: dict) -> Dict[str, Any]:
-    if not raw:
-        return {
-            "global_block_low": None,
-            "global_block_high": None,
-            "local_block_low": None,
-            "local_block_high": None,
-            "maximum_label_depth": None,
-            "prefixes": [],
-            "srv6_locator": None,
-        }
-
+    raw = raw if isinstance(raw, dict) else {}
     gb = raw.get("global-block", {}) or {}
     lb = raw.get("local-block", {}) or {}
 
-    # SRv6 locator (v1.5+)
-    srv6_locator = None
+    # SRv6 (v1.5+)
     srv6_raw = raw.get("srv6", {}) or {}
-    if isinstance(srv6_raw, dict):
-        locator_raw = srv6_raw.get("locator", {})
-        if isinstance(locator_raw, dict) and locator_raw:
-            srv6_locator = list(locator_raw.keys())[0]
-        elif isinstance(locator_raw, str):
-            srv6_locator = locator_raw
+    if not isinstance(srv6_raw, dict):
+        srv6_raw = {}
+    msd_raw = srv6_raw.get("node-msd", {}) or {}
+    if not isinstance(msd_raw, dict):
+        msd_raw = {}
 
     prefixes = []
     for prefix, pcfg in (raw.get("prefix", {}) or {}).items():
@@ -283,13 +287,16 @@ def parse_segment_routing(raw: dict) -> Dict[str, Any]:
         "local_block_high": _safe_int(lb.get("high-label-value")),
         "maximum_label_depth": _safe_int(raw.get("maximum-label-depth")),
         "prefixes": sorted(prefixes, key=lambda x: x["prefix"]),
-        "srv6_locator": srv6_locator,
+        "srv6_locator": _single_value(srv6_raw.get("locator")),
+        "srv6_interface": _single_value(srv6_raw.get("interface")),
+        "srv6_node_msd": {
+            key.replace("-", "_"): _safe_int(msd_raw.get(key)) for key in SRV6_NODE_MSD_KEYS
+        },
     }
 
 
 def parse_traffic_engineering(raw: dict) -> Dict[str, Any]:
-    if not raw:
-        return {"enabled": False, "address": None, "export": False}
+    raw = raw if isinstance(raw, dict) else {}
     return {
         "enabled": "enable" in raw,
         "address": raw.get("address"),
@@ -298,14 +305,7 @@ def parse_traffic_engineering(raw: dict) -> Dict[str, Any]:
 
 
 def parse_frr_global(raw: dict) -> Dict[str, Any]:
-    if not raw:
-        return {
-            "lfa_load_sharing_disable_level1": False,
-            "lfa_load_sharing_disable_level2": False,
-            "lfa_priority_limit": [],
-            "lfa_tiebreaker": [],
-            "lfa_remote_prefix_list": [],
-        }
+    raw = raw if isinstance(raw, dict) else {}
     lfa_raw = raw.get("lfa", {}) or {}
     local_raw = (lfa_raw.get("local", {}) or {}) if isinstance(lfa_raw, dict) else {}
     ls_raw = (local_raw.get("load-sharing", {}) or {}) if isinstance(local_raw, dict) else {}
@@ -362,46 +362,34 @@ def parse_frr_global(raw: dict) -> Dict[str, Any]:
     }
 
 
-def _empty_isis() -> Dict[str, Any]:
-    return {
-        "enabled": False,
-        "global_config": {},
-        "interfaces": [],
-        "redistribute_ipv4": [],
-        "redistribute_ipv6": [],
-        "default_info_ipv4": [],
-        "default_info_ipv6": [],
-        "segment_routing": {},
-        "traffic_engineering": {},
-        "fast_reroute": {},
-    }
-
-
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalise full VyOS config into the GET /vyos/isis/config payload."""
-    isis_raw = full_config.get("protocols", {}).get("isis", {})
-    if not isis_raw:
-        return _empty_isis()
+    """Normalise full VyOS config into the GET /vyos/isis/config payload.
+
+    ``enabled`` is key membership: a bare ``protocols isis {}`` still exists
+    and parses as {}. The unconfigured case returns the same shape.
+    """
+    protocols = full_config.get("protocols", {}) or {}
+    enabled = isinstance(protocols, dict) and "isis" in protocols
+    isis_raw = (protocols.get("isis") or {}) if enabled else {}
+    redistribute = isis_raw.get("redistribute", {}) or {}
+    originate = (isis_raw.get("default-information", {}) or {}).get("originate", {}) or {}
+    # ``segment-routing srv6 locator`` completes from these names.
+    sr_locators = (
+        ((protocols.get("segment-routing") or {}).get("srv6") or {}).get("locator") or {}
+    ) if isinstance(protocols, dict) else {}
 
     return {
-        "enabled": True,
+        "enabled": enabled,
         "global_config": parse_global(isis_raw),
         "interfaces": parse_interfaces(isis_raw.get("interface", {})),
-        "redistribute_ipv4": parse_redistribute(
-            isis_raw.get("redistribute", {}).get("ipv4", {})
-        ),
-        "redistribute_ipv6": parse_redistribute(
-            isis_raw.get("redistribute", {}).get("ipv6", {})
-        ),
-        "default_info_ipv4": parse_default_info(
-            isis_raw.get("default-information", {}).get("originate", {}).get("ipv4", {})
-        ),
-        "default_info_ipv6": parse_default_info(
-            isis_raw.get("default-information", {}).get("originate", {}).get("ipv6", {})
-        ),
+        "redistribute_ipv4": parse_redistribute(redistribute.get("ipv4", {})),
+        "redistribute_ipv6": parse_redistribute(redistribute.get("ipv6", {})),
+        "default_info_ipv4": parse_default_info(originate.get("ipv4", {})),
+        "default_info_ipv6": parse_default_info(originate.get("ipv6", {})),
         "segment_routing": parse_segment_routing(isis_raw.get("segment-routing", {})),
         "traffic_engineering": parse_traffic_engineering(
             isis_raw.get("traffic-engineering", {})
         ),
         "fast_reroute": parse_frr_global(isis_raw.get("fast-reroute", {})),
+        "srv6_locator_names": sorted(sr_locators) if isinstance(sr_locators, dict) else [],
     }

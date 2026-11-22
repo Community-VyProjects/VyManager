@@ -14,7 +14,7 @@ Endpoints:
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.isis import IsisBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
@@ -23,6 +23,7 @@ import inspect
 import logging
 from batch_dispatch import resolve_batch_method
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.isis.isis import IsisMapper
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/isis", tags=["isis"])
@@ -148,8 +149,16 @@ class IsisSrPrefix(BaseModel):
     absolute_no_php: bool = False
 
 
+class IsisSrv6NodeMsd(BaseModel):
+    """SRv6 node maximum segment depths (VyOS 1.5+)."""
+    max_end_d: Optional[int] = None
+    max_end_pop: Optional[int] = None
+    max_h_encaps: Optional[int] = None
+    max_segs_left: Optional[int] = None
+
+
 class IsisSegmentRouting(BaseModel):
-    """Segment Routing (SR-MPLS) configuration."""
+    """Segment Routing (SR-MPLS and SRv6) configuration."""
     global_block_low: Optional[int] = None
     global_block_high: Optional[int] = None
     local_block_low: Optional[int] = None
@@ -157,6 +166,8 @@ class IsisSegmentRouting(BaseModel):
     maximum_label_depth: Optional[int] = None
     prefixes: List[IsisSrPrefix] = []
     srv6_locator: Optional[str] = None
+    srv6_interface: Optional[str] = None
+    srv6_node_msd: IsisSrv6NodeMsd = IsisSrv6NodeMsd()
 
 
 class IsisTrafficEngineering(BaseModel):
@@ -206,6 +217,7 @@ class IsisConfig(BaseModel):
     segment_routing: IsisSegmentRouting = IsisSegmentRouting()
     traffic_engineering: IsisTrafficEngineering = IsisTrafficEngineering()
     fast_reroute: IsisFrrGlobal = IsisFrrGlobal()
+    srv6_locator_names: List[str] = []
 
 
 class IsisBatchOperation(BaseModel):
@@ -216,8 +228,8 @@ class IsisBatchOperation(BaseModel):
         description=(
             "Argument(s) for the operation. "
             "Single-arg methods: plain string. "
-            "Two-arg methods: 'arg1,arg2' (comma-separated). "
-            "Compound keys (protocol+level): 'bgp|level-1'."
+            "Multi-arg methods: comma-separated, one value per "
+            "parameter ('bgp,level-1,10'); the last value keeps any commas."
         ),
     )
 
@@ -251,6 +263,8 @@ async def get_isis_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -268,8 +282,10 @@ async def get_isis_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("isis", service.get_version())
+        mapper = cast(IsisMapper, CommandMapperRegistry.get_mapper("isis", service.get_version()))
         return IsisConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -315,7 +331,7 @@ async def isis_batch_configure(http_request: Request, body: IsisBatchRequest):
         response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "IS-IS configuration updated"},
+            data={"message": "IS-IS configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
