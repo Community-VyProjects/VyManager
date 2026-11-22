@@ -33,16 +33,12 @@
     "description": "Global RIPng settings and timers",
     "globalSettings": "Global Settings",
     "defaultMetric": "Default Metric",
-    "defaultMetricHelp": "Metric for redistributed routes (1–16)",
     "routeMap": "Route Map",
     "originate": "Default Information Originate",
     "timers": "Timers",
     "updateInterval": "Update Interval (seconds)",
-    "updateHelp": "How often to send routing updates (default: 30)",
     "timeoutInterval": "Timeout Interval (seconds)",
-    "timeoutHelp": "Time before a route is marked invalid (default: 180)",
-    "garbageCollection": "Garbage Collection (seconds)",
-    "gcHelp": "Time before a stale route is removed (default: 120)"
+    "garbageCollection": "Garbage Collection (seconds)"
   },
   "networks": {
     "description": "Configure RIPng networks, aggregate addresses, static routes, and passive interfaces",
@@ -50,7 +46,6 @@
     "aggregateAddresses": "Aggregate Addresses",
     "staticRoutes": "Static Routes",
     "passiveInterfaces": "Passive Interfaces",
-    "selectOrTypeInterface": "Select or type interface",
     "noneConfigured": "None configured"
   },
   "interfaces": {

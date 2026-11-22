@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import {
   Table,
   TableBody,
@@ -48,6 +49,7 @@ import {
 } from "@/lib/api/ospfv3";
 import { routeMapService } from "@/lib/api/route-map";
 import { accessListService } from "@/lib/api/access-list";
+import type { ApiError } from "@/lib/types/api";
 import { Ospfv3AreaModal } from "./Ospfv3AreaModal";
 import { Ospfv3InterfaceModal } from "./Ospfv3InterfaceModal";
 import { Ospfv3RedistributeModal } from "./Ospfv3RedistributeModal";
@@ -141,12 +143,12 @@ export function Ospfv3Content() {
       // so we catch errors silently and default to empty arrays
       const [rmNames, aclNames] = await Promise.all([
         routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => []),
-        accessListService.getConfig().then((c) => c.ipv4_lists.map((al) => al.number)).catch(() => []),
+        accessListService.getConfig().then((c) => c.ipv6_lists.map((al) => al.number)).catch(() => []),
       ]);
       setRouteMapNames(rmNames);
       setAccessListNames(aclNames);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.loadFailed"));
+      setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -260,7 +262,7 @@ export function Ospfv3Content() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : t("page.saveParametersFailed"));
+      setOverviewError((err as ApiError).message || t("page.saveParametersFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -296,7 +298,7 @@ export function Ospfv3Content() {
       await loadData(true);
       setDiEditing(false);
     } catch (err) {
-      setDiError(err instanceof Error ? err.message : t("page.saveDefaultInfoFailed"));
+      setDiError((err as ApiError).message || t("page.saveDefaultInfoFailed"));
     } finally {
       setDiSaving(false);
     }
@@ -356,7 +358,7 @@ export function Ospfv3Content() {
       await loadData(true);
       setAdvancedEditing(false);
     } catch (err) {
-      setAdvancedError(err instanceof Error ? err.message : t("page.saveAdvancedFailed"));
+      setAdvancedError((err as ApiError).message || t("page.saveAdvancedFailed"));
     } finally {
       setAdvancedSaving(false);
     }
@@ -666,22 +668,14 @@ export function Ospfv3Content() {
                         </Select>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("fields.routeMap")}</Label>
-                        <Select
+                        <Label htmlFor="ospfv3-di-route-map" className="text-sm">{t("fields.routeMap")}</Label>
+                        <NamedListSelect
+                          id="ospfv3-di-route-map"
                           value={diEditing ? diRouteMap : (config?.default_information.route_map ?? "")}
-                          onValueChange={(v) => setDiRouteMap(v === "__none__" ? "" : v)}
+                          names={routeMapNames}
                           disabled={!diEditing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={tc("none")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">{tc("none")}</SelectItem>
-                            {routeMapNames.map((name) => (
-                              <SelectItem key={name} value={name}>{name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          onValueChange={setDiRouteMap}
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -1262,6 +1256,7 @@ export function Ospfv3Content() {
         onOpenChange={setAreaModalOpen}
         onSubmit={editingArea ? handleUpdateArea : handleCreateArea}
         existingArea={editingArea}
+        existingAreaIds={config?.areas.map((a) => a.area_id) ?? []}
         accessListNames={accessListNames}
       />
 
