@@ -71,6 +71,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { afiNameKey, formatUnknownAfi } from "./afi-name";
 import { thrownMessage } from "@/lib/api-error";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 function failedSaveMessage(
   result: { success: boolean; error?: string | null } | null | undefined,
@@ -93,6 +95,8 @@ function maximumPathCount(raw: string): number | null | undefined {
 export function BgpContent() {
   const t = useTranslations("bgp");
   const tc = useTranslations("common");
+  const { canWrite } = usePermissions();
+  const hasWritePermission = canWrite(FeatureGroup.BGP);
   const [config, setConfig] = useState<BgpConfig | null>(null);
   const [capabilities, setCapabilities] = useState<BgpCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -180,21 +184,15 @@ export function BgpContent() {
       setRouteMapNames(rmNames);
       setBfdProfileNames(bfdNames);
 
-      // Initialize overview fields
-      setSystemAs(configData.system_as || "");
-      setRouterId(configData.parameters.router_id || "");
-      setKeepalive(configData.timers.keepalive?.toString() || "");
-      setHoldtime(configData.timers.holdtime?.toString() || "");
       // Initialize selected AFI
-      if (!selectedAfi && capData.address_family_types.global.length > 0) {
-        setSelectedAfi(capData.address_family_types.global[0]);
-      }
+      const firstAfi = capData.address_family_types.global[0];
+      if (firstAfi) setSelectedAfi((prev) => prev || firstAfi);
     } catch (err) {
       setError(thrownMessage(err, t("content.loadFailed")));
     } finally {
       setLoading(false);
     }
-  }, [selectedAfi, t]);
+  }, [t]);
 
   useEffect(() => {
     setAfRedistProto("");
@@ -251,13 +249,18 @@ export function BgpContent() {
     }
   };
 
+  const handleOverviewEdit = () => {
+    if (!config) return;
+    // Seed the draft from the loaded config when editing starts, so a later reload does not wipe it.
+    setSystemAs(config.system_as || "");
+    setRouterId(config.parameters.router_id || "");
+    setKeepalive(config.timers.keepalive?.toString() || "");
+    setHoldtime(config.timers.holdtime?.toString() || "");
+    setOverviewError(null);
+    setOverviewEditing(true);
+  };
+
   const handleOverviewCancel = () => {
-    if (config) {
-      setSystemAs(config.system_as || "");
-      setRouterId(config.parameters.router_id || "");
-      setKeepalive(config.timers.keepalive?.toString() || "");
-      setHoldtime(config.timers.holdtime?.toString() || "");
-    }
     setOverviewEditing(false);
     setOverviewError(null);
   };
@@ -278,7 +281,6 @@ export function BgpContent() {
     const result = await bgpService.updateNeighbor(editingNeighbor, neighbor);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setEditingNeighbor(null);
     await loadData(true);
   };
 
@@ -287,7 +289,6 @@ export function BgpContent() {
     const result = await bgpService.deleteNeighbor(deletingNeighbor);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setDeletingNeighbor(null);
     await loadData(true);
   };
 
@@ -307,7 +308,6 @@ export function BgpContent() {
     const result = await bgpService.updatePeerGroup(editingPeerGroup, pg);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setEditingPeerGroup(null);
     await loadData(true);
   };
 
@@ -316,7 +316,6 @@ export function BgpContent() {
     const result = await bgpService.deletePeerGroup(deletingPeerGroup.name);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setDeletingPeerGroup(null);
     await loadData(true);
   };
 
@@ -355,11 +354,16 @@ export function BgpContent() {
   };
 
   const handleAddNetwork = async () => {
-    if (!afNetworkPrefix.trim()) return;
+    const prefix = afNetworkPrefix.trim();
+    if (!prefix) return;
+    if (currentAf?.networks.some((n) => n.prefix === prefix)) {
+      setAfError(t("content.networkExists", { prefix }));
+      return;
+    }
     setAfSaving(true);
     setAfError(null);
     try {
-      const result = await bgpService.addNetwork(selectedAfi, afNetworkPrefix.trim(), afNetworkRouteMap.trim() || undefined);
+      const result = await bgpService.addNetwork(selectedAfi, prefix, afNetworkRouteMap.trim() || undefined);
       const message = failedSaveMessage(result, t("content.addNetworkFailed"));
       if (message) {
         setAfError(message);
@@ -446,11 +450,16 @@ export function BgpContent() {
   };
 
   const handleAddAggregate = async () => {
-    if (!afAggPrefix.trim()) return;
+    const prefix = afAggPrefix.trim();
+    if (!prefix) return;
+    if (currentAf?.aggregate_addresses.some((a) => a.prefix === prefix)) {
+      setAfError(t("content.aggregateExists", { prefix }));
+      return;
+    }
     setAfSaving(true);
     setAfError(null);
     try {
-      const result = await bgpService.addAggregateAddress(selectedAfi, afAggPrefix.trim(), afAggAsSet, afAggSummaryOnly, afAggRouteMap.trim() || undefined);
+      const result = await bgpService.addAggregateAddress(selectedAfi, prefix, afAggAsSet, afAggSummaryOnly, afAggRouteMap.trim() || undefined);
       const message = failedSaveMessage(result, t("content.addAggregateFailed"));
       if (message) {
         setAfError(message);
@@ -579,12 +588,13 @@ export function BgpContent() {
     return formatUnknownAfi(afi);
   };
 
-  const redistributeProtocols =
+  const redistributeProtocols = (
     (selectedAfi === "ipv6-unicast"
       ? capabilities?.redistribute_protocols?.["ipv6-unicast"]
       : selectedAfi === "ipv4-unicast"
         ? capabilities?.redistribute_protocols?.["ipv4-unicast"]
-        : []) ?? [];
+        : []) ?? []
+  ).filter((p) => !currentAf?.redistribute.some((r) => r.protocol === p));
 
   // ==========================================================================
   // Render
@@ -624,15 +634,20 @@ export function BgpContent() {
                 )}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadData(true)}
-              disabled={loading}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {tc("refresh")}
-            </Button>
+            <div className="flex items-center gap-2">
+              {!hasWritePermission && (
+                <Badge variant="secondary">{tc("readOnly")}</Badge>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadData(true)}
+                disabled={loading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {tc("refresh")}
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -734,8 +749,8 @@ export function BgpContent() {
                   <p className="text-sm text-muted-foreground">
                     {t("content.overview.description")}
                   </p>
-                  {!overviewEditing ? (
-                    <Button size="sm" variant="outline" onClick={() => setOverviewEditing(true)}>
+                  {!hasWritePermission ? null : !overviewEditing ? (
+                    <Button size="sm" variant="outline" onClick={handleOverviewEdit}>
                       <Pencil className="h-4 w-4 mr-2" />
                       {tc("edit")}
                     </Button>
@@ -882,10 +897,12 @@ export function BgpContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("content.neighborsTab.description")}
                 </p>
-                <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("content.neighborsTab.add")}
-                </Button>
+                {hasWritePermission && (
+                  <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("content.neighborsTab.add")}
+                  </Button>
+                )}
               </div>
 
               {neighborCount === 0 ? (
@@ -896,10 +913,12 @@ export function BgpContent() {
                     <p className="text-xs text-muted-foreground mb-4">
                       {t("content.neighborsTab.emptyHint")}
                     </p>
-                    <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("content.neighborsTab.add")}
-                    </Button>
+                    {hasWritePermission && (
+                      <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("content.neighborsTab.add")}
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -915,7 +934,7 @@ export function BgpContent() {
                           <TableHead>{t("content.peerGroup")}</TableHead>
                           <TableHead>BFD</TableHead>
                           <TableHead>{t("content.addressFamilies")}</TableHead>
-                          <TableHead className="text-right">{tc("actions")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -968,29 +987,33 @@ export function BgpContent() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    setEditingNeighbor(neighbor);
-                                    setNeighborModalOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => setDeletingNeighbor(neighbor.address)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                            {hasWritePermission && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    aria-label={tc("edit")}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setEditingNeighbor(neighbor);
+                                      setNeighborModalOpen(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    aria-label={tc("delete")}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => setDeletingNeighbor(neighbor.address)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1008,10 +1031,12 @@ export function BgpContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("content.peerGroupsTab.description")}
                 </p>
-                <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("content.peerGroupsTab.add")}
-                </Button>
+                {hasWritePermission && (
+                  <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("content.peerGroupsTab.add")}
+                  </Button>
+                )}
               </div>
 
               {peerGroupCount === 0 ? (
@@ -1022,10 +1047,12 @@ export function BgpContent() {
                     <p className="text-xs text-muted-foreground mb-4">
                       {t("content.peerGroupsTab.emptyHint")}
                     </p>
-                    <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("content.peerGroupsTab.add")}
-                    </Button>
+                    {hasWritePermission && (
+                      <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("content.peerGroupsTab.add")}
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -1041,7 +1068,7 @@ export function BgpContent() {
                           <TableHead>BFD</TableHead>
                           <TableHead>{t("content.peerGroupsTab.members")}</TableHead>
                           <TableHead>{t("content.addressFamilies")}</TableHead>
-                          <TableHead className="text-right">{tc("actions")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1096,29 +1123,33 @@ export function BgpContent() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => {
-                                      setEditingPeerGroup(pg);
-                                      setPeerGroupModalOpen(true);
-                                    }}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => setDeletingPeerGroup({ name: pg.name, members: memberCount })}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
+                              {hasWritePermission && (
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      aria-label={tc("edit")}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        setEditingPeerGroup(pg);
+                                        setPeerGroupModalOpen(true);
+                                      }}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      aria-label={tc("delete")}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={() => setDeletingPeerGroup({ name: pg.name, members: memberCount })}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           );
                         })}
@@ -1175,7 +1206,7 @@ export function BgpContent() {
                                   <Checkbox
                                     id={`evpn-flag-${flag}`}
                                     checked={checked}
-                                    disabled={afSaving}
+                                    disabled={afSaving || !hasWritePermission}
                                     onCheckedChange={(c) => {
                                       setPageConfirmError(null);
                                       setPageConfirm({
@@ -1211,7 +1242,7 @@ export function BgpContent() {
                               <TableRow>
                                 <TableHead>{t("content.prefix")}</TableHead>
                                 <TableHead>{t("content.routeMap")}</TableHead>
-                                <TableHead className="text-right">{tc("actions")}</TableHead>
+                                {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1219,45 +1250,50 @@ export function BgpContent() {
                                 <TableRow key={net.prefix}>
                                   <TableCell className="font-mono">{net.prefix}</TableCell>
                                   <TableCell>{net.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        setPageConfirmError(null);
-                                        setPageConfirm({ label: net.prefix, run: () => handleDeleteNetwork(net.prefix) });
-                                      }}
-                                      disabled={afSaving}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                                  {hasWritePermission && (
+                                    <TableCell className="text-right">
+                                      <Button
+                                        aria-label={tc("delete")}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        onClick={() => {
+                                          setPageConfirmError(null);
+                                          setPageConfirm({ label: net.prefix, run: () => handleDeleteNetwork(net.prefix) });
+                                        }}
+                                        disabled={afSaving}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         )}
 
-                        <div className="flex items-end gap-3 mt-4">
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.prefix")}</Label>
-                            <Input
-                              value={afNetworkPrefix}
-                              onChange={(e) => setAfNetworkPrefix(e.target.value)}
-                              placeholder={t("eg", { value: "10.0.0.0/24" })}
-                              className="h-9"
-                            />
+                        {hasWritePermission && (
+                          <div className="flex items-end gap-3 mt-4">
+                            <div className="flex-1 space-y-1">
+                              <Label className="text-xs">{t("content.prefix")}</Label>
+                              <Input
+                                value={afNetworkPrefix}
+                                onChange={(e) => setAfNetworkPrefix(e.target.value)}
+                                placeholder={t("eg", { value: "10.0.0.0/24" })}
+                                className="h-9"
+                              />
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <Label htmlFor="bgp-af-network-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                              <NamedListSelect id="bgp-af-network-route-map" value={afNetworkRouteMap} names={routeMapNames} onValueChange={setAfNetworkRouteMap} />
+                            </div>
+                            <Button size="sm" onClick={handleAddNetwork} disabled={afSaving || !afNetworkPrefix.trim()}>
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                              {tc("add")}
+                            </Button>
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <Label htmlFor="bgp-af-network-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <NamedListSelect id="bgp-af-network-route-map" value={afNetworkRouteMap} names={routeMapNames} onValueChange={setAfNetworkRouteMap} />
-                          </div>
-                          <Button size="sm" onClick={handleAddNetwork} disabled={afSaving || !afNetworkPrefix.trim()}>
-                            {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            {tc("add")}
-                          </Button>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
 
@@ -1276,7 +1312,7 @@ export function BgpContent() {
                                 <TableHead>{t("content.af.protocol")}</TableHead>
                                 <TableHead>{t("content.routeMap")}</TableHead>
                                 <TableHead>{t("content.af.metric")}</TableHead>
-                                <TableHead className="text-right">{tc("actions")}</TableHead>
+                                {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1285,62 +1321,67 @@ export function BgpContent() {
                                   <TableCell className="font-mono">{rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol}</TableCell>
                                   <TableCell>{rd.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
                                   <TableCell className="font-mono">{rd.metric || <span className="text-muted-foreground">-</span>}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        setPageConfirmError(null);
-                                        setPageConfirm({
-                                          label: rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol,
-                                          run: () => handleDeleteRedistribute(rd.protocol, rd.table ?? undefined),
-                                        });
-                                      }}
-                                      disabled={afSaving}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                                  {hasWritePermission && (
+                                    <TableCell className="text-right">
+                                      <Button
+                                        aria-label={tc("delete")}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        onClick={() => {
+                                          setPageConfirmError(null);
+                                          setPageConfirm({
+                                            label: rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol,
+                                            run: () => handleDeleteRedistribute(rd.protocol, rd.table ?? undefined),
+                                          });
+                                        }}
+                                        disabled={afSaving}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         )}
 
-                        <div className="flex items-end gap-3 mt-4">
-                          <div className="w-[160px] space-y-1">
-                            <Label className="text-xs">{t("content.af.protocol")}</Label>
-                            <Select value={afRedistProto} onValueChange={setAfRedistProto}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={t("content.af.selectEllipsis")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {redistributeProtocols.map((p) => (
-                                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                        {hasWritePermission && (
+                          <div className="flex items-end gap-3 mt-4">
+                            <div className="w-[160px] space-y-1">
+                              <Label className="text-xs">{t("content.af.protocol")}</Label>
+                              <Select value={afRedistProto} onValueChange={setAfRedistProto}>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder={t("content.af.selectEllipsis")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {redistributeProtocols.map((p) => (
+                                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <Label htmlFor="bgp-af-redist-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                              <NamedListSelect id="bgp-af-redist-route-map" value={afRedistRouteMap} names={routeMapNames} onValueChange={setAfRedistRouteMap} />
+                            </div>
+                            <div className="w-[100px] space-y-1">
+                              <Label className="text-xs">{t("content.af.metric")}</Label>
+                              <Input
+                                value={afRedistMetric}
+                                onChange={(e) => setAfRedistMetric(e.target.value)}
+                                placeholder={t("eg", { value: "100" })}
+                                className="h-9"
+                              />
+                            </div>
+                            <Button size="sm" onClick={handleAddRedistribute} disabled={afSaving || !afRedistProto}>
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                              {tc("add")}
+                            </Button>
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <Label htmlFor="bgp-af-redist-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <NamedListSelect id="bgp-af-redist-route-map" value={afRedistRouteMap} names={routeMapNames} onValueChange={setAfRedistRouteMap} />
-                          </div>
-                          <div className="w-[100px] space-y-1">
-                            <Label className="text-xs">{t("content.af.metric")}</Label>
-                            <Input
-                              value={afRedistMetric}
-                              onChange={(e) => setAfRedistMetric(e.target.value)}
-                              placeholder={t("eg", { value: "100" })}
-                              className="h-9"
-                            />
-                          </div>
-                          <Button size="sm" onClick={handleAddRedistribute} disabled={afSaving || !afRedistProto}>
-                            {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            {tc("add")}
-                          </Button>
-                        </div>
-                        {(capabilities?.redistribute_table_afis ?? []).includes(selectedAfi) && (
+                        )}
+                        {hasWritePermission && (capabilities?.redistribute_table_afis ?? []).includes(selectedAfi) && (
                           <div className="flex items-end gap-3 mt-4">
                             <div className="w-[160px] space-y-1">
                               <Label className="text-xs">{t("content.af.table")}</Label>
@@ -1350,12 +1391,17 @@ export function BgpContent() {
                               size="sm"
                               disabled={afSaving || !afRedistTable.trim()}
                               onClick={async () => {
+                                const table = afRedistTable.trim();
+                                if (currentAf?.redistribute.some((r) => r.protocol === "table" && r.table === table)) {
+                                  setAfError(t("content.tableExists", { table }));
+                                  return;
+                                }
                                 setAfSaving(true);
                                 setAfError(null);
                                 try {
                                   const result = await bgpService.addRedistributeTable(
                                     selectedAfi,
-                                    afRedistTable.trim(),
+                                    table,
                                     afRedistRouteMap.trim() || undefined,
                                     afRedistMetric.trim() || undefined,
                                   );
@@ -1398,7 +1444,7 @@ export function BgpContent() {
                                 <TableHead>{t("content.af.asSet")}</TableHead>
                                 <TableHead>{t("content.af.summaryOnly")}</TableHead>
                                 <TableHead>{t("content.routeMap")}</TableHead>
-                                <TableHead className="text-right">{tc("actions")}</TableHead>
+                                {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1408,63 +1454,68 @@ export function BgpContent() {
                                   <TableCell>{agg.as_set ? t("content.yes") : t("content.no")}</TableCell>
                                   <TableCell>{agg.summary_only ? t("content.yes") : t("content.no")}</TableCell>
                                   <TableCell>{agg.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        setPageConfirmError(null);
-                                        setPageConfirm({ label: agg.prefix, run: () => handleDeleteAggregate(agg.prefix) });
-                                      }}
-                                      disabled={afSaving}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                                  {hasWritePermission && (
+                                    <TableCell className="text-right">
+                                      <Button
+                                        aria-label={tc("delete")}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        onClick={() => {
+                                          setPageConfirmError(null);
+                                          setPageConfirm({ label: agg.prefix, run: () => handleDeleteAggregate(agg.prefix) });
+                                        }}
+                                        disabled={afSaving}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         )}
 
-                        <div className="flex items-end gap-3 mt-4">
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.prefix")}</Label>
-                            <Input
-                              value={afAggPrefix}
-                              onChange={(e) => setAfAggPrefix(e.target.value)}
-                              placeholder={t("eg", { value: "10.0.0.0/8" })}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <Label htmlFor="bgp-af-agg-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <NamedListSelect id="bgp-af-agg-route-map" value={afAggRouteMap} names={routeMapNames} onValueChange={setAfAggRouteMap} />
-                          </div>
-                          <div className="flex items-center gap-3 pb-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <Checkbox
-                                id="agg-as-set"
-                                checked={afAggAsSet}
-                                onCheckedChange={(c) => setAfAggAsSet(c === true)}
+                        {hasWritePermission && (
+                          <div className="flex items-end gap-3 mt-4">
+                            <div className="flex-1 space-y-1">
+                              <Label className="text-xs">{t("content.prefix")}</Label>
+                              <Input
+                                value={afAggPrefix}
+                                onChange={(e) => setAfAggPrefix(e.target.value)}
+                                placeholder={t("eg", { value: "10.0.0.0/8" })}
+                                className="h-9"
                               />
-                              <Label htmlFor="agg-as-set" className="text-xs cursor-pointer">{t("content.af.asSet")}</Label>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <Checkbox
-                                id="agg-summary"
-                                checked={afAggSummaryOnly}
-                                onCheckedChange={(c) => setAfAggSummaryOnly(c === true)}
-                              />
-                              <Label htmlFor="agg-summary" className="text-xs cursor-pointer">{t("content.af.summaryOnly")}</Label>
+                            <div className="flex-1 space-y-1">
+                              <Label htmlFor="bgp-af-agg-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                              <NamedListSelect id="bgp-af-agg-route-map" value={afAggRouteMap} names={routeMapNames} onValueChange={setAfAggRouteMap} />
                             </div>
+                            <div className="flex items-center gap-3 pb-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                  id="agg-as-set"
+                                  checked={afAggAsSet}
+                                  onCheckedChange={(c) => setAfAggAsSet(c === true)}
+                                />
+                                <Label htmlFor="agg-as-set" className="text-xs cursor-pointer">{t("content.af.asSet")}</Label>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                  id="agg-summary"
+                                  checked={afAggSummaryOnly}
+                                  onCheckedChange={(c) => setAfAggSummaryOnly(c === true)}
+                                />
+                                <Label htmlFor="agg-summary" className="text-xs cursor-pointer">{t("content.af.summaryOnly")}</Label>
+                              </div>
+                            </div>
+                            <Button size="sm" onClick={handleAddAggregate} disabled={afSaving || !afAggPrefix.trim()}>
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                              {tc("add")}
+                            </Button>
                           </div>
-                          <Button size="sm" onClick={handleAddAggregate} disabled={afSaving || !afAggPrefix.trim()}>
-                            {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            {tc("add")}
-                          </Button>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
                     </>
@@ -1484,7 +1535,7 @@ export function BgpContent() {
                                 value={afMaxEbgp}
                                 onChange={(e) => setAfMaxEbgp(e.target.value)}
                                 className="h-9"
-                                disabled={afSaving}
+                                disabled={afSaving || !hasWritePermission}
                               />
                             </div>
                             <div className="w-[160px] space-y-1">
@@ -1495,13 +1546,13 @@ export function BgpContent() {
                                 value={afMaxIbgp}
                                 onChange={(e) => setAfMaxIbgp(e.target.value)}
                                 className="h-9"
-                                disabled={afSaving}
+                                disabled={afSaving || !hasWritePermission}
                               />
                             </div>
                             <Button
                               size="sm"
                               onClick={handleSaveMaximumPaths}
-                              disabled={afSaving || (
+                              disabled={!hasWritePermission || afSaving || (
                                 afMaxEbgp.trim() === (currentAf?.maximum_paths_ebgp != null ? String(currentAf.maximum_paths_ebgp) : "")
                                 && afMaxIbgp.trim() === (currentAf?.maximum_paths_ibgp != null ? String(currentAf.maximum_paths_ibgp) : "")
                               )}
@@ -1527,7 +1578,7 @@ export function BgpContent() {
                   <p className="text-sm text-muted-foreground">
                     {t("content.params.description")}
                   </p>
-                  {!paramsEditing ? (
+                  {!hasWritePermission ? null : !paramsEditing ? (
                     <Button size="sm" variant="outline" onClick={handleParamsEdit}>
                       <Pencil className="h-4 w-4 mr-2" />
                       {tc("edit")}
@@ -1889,11 +1940,12 @@ export function BgpContent() {
                       value={bmpBuffer}
                       onChange={(e) => setBmpBuffer(e.target.value)}
                       className="h-9"
+                      disabled={!hasWritePermission}
                     />
                   </div>
                   <Button
                     size="sm"
-                    disabled={bmpSaving}
+                    disabled={!hasWritePermission || bmpSaving}
                     onClick={async () => {
                       setBmpSaving(true);
                       setBmpError(null);
@@ -1920,33 +1972,38 @@ export function BgpContent() {
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-[140px] space-y-1">
                     <Label className="text-xs">{tc("name")}</Label>
-                    <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" />
+                    <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" disabled={!hasWritePermission} />
                   </div>
                   <div className="w-[160px] space-y-1">
                     <Label className="text-xs">{t("content.address")}</Label>
-                    <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" />
+                    <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" disabled={!hasWritePermission} />
                   </div>
                   <div className="w-[100px] space-y-1">
                     <Label className="text-xs">{t("neighborModal.port")}</Label>
-                    <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
+                    <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" disabled={!hasWritePermission} />
                   </div>
                   <div className="w-[100px] space-y-1">
                     <Label className="text-xs">{t("content.bmp.minRetry")}</Label>
-                    <Input type="number" value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" />
+                    <Input type="number" value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" disabled={!hasWritePermission} />
                   </div>
                   <div className="w-[100px] space-y-1">
                     <Label className="text-xs">{t("content.bmp.maxRetry")}</Label>
-                    <Input type="number" value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" />
+                    <Input type="number" value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" disabled={!hasWritePermission} />
                   </div>
                   <Button
                     size="sm"
-                    disabled={bmpSaving || !bmpName.trim()}
+                    disabled={!hasWritePermission || bmpSaving || !bmpName.trim()}
                     onClick={async () => {
+                      const targetName = bmpName.trim();
+                      if (config?.bmp?.targets.some((target) => target.name === targetName)) {
+                        setBmpError(t("content.bmpTargetExists", { name: targetName }));
+                        return;
+                      }
                       setBmpSaving(true);
                       setBmpError(null);
                       try {
                         const created: BgpBmpTarget = {
-                          name: bmpName.trim(),
+                          name: targetName,
                           address: bmpAddress.trim() || null,
                           port: bmpPort.trim() ? Number(bmpPort) : null,
                           min_retry: bmpMinRetry.trim() ? Number(bmpMinRetry) : null,
@@ -1985,7 +2042,7 @@ export function BgpContent() {
                     <CardContent className="p-6 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-mono">{target.name}</p>
-                        <Button size="sm" variant="ghost" onClick={() => { setBmpError(null); setDeletingBmpTarget(target.name); }}>
+                        <Button size="sm" variant="ghost" aria-label={tc("delete")} disabled={!hasWritePermission || bmpSaving} onClick={() => { setBmpError(null); setDeletingBmpTarget(target.name); }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -2006,13 +2063,14 @@ export function BgpContent() {
                                 [target.name]: { ...prev[target.name], [key]: e.target.value },
                               }))}
                               className="h-9"
+                              disabled={!hasWritePermission}
                             />
                           </div>
                         ))}
                       </div>
                       <Button
                         size="sm"
-                        disabled={bmpSaving}
+                        disabled={!hasWritePermission || bmpSaving}
                         onClick={async () => {
                           setBmpSaving(true);
                           setBmpError(null);
@@ -2054,6 +2112,7 @@ export function BgpContent() {
                         <Checkbox
                           id={`bmp-mirror-${target.name}`}
                           checked={target.mirror}
+                          disabled={!hasWritePermission || bmpSaving}
                           onCheckedChange={(checked) => {
                             setBmpError(null);
                             setBmpConfirm(() => async () => {
@@ -2083,6 +2142,7 @@ export function BgpContent() {
                           <Label className="text-xs">{t("content.bmp.sourceInterface")}</Label>
                           <InterfaceSelect
                             value={target.source_interface || ""}
+                            disabled={!hasWritePermission || bmpSaving}
                             noneOption={{ label: tc("none"), value: "" }}
                             onValueChange={(value) => {
                               setBmpError(null);
@@ -2117,6 +2177,7 @@ export function BgpContent() {
                                 <Checkbox
                                   id={`bmp-${target.name}-${afi}-${policy}`}
                                   checked={target.monitors.some((item) => item.afi === afi && item.policy === policy)}
+                                  disabled={!hasWritePermission || bmpSaving}
                                   onCheckedChange={(checked) => {
                                     setBmpError(null);
                                     setBmpConfirm(() => async () => {

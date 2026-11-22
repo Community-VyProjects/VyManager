@@ -138,8 +138,38 @@ describe("named list select", () => {
       assert.match(src, /<SelectItem value="restart-helper">/);
       assert.doesNotMatch(src, /<SelectItem value="restart">/);
     }
-    assert.match(neighbor, /!isEditMode && configuredAddresses\.includes\(trimmed\)/);
+    assert.match(neighbor, /!isEditMode && configuredAddresses\.some\(\(a\) => sameNeighborAddress\(a, trimmed\)\)/);
+    assert.match(neighbor, /!isEditMode && !isValidIPv4\(trimmed\) && !isValidIPv6\(trimmed\)/);
+    assert.match(neighbor, /neighborRangeProblem\(/);
     assert.match(peerGroup, /!isEditMode && configuredNames\.includes\(name\.trim\(\)\)/);
+    assert.doesNotMatch(peerGroup, /localAsRequired|localRoleRequired/);
+  });
+
+  it("keeps the BGP edit target while the modal saves and rejects duplicate page adds", () => {
+    const page = readFileSync(join(FRONTEND, "src/components/bgp/BgpContent.tsx"), "utf8");
+    for (const handler of ["handleUpdateNeighbor", "handleDeleteNeighbor", "handleUpdatePeerGroup", "handleDeletePeerGroup"]) {
+      const body = page.slice(page.indexOf(`const ${handler}`), page.indexOf("};", page.indexOf(`const ${handler}`)));
+      assert.doesNotMatch(body, /set(Editing|Deleting)(Neighbor|PeerGroup)\(null\)/, handler);
+    }
+    assert.match(page, /\}, \[t\]\);/);
+    assert.match(page, /content\.networkExists/);
+    assert.match(page, /content\.aggregateExists/);
+    assert.match(page, /content\.tableExists/);
+    assert.match(page, /content\.bmpTargetExists/);
+    assert.match(page, /\.filter\(\(p\) => !currentAf\?\.redistribute\.some\(\(r\) => r\.protocol === p\)\)/);
+    const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
+    assert.match(neighbor, /existingNeighbor\?\.address_families\[afi\]/);
+  });
+
+  it("hides BGP write controls from read-only users", () => {
+    const page = readFileSync(join(FRONTEND, "src/components/bgp/BgpContent.tsx"), "utf8");
+    assert.match(page, /const hasWritePermission = canWrite\(FeatureGroup\.BGP\);/);
+    assert.doesNotMatch(page, /^\s*<TableHead className="text-right">\{tc\("actions"\)\}<\/TableHead>$/m);
+    assert.match(page, /!hasWritePermission \? null : !overviewEditing/);
+    assert.match(page, /!hasWritePermission \? null : !paramsEditing/);
+    assert.match(page, /disabled=\{afSaving \|\| !hasWritePermission\}/);
+    const bmpTab = page.slice(page.indexOf('<TabsContent value="bmp">'), page.indexOf("</TabsContent>", page.indexOf('<TabsContent value="bmp">')));
+    assert.doesNotMatch(bmpTab, /disabled=\{bmpSaving/);
   });
 
   it("loads the IPv6 access and prefix lists that RIPng and OSPFv3 reference", () => {

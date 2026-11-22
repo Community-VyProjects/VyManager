@@ -25,6 +25,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import { EBGP_MULTIHOP_RANGE, inRange, TTL_SECURITY_RANGE } from "@/lib/api/bgp-ranges";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type {
@@ -140,11 +141,11 @@ export function BgpPeerGroupModal({
   const [ebgpMultihop, setEbgpMultihop] = useState("");
   const [ttlSecurityHops, setTtlSecurityHops] = useState("");
   const [password, setPassword] = useState("");
-  const [gracefulRestart, setGracefulRestart] = useState(NONE_SENTINEL);
+  const [gracefulRestart, setGracefulRestart] = useState("");
   const [localAsAsn, setLocalAsAsn] = useState("");
   const [localAsNoPrependReplaceAs, setLocalAsNoPrependReplaceAs] =
     useState(false);
-  const [localRole, setLocalRole] = useState(NONE_SENTINEL);
+  const [localRole, setLocalRole] = useState("");
   const [localRoleStrict, setLocalRoleStrict] = useState(false);
 
   // --- Address Families ---
@@ -202,12 +203,12 @@ export function BgpPeerGroupModal({
             : ""
         );
         setPassword(existingPeerGroup.password || "");
-        setGracefulRestart(existingPeerGroup.graceful_restart || NONE_SENTINEL);
+        setGracefulRestart(existingPeerGroup.graceful_restart || "");
         setLocalAsAsn(existingPeerGroup.local_as.asn || "");
         setLocalAsNoPrependReplaceAs(
           existingPeerGroup.local_as.no_prepend_replace_as
         );
-        setLocalRole(existingPeerGroup.local_role || NONE_SENTINEL);
+        setLocalRole(existingPeerGroup.local_role || "");
         setLocalRoleStrict(existingPeerGroup.local_role_strict);
 
         // Address families
@@ -256,10 +257,10 @@ export function BgpPeerGroupModal({
     setEbgpMultihop("");
     setTtlSecurityHops("");
     setPassword("");
-    setGracefulRestart(NONE_SENTINEL);
+    setGracefulRestart("");
     setLocalAsAsn("");
     setLocalAsNoPrependReplaceAs(false);
-    setLocalRole(NONE_SENTINEL);
+    setLocalRole("");
     setLocalRoleStrict(false);
     setEnabledAFs(new Set());
     setAfConfigs({});
@@ -316,26 +317,12 @@ export function BgpPeerGroupModal({
       return t("peerGroupModal.nameExists", { name: name.trim() });
     }
 
-    if (ebgpMultihop.trim()) {
-      const val = parseInt(ebgpMultihop.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 255) {
-        return t("peerGroupModal.ebgpMultihopRange");
-      }
+    if (!inRange(ebgpMultihop, EBGP_MULTIHOP_RANGE)) {
+      return t("peerGroupModal.ebgpMultihopRange");
     }
 
-    if (ttlSecurityHops.trim()) {
-      const val = parseInt(ttlSecurityHops.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 254) {
-        return t("peerGroupModal.ttlRange");
-      }
-    }
-
-    if (localAsNoPrependReplaceAs && !localAsAsn.trim()) {
-      return t("peerGroupModal.localAsRequired");
-    }
-
-    if (localRoleStrict && localRole === NONE_SENTINEL) {
-      return t("peerGroupModal.localRoleRequired");
+    if (!inRange(ttlSecurityHops, TTL_SECURITY_RANGE)) {
+      return t("peerGroupModal.ttlRange");
     }
 
     return null;
@@ -367,10 +354,8 @@ export function BgpPeerGroupModal({
         };
       }
 
-      const resolvedGracefulRestart =
-        gracefulRestart !== NONE_SENTINEL ? gracefulRestart : null;
-      const resolvedLocalRole =
-        localRole !== NONE_SENTINEL ? localRole : null;
+      const resolvedGracefulRestart = gracefulRestart || null;
+      const resolvedLocalRole = localRole || null;
 
       const peerGroup: BgpPeerGroup = {
         name: name.trim(),
@@ -391,7 +376,7 @@ export function BgpPeerGroupModal({
         graceful_restart: resolvedGracefulRestart,
         local_as: {
           asn: localAsAsn.trim() || null,
-          no_prepend_replace_as: localAsNoPrependReplaceAs,
+          no_prepend_replace_as: localAsAsn.trim() ? localAsNoPrependReplaceAs : false,
         },
         local_role: resolvedLocalRole,
         local_role_strict: resolvedLocalRole ? localRoleStrict : false,
@@ -832,8 +817,8 @@ export function BgpPeerGroupModal({
                     value={ebgpMultihop}
                     onChange={(e) => setEbgpMultihop(e.target.value)}
                     placeholder="1-255"
-                    min={1}
-                    max={255}
+                    min={EBGP_MULTIHOP_RANGE.min}
+                    max={EBGP_MULTIHOP_RANGE.max}
                   />
                   <p className="text-xs text-muted-foreground">
                     {t("peerGroupModal.ebgpMultihopHelp")}
@@ -851,8 +836,8 @@ export function BgpPeerGroupModal({
                     value={ttlSecurityHops}
                     onChange={(e) => setTtlSecurityHops(e.target.value)}
                     placeholder="1-254"
-                    min={1}
-                    max={254}
+                    min={TTL_SECURITY_RANGE.min}
+                    max={TTL_SECURITY_RANGE.max}
                   />
                   <p className="text-xs text-muted-foreground">
                     {t("peerGroupModal.ttlHelp")}
@@ -881,8 +866,8 @@ export function BgpPeerGroupModal({
                     {t("form.gracefulRestart")}
                   </Label>
                   <Select
-                    value={gracefulRestart}
-                    onValueChange={setGracefulRestart}
+                    value={gracefulRestart || NONE_SENTINEL}
+                    onValueChange={(v) => setGracefulRestart(v === NONE_SENTINEL ? "" : v)}
                   >
                     <SelectTrigger id="bgp-pg-graceful-restart">
                       <SelectValue placeholder={t("form.gracefulRestartPlaceholder")} />
@@ -943,8 +928,8 @@ export function BgpPeerGroupModal({
                     <div className="space-y-2">
                       <Label htmlFor="bgp-pg-local-role">{t("form.localRole")}</Label>
                       <Select
-                        value={localRole}
-                        onValueChange={setLocalRole}
+                        value={localRole || NONE_SENTINEL}
+                        onValueChange={(v) => setLocalRole(v === NONE_SENTINEL ? "" : v)}
                       >
                         <SelectTrigger id="bgp-pg-local-role">
                           <SelectValue placeholder={t("peerGroupModal.localRolePlaceholder")} />
@@ -964,7 +949,7 @@ export function BgpPeerGroupModal({
                     </div>
 
                     {/* Strict Mode - shown when Local Role is set */}
-                    {localRole !== NONE_SENTINEL && (
+                    {localRole && (
                       <div className="flex items-center space-x-3">
                         <Checkbox
                           id="bgp-pg-local-role-strict"

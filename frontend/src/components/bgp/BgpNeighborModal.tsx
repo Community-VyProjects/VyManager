@@ -25,6 +25,19 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import { isValidIPv4, isValidIPv6 } from "@/lib/validators/firewall";
+import {
+  ADVERTISEMENT_INTERVAL_RANGE,
+  CONNECT_TIMER_RANGE,
+  EBGP_MULTIHOP_RANGE,
+  HOLDTIME_RANGE,
+  KEEPALIVE_RANGE,
+  neighborRangeProblem,
+  PORT_RANGE,
+  sameNeighborAddress,
+  TTL_SECURITY_RANGE,
+  type NeighborRangeField,
+} from "@/lib/api/bgp-ranges";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type {
@@ -53,9 +66,16 @@ interface BgpNeighborModalProps {
 // Helpers
 // ============================================================================
 
-/** Interface-name neighbors (unnumbered), as the lab's neighbor node.def accepts. */
-const NEIGHBOR_INTERFACE =
-  /^(?:(?:bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(?:\.[0-9]+)?|pod-[-_a-zA-Z0-9]{1,11}|lo)$/;
+/** Label of each range-checked field, for the range error. */
+const RANGE_LABEL_KEYS = {
+  ebgpMultihop: "form.ebgpMultihop",
+  ttlSecurityHops: "form.ttlSecurityHops",
+  port: "neighborModal.port",
+  advertisementInterval: "neighborModal.advertisementInterval",
+  connect: "neighborModal.connectTimer",
+  keepalive: "neighborModal.keepalive",
+  holdtime: "neighborModal.holdtime",
+} as const satisfies Record<NeighborRangeField, string>;
 
 const emptyAfConfig = (): BgpNeighborAddressFamilyConfig => ({
   route_map_export: null,
@@ -344,7 +364,10 @@ export function BgpNeighborModal({
       if (next[afi]) {
         delete next[afi];
       } else {
-        next[afi] = emptyAfConfig();
+        // Re-enabling a loaded family keeps the leaves this modal does not show.
+        next[afi] = existingNeighbor?.address_families[afi]
+          ? { ...existingNeighbor.address_families[afi] }
+          : emptyAfConfig();
       }
       return next;
     });
@@ -372,11 +395,27 @@ export function BgpNeighborModal({
     if (!trimmed) {
       return t("neighborModal.addressRequired");
     }
-    if (!trimmed.includes(".") && !trimmed.includes(":") && !NEIGHBOR_INTERFACE.test(trimmed)) {
+    if (!isEditMode && !isValidIPv4(trimmed) && !isValidIPv6(trimmed)) {
       return t("neighborModal.addressInvalid");
     }
-    if (!isEditMode && configuredAddresses.includes(trimmed)) {
+    if (!isEditMode && configuredAddresses.some((a) => sameNeighborAddress(a, trimmed))) {
       return t("neighborModal.addressExists", { address: trimmed });
+    }
+    const range = neighborRangeProblem({
+      ebgpMultihop,
+      ttlSecurityHops,
+      port,
+      advertisementInterval,
+      connect: timerConnect,
+      keepalive: timerKeepalive,
+      holdtime: timerHoldtime,
+    });
+    if (range) {
+      return t("neighborModal.rangeInvalid", {
+        field: t(RANGE_LABEL_KEYS[range.field]),
+        min: range.range.min,
+        max: range.range.max,
+      });
     }
     return null;
   };
@@ -418,17 +457,13 @@ export function BgpNeighborModal({
         advertisement_interval: advertisementInterval.trim()
           ? parseInt(advertisementInterval.trim(), 10)
           : null,
-        graceful_restart:
-          gracefulRestart && gracefulRestart !== NONE_SENTINEL
-            ? gracefulRestart
-            : null,
+        graceful_restart: gracefulRestart || null,
         local_as: {
           asn: localAsAsn.trim() || null,
-          no_prepend_replace_as: localAsNoPrependReplaceAs,
+          no_prepend_replace_as: localAsAsn.trim() ? localAsNoPrependReplaceAs : false,
         },
-        local_role:
-          localRole && localRole !== NONE_SENTINEL ? localRole : null,
-        local_role_strict: localRoleStrict,
+        local_role: localRole || null,
+        local_role_strict: localRole ? localRoleStrict : false,
         bfd: {
           enabled: bfdEnabled,
           check_control_plane_failure: bfdCheckControlPlane,
@@ -926,7 +961,8 @@ export function BgpNeighborModal({
                     value={timerConnect}
                     onChange={(e) => setTimerConnect(e.target.value)}
                     placeholder={t("neighborModal.seconds")}
-                    min={1}
+                    min={CONNECT_TIMER_RANGE.min}
+                    max={CONNECT_TIMER_RANGE.max}
                   />
                 </div>
 
@@ -941,7 +977,8 @@ export function BgpNeighborModal({
                     value={timerKeepalive}
                     onChange={(e) => setTimerKeepalive(e.target.value)}
                     placeholder={t("neighborModal.seconds")}
-                    min={1}
+                    min={KEEPALIVE_RANGE.min}
+                    max={KEEPALIVE_RANGE.max}
                   />
                 </div>
 
@@ -954,7 +991,8 @@ export function BgpNeighborModal({
                     value={timerHoldtime}
                     onChange={(e) => setTimerHoldtime(e.target.value)}
                     placeholder={t("neighborModal.seconds")}
-                    min={0}
+                    min={HOLDTIME_RANGE.min}
+                    max={HOLDTIME_RANGE.max}
                   />
                 </div>
               </div>
@@ -978,8 +1016,8 @@ export function BgpNeighborModal({
                       value={ebgpMultihop}
                       onChange={(e) => setEbgpMultihop(e.target.value)}
                       placeholder={t("neighborModal.ebgpMultihopPlaceholder")}
-                      min={1}
-                      max={255}
+                      min={EBGP_MULTIHOP_RANGE.min}
+                      max={EBGP_MULTIHOP_RANGE.max}
                     />
                   </div>
 
@@ -996,7 +1034,8 @@ export function BgpNeighborModal({
                         setAdvertisementInterval(e.target.value)
                       }
                       placeholder={t("neighborModal.seconds")}
-                      min={0}
+                      min={ADVERTISEMENT_INTERVAL_RANGE.min}
+                      max={ADVERTISEMENT_INTERVAL_RANGE.max}
                     />
                   </div>
 
@@ -1011,8 +1050,8 @@ export function BgpNeighborModal({
                       value={ttlSecurityHops}
                       onChange={(e) => setTtlSecurityHops(e.target.value)}
                       placeholder="1-254"
-                      min={1}
-                      max={254}
+                      min={TTL_SECURITY_RANGE.min}
+                      max={TTL_SECURITY_RANGE.max}
                     />
                   </div>
 
@@ -1025,8 +1064,8 @@ export function BgpNeighborModal({
                       value={port}
                       onChange={(e) => setPort(e.target.value)}
                       placeholder="179"
-                      min={1}
-                      max={65535}
+                      min={PORT_RANGE.min}
+                      max={PORT_RANGE.max}
                     />
                   </div>
                 </div>
@@ -1051,7 +1090,7 @@ export function BgpNeighborModal({
                   </Label>
                   <Select
                     value={gracefulRestart || NONE_SENTINEL}
-                    onValueChange={setGracefulRestart}
+                    onValueChange={(v) => setGracefulRestart(v === NONE_SENTINEL ? "" : v)}
                   >
                     <SelectTrigger id="bgp-neighbor-graceful-restart">
                       <SelectValue placeholder={t("form.gracefulRestartPlaceholder")} />
@@ -1109,7 +1148,7 @@ export function BgpNeighborModal({
                       </Label>
                       <Select
                         value={localRole || NONE_SENTINEL}
-                        onValueChange={setLocalRole}
+                        onValueChange={(v) => setLocalRole(v === NONE_SENTINEL ? "" : v)}
                       >
                         <SelectTrigger id="bgp-neighbor-local-role">
                           <SelectValue placeholder={t("neighborModal.localRolePlaceholder")} />
@@ -1124,7 +1163,7 @@ export function BgpNeighborModal({
                         </SelectContent>
                       </Select>
                     </div>
-                    {localRole && localRole !== NONE_SENTINEL && (
+                    {localRole && (
                       <div className="flex items-center space-x-3 pl-1">
                         <Checkbox
                           id="bgp-neighbor-local-role-strict"
