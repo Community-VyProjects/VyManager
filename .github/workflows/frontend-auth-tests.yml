@@ -46,6 +46,10 @@ jobs:
         working-directory: frontend
         run: npm run test:ospf-save
 
+      - name: Run IS-IS save op tests
+        working-directory: frontend
+        run: npm run test:isis-save
+
       - name: Run power schedule tests
         working-directory: frontend
         run: npm run test:power-schedule

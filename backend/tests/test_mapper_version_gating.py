@@ -13,6 +13,7 @@ import pytest
 
 from vyos_builders.babel.babel_batch_builder import BabelBatchBuilder
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
+from vyos_builders.isis.isis_batch_builder import IsisBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
 from vyos_mappers.babel.babel_versions import get_babel_mapper
@@ -20,7 +21,6 @@ from vyos_mappers.bgp.bgp_versions import get_bgp_mapper
 from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
 from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
 from vyos_mappers.isis.isis_versions import get_isis_mapper
-from vyos_mappers.isis.isis_versions.v1_4 import IsisMapperV1_4
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 from vyos_mappers.vrf.vrf_bgp import VrfBgpMapper
 from vyos_mappers.vrf.vrf_isis import VrfIsisMapper
@@ -28,13 +28,14 @@ from vyos_mappers.vrf.vrf_ospf import VrfOspfMapper
 
 
 def test_isis_v14_rejects_ti_lfa_instead_of_silent_noop():
-    mapper = IsisMapperV1_4()
-    with pytest.raises(ValueError, match="1.5"):
-        mapper.get_interface_ti_lfa_path("eth0")
-    with pytest.raises(ValueError, match="1.5"):
-        mapper.get_sr_srv6_locator_path("LOC1")
-    with pytest.raises(ValueError, match="1.5"):
-        mapper.get_te_export_path()
+    builder = IsisBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="interface fast-reroute is not supported"):
+        builder.set_interface_ti_lfa("eth0")
+    with pytest.raises(ValueError, match="segment-routing srv6 is not supported"):
+        builder.set_sr_srv6_locator("LOC1")
+    with pytest.raises(ValueError, match="traffic-engineering export is not supported"):
+        builder.set_te_export()
+    assert builder.get_operations() == []
 
 
 def test_mappers_14_reject_redistribute_nhrp():
@@ -57,9 +58,9 @@ def test_mappers_14_reject_redistribute_nhrp():
         vrf_bgp.get_bgp_af_redistribute("blue", "ipv4-unicast", "nhrp")
     isis = get_isis_mapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
-        isis.get_redistribute_ipv4_path("nhrp", "level-1")
+        isis.get_redistribute_path("ipv4", "nhrp", "level-1")
     with pytest.raises(ValueError, match="not supported"):
-        isis.get_redistribute_ipv6_path("nhrp", "level-1")
+        isis.get_redistribute_path("ipv6", "nhrp", "level-1")
     vrf_isis = VrfIsisMapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         vrf_isis.get_isis_redistribute_level("blue", "ipv4", "nhrp", "level-1")
@@ -70,7 +71,7 @@ def test_mappers_14_delete_redistribute_nhrp():
     assert babel.get_redistribute_ipv4_delete("nhrp")[-1] == "nhrp"
     assert VrfOspfMapper("1.4").get_ospf_redistribute_delete("blue", "nhrp")[-1] == "nhrp"
     isis = get_isis_mapper("1.4")
-    assert isis.get_redistribute_ipv4_delete_path("nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
+    assert isis.get_redistribute_delete_path("ipv4", "nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
     vrf_isis = VrfIsisMapper("1.4")
     assert vrf_isis.get_isis_redistribute_delete("blue", "ipv4", "nhrp")[-1] == "nhrp"
 
