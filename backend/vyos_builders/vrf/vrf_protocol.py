@@ -182,7 +182,12 @@ def _parent_node_delete_path(
     vrf_name: str,
     value: Optional[str],
 ) -> Optional[List[str]]:
-    """UI number/select clear omits the leaf. Drop the last SET-path element."""
+    """UI number/select clear omits the leaf. Drop the last SET-path element.
+
+    Only when the omitted argument is the leaf value (the getter's last
+    parameter is ``value``). An omitted level, family or protocol is a node
+    name: dropping it would widen the delete to its parent.
+    """
     getter = getattr(mapper, f"get_{proto}_{suffix}", None) or getattr(
         mapper, f"get_{suffix}", None
     )
@@ -190,7 +195,7 @@ def _parent_node_delete_path(
         return None
     params = [p for p in inspect.signature(getter).parameters if p != "self"]
     extra = max(len(params) - 1, 0)
-    if extra < 1:
+    if extra < 1 or params[-1] != "value":
         return None
     dummy = "_"
     try:

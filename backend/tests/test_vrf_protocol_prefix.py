@@ -5,7 +5,7 @@ import pytest
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
-from vyos_builders.vrf.vrf_protocol import parse_vrf_protocol_op
+from vyos_builders.vrf.vrf_protocol import ArityError, parse_vrf_protocol_op
 
 
 def test_parse_prefers_ospfv3_over_ospf():
@@ -212,6 +212,9 @@ def test_vrf_isis_lfa_tagged_nodes_round_trip():
         "vrf", "name", "blue", "protocols", "isis",
         "fast-reroute", "lfa", "remote", "prefix-list", "FOO",
     ]
+    # A missing index is a node name, not the leaf value: a 400, never a
+    # widened delete of every index (or a dummy `_` on the device).
     vrf = VrfBatchBuilder("1.5")
-    vrf.delete_vrf_isis_fr_lfa_local_tiebreaker_index("blue", "downstream")
-    assert "_" not in vrf.get_operations()[-1]["path"]
+    with pytest.raises(ArityError):
+        vrf.delete_vrf_isis_fr_lfa_local_tiebreaker_index("blue", "downstream")
+    assert vrf.get_operations() == []
