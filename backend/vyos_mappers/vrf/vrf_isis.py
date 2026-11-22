@@ -31,27 +31,83 @@ Config tree: vrf name <NAME> protocols isis
   spf-interval
   topology (ipv4-multicast, ipv4-mgmt, ipv6-unicast)
   traffic-engineering (address-family: ipv4/ipv6, enable, inter-area)
+
+The shared class holds the paths both labs have. Interface fast-reroute,
+segment-routing srv6, traffic-engineering export and redistribute ipv4 nhrp
+exist only on VyOS 1.5; the subclass in ``vrf_versions`` adds them.
 """
 
-from typing import FrozenSet, List
+from typing import Dict, FrozenSet, List, Optional, Tuple
 
-from vyos_mappers.isis.isis import isis_redistribute_protocols
+from vyos_mappers.isis.isis import _REDIST_IPV4, _REDIST_IPV6
+from ..base import BaseFeatureMapper
 
 
-class VrfIsisMapper:
-    """Mapper for VRF ISIS paths. Common between VyOS 1.4 and 1.5."""
+class VrfIsisMapper(BaseFeatureMapper):
+    """Mapper for VRF ISIS paths both VyOS 1.4 and 1.5 have."""
 
-    def __init__(self, version: str = ""):
-        self.version = version
+    # Version-only nodes, each with the path methods below it. The methods
+    # live on the version subclass; VRF dispatch calls ``require_node`` with
+    # ``path_node(<method>)`` before it looks one up.
+    _VERSIONED_NODES: Dict[str, Tuple[str, ...]] = {
+        "interface fast-reroute": (
+            "get_isis_interface_fr_lfa_level_enable",
+            "get_isis_interface_fr_lfa_level_exclude_interface",
+            "get_isis_interface_fr_remote_lfa_level_maximum_metric",
+            "get_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp",
+            "get_isis_interface_fr_ti_lfa_level",
+            "get_isis_interface_fr_ti_lfa_level_node_protection",
+            "get_isis_interface_fr_ti_lfa_level_node_protection_link_fallback",
+        ),
+        "segment-routing srv6": (
+            "get_isis_segment_routing_srv6_interface",
+            "get_isis_segment_routing_srv6_locator",
+            "get_isis_segment_routing_srv6_node_msd",
+        ),
+        "traffic-engineering export": ("get_isis_traffic_engineering_export",),
+    }
+
+    # ========================================================================
+    # Core
+    # ========================================================================
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only nodes this device has.
+
+        A node counts when every path method below it is on this mapper.
+        Capabilities and VRF dispatch read this set instead of the version
+        string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
+
+    def path_node(self, method: str) -> Optional[str]:
+        """The version-only node path method ``method`` sits under, if any."""
+        for node, methods in self._VERSIONED_NODES.items():
+            if method in methods:
+                return node
+        return None
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"{node} is not supported on this device")
 
     def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
-        return isis_redistribute_protocols(self.version, "ipv4")
+        return _REDIST_IPV4
 
     def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
-        return isis_redistribute_protocols(self.version, "ipv6")
+        return _REDIST_IPV6
 
     def _require_redistribute(self, af: str, protocol: str) -> None:
-        allowed = isis_redistribute_protocols(self.version, af)
+        if af == "ipv4":
+            allowed = self.redistribute_ipv4_protocols()
+        elif af == "ipv6":
+            allowed = self.redistribute_ipv6_protocols()
+        else:
+            raise ValueError(f"unknown IS-IS redistribute address family {af}")
         if protocol not in allowed:
             raise ValueError(
                 f"redistribute {protocol} is not supported on this device")
@@ -310,47 +366,11 @@ class VrfIsisMapper:
         return self._fr_lfa(name) + ["remote", "prefix-list", prefix_list, level]
 
     # ========================================================================
-    # Interface Fast Reroute / LDP Sync Disable
+    # Interface LDP Sync Disable
     # ========================================================================
-
-    def _iface_fr(self, name: str, iface: str) -> List[str]:
-        return self._base(name) + ["interface", iface, "fast-reroute"]
-
-    def get_isis_interface_fr_lfa_level_enable(self, name: str, iface: str, level: str) -> List[str]:
-        return self._iface_fr(name, iface) + ["lfa", level, "enable"]
-
-    def get_isis_interface_fr_lfa_level_exclude_interface(self, name: str, iface: str, level: str, exclude: str) -> List[str]:
-        return self._iface_fr(name, iface) + ["lfa", level, "exclude", "interface", exclude]
-
-    def get_isis_interface_fr_remote_lfa_level_maximum_metric(self, name: str, iface: str, level: str, value: str) -> List[str]:
-        return self._iface_fr(name, iface) + ["remote-lfa", level, "maximum-metric", value]
-
-    def get_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp(self, name: str, iface: str, level: str) -> List[str]:
-        return self._iface_fr(name, iface) + ["remote-lfa", level, "tunnel", "mpls-ldp"]
-
-    def get_isis_interface_fr_ti_lfa_level(self, name: str, iface: str, level: str) -> List[str]:
-        return self._iface_fr(name, iface) + ["ti-lfa", level]
-
-    def get_isis_interface_fr_ti_lfa_level_node_protection(self, name: str, iface: str, level: str) -> List[str]:
-        return self._iface_fr(name, iface) + ["ti-lfa", level, "node-protection"]
-
-    def get_isis_interface_fr_ti_lfa_level_node_protection_link_fallback(self, name: str, iface: str, level: str) -> List[str]:
-        return self._iface_fr(name, iface) + ["ti-lfa", level, "node-protection", "link-fallback"]
 
     def get_isis_interface_ldp_sync_disable(self, name: str, iface: str) -> List[str]:
         return self._base(name) + ["interface", iface, "ldp-sync", "disable"]
-
-    # ========================================================================
-    # Segment Routing SRv6
-    #   segment-routing srv6 interface <IFACE>
-    #   segment-routing srv6 node-msd <max-end-d|max-end-pop|max-h-encaps|max-segs-left> <val>
-    # ========================================================================
-
-    def get_isis_segment_routing_srv6_interface(self, name: str, value: str) -> List[str]:
-        return self._base(name) + ["segment-routing", "srv6", "interface", value]
-
-    def get_isis_segment_routing_srv6_node_msd(self, name: str, msd_type: str, value: str) -> List[str]:
-        return self._base(name) + ["segment-routing", "srv6", "node-msd", msd_type, value]
 
     # ========================================================================
     # Traffic Engineering address
@@ -358,12 +378,6 @@ class VrfIsisMapper:
 
     def get_isis_traffic_engineering_address(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["traffic-engineering", "address", value]
-
-    def get_isis_traffic_engineering_export(self, name: str) -> List[str]:
-        return self._base(name) + ["traffic-engineering", "export"]
-
-    def get_isis_segment_routing_srv6_locator(self, name: str, value: str) -> List[str]:
-        return self._base(name) + ["segment-routing", "srv6", "locator", value]
 
     # ========================================================================
     # Segment Routing

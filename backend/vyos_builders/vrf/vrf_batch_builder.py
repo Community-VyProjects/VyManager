@@ -285,8 +285,13 @@ class VrfBatchBuilder(BatchBuilder):
                     "description": "OSPF redistribute NHRP (VyOS 1.5+ only)",
                 },
                 "isis_fast_reroute": {
-                    "supported": is_1_5,
-                    "description": "IS-IS fast-reroute (LFA, TI-LFA) (VyOS 1.5+ only)",
+                    # The screen gates these three nodes on this one flag.
+                    "supported": {
+                        "interface fast-reroute",
+                        "segment-routing srv6",
+                        "traffic-engineering export",
+                    } <= vrf_isis.versioned_nodes(),
+                    "description": "IS-IS interface fast-reroute, SRv6 and TE export",
                 },
                 "isis_redistribute_nhrp": {
                     "supported": "nhrp" in vrf_isis.redistribute_ipv4_protocols(),

@@ -60,6 +60,10 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is None:
         return False
+    if _versioned_path_node(mapper, proto, suffix) is not None:
+        # Exists so dispatch reaches require_node and a version without the
+        # node gets its ValueError, not an unknown-op error.
+        return True
     return any(
         hasattr(mapper, candidate)
         for candidate in (
@@ -68,6 +72,18 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
             f"get_{proto}_{suffix}_delete",
         )
     )
+
+
+def _versioned_path_node(mapper: Any, proto: str, suffix: str) -> Optional[str]:
+    """Version-only node the VRF mapper path of this op sits under, if any.
+
+    A VRF protocol mapper with version-only paths lists them behind
+    ``path_node``; the other VRF protocol mappers have none.
+    """
+    path_node = getattr(mapper, "path_node", None)
+    if path_node is None:
+        return None
+    return path_node(f"get_{proto}_{suffix}") or path_node(f"get_{proto}_{suffix}_delete")
 
 
 def parse_vrf_protocol_op(name: str) -> Optional[Tuple[str, str, Optional[str]]]:
@@ -393,6 +409,9 @@ def run_vrf_protocol_op(
 
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is not None:
+        node = _versioned_path_node(mapper, proto, suffix)
+        if node is not None:
+            mapper.require_node(node)
         path = _mapper_path(mapper, proto, suffix, vrf_name, value, verb)
         if path is not None:
             return owner.add_set(path) if verb == "set" else owner.add_delete(path)

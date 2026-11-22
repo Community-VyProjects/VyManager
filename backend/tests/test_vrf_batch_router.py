@@ -164,6 +164,18 @@ def test_1_5_static_leaf_on_1_4_is_400(client):
     assert client.executed == []
 
 
+@pytest.mark.parametrize("operation, node", [
+    ({"op": "set_vrf_isis_interface_fr_ti_lfa_level", "value": "T-V,eth0,level-1"}, "interface fast-reroute"),
+    ({"op": "delete_vrf_isis_segment_routing_srv6_locator", "value": "T-V,T-LOC"}, "segment-routing srv6"),
+    ({"op": "set_vrf_isis_traffic_engineering_export", "value": "T-V"}, "traffic-engineering export"),
+])
+def test_1_5_isis_leaf_on_1_4_is_400(client, operation, node):
+    resp = _post(client, [{"op": "set_vrf_isis_net", "value": "T-V,49.0001.1921.6800.1002.00"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"{node} is not supported on this device"
+    assert client.executed == []
+
+
 def test_failed_commit_reports_the_error(client, commit):
     commit.update(status=200, error="Commit failed: T-err")
     resp = _post(client, [{"op": "set_vrf", "value": "T-V"}])
