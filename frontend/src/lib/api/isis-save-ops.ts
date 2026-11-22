@@ -326,7 +326,9 @@ function passwordOps(
 ): void {
   const p = `${scope}_password`;
   const stored = storedModes(md5Before, plainBefore);
-  if (draft.mode === "") {
+  // No mode, or the selected stored mode cleared, leaves no password: delete
+  // the node so no empty ``<scope>-password`` stays behind.
+  if (draft.mode === "" || (stored.has(draft.mode) && isCleared(draft.password))) {
     if (stored.size > 0) push(ops, `delete_${p}`);
     return;
   }

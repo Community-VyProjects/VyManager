@@ -250,7 +250,7 @@ describe("area and domain password (single mode)", () => {
     form.domain_password = { mode: "plaintext-password", password: "" };
     assert.deepEqual(isisGeneralOps(g, form), [
       { op: "delete_area_password" },
-      { op: "delete_domain_password_plaintext" },
+      { op: "delete_domain_password" },
     ]);
   });
 
