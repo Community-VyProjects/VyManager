@@ -90,7 +90,8 @@
   },
   "schemaEditor": {
     "select": "请选择…",
-    "addListItem": "添加{label}…"
+    "addListItem": "添加{label}…",
+    "secretIsMask": "{field}：请输入密钥本身，而不是掩码。"
   },
   "entityList": {
     "deleteFailed": "删除失败",

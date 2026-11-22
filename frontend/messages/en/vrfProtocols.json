@@ -90,7 +90,8 @@
   },
   "schemaEditor": {
     "select": "Select…",
-    "addListItem": "Add {label}…"
+    "addListItem": "Add {label}…",
+    "secretIsMask": "{field}: enter the secret itself, not the mask."
   },
   "entityList": {
     "deleteFailed": "Delete failed",
