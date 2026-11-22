@@ -503,7 +503,9 @@ export function RipContent() {
     inputPlaceholder: string,
     isDropdown?: boolean,
   ) => {
-    const busy = listBusy === inputId;
+    // Every section waits while any list commit runs; only the running one spins.
+    const busy = listBusy !== null;
+    const running = listBusy === inputId;
     const add = () => {
       if (inputValue.trim()) runListAction(inputId, onAdd);
     };
@@ -540,7 +542,7 @@ export function RipContent() {
               />
             )}
             <Button size="sm" onClick={add} disabled={busy || !inputValue.trim()} aria-label={tc("add")}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             </Button>
           </div>
         )}
