@@ -36,6 +36,7 @@ import {
   isisSegmentRoutingProblem,
   isisTeForm,
   isisTeProblem,
+  type IsisProblem,
   type IsisSegmentRoutingForm,
   type IsisSidKind,
   type IsisSrPrefixForm,
@@ -51,6 +52,8 @@ const NO_PHP_FLAG = "no-php-flag";
 
 interface CardProps {
   canEdit: boolean;
+  /** Blocks the save (IS-IS not configured yet); the page also passes canEdit false then. */
+  setupProblem: IsisProblem | null;
   onSaved: () => Promise<void>;
 }
 
@@ -59,6 +62,7 @@ export function IsisSegmentRoutingCard({
   capabilities,
   interfaces,
   canEdit,
+  setupProblem,
   onSaved,
 }: CardProps & { config: IsisConfig; capabilities: IsisCapabilities | null; interfaces: InterfaceName[] }) {
   const t = useTranslations("isis");
@@ -103,7 +107,7 @@ export function IsisSegmentRoutingCard({
       onSave={() => {
         if (!section.form) return;
         const form = section.form;
-        void section.save(isisSegmentRoutingProblem(form, opts), async () => {
+        void section.save(setupProblem ?? isisSegmentRoutingProblem(form, opts), async () => {
           await isisService.updateSegmentRouting(sr, form, opts);
           await onSaved();
         });
@@ -290,6 +294,7 @@ export function IsisTrafficEngineeringCard({
   te,
   capabilities,
   canEdit,
+  setupProblem,
   onSaved,
 }: CardProps & { te: IsisTrafficEngineering; capabilities: IsisCapabilities | null }) {
   const t = useTranslations("isis");
@@ -311,7 +316,7 @@ export function IsisTrafficEngineeringCard({
       onSave={() => {
         if (!section.form) return;
         const form = section.form;
-        void section.save(isisTeProblem(form), async () => {
+        void section.save(setupProblem ?? isisTeProblem(form), async () => {
           await isisService.updateTrafficEngineering(te, form, { teExport });
           await onSaved();
         });

@@ -11,12 +11,15 @@ import {
   isisInterfaceOps,
   isisLoadSharingOps,
   isisPriorityLimitOps,
+  isisPriorityLimitRemoveOps,
   isisRedistributeOps,
   isisRemotePrefixListOps,
+  isisRemotePrefixListRemoveOps,
   isisSegmentRoutingOps,
   isisSpfDelayOps,
   isisTeOps,
   isisTiebreakerOps,
+  isisTiebreakerRemoveOps,
   isisTimersOps,
   type IsisDefaultInfoForm,
   type IsisFamily,
@@ -182,13 +185,15 @@ export interface IsisTrafficEngineering {
 
 export interface IsisFrrPriorityLimit {
   priority: string;
-  level: string;
+  /** null: a bare ``priority-limit <p>`` left after its last level was deleted alone. */
+  level: string | null;
 }
 
 export interface IsisFrrTiebreaker {
   tb_type: string;
   index: string;
-  level: string;
+  /** null: a bare ``tiebreaker <t> index <n>``; FRR ignores it but verify still counts the index. */
+  level: string | null;
 }
 
 export interface IsisFrrRemotePrefixList {
@@ -228,7 +233,7 @@ export interface IsisFeature {
   description: string;
 }
 
-/** Defaults 1.5 verify fills in for its LSP timer cross-checks. */
+/** FRR defaults of the LSP timers; 1.5 verify fills unset timers with them. */
 export interface IsisLspTimerDefaults {
   lsp_gen_interval: number;
   lsp_refresh_interval: number;
@@ -243,8 +248,10 @@ export interface IsisCapabilities {
     te_export: IsisFeature;
   };
   lsp_refresh_interval: { min: number; max: number };
-  /** null on 1.4, whose verify has no LSP timer cross-checks. */
-  lsp_timer_defaults: IsisLspTimerDefaults | null;
+  /** FRR defaults of the LSP timers (the same on both versions). */
+  lsp_timer_defaults: IsisLspTimerDefaults;
+  /** Whether verify cross-checks the LSP timers (1.5 only). */
+  lsp_timer_checks: boolean;
   area_password_modes: string[];
   domain_password_modes: string[];
   srv6_node_msd_types: string[];
@@ -388,16 +395,18 @@ class IsisService {
     return this.batchConfigure(isisPriorityLimitOps("set", priority, level));
   }
 
-  async deleteFrrPriorityLimit(priority: string, level: string): Promise<VyOSResponse> {
-    return this.batchConfigure(isisPriorityLimitOps("delete", priority, level));
+  /** Removes one chip; the last level (or a bare leftover) deletes the parent node. */
+  async removeFrrPriorityLimit(existing: IsisFrrPriorityLimit[], entry: IsisFrrPriorityLimit): Promise<VyOSResponse> {
+    return this.batchConfigure(isisPriorityLimitRemoveOps(existing, entry));
   }
 
   async addFrrTiebreaker(tbType: string, index: string, level: string): Promise<VyOSResponse> {
     return this.batchConfigure(isisTiebreakerOps("set", tbType, index, level));
   }
 
-  async deleteFrrTiebreaker(tbType: string, index: string, level: string): Promise<VyOSResponse> {
-    return this.batchConfigure(isisTiebreakerOps("delete", tbType, index, level));
+  /** Removes one chip; the last level (or a bare leftover) deletes the parent node. */
+  async removeFrrTiebreaker(existing: IsisFrrTiebreaker[], entry: IsisFrrTiebreaker): Promise<VyOSResponse> {
+    return this.batchConfigure(isisTiebreakerRemoveOps(existing, entry));
   }
 
   /** ``level`` null: the bare all-levels entry. */
@@ -405,8 +414,12 @@ class IsisService {
     return this.batchConfigure(isisRemotePrefixListOps("set", prefixList, level));
   }
 
-  async deleteFrrRemotePrefixList(prefixList: string, level: string | null): Promise<VyOSResponse> {
-    return this.batchConfigure(isisRemotePrefixListOps("delete", prefixList, level));
+  /** Removes one chip; the last level (or the all-levels entry) deletes the parent node. */
+  async removeFrrRemotePrefixList(
+    existing: IsisFrrRemotePrefixList[],
+    entry: IsisFrrRemotePrefixList,
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisRemotePrefixListRemoveOps(existing, entry));
   }
 }
 

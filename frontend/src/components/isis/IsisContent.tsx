@@ -56,6 +56,7 @@ import {
   isisGeneralForm,
   isisGeneralProblem,
   isisDeleteInterfaceProblem,
+  isisSetupProblem,
   isisPasswordForMode,
   isisPasswordModes,
   type IsisDefaultInfoForm,
@@ -139,6 +140,9 @@ export function IsisContent() {
   /** A page action the lab would reject (shown above the tabs). */
   const [actionError, setActionError] = useState<string | null>(null);
   const problemText = useIsisProblemText();
+  /** No interface yet: only Add Interface (which also sets the NET) can commit. */
+  const setupProblem = config ? isisSetupProblem(config.interfaces.length) : null;
+  const canChange = hasWritePermission && !setupProblem;
 
   // -------------------------------------------------------------------------
   // Load data
@@ -463,6 +467,13 @@ export function IsisContent() {
             </div>
           )}
 
+          {hasWritePermission && setupProblem && (
+            <div className="mb-4 p-3 rounded-md bg-muted text-muted-foreground text-sm flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p>{problemText(setupProblem)}</p>
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4">
             <Card>
@@ -542,7 +553,7 @@ export function IsisContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("overview.description")}
                 </p>
-                {hasWritePermission && g && (
+                {canChange && g && (
                   !general.editing ? (
                     <Button size="sm" variant="outline" onClick={startEditGeneral}>
                       <Pencil className="h-4 w-4 mr-2" />
@@ -625,7 +636,7 @@ export function IsisContent() {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-semibold">{t("overview.defaultInformation")}</h3>
-                        {hasWritePermission && (
+                        {canChange && (
                           <Button size="sm" variant="outline" onClick={() => setDefaultInfoModal({ key: nextKey(), existing: null })}>
                             <Plus className="h-4 w-4 mr-2" />
                             {tc("add")}
@@ -823,7 +834,7 @@ export function IsisContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("redistribute.description")}
                 </p>
-                {hasWritePermission && (
+                {canChange && (
                   <Button size="sm" onClick={() => setRedistModal({ key: nextKey(), existing: null })}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("fields.addRedistribute")}
@@ -839,7 +850,7 @@ export function IsisContent() {
                     <p className="text-xs text-muted-foreground mb-4">
                       {t("redistribute.emptyHint")}
                     </p>
-                    {hasWritePermission && (
+                    {canChange && (
                       <Button size="sm" onClick={() => setRedistModal({ key: nextKey(), existing: null })}>
                         <Plus className="h-4 w-4 mr-2" />
                         {t("fields.addRedistribute")}
@@ -929,19 +940,22 @@ export function IsisContent() {
                   <IsisTimersCard
                     global={config.global_config}
                     capabilities={capabilities}
-                    canEdit={hasWritePermission}
+                    canEdit={canChange}
+                    setupProblem={setupProblem}
                     onSaved={reload}
                   />
                   <IsisSpfDelayCard
                     spfDelay={config.global_config.spf_delay_ietf}
-                    canEdit={hasWritePermission}
+                    canEdit={canChange}
+                    setupProblem={setupProblem}
                     onSaved={reload}
                   />
                   <IsisSegmentRoutingCard
                     config={config}
                     capabilities={capabilities}
                     interfaces={interfaces}
-                    canEdit={hasWritePermission}
+                    canEdit={canChange}
+                    setupProblem={setupProblem}
                     onSaved={reload}
                   />
                   {capabilities && (
@@ -949,7 +963,8 @@ export function IsisContent() {
                       frr={config.fast_reroute}
                       capabilities={capabilities}
                       prefixListNames={prefixListNames}
-                      canEdit={hasWritePermission}
+                      canEdit={canChange}
+                      setupProblem={setupProblem}
                       onConfirm={setConfirm}
                       reload={reload}
                     />
@@ -957,7 +972,8 @@ export function IsisContent() {
                   <IsisTrafficEngineeringCard
                     te={config.traffic_engineering}
                     capabilities={capabilities}
-                    canEdit={hasWritePermission}
+                    canEdit={canChange}
+                    setupProblem={setupProblem}
                     onSaved={reload}
                   />
                 </div>
@@ -994,6 +1010,7 @@ export function IsisContent() {
           routeMapNames={routeMapNames}
           capabilities={capabilities}
           globalLevel={config?.global_config.level ?? null}
+          setupProblem={setupProblem}
         />
       )}
 
@@ -1006,6 +1023,7 @@ export function IsisContent() {
           existing={defaultInfoModal.existing}
           entries={defaultInfoEntries}
           routeMapNames={routeMapNames}
+          setupProblem={setupProblem}
         />
       )}
 

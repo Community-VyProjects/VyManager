@@ -183,7 +183,6 @@ export function IsisInterfaceModal({
                   placeholder={t("overview.netPlaceholder")}
                   className="font-mono"
                 />
-                <p className="text-xs text-muted-foreground">{t("interfaceModal.netHelp")}</p>
               </div>
             )}
 
@@ -269,7 +268,6 @@ export function IsisInterfaceModal({
           </TabsContent>
 
           <TabsContent value="auth" className="space-y-4 mt-4">
-            <p className="text-xs text-muted-foreground">{t("password.interfaceHelp")}</p>
             <div className="space-y-2">
               <Label htmlFor="isis-iface-pw-md5">{t("password.md5")}</Label>
               <Input

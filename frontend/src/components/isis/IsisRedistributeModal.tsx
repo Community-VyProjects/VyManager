@@ -26,12 +26,13 @@ import type { ApiError } from "@/lib/types/api";
 import {
   ISIS_FAMILIES,
   ISIS_ROUTE_METRIC,
-  ISIS_SPLIT_LEVELS,
+  isisRedistributeAllowedLevels,
   isisRedistributeForm,
   isisRedistributeFreeLevels,
   isisRedistributeFreeProtocols,
   isisRedistributeProblem,
   type IsisFamily,
+  type IsisProblem,
   type IsisRedistributeForm,
 } from "@/lib/api/isis-save-ops";
 import { useIsisProblemText } from "./useIsisProblemText";
@@ -48,6 +49,8 @@ interface IsisRedistributeModalProps {
   capabilities: IsisCapabilities | null;
   /** Global ``level``; verify rejects redistribute at the other single level. */
   globalLevel: string | null;
+  /** Blocks the save while IS-IS is not configured (the Add button is hidden then too). */
+  setupProblem: IsisProblem | null;
 }
 
 /** Mount with a fresh ``key`` per open: the form is read once from ``existing``. */
@@ -60,6 +63,7 @@ export function IsisRedistributeModal({
   routeMapNames,
   capabilities,
   globalLevel,
+  setupProblem,
 }: IsisRedistributeModalProps) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
@@ -71,17 +75,19 @@ export function IsisRedistributeModal({
   const [form, setForm] = useState<IsisRedistributeForm>(() => isisRedistributeForm(existing?.entry ?? null));
 
   const protocols = capabilities?.redistribute_protocols[family] ?? [];
-  // Add offers only combinations that are not configured yet; Edit shows the entry's own.
+  // Add offers only combinations that are not configured yet and that the global level allows.
   const protocolOptions = isEdit
     ? [form.protocol]
-    : isisRedistributeFreeProtocols(entries[family], protocols);
+    : isisRedistributeFreeProtocols(entries[family], protocols, globalLevel);
   const levelOptions: readonly string[] = isEdit
     ? [form.level]
-    : form.protocol ? isisRedistributeFreeLevels(entries[family], form.protocol) : ISIS_SPLIT_LEVELS;
+    : form.protocol
+      ? isisRedistributeFreeLevels(entries[family], form.protocol, globalLevel)
+      : isisRedistributeAllowedLevels(globalLevel);
 
   const handleSubmit = async () => {
     const original = existing?.entry ?? null;
-    const problem = isisRedistributeProblem(original, form, entries[family], globalLevel);
+    const problem = setupProblem ?? isisRedistributeProblem(original, form, entries[family], globalLevel);
     if (problem) {
       setError(problemText(problem));
       return;

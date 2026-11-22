@@ -68,13 +68,11 @@
     "noneConfigured": "None configured"
   },
   "password": {
-    "mode": "Password type",
     "value": "Password",
     "area": "Area password",
     "domain": "Domain password",
     "md5": "MD5 password",
-    "plaintext": "Plaintext password",
-    "interfaceHelp": "Each password is saved on its own; leave a field empty to remove it."
+    "plaintext": "Plaintext password"
   },
   "interfaces": {
     "description": "IS-IS enabled interfaces",
@@ -192,10 +190,11 @@
     "redistributeLevelMismatch": "IS-IS runs at {name} only, so it cannot redistribute at {level}.",
     "levelRedistributeConflict": "IS-IS level {name} conflicts with redistribution configured at {level}. Remove those redistribute entries first, or use level-1-2.",
     "defaultInfoDuplicate": "{name} default-information already exists at {level}",
-    "tiebreakerIndexTaken": "Index {name} already has a tiebreaker. Each index can carry only one.",
+    "tiebreakerIndexTaken": "Index {name} is already used by another tiebreaker type. An index can carry only one type.",
     "tiebreakerDuplicate": "This tiebreaker with index {name} is already configured.",
     "priorityLimitLevelTaken": "{level} already has a priority-limit.",
-    "remotePrefixListExists": "Only one remote prefix-list can be configured. Remove the current one first.",
+    "remotePrefixListExists": "Only one remote prefix-list name can be configured ({name}). Remove it first to use another.",
+    "remotePrefixListLevelTaken": "Remote prefix-list {name} already covers that level. \"All levels\" cannot be combined with per-level entries.",
     "prefixListRequired": "Select a prefix list."
   },
   "delete": {
@@ -244,7 +243,6 @@
     "maxMetric": "Max Metric",
     "unlimited": "Unlimited",
     "mplsLdpTunnel": "MPLS LDP Tunnel",
-    "netHelp": "IS-IS is not configured yet: the NET and this interface are committed together.",
     "saveFailed": "Failed to save interface"
   },
   "defaultInfoModal": {

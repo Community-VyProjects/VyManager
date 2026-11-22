@@ -22,27 +22,41 @@ import {
   ISIS_TIEBREAKER_INDEX,
   isisPriorityLimitFreeLevels,
   isisPriorityLimitProblem,
+  isisRemotePrefixListFreeLevels,
   isisRemotePrefixListProblem,
   isisTiebreakerProblem,
+  type IsisProblem,
 } from "@/lib/api/isis-save-ops";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import type { IsisConfirm } from "./IsisConfirmDialog";
 import { useIsisProblemText } from "./useIsisProblemText";
-
-/** Radix Select item for the bare (every level) remote prefix-list. */
-const ALL_LEVELS = "__all_levels__";
 
 interface IsisFrrCardProps {
   frr: IsisFrrGlobal;
   capabilities: IsisCapabilities;
   prefixListNames: string[];
   canEdit: boolean;
+  /** Blocks every change (IS-IS not configured yet); checked again before each confirm. */
+  setupProblem: IsisProblem | null;
   /** Opens the Cancel / Apply dialog; ``run`` commits and reloads. */
   onConfirm: (confirm: IsisConfirm) => void;
   reload: () => Promise<void>;
 }
 
+/** Select value for a level, with ``NONE_SENTINEL`` standing for "all levels" (null). */
+const toLevelValue = (level: string | null) => level ?? NONE_SENTINEL;
+const fromLevelValue = (value: string) => (value === NONE_SENTINEL ? null : value);
+
 /** Global LFA controls. Each change goes through a confirm dialog that shows a failed commit. */
-export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onConfirm, reload }: IsisFrrCardProps) {
+export function IsisFrrCard({
+  frr,
+  capabilities,
+  prefixListNames,
+  canEdit,
+  setupProblem,
+  onConfirm,
+  reload,
+}: IsisFrrCardProps) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
   const problemText = useIsisProblemText();
@@ -55,7 +69,7 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
   const [tbIndex, setTbIndex] = useState("");
   const [tbLevel, setTbLevel] = useState<string>(ISIS_SPLIT_LEVELS[0]);
   const [rplName, setRplName] = useState("");
-  const [rplLevel, setRplLevel] = useState<string>(ALL_LEVELS);
+  const [rplLevel, setRplLevel] = useState<string>(NONE_SENTINEL);
   const [error, setError] = useState<string | null>(null);
 
   // verify: one priority-limit per level; Add offers only free levels.
@@ -63,7 +77,25 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
   const plLevelShown = plLevels.includes(plLevel) ? plLevel : plLevels[0] ?? "";
   const levelText = (level: string | null) => level ?? t("advanced.allLevels");
 
-  const ask = (description: string, confirmLabel: string, commit: () => Promise<unknown>, destructive = false) => {
+  // verify counts remote prefix-list names: once one exists, only its free levels can be added.
+  const rplExisting = frr.lfa_remote_prefix_list[0]?.prefix_list ?? null;
+  const rplLevels = isisRemotePrefixListFreeLevels(frr.lfa_remote_prefix_list).map(toLevelValue);
+  const rplLevelShown = rplLevels.includes(rplLevel) ? rplLevel : rplLevels[0] ?? "";
+  const rplNameShown = rplExisting ?? rplName;
+
+  /** Shows a save check, or opens the confirm dialog. */
+  const ask = (
+    problem: IsisProblem | null,
+    description: string,
+    confirmLabel: string,
+    commit: () => Promise<unknown>,
+    destructive = false,
+  ) => {
+    const blocked = setupProblem ?? problem;
+    if (blocked) {
+      setError(problemText(blocked));
+      return;
+    }
     setError(null);
     onConfirm({
       title: t("confirm.title"),
@@ -77,21 +109,14 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
     });
   };
 
-  const levelSelect = (
-    id: string,
-    value: string,
-    onChange: (v: string) => void,
-    levels: readonly string[],
-    allLevels = false,
-  ) => (
+  const levelSelect = (id: string, value: string, onChange: (v: string) => void, levels: readonly string[]) => (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger id={id} className="h-8 w-32">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {allLevels && <SelectItem value={ALL_LEVELS}>{t("advanced.allLevels")}</SelectItem>}
         {levels.map((l) => (
-          <SelectItem key={l} value={l}>{l}</SelectItem>
+          <SelectItem key={l} value={l}>{levelText(fromLevelValue(l))}</SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -138,6 +163,7 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
                 disabled={!canEdit || disabled}
                 onCheckedChange={(v) =>
                   ask(
+                    null,
                     t(v === true ? "confirm.loadSharingDisable" : "confirm.loadSharingEnable", { level: levelText(level) }),
                     t("confirm.apply"),
                     () => isisService.setFrrLoadSharingDisable(level, v === true),
@@ -153,12 +179,13 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
           <p className="text-xs text-muted-foreground mb-2">{t("advanced.priorityLimit")}</p>
           <div className="flex flex-wrap gap-1 mb-2">
             {frr.lfa_priority_limit.map((e) => (
-              <span key={`${e.priority}|${e.level}`} className={chip}>
-                {e.priority} {e.level}
+              <span key={`${e.priority}|${e.level ?? ""}`} className={chip}>
+                {e.priority} {levelText(e.level)}
                 {removeButton(() => ask(
-                  t("confirm.removePriorityLimit", { name: e.priority, level: e.level }),
+                  null,
+                  t("confirm.removePriorityLimit", { name: e.priority, level: levelText(e.level) }),
                   t("delete.remove"),
-                  () => isisService.deleteFrrPriorityLimit(e.priority, e.level),
+                  () => isisService.removeFrrPriorityLimit(frr.lfa_priority_limit, e),
                   true,
                 ))}
               </span>
@@ -187,18 +214,12 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
                 size="sm"
                 variant="outline"
                 disabled={!plPriority || !plLevelShown}
-                onClick={() => {
-                  const problem = isisPriorityLimitProblem(frr.lfa_priority_limit, plLevelShown);
-                  if (problem) {
-                    setError(problemText(problem));
-                    return;
-                  }
-                  ask(
-                    t("confirm.addPriorityLimit", { name: plPriority, level: plLevelShown }),
-                    t("confirm.apply"),
-                    () => isisService.addFrrPriorityLimit(plPriority, plLevelShown),
-                  );
-                }}
+                onClick={() => ask(
+                  isisPriorityLimitProblem(frr.lfa_priority_limit, plLevelShown),
+                  t("confirm.addPriorityLimit", { name: plPriority, level: plLevelShown }),
+                  t("confirm.apply"),
+                  () => isisService.addFrrPriorityLimit(plPriority, plLevelShown),
+                )}
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 {tc("add")}
@@ -211,12 +232,13 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
           <p className="text-xs text-muted-foreground mb-2">{t("advanced.tiebreaker")}</p>
           <div className="flex flex-wrap gap-1 mb-2">
             {frr.lfa_tiebreaker.map((e) => (
-              <span key={`${e.tb_type}|${e.index}|${e.level}`} className={chip}>
-                {e.tb_type} {e.index} {e.level}
+              <span key={`${e.tb_type}|${e.index}|${e.level ?? ""}`} className={chip}>
+                {e.tb_type} {e.index} {levelText(e.level)}
                 {removeButton(() => ask(
-                  t("confirm.removeTiebreaker", { name: e.tb_type, index: e.index, level: e.level }),
+                  null,
+                  t("confirm.removeTiebreaker", { name: e.tb_type, index: e.index, level: levelText(e.level) }),
                   t("delete.remove"),
-                  () => isisService.deleteFrrTiebreaker(e.tb_type, e.index, e.level),
+                  () => isisService.removeFrrTiebreaker(frr.lfa_tiebreaker, e),
                   true,
                 ))}
               </span>
@@ -258,13 +280,9 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
                 variant="outline"
                 disabled={!tbType}
                 onClick={() => {
-                  const problem = isisTiebreakerProblem(frr.lfa_tiebreaker, tbType, tbIndex, tbLevel);
-                  if (problem) {
-                    setError(problemText(problem));
-                    return;
-                  }
                   const index = tbIndex.trim();
                   ask(
+                    isisTiebreakerProblem(frr.lfa_tiebreaker, tbType, tbIndex, tbLevel),
                     t("confirm.addTiebreaker", { name: tbType, index, level: tbLevel }),
                     t("confirm.apply"),
                     () => isisService.addFrrTiebreaker(tbType, index, tbLevel),
@@ -285,39 +303,42 @@ export function IsisFrrCard({ frr, capabilities, prefixListNames, canEdit, onCon
               <span key={`${e.prefix_list}|${e.level ?? ""}`} className={chip}>
                 {e.prefix_list} {levelText(e.level)}
                 {removeButton(() => ask(
+                  null,
                   t("confirm.removeRemotePrefixList", { name: e.prefix_list, level: levelText(e.level) }),
                   t("delete.remove"),
-                  () => isisService.deleteFrrRemotePrefixList(e.prefix_list, e.level),
+                  () => isisService.removeFrrRemotePrefixList(frr.lfa_remote_prefix_list, e),
                   true,
                 ))}
               </span>
             ))}
           </div>
-          {/* verify allows one remote prefix-list in total. */}
-          {canEdit && frr.lfa_remote_prefix_list.length === 0 && (
+          {canEdit && rplLevels.length > 0 && (
             <div className="flex flex-wrap gap-2 items-end">
               <div className="space-y-1 w-48">
                 <Label htmlFor="isis-rpl-name" className="text-xs">{t("advanced.prefixList")}</Label>
-                <NamedListSelect id="isis-rpl-name" value={rplName} names={prefixListNames} onValueChange={setRplName} />
+                <NamedListSelect
+                  id="isis-rpl-name"
+                  value={rplNameShown}
+                  names={prefixListNames}
+                  onValueChange={setRplName}
+                  disabled={rplExisting !== null}
+                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="isis-rpl-level" className="text-xs">{t("fields.level")}</Label>
-                {levelSelect("isis-rpl-level", rplLevel, setRplLevel, ISIS_SPLIT_LEVELS, true)}
+                {levelSelect("isis-rpl-level", rplLevelShown, setRplLevel, rplLevels)}
               </div>
               <Button
                 size="sm"
                 variant="outline"
+                disabled={!rplLevelShown}
                 onClick={() => {
-                  const problem = isisRemotePrefixListProblem(frr.lfa_remote_prefix_list, rplName);
-                  if (problem) {
-                    setError(problemText(problem));
-                    return;
-                  }
-                  const level = rplLevel === ALL_LEVELS ? null : rplLevel;
+                  const level = fromLevelValue(rplLevelShown);
                   ask(
-                    t("confirm.addRemotePrefixList", { name: rplName, level: levelText(level) }),
+                    isisRemotePrefixListProblem(frr.lfa_remote_prefix_list, rplNameShown, level),
+                    t("confirm.addRemotePrefixList", { name: rplNameShown, level: levelText(level) }),
                     t("confirm.apply"),
-                    () => isisService.addFrrRemotePrefixList(rplName, level),
+                    () => isisService.addFrrRemotePrefixList(rplNameShown, level),
                   );
                 }}
               >

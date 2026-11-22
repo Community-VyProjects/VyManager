@@ -68,13 +68,11 @@
     "noneConfigured": "尚未配置"
   },
   "password": {
-    "mode": "密码类型",
     "value": "密码",
     "area": "区域密码",
     "domain": "路由域密码",
     "md5": "MD5 密码",
-    "plaintext": "明文密码",
-    "interfaceHelp": "两种密码分别保存；将字段留空即可删除对应密码。"
+    "plaintext": "明文密码"
   },
   "interfaces": {
     "description": "已启用 IS-IS 的接口",
@@ -192,10 +190,11 @@
     "redistributeLevelMismatch": "IS-IS 仅运行在 {name}，因此不能在 {level} 上重分发。",
     "levelRedistributeConflict": "IS-IS 级别 {name} 与 {level} 上已配置的重分发冲突。请先移除这些重分发条目，或使用 level-1-2。",
     "defaultInfoDuplicate": "{level} 上已存在 {name} default-information",
-    "tiebreakerIndexTaken": "索引 {name} 已有决胜规则，每个索引只能配置一个。",
+    "tiebreakerIndexTaken": "索引 {name} 已被另一种决胜规则类型使用，每个索引只能配置一种类型。",
     "tiebreakerDuplicate": "索引为 {name} 的此决胜规则已配置。",
     "priorityLimitLevelTaken": "{level} 已配置优先级限制。",
-    "remotePrefixListExists": "只能配置一个远程前缀列表，请先移除现有的前缀列表。",
+    "remotePrefixListExists": "只能配置一个远程前缀列表名称（{name}）。如需使用其他名称，请先将其移除。",
+    "remotePrefixListLevelTaken": "远程前缀列表 {name} 已覆盖该级别。“所有级别”不能与按级别的条目同时使用。",
     "prefixListRequired": "请选择前缀列表。"
   },
   "delete": {
@@ -244,7 +243,6 @@
     "maxMetric": "最大度量值",
     "unlimited": "无限制",
     "mplsLdpTunnel": "MPLS LDP 隧道",
-    "netHelp": "IS-IS 尚未配置：NET 将与此接口一起提交。",
     "saveFailed": "保存接口失败"
   },
   "defaultInfoModal": {

@@ -32,6 +32,7 @@ import {
   isisDefaultInfoProblem,
   type IsisDefaultInfoForm,
   type IsisFamily,
+  type IsisProblem,
 } from "@/lib/api/isis-save-ops";
 import { useIsisProblemText } from "./useIsisProblemText";
 import { useTranslations } from "next-intl";
@@ -44,6 +45,8 @@ interface IsisDefaultInfoModalProps {
   existing: { family: IsisFamily; entry: IsisDefaultInfoEntry } | null;
   entries: Record<IsisFamily, IsisDefaultInfoEntry[]>;
   routeMapNames: string[];
+  /** Blocks the save while IS-IS is not configured (the Add button is hidden then too). */
+  setupProblem: IsisProblem | null;
 }
 
 /** Mount with a fresh ``key`` per open: the form is read once from ``existing``. */
@@ -54,6 +57,7 @@ export function IsisDefaultInfoModal({
   existing,
   entries,
   routeMapNames,
+  setupProblem,
 }: IsisDefaultInfoModalProps) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
@@ -68,7 +72,7 @@ export function IsisDefaultInfoModal({
 
   const handleSubmit = async () => {
     const original = existing?.entry ?? null;
-    const problem = isisDefaultInfoProblem(family, original, form, entries[family]);
+    const problem = setupProblem ?? isisDefaultInfoProblem(family, original, form, entries[family]);
     if (problem) {
       setError(problemText(problem));
       return;

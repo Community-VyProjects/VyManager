@@ -18,6 +18,7 @@ import {
   isisSpfDelayProblem,
   isisTimersForm,
   isisTimersProblem,
+  type IsisProblem,
   type IsisRange,
   type IsisSpfDelayForm,
   type IsisTimersForm,
@@ -28,6 +29,8 @@ import { useIsisSection } from "./useIsisSection";
 
 interface CardProps {
   canEdit: boolean;
+  /** Blocks the save (IS-IS not configured yet); the page also passes canEdit false then. */
+  setupProblem: IsisProblem | null;
   onSaved: () => Promise<void>;
 }
 
@@ -35,6 +38,7 @@ export function IsisTimersCard({
   global,
   capabilities,
   canEdit,
+  setupProblem,
   onSaved,
 }: CardProps & { global: IsisGlobalConfig; capabilities: IsisCapabilities | null }) {
   const t = useTranslations("isis");
@@ -42,7 +46,7 @@ export function IsisTimersCard({
   const section = useIsisSection<IsisTimersForm>(t("page.saveTimersFailed"));
   const shown = section.form ?? isisTimersForm(global);
   const lspRefresh = isisLspRefreshRange(capabilities);
-  const defaults = capabilities?.lsp_timer_defaults ?? null;
+  const defaults = capabilities?.lsp_timer_defaults;
   const defaultText = (value: number | undefined) =>
     value === undefined ? tc("default") : t("fields.defaultValue", { value: String(value) });
 
@@ -70,7 +74,8 @@ export function IsisTimersCard({
       onSave={() => {
         if (!section.form) return;
         const form = section.form;
-        void section.save(isisTimersProblem(form, lspRefresh, defaults), async () => {
+        const problem = setupProblem ?? isisTimersProblem(form, lspRefresh, capabilities);
+        void section.save(problem, async () => {
           await isisService.updateTimers(global, form);
           await onSaved();
         });
@@ -119,7 +124,12 @@ export function IsisTimersCard({
   );
 }
 
-export function IsisSpfDelayCard({ spfDelay, canEdit, onSaved }: CardProps & { spfDelay: IsisSpfDelayIetf }) {
+export function IsisSpfDelayCard({
+  spfDelay,
+  canEdit,
+  setupProblem,
+  onSaved,
+}: CardProps & { spfDelay: IsisSpfDelayIetf }) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
   const section = useIsisSection<IsisSpfDelayForm>(t("page.saveSpfDelayFailed"));
@@ -137,7 +147,7 @@ export function IsisSpfDelayCard({ spfDelay, canEdit, onSaved }: CardProps & { s
       onSave={() => {
         if (!section.form) return;
         const form = section.form;
-        void section.save(isisSpfDelayProblem(form), async () => {
+        void section.save(setupProblem ?? isisSpfDelayProblem(form), async () => {
           await isisService.updateSpfDelay(spfDelay, form);
           await onSaved();
         });

@@ -32,7 +32,12 @@ import {
   isisRedistributeOps,
   isisRedistributeProblem,
   isisRemotePrefixListOps,
+  isisRemotePrefixListFreeLevels,
   isisRemotePrefixListProblem,
+  isisRemotePrefixListRemoveOps,
+  isisPriorityLimitRemoveOps,
+  isisTiebreakerRemoveOps,
+  isisSetupProblem,
   isisSegmentRoutingForm,
   isisSegmentRoutingOps,
   isisSegmentRoutingProblem,
@@ -71,7 +76,10 @@ const NO_SRV6 = { srv6: false, msdTypes: [] };
 const NET = "49.0001.0000.0000.0001.00";
 const LSP14 = { min: 1, max: 65235 };
 const LSP15 = { min: 2, max: 65235 };
-const DEFAULTS15 = { lsp_gen_interval: 30, lsp_refresh_interval: 900, max_lsp_lifetime: 1200 };
+const DEFAULTS = { lsp_gen_interval: 30, lsp_refresh_interval: 900, max_lsp_lifetime: 1200 };
+/** Capabilities: 1.5 runs verify's LSP timer cross-checks, 1.4 does not. */
+const DEFAULTS15 = { lsp_timer_checks: true, lsp_timer_defaults: DEFAULTS };
+const CAPS14 = { lsp_timer_checks: false, lsp_timer_defaults: DEFAULTS };
 const ONE_IFACE = { interfaceCount: 1 };
 
 function iface(partial: Partial<IsisInterface> = {}): IsisInterface {
@@ -535,6 +543,9 @@ describe("global settings", () => {
       key: "lspGenNotBelowRefresh", max: 19,
     });
     assert.equal(isisTimersProblem({ ...form, lsp_refresh_interval: "20" }, LSP14, null), null);
+    // 1.4 caps carry the defaults too, but lsp_timer_checks false skips the cross-checks.
+    assert.equal(isisTimersProblem({ ...form, lsp_refresh_interval: "20" }, LSP14, CAPS14), null);
+    assert.equal(isisTimersProblem({ ...form, lsp_refresh_interval: "1000" }, LSP14, CAPS14), null);
     assert.deepEqual(isisTimersProblem({ ...form, lsp_gen_interval: "60", lsp_refresh_interval: "60" }, LSP15, DEFAULTS15), {
       key: "lspGenNotBelowRefresh", max: 59,
     });
@@ -814,6 +825,16 @@ describe("redistribute and default-information", () => {
     assert.deepEqual(isisDefaultInfoFreeLevels([{ level: "level-2", always: false, metric: null, route_map: null }]), ["level-1"]);
   });
 
+  it("a single global level leaves only that level, and hides protocols with none left", () => {
+    const existing = [{ protocol: "ospf", level: "level-2", metric: null, route_map: null }];
+    assert.deepEqual(isisRedistributeFreeLevels([], "bgp", "level-1"), ["level-1"]);
+    assert.deepEqual(isisRedistributeFreeLevels([], "bgp", "level-1-2"), ["level-1", "level-2"]);
+    assert.deepEqual(isisRedistributeFreeLevels(existing, "ospf", "level-2"), []);
+    assert.deepEqual(isisRedistributeFreeProtocols(existing, ["bgp", "ospf"], "level-2"), ["bgp"]);
+    assert.deepEqual(isisRedistributeFreeProtocols(existing, ["bgp", "ospf"], "level-1"), ["bgp", "ospf"]);
+    assert.deepEqual(isisRedistributeFreeProtocols(existing, ["bgp", "ospf"], null), ["bgp", "ospf"]);
+  });
+
   it("default-information edits always, metric and route-map", () => {
     const stored = { level: "level-2", always: true, metric: 5, route_map: null };
     assert.deepEqual(isisDefaultInfoOps("ipv4", stored, isisDefaultInfoForm(stored)), []);
@@ -864,31 +885,98 @@ describe("global fast-reroute and deletes", () => {
     assert.deepEqual(isisDeleteInterfaceOps(" eth0 "), [{ op: "delete_interface", value: "eth0" }]);
   });
 
-  it("tiebreaker: one per index across every level and type; exact duplicates rejected", () => {
+  it("tiebreaker: one TYPE per index across levels; same type on another level is fine", () => {
     const existing = [{ tb_type: "downstream", index: "1", level: "level-1" }];
     assert.deepEqual(isisTiebreakerProblem(existing, "node-protecting", "1", "level-1"), { key: "tiebreakerIndexTaken", name: "1" });
     assert.deepEqual(isisTiebreakerProblem(existing, "node-protecting", "1", "level-2"), { key: "tiebreakerIndexTaken", name: "1" });
-    assert.deepEqual(isisTiebreakerProblem(existing, "downstream", "1", "level-2"), { key: "tiebreakerIndexTaken", name: "1" });
+    assert.equal(isisTiebreakerProblem(existing, "downstream", "1", "level-2"), null);
     assert.deepEqual(isisTiebreakerProblem(existing, "downstream", " 1 ", "level-1"), { key: "tiebreakerDuplicate", name: "1" });
     assert.equal(isisTiebreakerProblem(existing, "downstream", "2", "level-1"), null);
+    assert.equal(isisTiebreakerProblem(existing, "node-protecting", "2", "level-1"), null);
+    // A bare leftover index (null level) still holds its index in verify.
+    const bare = [{ tb_type: "downstream", index: "3", level: null }];
+    assert.deepEqual(isisTiebreakerProblem(bare, "node-protecting", "3", "level-1"), { key: "tiebreakerIndexTaken", name: "3" });
+    assert.equal(isisTiebreakerProblem(bare, "downstream", "3", "level-1"), null);
     assert.deepEqual(isisTiebreakerProblem(existing, "downstream", "256", "level-1"), {
       key: "range", label: "tiebreakerIndex", ...ISIS_TIEBREAKER_INDEX,
     });
     assert.equal(isisTiebreakerProblem(existing, "downstream", "", "level-1")?.key, "range");
   });
 
-  it("priority-limit: one per level", () => {
+  it("priority-limit: one per level; a bare leftover holds no level", () => {
     const existing = [{ priority: "high", level: "level-1" }];
     assert.deepEqual(isisPriorityLimitFreeLevels(existing), ["level-2"]);
     assert.deepEqual(isisPriorityLimitFreeLevels([]), ["level-1", "level-2"]);
+    assert.deepEqual(isisPriorityLimitFreeLevels([{ priority: "high", level: null }]), ["level-1", "level-2"]);
     assert.deepEqual(isisPriorityLimitProblem(existing, "level-1"), { key: "priorityLimitLevelTaken", level: "level-1" });
     assert.equal(isisPriorityLimitProblem(existing, "level-2"), null);
   });
 
-  it("remote prefix-list: one in total, and a name is required", () => {
-    assert.deepEqual(isisRemotePrefixListProblem([{ prefix_list: "PL", level: null }], "OTHER"), { key: "remotePrefixListExists" });
-    assert.deepEqual(isisRemotePrefixListProblem([], " "), { key: "prefixListRequired" });
-    assert.equal(isisRemotePrefixListProblem([], "PL"), null);
+  it("remote prefix-list: one name; its levels, or all levels, never both", () => {
+    const perLevel = [{ prefix_list: "PL", level: "level-1" }];
+    const bare = [{ prefix_list: "PL", level: null }];
+    assert.deepEqual(isisRemotePrefixListProblem(bare, "OTHER", "level-1"), { key: "remotePrefixListExists", name: "PL" });
+    assert.deepEqual(isisRemotePrefixListProblem(perLevel, "OTHER", "level-2"), { key: "remotePrefixListExists", name: "PL" });
+    assert.equal(isisRemotePrefixListProblem(perLevel, "PL", "level-2"), null);
+    assert.deepEqual(isisRemotePrefixListProblem(perLevel, "PL", "level-1"), { key: "remotePrefixListLevelTaken", name: "PL" });
+    assert.deepEqual(isisRemotePrefixListProblem(perLevel, "PL", null), { key: "remotePrefixListLevelTaken", name: "PL" });
+    assert.deepEqual(isisRemotePrefixListProblem(bare, "PL", "level-1"), { key: "remotePrefixListLevelTaken", name: "PL" });
+    assert.deepEqual(isisRemotePrefixListProblem([], " ", null), { key: "prefixListRequired" });
+    assert.equal(isisRemotePrefixListProblem([], "PL", null), null);
+    assert.equal(isisRemotePrefixListProblem([], "PL", "level-2"), null);
+    assert.deepEqual(isisRemotePrefixListFreeLevels([]), [null, "level-1", "level-2"]);
+    assert.deepEqual(isisRemotePrefixListFreeLevels(perLevel), ["level-2"]);
+    assert.deepEqual(isisRemotePrefixListFreeLevels(bare), []);
+  });
+
+  it("removing the last level (or a bare chip) deletes the parent node", () => {
+    const pl = [{ priority: "high", level: "level-1" }, { priority: "high", level: "level-2" }];
+    assert.deepEqual(isisPriorityLimitRemoveOps(pl, pl[0]), [{ op: "delete_frr_lfa_priority_limit", value: "high,level-1" }]);
+    assert.deepEqual(isisPriorityLimitRemoveOps([pl[1]], pl[1]), [
+      { op: "delete_frr_lfa_priority_limit_all_levels", value: "high" },
+    ]);
+    // A different priority on the other level does not keep this parent alive.
+    const mixed = [{ priority: "high", level: "level-1" }, { priority: "medium", level: "level-2" }];
+    assert.deepEqual(isisPriorityLimitRemoveOps(mixed, mixed[0]), [
+      { op: "delete_frr_lfa_priority_limit_all_levels", value: "high" },
+    ]);
+    const plBare = { priority: "high", level: null };
+    assert.deepEqual(isisPriorityLimitRemoveOps([plBare], plBare), [
+      { op: "delete_frr_lfa_priority_limit_all_levels", value: "high" },
+    ]);
+
+    const tb = [
+      { tb_type: "downstream", index: "1", level: "level-1" },
+      { tb_type: "downstream", index: "1", level: "level-2" },
+      { tb_type: "downstream", index: "2", level: "level-1" },
+    ];
+    assert.deepEqual(isisTiebreakerRemoveOps(tb, tb[0]), [
+      { op: "delete_frr_lfa_tiebreaker_index", value: "downstream,1,level-1" },
+    ]);
+    assert.deepEqual(isisTiebreakerRemoveOps(tb, tb[2]), [
+      { op: "delete_frr_lfa_tiebreaker_index_all_levels", value: "downstream,2" },
+    ]);
+    const tbBare = { tb_type: "downstream", index: "3", level: null };
+    assert.deepEqual(isisTiebreakerRemoveOps([...tb, tbBare], tbBare), [
+      { op: "delete_frr_lfa_tiebreaker_index_all_levels", value: "downstream,3" },
+    ]);
+
+    const rpl = [{ prefix_list: "PL", level: "level-1" }, { prefix_list: "PL", level: "level-2" }];
+    assert.deepEqual(isisRemotePrefixListRemoveOps(rpl, rpl[1]), [
+      { op: "delete_frr_lfa_remote_prefix_list", value: "PL,level-2" },
+    ]);
+    assert.deepEqual(isisRemotePrefixListRemoveOps([rpl[0]], rpl[0]), [
+      { op: "delete_frr_lfa_remote_prefix_list_all_levels", value: "PL" },
+    ]);
+    const rplBare = { prefix_list: "PL", level: null };
+    assert.deepEqual(isisRemotePrefixListRemoveOps([rplBare], rplBare), [
+      { op: "delete_frr_lfa_remote_prefix_list_all_levels", value: "PL" },
+    ]);
+  });
+
+  it("every save but Add Interface is blocked until IS-IS has an interface", () => {
+    assert.deepEqual(isisSetupProblem(0), { key: "generalNeedsInterface" });
+    assert.equal(isisSetupProblem(1), null);
   });
 });
 
@@ -923,13 +1011,20 @@ describe("service", () => {
     assert.deepEqual(sent, [[{ op: "set_redistribute_ipv4_metric", value: "bgp,level-1,20" }]]);
   });
 
-  it("FRR page controls send the bare all-levels ops", async () => {
+  it("FRR page controls send the bare all-levels and parent ops", async () => {
     const { service, sent } = stub();
     await service.setFrrLoadSharingDisable(null, true);
-    await service.deleteFrrRemotePrefixList("PL", null);
+    const rpl = { prefix_list: "PL", level: null };
+    await service.removeFrrRemotePrefixList([rpl], rpl);
+    const tb = { tb_type: "downstream", index: "1", level: "level-1" };
+    await service.removeFrrTiebreaker([tb], tb);
+    const pl = { priority: "high", level: "level-2" };
+    await service.removeFrrPriorityLimit([pl], pl);
     assert.deepEqual(sent, [
       [{ op: "set_frr_lfa_load_sharing_disable" }],
       [{ op: "delete_frr_lfa_remote_prefix_list_all_levels", value: "PL" }],
+      [{ op: "delete_frr_lfa_tiebreaker_index_all_levels", value: "downstream,1" }],
+      [{ op: "delete_frr_lfa_priority_limit_all_levels", value: "high" }],
     ]);
   });
 });

@@ -209,6 +209,7 @@ export type IsisProblemKey =
   | "tiebreakerDuplicate"
   | "priorityLimitLevelTaken"
   | "remotePrefixListExists"
+  | "remotePrefixListLevelTaken"
   | "prefixListRequired";
 
 /** A save the lab would reject: a message key plus the values it names. */
@@ -606,9 +607,18 @@ export function isisDeleteInterfaceOps(name: string): Op[] {
   return [{ op: "delete_interface", value: isisText(name) }];
 }
 
-/** verify needs one interface while IS-IS exists; the page "Delete IS-IS" removes the rest. */
+/** verify needs an interface while IS-IS exists; the page "Delete IS-IS" removes the rest. */
 export function isisDeleteInterfaceProblem(interfaceCount: number): IsisProblem | null {
   return interfaceCount <= 1 ? { key: "lastInterface" } : null;
+}
+
+/**
+ * While IS-IS has no interface (so no NET either) verify rejects every commit
+ * that does not add both; only Add Interface may save. Every other save path
+ * checks this first.
+ */
+export function isisSetupProblem(interfaceCount: number): IsisProblem | null {
+  return interfaceCount === 0 ? { key: "generalNeedsInterface" } : null;
 }
 
 export function isisDeleteIsisOps(): Op[] {
@@ -688,7 +698,7 @@ export function isisGeneralProblem(
   form: IsisGeneralForm,
   opts: { interfaceCount: number; redistribute?: IsisRedistributeEntry[] },
 ): IsisProblem | null {
-  if (opts.interfaceCount === 0) return { key: "generalNeedsInterface" };
+  if (opts.interfaceCount === 0) return isisSetupProblem(0);
   // Same verify rule as redistribute: a single global level rejects redistribute at the other level.
   const level = isisText(form.level);
   if (level === "level-1" || level === "level-2") {
@@ -760,13 +770,13 @@ export function isisTimersOps(original: IsisGlobalConfig, form: IsisTimersForm):
 
 /**
  * ``lspRefresh`` is the capability range (1.4: 1-65235, 1.5: 2-65235).
- * ``defaults`` (1.5) turns on verify's cross-checks, which fill an unset timer
- * with its default; null (1.4) skips them.
+ * ``caps.lsp_timer_checks`` (1.5 only) turns on verify's cross-checks, which
+ * fill an unset timer with ``caps.lsp_timer_defaults``. No caps: no checks.
  */
 export function isisTimersProblem(
   form: IsisTimersForm,
   lspRefresh: IsisRange,
-  defaults: IsisLspTimerDefaults | null,
+  caps: { lsp_timer_checks: boolean; lsp_timer_defaults: IsisLspTimerDefaults } | null,
 ): IsisProblem | null {
   const problem = firstProblem(
     () => rangeProblem(form.lsp_mtu, "lspMtu", ISIS_LSP_MTU),
@@ -776,7 +786,8 @@ export function isisTimersProblem(
     () => rangeProblem(form.spf_interval, "spfInterval", ISIS_SPF_INTERVAL),
     () => (form.ldp_sync ? rangeProblem(form.ldp_sync_holddown, "ldpSyncHolddown", ISIS_LDP_SYNC_HOLDDOWN) : null),
   );
-  if (problem || !defaults) return problem;
+  if (problem || !caps?.lsp_timer_checks) return problem;
+  const defaults = caps.lsp_timer_defaults;
   const value = (text: string, fallback: number) => {
     const n = isisNum(text);
     return n === null ? fallback : Number(n);
@@ -1138,15 +1149,31 @@ export function isisRedistributeForm(entry: IsisRedistributeEntry | null): IsisR
   };
 }
 
-/** Levels ``protocol`` is not yet redistributed at (Add offers only these). */
-export function isisRedistributeFreeLevels(existing: IsisRedistributeEntry[], protocol: string): string[] {
+/** verify: a single global level (level-1 or level-2) allows redistribute only at that level. */
+export function isisRedistributeAllowedLevels(globalLevel: string | null): readonly string[] {
+  const g = isisText(globalLevel);
+  return g === "level-1" || g === "level-2" ? [g] : ISIS_SPLIT_LEVELS;
+}
+
+/** Levels ``protocol`` may still be redistributed at (Add offers only these). */
+export function isisRedistributeFreeLevels(
+  existing: IsisRedistributeEntry[],
+  protocol: string,
+  globalLevel: string | null = null,
+): string[] {
   const p = isisText(protocol);
-  return ISIS_SPLIT_LEVELS.filter((l) => !existing.some((e) => isisText(e.protocol) === p && isisText(e.level) === l));
+  return isisRedistributeAllowedLevels(globalLevel).filter(
+    (l) => !existing.some((e) => isisText(e.protocol) === p && isisText(e.level) === l),
+  );
 }
 
 /** Protocols with at least one level left (Add offers only these). */
-export function isisRedistributeFreeProtocols(existing: IsisRedistributeEntry[], protocols: readonly string[]): string[] {
-  return protocols.filter((p) => isisRedistributeFreeLevels(existing, p).length > 0);
+export function isisRedistributeFreeProtocols(
+  existing: IsisRedistributeEntry[],
+  protocols: readonly string[],
+  globalLevel: string | null = null,
+): string[] {
+  return protocols.filter((p) => isisRedistributeFreeLevels(existing, p, globalLevel).length > 0);
 }
 
 /** metric and route-map ops carry ``protocol,level,value`` (delete: ``protocol,level``). */
@@ -1258,11 +1285,17 @@ export function isisLoadSharingOps(level: string | null, disabled: boolean): Op[
   return [{ op: `${action}_frr_lfa_load_sharing_disable_${suffix}` }];
 }
 
-export function isisPriorityLimitOps(action: "set" | "delete", priority: string, level: string): Op[] {
+/** ``level`` null: the parent ``priority-limit <priority>`` (delete only; a set needs a level). */
+export function isisPriorityLimitOps(action: "set" | "delete", priority: string, level: string | null): Op[] {
+  if (level === null) return [{ op: "delete_frr_lfa_priority_limit_all_levels", value: isisText(priority) }];
   return [{ op: `${action}_frr_lfa_priority_limit`, value: `${isisText(priority)},${isisText(level)}` }];
 }
 
-export function isisTiebreakerOps(action: "set" | "delete", tbType: string, index: string, level: string): Op[] {
+/** ``level`` null: the parent ``tiebreaker <type> index <n>`` (delete only; a set needs a level). */
+export function isisTiebreakerOps(action: "set" | "delete", tbType: string, index: string, level: string | null): Op[] {
+  if (level === null) {
+    return [{ op: "delete_frr_lfa_tiebreaker_index_all_levels", value: `${isisText(tbType)},${isisText(index)}` }];
+  }
   return [{
     op: `${action}_frr_lfa_tiebreaker_index`,
     value: `${isisText(tbType)},${isisText(index)},${isisText(level)}`,
@@ -1275,17 +1308,52 @@ export function isisRemotePrefixListOps(action: "set" | "delete", prefixList: st
   return [{ op: `${action}_frr_lfa_remote_prefix_list`, value: `${isisText(prefixList)},${isisText(level)}` }];
 }
 
-/** verify: a level may carry only one priority-limit. */
+/**
+ * Remove one chip. Deleting the last level of a tag node leaves the bare
+ * parent behind (a bare remote prefix-list applies on every level, a bare
+ * tiebreaker index still holds its index in verify), so the last level, and a
+ * null-level chip (that bare parent), delete the parent instead.
+ */
+function lastLevel<T extends { level: string | null }>(existing: T[], entry: T, same: (e: T) => boolean): string | null {
+  if (entry.level === null) return null;
+  const others = existing.filter((e) => same(e) && e !== entry && e.level !== null && isisText(e.level) !== isisText(entry.level));
+  return others.length === 0 ? null : isisText(entry.level);
+}
+
+export function isisPriorityLimitRemoveOps(existing: IsisFrrPriorityLimit[], entry: IsisFrrPriorityLimit): Op[] {
+  const p = isisText(entry.priority);
+  return isisPriorityLimitOps("delete", p, lastLevel(existing, entry, (e) => isisText(e.priority) === p));
+}
+
+export function isisTiebreakerRemoveOps(existing: IsisFrrTiebreaker[], entry: IsisFrrTiebreaker): Op[] {
+  const t = isisText(entry.tb_type);
+  const i = isisText(entry.index);
+  const level = lastLevel(existing, entry, (e) => isisText(e.tb_type) === t && isisText(e.index) === i);
+  return isisTiebreakerOps("delete", t, i, level);
+}
+
+export function isisRemotePrefixListRemoveOps(existing: IsisFrrRemotePrefixList[], entry: IsisFrrRemotePrefixList): Op[] {
+  const n = isisText(entry.prefix_list);
+  return isisRemotePrefixListOps("delete", n, lastLevel(existing, entry, (e) => isisText(e.prefix_list) === n));
+}
+
+/** verify: a level may carry only one priority-limit (a bare leftover holds no level). */
 export function isisPriorityLimitFreeLevels(existing: IsisFrrPriorityLimit[]): string[] {
-  return ISIS_SPLIT_LEVELS.filter((l) => !existing.some((e) => isisText(e.level) === l));
+  return ISIS_SPLIT_LEVELS.filter((l) => !existing.some((e) => e.level !== null && isisText(e.level) === l));
 }
 
 export function isisPriorityLimitProblem(existing: IsisFrrPriorityLimit[], level: string): IsisProblem | null {
   const l = isisText(level);
-  return existing.some((e) => isisText(e.level) === l) ? { key: "priorityLimitLevelTaken", level: l } : null;
+  return existing.some((e) => e.level !== null && isisText(e.level) === l)
+    ? { key: "priorityLimitLevelTaken", level: l }
+    : null;
 }
 
-/** verify keys on the index alone: one tiebreaker per index across every level and type. */
+/**
+ * verify allows one tiebreaker TYPE per index value, across levels; the same
+ * type on another level of the same index is fine. A bare leftover index
+ * (null level) still holds its index.
+ */
 export function isisTiebreakerProblem(
   existing: IsisFrrTiebreaker[],
   tbType: string,
@@ -1297,15 +1365,37 @@ export function isisTiebreakerProblem(
   if (idx === "") return { key: "range", label: "tiebreakerIndex", min, max };
   const range = rangeProblem(idx, "tiebreakerIndex", ISIS_TIEBREAKER_INDEX);
   if (range) return range;
+  const type = isisText(tbType);
   const same = existing.filter((e) => Number(isisText(e.index)) === Number(idx));
-  if (same.some((e) => isisText(e.tb_type) === isisText(tbType) && isisText(e.level) === isisText(level))) {
+  if (same.some((e) => isisText(e.tb_type) !== type)) return { key: "tiebreakerIndexTaken", name: idx };
+  if (same.some((e) => e.level !== null && isisText(e.level) === isisText(level))) {
     return { key: "tiebreakerDuplicate", name: idx };
   }
-  return same.length > 0 ? { key: "tiebreakerIndexTaken", name: idx } : null;
+  return null;
 }
 
-/** verify allows one remote prefix-list in total. */
-export function isisRemotePrefixListProblem(existing: IsisFrrRemotePrefixList[], prefixList: string): IsisProblem | null {
-  if (existing.length > 0) return { key: "remotePrefixListExists" };
-  return isisText(prefixList) ? null : { key: "prefixListRequired" };
+/**
+ * Levels the Add row may offer, null meaning "all levels" (the bare node).
+ * verify counts names, so once one exists only that name can grow; a bare
+ * node and per-level children are one tree, so "all levels" excludes levels.
+ */
+export function isisRemotePrefixListFreeLevels(existing: IsisFrrRemotePrefixList[]): (string | null)[] {
+  if (existing.length === 0) return [null, ...ISIS_SPLIT_LEVELS];
+  if (existing.some((e) => e.level === null)) return [];
+  return ISIS_SPLIT_LEVELS.filter((l) => !existing.some((e) => isisText(e.level) === l));
+}
+
+export function isisRemotePrefixListProblem(
+  existing: IsisFrrRemotePrefixList[],
+  prefixList: string,
+  level: string | null,
+): IsisProblem | null {
+  const name = isisText(prefixList);
+  if (!name) return { key: "prefixListRequired" };
+  const current = existing[0] ? isisText(existing[0].prefix_list) : null;
+  if (current !== null && current !== name) return { key: "remotePrefixListExists", name: current };
+  if (!isisRemotePrefixListFreeLevels(existing).includes(level === null ? null : isisText(level))) {
+    return { key: "remotePrefixListLevelTaken", name };
+  }
+  return null;
 }
