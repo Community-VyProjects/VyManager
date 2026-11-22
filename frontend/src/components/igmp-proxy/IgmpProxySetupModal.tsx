@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -24,8 +24,9 @@ import {
   ArrowDownToLine,
 } from "lucide-react";
 import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
-import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import type { ApiError } from "@/lib/types/api";
+import { igmpThreshold, isIgmpPrefix } from "./IgmpProxyInterfaceModal";
 
 interface IgmpProxySetupModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ interface IgmpProxySetupModalProps {
   onSubmit: (interfaces: IgmpProxyInterface[]) => Promise<void>;
 }
 
+/** The parent remounts this modal (new `key`) on every open, so the fields start empty. */
 export function IgmpProxySetupModal({
   open,
   onOpenChange,
@@ -40,9 +42,6 @@ export function IgmpProxySetupModal({
 }: IgmpProxySetupModalProps) {
   const t = useTranslations("igmpProxy");
   const tc = useTranslations("common");
-  // Available interfaces from VyOS
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [, setInterfacesLoading] = useState(false);
 
   // Upstream state
   const [upstreamName, setUpstreamName] = useState("");
@@ -62,46 +61,17 @@ export function IgmpProxySetupModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      resetForm();
-      loadInterfaces();
-    }
-  }, [open]);
-
-  const loadInterfaces = async () => {
-    setInterfacesLoading(true);
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch {
-      // Non-critical - user can still type manually
-    } finally {
-      setInterfacesLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setUpstreamName("");
-    setUpstreamThreshold("");
-    setUpstreamAltSubnets([]);
-    setNewUpstreamAltSubnet("");
-    setUpstreamWhitelists([]);
-    setNewUpstreamWhitelist("");
-    setDownstreamName("");
-    setDownstreamThreshold("");
-    setDownstreamWhitelists([]);
-    setNewDownstreamWhitelist("");
-    setError(null);
-  };
-
   const handleClose = () => {
-    resetForm();
     onOpenChange(false);
   };
 
-  const validateCidr = (value: string): boolean => {
-    return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/.test(value);
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true);
+      return;
+    }
+    if (loading) return;
+    handleClose();
   };
 
   const validateForm = (): string | null => {
@@ -115,28 +85,22 @@ export function IgmpProxySetupModal({
       return t("setupModal.mustDiffer");
     }
 
-    if (upstreamThreshold.trim()) {
-      const val = parseInt(upstreamThreshold.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 255) {
-        return t("setupModal.upstreamThresholdRange");
-      }
+    if (upstreamThreshold.trim() && igmpThreshold(upstreamThreshold) === null) {
+      return t("setupModal.upstreamThresholdRange");
     }
 
-    if (downstreamThreshold.trim()) {
-      const val = parseInt(downstreamThreshold.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 255) {
-        return t("setupModal.downstreamThresholdRange");
-      }
+    if (downstreamThreshold.trim() && igmpThreshold(downstreamThreshold) === null) {
+      return t("setupModal.downstreamThresholdRange");
     }
 
     for (const subnet of upstreamAltSubnets) {
-      if (!validateCidr(subnet)) {
+      if (!isIgmpPrefix(subnet)) {
         return t("setupModal.invalidUpstreamAltSubnet", { value: subnet });
       }
     }
 
     for (const wl of [...upstreamWhitelists, ...downstreamWhitelists]) {
-      if (!validateCidr(wl)) {
+      if (!isIgmpPrefix(wl)) {
         return t("setupModal.invalidWhitelist", { value: wl });
       }
     }
@@ -159,14 +123,14 @@ export function IgmpProxySetupModal({
         {
           name: upstreamName,
           role: "upstream",
-          threshold: upstreamThreshold.trim() ? parseInt(upstreamThreshold.trim(), 10) : null,
+          threshold: upstreamThreshold.trim() ? igmpThreshold(upstreamThreshold) : null,
           alt_subnets: upstreamAltSubnets,
           whitelists: upstreamWhitelists,
         },
         {
           name: downstreamName,
           role: "downstream",
-          threshold: downstreamThreshold.trim() ? parseInt(downstreamThreshold.trim(), 10) : null,
+          threshold: downstreamThreshold.trim() ? igmpThreshold(downstreamThreshold) : null,
           alt_subnets: [],
           whitelists: downstreamWhitelists,
         },
@@ -175,8 +139,7 @@ export function IgmpProxySetupModal({
       await onSubmit(interfaces);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -209,7 +172,7 @@ export function IgmpProxySetupModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("setupProxy")}</DialogTitle>
@@ -228,16 +191,12 @@ export function IgmpProxySetupModal({
                 <ArrowUpFromLine className="h-4 w-4 text-blue-500" />
                 <h4 className="text-sm font-semibold">{t("setupModal.upstreamInterface")}</h4>
               </div>
-              <p className="text-xs text-muted-foreground -mt-2">
-                {t("setupModal.upstreamHelp")}
-              </p>
 
               <div className="space-y-2">
                 <Label>{t("interface")}</Label>
                 <InterfaceSelect
                   value={upstreamName}
                   onValueChange={setUpstreamName}
-                  interfaces={availableInterfaces}
                   placeholder={tc("selectInterface")}
                 />
               </div>
@@ -258,13 +217,10 @@ export function IgmpProxySetupModal({
               {/* Upstream Alt Subnets */}
               <div className="space-y-2">
                 <Label>{t("alternateSubnets")}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t("setupModal.altSubnetsHelp")}
-                </p>
                 {upstreamAltSubnets.length > 0 && (
                   <div className="space-y-2">
                     {upstreamAltSubnets.map((subnet, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div key={subnet} className="flex items-center gap-2">
                         <div className="flex-1 px-3 py-2 rounded-md border bg-muted font-mono text-sm">
                           {subnet}
                         </div>
@@ -306,13 +262,10 @@ export function IgmpProxySetupModal({
               {/* Upstream Whitelists */}
               <div className="space-y-2">
                 <Label>{t("whitelist")}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t("setupModal.whitelistHelp")}
-                </p>
                 {upstreamWhitelists.length > 0 && (
                   <div className="space-y-2">
                     {upstreamWhitelists.map((wl, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div key={wl} className="flex items-center gap-2">
                         <div className="flex-1 px-3 py-2 rounded-md border bg-muted font-mono text-sm">
                           {wl}
                         </div>
@@ -362,16 +315,12 @@ export function IgmpProxySetupModal({
                 <ArrowDownToLine className="h-4 w-4 text-green-500" />
                 <h4 className="text-sm font-semibold">{t("setupModal.downstreamInterface")}</h4>
               </div>
-              <p className="text-xs text-muted-foreground -mt-2">
-                {t("setupModal.downstreamHelp")}
-              </p>
 
               <div className="space-y-2">
                 <Label>{t("interface")}</Label>
                 <InterfaceSelect
                   value={downstreamName}
                   onValueChange={setDownstreamName}
-                  interfaces={availableInterfaces}
                   placeholder={tc("selectInterface")}
                 />
               </div>
@@ -392,13 +341,10 @@ export function IgmpProxySetupModal({
               {/* Downstream Whitelists */}
               <div className="space-y-2">
                 <Label>{t("whitelist")}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t("setupModal.whitelistHelp")}
-                </p>
                 {downstreamWhitelists.length > 0 && (
                   <div className="space-y-2">
                     {downstreamWhitelists.map((wl, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div key={wl} className="flex items-center gap-2">
                         <div className="flex-1 px-3 py-2 rounded-md border bg-muted font-mono text-sm">
                           {wl}
                         </div>

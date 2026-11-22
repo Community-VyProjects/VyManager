@@ -61,11 +61,7 @@
     "entryExists": "Entry already exists",
     "description": "IGMP proxy requires at least one upstream and one downstream interface. Configure both to get started.",
     "upstreamInterface": "Upstream Interface",
-    "upstreamHelp": "Receives multicast traffic from the source network.",
-    "altSubnetsHelp": "Allow multicast from sources outside the directly connected subnet.",
-    "whitelistHelp": "Only proxy these multicast group ranges. Leave empty for all.",
     "downstreamInterface": "Downstream Interface",
-    "downstreamHelp": "Forwards multicast traffic to the client network.",
     "settingUp": "Setting up..."
   },
   "confirm": {

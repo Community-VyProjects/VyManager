@@ -61,11 +61,7 @@
     "entryExists": "条目已存在",
     "description": "IGMP 代理至少需要一个上游接口和一个下游接口。配置两者即可开始使用。",
     "upstreamInterface": "上游接口",
-    "upstreamHelp": "从源网络接收组播流量。",
-    "altSubnetsHelp": "允许来自直连子网之外的源的组播。",
-    "whitelistHelp": "仅代理这些组播组范围。留空则代理全部。",
     "downstreamInterface": "下游接口",
-    "downstreamHelp": "将组播流量转发到客户端网络。",
     "settingUp": "正在设置..."
   },
   "confirm": {

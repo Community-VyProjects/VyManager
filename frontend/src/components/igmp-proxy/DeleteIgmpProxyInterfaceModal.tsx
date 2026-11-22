@@ -13,11 +13,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteIgmpProxyInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   interfaceName: string;
+  /** Commits the delete and closes the dialog; a rejection keeps it open with the device error. */
   onConfirm: () => Promise<void>;
 }
 
@@ -32,25 +34,25 @@ export function DeleteIgmpProxyInterfaceModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
     try {
       await onConfirm();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("deleteModal.failed");
-      setError(message);
+      setError((err as ApiError).message || t("deleteModal.failed"));
+    } finally {
       setLoading(false);
-      return;
     }
-    setLoading(false);
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      if (loading) return;
       setError(null);
     }
-    onOpenChange(open);
+    onOpenChange(next);
   };
 
   return (

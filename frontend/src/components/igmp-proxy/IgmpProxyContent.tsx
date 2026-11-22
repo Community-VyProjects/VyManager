@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,6 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   igmpProxyService,
   IgmpProxyConfig,
-  IgmpProxyCapabilities,
   IgmpProxyInterface,
 } from "@/lib/api/igmp-proxy";
 import { IgmpProxySetupModal } from "./IgmpProxySetupModal";
@@ -66,8 +65,8 @@ export function IgmpProxyContent() {
   const hasWritePermission = canWrite(FeatureGroup.IGMP_PROXY);
 
   const [config, setConfig] = useState<IgmpProxyConfig | null>(null);
-  const [, setCapabilities] = useState<IgmpProxyCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -77,22 +76,22 @@ export function IgmpProxyContent() {
   const [toggleSaving, setToggleSaving] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
 
-  // Modal state
+  // Modal state. Each open bumps the modal's key so it mounts with fresh fields; the subject
+  // (edited row, deleted name) stays set after close so the dialog does not change while it animates out.
   const [setupModalOpen, setSetupModalOpen] = useState(false);
+  const [setupModalKey, setSetupModalKey] = useState(0);
   const [interfaceModalOpen, setInterfaceModalOpen] = useState(false);
+  const [interfaceModalKey, setInterfaceModalKey] = useState(0);
   const [editingInterface, setEditingInterface] = useState<IgmpProxyInterface | null>(null);
-  const [deletingInterface, setDeletingInterface] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingInterface, setDeletingInterface] = useState("");
 
+  // Every state update comes after the request, so the mount effect sets no state synchronously.
   const loadData = useCallback(async (refresh = false) => {
     try {
-      setLoading(true);
-      setError(null);
-      const [configData, capData] = await Promise.all([
-        igmpProxyService.getConfig(refresh),
-        igmpProxyService.getCapabilities(),
-      ]);
+      const configData = await igmpProxyService.getConfig(refresh);
       setConfig(configData);
-      setCapabilities(capData);
+      setError(null);
     } catch (err) {
       setError((err as ApiError).message || t("content.loadFailed"));
     } finally {
@@ -104,6 +103,18 @@ export function IgmpProxyContent() {
     loadData();
   }, [loadData]);
 
+  /** Re-reads the device config without swapping the page (and any open dialog) for the spinner. */
+  const reload = async () => {
+    setRefreshing(true);
+    await loadData(true);
+    setRefreshing(false);
+  };
+
+  const retryLoad = () => {
+    setLoading(true);
+    loadData();
+  };
+
   // Stats
   const totalInterfaces = config?.interfaces.length ?? 0;
   const upstreamCount = config?.interfaces.filter((i) => i.role === "upstream").length ?? 0;
@@ -113,19 +124,15 @@ export function IgmpProxyContent() {
   const hasValidBaseConfig = upstreamCount >= 1 && downstreamCount >= 1;
 
   // Filtered interfaces
-  const filteredInterfaces = useMemo(() => {
-    if (!config?.interfaces) return [];
-    if (!searchQuery.trim()) return config.interfaces;
-
-    const query = searchQuery.toLowerCase();
-    return config.interfaces.filter(
-      (iface) =>
-        iface.name.toLowerCase().includes(query) ||
-        (iface.role && iface.role.toLowerCase().includes(query)) ||
-        iface.alt_subnets.some((s) => s.includes(query)) ||
-        iface.whitelists.some((w) => w.includes(query))
-    );
-  }, [config?.interfaces, searchQuery]);
+  const query = searchQuery.trim().toLowerCase();
+  const filteredInterfaces = (config?.interfaces ?? []).filter(
+    (iface) =>
+      !query ||
+      iface.name.toLowerCase().includes(query) ||
+      (iface.role && iface.role.toLowerCase().includes(query)) ||
+      iface.alt_subnets.some((s) => s.includes(query)) ||
+      iface.whitelists.some((w) => w.includes(query))
+  );
 
   // ==========================================================================
   // Global settings handlers
@@ -165,7 +172,7 @@ export function IgmpProxyContent() {
     }
     setToggleSaving(false);
     setToggleOpen(false);
-    await loadData(true);
+    await reload();
   };
 
   const toggleDescription = (pending: PendingToggle) => {
@@ -179,28 +186,42 @@ export function IgmpProxyContent() {
   // Interface handlers
   // ==========================================================================
 
+  const openSetup = () => {
+    setSetupModalKey((k) => k + 1);
+    setSetupModalOpen(true);
+  };
+
+  const openInterfaceModal = (iface: IgmpProxyInterface | null) => {
+    setEditingInterface(iface);
+    setInterfaceModalKey((k) => k + 1);
+    setInterfaceModalOpen(true);
+  };
+
+  const openDelete = (name: string) => {
+    setDeletingInterface(name);
+    setDeleteOpen(true);
+  };
+
   const handleSetup = async (interfaces: IgmpProxyInterface[]) => {
     await igmpProxyService.setupInterfaces(interfaces);
-    await loadData(true);
+    await reload();
   };
 
   const handleCreateInterface = async (iface: IgmpProxyInterface) => {
     await igmpProxyService.createInterface(iface);
-    await loadData(true);
+    await reload();
   };
 
   const handleUpdateInterface = async (iface: IgmpProxyInterface) => {
     if (!editingInterface) return;
     await igmpProxyService.updateInterface(editingInterface, iface);
-    setEditingInterface(null);
-    await loadData(true);
+    await reload();
   };
 
   const handleDeleteInterface = async () => {
-    if (!deletingInterface) return;
     await igmpProxyService.deleteInterface(deletingInterface);
-    setDeletingInterface(null);
-    await loadData(true);
+    setDeleteOpen(false);
+    await reload();
   };
 
   // ==========================================================================
@@ -250,7 +271,7 @@ export function IgmpProxyContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>
+        <Button variant="outline" onClick={retryLoad}>
           {tc("retry")}
         </Button>
       </div>
@@ -272,9 +293,10 @@ export function IgmpProxyContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(true)}
+              onClick={reload}
+              disabled={refreshing}
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className={`h-4 w-4 mr-2${refreshing ? " animate-spin" : ""}`} />
               {tc("refresh")}
             </Button>
           </div>
@@ -406,10 +428,7 @@ export function IgmpProxyContent() {
               {hasWritePermission && hasValidBaseConfig && (
                 <Button
                   size="sm"
-                  onClick={() => {
-                    setEditingInterface(null);
-                    setInterfaceModalOpen(true);
-                  }}
+                  onClick={() => openInterfaceModal(null)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   {tc("addInterface")}
@@ -429,7 +448,7 @@ export function IgmpProxyContent() {
                   {t("content.noInterfacesHint")}
                 </p>
                 {hasWritePermission && (
-                  <Button size="sm" onClick={() => setSetupModalOpen(true)}>
+                  <Button size="sm" onClick={openSetup}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("setupProxy")}
                   </Button>
@@ -516,10 +535,7 @@ export function IgmpProxyContent() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingInterface(iface);
-                                  setInterfaceModalOpen(true);
-                                }}
+                                onClick={() => openInterfaceModal(iface)}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -527,7 +543,7 @@ export function IgmpProxyContent() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => setDeletingInterface(iface.name)}
+                                onClick={() => openDelete(iface.name)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -546,28 +562,25 @@ export function IgmpProxyContent() {
 
       {/* Modals */}
       <IgmpProxySetupModal
+        key={`setup-${setupModalKey}`}
         open={setupModalOpen}
         onOpenChange={setSetupModalOpen}
         onSubmit={handleSetup}
       />
 
       <IgmpProxyInterfaceModal
+        key={`interface-${interfaceModalKey}`}
         open={interfaceModalOpen}
-        onOpenChange={(open) => {
-          setInterfaceModalOpen(open);
-          if (!open) setEditingInterface(null);
-        }}
+        onOpenChange={setInterfaceModalOpen}
         existingInterface={editingInterface}
-        configuredNames={config?.interfaces.map((i) => i.name) ?? []}
+        configured={config?.interfaces ?? []}
         onSubmit={editingInterface ? handleUpdateInterface : handleCreateInterface}
       />
 
       <DeleteIgmpProxyInterfaceModal
-        open={!!deletingInterface}
-        onOpenChange={(open) => {
-          if (!open) setDeletingInterface(null);
-        }}
-        interfaceName={deletingInterface ?? ""}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        interfaceName={deletingInterface}
         onConfirm={handleDeleteInterface}
       />
 
