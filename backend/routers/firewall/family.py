@@ -7,34 +7,25 @@ One implementation parameterized by family (ipv4 or ipv6).
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, model_validator
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
-from vyos_builders.firewall.family import FirewallFamilyBatchBuilder
+from vyos_builders.firewall.family_batch_builder import FirewallFamilyBatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall.family import FirewallFamilyMapper
+from vyos_mappers.firewall.family_config_parse import multi_text
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import inspect
 import logging
 from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
-
-def prerouting_section(firewall_config: dict) -> dict:
-    """Return the prerouting node from a family config dict when present."""
-    data = firewall_config.get("prerouting")
-    return data if isinstance(data, dict) else {}
-
-
-def multi_text(raw) -> Optional[List[str]]:
-    """A multi: leaf. VyOS JSON is a dict of values, a list, or one string."""
-    if raw is None or raw == "" or raw == {}:
-        return None
-    if isinstance(raw, dict):
-        values = [str(key) for key in raw if key not in (None, "")]
-    elif isinstance(raw, list):
-        values = [str(item) for item in raw if item not in (None, "")]
-    else:
-        values = [str(raw)]
-    return values or None
-
+# Builder parameter names the batch handler fills from the operation value.
+VALUE_PARAMS = (
+    "value", "description", "address", "port", "protocol", "action",
+    "interface", "interface_name", "dscp", "mark", "ttl", "hop_limit",
+    "icmp_type", "icmpv6_type", "target", "flag", "group_name",
+    "mac_address", "country_code", "mac", "rate", "burst", "level", "count",
+)
 
 
 # ========================================================================
@@ -323,8 +314,6 @@ class VyOSResponse(BaseModel):
 def build_router(family: str) -> APIRouter:
     if family not in ("ipv4", "ipv6"):
         raise ValueError(f"unsupported firewall family: {family}")
-    hop_leaf = "ttl" if family == "ipv4" else "hop-limit"
-    icmp_leaf = "icmp" if family == "ipv4" else "icmpv6"
     router = APIRouter(prefix=f"/vyos/firewall/{family}", tags=[f"firewall_{family}"])
 
     @router.get("/capabilities", operation_id=f"get_firewall_{family}_capabilities")
@@ -381,499 +370,12 @@ def build_router(family: str) -> APIRouter:
 
         try:
             service = get_session_vyos_service(http_request)
-            full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-            forward_rules = []
-            input_rules = []
-            output_rules = []
-            custom_chains = []
-
-            # Parse firewall family configuration
-            firewall_config = full_config.get("firewall", {}).get(family, {})
-
-            # Helper function to parse a rule
-            def parse_rule(rule_num: str, rule_data: dict, chain: str, is_custom: bool = False) -> FirewallRule:
-                """Parse a single firewall rule."""
-                # Parse source
-                source = None
-                source_data = rule_data.get("source", {})
-                if source_data:
-                    # Parse GeoIP
-                    geoip = None
-                    geoip_data = source_data.get("geoip", {})
-                    if geoip_data:
-                        country_codes = geoip_data.get("country-code")
-                        # Ensure it's always a list
-                        if country_codes and not isinstance(country_codes, list):
-                            country_codes = [country_codes]
-
-                        geoip = FirewallRuleGeoIP(
-                            country_code=country_codes,
-                            inverse_match="inverse-match" in geoip_data or geoip_data.get("inverse-match") == ""
-                        )
-
-                    source = FirewallRuleSource(
-                        address=source_data.get("address"),
-                        port=source_data.get("port"),
-                        mac_address=source_data.get("mac-address"),
-                        geoip=geoip,
-                        group=source_data.get("group")
-                    )
-
-                # Parse destination
-                destination = None
-                dest_data = rule_data.get("destination", {})
-                if dest_data:
-                    # Parse GeoIP
-                    dest_geoip = None
-                    dest_geoip_data = dest_data.get("geoip", {})
-                    if dest_geoip_data:
-                        dest_country_codes = dest_geoip_data.get("country-code")
-                        # Ensure it's always a list
-                        if dest_country_codes and not isinstance(dest_country_codes, list):
-                            dest_country_codes = [dest_country_codes]
-
-                        dest_geoip = FirewallRuleGeoIP(
-                            country_code=dest_country_codes,
-                            inverse_match="inverse-match" in dest_geoip_data or dest_geoip_data.get("inverse-match") == ""
-                        )
-
-                    destination = FirewallRuleDestination(
-                        address=dest_data.get("address"),
-                        port=dest_data.get("port"),
-                        geoip=dest_geoip,
-                        group=dest_data.get("group")
-                    )
-
-                # Parse state
-                state = None
-                state_data = rule_data.get("state")
-                if state_data:
-                    # State can be either a list ["established", "related"] or a dict
-                    if isinstance(state_data, list):
-                        state = FirewallRuleState(
-                            established="established" in state_data,
-                            new="new" in state_data,
-                            related="related" in state_data,
-                            invalid="invalid" in state_data
-                        )
-                    elif isinstance(state_data, dict):
-                        state = FirewallRuleState(
-                            established="established" in state_data or state_data.get("established") == "",
-                            new="new" in state_data or state_data.get("new") == "",
-                            related="related" in state_data or state_data.get("related") == "",
-                            invalid="invalid" in state_data or state_data.get("invalid") == ""
-                        )
-
-                # Parse interface
-                interface = None
-                inbound_iface = None
-                inbound_group = None
-                outbound_iface = None
-                outbound_group = None
-
-                if "inbound-interface" in rule_data:
-                    inbound_data = rule_data["inbound-interface"]
-                    if isinstance(inbound_data, dict):
-                        inbound_iface = inbound_data.get("name")
-                        if not inbound_iface and "interface-name" in inbound_data:
-                            inbound_iface = inbound_data.get("interface-name")
-                        inbound_group = inbound_data.get("group")
-
-                if "outbound-interface" in rule_data:
-                    outbound_data = rule_data["outbound-interface"]
-                    if isinstance(outbound_data, dict):
-                        outbound_iface = outbound_data.get("name")
-                        if not outbound_iface and "interface-name" in outbound_data:
-                            outbound_iface = outbound_data.get("interface-name")
-                        outbound_group = outbound_data.get("group")
-
-                if inbound_iface or inbound_group or outbound_iface or outbound_group:
-                    interface = FirewallRuleInterface(
-                        inbound=inbound_iface,
-                        inbound_group=inbound_group,
-                        outbound=outbound_iface,
-                        outbound_group=outbound_group,
-                    )
-
-                # Parse packet modifications
-                packet_mods = None
-                set_data = rule_data.get("set", {})
-                if set_data:
-                    packet_mods = FirewallRulePacketMods(
-                        dscp=set_data.get("dscp"),
-                        mark=set_data.get("mark"),
-                        ttl=set_data.get(hop_leaf)
-                    )
-
-                # Parse TCP flags
-                tcp_flags = None
-                tcp_data = rule_data.get("tcp", {})
-                if tcp_data and "flags" in tcp_data:
-                    flags_data = tcp_data["flags"]
-                    tcp_flags = []
-                    if isinstance(flags_data, dict):
-                        for flag_key, flag_value in flags_data.items():
-                            if flag_key == "not":
-                                # Handle inverted flags: {"not": {"fin": {}, "rst": {}}}
-                                if isinstance(flag_value, dict):
-                                    for inverted_flag in flag_value.keys():
-                                        tcp_flags.append(f"not {inverted_flag}")
-                            else:
-                                # Regular flag: {"syn": {}, "ack": {}}
-                                tcp_flags.append(flag_key)
-                    elif isinstance(flags_data, list):
-                        tcp_flags = flags_data
-
-                    # Only set tcp_flags if we found any
-                    if not tcp_flags:
-                        tcp_flags = None
-
-                # Parse ICMP
-                icmp_type_name = None
-                icmp_code = None
-                icmp_type = None
-                icmp_data = rule_data.get(icmp_leaf) or {}
-                if isinstance(icmp_data, dict) and icmp_data:
-                    icmp_type_name = icmp_data.get("type-name") or None
-                    code = icmp_data.get("code")
-                    if code not in (None, ""):
-                        icmp_code = str(code)
-                    numeric_type = icmp_data.get("type")
-                    if numeric_type not in (None, ""):
-                        icmp_type = str(numeric_type)
-
-                # Parse connection mark
-                connection_mark = multi_text(rule_data.get("connection-mark"))
-
-                # Parse connection status
-                connection_status = None
-                conn_status_data = rule_data.get("connection-status", {})
-                if conn_status_data:
-                    connection_status = FirewallRuleConnectionStatus(
-                        nat=conn_status_data.get("nat")
-                    )
-
-                # Parse conntrack helper
-                conntrack_helper = multi_text(rule_data.get("conntrack-helper"))
-
-                # Parse DSCP match
-                dscp_match = multi_text(rule_data.get("dscp"))
-                dscp_exclude = multi_text(rule_data.get("dscp-exclude"))
-
-                # Parse fragment
-                fragment = None
-                fragment_data = rule_data.get("fragment", {})
-                if fragment_data:
-                    fragment = FirewallRuleFragment(
-                        match_frag="match-frag" in fragment_data or fragment_data.get("match-frag") == "",
-                        match_non_frag="match-non-frag" in fragment_data or fragment_data.get("match-non-frag") == ""
-                    )
-
-                # Parse GRE (VyOS 1.5 only)
-                gre = None
-                gre_data = rule_data.get("gre", {})
-                if gre_data:
-                    flags_data = gre_data.get("flags", {})
-                    gre = FirewallRuleGRE(
-                        key=gre_data.get("key"),
-                        version=gre_data.get("version"),
-                        inner_proto=gre_data.get("inner-proto"),
-                        flags_checksum="checksum" in flags_data and "unset" not in flags_data.get("checksum", {}),
-                        flags_checksum_unset="checksum" in flags_data and "unset" in flags_data.get("checksum", {}),
-                        flags_key="key" in flags_data and "unset" not in flags_data.get("key", {}),
-                        flags_key_unset="key" in flags_data and "unset" in flags_data.get("key", {}),
-                        flags_sequence="sequence" in flags_data and "unset" not in flags_data.get("sequence", {}),
-                        flags_sequence_unset="sequence" in flags_data and "unset" in flags_data.get("sequence", {}),
-                    )
-
-                # Parse IPsec
-                ipsec = None
-                ipsec_data = rule_data.get("ipsec", {})
-                if ipsec_data:
-                    ipsec = FirewallRuleIPsec(
-                        # VyOS 1.4
-                        match_ipsec="match-ipsec" in ipsec_data or ipsec_data.get("match-ipsec") == "",
-                        match_none="match-none" in ipsec_data or ipsec_data.get("match-none") == "",
-                        # VyOS 1.5
-                        match_ipsec_in="match-ipsec-in" in ipsec_data or ipsec_data.get("match-ipsec-in") == "",
-                        match_ipsec_out="match-ipsec-out" in ipsec_data or ipsec_data.get("match-ipsec-out") == "",
-                        match_none_in="match-none-in" in ipsec_data or ipsec_data.get("match-none-in") == "",
-                        match_none_out="match-none-out" in ipsec_data or ipsec_data.get("match-none-out") == "",
-                    )
-
-                # Parse limit
-                limit = None
-                limit_data = rule_data.get("limit", {})
-                if limit_data:
-                    limit = FirewallRuleLimit(
-                        rate=limit_data.get("rate"),
-                        burst=limit_data.get("burst")
-                    )
-
-                # Parse log options
-                log_options = None
-                log_options_data = rule_data.get("log-options", {})
-                if log_options_data:
-                    log_options = FirewallRuleLogOptions(
-                        group=log_options_data.get("group"),
-                        level=log_options_data.get("level"),
-                        queue_threshold=log_options_data.get("queue-threshold"),
-                        snapshot_length=log_options_data.get("snapshot-length")
-                    )
-
-                # Parse mark (match)
-                mark_match = rule_data.get("mark")
-
-                # Parse packet length
-                packet_length = multi_text(rule_data.get("packet-length"))
-                packet_length_exclude = multi_text(rule_data.get("packet-length-exclude"))
-
-                # Parse packet type
-                packet_type = rule_data.get("packet-type")
-
-                # Parse queue
-                queue_number = rule_data.get("queue")
-                queue_options_val = multi_text(rule_data.get("queue-options"))
-
-                # Parse recent
-                recent = None
-                recent_data = rule_data.get("recent", {})
-                if recent_data:
-                    recent = FirewallRuleRecent(
-                        count=recent_data.get("count"),
-                        time=recent_data.get("time")
-                    )
-
-                # Parse synproxy
-                synproxy_config = None
-                synproxy_data = rule_data.get("synproxy", {})
-                if synproxy_data:
-                    tcp_synproxy = synproxy_data.get("tcp", {})
-                    synproxy_config = FirewallRuleSynproxy(
-                        tcp_mss=tcp_synproxy.get("mss"),
-                        tcp_window_scale=tcp_synproxy.get("window-scale")
-                    )
-
-                # Parse TCP MSS (match)
-                tcp_mss_match = None
-                if tcp_data:
-                    tcp_mss_match = tcp_data.get("mss")
-
-                # Parse time
-                time_config = None
-                time_data = rule_data.get("time", {})
-                if time_data:
-                    time_config = FirewallRuleTime(
-                        startdate=time_data.get("startdate"),
-                        starttime=time_data.get("starttime"),
-                        stopdate=time_data.get("stopdate"),
-                        stoptime=time_data.get("stoptime"),
-                        weekdays=time_data.get("weekdays")
-                    )
-
-                # Parse TTL match
-                ttl_match = None
-                ttl_data = rule_data.get(hop_leaf, {})
-                if ttl_data:
-                    ttl_match = FirewallRuleTTLMatch(
-                        eq=ttl_data.get("eq"),
-                        gt=ttl_data.get("gt"),
-                        lt=ttl_data.get("lt")
-                    )
-
-                # Parse add-address-to-group
-                add_address_to_group = None
-                aatg_data = rule_data.get("add-address-to-group", {})
-                if aatg_data:
-                    src_aatg = aatg_data.get("source-address", {})
-                    dst_aatg = aatg_data.get("destination-address", {})
-                    add_address_to_group = FirewallRuleAddAddressToGroup(
-                        source_address_group=src_aatg.get("address-group") if src_aatg else None,
-                        source_timeout=src_aatg.get("timeout") if src_aatg else None,
-                        destination_address_group=dst_aatg.get("address-group") if dst_aatg else None,
-                        destination_timeout=dst_aatg.get("timeout") if dst_aatg else None,
-                    )
-
-                # Parse additional source fields
-                source_fqdn = source_data.get("fqdn") if source_data else None
-                source_address_mask = source_data.get("address-mask") if source_data else None
-
-                # Parse additional destination fields
-                destination_fqdn = dest_data.get("fqdn") if dest_data else None
-                destination_address_mask = dest_data.get("address-mask") if dest_data else None
-                destination_mac_address = dest_data.get("mac-address") if dest_data else None
-
-                # Parse set additions
-                set_connection_mark_val = set_data.get("connection-mark") if set_data else None
-                set_tcp_mss_val = set_data.get("tcp-mss") if set_data else None
-
-                return FirewallRule(
-                    rule_number=int(rule_num),
-                    chain=chain,
-                    is_custom_chain=is_custom,
-                    description=rule_data.get("description"),
-                    action=rule_data.get("action"),
-                    protocol=rule_data.get("protocol"),
-                    source=source,
-                    destination=destination,
-                    state=state,
-                    interface=interface,
-                    packet_mods=packet_mods,
-                    tcp_flags=tcp_flags,
-                    icmp_type_name=icmp_type_name,
-                    icmp_code=icmp_code,
-                    icmp_type=icmp_type,
-                    jump_target=rule_data.get("jump-target"),
-                    offload_target=rule_data.get("offload-target"),
-                    connection_mark=connection_mark,
-                    connection_status=connection_status,
-                    conntrack_helper=conntrack_helper,
-                    dscp_match=dscp_match,
-                    dscp_exclude=dscp_exclude,
-                    fragment=fragment,
-                    gre=gre,
-                    ipsec=ipsec,
-                    limit=limit,
-                    log_options=log_options,
-                    mark_match=mark_match,
-                    packet_length=packet_length,
-                    packet_length_exclude=packet_length_exclude,
-                    packet_type=packet_type,
-                    queue_number=queue_number,
-                    queue_options=queue_options_val,
-                    recent=recent,
-                    synproxy_config=synproxy_config,
-                    tcp_mss=tcp_mss_match,
-                    time=time_config,
-                    ttl_match=ttl_match,
-                    add_address_to_group=add_address_to_group,
-                    source_fqdn=source_fqdn,
-                    source_address_mask=source_address_mask,
-                    destination_fqdn=destination_fqdn,
-                    destination_address_mask=destination_address_mask,
-                    destination_mac_address=destination_mac_address,
-                    set_connection_mark=set_connection_mark_val,
-                    set_tcp_mss=set_tcp_mss_val,
-                    disable="disable" in rule_data or rule_data.get("disable") == "",
-                    log="log" in rule_data or rule_data.get("log") == ""
-                )
-
-            # Parse base chains (forward, input, output)
-            forward_default_action = None
-            input_default_action = None
-            output_default_action = None
-            forward_description = None
-            input_description = None
-            output_description = None
-            forward_default_log = None
-            input_default_log = None
-            output_default_log = None
-
-            for chain_name in ["forward", "input", "output"]:
-                if chain_name in firewall_config:
-                    chain_data = firewall_config[chain_name]
-                    filter_data = chain_data.get("filter", {})
-                    rules_data = filter_data.get("rule", {})
-
-                    # Get default action for this chain
-                    default_action = filter_data.get("default-action")
-                    default_log = "default-log" in filter_data or filter_data.get("default-log") == ""
-                    chain_description = filter_data.get("description")
-                    if chain_name == "forward":
-                        forward_default_action = default_action
-                        forward_description = chain_description
-                        forward_default_log = default_log if default_log else None
-                    elif chain_name == "input":
-                        input_default_action = default_action
-                        input_description = chain_description
-                        input_default_log = default_log if default_log else None
-                    elif chain_name == "output":
-                        output_default_action = default_action
-                        output_description = chain_description
-                        output_default_log = default_log if default_log else None
-
-                    if isinstance(rules_data, dict):
-                        for rule_num, rule_data in rules_data.items():
-                            rule = parse_rule(rule_num, rule_data, chain_name, is_custom=False)
-                            if chain_name == "forward":
-                                forward_rules.append(rule)
-                            elif chain_name == "input":
-                                input_rules.append(rule)
-                            elif chain_name == "output":
-                                output_rules.append(rule)
-
-            # Parse custom chains
-            name_data = firewall_config.get("name", {})
-            if isinstance(name_data, dict):
-                for chain_name, chain_config in name_data.items():
-                    rules = []
-                    rules_data = chain_config.get("rule", {})
-
-                    if isinstance(rules_data, dict):
-                        for rule_num, rule_data in rules_data.items():
-                            rule = parse_rule(rule_num, rule_data, chain_name, is_custom=True)
-                            rules.append(rule)
-
-                    default_log = "default-log" in chain_config or chain_config.get("default-log") == ""
-                    default_jump_target = chain_config.get("default-jump-target")
-
-                    custom_chain = CustomChain(
-                        name=chain_name,
-                        description=chain_config.get("description"),
-                        default_action=chain_config.get("default-action"),
-                        default_log=default_log if default_log else None,
-                        default_jump_target=default_jump_target,
-                        rules=sorted(rules, key=lambda r: r.rule_number)
-                    )
-                    custom_chains.append(custom_chain)
-
-            # Sort rules by rule number
-            forward_rules.sort(key=lambda r: r.rule_number)
-            input_rules.sort(key=lambda r: r.rule_number)
-            output_rules.sort(key=lambda r: r.rule_number)
-            custom_chains.sort(key=lambda c: c.name)
-
-            # Parse prerouting raw chain (VyOS 1.5 ipv4 and ipv6)
-            prerouting_raw = None
-            prerouting_data = prerouting_section(firewall_config)
-            if prerouting_data:
-                raw_data = prerouting_data.get("raw", {})
-                if raw_data:
-                    prerouting_rules = []
-                    prerouting_rules_data = raw_data.get("rule", {})
-                    if isinstance(prerouting_rules_data, dict):
-                        for rule_num, rule_data in prerouting_rules_data.items():
-                            rule = parse_rule(rule_num, rule_data, "prerouting_raw", is_custom=False)
-                            prerouting_rules.append(rule)
-                    prerouting_rules.sort(key=lambda r: r.rule_number)
-
-                    prerouting_raw = PreroutingRawConfig(
-                        default_action=raw_data.get("default-action"),
-                        description=raw_data.get("description"),
-                        default_log="default-log" in raw_data or raw_data.get("default-log") == "" or None,
-                        default_jump_target=raw_data.get("default-jump-target"),
-                        rules=prerouting_rules,
-                    )
-
-            total_rules = len(forward_rules) + len(input_rules) + len(output_rules)
-            for chain in custom_chains:
-                total_rules += len(chain.rules)
-            if prerouting_raw:
-                total_rules += len(prerouting_raw.rules)
-
-            return FirewallConfigResponse(
-                forward=BaseChainConfig(default_action=forward_default_action, description=forward_description, default_log=forward_default_log, rules=forward_rules),
-                input=BaseChainConfig(default_action=input_default_action, description=input_description, default_log=input_default_log, rules=input_rules),
-                output=BaseChainConfig(default_action=output_default_action, description=output_description, default_log=output_default_log, rules=output_rules),
-                # Legacy fields for backward compatibility
-                forward_rules=forward_rules,
-                input_rules=input_rules,
-                output_rules=output_rules,
-                custom_chains=custom_chains,
-                prerouting_raw=prerouting_raw,
-                total_rules=total_rules
+            mapper = cast(
+                FirewallFamilyMapper,
+                CommandMapperRegistry.get_mapper(f"firewall_{family}", service.get_version()),
             )
+            full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
+            return FirewallConfigResponse(**mapper.parse_config(full_config))
         except HTTPException:
             raise
         except Exception:
@@ -902,14 +404,9 @@ def build_router(family: str) -> APIRouter:
             version = service.get_version()
             builder = FirewallFamilyBatchBuilder(version=version, family=family)
 
-            # ValueError is a missing leaf. A short call is a missing value.
+            # The checks below bind every op argument (each op takes at most one
+            # value). ValueError is a missing node or an unknown base chain.
             # Neither wraps execute_batch: an empty batch stays a 500.
-            value_params = (
-                "value", "description", "address", "port", "protocol", "action",
-                "interface", "interface_name", "dscp", "mark", "ttl", "hop_limit",
-                "icmp_type", "icmpv6_type", "target", "flag", "group_name",
-                "mac_address", "country_code", "mac", "rate", "burst", "level", "count",
-            )
             try:
                 for operation in request.operations:
                     method_name = operation.op
@@ -928,7 +425,7 @@ def build_router(family: str) -> APIRouter:
                             status_code=400,
                             detail=f"{operation.op} requires a rule number",
                         )
-                    if any(name in required for name in value_params) and not operation.value:
+                    if any(name in required for name in VALUE_PARAMS) and not operation.value:
                         raise HTTPException(
                             status_code=400,
                             detail=f"{operation.op} requires a value",
@@ -941,28 +438,24 @@ def build_router(family: str) -> APIRouter:
                         args.append(request.chain)
                     if "rule_number" in params and request.rule_number is not None:
                         args.append(request.rule_number)
-                    if operation.value and any(p in params for p in value_params):
+                    if operation.value and any(p in params for p in VALUE_PARAMS):
                         args.append(operation.value)
                     if "is_custom" in params:
                         args.append(request.is_custom_chain)
 
-                    try:
-                        method(*args)
-                    except TypeError:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"{operation.op} requires a value",
-                        )
+                    method(*args)
             except ValueError as e:
-                # The mapper raises ValueError for a node this version lacks.
+                # The mapper raises ValueError for a node this version lacks
+                # or a base chain that does not exist.
                 raise HTTPException(status_code=400, detail=str(e))
 
             response = await run_in_threadpool(service.execute_batch, builder)
+            committed = response.status == 200 and not response.error
 
             return VyOSResponse(
-                success=response.status == 200,
-                data={"message": "Firewall configuration updated"},
-                error=response.error if response.error else None
+                success=committed,
+                data={"message": "Firewall configuration updated"} if committed else None,
+                error=response.error or None,
             )
         except HTTPException:
             raise
@@ -1338,15 +831,17 @@ def build_router(family: str) -> APIRouter:
                         builder.set_rule_icmp_type(request.chain, new_number, icmp_type, request.is_custom_chain)
 
             except ValueError as e:
-                # The mapper raises ValueError for a node this version lacks.
+                # The mapper raises ValueError for a node this version lacks
+                # or a base chain that does not exist.
                 raise HTTPException(status_code=400, detail=str(e))
 
             response = await run_in_threadpool(service.execute_batch, builder)
+            committed = response.status == 200 and not response.error
 
             return VyOSResponse(
-                success=response.status == 200,
-                data={"message": "Rules reordered successfully"},
-                error=response.error if response.error else None
+                success=committed,
+                data={"message": "Rules reordered successfully"} if committed else None,
+                error=response.error or None,
             )
         except HTTPException:
             raise

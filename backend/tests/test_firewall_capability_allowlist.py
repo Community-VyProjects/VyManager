@@ -10,11 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from vyos_builders.firewall.family import FirewallFamilyBatchBuilder
+from vyos_builders.firewall.family_batch_builder import FirewallFamilyBatchBuilder
 from vyos_builders.firewall.groups_batch_builder import FirewallGroupsBatchBuilder
 from vyos_builders.firewall.zones import FirewallZonesBatchBuilder
-from vyos_mappers.firewall import groups_versions
+from vyos_mappers.firewall import family_versions, groups_versions
 from vyos_mappers.firewall.family import FirewallFamilyMapper
+from vyos_mappers.firewall.family_versions import get_firewall_family_mapper
+from vyos_mappers.firewall.family_versions.v1_4 import FirewallFamilyMapperV1_4
+from vyos_mappers.firewall.family_versions.v1_5 import FirewallFamilyMapperV1_5
 from vyos_mappers.firewall.groups import FirewallGroupsMapper
 from vyos_mappers.firewall.groups_versions import get_firewall_groups_mapper
 from vyos_mappers.firewall.groups_versions.v1_5 import FirewallGroupsMapperV1_5
@@ -169,16 +172,81 @@ def test_family_flags_follow_the_device_tree():
 
 def test_family_flags_read_the_mapper_allowlist(monkeypatch):
     """A second handwritten version check in get_capabilities() would ignore this."""
-    monkeypatch.setattr(FirewallFamilyMapper, "has_rule_node", lambda self, node: node == "gre")
-    caps = FirewallFamilyBatchBuilder(version="1.4").get_capabilities()["features"]
+    monkeypatch.setattr(FirewallFamilyMapperV1_5, "versioned_nodes", lambda self: frozenset({"gre"}))
+    caps = FirewallFamilyBatchBuilder(version="1.5").get_capabilities()["features"]
     assert caps["gre_matching"]["supported"] is True
     assert caps["remote_group"]["supported"] is False
-    builder = FirewallFamilyBatchBuilder(version="1.4")
+    assert caps["prerouting_raw"]["supported"] is False
+    assert caps["ipsec_directional"]["supported"] is False
+    builder = FirewallFamilyBatchBuilder(version="1.5")
     builder.set_rule_gre_key("forward", 10, "1", False)
     assert builder.get_operations()[0]["path"][-3:] == ["gre", "key", "1"]
     builder.clear()
     with pytest.raises(ValueError, match="not supported"):
         builder.set_rule_source_group_remote("forward", 10, "RG", False)
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_rule_action("prerouting_raw", 10, "drop", False)
+    assert builder.get_operations() == []
+
+
+def test_family_mapper_factory_follows_the_version_string():
+    """Only a string that contains 1.4 is 1.4; a rolling string is 1.5."""
+    for family in ("ipv4", "ipv6"):
+        v14 = get_firewall_family_mapper("1.4.3", family)
+        assert type(v14) is FirewallFamilyMapperV1_4
+        assert v14.family == family
+        for version in ("1.5", "2026.09.23-0027-rolling", "latest"):
+            v15 = get_firewall_family_mapper(version, family)
+            assert type(v15) is FirewallFamilyMapperV1_5
+            assert v15.family == family
+    assert FirewallFamilyMapper("1.4", "ipv4").versioned_nodes() == frozenset()
+    assert FirewallFamilyMapperV1_4("1.4", "ipv4").versioned_nodes() == frozenset({"ipsec-match"})
+    assert FirewallFamilyMapperV1_5("1.5", "ipv4").versioned_nodes() == frozenset(
+        {"remote-group", "ipsec-directional", "gre", "prerouting-raw"}
+    )
+
+
+def test_family_version_only_paths_live_on_their_subclass():
+    """The shared class and the other version do not carry a version-only path."""
+    shared = FirewallFamilyMapper("1.4", "ipv4")
+    v14 = FirewallFamilyMapperV1_4("1.4", "ipv4")
+    v15 = FirewallFamilyMapperV1_5("1.5", "ipv4")
+    only_14 = ("get_rule_ipsec_match_ipsec", "get_rule_ipsec_match_none_path")
+    only_15 = (
+        "get_rule_source_group_remote",
+        "get_rule_ipsec_match_ipsec_in",
+        "get_rule_gre_key",
+        "get_rule_gre_path",
+        "get_prerouting_raw_rule",
+        "get_prerouting_raw_default_jump_target_path",
+    )
+    for name in only_14:
+        assert hasattr(v14, name) and not hasattr(shared, name) and not hasattr(v15, name), name
+    for name in only_15:
+        assert hasattr(v15, name) and not hasattr(shared, name) and not hasattr(v14, name), name
+    for cls in (FirewallFamilyMapperV1_4, FirewallFamilyMapperV1_5):
+        assert "__init__" not in vars(cls)
+
+
+def test_family_versions_package_has_no_merge_proxy():
+    package = Path(family_versions.__file__).parent
+    assert sorted(p.name for p in package.glob("*.py")) == ["__init__.py", "v1_4.py", "v1_5.py"]
+    assert "MergedMapper" not in Path(family_versions.__file__).read_text()
+    assert "__getattr__" not in Path(family_versions.__file__).read_text()
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_family_builder_reads_the_registered_subclass(version):
+    builder = FirewallFamilyBatchBuilder(version=version, family="ipv6")
+    expected = FirewallFamilyMapperV1_4 if version == "1.4" else FirewallFamilyMapperV1_5
+    assert type(builder.mappers[builder.mapper_key]) is expected
+
+
+@pytest.mark.parametrize("chain", ["filter", "name", "prerouting raw", ""])
+def test_family_base_chain_rejects_an_unknown_chain(chain):
+    builder = FirewallFamilyBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match="does not exist"):
+        builder.set_rule_action(chain, 10, "drop", False)
     assert builder.get_operations() == []
 
 
