@@ -57,6 +57,7 @@ const RANGE_LABEL_KEYS = {
   ebgpMultihop: "form.ebgpMultihop",
   ttlSecurityHops: "form.ttlSecurityHops",
   bfdHoldTime: "form.bfdStrictHoldTime",
+  localAs: "form.localAs",
 } as const satisfies Record<PeerGroupRangeField, string>;
 
 interface AddressFamilyFormState {
@@ -336,6 +337,7 @@ export function BgpPeerGroupModal({
         ebgpMultihop,
         ttlSecurityHops,
         bfdHoldTime: bfdEnabled && bfdStrict ? bfdStrictHoldTime : "",
+        localAs: localAsAsn,
       },
       PEER_GROUP_RANGES,
     );

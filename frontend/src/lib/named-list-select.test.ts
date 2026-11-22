@@ -156,7 +156,9 @@ describe("named list select", () => {
     assert.match(page, /\}, \[t\]\);/);
     assert.match(page, /content\.networkExists/);
     assert.match(page, /content\.aggregateExists/);
-    assert.match(page, /content\.tableExists/);
+    assert.match(page, /staticRoutesService\.getConfig\(\)/);
+    assert.match(page, /names=\{staticTableIds\.filter\(/);
+    assert.doesNotMatch(page, /<Input type="number" value=\{afRedistTable\}/);
     assert.match(page, /content\.bmpTargetExists/);
     assert.match(page, /\.filter\(\(p\) => !currentAf\?\.redistribute\.some\(\(r\) => r\.protocol === p\)\)/);
     const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
@@ -171,7 +173,9 @@ describe("named list select", () => {
     assert.match(page, /!hasWritePermission \? null : !paramsEditing/);
     assert.match(page, /disabled=\{afSaving \|\| !hasWritePermission\}/);
     const bmpTab = page.slice(page.indexOf('<TabsContent value="bmp">'), page.indexOf("</TabsContent>", page.indexOf('<TabsContent value="bmp">')));
-    assert.doesNotMatch(bmpTab, /disabled=\{bmpSaving\}/);
+    assert.doesNotMatch(bmpTab, /<Button[^>]*disabled=\{!hasWritePermission/);
+    assert.equal(bmpTab.match(/\{hasWritePermission && \(\n\s*<Button/g)?.length, 3);
+    assert.doesNotMatch(page, /onClick=\{handleSaveMaximumPaths\}\n\s*disabled=\{!hasWritePermission/);
     assert.match(bmpTab, /\{hasWritePermission && \(\n\s*<div className="flex flex-wrap items-end gap-3">/);
   });
 

@@ -83,6 +83,7 @@ const RANGE_LABEL_KEYS = {
   keepalive: "neighborModal.keepalive",
   holdtime: "neighborModal.holdtime",
   bfdHoldTime: "form.bfdStrictHoldTime",
+  localAs: "form.localAs",
 } as const satisfies Record<NeighborRangeField, string>;
 
 const AF_RANGE_LABEL_KEYS = {
@@ -425,6 +426,7 @@ export function BgpNeighborModal({
         keepalive: timerKeepalive,
         holdtime: timerHoldtime,
         bfdHoldTime: bfdEnabled && bfdStrict ? bfdStrictHoldTime : "",
+        localAs: localAsAsn,
       },
       NEIGHBOR_RANGES,
     );

@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  BMP_MIRROR_BUFFER_RANGE,
+  BMP_TARGET_RANGES,
   canonicalPrefix,
   firstRangeProblem,
+  inRange,
+  isIPv4Address,
   isNeighborAddress,
   NEIGHBOR_AF_RANGES,
   NEIGHBOR_RANGES,
+  numberText,
   OVERVIEW_RANGES,
+  PARAMETERS_RANGES,
   PEER_GROUP_RANGES,
+  REDISTRIBUTE_METRIC_RANGE,
   sameNeighborAddress,
 } from "./bgp-ranges.ts";
 
@@ -20,6 +27,18 @@ const EMPTY = {
   keepalive: "",
   holdtime: "",
   bfdHoldTime: "",
+  localAs: "",
+};
+
+const EMPTY_PARAMS = {
+  defaultLocalPref: "",
+  inputQueueLimit: "",
+  outputQueueLimit: "",
+  updateDelayEstablishWait: "",
+  updateDelayMaxDelay: "",
+  distanceExternal: "",
+  distanceInternal: "",
+  distanceLocal: "",
 };
 
 describe("BGP ranges", () => {
@@ -36,6 +55,7 @@ describe("BGP ranges", () => {
           keepalive: "1",
           holdtime: "0",
           bfdHoldTime: "4294967295",
+          localAs: "4294967294",
         },
         NEIGHBOR_RANGES,
       ),
@@ -51,12 +71,18 @@ describe("BGP ranges", () => {
     assert.equal(firstRangeProblem({ ...EMPTY, keepalive: "0" }, NEIGHBOR_RANGES)?.field, "keepalive");
     assert.equal(firstRangeProblem({ ...EMPTY, holdtime: "1e3" }, NEIGHBOR_RANGES)?.field, "holdtime");
     assert.equal(firstRangeProblem({ ...EMPTY, bfdHoldTime: "0" }, NEIGHBOR_RANGES)?.field, "bfdHoldTime");
+    assert.equal(firstRangeProblem({ ...EMPTY, localAs: "4294967295" }, NEIGHBOR_RANGES)?.field, "localAs");
     assert.deepEqual(firstRangeProblem({ ...EMPTY, connect: "-1" }, NEIGHBOR_RANGES)?.range, { min: 0, max: 65535 });
     assert.equal(
-      firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "1.5" }, PEER_GROUP_RANGES)?.field,
+      firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "1.5", localAs: "" }, PEER_GROUP_RANGES)?.field,
       "bfdHoldTime",
     );
-    assert.equal(firstRangeProblem({ keepalive: "65536", holdtime: "" }, OVERVIEW_RANGES)?.field, "keepalive");
+    assert.equal(
+      firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "", localAs: "0" }, PEER_GROUP_RANGES)?.field,
+      "localAs",
+    );
+    assert.equal(firstRangeProblem({ systemAs: "", keepalive: "65536", holdtime: "" }, OVERVIEW_RANGES)?.field, "keepalive");
+    assert.equal(firstRangeProblem({ systemAs: "4294967295", keepalive: "", holdtime: "" }, OVERVIEW_RANGES)?.field, "systemAs");
   });
 
   it("checks the neighbor address-family numbers", () => {
@@ -66,6 +92,23 @@ describe("BGP ranges", () => {
     assert.equal(firstRangeProblem({ maximumPrefix: "NaN", allowasIn: "", weight: "" }, NEIGHBOR_AF_RANGES)?.field, "maximumPrefix");
   });
 
+  it("checks the page parameters, redistribute metric and BMP numbers", () => {
+    assert.equal(firstRangeProblem(EMPTY_PARAMS, PARAMETERS_RANGES), null);
+    assert.equal(firstRangeProblem({ ...EMPTY_PARAMS, defaultLocalPref: "0" }, PARAMETERS_RANGES), null);
+    assert.equal(firstRangeProblem({ ...EMPTY_PARAMS, distanceInternal: "256" }, PARAMETERS_RANGES)?.field, "distanceInternal");
+    assert.equal(firstRangeProblem({ ...EMPTY_PARAMS, inputQueueLimit: "0" }, PARAMETERS_RANGES)?.field, "inputQueueLimit");
+    assert.equal(firstRangeProblem({ ...EMPTY_PARAMS, updateDelayEstablishWait: "3601" }, PARAMETERS_RANGES)?.field, "updateDelayEstablishWait");
+    assert.equal(firstRangeProblem({ ...EMPTY_PARAMS, updateDelayMaxDelay: "0" }, PARAMETERS_RANGES), null);
+    assert.equal(firstRangeProblem({ ...EMPTY_PARAMS, distanceLocal: numberText(1.5) }, PARAMETERS_RANGES)?.field, "distanceLocal");
+    assert.equal(numberText(null), "");
+    assert.equal(inRange("0", REDISTRIBUTE_METRIC_RANGE), false);
+    assert.equal(inRange("4294967295", REDISTRIBUTE_METRIC_RANGE), true);
+    assert.equal(inRange("4294967295", BMP_MIRROR_BUFFER_RANGE), false);
+    assert.equal(firstRangeProblem({ port: "", minRetry: "99", maxRetry: "" }, BMP_TARGET_RANGES)?.field, "minRetry");
+    assert.equal(firstRangeProblem({ port: "", minRetry: "", maxRetry: "4294967295" }, BMP_TARGET_RANGES), null);
+    assert.equal(firstRangeProblem({ port: "65536", minRetry: "", maxRetry: "" }, BMP_TARGET_RANGES)?.field, "port");
+  });
+
   it("accepts only addresses the lab ipaddrcheck accepts", () => {
     assert.equal(isNeighborAddress("192.0.2.1"), true);
     assert.equal(isNeighborAddress("2001:db8::1"), true);
@@ -73,6 +116,9 @@ describe("BGP ranges", () => {
     assert.equal(isNeighborAddress("fe80::1%eth0"), false);
     assert.equal(isNeighborAddress("foo.bar"), false);
     assert.equal(isNeighborAddress("eth0"), false);
+    assert.equal(isIPv4Address("10.0.0.1"), true);
+    assert.equal(isIPv4Address("10.0.0.01"), false);
+    assert.equal(isIPv4Address("2001:db8::1"), false);
   });
 
   it("treats other spellings of one address or prefix as the same", () => {

@@ -55,6 +55,7 @@ import {
 } from "@/lib/api/bgp";
 import { routeMapService } from "@/lib/api/route-map";
 import { bfdService } from "@/lib/api/bfd";
+import { staticRoutesService } from "@/lib/api/static-routes";
 import { BgpNeighborModal } from "./BgpNeighborModal";
 import { BgpPeerGroupModal } from "./BgpPeerGroupModal";
 import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
@@ -73,7 +74,31 @@ import { afiNameKey, formatUnknownAfi } from "./afi-name";
 import { thrownMessage } from "@/lib/api-error";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
-import { canonicalPrefix, firstRangeProblem, HOLDTIME_RANGE, KEEPALIVE_RANGE, OVERVIEW_RANGES } from "@/lib/api/bgp-ranges";
+import {
+  BMP_MAX_RETRY_RANGE,
+  BMP_MIN_RETRY_RANGE,
+  BMP_MIRROR_BUFFER_RANGE,
+  BMP_TARGET_RANGES,
+  canonicalPrefix,
+  DISTANCE_RANGE,
+  firstRangeProblem,
+  HOLDTIME_RANGE,
+  inRange,
+  isIPv4Address,
+  KEEPALIVE_RANGE,
+  LOCAL_PREF_RANGE,
+  numberText,
+  OVERVIEW_RANGES,
+  PARAMETERS_RANGES,
+  PORT_RANGE,
+  QUEUE_LIMIT_RANGE,
+  REDISTRIBUTE_METRIC_RANGE,
+  UPDATE_DELAY_ESTABLISH_WAIT_RANGE,
+  UPDATE_DELAY_MAX_DELAY_RANGE,
+  type BmpTargetRangeField,
+  type OverviewRangeField,
+  type ParametersRangeField,
+} from "@/lib/api/bgp-ranges";
 
 function failedSaveMessage(
   result: { success: boolean; error?: string | null } | null | undefined,
@@ -91,6 +116,35 @@ function maximumPathCount(raw: string): number | null | undefined {
   const n = Number(text);
   if (n < 1 || n > 256) return undefined;
   return n;
+}
+
+/** Label of each range-checked field, for the range error. */
+const OVERVIEW_RANGE_LABEL_KEYS = {
+  systemAs: "content.overview.systemAs",
+  keepalive: "content.overview.keepalive",
+  holdtime: "content.overview.holdTime",
+} as const satisfies Record<OverviewRangeField, string>;
+
+const BMP_RANGE_LABEL_KEYS = {
+  port: "neighborModal.port",
+  minRetry: "content.bmp.minRetry",
+  maxRetry: "content.bmp.maxRetry",
+} as const satisfies Record<BmpTargetRangeField, string>;
+
+const PARAMETERS_RANGE_LABEL_KEYS = {
+  defaultLocalPref: "content.params.defaultLocalPref",
+  inputQueueLimit: "content.params.inputQueueLimit",
+  outputQueueLimit: "content.params.outputQueueLimit",
+  updateDelayEstablishWait: "content.params.updateDelayEstablishWait",
+  updateDelayMaxDelay: "content.params.updateDelayMaxDelay",
+  distanceExternal: "content.params.distance.external",
+  distanceInternal: "content.params.distance.internal",
+  distanceLocal: "content.params.distance.local",
+} as const satisfies Record<ParametersRangeField, string>;
+
+/** A number input's text as a number, or null when empty. */
+function optionalNumber(raw: string): number | null {
+  return raw.trim() ? Number(raw.trim()) : null;
 }
 
 export function BgpContent() {
@@ -141,9 +195,10 @@ export function BgpContent() {
   const [afMaxEbgp, setAfMaxEbgp] = useState("");
   const [afMaxIbgp, setAfMaxIbgp] = useState("");
 
-  // Route-map and BFD profile names for dropdowns
+  // Route-map, BFD profile and static table names for dropdowns
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
   const [bfdProfileNames, setBfdProfileNames] = useState<string[]>([]);
+  const [staticTableIds, setStaticTableIds] = useState<string[]>([]);
 
   // Parameters state
   const [paramsEditing, setParamsEditing] = useState(false);
@@ -178,12 +233,14 @@ export function BgpContent() {
 
       // Load auxiliary data for dropdowns - these require separate permissions
       // so we catch errors silently and default to empty arrays
-      const [rmNames, bfdNames] = await Promise.all([
+      const [rmNames, bfdNames, tableIds] = await Promise.all([
         routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => []),
         bfdService.getConfig().then((c) => c.profiles.map((p) => p.name)).catch(() => []),
+        staticRoutesService.getConfig().then((c) => c.routing_tables.map((rt) => String(rt.table_id))).catch(() => []),
       ]);
       setRouteMapNames(rmNames);
       setBfdProfileNames(bfdNames);
+      setStaticTableIds(tableIds);
 
       // Initialize selected AFI
       const firstAfi = capData.address_family_types.global[0];
@@ -232,13 +289,17 @@ export function BgpContent() {
 
   const handleOverviewSave = async () => {
     if (!config) return;
-    const range = firstRangeProblem({ keepalive, holdtime }, OVERVIEW_RANGES);
+    const range = firstRangeProblem({ systemAs, keepalive, holdtime }, OVERVIEW_RANGES);
     if (range) {
       setOverviewError(t("form.rangeInvalid", {
-        field: t(range.field === "keepalive" ? "content.overview.keepalive" : "content.overview.holdTime"),
+        field: t(OVERVIEW_RANGE_LABEL_KEYS[range.field]),
         min: range.range.min,
         max: range.range.max,
       }));
+      return;
+    }
+    if (routerId.trim() && !isIPv4Address(routerId)) {
+      setOverviewError(t("form.ipv4Invalid", { field: t("content.overview.routerId") }));
       return;
     }
     setOverviewSaving(true);
@@ -412,8 +473,32 @@ export function BgpContent() {
     }
   };
 
+  /** Shows the range error and returns false when the redistribute metric is outside the lab range. */
+  const redistributeMetricOk = (): boolean => {
+    if (inRange(afRedistMetric, REDISTRIBUTE_METRIC_RANGE)) return true;
+    setAfError(t("form.rangeInvalid", {
+      field: t("content.af.metric"),
+      min: REDISTRIBUTE_METRIC_RANGE.min,
+      max: REDISTRIBUTE_METRIC_RANGE.max,
+    }));
+    return false;
+  };
+
+  /** Shows the range error and returns false when a BMP target number is outside the lab range. */
+  const bmpTargetRangeOk = (values: Record<BmpTargetRangeField, string>): boolean => {
+    const range = firstRangeProblem(values, BMP_TARGET_RANGES);
+    if (!range) return true;
+    setBmpError(t("form.rangeInvalid", {
+      field: t(BMP_RANGE_LABEL_KEYS[range.field]),
+      min: range.range.min,
+      max: range.range.max,
+    }));
+    return false;
+  };
+
   const handleAddRedistribute = async () => {
     if (!afRedistProto) return;
+    if (!redistributeMetricOk()) return;
     setAfSaving(true);
     setAfError(null);
     try {
@@ -555,10 +640,38 @@ export function BgpContent() {
 
   const handleParamsSave = async () => {
     if (!config || !editParams) return;
+    const range = firstRangeProblem(
+      {
+        defaultLocalPref: numberText(editParams.default_local_pref),
+        inputQueueLimit: numberText(editParams.input_queue_limit),
+        outputQueueLimit: numberText(editParams.output_queue_limit),
+        updateDelayEstablishWait: numberText(editParams.update_delay_establish_wait),
+        updateDelayMaxDelay: numberText(editParams.update_delay_max_delay),
+        distanceExternal: numberText(editParams.distance_global?.external),
+        distanceInternal: numberText(editParams.distance_global?.internal),
+        distanceLocal: numberText(editParams.distance_global?.local),
+      },
+      PARAMETERS_RANGES,
+    );
+    if (range) {
+      setParamsError(t("form.rangeInvalid", {
+        field: t(PARAMETERS_RANGE_LABEL_KEYS[range.field]),
+        min: range.range.min,
+        max: range.range.max,
+      }));
+      return;
+    }
+    if (editParams.cluster_id?.trim() && !isIPv4Address(editParams.cluster_id)) {
+      setParamsError(t("form.ipv4Invalid", { field: t("content.params.clusterId") }));
+      return;
+    }
     setParamsSaving(true);
     setParamsError(null);
     try {
-      const result = await bgpService.saveParameters(config.parameters, editParams);
+      const result = await bgpService.saveParameters(config.parameters, {
+        ...editParams,
+        cluster_id: editParams.cluster_id?.trim() || null,
+      });
       const message = failedSaveMessage(result, t("content.saveParamsFailed"));
       if (message) {
         setParamsError(message);
@@ -1387,6 +1500,9 @@ export function BgpContent() {
                             <div className="w-[100px] space-y-1">
                               <Label className="text-xs">{t("content.af.metric")}</Label>
                               <Input
+                                type="number"
+                                min={REDISTRIBUTE_METRIC_RANGE.min}
+                                max={REDISTRIBUTE_METRIC_RANGE.max}
                                 value={afRedistMetric}
                                 onChange={(e) => setAfRedistMetric(e.target.value)}
                                 placeholder={t("eg", { value: "100" })}
@@ -1402,18 +1518,22 @@ export function BgpContent() {
                         {hasWritePermission && (capabilities?.redistribute_table_afis ?? []).includes(selectedAfi) && (
                           <div className="flex items-end gap-3 mt-4">
                             <div className="w-[160px] space-y-1">
-                              <Label className="text-xs">{t("content.af.table")}</Label>
-                              <Input type="number" value={afRedistTable} onChange={(e) => setAfRedistTable(e.target.value)} className="h-9" />
+                              <Label htmlFor="bgp-af-redist-table" className="text-xs">{t("content.af.table")}</Label>
+                              <NamedListSelect
+                                id="bgp-af-redist-table"
+                                value={afRedistTable}
+                                names={staticTableIds.filter(
+                                  (id) => !(currentAf?.redistribute ?? []).some((r) => r.protocol === "table" && r.table === id),
+                                )}
+                                onValueChange={setAfRedistTable}
+                              />
                             </div>
                             <Button
                               size="sm"
-                              disabled={afSaving || !afRedistTable.trim()}
+                              disabled={afSaving || !afRedistTable}
                               onClick={async () => {
-                                const table = afRedistTable.trim();
-                                if (currentAf?.redistribute.some((r) => r.protocol === "table" && r.table === table)) {
-                                  setAfError(t("content.tableExists", { table }));
-                                  return;
-                                }
+                                const table = afRedistTable;
+                                if (!redistributeMetricOk()) return;
                                 setAfSaving(true);
                                 setAfError(null);
                                 try {
@@ -1567,17 +1687,19 @@ export function BgpContent() {
                                 disabled={afSaving || !hasWritePermission}
                               />
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={handleSaveMaximumPaths}
-                              disabled={!hasWritePermission || afSaving || (
-                                afMaxEbgp.trim() === (currentAf?.maximum_paths_ebgp != null ? String(currentAf.maximum_paths_ebgp) : "")
-                                && afMaxIbgp.trim() === (currentAf?.maximum_paths_ibgp != null ? String(currentAf.maximum_paths_ibgp) : "")
-                              )}
-                            >
-                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                              {tc("save")}
-                            </Button>
+                            {hasWritePermission && (
+                              <Button
+                                size="sm"
+                                onClick={handleSaveMaximumPaths}
+                                disabled={afSaving || (
+                                  afMaxEbgp.trim() === (currentAf?.maximum_paths_ebgp != null ? String(currentAf.maximum_paths_ebgp) : "")
+                                  && afMaxIbgp.trim() === (currentAf?.maximum_paths_ibgp != null ? String(currentAf.maximum_paths_ibgp) : "")
+                                )}
+                              >
+                                {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                                {tc("save")}
+                              </Button>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -1650,8 +1772,10 @@ export function BgpContent() {
                         {paramsEditing && editParams ? (
                           <Input
                             type="number"
+                            min={LOCAL_PREF_RANGE.min}
+                            max={LOCAL_PREF_RANGE.max}
                             value={editParams.default_local_pref ?? ""}
-                            onChange={(e) => updateParam("default_local_pref", e.target.value ? parseInt(e.target.value, 10) : null)}
+                            onChange={(e) => updateParam("default_local_pref", optionalNumber(e.target.value))}
                             placeholder="100"
                             className="h-9"
                           />
@@ -1860,7 +1984,7 @@ export function BgpContent() {
                           <div className="space-y-2">
                             <Label className="text-xs">{t("content.params.inputQueueLimit")}</Label>
                             {paramsEditing && editParams ? (
-                              <Input type="number" className="h-9" value={editParams.input_queue_limit ?? ""} onChange={(e) => updateParam("input_queue_limit", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                              <Input type="number" className="h-9" min={QUEUE_LIMIT_RANGE.min} max={QUEUE_LIMIT_RANGE.max} value={editParams.input_queue_limit ?? ""} onChange={(e) => updateParam("input_queue_limit", optionalNumber(e.target.value))} />
                             ) : (
                               <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.input_queue_limit ?? tc("notSet")}</p>
                             )}
@@ -1870,7 +1994,7 @@ export function BgpContent() {
                           <div className="space-y-2">
                             <Label className="text-xs">{t("content.params.outputQueueLimit")}</Label>
                             {paramsEditing && editParams ? (
-                              <Input type="number" className="h-9" value={editParams.output_queue_limit ?? ""} onChange={(e) => updateParam("output_queue_limit", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                              <Input type="number" className="h-9" min={QUEUE_LIMIT_RANGE.min} max={QUEUE_LIMIT_RANGE.max} value={editParams.output_queue_limit ?? ""} onChange={(e) => updateParam("output_queue_limit", optionalNumber(e.target.value))} />
                             ) : (
                               <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.output_queue_limit ?? tc("notSet")}</p>
                             )}
@@ -1881,7 +2005,7 @@ export function BgpContent() {
                             <div className="space-y-2">
                               <Label className="text-xs">{t("content.params.updateDelayEstablishWait")}</Label>
                               {paramsEditing && editParams ? (
-                                <Input type="number" className="h-9" value={editParams.update_delay_establish_wait ?? ""} onChange={(e) => updateParam("update_delay_establish_wait", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                                <Input type="number" className="h-9" min={UPDATE_DELAY_ESTABLISH_WAIT_RANGE.min} max={UPDATE_DELAY_ESTABLISH_WAIT_RANGE.max} value={editParams.update_delay_establish_wait ?? ""} onChange={(e) => updateParam("update_delay_establish_wait", optionalNumber(e.target.value))} />
                               ) : (
                                 <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.update_delay_establish_wait ?? tc("notSet")}</p>
                               )}
@@ -1889,7 +2013,7 @@ export function BgpContent() {
                             <div className="space-y-2">
                               <Label className="text-xs">{t("content.params.updateDelayMaxDelay")}</Label>
                               {paramsEditing && editParams ? (
-                                <Input type="number" className="h-9" value={editParams.update_delay_max_delay ?? ""} onChange={(e) => updateParam("update_delay_max_delay", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                                <Input type="number" className="h-9" min={UPDATE_DELAY_MAX_DELAY_RANGE.min} max={UPDATE_DELAY_MAX_DELAY_RANGE.max} value={editParams.update_delay_max_delay ?? ""} onChange={(e) => updateParam("update_delay_max_delay", optionalNumber(e.target.value))} />
                               ) : (
                                 <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.update_delay_max_delay ?? tc("notSet")}</p>
                               )}
@@ -1918,13 +2042,15 @@ export function BgpContent() {
                             {paramsEditing && editParams ? (
                               <Input
                                 type="number"
+                                min={DISTANCE_RANGE.min}
+                                max={DISTANCE_RANGE.max}
                                 value={dg?.[key] ?? ""}
                                 onChange={(e) => {
                                   setEditParams({
                                     ...editParams,
                                     distance_global: {
                                       ...editParams.distance_global,
-                                      [key]: e.target.value ? parseInt(e.target.value, 10) : null,
+                                      [key]: optionalNumber(e.target.value),
                                     },
                                   });
                                 }}
@@ -1955,37 +2081,49 @@ export function BgpContent() {
                     <Label className="text-xs">{t("content.bmp.mirrorBufferLimit")}</Label>
                     <Input
                       type="number"
+                      min={BMP_MIRROR_BUFFER_RANGE.min}
+                      max={BMP_MIRROR_BUFFER_RANGE.max}
                       value={bmpBuffer}
                       onChange={(e) => setBmpBuffer(e.target.value)}
                       className="h-9"
                       disabled={!hasWritePermission}
                     />
                   </div>
-                  <Button
-                    size="sm"
-                    disabled={!hasWritePermission || bmpSaving}
-                    onClick={async () => {
-                      setBmpSaving(true);
-                      setBmpError(null);
-                      try {
+                  {hasWritePermission && (
+                    <Button
+                      size="sm"
+                      disabled={bmpSaving}
+                      onClick={async () => {
                         const loaded = config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "";
                         if (bmpBuffer.trim() === loaded) return;
-                        const result = await bgpService.setBmpMirrorBufferLimit(bmpBuffer.trim() ? Number(bmpBuffer) : null);
-                        const message = failedSaveMessage(result, t("content.saveFailed"));
-                        if (message) {
-                          setBmpError(message);
+                        if (!inRange(bmpBuffer, BMP_MIRROR_BUFFER_RANGE)) {
+                          setBmpError(t("form.rangeInvalid", {
+                            field: t("content.bmp.mirrorBufferLimit"),
+                            min: BMP_MIRROR_BUFFER_RANGE.min,
+                            max: BMP_MIRROR_BUFFER_RANGE.max,
+                          }));
                           return;
                         }
-                        await loadData(true);
-                      } catch (err) {
-                        setBmpError(thrownMessage(err, t("content.saveFailed")));
-                      } finally {
-                        setBmpSaving(false);
-                      }
-                    }}
-                  >
-                    {tc("save")}
-                  </Button>
+                        setBmpSaving(true);
+                        setBmpError(null);
+                        try {
+                          const result = await bgpService.setBmpMirrorBufferLimit(optionalNumber(bmpBuffer));
+                          const message = failedSaveMessage(result, t("content.saveFailed"));
+                          if (message) {
+                            setBmpError(message);
+                            return;
+                          }
+                          await loadData(true);
+                        } catch (err) {
+                          setBmpError(thrownMessage(err, t("content.saveFailed")));
+                        } finally {
+                          setBmpSaving(false);
+                        }
+                      }}
+                    >
+                      {tc("save")}
+                    </Button>
+                  )}
                 </div>
                 {hasWritePermission && (
                   <div className="flex flex-wrap items-end gap-3">
@@ -1999,15 +2137,15 @@ export function BgpContent() {
                     </div>
                     <div className="w-[100px] space-y-1">
                       <Label className="text-xs">{t("neighborModal.port")}</Label>
-                      <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
+                      <Input type="number" min={PORT_RANGE.min} max={PORT_RANGE.max} value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
                     </div>
                     <div className="w-[100px] space-y-1">
                       <Label className="text-xs">{t("content.bmp.minRetry")}</Label>
-                      <Input type="number" value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" />
+                      <Input type="number" min={BMP_MIN_RETRY_RANGE.min} max={BMP_MIN_RETRY_RANGE.max} value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" />
                     </div>
                     <div className="w-[100px] space-y-1">
                       <Label className="text-xs">{t("content.bmp.maxRetry")}</Label>
-                      <Input type="number" value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" />
+                      <Input type="number" min={BMP_MAX_RETRY_RANGE.min} max={BMP_MAX_RETRY_RANGE.max} value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" />
                     </div>
                     <Button
                       size="sm"
@@ -2018,15 +2156,16 @@ export function BgpContent() {
                           setBmpError(t("content.bmpTargetExists", { name: targetName }));
                           return;
                         }
+                        if (!bmpTargetRangeOk({ port: bmpPort, minRetry: bmpMinRetry, maxRetry: bmpMaxRetry })) return;
                         setBmpSaving(true);
                         setBmpError(null);
                         try {
                           const created: BgpBmpTarget = {
                             name: targetName,
                             address: bmpAddress.trim() || null,
-                            port: bmpPort.trim() ? Number(bmpPort) : null,
-                            min_retry: bmpMinRetry.trim() ? Number(bmpMinRetry) : null,
-                            max_retry: bmpMaxRetry.trim() ? Number(bmpMaxRetry) : null,
+                            port: optionalNumber(bmpPort),
+                            min_retry: optionalNumber(bmpMinRetry),
+                            max_retry: optionalNumber(bmpMaxRetry),
                             mirror: false,
                             source_interface: null,
                             monitors: [],
@@ -2062,21 +2201,25 @@ export function BgpContent() {
                     <CardContent className="p-6 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-mono">{target.name}</p>
-                        <Button size="sm" variant="ghost" aria-label={tc("delete")} disabled={!hasWritePermission || bmpSaving} onClick={() => { setBmpError(null); setDeletingBmpTarget(target.name); }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {hasWritePermission && (
+                          <Button size="sm" variant="ghost" aria-label={tc("delete")} disabled={bmpSaving} onClick={() => { setBmpError(null); setDeletingBmpTarget(target.name); }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {([
-                          ["address", t("content.address"), target.address ?? ""],
-                          ["port", t("neighborModal.port"), target.port ?? ""],
-                          ["min_retry", t("content.bmp.minRetry"), target.min_retry ?? ""],
-                          ["max_retry", t("content.bmp.maxRetry"), target.max_retry ?? ""],
-                        ] as const).map(([key, label, current]) => (
+                          ["address", t("content.address"), target.address ?? "", null],
+                          ["port", t("neighborModal.port"), target.port ?? "", PORT_RANGE],
+                          ["min_retry", t("content.bmp.minRetry"), target.min_retry ?? "", BMP_MIN_RETRY_RANGE],
+                          ["max_retry", t("content.bmp.maxRetry"), target.max_retry ?? "", BMP_MAX_RETRY_RANGE],
+                        ] as const).map(([key, label, current, range]) => (
                           <div key={key} className="space-y-1">
                             <Label className="text-xs">{label}</Label>
                             <Input
-                              type={key === "address" ? "text" : "number"}
+                              type={range ? "number" : "text"}
+                              min={range?.min}
+                              max={range?.max}
                               value={String((bmpEdits[target.name]?.[key] ?? current) ?? "")}
                               onChange={(e) => setBmpEdits((prev) => ({
                                 ...prev,
@@ -2088,46 +2231,48 @@ export function BgpContent() {
                           </div>
                         ))}
                       </div>
-                      <Button
-                        size="sm"
-                        disabled={!hasWritePermission || bmpSaving}
-                        onClick={async () => {
-                          setBmpSaving(true);
-                          setBmpError(null);
-                          try {
+                      {hasWritePermission && (
+                        <Button
+                          size="sm"
+                          disabled={bmpSaving}
+                          onClick={async () => {
                             const draft = bmpEdits[target.name] ?? {};
-                            const num = (raw: string | number | null | undefined) => {
-                              if (raw == null || raw === "") return null;
-                              return Number(raw);
-                            };
-                            const updated: BgpBmpTarget = {
-                              ...target,
-                              address: draft.address != null ? (String(draft.address).trim() || null) : target.address,
-                              port: draft.port != null ? num(draft.port) : target.port,
-                              min_retry: draft.min_retry != null ? num(draft.min_retry) : target.min_retry,
-                              max_retry: draft.max_retry != null ? num(draft.max_retry) : target.max_retry,
-                            };
-                            const result = await bgpService.saveBmpTarget(target, updated);
-                            const message = failedSaveMessage(result, t("content.saveFailed"));
-                            if (message) {
-                              setBmpError(message);
-                              return;
+                            const port = draft.port ?? numberText(target.port);
+                            const minRetry = draft.min_retry ?? numberText(target.min_retry);
+                            const maxRetry = draft.max_retry ?? numberText(target.max_retry);
+                            if (!bmpTargetRangeOk({ port, minRetry, maxRetry })) return;
+                            setBmpSaving(true);
+                            setBmpError(null);
+                            try {
+                              const updated: BgpBmpTarget = {
+                                ...target,
+                                address: draft.address != null ? (draft.address.trim() || null) : target.address,
+                                port: optionalNumber(port),
+                                min_retry: optionalNumber(minRetry),
+                                max_retry: optionalNumber(maxRetry),
+                              };
+                              const result = await bgpService.saveBmpTarget(target, updated);
+                              const message = failedSaveMessage(result, t("content.saveFailed"));
+                              if (message) {
+                                setBmpError(message);
+                                return;
+                              }
+                              setBmpEdits((prev) => {
+                                const next = { ...prev };
+                                delete next[target.name];
+                                return next;
+                              });
+                              await loadData(true);
+                            } catch (err) {
+                              setBmpError(thrownMessage(err, t("content.saveFailed")));
+                            } finally {
+                              setBmpSaving(false);
                             }
-                            setBmpEdits((prev) => {
-                              const next = { ...prev };
-                              delete next[target.name];
-                              return next;
-                            });
-                            await loadData(true);
-                          } catch (err) {
-                            setBmpError(thrownMessage(err, t("content.saveFailed")));
-                          } finally {
-                            setBmpSaving(false);
-                          }
-                        }}
-                      >
-                        {tc("save")}
-                      </Button>
+                          }}
+                        >
+                          {tc("save")}
+                        </Button>
+                      )}
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`bmp-mirror-${target.name}`}
