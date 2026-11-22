@@ -140,6 +140,31 @@ describe("named list select", () => {
     assert.match(src, /if \(loading\) return;/);
   });
 
+  it("keeps the RIP modals open during a save and shows the ApiError detail", () => {
+    for (const file of [
+      "src/components/rip/RipRedistributeModal.tsx",
+      "src/components/rip/RipNetworkDistanceModal.tsx",
+      "src/components/rip/RipDistributeListInterfaceModal.tsx",
+    ]) {
+      const src = readFileSync(join(FRONTEND, file), "utf8");
+      assert.match(src, /if \(!next && !loading\) handleClose\(\);/, file);
+      assert.match(src, /<Dialog open=\{open\} onOpenChange=\{handleOpenChange\}>/, file);
+      assert.match(src, /\(err as ApiError\)\.message/, file);
+      assert.doesNotMatch(src, /instanceof Error/, file);
+    }
+  });
+
+  it("keeps the RIP page mounted on refresh and re-reads after a failed overview save", () => {
+    const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
+    assert.match(src, /if \(loading && !config\)/);
+    assert.doesNotMatch(src, /instanceof Error/);
+    assert.match(src, /onClick=\{cancelEditOverview\} disabled=\{overviewSaving\}/);
+    assert.match(src, /onClick=\{cancelEditDlGlobal\} disabled=\{dlGlobalSaving\}/);
+    const save = src.slice(src.indexOf("const saveOverview"), src.indexOf("// Networks tab handlers"));
+    assert.match(save, /catch \(err\) \{[\s\S]*await loadData\(true\);[\s\S]*\} finally/);
+    assert.match(save, /overviewProblem\(/);
+  });
+
   it("keeps the lab default value on the RIP passive-interface picker", () => {
     const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
     assert.match(src, /label: "default", value: "default"/);

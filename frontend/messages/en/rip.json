@@ -110,7 +110,8 @@
     "distanceRequired": "Distance is required",
     "distanceRange": "Distance must be between 1 and 255",
     "selectProtocol": "Please select a protocol",
-    "metricRange": "Metric must be between 1 and 16"
+    "metricRange": "Metric must be between 1 and 16",
+    "timerRange": "Timers must be between {min} and {max} seconds"
   },
   "interfaceModal": {
     "editTitle": "Edit RIP Interface",

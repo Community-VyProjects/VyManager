@@ -65,6 +65,31 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import type { ApiError } from "@/lib/types/api";
 
+// Lab val_help bounds for the overview leaves (same on 1.4 and 1.5).
+const DISTANCE_RANGE = { min: 1, max: 255 };
+const METRIC_RANGE = { min: 1, max: 16 };
+const TIMER_RANGE = { min: 5, max: 2147483647 };
+
+function inRange(value: string, range: { min: number; max: number }): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  if (!/^\d{1,10}$/.test(trimmed)) return false;
+  const n = Number(trimmed);
+  return n >= range.min && n <= range.max;
+}
+
+/** First out-of-range overview value, as a `validation.*` message key. */
+function overviewProblem(
+  distance: string,
+  metric: string,
+  timers: string[],
+): "distanceRange" | "metricRange" | "timerRange" | null {
+  if (!inRange(distance, DISTANCE_RANGE)) return "distanceRange";
+  if (!inRange(metric, METRIC_RANGE)) return "metricRange";
+  if (!timers.every((v) => inRange(v, TIMER_RANGE))) return "timerRange";
+  return null;
+}
+
 export function RipContent() {
   const t = useTranslations("rip");
   const tc = useTranslations("common");
@@ -201,7 +226,19 @@ export function RipContent() {
 
   const saveOverview = async () => {
     if (!config) return;
-    let globalsSaved = false;
+    const problem = overviewProblem(
+      ovDefaultDistance,
+      ovDefaultMetric,
+      [ovTimerUpdate, ovTimerTimeout, ovTimerGc],
+    );
+    if (problem) {
+      setOverviewError(
+        problem === "timerRange"
+          ? t("validation.timerRange", { min: String(TIMER_RANGE.min), max: String(TIMER_RANGE.max) })
+          : t(`validation.${problem}`),
+      );
+      return;
+    }
     try {
       setOverviewSaving(true);
       setOverviewError(null);
@@ -221,14 +258,13 @@ export function RipContent() {
       };
 
       await ripService.updateGlobalSettings(config, updatedConfig);
-      globalsSaved = true;
       await ripService.updateTimers(config.timers, updatedTimers);
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
       setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
-      // The global settings already committed; re-read so a retry diffs against the device.
-      if (globalsSaved) await loadData(true);
+      // Global settings and timers are two commits; re-read so a retry diffs against the device.
+      await loadData(true);
     } finally {
       setOverviewSaving(false);
     }
@@ -477,7 +513,11 @@ export function RipContent() {
     <Card>
       <CardContent className="p-4">
         <h3 className="font-semibold mb-3 text-sm">
-          <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+          {hasWritePermission ? (
+            <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+          ) : (
+            title
+          )}
         </h3>
         {hasWritePermission && (
           <div className="flex gap-2 mb-3">
@@ -501,7 +541,7 @@ export function RipContent() {
                 className="flex-1 font-mono text-sm"
               />
             )}
-            <Button size="sm" onClick={onAdd} disabled={!inputValue.trim()}>
+            <Button size="sm" onClick={onAdd} disabled={!inputValue.trim()} aria-label={tc("add")}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -521,6 +561,7 @@ export function RipContent() {
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    aria-label={tc("delete")}
                     onClick={() => onRemove(item)}
                   >
                     <X className="h-3 w-3" />
@@ -538,7 +579,7 @@ export function RipContent() {
   // Loading / Error states
   // ============================================================
 
-  if (loading) {
+  if (loading && !config) {
     return (
       <div className="flex items-center justify-center h-full">
         <LoadingSpinner />
@@ -580,7 +621,7 @@ export function RipContent() {
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className={`h-4 w-4 mr-2${loading ? " animate-spin" : ""}`} />
               {tc("refresh")}
             </Button>
           </div>
@@ -684,7 +725,7 @@ export function RipContent() {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>{tc("cancel")}</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditOverview} disabled={overviewSaving}>{tc("cancel")}</Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         {tc("save")}
@@ -730,8 +771,8 @@ export function RipContent() {
                         <Input
                           id="rip-default-distance"
                           type="number"
-                          min={1}
-                          max={255}
+                          min={DISTANCE_RANGE.min}
+                          max={DISTANCE_RANGE.max}
                           placeholder="120"
                           value={overviewEditing ? ovDefaultDistance : (config?.default_distance ?? "")}
                           disabled={!overviewEditing}
@@ -745,8 +786,8 @@ export function RipContent() {
                         <Input
                           id="rip-default-metric"
                           type="number"
-                          min={1}
-                          max={16}
+                          min={METRIC_RANGE.min}
+                          max={METRIC_RANGE.max}
                           placeholder="1"
                           value={overviewEditing ? ovDefaultMetric : (config?.default_metric ?? "")}
                           disabled={!overviewEditing}
@@ -791,8 +832,8 @@ export function RipContent() {
                         <Input
                           id="rip-update-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={TIMER_RANGE.min}
+                          max={TIMER_RANGE.max}
                           placeholder="30"
                           value={overviewEditing ? ovTimerUpdate : (config?.timers.update ?? "")}
                           disabled={!overviewEditing}
@@ -804,8 +845,8 @@ export function RipContent() {
                         <Input
                           id="rip-timeout-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={TIMER_RANGE.min}
+                          max={TIMER_RANGE.max}
                           placeholder="180"
                           value={overviewEditing ? ovTimerTimeout : (config?.timers.timeout ?? "")}
                           disabled={!overviewEditing}
@@ -817,8 +858,8 @@ export function RipContent() {
                         <Input
                           id="rip-gc-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={TIMER_RANGE.min}
+                          max={TIMER_RANGE.max}
                           placeholder="120"
                           value={overviewEditing ? ovTimerGc : (config?.timers.garbage_collection ?? "")}
                           disabled={!overviewEditing}
@@ -969,13 +1010,13 @@ export function RipContent() {
                               {hasWritePermission && (
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8"
+                                    variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                     onClick={() => { setEditingIface(iface); setIfaceModalOpen(true); }}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                     onClick={() => setDeletingIface(iface)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1051,13 +1092,13 @@ export function RipContent() {
                               {hasWritePermission && (
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8"
+                                    variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                     onClick={() => { setEditingRedist(r); setRedistModalOpen(true); }}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                     onClick={() => setDeletingRedist(r)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1095,7 +1136,7 @@ export function RipContent() {
                           </Button>
                         ) : (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal}>{tc("cancel")}</Button>
+                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal} disabled={dlGlobalSaving}>{tc("cancel")}</Button>
                             <Button size="sm" onClick={saveDlGlobal} disabled={dlGlobalSaving}>
                               {dlGlobalSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                               {tc("save")}
@@ -1187,13 +1228,13 @@ export function RipContent() {
                                     {hasWritePermission && (
                                       <div className="flex items-center justify-end gap-1">
                                         <Button
-                                          variant="ghost" size="icon" className="h-8 w-8"
+                                          variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                           onClick={() => { setEditingDlIface(f); setDlIfaceModalOpen(true); }}
                                         >
                                           <Pencil className="h-4 w-4" />
                                         </Button>
                                         <Button
-                                          variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                          variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                           onClick={() => setDeletingDlIface(f)}
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -1263,13 +1304,13 @@ export function RipContent() {
                                   {hasWritePermission && (
                                     <div className="flex items-center justify-end gap-1">
                                       <Button
-                                        variant="ghost" size="icon" className="h-8 w-8"
+                                        variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                         onClick={() => { setEditingNd(nd); setNdModalOpen(true); }}
                                       >
                                         <Pencil className="h-4 w-4" />
                                       </Button>
                                       <Button
-                                        variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                        variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                         onClick={() => setDeletingNd(nd)}
                                       >
                                         <Trash2 className="h-4 w-4" />
