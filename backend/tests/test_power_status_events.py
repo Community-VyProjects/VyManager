@@ -81,6 +81,7 @@ def service(device, db):
 
     return SimpleNamespace(
         device=SimpleNamespace(show=show),
+        get_version=lambda: "2026.09.23-0027-rolling",
         get_full_config=lambda refresh=False: {"system": {"host-name": "r1"}},
     )
 
