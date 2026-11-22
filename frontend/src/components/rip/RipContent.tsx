@@ -620,7 +620,7 @@ export function RipContent() {
                 {t("header.subtitle")}
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => loadData(true)}>
+            <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2${loading ? " animate-spin" : ""}`} />
               {tc("refresh")}
             </Button>
