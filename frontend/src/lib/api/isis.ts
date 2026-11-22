@@ -395,8 +395,8 @@ class IsisService {
   // -------------------------------------------------------------------------
 
   /** ``level`` null: the bare all-levels node. */
-  async setFrrLoadSharingDisable(level: string | null, disabled: boolean): Promise<VyOSResponse> {
-    return this.batchConfigure(isisLoadSharingOps(level, disabled));
+  async setFrrLoadSharingDisable(frr: IsisFrrGlobal, level: string | null, disabled: boolean): Promise<VyOSResponse> {
+    return this.batchConfigure(isisLoadSharingOps(frr, level, disabled));
   }
 
   async addFrrPriorityLimit(priority: string, level: string): Promise<VyOSResponse> {

@@ -1,6 +1,7 @@
 import type {
   BatchOperation,
   IsisDefaultInfoEntry,
+  IsisFrrGlobal,
   IsisFrrPriorityLimit,
   IsisFrrRemotePrefixList,
   IsisFrrTiebreaker,
@@ -1298,12 +1299,22 @@ export function isisDefaultInfoProblem(
 // Global fast-reroute LFA (page controls, each behind a confirm dialog)
 // ============================================================================
 
-/** ``level`` null: the bare ``load-sharing disable`` node (every level). */
-export function isisLoadSharingOps(level: string | null, disabled: boolean): Op[] {
+/**
+ * ``level`` null: the bare ``load-sharing disable`` node (every level).
+ * Deleting the last level keeps a bare ``disable``, which disables every
+ * level, so that case deletes the ``disable`` node instead.
+ */
+export function isisLoadSharingOps(
+  frr: Pick<IsisFrrGlobal, "lfa_load_sharing_disable_level1" | "lfa_load_sharing_disable_level2">,
+  level: string | null,
+  disabled: boolean,
+): Op[] {
   const action = disabled ? "set" : "delete";
   if (level === null) return [{ op: `${action}_frr_lfa_load_sharing_disable` }];
-  const suffix = isisText(level) === "level-1" ? "level1" : "level2";
-  return [{ op: `${action}_frr_lfa_load_sharing_disable_${suffix}` }];
+  const levelOne = isisText(level) === "level-1";
+  const otherSet = levelOne ? frr.lfa_load_sharing_disable_level2 : frr.lfa_load_sharing_disable_level1;
+  if (!disabled && !otherSet) return [{ op: "delete_frr_lfa_load_sharing_disable" }];
+  return [{ op: `${action}_frr_lfa_load_sharing_disable_${levelOne ? "level1" : "level2"}` }];
 }
 
 /** ``level`` null: the parent ``priority-limit <priority>`` (delete only; a set needs a level). */

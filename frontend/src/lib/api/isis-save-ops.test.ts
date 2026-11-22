@@ -875,10 +875,17 @@ describe("redistribute and default-information", () => {
 
 describe("global fast-reroute and deletes", () => {
   it("load-sharing: per level and the bare all-levels node", () => {
-    assert.deepEqual(isisLoadSharingOps("level-1", true), [{ op: "set_frr_lfa_load_sharing_disable_level1" }]);
-    assert.deepEqual(isisLoadSharingOps("level-2", false), [{ op: "delete_frr_lfa_load_sharing_disable_level2" }]);
-    assert.deepEqual(isisLoadSharingOps(null, true), [{ op: "set_frr_lfa_load_sharing_disable" }]);
-    assert.deepEqual(isisLoadSharingOps(null, false), [{ op: "delete_frr_lfa_load_sharing_disable" }]);
+    const none = { lfa_load_sharing_disable_level1: false, lfa_load_sharing_disable_level2: false };
+    const both = { lfa_load_sharing_disable_level1: true, lfa_load_sharing_disable_level2: true };
+    assert.deepEqual(isisLoadSharingOps(none, "level-1", true), [{ op: "set_frr_lfa_load_sharing_disable_level1" }]);
+    // Another level stays set: delete only this level.
+    assert.deepEqual(isisLoadSharingOps(both, "level-2", false), [{ op: "delete_frr_lfa_load_sharing_disable_level2" }]);
+    // The last level: a bare `disable` would stay and disable every level, so delete the node.
+    assert.deepEqual(isisLoadSharingOps({ ...none, lfa_load_sharing_disable_level2: true }, "level-2", false), [
+      { op: "delete_frr_lfa_load_sharing_disable" },
+    ]);
+    assert.deepEqual(isisLoadSharingOps(none, null, true), [{ op: "set_frr_lfa_load_sharing_disable" }]);
+    assert.deepEqual(isisLoadSharingOps(none, null, false), [{ op: "delete_frr_lfa_load_sharing_disable" }]);
   });
 
   it("priority-limit, tiebreaker and remote prefix-list set and delete", () => {
@@ -1029,7 +1036,12 @@ describe("service", () => {
 
   it("FRR page controls send the bare all-levels and parent ops", async () => {
     const { service, sent } = stub();
-    await service.setFrrLoadSharingDisable(null, true);
+    await service.setFrrLoadSharingDisable(
+      { lfa_load_sharing_disable: false, lfa_load_sharing_disable_level1: false, lfa_load_sharing_disable_level2: false,
+        lfa_priority_limit: [], lfa_tiebreaker: [], lfa_remote_prefix_list: [] },
+      null,
+      true,
+    );
     const rpl = { prefix_list: "PL", level: null };
     await service.removeFrrRemotePrefixList([rpl], rpl);
     const tb = { tb_type: "downstream", index: "1", level: "level-1" };

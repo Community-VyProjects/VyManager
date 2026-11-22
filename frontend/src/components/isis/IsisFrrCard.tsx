@@ -168,7 +168,7 @@ export function IsisFrrCard({
                     null,
                     t(v === true ? "confirm.loadSharingDisable" : "confirm.loadSharingEnable", { level: levelText(level) }),
                     t("confirm.apply"),
-                    () => isisService.setFrrLoadSharingDisable(level, v === true),
+                    () => isisService.setFrrLoadSharingDisable(frr, level, v === true),
                   )
                 }
               />
