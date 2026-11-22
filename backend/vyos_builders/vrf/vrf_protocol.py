@@ -74,6 +74,22 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
     )
 
 
+def _mapper_getter_names(verb: str, proto: str, suffix: str) -> Tuple[str, ...]:
+    """VRF mapper path methods an op may resolve to, in lookup order.
+
+    A delete also takes the set path (its value dropped); a set never takes
+    a delete path.
+    """
+    if verb == "delete":
+        return (
+            f"get_{proto}_{suffix}_delete",
+            f"get_{suffix}_delete",
+            f"get_{proto}_{suffix}",
+            f"get_{suffix}",
+        )
+    return (f"get_{proto}_{suffix}", f"get_{suffix}")
+
+
 def _versioned_path_node(mapper: Any, proto: str, suffix: str) -> Optional[str]:
     """Version-only node the VRF mapper path of this op sits under, if any.
 
@@ -138,19 +154,7 @@ def _mapper_path(
     value: Optional[str],
     verb: str,
 ) -> Optional[List[str]]:
-    if verb == "delete":
-        candidates = (
-            f"get_{proto}_{suffix}_delete",
-            f"get_{suffix}_delete",
-            f"get_{proto}_{suffix}",
-            f"get_{suffix}",
-        )
-    else:
-        candidates = (
-            f"get_{proto}_{suffix}",
-            f"get_{suffix}",
-        )
-    for candidate in candidates:
+    for candidate in _mapper_getter_names(verb, proto, suffix):
         getter = getattr(mapper, candidate, None)
         if getter is None:
             continue
@@ -398,6 +402,8 @@ def run_vrf_protocol_op(
     inner = PROTOCOL_BUILDERS[proto](owner.version)
     inner_name = f"{verb}_{suffix}"
     method = getattr(inner, inner_name, None)
+    # The op exists but its packed value fits no path.
+    misfit = False
     if method is not None:
         try:
             _call_with_packed_value(method, value)
@@ -406,6 +412,7 @@ def run_vrf_protocol_op(
                 raise
             # A delete that does not fit the global method's arity (usually
             # the leaf value is omitted) falls through to the mapper path.
+            misfit = True
         else:
             for op in inner.get_operations():
                 path = op.get("path") or []
@@ -420,13 +427,9 @@ def run_vrf_protocol_op(
         path = _mapper_path(mapper, proto, suffix, vrf_name, value, verb)
         if path is not None:
             return owner.add_set(path) if verb == "set" else owner.add_delete(path)
-        if any(
-            hasattr(mapper, candidate)
-            for candidate in (
-                f"get_{proto}_{suffix}", f"get_{suffix}", f"get_{proto}_{suffix}_delete", f"get_{suffix}_delete"
-            )
-        ):
-            # The op exists; its packed value does not fit the path.
-            raise ArityError("has the wrong number of comma-separated values")
+        if any(hasattr(mapper, candidate) for candidate in _mapper_getter_names(verb, proto, suffix)):
+            misfit = True
 
+    if misfit:
+        raise ArityError("has the wrong number of comma-separated values")
     raise AttributeError(inner_name)

@@ -247,3 +247,17 @@ def test_redistribute_delete_checks_the_family(op, value):
 def test_no_path_for_a_node_neither_lab_has(method):
     for cls in (VrfIsisMapper, VrfIsisMapperV1_5):
         assert not hasattr(cls, method)
+
+
+def test_delete_misfit_names_the_vrf_op_when_only_the_global_builder_has_it():
+    """delete_vrf_isis_default_info_ipv4 exists only on the global builder;
+    a value that does not fit it is a 400 naming the VRF op, not an unknown op."""
+    with pytest.raises(ArityError, match="^Operation delete_vrf_isis_default_info_ipv4 has the wrong number"):
+        _run(ROLLING, "delete_vrf_isis_default_info_ipv4", None)
+
+
+def test_set_op_with_only_a_delete_getter_is_not_an_arity_error():
+    """No value can fit a set whose only VRF path is a delete path."""
+    with pytest.raises(AttributeError) as err:
+        _run(ROLLING, "set_vrf_bgp_af_distance", "x")
+    assert not isinstance(err.value, ArityError)

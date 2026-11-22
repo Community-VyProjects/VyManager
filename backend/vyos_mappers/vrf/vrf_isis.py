@@ -228,7 +228,7 @@ class VrfIsisMapper(BaseFeatureMapper):
 
     # ========================================================================
     # Interface
-    #   interface <IFACE> [bfd|bfd-profile|circuit-type|hello-interval|
+    #   interface <IFACE> [bfd|bfd profile|circuit-type|hello-interval|
     #     hello-multiplier|hello-padding|ldp-sync|ldp-sync holddown|
     #     metric|network|no-three-way-handshake|passive|
     #     password md5|password plaintext-password|priority|psnp-interval]
@@ -452,7 +452,7 @@ class VrfIsisMapper(BaseFeatureMapper):
 
     # ========================================================================
     # Topology
-    #   topology ipv4-multicast|ipv4-mgmt|ipv6-unicast
+    #   topology ipv4-multicast|ipv4-mgmt|ipv6-unicast|ipv6-multicast|ipv6-mgmt|ipv6-dstsrc
     # ========================================================================
 
     def get_isis_topology(self, name: str, value: str) -> List[str]:
