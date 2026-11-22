@@ -39,7 +39,7 @@
   "interfaceModal": {
     "interfaceRequired": "Interface is required",
     "roleRequired": "Interface role is required",
-    "thresholdRange": "Threshold must be between 1 and 255",
+    "thresholdRange": "Threshold must be between {min} and {max}",
     "invalidAltSubnet": "Invalid alt-subnet format: {value}. Use CIDR notation (e.g., 10.0.0.0/8)",
     "invalidWhitelist": "Invalid whitelist format: {value}. Use CIDR notation (e.g., 239.0.0.0/8)",
     "altSubnetExists": "Alt-subnet already exists",
@@ -53,9 +53,8 @@
   "setupModal": {
     "upstreamRequired": "Upstream interface is required",
     "downstreamRequired": "Downstream interface is required",
-    "mustDiffer": "Upstream and downstream must be different interfaces",
-    "upstreamThresholdRange": "Upstream threshold must be between 1 and 255",
-    "downstreamThresholdRange": "Downstream threshold must be between 1 and 255",
+    "upstreamThresholdRange": "Upstream threshold must be between {min} and {max}",
+    "downstreamThresholdRange": "Downstream threshold must be between {min} and {max}",
     "invalidUpstreamAltSubnet": "Invalid upstream alt-subnet: {value}. Use CIDR notation (e.g., 10.0.0.0/8)",
     "invalidWhitelist": "Invalid whitelist: {value}. Use CIDR notation (e.g., 239.0.0.0/8)",
     "entryExists": "Entry already exists",

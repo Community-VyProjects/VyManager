@@ -25,26 +25,8 @@ import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { ApiError } from "@/lib/types/api";
-import { isValidIPv4CIDR } from "@/lib/validators/firewall";
-
-/** A TTL threshold the lab accepts (`numeric --range 1-255`), or null when the text is not one. */
-export function igmpThreshold(text: string): number | null {
-  const value = text.trim();
-  if (!/^\d{1,3}$/.test(value)) return null;
-  const n = Number(value);
-  return n >= 1 && n <= 255 ? n : null;
-}
-
-/** An `ipv4net` the lab `ipv4-prefix` validator accepts: a valid CIDR with no host bits set. */
-export function isIgmpPrefix(value: string): boolean {
-  if (!value.includes("/") || !isValidIPv4CIDR(value)) return false;
-  const [address, length] = value.split("/");
-  if (!/^\d{1,2}$/.test(length)) return false;
-  const ip = address.split(".").reduce((acc, octet) => ((acc << 8) + Number(octet)) >>> 0, 0);
-  const hostBits = 32 - Number(length);
-  const hostMask = hostBits === 0 ? 0 : hostBits === 32 ? 0xffffffff : (2 ** hostBits - 1) >>> 0;
-  return ((ip & hostMask) >>> 0) === 0;
-}
+import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
+import { IGMP_THRESHOLD, igmpThreshold } from "@/lib/api/igmp-proxy-form";
 
 interface IgmpProxyInterfaceModalProps {
   open: boolean;
@@ -111,17 +93,17 @@ export function IgmpProxyInterfaceModal({
     }
 
     if (threshold.trim() && igmpThreshold(threshold) === null) {
-      return t("interfaceModal.thresholdRange");
+      return t("interfaceModal.thresholdRange", IGMP_THRESHOLD);
     }
 
     for (const subnet of altSubnets) {
-      if (!isIgmpPrefix(subnet)) {
+      if (!isIPv4Prefix(subnet)) {
         return t("interfaceModal.invalidAltSubnet", { value: subnet });
       }
     }
 
     for (const wl of whitelists) {
-      if (!isIgmpPrefix(wl)) {
+      if (!isIPv4Prefix(wl)) {
         return t("interfaceModal.invalidWhitelist", { value: wl });
       }
     }
@@ -248,8 +230,8 @@ export function IgmpProxyInterfaceModal({
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
                 placeholder={t("thresholdPlaceholder")}
-                min={1}
-                max={255}
+                min={IGMP_THRESHOLD.min}
+                max={IGMP_THRESHOLD.max}
               />
             </div>
 

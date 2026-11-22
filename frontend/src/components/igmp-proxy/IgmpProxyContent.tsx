@@ -221,7 +221,8 @@ export function IgmpProxyContent() {
   const handleDeleteInterface = async () => {
     await igmpProxyService.deleteInterface(deletingInterface);
     setDeleteOpen(false);
-    await reload();
+    // Not awaited: the dialog's Removing state ends with the commit, not with the refresh.
+    void reload();
   };
 
   // ==========================================================================

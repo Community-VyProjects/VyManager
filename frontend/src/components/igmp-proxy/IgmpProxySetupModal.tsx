@@ -26,7 +26,8 @@ import {
 import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { ApiError } from "@/lib/types/api";
-import { igmpThreshold, isIgmpPrefix } from "./IgmpProxyInterfaceModal";
+import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
+import { IGMP_THRESHOLD, igmpThreshold } from "@/lib/api/igmp-proxy-form";
 
 interface IgmpProxySetupModalProps {
   open: boolean;
@@ -81,26 +82,23 @@ export function IgmpProxySetupModal({
     if (!downstreamName) {
       return t("setupModal.downstreamRequired");
     }
-    if (upstreamName === downstreamName) {
-      return t("setupModal.mustDiffer");
-    }
 
     if (upstreamThreshold.trim() && igmpThreshold(upstreamThreshold) === null) {
-      return t("setupModal.upstreamThresholdRange");
+      return t("setupModal.upstreamThresholdRange", IGMP_THRESHOLD);
     }
 
     if (downstreamThreshold.trim() && igmpThreshold(downstreamThreshold) === null) {
-      return t("setupModal.downstreamThresholdRange");
+      return t("setupModal.downstreamThresholdRange", IGMP_THRESHOLD);
     }
 
     for (const subnet of upstreamAltSubnets) {
-      if (!isIgmpPrefix(subnet)) {
+      if (!isIPv4Prefix(subnet)) {
         return t("setupModal.invalidUpstreamAltSubnet", { value: subnet });
       }
     }
 
     for (const wl of [...upstreamWhitelists, ...downstreamWhitelists]) {
-      if (!isIgmpPrefix(wl)) {
+      if (!isIPv4Prefix(wl)) {
         return t("setupModal.invalidWhitelist", { value: wl });
       }
     }
@@ -197,6 +195,7 @@ export function IgmpProxySetupModal({
                 <InterfaceSelect
                   value={upstreamName}
                   onValueChange={setUpstreamName}
+                  filter={(iface) => iface.name !== downstreamName}
                   placeholder={tc("selectInterface")}
                 />
               </div>
@@ -209,8 +208,8 @@ export function IgmpProxySetupModal({
                   value={upstreamThreshold}
                   onChange={(e) => setUpstreamThreshold(e.target.value)}
                   placeholder={t("thresholdPlaceholder")}
-                  min={1}
-                  max={255}
+                  min={IGMP_THRESHOLD.min}
+                  max={IGMP_THRESHOLD.max}
                 />
               </div>
 
@@ -321,6 +320,7 @@ export function IgmpProxySetupModal({
                 <InterfaceSelect
                   value={downstreamName}
                   onValueChange={setDownstreamName}
+                  filter={(iface) => iface.name !== upstreamName}
                   placeholder={tc("selectInterface")}
                 />
               </div>
@@ -333,8 +333,8 @@ export function IgmpProxySetupModal({
                   value={downstreamThreshold}
                   onChange={(e) => setDownstreamThreshold(e.target.value)}
                   placeholder={t("thresholdPlaceholder")}
-                  min={1}
-                  max={255}
+                  min={IGMP_THRESHOLD.min}
+                  max={IGMP_THRESHOLD.max}
                 />
               </div>
 
