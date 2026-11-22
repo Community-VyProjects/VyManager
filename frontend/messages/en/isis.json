@@ -13,12 +13,8 @@
     "always": "Always",
     "selectLevel": "Select level",
     "selectProtocol": "Select protocol",
-    "level1Only": "Level 1 Only",
-    "level2Only": "Level 2 Only",
-    "level1And2": "Level 1 and 2",
     "ldpSyncHolddown": "LDP Sync Holddown (s)",
     "defaultValue": "Default ({value})",
-    "levelRequired": "Level is required",
     "addRedistribute": "Add Redistribute"
   },
   "values": {
@@ -59,10 +55,7 @@
     "levelPlaceholder": "Auto (L1-2)",
     "metricStyle": "Metric Style",
     "metricStylePlaceholder": "Default (narrow)",
-    "narrow": "Narrow",
-    "transition": "Transition",
-    "wide": "Wide",
-    "narrowDefault": "narrow (default)",
+    "topology": "Topology",
     "options": "Options",
     "dynamicHostname": "Dynamic Hostname",
     "logAdjacencyChanges": "Log Adjacency Changes",
@@ -74,12 +67,20 @@
     "defaultInformation": "Default Information Originate",
     "noneConfigured": "None configured"
   },
+  "password": {
+    "mode": "Password type",
+    "value": "Password",
+    "area": "Area password",
+    "domain": "Domain password"
+  },
   "interfaces": {
     "description": "IS-IS enabled interfaces",
     "filterPlaceholder": "Filter interfaces...",
     "emptyTitle": "No IS-IS interfaces configured",
     "emptyHint": "Add an interface to enable IS-IS routing on it",
-    "flags": "Flags"
+    "flags": "Flags",
+    "lfa": "LFA",
+    "tiLfa": "TI-LFA"
   },
   "redistribute": {
     "description": "Route redistribution into IS-IS",
@@ -94,7 +95,7 @@
     "lspGenInterval": "LSP Generation Interval (s)",
     "lspRefreshInterval": "LSP Refresh Interval (s)",
     "maxLspLifetime": "Max LSP Lifetime (s)",
-    "spfInterval": "SPF Interval (ms)",
+    "spfInterval": "SPF Interval (s)",
     "spfDelayIetf": "SPF Delay IETF",
     "initDelay": "Init Delay (ms)",
     "shortDelay": "Short Delay (ms)",
@@ -107,7 +108,6 @@
     "srlbLow": "SRLB Low",
     "srlbHigh": "SRLB High",
     "prefixSids": "Prefix SIDs",
-    "prefixSidsConfigured": "{count} configured",
     "srv6Locator": "SRv6 Locator",
     "fastRerouteLfa": "Fast Reroute LFA",
     "disableLoadSharingL1": "Disable load-sharing L1",
@@ -120,7 +120,65 @@
     "prefixList": "Prefix list",
     "trafficEngineering": "Traffic Engineering",
     "teRouterAddress": "TE Router Address",
-    "tedExport": "TED Export:"
+    "tedExport": "Export TED"
+  },
+  "segmentRouting": {
+    "globalBlock": "Global block (SRGB)",
+    "localBlock": "Local block (SRLB)",
+    "maximumLabelDepth": "Maximum label depth",
+    "addPrefix": "Add prefix SID",
+    "prefix": "Prefix",
+    "sidType": "SID type",
+    "value": "Value",
+    "indexValue": "Index value",
+    "absoluteValue": "Absolute value",
+    "srv6": "SRv6",
+    "nodeMsd": "Node MSD",
+    "saveFailed": "Failed to save segment routing"
+  },
+  "trafficEngineering": {
+    "saveFailed": "Failed to save traffic engineering"
+  },
+  "confirm": {
+    "title": "Apply IS-IS change",
+    "apply": "Apply",
+    "failed": "Failed to apply the change",
+    "loadSharingDisable": "Disable LFA load-sharing at {level}?",
+    "loadSharingEnable": "Enable LFA load-sharing at {level} again?",
+    "addPriorityLimit": "Add LFA priority-limit {name} at {level}?",
+    "removePriorityLimit": "Remove LFA priority-limit {name} at {level}?",
+    "addTiebreaker": "Add LFA tiebreaker {name} with index {index} at {level}?",
+    "removeTiebreaker": "Remove LFA tiebreaker {name} with index {index} at {level}?",
+    "addRemotePrefixList": "Use prefix-list {name} for remote LFA at {level}?",
+    "removeRemotePrefixList": "Stop using prefix-list {name} for remote LFA at {level}?"
+  },
+  "errors": {
+    "range": "{label} must be between {min} and {max}.",
+    "rowRange": "{name}: {label} must be between {min} and {max}.",
+    "passwordRequired": "{label}: enter a password.",
+    "passwordMask": "{label}: enter the password itself, not the mask.",
+    "interfaceRequired": "Please select an interface",
+    "excludeDuplicate": "{level}: interface {name} is excluded twice.",
+    "lfaTiLfaConflict": "{level}: LFA and TI-LFA cannot both be enabled.",
+    "remoteLfaNeedsLfa": "{level}: remote LFA needs LFA enabled on the same level.",
+    "netDuplicate": "NET {name} is listed twice.",
+    "spfDelayAllOrNone": "Set all five SPF delay timers, or clear all of them.",
+    "srBlockPair": "{label}: set both the low and the high label.",
+    "srBlockOrder": "{label}: the low label must be below the high label.",
+    "srLocalNeedsGlobal": "The local block needs a global block.",
+    "srBlockOverlap": "The global and local blocks cannot overlap.",
+    "srPrefixRequired": "Each prefix SID needs a prefix.",
+    "srPrefixDuplicate": "Prefix {name} is listed twice.",
+    "srPrefixValueRequired": "Prefix {name} needs a SID value.",
+    "srPrefixIndexTooLarge": "Prefix {name}: the index must be at most {max}, the size of the global block.",
+    "srPrefixFlags": "Prefix {name}: explicit-null and no-php-flag cannot both be set.",
+    "teAddressInvalid": "Enter an IPv4 address for the TE router address.",
+    "protocolRequired": "Protocol is required",
+    "levelRequired": "Level is required",
+    "redistributeDuplicate": "{name} is already redistributed at {level}",
+    "defaultInfoDuplicate": "{name} default-information already exists at {level}",
+    "tiebreakerIndexTaken": "Index {name} at {level} already has a tiebreaker.",
+    "prefixListRequired": "Select a prefix list."
   },
   "delete": {
     "remove": "Remove",
@@ -129,7 +187,9 @@
     "redistributeTitle": "Remove Redistribution",
     "redistributeDescription": "Stop redistributing <proto>{protocol}</proto> into IS-IS at <b>{level}</b>?",
     "defaultInfoTitle": "Remove Default Information",
-    "defaultInfoDescription": "Remove {family} default-information at {level}?"
+    "defaultInfoDescription": "Remove {family} default-information at {level}?",
+    "isisTitle": "Delete IS-IS",
+    "isisDescription": "Delete the whole IS-IS configuration from this router?"
   },
   "interfaceModal": {
     "titleEdit": "Edit IS-IS Interface",
@@ -143,51 +203,41 @@
     "priorityDr": "Priority (DR election)",
     "passiveSuppress": "Passive (suppress hellos)",
     "pointToPoint": "Point-to-Point",
+    "bfd": "BFD",
     "helloPadding": "Hello Padding",
     "bfdProfile": "BFD Profile",
-    "bfdProfilePlaceholder": "Optional BFD profile name",
     "helloInterval": "Hello Interval (s)",
     "helloMultiplier": "Hello Multiplier",
-    "psnpInterval": "PSNP Interval (ms)",
+    "psnpInterval": "PSNP Interval (s)",
     "disableThreeWayHandshake": "Disable 3-Way Handshake",
     "disableLdpSync": "Disable LDP Sync",
-    "authHelp": "Configure IS-IS authentication for this interface. Only one type can be active at a time.",
-    "md5Password": "MD5 Password",
-    "md5PasswordPlaceholder": "MD5 authentication password",
-    "plaintextPassword": "Plaintext Password",
-    "plaintextPasswordPlaceholder": "Plaintext authentication password",
     "lfaTitle": "LFA (Loop-Free Alternate)",
     "enableLfaL1": "Enable LFA — Level 1",
     "enableLfaL2": "Enable LFA — Level 2",
+    "excludeInterfaces": "Exclude interfaces",
     "tiLfaTitle": "TI-LFA (Topology Independent LFA)",
+    "enableTiLfa": "Enable TI-LFA",
     "enableTiLfaL1": "Enable TI-LFA — Level 1",
     "enableTiLfaL2": "Enable TI-LFA — Level 2",
     "nodeProtection": "Node Protection",
     "linkFallback": "Link Fallback",
-    "remoteLfa": "Remote LFA",
     "enableRemoteLfaL1": "Enable Remote LFA — Level 1",
     "enableRemoteLfaL2": "Enable Remote LFA — Level 2",
     "maxMetric": "Max Metric",
     "unlimited": "Unlimited",
     "mplsLdpTunnel": "MPLS LDP Tunnel",
-    "frrNotSupported": "TI-LFA and Remote LFA are not supported on this device.",
-    "selectInterfaceError": "Please select an interface",
     "saveFailed": "Failed to save interface"
   },
   "defaultInfoModal": {
     "title": "Add Default Information",
+    "titleEdit": "Edit Default Information",
     "description": "Originate a default route into IS-IS.",
-    "alreadyExists": "{family} default-information already exists at {level}",
-    "addFailed": "Failed to add default-information"
+    "saveFailed": "Failed to save default-information"
   },
   "redistributeModal": {
     "title": "Add Redistribution",
+    "titleEdit": "Edit Redistribution",
     "description": "Redistribute routes from another protocol into IS-IS.",
-    "protocolRequired": "Protocol is required",
-    "alreadyRedistributed": "{protocol} is already redistributed at {level}",
-    "alreadyConfigured": "{protocol} is already configured at {level}.",
-    "addFailed": "Failed to add redistribution",
-    "level1": "Level 1",
-    "level2": "Level 2"
+    "saveFailed": "Failed to save redistribution"
   }
 }

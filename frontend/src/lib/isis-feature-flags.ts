@@ -1,33 +1,35 @@
-/** ISIS UI gates on capability feature flags, never version_info. */
+/** ISIS UI gates on capability feature flags, never on a version string. */
 
 export interface IsisFeatureLeaf {
   supported: boolean;
 }
 
 export interface IsisFeatureFlags {
-  ti_lfa: IsisFeatureLeaf;
-  remote_lfa: IsisFeatureLeaf;
+  interface_fast_reroute: IsisFeatureLeaf;
   srv6: IsisFeatureLeaf;
   te_export: IsisFeatureLeaf;
-  lsp_refresh_min_1: IsisFeatureLeaf;
 }
 
-export function isisTiLfaSupported(features: IsisFeatureFlags | undefined): boolean {
-  return features?.ti_lfa.supported ?? false;
+/** Interface LFA, remote LFA and TI-LFA (``interface <if> fast-reroute``). */
+export function isisInterfaceFastRerouteSupported(features: IsisFeatureFlags | undefined): boolean {
+  return features?.interface_fast_reroute?.supported === true;
 }
 
-export function isisRemoteLfaSupported(features: IsisFeatureFlags | undefined): boolean {
-  return features?.remote_lfa.supported ?? false;
-}
-
+/** SRv6 locator, interface and node MSD. */
 export function isisSrv6Supported(features: IsisFeatureFlags | undefined): boolean {
-  return features?.srv6.supported ?? false;
+  return features?.srv6?.supported === true;
 }
 
 export function isisTeExportSupported(features: IsisFeatureFlags | undefined): boolean {
-  return features?.te_export.supported ?? false;
+  return features?.te_export?.supported === true;
 }
 
-export function isisLspRefreshMinSeconds(features: IsisFeatureFlags | undefined): number {
-  return features?.lsp_refresh_min_1.supported ? 1 : 2;
+/** Range used before capabilities load: the one both releases accept. */
+const LSP_REFRESH_FALLBACK = { min: 2, max: 65235 };
+
+/** lsp-refresh-interval range from capabilities (1.4: 1-65235, 1.5: 2-65235). */
+export function isisLspRefreshRange(
+  caps: { lsp_refresh_interval?: { min: number; max: number } } | null | undefined,
+): { min: number; max: number } {
+  return caps?.lsp_refresh_interval ?? LSP_REFRESH_FALLBACK;
 }

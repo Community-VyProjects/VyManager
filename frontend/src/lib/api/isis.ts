@@ -1,7 +1,35 @@
 import { apiClient } from "./client";
+import type { ApiError } from "../types/api";
+import {
+  isisDefaultInfoOps,
+  isisDeleteDefaultInfoOps,
+  isisDeleteInterfaceOps,
+  isisDeleteIsisOps,
+  isisDeleteRedistributeOps,
+  isisGeneralOps,
+  isisInterfaceOps,
+  isisLoadSharingOps,
+  isisPriorityLimitOps,
+  isisRedistributeOps,
+  isisRemotePrefixListOps,
+  isisSegmentRoutingOps,
+  isisSpfDelayOps,
+  isisTeOps,
+  isisTiebreakerOps,
+  isisTimersOps,
+  type IsisDefaultInfoForm,
+  type IsisFamily,
+  type IsisGeneralForm,
+  type IsisInterfaceForm,
+  type IsisRedistributeForm,
+  type IsisSegmentRoutingForm,
+  type IsisSpfDelayForm,
+  type IsisTeForm,
+  type IsisTimersForm,
+} from "./isis-save-ops";
 
 // ============================================================================
-// Response / Config Types
+// Response / Config Types (GET /vyos/isis/config, backend/routers/isis/isis.py)
 // ============================================================================
 
 export interface VyOSResponse {
@@ -40,6 +68,7 @@ export interface IsisGlobalConfig {
   lsp_refresh_interval: number | null;
   max_lsp_lifetime: number | null;
   spf_interval: number | null;
+  /** "***" when set, null when absent. Never the secret. */
   area_password_md5: string | null;
   area_password_plaintext: string | null;
   domain_password_md5: string | null;
@@ -86,6 +115,7 @@ export interface IsisInterface {
   priority: number | null;
   psnp_interval: number | null;
   no_three_way_handshake: boolean;
+  /** "***" when set, null when absent. Never the secret. */
   password_md5: string | null;
   password_plaintext: string | null;
   bfd: boolean;
@@ -102,7 +132,6 @@ export interface IsisRedistributeEntry {
   level: string;
   metric: number | null;
   route_map: string | null;
-  family?: "ipv4" | "ipv6";
 }
 
 export interface IsisDefaultInfoEntry {
@@ -110,7 +139,6 @@ export interface IsisDefaultInfoEntry {
   always: boolean;
   metric: number | null;
   route_map: string | null;
-  family?: "ipv4" | "ipv6";
 }
 
 export interface IsisSrPrefix {
@@ -123,6 +151,13 @@ export interface IsisSrPrefix {
   absolute_no_php: boolean;
 }
 
+export interface IsisSrv6NodeMsd {
+  max_end_d: number | null;
+  max_end_pop: number | null;
+  max_h_encaps: number | null;
+  max_segs_left: number | null;
+}
+
 export interface IsisSegmentRouting {
   global_block_low: number | null;
   global_block_high: number | null;
@@ -131,6 +166,8 @@ export interface IsisSegmentRouting {
   maximum_label_depth: number | null;
   prefixes: IsisSrPrefix[];
   srv6_locator: string | null;
+  srv6_interface: string | null;
+  srv6_node_msd: IsisSrv6NodeMsd;
 }
 
 export interface IsisTrafficEngineering {
@@ -164,6 +201,7 @@ export interface IsisFrrGlobal {
 }
 
 export interface IsisConfig {
+  /** Key membership of ``protocols isis``; a bare node is enabled. */
   enabled: boolean;
   global_config: IsisGlobalConfig;
   interfaces: IsisInterface[];
@@ -174,43 +212,58 @@ export interface IsisConfig {
   segment_routing: IsisSegmentRouting;
   traffic_engineering: IsisTrafficEngineering;
   fast_reroute: IsisFrrGlobal;
+  /** Configured ``protocols segment-routing srv6 locator`` names. */
+  srv6_locator_names: string[];
+}
+
+export interface IsisFeature {
+  supported: boolean;
+  description: string;
+}
+
+export interface IsisValuesFeature extends IsisFeature {
+  values: string[];
 }
 
 export interface IsisCapabilities {
   version: string;
   features: {
-    isis: { supported: boolean; description: string };
-    segment_routing: { supported: boolean; description: string };
-    ti_lfa: { supported: boolean; description: string };
-    remote_lfa: { supported: boolean; description: string };
-    srv6: { supported: boolean; description: string };
-    te_export: { supported: boolean; description: string };
-    lsp_refresh_min_1: { supported: boolean; description: string };
-    redistribute_ipv6: { supported: boolean; description: string };
-    redistribute_nhrp: { supported: boolean; description: string };
-    lfa_priority_limit: { supported: boolean; description: string; values?: string[] };
-    lfa_tiebreaker: { supported: boolean; description: string; values?: string[] };
-    lfa_remote_prefix_list: { supported: boolean; description: string };
+    isis: IsisFeature;
+    segment_routing: IsisFeature;
+    interface_fast_reroute: IsisFeature;
+    srv6: IsisFeature;
+    te_export: IsisFeature;
+    redistribute_nhrp: IsisFeature;
+    lfa_priority_limit: IsisValuesFeature;
+    lfa_tiebreaker: IsisValuesFeature;
+    lfa_remote_prefix_list: IsisFeature;
   };
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
-  };
-  redistribute_protocols?: {
+  lsp_refresh_interval: { min: number; max: number };
+  area_password_modes: string[];
+  domain_password_modes: string[];
+  srv6_node_msd_types: string[];
+  redistribute_protocols: {
     ipv4: string[];
     ipv6: string[];
   };
+  instance_name?: string | null;
+  instance_id?: string | number | null;
 }
 
 // ============================================================================
-// Service
+// Service. Every op comes from isis-save-ops.ts; this file only sends them.
 // ============================================================================
 
+const NO_CHANGES: VyOSResponse = { success: true, data: null };
+
 class IsisService {
-  private async batch(operations: BatchOperation[]): Promise<VyOSResponse> {
+  /** Skips an empty batch; a rejected commit throws the device error. */
+  async batchConfigure(operations: BatchOperation[]): Promise<VyOSResponse> {
+    if (operations.length === 0) return NO_CHANGES;
     const result = await apiClient.post<VyOSResponse>("/vyos/isis/batch", { operations });
     if (!result.success) {
-      throw new Error(result.error || "IS-IS operation failed");
+      const error: ApiError = { message: result.error || "" };
+      throw error;
     }
     return result;
   }
@@ -225,285 +278,120 @@ class IsisService {
     });
   }
 
-  // -------------------------------------------------------------------------
-  // Global config
-  // -------------------------------------------------------------------------
-
-  async updateGlobalConfig(
-    current: IsisGlobalConfig,
-    next: {
-      net: string[];
-      level: string | null;
-      metric_style: string | null;
-      dynamic_hostname: boolean;
-      purge_originator: boolean;
-      advertise_passive_only: boolean;
-      advertise_high_metrics: boolean;
-      set_attached_bit: boolean;
-      set_overload_bit: boolean;
-      log_adjacency_changes: boolean;
-      lsp_mtu: string;
-      lsp_gen_interval: string;
-      lsp_refresh_interval: string;
-      max_lsp_lifetime: string;
-      spf_interval: string;
-      ldp_sync_holddown: string;
-    }
-  ): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-
-    // NET addresses — remove old ones, add new ones
-    for (const net of current.net) {
-      if (!next.net.includes(net)) {
-        ops.push({ op: "delete_net", value: net });
-      }
-    }
-    for (const net of next.net) {
-      if (!current.net.includes(net)) {
-        ops.push({ op: "set_net", value: net });
-      }
-    }
-
-    // Level
-    if (next.level && next.level !== current.level) {
-      ops.push({ op: "set_level", value: next.level });
-    } else if (!next.level && current.level) {
-      ops.push({ op: "delete_level" });
-    }
-
-    // Metric style
-    if (next.metric_style && next.metric_style !== current.metric_style) {
-      ops.push({ op: "set_metric_style", value: next.metric_style });
-    } else if (!next.metric_style && current.metric_style) {
-      ops.push({ op: "delete_metric_style" });
-    }
-
-    // Boolean flags
-    if (next.dynamic_hostname !== current.dynamic_hostname) {
-      ops.push({ op: next.dynamic_hostname ? "set_dynamic_hostname" : "delete_dynamic_hostname" });
-    }
-    if (next.purge_originator !== current.purge_originator) {
-      ops.push({ op: next.purge_originator ? "set_purge_originator" : "delete_purge_originator" });
-    }
-    if (next.advertise_passive_only !== current.advertise_passive_only) {
-      ops.push({ op: next.advertise_passive_only ? "set_advertise_passive_only" : "delete_advertise_passive_only" });
-    }
-    if (next.advertise_high_metrics !== current.advertise_high_metrics) {
-      ops.push({ op: next.advertise_high_metrics ? "set_advertise_high_metrics" : "delete_advertise_high_metrics" });
-    }
-    if (next.set_attached_bit !== current.set_attached_bit) {
-      ops.push({ op: next.set_attached_bit ? "set_attached_bit" : "delete_attached_bit" });
-    }
-    if (next.set_overload_bit !== current.set_overload_bit) {
-      ops.push({ op: next.set_overload_bit ? "set_overload_bit" : "delete_overload_bit" });
-    }
-    if (next.log_adjacency_changes !== current.log_adjacency_changes) {
-      ops.push({ op: next.log_adjacency_changes ? "set_log_adjacency_changes" : "delete_log_adjacency_changes" });
-    }
-
-    // Numeric/string values
-    const numericFields: Array<{
-      key: keyof typeof next;
-      setOp: string;
-      deleteOp: string;
-      currentVal: number | null;
-    }> = [
-      { key: "lsp_mtu", setOp: "set_lsp_mtu", deleteOp: "delete_lsp_mtu", currentVal: current.lsp_mtu },
-      { key: "lsp_gen_interval", setOp: "set_lsp_gen_interval", deleteOp: "delete_lsp_gen_interval", currentVal: current.lsp_gen_interval },
-      { key: "lsp_refresh_interval", setOp: "set_lsp_refresh_interval", deleteOp: "delete_lsp_refresh_interval", currentVal: current.lsp_refresh_interval },
-      { key: "max_lsp_lifetime", setOp: "set_max_lsp_lifetime", deleteOp: "delete_max_lsp_lifetime", currentVal: current.max_lsp_lifetime },
-      { key: "spf_interval", setOp: "set_spf_interval", deleteOp: "delete_spf_interval", currentVal: current.spf_interval },
-      { key: "ldp_sync_holddown", setOp: "set_ldp_sync_holddown", deleteOp: "delete_ldp_sync", currentVal: current.ldp_sync_holddown },
-    ];
-
-    for (const field of numericFields) {
-      const val = (next[field.key] as string).trim();
-      const currentStr = field.currentVal != null ? String(field.currentVal) : "";
-      if (val && val !== currentStr) {
-        ops.push({ op: field.setOp, value: val });
-      } else if (!val && field.currentVal != null) {
-        ops.push({ op: field.deleteOp });
-      }
-    }
-
-    if (ops.length === 0) return { success: true };
-    return this.batch(ops);
+  async deleteIsis(): Promise<VyOSResponse> {
+    return this.batchConfigure(isisDeleteIsisOps());
   }
 
-  async updateSpfDelayIetf(
-    current: IsisSpfDelayIetf,
-    next: { init_delay: string; short_delay: string; long_delay: string; holddown: string; time_to_learn: string }
+  // -------------------------------------------------------------------------
+  // Global sections
+  // -------------------------------------------------------------------------
+
+  async updateGeneral(original: IsisGlobalConfig, form: IsisGeneralForm): Promise<VyOSResponse> {
+    return this.batchConfigure(isisGeneralOps(original, form));
+  }
+
+  async updateTimers(original: IsisGlobalConfig, form: IsisTimersForm): Promise<VyOSResponse> {
+    return this.batchConfigure(isisTimersOps(original, form));
+  }
+
+  async updateSpfDelay(original: IsisSpfDelayIetf, form: IsisSpfDelayForm): Promise<VyOSResponse> {
+    return this.batchConfigure(isisSpfDelayOps(original, form));
+  }
+
+  async updateSegmentRouting(
+    original: IsisSegmentRouting,
+    form: IsisSegmentRoutingForm,
+    opts: { srv6: boolean; msdTypes: string[] },
   ): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
+    return this.batchConfigure(isisSegmentRoutingOps(original, form, opts));
+  }
 
-    const anySet = next.init_delay.trim() || next.short_delay.trim() || next.long_delay.trim() || next.holddown.trim() || next.time_to_learn.trim();
-    const hadAny = current.init_delay != null || current.short_delay != null || current.long_delay != null || current.holddown != null || current.time_to_learn != null;
-
-    if (!anySet && hadAny) {
-      ops.push({ op: "delete_spf_delay_ietf" });
-    } else if (anySet) {
-      if (next.init_delay.trim()) ops.push({ op: "set_spf_delay_ietf_init_delay", value: next.init_delay.trim() });
-      if (next.short_delay.trim()) ops.push({ op: "set_spf_delay_ietf_short_delay", value: next.short_delay.trim() });
-      if (next.long_delay.trim()) ops.push({ op: "set_spf_delay_ietf_long_delay", value: next.long_delay.trim() });
-      if (next.holddown.trim()) ops.push({ op: "set_spf_delay_ietf_holddown", value: next.holddown.trim() });
-      if (next.time_to_learn.trim()) ops.push({ op: "set_spf_delay_ietf_time_to_learn", value: next.time_to_learn.trim() });
-    }
-
-    if (ops.length === 0) return { success: true };
-    return this.batch(ops);
+  async updateTrafficEngineering(
+    original: IsisTrafficEngineering,
+    form: IsisTeForm,
+    opts: { teExport: boolean },
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisTeOps(original, form, opts));
   }
 
   // -------------------------------------------------------------------------
   // Interfaces
   // -------------------------------------------------------------------------
 
-  async createInterface(iface: IsisInterface): Promise<VyOSResponse> {
-    const ops = this.buildInterfaceOps(iface);
-    return this.batch(ops);
+  async createInterface(form: IsisInterfaceForm, opts: { fastReroute: boolean }): Promise<VyOSResponse> {
+    return this.batchConfigure(isisInterfaceOps(null, form, opts));
   }
 
-  async updateInterface(existing: IsisInterface, next: IsisInterface): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    // Delete and recreate the interface for simplicity
-    ops.push({ op: "delete_interface", value: existing.name });
-    ops.push(...this.buildInterfaceOps(next));
-    return this.batch(ops);
+  async updateInterface(
+    original: IsisInterface,
+    form: IsisInterfaceForm,
+    opts: { fastReroute: boolean },
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisInterfaceOps(original, form, opts));
   }
 
   async deleteInterface(name: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_interface", value: name }]);
-  }
-
-  private buildInterfaceOps(iface: IsisInterface): BatchOperation[] {
-    const ops: BatchOperation[] = [];
-    ops.push({ op: "set_interface", value: iface.name });
-
-    if (iface.circuit_type) ops.push({ op: "set_interface_circuit_type", value: `${iface.name},${iface.circuit_type}` });
-    if (iface.metric != null) ops.push({ op: "set_interface_metric", value: `${iface.name},${iface.metric}` });
-    if (iface.hello_interval != null) ops.push({ op: "set_interface_hello_interval", value: `${iface.name},${iface.hello_interval}` });
-    if (iface.hello_multiplier != null) ops.push({ op: "set_interface_hello_multiplier", value: `${iface.name},${iface.hello_multiplier}` });
-    if (iface.hello_padding) ops.push({ op: "set_interface_hello_padding", value: iface.name });
-    if (iface.passive) ops.push({ op: "set_interface_passive", value: iface.name });
-    if (iface.point_to_point) ops.push({ op: "set_interface_point_to_point", value: iface.name });
-    if (iface.priority != null) ops.push({ op: "set_interface_priority", value: `${iface.name},${iface.priority}` });
-    if (iface.psnp_interval != null) ops.push({ op: "set_interface_psnp_interval", value: `${iface.name},${iface.psnp_interval}` });
-    if (iface.no_three_way_handshake) ops.push({ op: "set_interface_no_three_way_handshake", value: iface.name });
-    if (iface.bfd) ops.push({ op: "set_interface_bfd", value: iface.name });
-    if (iface.bfd_profile) ops.push({ op: "set_interface_bfd_profile", value: `${iface.name},${iface.bfd_profile}` });
-    if (iface.ldp_sync_holddown != null) ops.push({ op: "set_interface_ldp_sync_holddown", value: `${iface.name},${iface.ldp_sync_holddown}` });
-    if (iface.ldp_sync_disable) ops.push({ op: "set_interface_ldp_sync_disable", value: iface.name });
-    if (iface.password_md5) ops.push({ op: "set_interface_password_md5", value: `${iface.name},${iface.password_md5}` });
-    if (iface.password_plaintext) ops.push({ op: "set_interface_password_plaintext", value: `${iface.name},${iface.password_plaintext}` });
-
-    // LFA
-    if (iface.lfa.level1_enabled) ops.push({ op: "set_interface_lfa_level1", value: iface.name });
-    if (iface.lfa.level2_enabled) ops.push({ op: "set_interface_lfa_level2", value: iface.name });
-
-    // TI-LFA (v1.5+)
-    if (iface.ti_lfa.level1_enabled) ops.push({ op: "set_interface_ti_lfa_level1", value: iface.name });
-    if (iface.ti_lfa.level1_node_protection) ops.push({ op: "set_interface_ti_lfa_level1_node_protection", value: iface.name });
-    if (iface.ti_lfa.level1_link_fallback) ops.push({ op: "set_interface_ti_lfa_level1_link_fallback", value: iface.name });
-    if (iface.ti_lfa.level2_enabled) ops.push({ op: "set_interface_ti_lfa_level2", value: iface.name });
-    if (iface.ti_lfa.level2_node_protection) ops.push({ op: "set_interface_ti_lfa_level2_node_protection", value: iface.name });
-    if (iface.ti_lfa.level2_link_fallback) ops.push({ op: "set_interface_ti_lfa_level2_link_fallback", value: iface.name });
-
-    // Remote LFA (v1.5+)
-    if (iface.remote_lfa.level1_enabled) ops.push({ op: "set_interface_remote_lfa_level1", value: iface.name });
-    if (iface.remote_lfa.level1_max_metric != null) ops.push({ op: "set_interface_remote_lfa_level1_max_metric", value: `${iface.name},${iface.remote_lfa.level1_max_metric}` });
-    if (iface.remote_lfa.level1_tunnel_mpls_ldp) ops.push({ op: "set_interface_remote_lfa_level1_tunnel_mpls_ldp", value: iface.name });
-    if (iface.remote_lfa.level2_enabled) ops.push({ op: "set_interface_remote_lfa_level2", value: iface.name });
-    if (iface.remote_lfa.level2_max_metric != null) ops.push({ op: "set_interface_remote_lfa_level2_max_metric", value: `${iface.name},${iface.remote_lfa.level2_max_metric}` });
-    if (iface.remote_lfa.level2_tunnel_mpls_ldp) ops.push({ op: "set_interface_remote_lfa_level2_tunnel_mpls_ldp", value: iface.name });
-
-    return ops;
+    return this.batchConfigure(isisDeleteInterfaceOps(name));
   }
 
   // -------------------------------------------------------------------------
-  // Redistribute
+  // Redistribute / default-information
   // -------------------------------------------------------------------------
 
-  async addRedistribute(entry: IsisRedistributeEntry): Promise<VyOSResponse> {
-    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
-    const key = `${entry.protocol}|${entry.level}`;
-    const ops: BatchOperation[] = [{ op: `set_redistribute_${family}`, value: `${entry.protocol},${entry.level}` }];
-    if (entry.metric != null) ops.push({ op: `set_redistribute_${family}_metric`, value: `${key},${entry.metric}` });
-    if (entry.route_map) ops.push({ op: `set_redistribute_${family}_route_map`, value: `${key},${entry.route_map}` });
-    return this.batch(ops);
+  async saveRedistribute(
+    family: IsisFamily,
+    original: IsisRedistributeEntry | null,
+    form: IsisRedistributeForm,
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisRedistributeOps(family, original, form));
   }
 
-  async deleteRedistribute(entry: IsisRedistributeEntry): Promise<VyOSResponse> {
-    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
-    return this.batch([{ op: `delete_redistribute_${family}`, value: `${entry.protocol},${entry.level}` }]);
+  async deleteRedistribute(family: IsisFamily, entry: IsisRedistributeEntry): Promise<VyOSResponse> {
+    return this.batchConfigure(isisDeleteRedistributeOps(family, entry));
   }
 
-  async addDefaultInfo(entry: IsisDefaultInfoEntry): Promise<VyOSResponse> {
-    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
-    const ops: BatchOperation[] = [{ op: `set_default_info_${family}`, value: entry.level }];
-    if (entry.always) ops.push({ op: `set_default_info_${family}_always`, value: entry.level });
-    if (entry.metric != null) ops.push({ op: `set_default_info_${family}_metric`, value: `${entry.level},${entry.metric}` });
-    if (entry.route_map) ops.push({ op: `set_default_info_${family}_route_map`, value: `${entry.level},${entry.route_map}` });
-    return this.batch(ops);
+  async saveDefaultInfo(
+    family: IsisFamily,
+    original: IsisDefaultInfoEntry | null,
+    form: IsisDefaultInfoForm,
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisDefaultInfoOps(family, original, form));
   }
 
-  async deleteDefaultInfo(entry: IsisDefaultInfoEntry): Promise<VyOSResponse> {
-    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
-    return this.batch([{ op: `delete_default_info_${family}`, value: entry.level }]);
+  async deleteDefaultInfo(family: IsisFamily, entry: IsisDefaultInfoEntry): Promise<VyOSResponse> {
+    return this.batchConfigure(isisDeleteDefaultInfoOps(family, entry));
   }
 
-  async setFrrLoadSharingDisable(level: "level-1" | "level-2", enabled: boolean): Promise<VyOSResponse> {
-    const suffix = level === "level-1" ? "level1" : "level2";
-    return this.batch([{ op: `${enabled ? "set" : "delete"}_frr_lfa_load_sharing_disable_${suffix}` }]);
+  // -------------------------------------------------------------------------
+  // Global fast-reroute LFA
+  // -------------------------------------------------------------------------
+
+  async setFrrLoadSharingDisable(level: string, disabled: boolean): Promise<VyOSResponse> {
+    return this.batchConfigure(isisLoadSharingOps(level, disabled));
   }
 
   async addFrrPriorityLimit(priority: string, level: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "set_frr_lfa_priority_limit", value: `${priority},${level}` }]);
+    return this.batchConfigure(isisPriorityLimitOps("set", priority, level));
   }
 
   async deleteFrrPriorityLimit(priority: string, level: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_frr_lfa_priority_limit", value: `${priority},${level}` }]);
+    return this.batchConfigure(isisPriorityLimitOps("delete", priority, level));
   }
 
-  async addFrrTiebreaker(tb_type: string, index: string, level: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "set_frr_lfa_tiebreaker_index", value: `${tb_type},${index},${level}` }]);
+  async addFrrTiebreaker(tbType: string, index: string, level: string): Promise<VyOSResponse> {
+    return this.batchConfigure(isisTiebreakerOps("set", tbType, index, level));
   }
 
-  async deleteFrrTiebreaker(tb_type: string, index: string, level: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_frr_lfa_tiebreaker_index", value: `${tb_type},${index},${level}` }]);
+  async deleteFrrTiebreaker(tbType: string, index: string, level: string): Promise<VyOSResponse> {
+    return this.batchConfigure(isisTiebreakerOps("delete", tbType, index, level));
   }
 
-  async addFrrRemotePrefixList(prefix_list: string, level: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "set_frr_lfa_remote_prefix_list", value: `${prefix_list},${level}` }]);
+  async addFrrRemotePrefixList(prefixList: string, level: string): Promise<VyOSResponse> {
+    return this.batchConfigure(isisRemotePrefixListOps("set", prefixList, level));
   }
 
-  async deleteFrrRemotePrefixList(prefix_list: string, level: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_frr_lfa_remote_prefix_list", value: `${prefix_list},${level}` }]);
-  }
-
-  // -------------------------------------------------------------------------
-  // Segment Routing
-  // -------------------------------------------------------------------------
-
-  async updateSegmentRouting(
-    current: IsisSegmentRouting,
-    next: { global_block_low: string; global_block_high: string; local_block_low: string; local_block_high: string; maximum_label_depth: string }
-  ): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-
-    const numFields: Array<{ key: keyof typeof next; setOp: string; deleteOp: string; cur: number | null }> = [
-      { key: "global_block_low", setOp: "set_sr_global_block_low", deleteOp: "delete_sr_global_block", cur: current.global_block_low },
-      { key: "global_block_high", setOp: "set_sr_global_block_high", deleteOp: "delete_sr_global_block", cur: current.global_block_high },
-      { key: "local_block_low", setOp: "set_sr_local_block_low", deleteOp: "delete_sr_local_block", cur: current.local_block_low },
-      { key: "local_block_high", setOp: "set_sr_local_block_high", deleteOp: "delete_sr_local_block", cur: current.local_block_high },
-      { key: "maximum_label_depth", setOp: "set_sr_maximum_label_depth", deleteOp: "delete_sr_maximum_label_depth", cur: current.maximum_label_depth },
-    ];
-
-    for (const f of numFields) {
-      const v = (next[f.key] as string).trim();
-      if (v) ops.push({ op: f.setOp, value: v });
-    }
-
-    if (ops.length === 0) return { success: true };
-    return this.batch(ops);
+  async deleteFrrRemotePrefixList(prefixList: string, level: string): Promise<VyOSResponse> {
+    return this.batchConfigure(isisRemotePrefixListOps("delete", prefixList, level));
   }
 }
 

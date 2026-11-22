@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,238 +22,134 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, AlertCircle } from "lucide-react";
-import {
-  IsisInterface,
-  IsisCapabilities,
-} from "@/lib/api/isis";
-import { showService, InterfaceName } from "@/lib/api/show";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import { Loader2, AlertCircle } from "lucide-react";
+import type { IsisCapabilities, IsisInterface } from "@/lib/api/isis";
+import type { InterfaceName } from "@/lib/api/show";
+import type { ApiError } from "@/lib/types/api";
 import {
-  isisRemoteLfaSupported,
-  isisTiLfaSupported,
-} from "@/lib/isis-feature-flags";
+  ISIS_CIRCUIT_TYPES,
+  ISIS_FRR_LEVELS,
+  ISIS_HELLO_INTERVAL,
+  ISIS_HELLO_MULTIPLIER,
+  ISIS_INTERFACE_METRIC,
+  ISIS_LDP_SYNC_HOLDDOWN,
+  ISIS_PASSWORD_MODES,
+  ISIS_PRIORITY,
+  ISIS_PSNP_INTERVAL,
+  ISIS_REMOTE_LFA_MAX_METRIC,
+  isisInterfaceForm,
+  isisInterfaceProblem,
+  isisPasswordForMode,
+  isisPasswordModes,
+  type IsisFrrLevelForm,
+  type IsisInterfaceForm,
+  type IsisPasswordMode,
+  type IsisRange,
+} from "@/lib/api/isis-save-ops";
+import { isisInterfaceFastRerouteSupported } from "@/lib/isis-feature-flags";
+import { useIsisProblemText } from "./useIsisProblemText";
 import { useTranslations } from "next-intl";
 
 interface IsisInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (iface: IsisInterface) => Promise<void>;
+  /** Commits the form; the caller reloads. A rejection keeps the modal open. */
+  onSubmit: (form: IsisInterfaceForm) => Promise<void>;
   existingInterface: IsisInterface | null;
   capabilities: IsisCapabilities | null;
+  interfaces: InterfaceName[];
+  /** Interfaces already under protocols isis; Add does not offer them. */
+  configuredInterfaces: string[];
+  bfdProfileNames: string[];
 }
 
-
+/** Mount with a fresh ``key`` per open: the form is read once from ``existingInterface``. */
 export function IsisInterfaceModal({
   open,
   onOpenChange,
   onSubmit,
   existingInterface,
   capabilities,
+  interfaces,
+  configuredInterfaces,
+  bfdProfileNames,
 }: IsisInterfaceModalProps) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
+  const problemText = useIsisProblemText();
   const isEdit = !!existingInterface;
-  const tiLfaSupported = isisTiLfaSupported(capabilities?.features);
-  const remoteLfaSupported = isisRemoteLfaSupported(capabilities?.features);
+  const fastReroute = isisInterfaceFastRerouteSupported(capabilities?.features);
 
+  const [form, setForm] = useState<IsisInterfaceForm>(() => isisInterfaceForm(existingInterface));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [interfaceNames, setInterfaceNames] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
 
-  // Basic fields
-  const [name, setName] = useState("");
-  const [circuitType, setCircuitType] = useState("");
-  const [metric, setMetric] = useState("");
-  const [priority, setPriority] = useState("");
-  const [passive, setPassive] = useState(false);
-  const [pointToPoint, setPointToPoint] = useState(false);
-  const [bfd, setBfd] = useState(false);
-  const [bfdProfile, setBfdProfile] = useState("");
+  const set = <K extends keyof IsisInterfaceForm>(key: K, value: IsisInterfaceForm[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+  const setLevel = (key: "level1" | "level2", patch: Partial<IsisFrrLevelForm>) =>
+    setForm((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
-  // Timers
-  const [helloInterval, setHelloInterval] = useState("");
-  const [helloMultiplier, setHelloMultiplier] = useState("");
-  const [helloPadding, setHelloPadding] = useState(false);
-  const [psnpInterval, setPsnpInterval] = useState("");
-  const [noThreeWayHandshake, setNoThreeWayHandshake] = useState(false);
-  const [ldpSyncHolddown, setLdpSyncHolddown] = useState("");
-  const [ldpSyncDisable, setLdpSyncDisable] = useState(false);
-
-  // Authentication
-  const [passwordMd5, setPasswordMd5] = useState("");
-  const [passwordPlaintext, setPasswordPlaintext] = useState("");
-
-  // LFA
-  const [lfaLevel1, setLfaLevel1] = useState(false);
-  const [lfaLevel2, setLfaLevel2] = useState(false);
-
-  // TI-LFA (v1.5+)
-  const [tiLfaLevel1, setTiLfaLevel1] = useState(false);
-  const [tiLfaLevel1NodeProtection, setTiLfaLevel1NodeProtection] = useState(false);
-  const [tiLfaLevel1LinkFallback, setTiLfaLevel1LinkFallback] = useState(false);
-  const [tiLfaLevel2, setTiLfaLevel2] = useState(false);
-  const [tiLfaLevel2NodeProtection, setTiLfaLevel2NodeProtection] = useState(false);
-  const [tiLfaLevel2LinkFallback, setTiLfaLevel2LinkFallback] = useState(false);
-
-  // Remote LFA (v1.5+)
-  const [remoteLfaLevel1, setRemoteLfaLevel1] = useState(false);
-  const [remoteLfaLevel1MaxMetric, setRemoteLfaLevel1MaxMetric] = useState("");
-  const [remoteLfaLevel1TunnelMplsLdp, setRemoteLfaLevel1TunnelMplsLdp] = useState(false);
-  const [remoteLfaLevel2, setRemoteLfaLevel2] = useState(false);
-  const [remoteLfaLevel2MaxMetric, setRemoteLfaLevel2MaxMetric] = useState("");
-  const [remoteLfaLevel2TunnelMplsLdp, setRemoteLfaLevel2TunnelMplsLdp] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setError(null);
-
-    // Fetch available interface names from the device
-    setInterfacesLoading(true);
-    showService
-      .getAllInterfaces()
-      .then((res) => setInterfaceNames([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
-      .catch(() => setInterfaceNames([]))
-      .finally(() => setInterfacesLoading(false));
-
-    if (existingInterface) {
-      const i = existingInterface;
-      setName(i.name);
-      setCircuitType(i.circuit_type || "");
-      setMetric(i.metric != null ? String(i.metric) : "");
-      setPriority(i.priority != null ? String(i.priority) : "");
-      setPassive(i.passive);
-      setPointToPoint(i.point_to_point);
-      setBfd(i.bfd);
-      setBfdProfile(i.bfd_profile || "");
-      setHelloInterval(i.hello_interval != null ? String(i.hello_interval) : "");
-      setHelloMultiplier(i.hello_multiplier != null ? String(i.hello_multiplier) : "");
-      setHelloPadding(i.hello_padding);
-      setPsnpInterval(i.psnp_interval != null ? String(i.psnp_interval) : "");
-      setNoThreeWayHandshake(i.no_three_way_handshake);
-      setLdpSyncHolddown(i.ldp_sync_holddown != null ? String(i.ldp_sync_holddown) : "");
-      setLdpSyncDisable(i.ldp_sync_disable);
-      setPasswordMd5(i.password_md5 || "");
-      setPasswordPlaintext(i.password_plaintext || "");
-      setLfaLevel1(i.lfa.level1_enabled);
-      setLfaLevel2(i.lfa.level2_enabled);
-      setTiLfaLevel1(i.ti_lfa.level1_enabled);
-      setTiLfaLevel1NodeProtection(i.ti_lfa.level1_node_protection);
-      setTiLfaLevel1LinkFallback(i.ti_lfa.level1_link_fallback);
-      setTiLfaLevel2(i.ti_lfa.level2_enabled);
-      setTiLfaLevel2NodeProtection(i.ti_lfa.level2_node_protection);
-      setTiLfaLevel2LinkFallback(i.ti_lfa.level2_link_fallback);
-      setRemoteLfaLevel1(i.remote_lfa.level1_enabled);
-      setRemoteLfaLevel1MaxMetric(i.remote_lfa.level1_max_metric != null ? String(i.remote_lfa.level1_max_metric) : "");
-      setRemoteLfaLevel1TunnelMplsLdp(i.remote_lfa.level1_tunnel_mpls_ldp);
-      setRemoteLfaLevel2(i.remote_lfa.level2_enabled);
-      setRemoteLfaLevel2MaxMetric(i.remote_lfa.level2_max_metric != null ? String(i.remote_lfa.level2_max_metric) : "");
-      setRemoteLfaLevel2TunnelMplsLdp(i.remote_lfa.level2_tunnel_mpls_ldp);
-    } else {
-      setName("");
-      setCircuitType("");
-      setMetric("");
-      setPriority("");
-      setPassive(false);
-      setPointToPoint(false);
-      setBfd(false);
-      setBfdProfile("");
-      setHelloInterval("");
-      setHelloMultiplier("");
-      setHelloPadding(false);
-      setPsnpInterval("");
-      setNoThreeWayHandshake(false);
-      setLdpSyncHolddown("");
-      setLdpSyncDisable(false);
-      setPasswordMd5("");
-      setPasswordPlaintext("");
-      setLfaLevel1(false);
-      setLfaLevel2(false);
-      setTiLfaLevel1(false);
-      setTiLfaLevel1NodeProtection(false);
-      setTiLfaLevel1LinkFallback(false);
-      setTiLfaLevel2(false);
-      setTiLfaLevel2NodeProtection(false);
-      setTiLfaLevel2LinkFallback(false);
-      setRemoteLfaLevel1(false);
-      setRemoteLfaLevel1MaxMetric("");
-      setRemoteLfaLevel1TunnelMplsLdp(false);
-      setRemoteLfaLevel2(false);
-      setRemoteLfaLevel2MaxMetric("");
-      setRemoteLfaLevel2TunnelMplsLdp(false);
-    }
-  }, [open, existingInterface]);
+  const md5Stored = existingInterface?.password_md5;
+  const plainStored = existingInterface?.password_plaintext;
+  const passwordModes = isisPasswordModes(ISIS_PASSWORD_MODES, md5Stored, plainStored);
+  const otherInterfaces = interfaces.filter((i) => i.name !== form.name);
 
   const handleSubmit = async () => {
-    if (!name) {
-      setError(t("interfaceModal.selectInterfaceError"));
+    const problem = isisInterfaceProblem(existingInterface, form, { fastReroute });
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-
-    const iface: IsisInterface = {
-      name,
-      circuit_type: circuitType || null,
-      metric: metric.trim() ? parseInt(metric.trim(), 10) : null,
-      priority: priority.trim() ? parseInt(priority.trim(), 10) : null,
-      passive,
-      point_to_point: pointToPoint,
-      bfd,
-      bfd_profile: bfdProfile.trim() || null,
-      hello_interval: helloInterval.trim() ? parseInt(helloInterval.trim(), 10) : null,
-      hello_multiplier: helloMultiplier.trim() ? parseInt(helloMultiplier.trim(), 10) : null,
-      hello_padding: helloPadding,
-      psnp_interval: psnpInterval.trim() ? parseInt(psnpInterval.trim(), 10) : null,
-      no_three_way_handshake: noThreeWayHandshake,
-      ldp_sync_holddown: ldpSyncHolddown.trim() ? parseInt(ldpSyncHolddown.trim(), 10) : null,
-      ldp_sync_disable: ldpSyncDisable,
-      password_md5: passwordMd5.trim() || null,
-      password_plaintext: passwordPlaintext.trim() || null,
-      lfa: {
-        level1_enabled: lfaLevel1,
-        level1_exclude_interfaces: existingInterface?.lfa.level1_exclude_interfaces || [],
-        level2_enabled: lfaLevel2,
-        level2_exclude_interfaces: existingInterface?.lfa.level2_exclude_interfaces || [],
-      },
-      ti_lfa: {
-        enabled: tiLfaLevel1 || tiLfaLevel2,
-        level1_enabled: tiLfaLevel1,
-        level1_node_protection: tiLfaLevel1NodeProtection,
-        level1_link_fallback: tiLfaLevel1LinkFallback,
-        level2_enabled: tiLfaLevel2,
-        level2_node_protection: tiLfaLevel2NodeProtection,
-        level2_link_fallback: tiLfaLevel2LinkFallback,
-      },
-      remote_lfa: {
-        level1_enabled: remoteLfaLevel1,
-        level1_max_metric: remoteLfaLevel1MaxMetric.trim() ? parseInt(remoteLfaLevel1MaxMetric.trim(), 10) : null,
-        level1_tunnel_mpls_ldp: remoteLfaLevel1TunnelMplsLdp,
-        level2_enabled: remoteLfaLevel2,
-        level2_max_metric: remoteLfaLevel2MaxMetric.trim() ? parseInt(remoteLfaLevel2MaxMetric.trim(), 10) : null,
-        level2_tunnel_mpls_ldp: remoteLfaLevel2TunnelMplsLdp,
-      },
-    };
-
     try {
       setSaving(true);
       setError(null);
-      await onSubmit(iface);
+      await onSubmit(form);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("interfaceModal.saveFailed"));
+      setError((err as ApiError).message || t("interfaceModal.saveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
+  const numberField = (
+    id: string,
+    label: string,
+    key: "metric" | "priority" | "hello_interval" | "hello_multiplier" | "psnp_interval" | "ldp_sync_holddown",
+    range: IsisRange,
+    placeholder?: string,
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        value={form[key]}
+        onChange={(e) => set(key, e.target.value)}
+        placeholder={placeholder}
+        min={range.min}
+        max={range.max}
+      />
+    </div>
+  );
+
+  const check = (id: string, label: string, checked: boolean, onChange: (v: boolean) => void, disabled = false) => (
+    <div className="flex items-center gap-2">
+      <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={(c) => onChange(c === true)} />
+      <Label htmlFor={id}>{label}</Label>
+    </div>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!saving) onOpenChange(next); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? t("interfaceModal.titleEdit") : t("interfaceModal.titleAdd")}</DialogTitle>
-          <DialogDescription>
-            {t("interfaceModal.description")}
-          </DialogDescription>
+          <DialogDescription>{t("interfaceModal.description")}</DialogDescription>
         </DialogHeader>
 
         {error && (
@@ -268,322 +164,202 @@ export function IsisInterfaceModal({
             <TabsTrigger value="basic" className="flex-1">{t("interfaceModal.tabBasic")}</TabsTrigger>
             <TabsTrigger value="timers" className="flex-1">{t("interfaceModal.tabTimers")}</TabsTrigger>
             <TabsTrigger value="auth" className="flex-1">{t("interfaceModal.tabAuthentication")}</TabsTrigger>
-            <TabsTrigger value="frr" className="flex-1">{t("interfaceModal.tabFastReroute")}</TabsTrigger>
+            {fastReroute && (
+              <TabsTrigger value="frr" className="flex-1">{t("interfaceModal.tabFastReroute")}</TabsTrigger>
+            )}
           </TabsList>
 
-          {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>{t("fields.interface")} <span className="text-destructive">*</span></Label>
-              {isEdit ? (
-                <div className="h-9 flex items-center px-3 rounded-md border border-input bg-muted text-sm font-mono">
-                  {name}
-                </div>
-              ) : (
-                <InterfaceSelect
-                  value={name}
-                  onValueChange={setName}
-                  disabled={interfacesLoading}
-                  interfaces={interfaceNames}
-                  placeholder={tc("selectInterface")}
-                />
-              )}
+              <Label htmlFor="isis-iface-name">{t("fields.interface")}</Label>
+              <InterfaceSelect
+                id="isis-iface-name"
+                value={form.name}
+                onValueChange={(v) => set("name", v)}
+                disabled={isEdit}
+                className={isEdit ? "bg-muted" : ""}
+                interfaces={isEdit ? interfaces : interfaces.filter((i) => !configuredInterfaces.includes(i.name))}
+                placeholder={tc("selectInterface")}
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>{t("fields.circuitType")}</Label>
-              <Select value={circuitType} onValueChange={setCircuitType}>
-                <SelectTrigger>
+              <Label htmlFor="isis-iface-circuit">{t("fields.circuitType")}</Label>
+              <Select
+                value={form.circuit_type || NONE_SENTINEL}
+                onValueChange={(v) => set("circuit_type", v === NONE_SENTINEL ? "" : v)}
+              >
+                <SelectTrigger id="isis-iface-circuit">
                   <SelectValue placeholder={t("interfaceModal.circuitTypePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="level-1">{t("fields.level1Only")}</SelectItem>
-                  <SelectItem value="level-2">{t("fields.level2Only")}</SelectItem>
-                  <SelectItem value="level-1-2">{t("fields.level1And2")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{t("interfaceModal.circuitTypePlaceholder")}</SelectItem>
+                  {ISIS_CIRCUIT_TYPES.map((ct) => (
+                    <SelectItem key={ct} value={ct}>{ct}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("fields.metric")}</Label>
-                <Input
-                  type="number"
-                  value={metric}
-                  onChange={(e) => setMetric(e.target.value)}
-                  placeholder={tc("default")}
-                  min={1}
-                  max={16777214}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("interfaceModal.priorityDr")}</Label>
-                <Input
-                  type="number"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  placeholder={t("fields.defaultValue", { value: "64" })}
-                  min={0}
-                  max={127}
-                />
-              </div>
+              {numberField("isis-iface-metric", t("fields.metric"), "metric", ISIS_INTERFACE_METRIC, tc("default"))}
+              {numberField("isis-iface-priority", t("interfaceModal.priorityDr"), "priority", ISIS_PRIORITY,
+                t("fields.defaultValue", { value: "64" }))}
             </div>
 
             <Separator />
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <Checkbox id="passive" checked={passive} onCheckedChange={(c) => setPassive(!!c)} />
-                <Label htmlFor="passive">{t("interfaceModal.passiveSuppress")}</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="p2p" checked={pointToPoint} onCheckedChange={(c) => setPointToPoint(!!c)} />
-                <Label htmlFor="p2p">{t("interfaceModal.pointToPoint")}</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="bfd" checked={bfd} onCheckedChange={(c) => setBfd(!!c)} />
-                <Label htmlFor="bfd">BFD</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="hello-padding" checked={helloPadding} onCheckedChange={(c) => setHelloPadding(!!c)} />
-                <Label htmlFor="hello-padding">{t("interfaceModal.helloPadding")}</Label>
-              </div>
+              {check("isis-iface-passive", t("interfaceModal.passiveSuppress"), form.passive, (v) => set("passive", v))}
+              {check("isis-iface-p2p", t("interfaceModal.pointToPoint"), form.point_to_point, (v) => set("point_to_point", v))}
+              {check("isis-iface-bfd", t("interfaceModal.bfd"), form.bfd, (v) => set("bfd", v))}
+              {check("isis-iface-hello-padding", t("interfaceModal.helloPadding"), form.hello_padding,
+                (v) => set("hello_padding", v))}
             </div>
 
-            {bfd && (
-              <div className="space-y-2">
-                <Label>{t("interfaceModal.bfdProfile")}</Label>
-                <Input
-                  value={bfdProfile}
-                  onChange={(e) => setBfdProfile(e.target.value)}
-                  placeholder={t("interfaceModal.bfdProfilePlaceholder")}
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="isis-iface-bfd-profile">{t("interfaceModal.bfdProfile")}</Label>
+              <NamedListSelect
+                id="isis-iface-bfd-profile"
+                value={form.bfd_profile}
+                names={bfdProfileNames}
+                onValueChange={(v) => set("bfd_profile", v)}
+                disabled={!form.bfd}
+              />
+            </div>
           </TabsContent>
 
-          {/* Timers Tab */}
           <TabsContent value="timers" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("interfaceModal.helloInterval")}</Label>
-                <Input
-                  type="number"
-                  value={helloInterval}
-                  onChange={(e) => setHelloInterval(e.target.value)}
-                  placeholder={t("fields.defaultValue", { value: "3" })}
-                  min={1}
-                  max={600}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("interfaceModal.helloMultiplier")}</Label>
-                <Input
-                  type="number"
-                  value={helloMultiplier}
-                  onChange={(e) => setHelloMultiplier(e.target.value)}
-                  placeholder={t("fields.defaultValue", { value: "10" })}
-                  min={2}
-                  max={100}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("interfaceModal.psnpInterval")}</Label>
-                <Input
-                  type="number"
-                  value={psnpInterval}
-                  onChange={(e) => setPsnpInterval(e.target.value)}
-                  placeholder={t("fields.defaultValue", { value: "2000" })}
-                  min={100}
-                  max={60000}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("fields.ldpSyncHolddown")}</Label>
-                <Input
-                  type="number"
-                  value={ldpSyncHolddown}
-                  onChange={(e) => setLdpSyncHolddown(e.target.value)}
-                  placeholder={tc("disabled")}
-                  min={1}
-                  max={10000}
-                />
-              </div>
+              {numberField("isis-iface-hello", t("interfaceModal.helloInterval"), "hello_interval", ISIS_HELLO_INTERVAL,
+                t("fields.defaultValue", { value: "3" }))}
+              {numberField("isis-iface-multiplier", t("interfaceModal.helloMultiplier"), "hello_multiplier",
+                ISIS_HELLO_MULTIPLIER, t("fields.defaultValue", { value: "10" }))}
+              {numberField("isis-iface-psnp", t("interfaceModal.psnpInterval"), "psnp_interval", ISIS_PSNP_INTERVAL,
+                t("fields.defaultValue", { value: "2" }))}
+              {numberField("isis-iface-ldp-holddown", t("fields.ldpSyncHolddown"), "ldp_sync_holddown",
+                ISIS_LDP_SYNC_HOLDDOWN, tc("notSet"))}
             </div>
 
             <Separator />
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <Checkbox id="no-3way" checked={noThreeWayHandshake} onCheckedChange={(c) => setNoThreeWayHandshake(!!c)} />
-                <Label htmlFor="no-3way">{t("interfaceModal.disableThreeWayHandshake")}</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="ldp-sync-disable" checked={ldpSyncDisable} onCheckedChange={(c) => setLdpSyncDisable(!!c)} />
-                <Label htmlFor="ldp-sync-disable">{t("interfaceModal.disableLdpSync")}</Label>
-              </div>
+              {check("isis-iface-no-3way", t("interfaceModal.disableThreeWayHandshake"), form.no_three_way_handshake,
+                (v) => set("no_three_way_handshake", v))}
+              {check("isis-iface-ldp-disable", t("interfaceModal.disableLdpSync"), form.ldp_sync_disable,
+                (v) => set("ldp_sync_disable", v))}
             </div>
           </TabsContent>
 
-          {/* Authentication Tab */}
           <TabsContent value="auth" className="space-y-4 mt-4">
-            <p className="text-sm text-muted-foreground">
-              {t("interfaceModal.authHelp")}
-            </p>
             <div className="space-y-2">
-              <Label>{t("interfaceModal.md5Password")}</Label>
-              <Input
-                type="password"
-                value={passwordMd5}
-                onChange={(e) => setPasswordMd5(e.target.value)}
-                placeholder={t("interfaceModal.md5PasswordPlaceholder")}
-              />
+              <Label htmlFor="isis-iface-pw-mode">{t("password.mode")}</Label>
+              <Select
+                value={form.password.mode || NONE_SENTINEL}
+                onValueChange={(v) => set("password", isisPasswordForMode(
+                  md5Stored, plainStored, (v === NONE_SENTINEL ? "" : v) as IsisPasswordMode,
+                ))}
+              >
+                <SelectTrigger id="isis-iface-pw-mode">
+                  <SelectValue placeholder={tc("none")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
+                  {passwordModes.map((mode) => (
+                    <SelectItem key={mode} value={mode}>{mode}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t("interfaceModal.plaintextPassword")}</Label>
+              <Label htmlFor="isis-iface-pw">{t("password.value")}</Label>
               <Input
+                id="isis-iface-pw"
                 type="password"
-                value={passwordPlaintext}
-                onChange={(e) => setPasswordPlaintext(e.target.value)}
-                placeholder={t("interfaceModal.plaintextPasswordPlaceholder")}
+                autoComplete="new-password"
+                value={form.password.password}
+                disabled={!form.password.mode}
+                onChange={(e) => set("password", { ...form.password, password: e.target.value })}
               />
             </div>
           </TabsContent>
 
-          {/* Fast Reroute Tab */}
-          <TabsContent value="frr" className="space-y-4 mt-4">
-            {/* LFA */}
-            <div>
-              <h4 className="text-sm font-medium mb-3">{t("interfaceModal.lfaTitle")}</h4>
-              <div className="space-y-2 pl-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox id="lfa-l1" checked={lfaLevel1} onCheckedChange={(c) => setLfaLevel1(!!c)} />
-                  <Label htmlFor="lfa-l1">{t("interfaceModal.enableLfaL1")}</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="lfa-l2" checked={lfaLevel2} onCheckedChange={(c) => setLfaLevel2(!!c)} />
-                  <Label htmlFor="lfa-l2">{t("interfaceModal.enableLfaL2")}</Label>
+          {fastReroute && (
+            <TabsContent value="frr" className="space-y-4 mt-4">
+              <h4 className="text-sm font-medium">{t("interfaceModal.lfaTitle")}</h4>
+              {ISIS_FRR_LEVELS.map(({ key, n }) => {
+                const lvl = form[key];
+                return (
+                  <div key={key} className="space-y-3">
+                    <div className="space-y-3 pl-4">
+                      {check(`isis-lfa-${n}`, t(n === 1 ? "interfaceModal.enableLfaL1" : "interfaceModal.enableLfaL2"),
+                        lvl.lfa, (v) => setLevel(key, { lfa: v }))}
+                      <div className="space-y-2">
+                        <Label htmlFor={`isis-lfa-${n}-exclude`}>{t("interfaceModal.excludeInterfaces")}</Label>
+                        <InterfaceMultiSelect
+                          id={`isis-lfa-${n}-exclude`}
+                          values={lvl.exclude}
+                          onChange={(values) => setLevel(key, { exclude: values })}
+                          interfaces={otherInterfaces}
+                        />
+                      </div>
+                      {check(`isis-rlfa-${n}`,
+                        t(n === 1 ? "interfaceModal.enableRemoteLfaL1" : "interfaceModal.enableRemoteLfaL2"),
+                        lvl.remoteLfa, (v) => setLevel(key, { remoteLfa: v }))}
+                      <div className="pl-6 grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label htmlFor={`isis-rlfa-${n}-metric`} className="text-xs">{t("interfaceModal.maxMetric")}</Label>
+                          <Input
+                            id={`isis-rlfa-${n}-metric`}
+                            type="number"
+                            value={lvl.remoteMaxMetric}
+                            disabled={!lvl.remoteLfa}
+                            onChange={(e) => setLevel(key, { remoteMaxMetric: e.target.value })}
+                            placeholder={t("interfaceModal.unlimited")}
+                            min={ISIS_REMOTE_LFA_MAX_METRIC.min}
+                            max={ISIS_REMOTE_LFA_MAX_METRIC.max}
+                          />
+                        </div>
+                        <div className="flex items-end pb-1">
+                          {check(`isis-rlfa-${n}-ldp`, t("interfaceModal.mplsLdpTunnel"), lvl.remoteTunnelMplsLdp,
+                            (v) => setLevel(key, { remoteTunnelMplsLdp: v }), !lvl.remoteLfa)}
+                        </div>
+                      </div>
+                    </div>
+                    <Separator />
+                  </div>
+                );
+              })}
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">{t("interfaceModal.tiLfaTitle")}</h4>
+                <div className="space-y-2 pl-4">
+                  {check("isis-tilfa", t("interfaceModal.enableTiLfa"), form.tiLfa, (v) => set("tiLfa", v))}
+                  {ISIS_FRR_LEVELS.map(({ key, n }) => {
+                    const lvl = form[key];
+                    const levelOn = form.tiLfa && lvl.tiLfa;
+                    return (
+                      <div key={key} className="space-y-2 pl-4">
+                        {check(`isis-tilfa-${n}`,
+                          t(n === 1 ? "interfaceModal.enableTiLfaL1" : "interfaceModal.enableTiLfaL2"),
+                          lvl.tiLfa, (v) => setLevel(key, { tiLfa: v }), !form.tiLfa)}
+                        <div className="pl-6 space-y-2">
+                          {check(`isis-tilfa-${n}-np`, t("interfaceModal.nodeProtection"), lvl.nodeProtection,
+                            (v) => setLevel(key, { nodeProtection: v }), !levelOn)}
+                          {check(`isis-tilfa-${n}-lf`, t("interfaceModal.linkFallback"), lvl.linkFallback,
+                            (v) => setLevel(key, { linkFallback: v }), !levelOn || !lvl.nodeProtection)}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
-
-            {/* TI-LFA */}
-            {tiLfaSupported && (
-              <>
-                <Separator />
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <h4 className="text-sm font-medium">{t("interfaceModal.tiLfaTitle")}</h4>
-                  </div>
-                  <div className="space-y-2 pl-4">
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="tilfa-l1" checked={tiLfaLevel1} onCheckedChange={(c) => setTiLfaLevel1(!!c)} />
-                      <Label htmlFor="tilfa-l1">{t("interfaceModal.enableTiLfaL1")}</Label>
-                    </div>
-                    {tiLfaLevel1 && (
-                      <div className="pl-6 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Checkbox id="tilfa-l1-np" checked={tiLfaLevel1NodeProtection} onCheckedChange={(c) => setTiLfaLevel1NodeProtection(!!c)} />
-                          <Label htmlFor="tilfa-l1-np">{t("interfaceModal.nodeProtection")}</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox id="tilfa-l1-lf" checked={tiLfaLevel1LinkFallback} onCheckedChange={(c) => setTiLfaLevel1LinkFallback(!!c)} />
-                          <Label htmlFor="tilfa-l1-lf">{t("interfaceModal.linkFallback")}</Label>
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="tilfa-l2" checked={tiLfaLevel2} onCheckedChange={(c) => setTiLfaLevel2(!!c)} />
-                      <Label htmlFor="tilfa-l2">{t("interfaceModal.enableTiLfaL2")}</Label>
-                    </div>
-                    {tiLfaLevel2 && (
-                      <div className="pl-6 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Checkbox id="tilfa-l2-np" checked={tiLfaLevel2NodeProtection} onCheckedChange={(c) => setTiLfaLevel2NodeProtection(!!c)} />
-                          <Label htmlFor="tilfa-l2-np">{t("interfaceModal.nodeProtection")}</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox id="tilfa-l2-lf" checked={tiLfaLevel2LinkFallback} onCheckedChange={(c) => setTiLfaLevel2LinkFallback(!!c)} />
-                          <Label htmlFor="tilfa-l2-lf">{t("interfaceModal.linkFallback")}</Label>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {remoteLfaSupported && (
-              <>
-                <Separator />
-
-                {/* Remote LFA */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <h4 className="text-sm font-medium">{t("interfaceModal.remoteLfa")}</h4>
-                  </div>
-                  <div className="space-y-3 pl-4">
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="rlfa-l1" checked={remoteLfaLevel1} onCheckedChange={(c) => setRemoteLfaLevel1(!!c)} />
-                      <Label htmlFor="rlfa-l1">{t("interfaceModal.enableRemoteLfaL1")}</Label>
-                    </div>
-                    {remoteLfaLevel1 && (
-                      <div className="pl-6 grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">{t("interfaceModal.maxMetric")}</Label>
-                          <Input
-                            type="number"
-                            value={remoteLfaLevel1MaxMetric}
-                            onChange={(e) => setRemoteLfaLevel1MaxMetric(e.target.value)}
-                            placeholder={t("interfaceModal.unlimited")}
-                          />
-                        </div>
-                        <div className="flex items-end pb-1">
-                          <div className="flex items-center gap-2">
-                            <Checkbox id="rlfa-l1-ldp" checked={remoteLfaLevel1TunnelMplsLdp} onCheckedChange={(c) => setRemoteLfaLevel1TunnelMplsLdp(!!c)} />
-                            <Label htmlFor="rlfa-l1-ldp">{t("interfaceModal.mplsLdpTunnel")}</Label>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="rlfa-l2" checked={remoteLfaLevel2} onCheckedChange={(c) => setRemoteLfaLevel2(!!c)} />
-                      <Label htmlFor="rlfa-l2">{t("interfaceModal.enableRemoteLfaL2")}</Label>
-                    </div>
-                    {remoteLfaLevel2 && (
-                      <div className="pl-6 grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">{t("interfaceModal.maxMetric")}</Label>
-                          <Input
-                            type="number"
-                            value={remoteLfaLevel2MaxMetric}
-                            onChange={(e) => setRemoteLfaLevel2MaxMetric(e.target.value)}
-                            placeholder={t("interfaceModal.unlimited")}
-                          />
-                        </div>
-                        <div className="flex items-end pb-1">
-                          <div className="flex items-center gap-2">
-                            <Checkbox id="rlfa-l2-ldp" checked={remoteLfaLevel2TunnelMplsLdp} onCheckedChange={(c) => setRemoteLfaLevel2TunnelMplsLdp(!!c)} />
-                            <Label htmlFor="rlfa-l2-ldp">{t("interfaceModal.mplsLdpTunnel")}</Label>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {!tiLfaSupported && !remoteLfaSupported && (
-              <p className="text-sm text-muted-foreground">
-                {t("interfaceModal.frrNotSupported")}
-              </p>
-            )}
-          </TabsContent>
+            </TabsContent>
+          )}
         </Tabs>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
