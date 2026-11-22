@@ -123,13 +123,22 @@ export function IgmpProxyContent() {
   // Determine if config has both upstream and downstream (valid base config)
   const hasValidBaseConfig = upstreamCount >= 1 && downstreamCount >= 1;
 
-  // Filtered interfaces
+  /** The label the table shows for a role; the search matches it as well as the CLI value. */
+  const roleLabel = (role: string | null) => {
+    if (role === "upstream") return t("upstream");
+    if (role === "downstream") return t("downstream");
+    if (role === "disabled") return tc("disabled");
+    return "";
+  };
+
+  // Filtered interfaces. Write controls stay disabled while `refreshing`, so nothing acts on the stale rows.
   const query = searchQuery.trim().toLowerCase();
   const filteredInterfaces = (config?.interfaces ?? []).filter(
     (iface) =>
       !query ||
       iface.name.toLowerCase().includes(query) ||
       (iface.role && iface.role.toLowerCase().includes(query)) ||
+      roleLabel(iface.role).toLowerCase().includes(query) ||
       iface.alt_subnets.some((s) => s.includes(query)) ||
       iface.whitelists.some((w) => w.includes(query))
   );
@@ -235,20 +244,20 @@ export function IgmpProxyContent() {
         return (
           <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">
             <ArrowUpFromLine className="h-3 w-3 mr-1" />
-            {t("upstream")}
+            {roleLabel(role)}
           </Badge>
         );
       case "downstream":
         return (
           <Badge variant="secondary" className="bg-green-500/10 text-green-600">
             <ArrowDownToLine className="h-3 w-3 mr-1" />
-            {t("downstream")}
+            {roleLabel(role)}
           </Badge>
         );
       case "disabled":
         return (
           <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-            {tc("disabled")}
+            {roleLabel(role)}
           </Badge>
         );
       default:
@@ -319,7 +328,7 @@ export function IgmpProxyContent() {
                       id="igmp-proxy-enabled"
                       checked={!config?.disabled}
                       onCheckedChange={() => openToggle("disable")}
-                      disabled={!hasWritePermission}
+                      disabled={!hasWritePermission || refreshing}
                     />
                     <div className="min-w-0">
                       <label
@@ -346,7 +355,7 @@ export function IgmpProxyContent() {
                       id="igmp-quickleave"
                       checked={!config?.disable_quickleave}
                       onCheckedChange={() => openToggle("quickleave")}
-                      disabled={!hasWritePermission}
+                      disabled={!hasWritePermission || refreshing}
                     />
                     <div className="min-w-0">
                       <label
@@ -430,6 +439,7 @@ export function IgmpProxyContent() {
                 <Button
                   size="sm"
                   onClick={() => openInterfaceModal(null)}
+                  disabled={refreshing}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   {tc("addInterface")}
@@ -449,7 +459,7 @@ export function IgmpProxyContent() {
                   {t("content.noInterfacesHint")}
                 </p>
                 {hasWritePermission && (
-                  <Button size="sm" onClick={openSetup}>
+                  <Button size="sm" onClick={openSetup} disabled={refreshing}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("setupProxy")}
                   </Button>
@@ -537,6 +547,7 @@ export function IgmpProxyContent() {
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => openInterfaceModal(iface)}
+                                disabled={refreshing}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -545,6 +556,7 @@ export function IgmpProxyContent() {
                                 size="icon"
                                 className="h-8 w-8 text-destructive hover:text-destructive"
                                 onClick={() => openDelete(iface.name)}
+                                disabled={refreshing}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
