@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -23,88 +23,66 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
-import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import type { ApiError } from "@/lib/types/api";
+import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
+import { IGMP_DEFAULT_ROLE, IGMP_THRESHOLD, igmpThreshold } from "./igmp-proxy-form";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 
 interface IgmpProxyInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (iface: IgmpProxyInterface) => Promise<void>;
   existingInterface?: IgmpProxyInterface | null;
+  /** Interfaces already under the IGMP proxy: the add picker leaves them out, and only one may be upstream. */
+  configured: IgmpProxyInterface[];
 }
 
+/** The parent remounts this modal (new `key`) on every open, so the fields start from the props. */
 export function IgmpProxyInterfaceModal({
   open,
   onOpenChange,
   onSubmit,
   existingInterface,
+  configured,
 }: IgmpProxyInterfaceModalProps) {
   const t = useTranslations("igmpProxy");
   const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
-  // Available interfaces from VyOS
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [, setInterfacesLoading] = useState(false);
-
   // Form state
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("");
-  const [threshold, setThreshold] = useState("");
-  const [altSubnets, setAltSubnets] = useState<string[]>([]);
+  const [name, setName] = useState(existingInterface?.name ?? "");
+  // NONE_SENTINEL keeps the role leaf unset (the router then uses downstream).
+  const [role, setRole] = useState(existingInterface?.role || NONE_SENTINEL);
+  const [threshold, setThreshold] = useState(
+    existingInterface?.threshold != null ? String(existingInterface.threshold) : ""
+  );
+  const [altSubnets, setAltSubnets] = useState<string[]>(existingInterface?.alt_subnets ?? []);
   const [newAltSubnet, setNewAltSubnet] = useState("");
-  const [whitelists, setWhitelists] = useState<string[]>([]);
+  const [whitelists, setWhitelists] = useState<string[]>(existingInterface?.whitelists ?? []);
   const [newWhitelist, setNewWhitelist] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      if (existingInterface) {
-        setName(existingInterface.name);
-        setRole(existingInterface.role || "");
-        setThreshold(
-          existingInterface.threshold != null
-            ? String(existingInterface.threshold)
-            : ""
-        );
-        setAltSubnets([...existingInterface.alt_subnets]);
-        setWhitelists([...existingInterface.whitelists]);
-      } else {
-        resetForm();
-      }
-      loadInterfaces();
-    }
-  }, [open, existingInterface]);
-
-  const loadInterfaces = async () => {
-    setInterfacesLoading(true);
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch {
-      // Non-critical
-    } finally {
-      setInterfacesLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setName("");
-    setRole("");
-    setThreshold("");
-    setAltSubnets([]);
-    setNewAltSubnet("");
-    setWhitelists([]);
-    setNewWhitelist("");
-    setError(null);
-  };
+  const configuredNames = configured.map((i) => i.name);
+  // VyOS allows one upstream interface.
+  const upstreamTaken = configured.some(
+    (i) => i.role === "upstream" && i.name !== existingInterface?.name
+  );
 
   const handleClose = () => {
-    resetForm();
     onOpenChange(false);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true);
+      return;
+    }
+    if (loading) return;
+    handleClose();
   };
 
   const validateForm = (): string | null => {
@@ -112,25 +90,18 @@ export function IgmpProxyInterfaceModal({
       return t("interfaceModal.interfaceRequired");
     }
 
-    if (!role) {
-      return t("interfaceModal.roleRequired");
-    }
-
-    if (threshold.trim()) {
-      const val = parseInt(threshold.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 255) {
-        return t("interfaceModal.thresholdRange");
-      }
+    if (threshold.trim() && igmpThreshold(threshold) === null) {
+      return t("interfaceModal.thresholdRange", IGMP_THRESHOLD);
     }
 
     for (const subnet of altSubnets) {
-      if (!subnet.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/)) {
+      if (!isIPv4Prefix(subnet)) {
         return t("interfaceModal.invalidAltSubnet", { value: subnet });
       }
     }
 
     for (const wl of whitelists) {
-      if (!wl.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/)) {
+      if (!isIPv4Prefix(wl)) {
         return t("interfaceModal.invalidWhitelist", { value: wl });
       }
     }
@@ -183,8 +154,8 @@ export function IgmpProxyInterfaceModal({
     try {
       const iface: IgmpProxyInterface = {
         name,
-        role: role || null,
-        threshold: threshold.trim() ? parseInt(threshold.trim(), 10) : null,
+        role: role === NONE_SENTINEL ? null : role,
+        threshold: threshold.trim() ? igmpThreshold(threshold) : null,
         alt_subnets: altSubnets,
         whitelists: whitelists,
       };
@@ -192,15 +163,14 @@ export function IgmpProxyInterfaceModal({
       await onSubmit(iface);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -228,13 +198,10 @@ export function IgmpProxyInterfaceModal({
                 <InterfaceSelect
                   value={name}
                   onValueChange={setName}
-                  interfaces={availableInterfaces}
+                  filter={(iface) => !configuredNames.includes(iface.name)}
                   placeholder={tc("selectInterface")}
                 />
               )}
-              <p className="text-xs text-muted-foreground">
-                {t("interfaceModal.interfaceHelp")}
-              </p>
             </div>
 
             {/* Role */}
@@ -242,17 +209,17 @@ export function IgmpProxyInterfaceModal({
               <Label>{t("interfaceModal.role")}</Label>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("interfaceModal.selectRole")} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="upstream">{t("upstream")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>
+                    {t("interfaceModal.roleDefault", { role: t(IGMP_DEFAULT_ROLE) })}
+                  </SelectItem>
+                  {!upstreamTaken && <SelectItem value="upstream">{t("upstream")}</SelectItem>}
                   <SelectItem value="downstream">{t("downstream")}</SelectItem>
                   <SelectItem value="disabled">{tc("disabled")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                {t("interfaceModal.roleHelp")}
-              </p>
             </div>
 
             {/* Threshold */}
@@ -264,27 +231,19 @@ export function IgmpProxyInterfaceModal({
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
                 placeholder={t("thresholdPlaceholder")}
-                min={1}
-                max={255}
+                min={IGMP_THRESHOLD.min}
+                max={IGMP_THRESHOLD.max}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("interfaceModal.thresholdHelp")}
-              </p>
             </div>
 
             {/* Alt Subnets */}
             <div className="space-y-3">
-              <div>
-                <Label>{t("alternateSubnets")}</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("interfaceModal.altSubnetsHelp")}
-                </p>
-              </div>
+              <Label>{t("alternateSubnets")}</Label>
 
               {altSubnets.length > 0 && (
                 <div className="space-y-2">
                   {altSubnets.map((subnet, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={subnet} className="flex items-center gap-2">
                       <div className="flex-1 px-3 py-2 rounded-md border bg-muted font-mono text-sm">
                         {subnet}
                       </div>
@@ -326,17 +285,12 @@ export function IgmpProxyInterfaceModal({
 
             {/* Whitelists */}
             <div className="space-y-3">
-              <div>
-                <Label>{t("whitelist")}</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("interfaceModal.whitelistHelp")}
-                </p>
-              </div>
+              <Label>{t("whitelist")}</Label>
 
               {whitelists.length > 0 && (
                 <div className="space-y-2">
                   {whitelists.map((wl, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={wl} className="flex items-center gap-2">
                       <div className="flex-1 px-3 py-2 rounded-md border bg-muted font-mono text-sm">
                         {wl}
                       </div>

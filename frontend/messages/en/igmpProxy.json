@@ -38,8 +38,7 @@
   },
   "interfaceModal": {
     "interfaceRequired": "Interface is required",
-    "roleRequired": "Interface role is required",
-    "thresholdRange": "Threshold must be between 1 and 255",
+    "thresholdRange": "Threshold must be between {min} and {max}",
     "invalidAltSubnet": "Invalid alt-subnet format: {value}. Use CIDR notation (e.g., 10.0.0.0/8)",
     "invalidWhitelist": "Invalid whitelist format: {value}. Use CIDR notation (e.g., 239.0.0.0/8)",
     "altSubnetExists": "Alt-subnet already exists",
@@ -47,30 +46,28 @@
     "editTitle": "Edit Interface",
     "editDescription": "Modify the IGMP proxy configuration for {name}.",
     "addDescription": "Add a new interface to the IGMP proxy configuration.",
-    "interfaceHelp": "Network interface to participate in IGMP proxy.",
     "role": "Role",
-    "selectRole": "Select interface role",
-    "roleHelp": "Upstream receives multicast from the source network. Downstream forwards multicast to client networks.",
-    "thresholdHelp": "Minimum TTL required for multicast packets to be forwarded (1-255).",
-    "altSubnetsHelp": "Allow multicast from sources outside the directly connected subnet. Typically used on the upstream interface.",
-    "whitelistHelp": "Only proxy multicast traffic for these group address ranges. Leave empty to allow all groups."
+    "roleDefault": "Default ({role})"
   },
   "setupModal": {
     "upstreamRequired": "Upstream interface is required",
     "downstreamRequired": "Downstream interface is required",
-    "mustDiffer": "Upstream and downstream must be different interfaces",
-    "upstreamThresholdRange": "Upstream threshold must be between 1 and 255",
-    "downstreamThresholdRange": "Downstream threshold must be between 1 and 255",
+    "upstreamThresholdRange": "Upstream threshold must be between {min} and {max}",
+    "downstreamThresholdRange": "Downstream threshold must be between {min} and {max}",
     "invalidUpstreamAltSubnet": "Invalid upstream alt-subnet: {value}. Use CIDR notation (e.g., 10.0.0.0/8)",
     "invalidWhitelist": "Invalid whitelist: {value}. Use CIDR notation (e.g., 239.0.0.0/8)",
     "entryExists": "Entry already exists",
     "description": "IGMP proxy requires at least one upstream and one downstream interface. Configure both to get started.",
     "upstreamInterface": "Upstream Interface",
-    "upstreamHelp": "Receives multicast traffic from the source network.",
-    "altSubnetsHelp": "Allow multicast from sources outside the directly connected subnet.",
-    "whitelistHelp": "Only proxy these multicast group ranges. Leave empty for all.",
     "downstreamInterface": "Downstream Interface",
-    "downstreamHelp": "Forwards multicast traffic to the client network.",
     "settingUp": "Setting up..."
+  },
+  "confirm": {
+    "title": "Apply IGMP proxy change",
+    "apply": "Apply",
+    "disableProxy": "Disable the IGMP proxy?",
+    "enableProxy": "Enable the IGMP proxy?",
+    "disableQuickleave": "Disable quickleave?",
+    "enableQuickleave": "Enable quickleave?"
   }
 }
