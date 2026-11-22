@@ -26,7 +26,7 @@ import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { ApiError } from "@/lib/types/api";
 import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
-import { IGMP_THRESHOLD, igmpThreshold } from "@/lib/api/igmp-proxy-form";
+import { IGMP_THRESHOLD, igmpThreshold } from "./igmp-proxy-form";
 
 interface IgmpProxyInterfaceModalProps {
   open: boolean;
