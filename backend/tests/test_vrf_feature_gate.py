@@ -98,6 +98,17 @@ def test_path_prefix_has_no_version_check():
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5", ROLLING])
+def test_capabilities_have_no_version_info(version):
+    assert "version_info" not in VrfBatchBuilder(version).get_capabilities()
+    builder_src = (ROOT / "vyos_builders" / "vrf" / "vrf_batch_builder.py").read_text()
+    assert "version_info" not in builder_src
+    assert '"1.4"' not in builder_src and '"1.5"' not in builder_src
+    assert "is_1_4" not in builder_src and "is_1_5" not in builder_src
+    client_src = (ROOT.parent / "frontend" / "src" / "lib" / "api" / "vrf.ts").read_text()
+    assert "version_info" not in client_src
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5", ROLLING])
 def test_capabilities_follow_the_mapper(version):
     features = VrfBatchBuilder(version).get_capabilities()["features"]
     expected = "1.4" not in version

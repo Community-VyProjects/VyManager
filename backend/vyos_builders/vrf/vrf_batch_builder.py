@@ -188,8 +188,6 @@ class VrfBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_5 = "1.5" in self.version or "latest" in self.version
-        is_1_4 = "1.4" in self.version
         vrf_mapper = self.m
         static_mapper = cast(StaticRoutesMapper, self.mappers["static_routes"])
         # VRF OSPF ops run the global OSPF builder, so its allowlist decides.
@@ -305,9 +303,5 @@ class VrfBatchBuilder(BatchBuilder):
                     "supported": bool(vrf_bgp.l2vpn_evpn_control_flags()),
                     "description": "BGP L2VPN EVPN address-family control flags",
                 },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
             },
         }

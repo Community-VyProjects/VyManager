@@ -289,10 +289,6 @@ export interface VrfCapabilities {
     bgp_redistribute_nhrp: VrfFeatureFlag;
     l2vpn_evpn_control_flags: VrfFeatureFlag;
   };
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
-  };
   instance_name?: string;
   instance_id?: string;
 }
