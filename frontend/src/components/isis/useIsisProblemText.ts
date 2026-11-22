@@ -31,7 +31,8 @@ const LABEL_KEYS = {
   tiebreakerIndex: "advanced.index",
   areaPassword: "password.area",
   domainPassword: "password.domain",
-  interfacePassword: "password.value",
+  interfaceMd5Password: "password.md5",
+  interfacePlaintextPassword: "password.plaintext",
 } as const satisfies Record<IsisLabel, string>;
 
 /** Turns a save-check result into its translated message. */

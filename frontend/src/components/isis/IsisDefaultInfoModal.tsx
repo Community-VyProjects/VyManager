@@ -27,8 +27,8 @@ import type { ApiError } from "@/lib/types/api";
 import {
   ISIS_FAMILIES,
   ISIS_ROUTE_METRIC,
-  ISIS_SPLIT_LEVELS,
   isisDefaultInfoForm,
+  isisDefaultInfoFreeLevels,
   isisDefaultInfoProblem,
   type IsisDefaultInfoForm,
   type IsisFamily,
@@ -63,6 +63,8 @@ export function IsisDefaultInfoModal({
   const [error, setError] = useState<string | null>(null);
   const [family, setFamily] = useState<IsisFamily>(existing?.family ?? "ipv4");
   const [form, setForm] = useState<IsisDefaultInfoForm>(() => isisDefaultInfoForm(existing?.entry ?? null));
+  // Add offers only levels the family has no default-information at yet.
+  const levelOptions: readonly string[] = isEdit ? [form.level] : isisDefaultInfoFreeLevels(entries[family]);
 
   const handleSubmit = async () => {
     const original = existing?.entry ?? null;
@@ -101,7 +103,7 @@ export function IsisDefaultInfoModal({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="isis-di-family">{t("fields.addressFamily")}</Label>
-            <Select value={family} disabled={isEdit} onValueChange={(v) => setFamily(v as IsisFamily)}>
+            <Select value={family} disabled={isEdit} onValueChange={(v) => { setFamily(v as IsisFamily); setForm({ ...form, level: "" }); }}>
               <SelectTrigger id="isis-di-family">
                 <SelectValue />
               </SelectTrigger>
@@ -119,7 +121,7 @@ export function IsisDefaultInfoModal({
                 <SelectValue placeholder={t("fields.selectLevel")} />
               </SelectTrigger>
               <SelectContent>
-                {ISIS_SPLIT_LEVELS.map((l) => (
+                {levelOptions.map((l) => (
                   <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}
               </SelectContent>

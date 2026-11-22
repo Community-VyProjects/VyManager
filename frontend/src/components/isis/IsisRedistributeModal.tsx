@@ -28,6 +28,8 @@ import {
   ISIS_ROUTE_METRIC,
   ISIS_SPLIT_LEVELS,
   isisRedistributeForm,
+  isisRedistributeFreeLevels,
+  isisRedistributeFreeProtocols,
   isisRedistributeProblem,
   type IsisFamily,
   type IsisRedistributeForm,
@@ -44,6 +46,8 @@ interface IsisRedistributeModalProps {
   entries: Record<IsisFamily, IsisRedistributeEntry[]>;
   routeMapNames: string[];
   capabilities: IsisCapabilities | null;
+  /** Global ``level``; verify rejects redistribute at the other single level. */
+  globalLevel: string | null;
 }
 
 /** Mount with a fresh ``key`` per open: the form is read once from ``existing``. */
@@ -55,6 +59,7 @@ export function IsisRedistributeModal({
   entries,
   routeMapNames,
   capabilities,
+  globalLevel,
 }: IsisRedistributeModalProps) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
@@ -66,11 +71,17 @@ export function IsisRedistributeModal({
   const [form, setForm] = useState<IsisRedistributeForm>(() => isisRedistributeForm(existing?.entry ?? null));
 
   const protocols = capabilities?.redistribute_protocols[family] ?? [];
-  const protocolOptions = form.protocol && !protocols.includes(form.protocol) ? [form.protocol, ...protocols] : protocols;
+  // Add offers only combinations that are not configured yet; Edit shows the entry's own.
+  const protocolOptions = isEdit
+    ? [form.protocol]
+    : isisRedistributeFreeProtocols(entries[family], protocols);
+  const levelOptions: readonly string[] = isEdit
+    ? [form.level]
+    : form.protocol ? isisRedistributeFreeLevels(entries[family], form.protocol) : ISIS_SPLIT_LEVELS;
 
   const handleSubmit = async () => {
     const original = existing?.entry ?? null;
-    const problem = isisRedistributeProblem(original, form, entries[family]);
+    const problem = isisRedistributeProblem(original, form, entries[family], globalLevel);
     if (problem) {
       setError(problemText(problem));
       return;
@@ -108,7 +119,7 @@ export function IsisRedistributeModal({
             <Select
               value={family}
               disabled={isEdit}
-              onValueChange={(v) => { setFamily(v as IsisFamily); setForm({ ...form, protocol: "" }); }}
+              onValueChange={(v) => { setFamily(v as IsisFamily); setForm({ ...form, protocol: "", level: "" }); }}
             >
               <SelectTrigger id="isis-redist-family">
                 <SelectValue />
@@ -123,7 +134,7 @@ export function IsisRedistributeModal({
 
           <div className="space-y-2">
             <Label htmlFor="isis-redist-protocol">{t("fields.protocol")}</Label>
-            <Select value={form.protocol} disabled={isEdit} onValueChange={(v) => setForm({ ...form, protocol: v })}>
+            <Select value={form.protocol} disabled={isEdit} onValueChange={(v) => setForm({ ...form, protocol: v, level: "" })}>
               <SelectTrigger id="isis-redist-protocol">
                 <SelectValue placeholder={t("fields.selectProtocol")} />
               </SelectTrigger>
@@ -142,7 +153,7 @@ export function IsisRedistributeModal({
                 <SelectValue placeholder={t("fields.selectLevel")} />
               </SelectTrigger>
               <SelectContent>
-                {ISIS_SPLIT_LEVELS.map((l) => (
+                {levelOptions.map((l) => (
                   <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}
               </SelectContent>

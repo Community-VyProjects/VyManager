@@ -55,6 +55,7 @@ import {
   ISIS_TOPOLOGIES,
   isisGeneralForm,
   isisGeneralProblem,
+  isisDeleteInterfaceProblem,
   isisPasswordForMode,
   isisPasswordModes,
   type IsisDefaultInfoForm,
@@ -80,6 +81,7 @@ import { IsisTimersCard, IsisSpfDelayCard } from "./IsisTimersCards";
 import { IsisSegmentRoutingCard, IsisTrafficEngineeringCard } from "./IsisAdvancedCards";
 import { IsisFrrCard } from "./IsisFrrCard";
 import { useIsisSection } from "./useIsisSection";
+import { useIsisProblemText } from "./useIsisProblemText";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { useTranslations } from "next-intl";
@@ -134,7 +136,9 @@ export function IsisContent() {
   const [confirm, setConfirm] = useState<IsisConfirm | null>(null);
 
   const general = useIsisSection<IsisGeneralForm>(t("page.saveConfigFailed"));
-  const [netInput, setNetInput] = useState("");
+  /** A page action the lab would reject (shown above the tabs). */
+  const [actionError, setActionError] = useState<string | null>(null);
+  const problemText = useIsisProblemText();
 
   // -------------------------------------------------------------------------
   // Load data
@@ -188,22 +192,18 @@ export function IsisContent() {
 
   const startEditGeneral = () => {
     if (!config) return;
-    setNetInput("");
     general.start(isisGeneralForm(config.global_config));
-  };
-
-  const addNet = () => {
-    const v = netInput.trim();
-    if (!general.form || !v || general.form.net.includes(v)) return;
-    general.update({ net: [...general.form.net, v] });
-    setNetInput("");
   };
 
   const saveGeneral = () => {
     if (!config || !general.form) return;
     const form = general.form;
     const original = config.global_config;
-    void general.save(isisGeneralProblem(original, form), async () => {
+    const problem = isisGeneralProblem(original, form, {
+      interfaceCount: config.interfaces.length,
+      redistribute: [...config.redistribute_ipv4, ...config.redistribute_ipv6],
+    });
+    void general.save(problem, async () => {
       await isisService.updateGeneral(original, form);
       await reload();
     });
@@ -215,10 +215,10 @@ export function IsisContent() {
 
   const fastReroute = isisInterfaceFastRerouteSupported(capabilities?.features);
 
-  const submitInterface = async (form: IsisInterfaceForm) => {
+  const submitInterface = async (form: IsisInterfaceForm, net: string | null) => {
     const existing = ifaceModal?.existing ?? null;
     if (existing) await isisService.updateInterface(existing, form, { fastReroute });
-    else await isisService.createInterface(form, { fastReroute });
+    else await isisService.createInterface(form, { fastReroute }, net);
     await reload();
   };
 
@@ -236,7 +236,14 @@ export function IsisContent() {
   // Page-level deletes (each behind a confirm dialog)
   // -------------------------------------------------------------------------
 
-  const confirmDeleteInterface = (iface: IsisInterface) =>
+  const confirmDeleteInterface = (iface: IsisInterface) => {
+    // verify needs an interface while IS-IS exists; "Delete IS-IS" removes the whole protocol.
+    const problem = isisDeleteInterfaceProblem(config?.interfaces.length ?? 0);
+    if (problem) {
+      setActionError(problemText(problem));
+      return;
+    }
+    setActionError(null);
     setConfirm({
       title: t("delete.interfaceTitle"),
       description: t.rich("delete.interfaceDescription", {
@@ -250,6 +257,7 @@ export function IsisContent() {
         await reload();
       },
     });
+  };
 
   const confirmDeleteRedistribute = (family: IsisFamily, entry: IsisRedistributeEntry) =>
     setConfirm({
@@ -339,14 +347,9 @@ export function IsisContent() {
   const g = config?.global_config;
   const ifaceCount = config?.interfaces.length ?? 0;
   const redistCount = allRedist.length;
-  const netCount = g?.net.length ?? 0;
+  const netValue = g?.net ?? null;
   const shownGeneral = general.form ?? (g ? isisGeneralForm(g) : null);
   const generalOff = !general.editing;
-  const frrCard = !!capabilities && (
-    capabilities.features.lfa_priority_limit.supported ||
-    capabilities.features.lfa_tiebreaker.supported ||
-    capabilities.features.lfa_remote_prefix_list.supported
-  );
 
   const passwordFields = (
     id: string,
@@ -450,6 +453,16 @@ export function IsisContent() {
             </div>
           )}
 
+          {actionError && (
+            <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <pre className="whitespace-pre-wrap font-sans flex-1">{actionError}</pre>
+              <button type="button" aria-label={tc("close")} onClick={() => setActionError(null)}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4">
             <Card>
@@ -497,9 +510,9 @@ export function IsisContent() {
                   <div className="rounded-md p-2 bg-orange-500/10">
                     <Shield className="h-4 w-4 text-orange-500" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">{netCount}</p>
-                    <p className="text-xs text-muted-foreground">{t("stats.nets", { count: netCount })}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-mono font-semibold truncate">{netValue ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">{t("stats.net")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -561,44 +574,15 @@ export function IsisContent() {
                       <h3 className="font-semibold mb-4">{t("overview.globalSettings")}</h3>
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label className="text-sm">{t("overview.netAddresses")}</Label>
-                          <div className="flex flex-wrap gap-1 min-h-[36px] p-2 rounded-md border border-input bg-background">
-                            {shownGeneral.net.map((net, idx) => (
-                              <span
-                                key={idx}
-                                className="flex items-center gap-1 bg-accent text-accent-foreground text-xs px-2 py-0.5 rounded-md font-mono"
-                              >
-                                {net}
-                                {general.editing && (
-                                  <button
-                                    type="button"
-                                    aria-label={tc("delete")}
-                                    onClick={() => general.update({ net: shownGeneral.net.filter((_, i) => i !== idx) })}
-                                    className="hover:text-destructive ml-1"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
-                            {shownGeneral.net.length === 0 && (
-                              <span className="text-muted-foreground text-xs">{t("overview.noNet")}</span>
-                            )}
-                          </div>
-                          {general.editing && (
-                            <div className="flex gap-2">
-                              <Input
-                                value={netInput}
-                                onChange={(e) => setNetInput(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && addNet()}
-                                placeholder={t("overview.netPlaceholder")}
-                                className="font-mono text-sm h-8"
-                              />
-                              <Button size="sm" variant="outline" onClick={addNet} aria-label={tc("add")}>
-                                <Plus className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          )}
+                          <Label htmlFor="isis-net" className="text-sm">{t("overview.net")}</Label>
+                          <Input
+                            id="isis-net"
+                            value={shownGeneral.net}
+                            disabled={generalOff}
+                            onChange={(e) => general.update({ net: e.target.value })}
+                            placeholder={generalOff ? t("overview.noNet") : t("overview.netPlaceholder")}
+                            className="font-mono"
+                          />
                         </div>
 
                         {optionalSelect("isis-level", t("fields.isisLevel"), shownGeneral.level, ISIS_LEVELS,
@@ -652,8 +636,8 @@ export function IsisContent() {
                         <p className="text-sm text-muted-foreground">{t("overview.noneConfigured")}</p>
                       ) : (
                         <div className="space-y-2">
-                          {allDefaultInfo.map(({ family, entry }, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-2 rounded-md bg-muted/50 text-sm">
+                          {allDefaultInfo.map(({ family, entry }) => (
+                            <div key={`${family}|${entry.level}`} className="flex items-center gap-3 p-2 rounded-md bg-muted/50 text-sm">
                               <Badge variant="outline">{family}</Badge>
                               <Badge variant="outline">{entry.level}</Badge>
                               {entry.always && <Badge variant="secondary">{tc("shown.always")}</Badge>}
@@ -752,11 +736,11 @@ export function IsisContent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredIfaces.map((iface, idx) => {
+                        {filteredIfaces.map((iface) => {
                           const lfa = iface.lfa.level1_enabled || iface.lfa.level2_enabled;
                           const tiLfa = iface.ti_lfa.enabled || iface.ti_lfa.level1_enabled || iface.ti_lfa.level2_enabled;
                           return (
-                            <TableRow key={idx}>
+                            <TableRow key={iface.name}>
                               <TableCell className="font-medium font-mono">{iface.name}</TableCell>
                               <TableCell>
                                 {iface.circuit_type ? (
@@ -878,8 +862,8 @@ export function IsisContent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {allRedist.map(({ family, entry }, idx) => (
-                          <TableRow key={idx}>
+                        {allRedist.map(({ family, entry }) => (
+                          <TableRow key={`${family}|${entry.protocol}|${entry.level}`}>
                             <TableCell>
                               <Badge variant="outline">{family}</Badge>
                             </TableCell>
@@ -953,16 +937,14 @@ export function IsisContent() {
                     canEdit={hasWritePermission}
                     onSaved={reload}
                   />
-                  {capabilities?.features.segment_routing.supported && (
-                    <IsisSegmentRoutingCard
-                      config={config}
-                      capabilities={capabilities}
-                      interfaces={interfaces}
-                      canEdit={hasWritePermission}
-                      onSaved={reload}
-                    />
-                  )}
-                  {frrCard && capabilities && (
+                  <IsisSegmentRoutingCard
+                    config={config}
+                    capabilities={capabilities}
+                    interfaces={interfaces}
+                    canEdit={hasWritePermission}
+                    onSaved={reload}
+                  />
+                  {capabilities && (
                     <IsisFrrCard
                       frr={config.fast_reroute}
                       capabilities={capabilities}
@@ -997,6 +979,7 @@ export function IsisContent() {
           interfaces={interfaces}
           configuredInterfaces={config?.interfaces.map((i) => i.name) ?? []}
           bfdProfileNames={bfdProfileNames}
+          needsNet={!config?.global_config.net}
         />
       )}
 
@@ -1010,6 +993,7 @@ export function IsisContent() {
           entries={redistEntries}
           routeMapNames={routeMapNames}
           capabilities={capabilities}
+          globalLevel={config?.global_config.level ?? null}
         />
       )}
 

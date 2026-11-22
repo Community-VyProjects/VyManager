@@ -1,6 +1,7 @@
 import { apiClient } from "./client";
 import type { ApiError } from "../types/api";
 import {
+  isisCreateInterfaceOps,
   isisDefaultInfoOps,
   isisDeleteDefaultInfoOps,
   isisDeleteInterfaceOps,
@@ -52,7 +53,8 @@ export interface IsisSpfDelayIetf {
 }
 
 export interface IsisGlobalConfig {
-  net: string[];
+  /** Single-value leaf: a second ``set net`` replaces the first. */
+  net: string | null;
   level: string | null;
   metric_style: string | null;
   dynamic_hostname: boolean;
@@ -73,6 +75,8 @@ export interface IsisGlobalConfig {
   area_password_plaintext: string | null;
   domain_password_md5: string | null;
   domain_password_plaintext: string | null;
+  /** Bare ``ldp-sync`` (FRR ``mpls ldp-sync``); true whenever the node exists. */
+  ldp_sync: boolean;
   ldp_sync_holddown: number | null;
   spf_delay_ietf: IsisSpfDelayIetf;
 }
@@ -189,10 +193,13 @@ export interface IsisFrrTiebreaker {
 
 export interface IsisFrrRemotePrefixList {
   prefix_list: string;
-  level: string;
+  /** null: a bare ``prefix-list <name>``, which applies on every level. */
+  level: string | null;
 }
 
 export interface IsisFrrGlobal {
+  /** Bare ``load-sharing disable``: every level. */
+  lfa_load_sharing_disable: boolean;
   lfa_load_sharing_disable_level1: boolean;
   lfa_load_sharing_disable_level2: boolean;
   lfa_priority_limit: IsisFrrPriorityLimit[];
@@ -221,27 +228,28 @@ export interface IsisFeature {
   description: string;
 }
 
-export interface IsisValuesFeature extends IsisFeature {
-  values: string[];
+/** Defaults 1.5 verify fills in for its LSP timer cross-checks. */
+export interface IsisLspTimerDefaults {
+  lsp_gen_interval: number;
+  lsp_refresh_interval: number;
+  max_lsp_lifetime: number;
 }
 
 export interface IsisCapabilities {
   version: string;
   features: {
-    isis: IsisFeature;
-    segment_routing: IsisFeature;
     interface_fast_reroute: IsisFeature;
     srv6: IsisFeature;
     te_export: IsisFeature;
-    redistribute_nhrp: IsisFeature;
-    lfa_priority_limit: IsisValuesFeature;
-    lfa_tiebreaker: IsisValuesFeature;
-    lfa_remote_prefix_list: IsisFeature;
   };
   lsp_refresh_interval: { min: number; max: number };
+  /** null on 1.4, whose verify has no LSP timer cross-checks. */
+  lsp_timer_defaults: IsisLspTimerDefaults | null;
   area_password_modes: string[];
   domain_password_modes: string[];
   srv6_node_msd_types: string[];
+  lfa_priority_limit_values: string[];
+  lfa_tiebreaker_values: string[];
   redistribute_protocols: {
     ipv4: string[];
     ipv6: string[];
@@ -318,8 +326,13 @@ class IsisService {
   // Interfaces
   // -------------------------------------------------------------------------
 
-  async createInterface(form: IsisInterfaceForm, opts: { fastReroute: boolean }): Promise<VyOSResponse> {
-    return this.batchConfigure(isisInterfaceOps(null, form, opts));
+  /** ``net`` goes in the same batch when IS-IS has no NET yet (verify needs both). */
+  async createInterface(
+    form: IsisInterfaceForm,
+    opts: { fastReroute: boolean },
+    net: string | null = null,
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisCreateInterfaceOps(form, opts, net));
   }
 
   async updateInterface(
@@ -366,7 +379,8 @@ class IsisService {
   // Global fast-reroute LFA
   // -------------------------------------------------------------------------
 
-  async setFrrLoadSharingDisable(level: string, disabled: boolean): Promise<VyOSResponse> {
+  /** ``level`` null: the bare all-levels node. */
+  async setFrrLoadSharingDisable(level: string | null, disabled: boolean): Promise<VyOSResponse> {
     return this.batchConfigure(isisLoadSharingOps(level, disabled));
   }
 
@@ -386,11 +400,12 @@ class IsisService {
     return this.batchConfigure(isisTiebreakerOps("delete", tbType, index, level));
   }
 
-  async addFrrRemotePrefixList(prefixList: string, level: string): Promise<VyOSResponse> {
+  /** ``level`` null: the bare all-levels entry. */
+  async addFrrRemotePrefixList(prefixList: string, level: string | null): Promise<VyOSResponse> {
     return this.batchConfigure(isisRemotePrefixListOps("set", prefixList, level));
   }
 
-  async deleteFrrRemotePrefixList(prefixList: string, level: string): Promise<VyOSResponse> {
+  async deleteFrrRemotePrefixList(prefixList: string, level: string | null): Promise<VyOSResponse> {
     return this.batchConfigure(isisRemotePrefixListOps("delete", prefixList, level));
   }
 }

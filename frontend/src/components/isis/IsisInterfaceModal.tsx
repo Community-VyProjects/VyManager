@@ -37,17 +37,14 @@ import {
   ISIS_HELLO_MULTIPLIER,
   ISIS_INTERFACE_METRIC,
   ISIS_LDP_SYNC_HOLDDOWN,
-  ISIS_PASSWORD_MODES,
   ISIS_PRIORITY,
   ISIS_PSNP_INTERVAL,
   ISIS_REMOTE_LFA_MAX_METRIC,
   isisInterfaceForm,
   isisInterfaceProblem,
-  isisPasswordForMode,
-  isisPasswordModes,
+  isisNetProblem,
   type IsisFrrLevelForm,
   type IsisInterfaceForm,
-  type IsisPasswordMode,
   type IsisRange,
 } from "@/lib/api/isis-save-ops";
 import { isisInterfaceFastRerouteSupported } from "@/lib/isis-feature-flags";
@@ -57,14 +54,19 @@ import { useTranslations } from "next-intl";
 interface IsisInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Commits the form; the caller reloads. A rejection keeps the modal open. */
-  onSubmit: (form: IsisInterfaceForm) => Promise<void>;
+  /**
+   * Commits the form (with the NET when ``needsNet``); the caller reloads.
+   * A rejection keeps the modal open.
+   */
+  onSubmit: (form: IsisInterfaceForm, net: string | null) => Promise<void>;
   existingInterface: IsisInterface | null;
   capabilities: IsisCapabilities | null;
   interfaces: InterfaceName[];
   /** Interfaces already under protocols isis; Add does not offer them. */
   configuredInterfaces: string[];
   bfdProfileNames: string[];
+  /** IS-IS has no NET yet: verify needs one in the same commit as the first interface. */
+  needsNet: boolean;
 }
 
 /** Mount with a fresh ``key`` per open: the form is read once from ``existingInterface``. */
@@ -77,14 +79,17 @@ export function IsisInterfaceModal({
   interfaces,
   configuredInterfaces,
   bfdProfileNames,
+  needsNet,
 }: IsisInterfaceModalProps) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
   const problemText = useIsisProblemText();
   const isEdit = !!existingInterface;
+  const askNet = needsNet && !isEdit;
   const fastReroute = isisInterfaceFastRerouteSupported(capabilities?.features);
 
   const [form, setForm] = useState<IsisInterfaceForm>(() => isisInterfaceForm(existingInterface));
+  const [net, setNet] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,13 +98,11 @@ export function IsisInterfaceModal({
   const setLevel = (key: "level1" | "level2", patch: Partial<IsisFrrLevelForm>) =>
     setForm((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
-  const md5Stored = existingInterface?.password_md5;
-  const plainStored = existingInterface?.password_plaintext;
-  const passwordModes = isisPasswordModes(ISIS_PASSWORD_MODES, md5Stored, plainStored);
   const otherInterfaces = interfaces.filter((i) => i.name !== form.name);
 
   const handleSubmit = async () => {
-    const problem = isisInterfaceProblem(existingInterface, form, { fastReroute });
+    const problem = (askNet ? isisNetProblem(net, true) : null)
+      ?? isisInterfaceProblem(existingInterface, form, { fastReroute });
     if (problem) {
       setError(problemText(problem));
       return;
@@ -107,7 +110,7 @@ export function IsisInterfaceModal({
     try {
       setSaving(true);
       setError(null);
-      await onSubmit(form);
+      await onSubmit(form, askNet ? net : null);
       onOpenChange(false);
     } catch (err) {
       setError((err as ApiError).message || t("interfaceModal.saveFailed"));
@@ -170,6 +173,20 @@ export function IsisInterfaceModal({
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
+            {askNet && (
+              <div className="space-y-2">
+                <Label htmlFor="isis-iface-net">{t("overview.net")}</Label>
+                <Input
+                  id="isis-iface-net"
+                  value={net}
+                  onChange={(e) => setNet(e.target.value)}
+                  placeholder={t("overview.netPlaceholder")}
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground">{t("interfaceModal.netHelp")}</p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="isis-iface-name">{t("fields.interface")}</Label>
               <InterfaceSelect
@@ -252,34 +269,25 @@ export function IsisInterfaceModal({
           </TabsContent>
 
           <TabsContent value="auth" className="space-y-4 mt-4">
+            <p className="text-xs text-muted-foreground">{t("password.interfaceHelp")}</p>
             <div className="space-y-2">
-              <Label htmlFor="isis-iface-pw-mode">{t("password.mode")}</Label>
-              <Select
-                value={form.password.mode || NONE_SENTINEL}
-                onValueChange={(v) => set("password", isisPasswordForMode(
-                  md5Stored, plainStored, (v === NONE_SENTINEL ? "" : v) as IsisPasswordMode,
-                ))}
-              >
-                <SelectTrigger id="isis-iface-pw-mode">
-                  <SelectValue placeholder={tc("none")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
-                  {passwordModes.map((mode) => (
-                    <SelectItem key={mode} value={mode}>{mode}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="isis-iface-pw">{t("password.value")}</Label>
+              <Label htmlFor="isis-iface-pw-md5">{t("password.md5")}</Label>
               <Input
-                id="isis-iface-pw"
+                id="isis-iface-pw-md5"
                 type="password"
                 autoComplete="new-password"
-                value={form.password.password}
-                disabled={!form.password.mode}
-                onChange={(e) => set("password", { ...form.password, password: e.target.value })}
+                value={form.password_md5}
+                onChange={(e) => set("password_md5", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="isis-iface-pw-plain">{t("password.plaintext")}</Label>
+              <Input
+                id="isis-iface-pw-plain"
+                type="password"
+                autoComplete="new-password"
+                value={form.password_plaintext}
+                onChange={(e) => set("password_plaintext", e.target.value)}
               />
             </div>
           </TabsContent>

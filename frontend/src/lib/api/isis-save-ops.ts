@@ -1,9 +1,12 @@
 import type {
   BatchOperation,
   IsisDefaultInfoEntry,
+  IsisFrrPriorityLimit,
+  IsisFrrRemotePrefixList,
   IsisFrrTiebreaker,
   IsisGlobalConfig,
   IsisInterface,
+  IsisLspTimerDefaults,
   IsisRedistributeEntry,
   IsisSegmentRouting,
   IsisSpfDelayIetf,
@@ -134,6 +137,8 @@ export const ISIS_ROUTE_METRIC: IsisRange = { min: 0, max: 16777215 };
 export const ISIS_REMOTE_LFA_MAX_METRIC: IsisRange = { min: 1, max: 16777215 };
 export const ISIS_TIEBREAKER_INDEX: IsisRange = { min: 1, max: 255 };
 export const ISIS_SRV6_NODE_MSD: IsisRange = { min: 0, max: 255 };
+/** 1.5 verify: ``max-lsp-lifetime >= lsp-refresh-interval + 300``. */
+export const ISIS_LSP_LIFETIME_MARGIN = 300;
 
 /** Field a range or block error names; the screen maps it to its label. */
 export type IsisLabel =
@@ -163,7 +168,8 @@ export type IsisLabel =
   | "tiebreakerIndex"
   | "areaPassword"
   | "domainPassword"
-  | "interfacePassword";
+  | "interfaceMd5Password"
+  | "interfacePlaintextPassword";
 
 export type IsisProblemKey =
   | "range"
@@ -174,23 +180,35 @@ export type IsisProblemKey =
   | "excludeDuplicate"
   | "lfaTiLfaConflict"
   | "remoteLfaNeedsLfa"
-  | "netDuplicate"
+  | "netRequired"
+  | "netSelector"
+  | "generalNeedsInterface"
+  | "lastInterface"
+  | "lspGenNotBelowRefresh"
+  | "lspLifetimeTooShort"
   | "spfDelayAllOrNone"
   | "srBlockPair"
   | "srBlockOrder"
   | "srLocalNeedsGlobal"
   | "srBlockOverlap"
   | "srPrefixRequired"
+  | "srPrefixInvalid"
   | "srPrefixDuplicate"
   | "srPrefixValueRequired"
   | "srPrefixIndexTooLarge"
   | "srPrefixFlags"
+  | "srv6InterfaceRequired"
   | "teAddressInvalid"
   | "protocolRequired"
   | "levelRequired"
   | "redistributeDuplicate"
+  | "redistributeLevelMismatch"
+  | "levelRedistributeConflict"
   | "defaultInfoDuplicate"
   | "tiebreakerIndexTaken"
+  | "tiebreakerDuplicate"
+  | "priorityLimitLevelTaken"
+  | "remotePrefixListExists"
   | "prefixListRequired";
 
 /** A save the lab would reject: a message key plus the values it names. */
@@ -224,11 +242,39 @@ function firstProblem(...checks: (() => IsisProblem | null)[]): IsisProblem | nu
 }
 
 // ============================================================================
-// Passwords (area, domain, interface). One mode on screen; md5 or plaintext.
+// Secrets. Sent exactly as typed; only an empty or all-whitespace field is
+// cleared, and the mask (also with stray spaces) is never sent.
+// ============================================================================
+
+function isMask(value: string): boolean {
+  return value.trim() === MASKED_SECRET;
+}
+
+function isCleared(value: string): boolean {
+  return value.trim() === "";
+}
+
+/** One secret leaf: kept mask → nothing, cleared → delete when stored, new text → set. */
+function secret(ops: Op[], setOp: string, deleteOp: string, target: string | undefined, stored: boolean, value: string): void {
+  if (isMask(value)) return;
+  if (isCleared(value)) {
+    if (stored) push(ops, deleteOp, target);
+    return;
+  }
+  push(ops, setOp, withTarget(target, value));
+}
+
+/** A mask typed where nothing is stored would be sent as the secret. */
+function maskProblem(label: IsisLabel, stored: boolean, value: string): IsisProblem | null {
+  return !stored && isMask(value) ? { key: "passwordMask", label } : null;
+}
+
+// ============================================================================
+// Area / domain password. Verify rejects md5 and plaintext together there,
+// so the screen shows one mode.
 // ============================================================================
 
 export type IsisPasswordMode = "" | "md5" | "plaintext-password";
-export const ISIS_PASSWORD_MODES: readonly Exclude<IsisPasswordMode, "">[] = ["md5", "plaintext-password"];
 
 export interface IsisPasswordDraft {
   mode: IsisPasswordMode;
@@ -244,8 +290,8 @@ function storedModes(md5: Scalar, plain: Scalar): Set<IsisPasswordMode> {
 
 /** Form state for the stored passwords: the mask when set. */
 export function isisPasswordDraft(md5: Scalar, plain: Scalar): IsisPasswordDraft {
-  if (isisText(md5)) return { mode: "md5", password: isisText(md5) };
-  if (isisText(plain)) return { mode: "plaintext-password", password: isisText(plain) };
+  if (isisText(md5)) return { mode: "md5", password: MASKED_SECRET };
+  if (isisText(plain)) return { mode: "plaintext-password", password: MASKED_SECRET };
   return { mode: "", password: "" };
 }
 
@@ -266,15 +312,13 @@ function passwordSuffix(mode: IsisPasswordMode): string {
 }
 
 /**
- * Password ops for ``area``, ``domain`` or ``interface <target>``. Every
- * stored mode other than the target is deleted (read from the original, not
- * from the mode the loader showed); a kept mask emits nothing; a cleared
- * password deletes that mode; none deletes the whole password node.
+ * ``area-password`` / ``domain-password``: every stored mode other than the
+ * target is deleted (read from the original); a kept mask emits nothing; a
+ * cleared password deletes that mode; none deletes the whole node.
  */
 function passwordOps(
   ops: Op[],
-  scope: "area" | "domain" | "interface",
-  target: string | undefined,
+  scope: "area" | "domain",
   md5Before: Scalar,
   plainBefore: Scalar,
   draft: IsisPasswordDraft,
@@ -282,27 +326,33 @@ function passwordOps(
   const p = `${scope}_password`;
   const stored = storedModes(md5Before, plainBefore);
   if (draft.mode === "") {
-    if (stored.size > 0) push(ops, `delete_${p}`, target);
+    if (stored.size > 0) push(ops, `delete_${p}`);
     return;
   }
   for (const mode of stored) {
-    if (mode !== draft.mode) push(ops, `delete_${p}_${passwordSuffix(mode)}`, target);
+    if (mode !== draft.mode) push(ops, `delete_${p}_${passwordSuffix(mode)}`);
   }
-  const password = isisText(draft.password);
-  if (password === MASKED_SECRET) return;
-  if (password === "") {
-    if (stored.has(draft.mode)) push(ops, `delete_${p}_${passwordSuffix(draft.mode)}`, target);
-    return;
-  }
-  push(ops, `set_${p}_${passwordSuffix(draft.mode)}`, withTarget(target, password));
+  const suffix = passwordSuffix(draft.mode);
+  secret(ops, `set_${p}_${suffix}`, `delete_${p}_${suffix}`, undefined, stored.has(draft.mode), draft.password);
 }
 
 function passwordProblem(label: IsisLabel, md5Before: Scalar, plainBefore: Scalar, draft: IsisPasswordDraft): IsisProblem | null {
   if (draft.mode === "") return null;
   const stored = storedModes(md5Before, plainBefore).has(draft.mode);
-  const password = isisText(draft.password);
-  if (password === "" && !stored) return { key: "passwordRequired", label };
-  if (password === MASKED_SECRET && !stored) return { key: "passwordMask", label };
+  if (isCleared(draft.password) && !stored) return { key: "passwordRequired", label };
+  return maskProblem(label, stored, draft.password);
+}
+
+// ============================================================================
+// NET (single-value leaf; verify needs it plus one interface in the commit)
+// ============================================================================
+
+/** ``required`` while IS-IS is configured, or for the first interface. */
+export function isisNetProblem(net: string, required: boolean): IsisProblem | null {
+  const text = isisText(net);
+  if (text === "") return required ? { key: "netRequired" } : null;
+  // verify: the last byte (the NSEL) must be 00.
+  if (!/\.00$/.test(text)) return { key: "netSelector" };
   return null;
 }
 
@@ -337,7 +387,9 @@ export interface IsisInterfaceForm {
   bfd_profile: string;
   ldp_sync_holddown: string;
   ldp_sync_disable: boolean;
-  password: IsisPasswordDraft;
+  /** md5 and plaintext-password commit together on an interface: two independent fields. */
+  password_md5: string;
+  password_plaintext: string;
   /** ``fast-reroute ti-lfa`` node; a bare node commits. */
   tiLfa: boolean;
   level1: IsisFrrLevelForm;
@@ -363,7 +415,7 @@ function frrLevelForm(iface: IsisInterface | null, n: 1 | 2): IsisFrrLevelForm {
   };
 }
 
-/** Form state for a loaded interface (null for Add). The password stays as the mask. */
+/** Form state for a loaded interface (null for Add). Stored passwords stay as the mask. */
 export function isisInterfaceForm(iface: IsisInterface | null): IsisInterfaceForm {
   return {
     name: iface?.name ?? "",
@@ -381,7 +433,8 @@ export function isisInterfaceForm(iface: IsisInterface | null): IsisInterfaceFor
     bfd_profile: isisText(iface?.bfd_profile),
     ldp_sync_holddown: isisText(iface?.ldp_sync_holddown),
     ldp_sync_disable: !!iface?.ldp_sync_disable,
-    password: isisPasswordDraft(iface?.password_md5, iface?.password_plaintext),
+    password_md5: isisText(iface?.password_md5) ? MASKED_SECRET : "",
+    password_plaintext: isisText(iface?.password_plaintext) ? MASKED_SECRET : "",
     tiLfa: !!(iface?.ti_lfa.enabled || iface?.ti_lfa.level1_enabled || iface?.ti_lfa.level2_enabled),
     level1: frrLevelForm(iface, 1),
     level2: frrLevelForm(iface, 2),
@@ -451,9 +504,22 @@ function frrOps(ops: Op[], name: string, before: IsisInterfaceForm | null, after
   }
 }
 
+/** md5 and plaintext-password are independent; clearing both stored ones deletes the node. */
+function interfacePasswordOps(ops: Op[], name: string, original: IsisInterface | null, form: IsisInterfaceForm): void {
+  const md5Stored = !!isisText(original?.password_md5);
+  const plainStored = !!isisText(original?.password_plaintext);
+  if (md5Stored && plainStored && isCleared(form.password_md5) && isCleared(form.password_plaintext)) {
+    push(ops, "delete_interface_password", name);
+    return;
+  }
+  secret(ops, "set_interface_password_md5", "delete_interface_password_md5", name, md5Stored, form.password_md5);
+  secret(ops, "set_interface_password_plaintext", "delete_interface_password_plaintext", name,
+    plainStored, form.password_plaintext);
+}
+
 /**
  * Interface ops as a diff of (original, form). Create diffs against null.
- * Never deletes and re-creates the interface, so the masked password and
+ * Never deletes and re-creates the interface, so the masked passwords and
  * every leaf the form does not show stay as stored.
  */
 export function isisInterfaceOps(
@@ -492,9 +558,17 @@ export function isisInterfaceOps(
       before?.ldp_sync_disable, form.ldp_sync_disable);
   }
 
-  passwordOps(ops, "interface", name, original?.password_md5, original?.password_plaintext, form.password);
+  interfacePasswordOps(ops, name, original, form);
   if (opts.fastReroute) frrOps(ops, name, before, form);
   return ops;
+}
+
+/** Add Interface; ``net`` (when IS-IS has none yet) is set in the same batch. */
+export function isisCreateInterfaceOps(form: IsisInterfaceForm, opts: { fastReroute: boolean }, net: string | null): Op[] {
+  const ops: Op[] = [];
+  const text = isisText(net);
+  if (text) push(ops, "set_net", text);
+  return [...ops, ...isisInterfaceOps(null, form, opts)];
 }
 
 export function isisInterfaceProblem(
@@ -510,7 +584,8 @@ export function isisInterfaceProblem(
     () => rangeProblem(form.priority, "priority", ISIS_PRIORITY),
     () => rangeProblem(form.psnp_interval, "psnpInterval", ISIS_PSNP_INTERVAL),
     () => rangeProblem(form.ldp_sync_holddown, "ldpSyncHolddown", ISIS_LDP_SYNC_HOLDDOWN),
-    () => passwordProblem("interfacePassword", original?.password_md5, original?.password_plaintext, form.password),
+    () => maskProblem("interfaceMd5Password", !!isisText(original?.password_md5), form.password_md5),
+    () => maskProblem("interfacePlaintextPassword", !!isisText(original?.password_plaintext), form.password_plaintext),
   );
   if (problem || !opts.fastReroute) return problem;
   for (const { key, level } of ISIS_FRR_LEVELS) {
@@ -531,6 +606,11 @@ export function isisDeleteInterfaceOps(name: string): Op[] {
   return [{ op: "delete_interface", value: isisText(name) }];
 }
 
+/** verify needs one interface while IS-IS exists; the page "Delete IS-IS" removes the rest. */
+export function isisDeleteInterfaceProblem(interfaceCount: number): IsisProblem | null {
+  return interfaceCount <= 1 ? { key: "lastInterface" } : null;
+}
+
 export function isisDeleteIsisOps(): Op[] {
   return [{ op: "delete_isis" }];
 }
@@ -540,7 +620,7 @@ export function isisDeleteIsisOps(): Op[] {
 // ============================================================================
 
 export interface IsisGeneralForm {
-  net: string[];
+  net: string;
   level: string;
   metric_style: string;
   topology: string;
@@ -568,7 +648,7 @@ export const ISIS_GENERAL_FLAGS = [
 
 export function isisGeneralForm(g: IsisGlobalConfig): IsisGeneralForm {
   return {
-    net: [...g.net],
+    net: isisText(g.net),
     level: isisText(g.level),
     metric_style: isisText(g.metric_style),
     topology: isisText(g.topology),
@@ -586,26 +666,40 @@ export function isisGeneralForm(g: IsisGlobalConfig): IsisGeneralForm {
 
 export function isisGeneralOps(original: IsisGlobalConfig, form: IsisGeneralForm): Op[] {
   const ops: Op[] = [];
-  const was = new Set(cleanList(original.net));
-  const now = new Set(cleanList(form.net));
-  for (const net of was) if (!now.has(net)) push(ops, "delete_net", net);
-  for (const net of now) if (!was.has(net)) push(ops, "set_net", net);
+  leaf(ops, "set_net", "delete_net", undefined, original.net, form.net);
   leaf(ops, "set_level", "delete_level", undefined, original.level, form.level);
   leaf(ops, "set_metric_style", "delete_metric_style", undefined, original.metric_style, form.metric_style);
   leaf(ops, "set_topology", "delete_topology", undefined, original.topology, form.topology);
   for (const [field, op] of ISIS_GENERAL_FLAGS) {
     flag(ops, `set_${op}`, `delete_${op}`, undefined, original[field], form[field]);
   }
-  passwordOps(ops, "area", undefined, original.area_password_md5, original.area_password_plaintext, form.area_password);
-  passwordOps(ops, "domain", undefined, original.domain_password_md5, original.domain_password_plaintext,
-    form.domain_password);
+  passwordOps(ops, "area", original.area_password_md5, original.area_password_plaintext, form.area_password);
+  passwordOps(ops, "domain", original.domain_password_md5, original.domain_password_plaintext, form.domain_password);
   return ops;
 }
 
-export function isisGeneralProblem(original: IsisGlobalConfig, form: IsisGeneralForm): IsisProblem | null {
-  const dup = firstDuplicate(form.net);
-  if (dup) return { key: "netDuplicate", name: dup };
+/**
+ * verify needs a NET and an interface in every commit: with no interface yet
+ * the user starts from Add Interface (which also takes the NET), and while
+ * IS-IS is configured the NET cannot be cleared.
+ */
+export function isisGeneralProblem(
+  original: IsisGlobalConfig,
+  form: IsisGeneralForm,
+  opts: { interfaceCount: number; redistribute?: IsisRedistributeEntry[] },
+): IsisProblem | null {
+  if (opts.interfaceCount === 0) return { key: "generalNeedsInterface" };
+  // Same verify rule as redistribute: a single global level rejects redistribute at the other level.
+  const level = isisText(form.level);
+  if (level === "level-1" || level === "level-2") {
+    const conflict = (opts.redistribute ?? []).find((e) => {
+      const l = isisText(e.level);
+      return (l === "level-1" || l === "level-2") && l !== level;
+    });
+    if (conflict) return { key: "levelRedistributeConflict", name: level, level: isisText(conflict.level) };
+  }
   return firstProblem(
+    () => isisNetProblem(form.net, true),
     () => passwordProblem("areaPassword", original.area_password_md5, original.area_password_plaintext, form.area_password),
     () => passwordProblem("domainPassword", original.domain_password_md5, original.domain_password_plaintext,
       form.domain_password),
@@ -613,7 +707,7 @@ export function isisGeneralProblem(original: IsisGlobalConfig, form: IsisGeneral
 }
 
 // ============================================================================
-// Global: LSP/SPF timers and ldp-sync holddown
+// Global: LSP/SPF timers and ldp-sync
 // ============================================================================
 
 export interface IsisTimersForm {
@@ -622,6 +716,8 @@ export interface IsisTimersForm {
   lsp_refresh_interval: string;
   max_lsp_lifetime: string;
   spf_interval: string;
+  /** Bare ``ldp-sync`` node (FRR ``mpls ldp-sync``). */
+  ldp_sync: boolean;
   ldp_sync_holddown: string;
 }
 
@@ -632,6 +728,7 @@ export function isisTimersForm(g: IsisGlobalConfig): IsisTimersForm {
     lsp_refresh_interval: isisText(g.lsp_refresh_interval),
     max_lsp_lifetime: isisText(g.max_lsp_lifetime),
     spf_interval: isisText(g.spf_interval),
+    ldp_sync: g.ldp_sync || g.ldp_sync_holddown != null,
     ldp_sync_holddown: isisText(g.ldp_sync_holddown),
   };
 }
@@ -643,21 +740,55 @@ export function isisTimersOps(original: IsisGlobalConfig, form: IsisTimersForm):
   for (const field of TIMER_LEAVES) {
     leaf(ops, `set_${field}`, `delete_${field}`, undefined, original[field], form[field]);
   }
-  // ldp-sync has only holddown at the global level, so clearing it deletes the node.
-  leaf(ops, "set_ldp_sync_holddown", "delete_ldp_sync", undefined, original.ldp_sync_holddown, form.ldp_sync_holddown);
+  const nodeBefore = original.ldp_sync || original.ldp_sync_holddown != null;
+  const holdBefore = isisNum(original.ldp_sync_holddown);
+  if (!form.ldp_sync) {
+    if (nodeBefore) push(ops, "delete_ldp_sync");
+    return ops;
+  }
+  const holdAfter = isisNum(form.ldp_sync_holddown);
+  if (holdAfter !== null) {
+    // A holddown implies the node.
+    if (holdAfter !== holdBefore) push(ops, "set_ldp_sync_holddown", holdAfter);
+  } else if (holdBefore !== null) {
+    push(ops, "delete_ldp_sync_holddown");
+  } else if (!nodeBefore) {
+    push(ops, "set_ldp_sync");
+  }
   return ops;
 }
 
-/** ``lspRefresh`` is the capability range (1.4: 1-65235, 1.5: 2-65235). */
-export function isisTimersProblem(form: IsisTimersForm, lspRefresh: IsisRange): IsisProblem | null {
-  return firstProblem(
+/**
+ * ``lspRefresh`` is the capability range (1.4: 1-65235, 1.5: 2-65235).
+ * ``defaults`` (1.5) turns on verify's cross-checks, which fill an unset timer
+ * with its default; null (1.4) skips them.
+ */
+export function isisTimersProblem(
+  form: IsisTimersForm,
+  lspRefresh: IsisRange,
+  defaults: IsisLspTimerDefaults | null,
+): IsisProblem | null {
+  const problem = firstProblem(
     () => rangeProblem(form.lsp_mtu, "lspMtu", ISIS_LSP_MTU),
     () => rangeProblem(form.lsp_gen_interval, "lspGenInterval", ISIS_LSP_GEN_INTERVAL),
     () => rangeProblem(form.lsp_refresh_interval, "lspRefreshInterval", lspRefresh),
     () => rangeProblem(form.max_lsp_lifetime, "maxLspLifetime", ISIS_MAX_LSP_LIFETIME),
     () => rangeProblem(form.spf_interval, "spfInterval", ISIS_SPF_INTERVAL),
-    () => rangeProblem(form.ldp_sync_holddown, "ldpSyncHolddown", ISIS_LDP_SYNC_HOLDDOWN),
+    () => (form.ldp_sync ? rangeProblem(form.ldp_sync_holddown, "ldpSyncHolddown", ISIS_LDP_SYNC_HOLDDOWN) : null),
   );
+  if (problem || !defaults) return problem;
+  const value = (text: string, fallback: number) => {
+    const n = isisNum(text);
+    return n === null ? fallback : Number(n);
+  };
+  const gen = value(form.lsp_gen_interval, defaults.lsp_gen_interval);
+  const refresh = value(form.lsp_refresh_interval, defaults.lsp_refresh_interval);
+  const lifetime = value(form.max_lsp_lifetime, defaults.max_lsp_lifetime);
+  if (gen >= refresh) return { key: "lspGenNotBelowRefresh", max: refresh - 1 };
+  if (lifetime < refresh + ISIS_LSP_LIFETIME_MARGIN) {
+    return { key: "lspLifetimeTooShort", min: refresh + ISIS_LSP_LIFETIME_MARGIN };
+  }
+  return null;
 }
 
 // ============================================================================
@@ -807,6 +938,36 @@ function srv6Set(form: IsisSegmentRoutingForm, msdTypes: readonly string[]): boo
     msdTypes.some((type) => isisNum(form.srv6_node_msd[type]) !== null);
 }
 
+const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+const HEXTET = /^[0-9a-fA-F]{1,4}$/;
+
+function isIpv6(address: string): boolean {
+  const halves = address.split("::");
+  if (halves.length > 2) return false;
+  const groups = (part: string) => (part === "" ? [] : part.split(":"));
+  const head = groups(halves[0]);
+  const tail = halves.length === 2 ? groups(halves[1]) : [];
+  const all = [...head, ...tail];
+  let count = all.length;
+  const last = all[all.length - 1];
+  if (last !== undefined && last.includes(".")) {
+    if (!IPV4.test(last)) return false;
+    all.pop();
+    count += 1;
+  }
+  if (!all.every((g) => HEXTET.test(g))) return false;
+  return halves.length === 2 ? count < 8 : count === 8;
+}
+
+/** ``ipv4net`` or ``ipv6net`` (address/length). */
+export function isIsisIpNetwork(text: string): boolean {
+  const match = /^([^/\s]+)\/(\d{1,3})$/.exec(text);
+  if (!match) return false;
+  const [, address, length] = match;
+  if (IPV4.test(address)) return Number(length) <= 32;
+  return isIpv6(address) && Number(length) <= 128;
+}
+
 export function isisSegmentRoutingOps(
   original: IsisSegmentRouting,
   form: IsisSegmentRoutingForm,
@@ -891,6 +1052,7 @@ export function isisSegmentRoutingProblem(
   for (const p of prefixRows(form)) {
     const prefix = isisText(p.prefix);
     if (!prefix) return { key: "srPrefixRequired" };
+    if (!isIsisIpNetwork(prefix)) return { key: "srPrefixInvalid", name: prefix };
     if (seen.has(prefix)) return { key: "srPrefixDuplicate", name: prefix };
     seen.add(prefix);
     const value = isisNum(p.value);
@@ -910,6 +1072,10 @@ export function isisSegmentRoutingProblem(
     for (const type of opts.msdTypes) {
       const range = rangeProblem(form.srv6_node_msd[type], "nodeMsd", ISIS_SRV6_NODE_MSD, type);
       if (range) return range;
+    }
+    // 1.5 verify: "Missing interface used for installing SRv6 SIDs" whenever srv6 exists.
+    if (srv6Set(form, opts.msdTypes) && isisNum(form.srv6_interface) === null) {
+      return { key: "srv6InterfaceRequired" };
     }
   }
   return null;
@@ -946,8 +1112,6 @@ export function isisTeOps(original: IsisTrafficEngineering, form: IsisTeForm, op
   return ops;
 }
 
-const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
-
 export function isisTeProblem(form: IsisTeForm): IsisProblem | null {
   const address = isisNum(form.address);
   if (address !== null && !IPV4.test(address)) return { key: "teAddressInvalid" };
@@ -974,6 +1138,17 @@ export function isisRedistributeForm(entry: IsisRedistributeEntry | null): IsisR
   };
 }
 
+/** Levels ``protocol`` is not yet redistributed at (Add offers only these). */
+export function isisRedistributeFreeLevels(existing: IsisRedistributeEntry[], protocol: string): string[] {
+  const p = isisText(protocol);
+  return ISIS_SPLIT_LEVELS.filter((l) => !existing.some((e) => isisText(e.protocol) === p && isisText(e.level) === l));
+}
+
+/** Protocols with at least one level left (Add offers only these). */
+export function isisRedistributeFreeProtocols(existing: IsisRedistributeEntry[], protocols: readonly string[]): string[] {
+  return protocols.filter((p) => isisRedistributeFreeLevels(existing, p).length > 0);
+}
+
 /** metric and route-map ops carry ``protocol,level,value`` (delete: ``protocol,level``). */
 export function isisRedistributeOps(
   family: IsisFamily,
@@ -993,10 +1168,15 @@ export function isisDeleteRedistributeOps(family: IsisFamily, entry: IsisRedistr
   return [{ op: `delete_redistribute_${family}`, value: `${isisText(entry.protocol)},${isisText(entry.level)}` }];
 }
 
+/**
+ * verify rejects redistribute at one single level while the global ``level``
+ * is the other one; only ``level-1-2`` or unset allows both.
+ */
 export function isisRedistributeProblem(
   original: IsisRedistributeEntry | null,
   form: IsisRedistributeForm,
   existing: IsisRedistributeEntry[],
+  globalLevel: string | null,
 ): IsisProblem | null {
   const protocol = isisText(form.protocol);
   const level = isisText(form.level);
@@ -1004,6 +1184,10 @@ export function isisRedistributeProblem(
   if (!level) return { key: "levelRequired" };
   if (!original && existing.some((e) => isisText(e.protocol) === protocol && isisText(e.level) === level)) {
     return { key: "redistributeDuplicate", name: protocol, level };
+  }
+  const global = isisText(globalLevel);
+  if ((global === "level-1" || global === "level-2") && global !== level) {
+    return { key: "redistributeLevelMismatch", name: global, level };
   }
   return rangeProblem(form.metric, "metric", ISIS_ROUTE_METRIC);
 }
@@ -1022,6 +1206,11 @@ export function isisDefaultInfoForm(entry: IsisDefaultInfoEntry | null): IsisDef
     metric: isisText(entry?.metric),
     route_map: isisText(entry?.route_map),
   };
+}
+
+/** Levels the family has no default-information at yet (Add offers only these). */
+export function isisDefaultInfoFreeLevels(existing: IsisDefaultInfoEntry[]): string[] {
+  return ISIS_SPLIT_LEVELS.filter((l) => !existing.some((e) => isisText(e.level) === l));
 }
 
 export function isisDefaultInfoOps(
@@ -1061,9 +1250,12 @@ export function isisDefaultInfoProblem(
 // Global fast-reroute LFA (page controls, each behind a confirm dialog)
 // ============================================================================
 
-export function isisLoadSharingOps(level: string, disabled: boolean): Op[] {
+/** ``level`` null: the bare ``load-sharing disable`` node (every level). */
+export function isisLoadSharingOps(level: string | null, disabled: boolean): Op[] {
+  const action = disabled ? "set" : "delete";
+  if (level === null) return [{ op: `${action}_frr_lfa_load_sharing_disable` }];
   const suffix = isisText(level) === "level-1" ? "level1" : "level2";
-  return [{ op: `${disabled ? "set" : "delete"}_frr_lfa_load_sharing_disable_${suffix}` }];
+  return [{ op: `${action}_frr_lfa_load_sharing_disable_${suffix}` }];
 }
 
 export function isisPriorityLimitOps(action: "set" | "delete", priority: string, level: string): Op[] {
@@ -1077,11 +1269,23 @@ export function isisTiebreakerOps(action: "set" | "delete", tbType: string, inde
   }];
 }
 
-export function isisRemotePrefixListOps(action: "set" | "delete", prefixList: string, level: string): Op[] {
+/** ``level`` null: the bare ``prefix-list <name>`` (every level). */
+export function isisRemotePrefixListOps(action: "set" | "delete", prefixList: string, level: string | null): Op[] {
+  if (level === null) return [{ op: `${action}_frr_lfa_remote_prefix_list_all_levels`, value: isisText(prefixList) }];
   return [{ op: `${action}_frr_lfa_remote_prefix_list`, value: `${isisText(prefixList)},${isisText(level)}` }];
 }
 
-/** An index (per level) may carry only one tiebreaker type. */
+/** verify: a level may carry only one priority-limit. */
+export function isisPriorityLimitFreeLevels(existing: IsisFrrPriorityLimit[]): string[] {
+  return ISIS_SPLIT_LEVELS.filter((l) => !existing.some((e) => isisText(e.level) === l));
+}
+
+export function isisPriorityLimitProblem(existing: IsisFrrPriorityLimit[], level: string): IsisProblem | null {
+  const l = isisText(level);
+  return existing.some((e) => isisText(e.level) === l) ? { key: "priorityLimitLevelTaken", level: l } : null;
+}
+
+/** verify keys on the index alone: one tiebreaker per index across every level and type. */
 export function isisTiebreakerProblem(
   existing: IsisFrrTiebreaker[],
   tbType: string,
@@ -1093,11 +1297,15 @@ export function isisTiebreakerProblem(
   if (idx === "") return { key: "range", label: "tiebreakerIndex", min, max };
   const range = rangeProblem(idx, "tiebreakerIndex", ISIS_TIEBREAKER_INDEX);
   if (range) return range;
-  const taken = existing.some((e) =>
-    isisText(e.index) === idx && isisText(e.level) === isisText(level) && isisText(e.tb_type) !== isisText(tbType));
-  return taken ? { key: "tiebreakerIndexTaken", name: idx, level: isisText(level) } : null;
+  const same = existing.filter((e) => Number(isisText(e.index)) === Number(idx));
+  if (same.some((e) => isisText(e.tb_type) === isisText(tbType) && isisText(e.level) === isisText(level))) {
+    return { key: "tiebreakerDuplicate", name: idx };
+  }
+  return same.length > 0 ? { key: "tiebreakerIndexTaken", name: idx } : null;
 }
 
-export function isisRemotePrefixListProblem(prefixList: string): IsisProblem | null {
+/** verify allows one remote prefix-list in total. */
+export function isisRemotePrefixListProblem(existing: IsisFrrRemotePrefixList[], prefixList: string): IsisProblem | null {
+  if (existing.length > 0) return { key: "remotePrefixListExists" };
   return isisText(prefixList) ? null : { key: "prefixListRequired" };
 }
