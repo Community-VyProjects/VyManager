@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type {
@@ -36,6 +38,7 @@ interface BgpPeerGroupModalProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (peerGroup: BgpPeerGroup) => Promise<void>;
   existingPeerGroup?: BgpPeerGroup | null;
+  configuredNames: string[];
   capabilities?: BgpCapabilities | null;
   routeMapNames: string[];
   bfdProfileNames: string[];
@@ -95,6 +98,7 @@ export function BgpPeerGroupModal({
   onOpenChange,
   onSubmit,
   existingPeerGroup,
+  configuredNames,
   capabilities,
   routeMapNames,
   bfdProfileNames,
@@ -136,11 +140,11 @@ export function BgpPeerGroupModal({
   const [ebgpMultihop, setEbgpMultihop] = useState("");
   const [ttlSecurityHops, setTtlSecurityHops] = useState("");
   const [password, setPassword] = useState("");
-  const [gracefulRestart, setGracefulRestart] = useState("__none__");
+  const [gracefulRestart, setGracefulRestart] = useState(NONE_SENTINEL);
   const [localAsAsn, setLocalAsAsn] = useState("");
   const [localAsNoPrependReplaceAs, setLocalAsNoPrependReplaceAs] =
     useState(false);
-  const [localRole, setLocalRole] = useState("__none__");
+  const [localRole, setLocalRole] = useState(NONE_SENTINEL);
   const [localRoleStrict, setLocalRoleStrict] = useState(false);
 
   // --- Address Families ---
@@ -198,12 +202,12 @@ export function BgpPeerGroupModal({
             : ""
         );
         setPassword(existingPeerGroup.password || "");
-        setGracefulRestart(existingPeerGroup.graceful_restart || "__none__");
+        setGracefulRestart(existingPeerGroup.graceful_restart || NONE_SENTINEL);
         setLocalAsAsn(existingPeerGroup.local_as.asn || "");
         setLocalAsNoPrependReplaceAs(
           existingPeerGroup.local_as.no_prepend_replace_as
         );
-        setLocalRole(existingPeerGroup.local_role || "__none__");
+        setLocalRole(existingPeerGroup.local_role || NONE_SENTINEL);
         setLocalRoleStrict(existingPeerGroup.local_role_strict);
 
         // Address families
@@ -252,10 +256,10 @@ export function BgpPeerGroupModal({
     setEbgpMultihop("");
     setTtlSecurityHops("");
     setPassword("");
-    setGracefulRestart("__none__");
+    setGracefulRestart(NONE_SENTINEL);
     setLocalAsAsn("");
     setLocalAsNoPrependReplaceAs(false);
-    setLocalRole("__none__");
+    setLocalRole(NONE_SENTINEL);
     setLocalRoleStrict(false);
     setEnabledAFs(new Set());
     setAfConfigs({});
@@ -265,6 +269,10 @@ export function BgpPeerGroupModal({
   const handleClose = () => {
     resetForm();
     onOpenChange(false);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
   };
 
   const toggleAF = (afi: string, checked: boolean) => {
@@ -304,6 +312,10 @@ export function BgpPeerGroupModal({
       return t("peerGroupModal.nameRequired");
     }
 
+    if (!isEditMode && configuredNames.includes(name.trim())) {
+      return t("peerGroupModal.nameExists", { name: name.trim() });
+    }
+
     if (ebgpMultihop.trim()) {
       const val = parseInt(ebgpMultihop.trim(), 10);
       if (isNaN(val) || val < 1 || val > 255) {
@@ -322,7 +334,7 @@ export function BgpPeerGroupModal({
       return t("peerGroupModal.localAsRequired");
     }
 
-    if (localRoleStrict && localRole === "__none__") {
+    if (localRoleStrict && localRole === NONE_SENTINEL) {
       return t("peerGroupModal.localRoleRequired");
     }
 
@@ -356,9 +368,9 @@ export function BgpPeerGroupModal({
       }
 
       const resolvedGracefulRestart =
-        gracefulRestart !== "__none__" ? gracefulRestart : null;
+        gracefulRestart !== NONE_SENTINEL ? gracefulRestart : null;
       const resolvedLocalRole =
-        localRole !== "__none__" ? localRole : null;
+        localRole !== NONE_SENTINEL ? localRole : null;
 
       const peerGroup: BgpPeerGroup = {
         name: name.trim(),
@@ -418,7 +430,7 @@ export function BgpPeerGroupModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
@@ -695,21 +707,8 @@ export function BgpPeerGroupModal({
 
                     {/* BFD Profile */}
                     <div className="space-y-2">
-                      <Label>{t("form.bfdProfile")}</Label>
-                      <Select value={bfdProfile || "__none__"} onValueChange={(v) => setBfdProfile(v === "__none__" ? "" : v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={tc("none")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">{tc("none")}</SelectItem>
-                          {bfdProfileNames.map((name) => (
-                            <SelectItem key={name} value={name}>{name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {t("peerGroupModal.bfdProfileHelp")}
-                      </p>
+                      <Label htmlFor="bgp-pg-bfd-profile">{t("form.bfdProfile")}</Label>
+                      <NamedListSelect id="bgp-pg-bfd-profile" value={bfdProfile} names={bfdProfileNames} onValueChange={setBfdProfile} />
                     </div>
                     {capabilities?.features.peer_group_bfd_strict?.supported && (
                       <div className="space-y-3">
@@ -866,6 +865,7 @@ export function BgpPeerGroupModal({
                   <Input
                     id="bgp-pg-password"
                     type="password"
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t("peerGroupModal.passwordPlaceholder")}
@@ -888,10 +888,10 @@ export function BgpPeerGroupModal({
                       <SelectValue placeholder={t("form.gracefulRestartPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">{tc("none")}</SelectItem>
+                      <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                       <SelectItem value="enable">{t("form.grEnable")}</SelectItem>
                       <SelectItem value="disable">{t("form.grDisable")}</SelectItem>
-                      <SelectItem value="restart">{t("form.grRestart")}</SelectItem>
+                      <SelectItem value="restart-helper">{t("form.grRestartHelper")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
@@ -950,7 +950,7 @@ export function BgpPeerGroupModal({
                           <SelectValue placeholder={t("peerGroupModal.localRolePlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">{tc("none")}</SelectItem>
+                          <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                           <SelectItem value="provider">{t("form.roleProvider")}</SelectItem>
                           <SelectItem value="customer">{t("form.roleCustomer")}</SelectItem>
                           <SelectItem value="rs-server">{t("form.roleRsServer")}</SelectItem>
@@ -964,7 +964,7 @@ export function BgpPeerGroupModal({
                     </div>
 
                     {/* Strict Mode - shown when Local Role is set */}
-                    {localRole !== "__none__" && (
+                    {localRole !== NONE_SENTINEL && (
                       <div className="flex items-center space-x-3">
                         <Checkbox
                           id="bgp-pg-local-role-strict"
@@ -1045,26 +1045,14 @@ export function BgpPeerGroupModal({
                             >
                               {t("form.routeMapImport")}
                             </Label>
-                            <Select
-                              value={af.route_map_import || "__none__"}
+                            <NamedListSelect
+                              id={`bgp-pg-af-${afi}-rm-import`}
+                              value={af.route_map_import}
+                              names={routeMapNames}
                               onValueChange={(v) =>
-                                updateAfConfig(
-                                  afi,
-                                  "route_map_import",
-                                  v === "__none__" ? "" : v
-                                )
+                                updateAfConfig(afi, "route_map_import", v)
                               }
-                            >
-                              <SelectTrigger id={`bgp-pg-af-${afi}-rm-import`}>
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                           </div>
 
                           <div className="space-y-2">
@@ -1073,26 +1061,14 @@ export function BgpPeerGroupModal({
                             >
                               {t("form.routeMapExport")}
                             </Label>
-                            <Select
-                              value={af.route_map_export || "__none__"}
+                            <NamedListSelect
+                              id={`bgp-pg-af-${afi}-rm-export`}
+                              value={af.route_map_export}
+                              names={routeMapNames}
                               onValueChange={(v) =>
-                                updateAfConfig(
-                                  afi,
-                                  "route_map_export",
-                                  v === "__none__" ? "" : v
-                                )
+                                updateAfConfig(afi, "route_map_export", v)
                               }
-                            >
-                              <SelectTrigger id={`bgp-pg-af-${afi}-rm-export`}>
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                           </div>
                         </div>
 

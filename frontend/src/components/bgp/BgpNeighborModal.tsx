@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type {
@@ -41,6 +43,7 @@ interface BgpNeighborModalProps {
   onSubmit: (neighbor: BgpNeighbor) => Promise<void>;
   existingNeighbor?: BgpNeighbor | null;
   peerGroups: string[];
+  configuredAddresses: string[];
   routeMapNames: string[];
   bfdProfileNames: string[];
   capabilities?: BgpCapabilities | null;
@@ -49,6 +52,10 @@ interface BgpNeighborModalProps {
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/** Interface-name neighbors (unnumbered), as the lab's neighbor node.def accepts. */
+const NEIGHBOR_INTERFACE =
+  /^(?:(?:bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(?:\.[0-9]+)?|pod-[-_a-zA-Z0-9]{1,11}|lo)$/;
 
 const emptyAfConfig = (): BgpNeighborAddressFamilyConfig => ({
   route_map_export: null,
@@ -93,6 +100,7 @@ export function BgpNeighborModal({
   onSubmit,
   existingNeighbor,
   peerGroups,
+  configuredAddresses,
   routeMapNames,
   bfdProfileNames,
   capabilities,
@@ -323,6 +331,10 @@ export function BgpNeighborModal({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
+
   // --------------------------------------------------------------------------
   // Address family helpers
   // --------------------------------------------------------------------------
@@ -356,11 +368,15 @@ export function BgpNeighborModal({
   // Validation
   // --------------------------------------------------------------------------
   const validateForm = (): string | null => {
-    if (!address.trim()) {
+    const trimmed = address.trim();
+    if (!trimmed) {
       return t("neighborModal.addressRequired");
     }
-    if (!address.includes(".") && !address.includes(":")) {
+    if (!trimmed.includes(".") && !trimmed.includes(":") && !NEIGHBOR_INTERFACE.test(trimmed)) {
       return t("neighborModal.addressInvalid");
+    }
+    if (!isEditMode && configuredAddresses.includes(trimmed)) {
+      return t("neighborModal.addressExists", { address: trimmed });
     }
     return null;
   };
@@ -383,8 +399,7 @@ export function BgpNeighborModal({
         address: address.trim(),
         remote_as: remoteAs.trim() || null,
         description: description.trim() || null,
-        peer_group:
-          peerGroup && peerGroup !== "__none__" ? peerGroup : null,
+        peer_group: peerGroup || null,
         update_source: updateSource.trim() || null,
         password: password.trim() || null,
         port: port.trim() ? parseInt(port.trim(), 10) : null,
@@ -404,7 +419,7 @@ export function BgpNeighborModal({
           ? parseInt(advertisementInterval.trim(), 10)
           : null,
         graceful_restart:
-          gracefulRestart && gracefulRestart !== "__none__"
+          gracefulRestart && gracefulRestart !== NONE_SENTINEL
             ? gracefulRestart
             : null,
         local_as: {
@@ -412,7 +427,7 @@ export function BgpNeighborModal({
           no_prepend_replace_as: localAsNoPrependReplaceAs,
         },
         local_role:
-          localRole && localRole !== "__none__" ? localRole : null,
+          localRole && localRole !== NONE_SENTINEL ? localRole : null,
         local_role_strict: localRoleStrict,
         bfd: {
           enabled: bfdEnabled,
@@ -460,7 +475,7 @@ export function BgpNeighborModal({
   // Render
   // --------------------------------------------------------------------------
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
@@ -525,19 +540,7 @@ export function BgpNeighborModal({
                 {/* Peer Group */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-neighbor-peer-group">{t("form.peerGroup")}</Label>
-                  <Select value={peerGroup || "__none__"} onValueChange={setPeerGroup}>
-                    <SelectTrigger id="bgp-neighbor-peer-group">
-                      <SelectValue placeholder={t("neighborModal.peerGroupPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">{tc("none")}</SelectItem>
-                      {peerGroups.map((pg) => (
-                        <SelectItem key={pg} value={pg}>
-                          {pg}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <NamedListSelect id="bgp-neighbor-peer-group" value={peerGroup} names={peerGroups} onValueChange={setPeerGroup} />
                 </div>
 
                 {/* Update Source */}
@@ -796,18 +799,8 @@ export function BgpNeighborModal({
 
                     {/* BFD Profile */}
                     <div className="space-y-2">
-                      <Label>{t("form.bfdProfile")}</Label>
-                      <Select value={bfdProfile || "__none__"} onValueChange={(v) => setBfdProfile(v === "__none__" ? "" : v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={tc("none")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">{tc("none")}</SelectItem>
-                          {bfdProfileNames.map((name) => (
-                            <SelectItem key={name} value={name}>{name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="bgp-neighbor-bfd-profile">{t("form.bfdProfile")}</Label>
+                      <NamedListSelect id="bgp-neighbor-bfd-profile" value={bfdProfile} names={bfdProfileNames} onValueChange={setBfdProfile} />
                     </div>
                     {capabilities?.features.neighbor_bfd_strict?.supported && (
                       <div className="space-y-3">
@@ -1044,6 +1037,7 @@ export function BgpNeighborModal({
                   <Input
                     id="bgp-neighbor-password"
                     type="password"
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t("neighborModal.passwordPlaceholder")}
@@ -1056,17 +1050,17 @@ export function BgpNeighborModal({
                     {t("form.gracefulRestart")}
                   </Label>
                   <Select
-                    value={gracefulRestart || "__none__"}
+                    value={gracefulRestart || NONE_SENTINEL}
                     onValueChange={setGracefulRestart}
                   >
                     <SelectTrigger id="bgp-neighbor-graceful-restart">
                       <SelectValue placeholder={t("form.gracefulRestartPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">{tc("none")}</SelectItem>
+                      <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                       <SelectItem value="enable">{t("form.grEnable")}</SelectItem>
                       <SelectItem value="disable">{t("form.grDisable")}</SelectItem>
-                      <SelectItem value="restart">{t("form.grRestart")}</SelectItem>
+                      <SelectItem value="restart-helper">{t("form.grRestartHelper")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1114,14 +1108,14 @@ export function BgpNeighborModal({
                         {t("form.localRole")}
                       </Label>
                       <Select
-                        value={localRole || "__none__"}
+                        value={localRole || NONE_SENTINEL}
                         onValueChange={setLocalRole}
                       >
                         <SelectTrigger id="bgp-neighbor-local-role">
                           <SelectValue placeholder={t("neighborModal.localRolePlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">{tc("none")}</SelectItem>
+                          <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                           <SelectItem value="provider">{t("form.roleProvider")}</SelectItem>
                           <SelectItem value="customer">{t("form.roleCustomer")}</SelectItem>
                           <SelectItem value="rs-server">{t("form.roleRsServer")}</SelectItem>
@@ -1130,7 +1124,7 @@ export function BgpNeighborModal({
                         </SelectContent>
                       </Select>
                     </div>
-                    {localRole && localRole !== "__none__" && (
+                    {localRole && localRole !== NONE_SENTINEL && (
                       <div className="flex items-center space-x-3 pl-1">
                         <Checkbox
                           id="bgp-neighbor-local-role-strict"
@@ -1198,51 +1192,27 @@ export function BgpNeighborModal({
                               <Label htmlFor={`bgp-af-${afi}-rm-import`}>
                                 {t("form.routeMapImport")}
                               </Label>
-                              <Select
-                                value={afConfig.route_map_import || "__none__"}
+                              <NamedListSelect
+                                id={`bgp-af-${afi}-rm-import`}
+                                value={afConfig.route_map_import ?? ""}
+                                names={routeMapNames}
                                 onValueChange={(v) =>
-                                  updateAfField(
-                                    afi,
-                                    "route_map_import",
-                                    v === "__none__" ? null : v
-                                  )
+                                  updateAfField(afi, "route_map_import", v || null)
                                 }
-                              >
-                                <SelectTrigger id={`bgp-af-${afi}-rm-import`}>
-                                  <SelectValue placeholder={tc("none")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                  {routeMapNames.map((name) => (
-                                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-rm-export`}>
                                 {t("form.routeMapExport")}
                               </Label>
-                              <Select
-                                value={afConfig.route_map_export || "__none__"}
+                              <NamedListSelect
+                                id={`bgp-af-${afi}-rm-export`}
+                                value={afConfig.route_map_export ?? ""}
+                                names={routeMapNames}
                                 onValueChange={(v) =>
-                                  updateAfField(
-                                    afi,
-                                    "route_map_export",
-                                    v === "__none__" ? null : v
-                                  )
+                                  updateAfField(afi, "route_map_export", v || null)
                                 }
-                              >
-                                <SelectTrigger id={`bgp-af-${afi}-rm-export`}>
-                                  <SelectValue placeholder={tc("none")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                  {routeMapNames.map((name) => (
-                                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              />
                             </div>
                           </div>
 
@@ -1363,26 +1333,14 @@ export function BgpNeighborModal({
                                 >
                                   {t("neighborModal.defaultOriginateRouteMap")}
                                 </Label>
-                                <Select
-                                  value={afConfig.default_originate_route_map || "__none__"}
+                                <NamedListSelect
+                                  id={`bgp-af-${afi}-default-originate-rm`}
+                                  value={afConfig.default_originate_route_map ?? ""}
+                                  names={routeMapNames}
                                   onValueChange={(v) =>
-                                    updateAfField(
-                                      afi,
-                                      "default_originate_route_map",
-                                      v === "__none__" ? null : v
-                                    )
+                                    updateAfField(afi, "default_originate_route_map", v || null)
                                   }
-                                >
-                                  <SelectTrigger id={`bgp-af-${afi}-default-originate-rm`}>
-                                    <SelectValue placeholder={tc("none")} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                    {routeMapNames.map((name) => (
-                                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                />
                               </div>
                             )}
 

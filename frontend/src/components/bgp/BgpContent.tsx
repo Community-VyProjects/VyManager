@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -588,7 +590,7 @@ export function BgpContent() {
   // Render
   // ==========================================================================
 
-  if (loading) {
+  if (loading && !config) {
     return (
       <div className="flex items-center justify-center h-full">
         <LoadingSpinner />
@@ -626,6 +628,7 @@ export function BgpContent() {
               variant="outline"
               size="sm"
               onClick={() => loadData(true)}
+              disabled={loading}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               {tc("refresh")}
@@ -1247,18 +1250,8 @@ export function BgpContent() {
                             />
                           </div>
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <Select value={afNetworkRouteMap || "__none__"} onValueChange={(v) => setAfNetworkRouteMap(v === "__none__" ? "" : v)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Label htmlFor="bgp-af-network-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                            <NamedListSelect id="bgp-af-network-route-map" value={afNetworkRouteMap} names={routeMapNames} onValueChange={setAfNetworkRouteMap} />
                           </div>
                           <Button size="sm" onClick={handleAddNetwork} disabled={afSaving || !afNetworkPrefix.trim()}>
                             {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
@@ -1330,18 +1323,8 @@ export function BgpContent() {
                             </Select>
                           </div>
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <Select value={afRedistRouteMap || "__none__"} onValueChange={(v) => setAfRedistRouteMap(v === "__none__" ? "" : v)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Label htmlFor="bgp-af-redist-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                            <NamedListSelect id="bgp-af-redist-route-map" value={afRedistRouteMap} names={routeMapNames} onValueChange={setAfRedistRouteMap} />
                           </div>
                           <div className="w-[100px] space-y-1">
                             <Label className="text-xs">{t("content.af.metric")}</Label>
@@ -1456,18 +1439,8 @@ export function BgpContent() {
                             />
                           </div>
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <Select value={afAggRouteMap || "__none__"} onValueChange={(v) => setAfAggRouteMap(v === "__none__" ? "" : v)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Label htmlFor="bgp-af-agg-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                            <NamedListSelect id="bgp-af-agg-route-map" value={afAggRouteMap} names={routeMapNames} onValueChange={setAfAggRouteMap} />
                           </div>
                           <div className="flex items-center gap-3 pb-0.5">
                             <div className="flex items-center gap-1.5">
@@ -1721,20 +1694,20 @@ export function BgpContent() {
                             <Label className="text-xs">{t("content.params.bestpath.bandwidth.label")}</Label>
                             {paramsEditing && editParams ? (
                               <Select
-                                value={editParams.bestpath.bandwidth || "__none__"}
+                                value={editParams.bestpath.bandwidth || NONE_SENTINEL}
                                 onValueChange={(v) => {
                                   setEditParams({
                                     ...editParams,
                                     bestpath: {
                                       ...editParams.bestpath,
-                                      bandwidth: v === "__none__" ? null : v,
+                                      bandwidth: v === NONE_SENTINEL ? null : v,
                                     },
                                   });
                                 }}
                               >
                                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
+                                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                                   {(capabilities.features.bestpath_bandwidth.values || []).map((value) => (
                                     <SelectItem key={value} value={value}>{value}</SelectItem>
                                   ))}
@@ -1798,12 +1771,12 @@ export function BgpContent() {
                             <Label className="text-xs">{t("content.params.asNotation")}</Label>
                             {paramsEditing && editParams ? (
                               <Select
-                                value={editParams.as_notation || "__none__"}
-                                onValueChange={(v) => updateParam("as_notation", v === "__none__" ? null : v)}
+                                value={editParams.as_notation || NONE_SENTINEL}
+                                onValueChange={(v) => updateParam("as_notation", v === NONE_SENTINEL ? null : v)}
                               >
                                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
+                                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                                   {(capabilities.features.as_notation.values || []).map((value) => (
                                     <SelectItem key={value} value={value}>{value}</SelectItem>
                                   ))}
@@ -2190,6 +2163,7 @@ export function BgpContent() {
         }}
         existingNeighbor={editingNeighbor}
         peerGroups={config?.peer_groups.map((pg) => pg.name) ?? []}
+        configuredAddresses={config?.neighbors.map((n) => n.address) ?? []}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
         bfdProfileNames={bfdProfileNames}
@@ -2210,6 +2184,7 @@ export function BgpContent() {
           if (!open) setEditingPeerGroup(null);
         }}
         existingPeerGroup={editingPeerGroup}
+        configuredNames={config?.peer_groups.map((pg) => pg.name) ?? []}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
         bfdProfileNames={bfdProfileNames}
@@ -2224,7 +2199,7 @@ export function BgpContent() {
         onConfirm={handleDeletePeerGroup}
       />
 
-      <AlertDialog open={!!pageConfirm} onOpenChange={(open) => { if (!open) { setPageConfirm(null); setPageConfirmError(null); } }}>
+      <AlertDialog open={!!pageConfirm} onOpenChange={(open) => { if (!open && !pageConfirmSaving) { setPageConfirm(null); setPageConfirmError(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.bmp.applyChange")}</AlertDialogTitle>
@@ -2254,7 +2229,7 @@ export function BgpContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!bmpConfirm} onOpenChange={(open) => { if (!open) setBmpConfirm(null); }}>
+      <AlertDialog open={!!bmpConfirm} onOpenChange={(open) => { if (!open && !bmpSaving) setBmpConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.bmp.applyChange")}</AlertDialogTitle>
@@ -2276,7 +2251,7 @@ export function BgpContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={!!deletingBmpTarget} onOpenChange={(open) => { if (!open) setDeletingBmpTarget(null); }}>
+      <AlertDialog open={!!deletingBmpTarget} onOpenChange={(open) => { if (!open && !bmpSaving) setDeletingBmpTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.bmp.deleteTarget")}</AlertDialogTitle>

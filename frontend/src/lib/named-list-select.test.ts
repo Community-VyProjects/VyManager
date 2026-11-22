@@ -33,8 +33,15 @@ const ROUTE_MAP_CALLERS = [
   "src/components/rip/RipRedistributeModal.tsx",
   "src/components/ripng/RipngContent.tsx",
   "src/components/ripng/RipngRedistributeModal.tsx",
+  "src/components/ospf/OspfContent.tsx",
+  "src/components/ospf/OspfRedistributeModal.tsx",
   "src/components/ospfv3/Ospfv3Content.tsx",
   "src/components/ospfv3/Ospfv3RedistributeModal.tsx",
+  "src/components/isis/IsisDefaultInfoModal.tsx",
+  "src/components/isis/IsisRedistributeModal.tsx",
+  "src/components/bgp/BgpContent.tsx",
+  "src/components/bgp/BgpNeighborModal.tsx",
+  "src/components/bgp/BgpPeerGroupModal.tsx",
 ];
 
 describe("named list select options", () => {
@@ -85,13 +92,54 @@ describe("named list select", () => {
     assert.match(page, /protocols=\{capabilities\?\.features\.redistribute\.protocols \|\| \[\]\}/);
   });
 
-  it("does not keep a route-map copy in RIP, RIPng or OSPFv3", () => {
+  it("does not keep a route-map copy in RIP, RIPng, OSPF, OSPFv3, IS-IS or BGP", () => {
     for (const file of ROUTE_MAP_CALLERS) {
       const src = readFileSync(join(FRONTEND, file), "utf8");
       assert.match(src, /NamedListSelect/, file);
       assert.doesNotMatch(src, /routeMapNames\.map/, file);
       assert.doesNotMatch(src, /"__none__"|value="none"/, file);
     }
+  });
+
+  it("uses the shared control for the BGP peer-group and BFD profile picks", () => {
+    const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
+    assert.match(neighbor, /<NamedListSelect id="bgp-neighbor-peer-group" value=\{peerGroup\} names=\{peerGroups\}/);
+    assert.match(neighbor, /<NamedListSelect id="bgp-neighbor-bfd-profile" value=\{bfdProfile\} names=\{bfdProfileNames\}/);
+    assert.doesNotMatch(neighbor, /(peerGroups|bfdProfileNames)\.map/);
+    const peerGroup = readFileSync(join(FRONTEND, "src/components/bgp/BgpPeerGroupModal.tsx"), "utf8");
+    assert.match(peerGroup, /<NamedListSelect id="bgp-pg-bfd-profile" value=\{bfdProfile\} names=\{bfdProfileNames\}/);
+    assert.doesNotMatch(peerGroup, /bfdProfileNames\.map/);
+  });
+
+  it("keeps the BGP dialogs open during a save and the page mounted on refresh", () => {
+    for (const file of ["src/components/bgp/BgpNeighborModal.tsx", "src/components/bgp/BgpPeerGroupModal.tsx"]) {
+      const src = readFileSync(join(FRONTEND, file), "utf8");
+      assert.match(src, /if \(!next && !loading\) handleClose\(\);/, file);
+      assert.match(src, /<Dialog open=\{open\} onOpenChange=\{handleOpenChange\}>/, file);
+      assert.match(src, /type="password"\s+autoComplete="new-password"/, file);
+    }
+    for (const file of ["src/components/bgp/DeleteBgpNeighborModal.tsx", "src/components/bgp/DeleteBgpPeerGroupModal.tsx"]) {
+      const src = readFileSync(join(FRONTEND, file), "utf8");
+      assert.match(src, /if \(loading\) return;/, file);
+      assert.match(src, /<AlertDialog open=\{open\} onOpenChange=\{handleOpenChange\}>/, file);
+      assert.doesNotMatch(src, /useEffect/, file);
+    }
+    const page = readFileSync(join(FRONTEND, "src/components/bgp/BgpContent.tsx"), "utf8");
+    assert.match(page, /if \(loading && !config\)/);
+    assert.match(page, /onClick=\{\(\) => loadData\(true\)\}\s+disabled=\{loading\}/);
+    assert.match(page, /if \(!open && !pageConfirmSaving\)/);
+    assert.equal((page.match(/if \(!open && !bmpSaving\)/g) ?? []).length, 2);
+  });
+
+  it("offers the lab graceful-restart values and rejects a BGP neighbor or peer group that exists", () => {
+    const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
+    const peerGroup = readFileSync(join(FRONTEND, "src/components/bgp/BgpPeerGroupModal.tsx"), "utf8");
+    for (const src of [neighbor, peerGroup]) {
+      assert.match(src, /<SelectItem value="restart-helper">/);
+      assert.doesNotMatch(src, /<SelectItem value="restart">/);
+    }
+    assert.match(neighbor, /!isEditMode && configuredAddresses\.includes\(trimmed\)/);
+    assert.match(peerGroup, /!isEditMode && configuredNames\.includes\(name\.trim\(\)\)/);
   });
 
   it("loads the IPv6 access and prefix lists that RIPng and OSPFv3 reference", () => {
