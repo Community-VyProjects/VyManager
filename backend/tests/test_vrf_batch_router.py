@@ -156,6 +156,55 @@ def test_protocol_route_map_sets_the_path(client, family):
     assert ops[0]["path"] == ["vrf", "name", "T-V", family, "protocol", "bgp", "route-map", "T-RM"]
 
 
+# Lab ``allowed:`` lines of ``vrf name <vrf> ip|ipv6 protocol``.
+PROTOCOLS = {
+    "1.4": {
+        "ip": ["any", "babel", "bgp", "connected", "eigrp", "isis", "kernel", "ospf", "rip", "static", "table"],
+        "ipv6": ["any", "babel", "bgp", "connected", "isis", "kernel", "ospfv3", "ripng", "static", "table"],
+    },
+    "1.5": {
+        "ip": ["any", "babel", "bgp", "eigrp", "isis", "ospf", "rip", "static"],
+        "ipv6": ["any", "babel", "bgp", "isis", "ospfv3", "ripng", "static"],
+    },
+}
+
+
+@pytest.mark.parametrize("version, lab", [("1.4", "1.4"), ("1.5", "1.5"), ("2026.09.23-0027-rolling", "1.5")])
+def test_protocol_lists_come_from_the_mapper(version, lab):
+    from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
+
+    flag = VrfBatchBuilder(version).get_capabilities()["features"]["protocol_route_maps"]
+    assert flag["ip_protocols"] == PROTOCOLS[lab]["ip"]
+    assert flag["ipv6_protocols"] == PROTOCOLS[lab]["ipv6"]
+
+
+@pytest.mark.parametrize("family", ["ip", "ipv6"])
+@pytest.mark.parametrize("op, value", [
+    ("set_vrf_{family}_protocol_route_map", "T-V,connected,T-RM"),
+    ("delete_vrf_{family}_protocol_route_map", "T-V,kernel"),
+])
+def test_1_4_only_protocol_on_1_5_is_400(client, commit, family, op, value):
+    commit["version"] = "1.5"
+    resp = _post(client, [{"op": op.format(family=family), "value": value}])
+    assert resp.status_code == 400, resp.text
+    protocol = value.split(",")[1]
+    assert resp.json()["detail"] == f"vrf {family} protocol {protocol} is not supported on this device"
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("family", ["ip", "ipv6"])
+def test_1_4_only_protocol_on_1_4_sets_and_deletes(client, family):
+    resp = _post(client, [
+        {"op": f"set_vrf_{family}_protocol_route_map", "value": "T-V,table,T-RM"},
+        {"op": f"delete_vrf_{family}_protocol_route_map", "value": "T-V,kernel"},
+    ])
+    assert resp.status_code == 200, resp.text
+    assert client.executed == [[
+        {"op": "set", "path": VRF + [family, "protocol", "table", "route-map", "T-RM"]},
+        {"op": "delete", "path": VRF + [family, "protocol", "kernel", "route-map"]},
+    ]]
+
+
 def test_1_5_static_leaf_on_1_4_is_400(client):
     resp = _post(client, [
         {"op": "set_vrf", "value": "T-V"},

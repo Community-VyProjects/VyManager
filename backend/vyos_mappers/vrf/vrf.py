@@ -45,6 +45,12 @@ class VrfMapper(BaseFeatureMapper):
             node = self._VERSIONED_FEATURES[feature]
             raise ValueError(f"vrf {node} is not supported on this device")
 
+    def require_protocol(self, family: str, protocol: str) -> None:
+        """Reject an ``ip``/``ipv6 protocol`` value this device does not accept."""
+        allowed = self.ip_protocols() if family == "ip" else self.ipv6_protocols()
+        if protocol not in allowed:
+            raise ValueError(f"vrf {family} protocol {protocol} is not supported on this device")
+
     def parse_config(self, full_config: Any) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_vrf_config
 
@@ -86,6 +92,13 @@ class VrfMapper(BaseFeatureMapper):
     def get_vrf_ip_nht_no_resolve_via_default(self, name: str) -> List[str]:
         return ["vrf", "name", name, "ip", "nht", "no-resolve-via-default"]
 
+    def ip_protocols(self) -> List[str]:
+        """``vrf name <vrf> ip protocol`` values this device accepts."""
+        return [
+            "any", "babel", "bgp", "connected", "eigrp", "isis",
+            "kernel", "ospf", "rip", "static", "table",
+        ]
+
     def get_vrf_ip_protocol_route_map(self, name: str, protocol: str, route_map: str) -> List[str]:
         return ["vrf", "name", name, "ip", "protocol", protocol, "route-map", route_map]
 
@@ -98,6 +111,13 @@ class VrfMapper(BaseFeatureMapper):
 
     def get_vrf_ipv6_nht_no_resolve_via_default(self, name: str) -> List[str]:
         return ["vrf", "name", name, "ipv6", "nht", "no-resolve-via-default"]
+
+    def ipv6_protocols(self) -> List[str]:
+        """``vrf name <vrf> ipv6 protocol`` values this device accepts."""
+        return [
+            "any", "babel", "bgp", "connected", "isis",
+            "kernel", "ospfv3", "ripng", "static", "table",
+        ]
 
     def get_vrf_ipv6_protocol_route_map(self, name: str, protocol: str, route_map: str) -> List[str]:
         return ["vrf", "name", name, "ipv6", "protocol", protocol, "route-map", route_map]
