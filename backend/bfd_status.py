@@ -1,7 +1,8 @@
 """BFD operational peer status.
 
 Parses the text output of the op-mode ``show bfd peers`` command (fetched via the
-GraphQL ``Show`` op, path ``["bfd", "peers"]``) into structured per-session data.
+GraphQL ``Show`` op built by ``BfdMapper.peers_show_query``) into structured
+per-session data.
 
 This surfaces *running* BFD sessions — including ``dynamic`` peers created by a
 routing protocol (BGP/OSPF/IS-IS with ``bfd`` enabled), which never appear under
@@ -9,7 +10,6 @@ routing protocol (BGP/OSPF/IS-IS with ``bfd`` enabled), which never appear under
 Peers table.
 """
 
-import json
 import re
 from typing import List, Optional
 
@@ -35,16 +35,6 @@ class BfdPeerStatus(BaseModel):
     receive_interval: Optional[int] = None     # ms (local)
     transmit_interval: Optional[int] = None     # ms (local)
     echo_receive_interval: Optional[int] = None  # ms (local), None when disabled
-
-
-def bfd_peers_gql_query(key_literal: str) -> dict:
-    """GraphQL body fetching ``show bfd peers`` via the generic ``Show`` op.
-
-    ``key_literal`` must be a JSON-encoded API key (``json.dumps(key)``).
-    """
-    path = json.dumps(["bfd", "peers"])
-    field = f"BfdPeers: Show(data: {{key: {key_literal}, path: {path}}}) {{ data {{ result }} }}"
-    return {"query": "{ " + field + " }"}
 
 
 def _ms(value: str) -> Optional[int]:

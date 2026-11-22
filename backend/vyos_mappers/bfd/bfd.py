@@ -4,6 +4,7 @@ BFD Protocol Command Mapper
 protocols bfd is the same on VyOS 1.4 and 1.5. One class holds the commands.
 """
 
+import json
 from typing import Any, Dict, List
 from ..base import BaseFeatureMapper
 
@@ -11,13 +12,23 @@ from ..base import BaseFeatureMapper
 class BfdMapper(BaseFeatureMapper):
     """Mapper for protocols bfd. Identical on VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_bfd_config
 
         return parse_bfd_config(self, full_config)
+
+    # ========================================================================
+    # Operational Status
+    # ========================================================================
+
+    def peers_show_query(self, key_literal: str) -> Dict[str, str]:
+        """GraphQL body fetching ``show bfd peers`` via the generic ``Show`` op.
+
+        ``key_literal`` must be a JSON-encoded API key (``json.dumps(key)``).
+        """
+        path = json.dumps(["bfd", "peers"])
+        field = f"BfdPeers: Show(data: {{key: {key_literal}, path: {path}}}) {{ data {{ result }} }}"
+        return {"query": "{ " + field + " }"}
 
     # ========================================================================
     # Peer Paths
