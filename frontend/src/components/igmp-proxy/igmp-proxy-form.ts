@@ -8,3 +8,11 @@ export function igmpThreshold(text: string): number | null {
   const n = Number(value);
   return n >= IGMP_THRESHOLD.min && n <= IGMP_THRESHOLD.max ? n : null;
 }
+
+/** The role an interface has when its `role` leaf is unset (lab val_help: downstream is the default). */
+export const IGMP_DEFAULT_ROLE = "downstream";
+
+/** The role the router applies: the stored leaf, or the default when it is unset. */
+export function igmpEffectiveRole(role: string | null): string {
+  return role || IGMP_DEFAULT_ROLE;
+}

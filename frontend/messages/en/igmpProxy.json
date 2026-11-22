@@ -38,7 +38,6 @@
   },
   "interfaceModal": {
     "interfaceRequired": "Interface is required",
-    "roleRequired": "Interface role is required",
     "thresholdRange": "Threshold must be between {min} and {max}",
     "invalidAltSubnet": "Invalid alt-subnet format: {value}. Use CIDR notation (e.g., 10.0.0.0/8)",
     "invalidWhitelist": "Invalid whitelist format: {value}. Use CIDR notation (e.g., 239.0.0.0/8)",
@@ -48,7 +47,7 @@
     "editDescription": "Modify the IGMP proxy configuration for {name}.",
     "addDescription": "Add a new interface to the IGMP proxy configuration.",
     "role": "Role",
-    "selectRole": "Select interface role"
+    "roleDefault": "Default ({role})"
   },
   "setupModal": {
     "upstreamRequired": "Upstream interface is required",

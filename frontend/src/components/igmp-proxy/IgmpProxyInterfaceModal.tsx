@@ -26,7 +26,8 @@ import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { ApiError } from "@/lib/types/api";
 import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
-import { IGMP_THRESHOLD, igmpThreshold } from "./igmp-proxy-form";
+import { IGMP_DEFAULT_ROLE, IGMP_THRESHOLD, igmpThreshold } from "./igmp-proxy-form";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 
 interface IgmpProxyInterfaceModalProps {
   open: boolean;
@@ -51,7 +52,8 @@ export function IgmpProxyInterfaceModal({
 
   // Form state
   const [name, setName] = useState(existingInterface?.name ?? "");
-  const [role, setRole] = useState(existingInterface?.role ?? "");
+  // NONE_SENTINEL keeps the role leaf unset (the router then uses downstream).
+  const [role, setRole] = useState(existingInterface?.role || NONE_SENTINEL);
   const [threshold, setThreshold] = useState(
     existingInterface?.threshold != null ? String(existingInterface.threshold) : ""
   );
@@ -86,10 +88,6 @@ export function IgmpProxyInterfaceModal({
   const validateForm = (): string | null => {
     if (!name) {
       return t("interfaceModal.interfaceRequired");
-    }
-
-    if (!role) {
-      return t("interfaceModal.roleRequired");
     }
 
     if (threshold.trim() && igmpThreshold(threshold) === null) {
@@ -156,7 +154,7 @@ export function IgmpProxyInterfaceModal({
     try {
       const iface: IgmpProxyInterface = {
         name,
-        role: role || null,
+        role: role === NONE_SENTINEL ? null : role,
         threshold: threshold.trim() ? igmpThreshold(threshold) : null,
         alt_subnets: altSubnets,
         whitelists: whitelists,
@@ -211,9 +209,12 @@ export function IgmpProxyInterfaceModal({
               <Label>{t("interfaceModal.role")}</Label>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("interfaceModal.selectRole")} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NONE_SENTINEL}>
+                    {t("interfaceModal.roleDefault", { role: t(IGMP_DEFAULT_ROLE) })}
+                  </SelectItem>
                   {!upstreamTaken && <SelectItem value="upstream">{t("upstream")}</SelectItem>}
                   <SelectItem value="downstream">{t("downstream")}</SelectItem>
                   <SelectItem value="disabled">{tc("disabled")}</SelectItem>

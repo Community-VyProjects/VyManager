@@ -48,6 +48,7 @@ import {
 import { IgmpProxySetupModal } from "./IgmpProxySetupModal";
 import { IgmpProxyInterfaceModal } from "./IgmpProxyInterfaceModal";
 import { DeleteIgmpProxyInterfaceModal } from "./DeleteIgmpProxyInterfaceModal";
+import { igmpEffectiveRole } from "./igmp-proxy-form";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import type { ApiError } from "@/lib/types/api";
@@ -117,18 +118,17 @@ export function IgmpProxyContent() {
 
   // Stats
   const totalInterfaces = config?.interfaces.length ?? 0;
-  const upstreamCount = config?.interfaces.filter((i) => i.role === "upstream").length ?? 0;
-  const downstreamCount = config?.interfaces.filter((i) => i.role === "downstream").length ?? 0;
-
-  // Determine if config has both upstream and downstream (valid base config)
-  const hasValidBaseConfig = upstreamCount >= 1 && downstreamCount >= 1;
+  // An interface with no role leaf is downstream on the router, so count it as one.
+  const roles = (config?.interfaces ?? []).map((i) => igmpEffectiveRole(i.role));
+  const upstreamCount = roles.filter((r) => r === "upstream").length;
+  const downstreamCount = roles.filter((r) => r === "downstream").length;
 
   /** The label the table shows for a role; the search matches it as well as the CLI value. */
-  const roleLabel = (role: string | null) => {
+  const roleLabel = (role: string) => {
     if (role === "upstream") return t("upstream");
     if (role === "downstream") return t("downstream");
     if (role === "disabled") return tc("disabled");
-    return "";
+    return role;
   };
 
   // Filtered interfaces. Write controls stay disabled while `refreshing`, so nothing acts on the stale rows.
@@ -137,8 +137,8 @@ export function IgmpProxyContent() {
     (iface) =>
       !query ||
       iface.name.toLowerCase().includes(query) ||
-      (iface.role && iface.role.toLowerCase().includes(query)) ||
-      roleLabel(iface.role).toLowerCase().includes(query) ||
+      igmpEffectiveRole(iface.role).includes(query) ||
+      roleLabel(igmpEffectiveRole(iface.role)).toLowerCase().includes(query) ||
       iface.alt_subnets.some((s) => s.includes(query)) ||
       iface.whitelists.some((w) => w.includes(query))
   );
@@ -238,7 +238,7 @@ export function IgmpProxyContent() {
   // Role badge helper
   // ==========================================================================
 
-  const getRoleBadge = (role: string | null) => {
+  const getRoleBadge = (role: string) => {
     switch (role) {
       case "upstream":
         return (
@@ -435,7 +435,7 @@ export function IgmpProxyContent() {
                   />
                 </div>
               </div>
-              {hasWritePermission && hasValidBaseConfig && (
+              {hasWritePermission && (
                 <Button
                   size="sm"
                   onClick={() => openInterfaceModal(null)}
@@ -497,7 +497,7 @@ export function IgmpProxyContent() {
                         <TableCell className="font-medium font-mono">
                           {iface.name}
                         </TableCell>
-                        <TableCell>{getRoleBadge(iface.role)}</TableCell>
+                        <TableCell>{getRoleBadge(igmpEffectiveRole(iface.role))}</TableCell>
                         <TableCell>
                           {iface.threshold != null ? (
                             <span className="font-mono">{iface.threshold}</span>

@@ -38,7 +38,6 @@
   },
   "interfaceModal": {
     "interfaceRequired": "接口为必填项",
-    "roleRequired": "接口角色为必填项",
     "thresholdRange": "阈值必须介于 {min} 到 {max} 之间",
     "invalidAltSubnet": "替代子网格式无效：{value}。请使用 CIDR 表示法（例如 10.0.0.0/8）",
     "invalidWhitelist": "白名单格式无效：{value}。请使用 CIDR 表示法（例如 239.0.0.0/8）",
@@ -48,7 +47,7 @@
     "editDescription": "修改 {name} 的 IGMP 代理配置。",
     "addDescription": "向 IGMP 代理配置添加新接口。",
     "role": "角色",
-    "selectRole": "选择接口角色"
+    "roleDefault": "默认（{role}）"
   },
   "setupModal": {
     "upstreamRequired": "上游接口为必填项",
