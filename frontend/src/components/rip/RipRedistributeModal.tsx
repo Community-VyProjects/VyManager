@@ -24,6 +24,7 @@ import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipRedistribute } from "@/lib/api/rip";
 import type { ApiError } from "@/lib/types/api";
+import { METRIC_RANGE, inRange } from "@/lib/api/rip-ranges";
 
 interface RipRedistributeModalProps {
   open: boolean;
@@ -91,10 +92,7 @@ export function RipRedistributeModal({
 
   const validate = (): string | null => {
     if (!protocol) return t("validation.selectProtocol");
-    if (metric.trim()) {
-      const val = parseInt(metric.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 16) return t("validation.metricRange");
-    }
+    if (!inRange(metric, METRIC_RANGE)) return t("validation.metricRange");
     return null;
   };
 
@@ -159,8 +157,8 @@ export function RipRedistributeModal({
             <Input
               id="rip-redist-metric"
               type="number"
-              min={1}
-              max={16}
+              min={METRIC_RANGE.min}
+              max={METRIC_RANGE.max}
               placeholder={tc("default")}
               value={metric}
               onChange={(e) => setMetric(e.target.value)}

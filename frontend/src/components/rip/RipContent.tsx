@@ -64,31 +64,12 @@ import { DeleteRipModal } from "./DeleteRipModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import type { ApiError } from "@/lib/types/api";
-
-// Lab val_help bounds for the overview leaves (same on 1.4 and 1.5).
-const DISTANCE_RANGE = { min: 1, max: 255 };
-const METRIC_RANGE = { min: 1, max: 16 };
-const TIMER_RANGE = { min: 5, max: 2147483647 };
-
-function inRange(value: string, range: { min: number; max: number }): boolean {
-  const trimmed = value.trim();
-  if (!trimmed) return true;
-  if (!/^\d{1,10}$/.test(trimmed)) return false;
-  const n = Number(trimmed);
-  return n >= range.min && n <= range.max;
-}
-
-/** First out-of-range overview value, as a `validation.*` message key. */
-function overviewProblem(
-  distance: string,
-  metric: string,
-  timers: string[],
-): "distanceRange" | "metricRange" | "timerRange" | null {
-  if (!inRange(distance, DISTANCE_RANGE)) return "distanceRange";
-  if (!inRange(metric, METRIC_RANGE)) return "metricRange";
-  if (!timers.every((v) => inRange(v, TIMER_RANGE))) return "timerRange";
-  return null;
-}
+import {
+  DISTANCE_RANGE,
+  METRIC_RANGE,
+  TIMER_RANGE,
+  overviewProblem,
+} from "@/lib/api/rip-ranges";
 
 export function RipContent() {
   const t = useTranslations("rip");
@@ -132,6 +113,8 @@ export function RipContent() {
   const [routesError, setRoutesError] = useState<string | null>(null);
   const [newPassiveIface, setNewPassiveIface] = useState("");
   const [passiveIfaceError, setPassiveIfaceError] = useState<string | null>(null);
+  // Id of the list section whose add or remove commit is running.
+  const [listBusy, setListBusy] = useState<string | null>(null);
 
   // ============================================================
   // Interface modal state
@@ -498,6 +481,16 @@ export function RipContent() {
   // Render helpers
   // ============================================================
 
+  const runListAction = async (sectionId: string, action: () => Promise<void>) => {
+    if (listBusy) return;
+    setListBusy(sectionId);
+    try {
+      await action();
+    } finally {
+      setListBusy(null);
+    }
+  };
+
   const renderListSection = (
     title: string,
     inputId: string,
@@ -509,7 +502,12 @@ export function RipContent() {
     err: string | null,
     inputPlaceholder: string,
     isDropdown?: boolean,
-  ) => (
+  ) => {
+    const busy = listBusy === inputId;
+    const add = () => {
+      if (inputValue.trim()) runListAction(inputId, onAdd);
+    };
+    return (
     <Card>
       <CardContent className="p-4">
         <h3 className="font-semibold mb-3 text-sm">
@@ -537,12 +535,12 @@ export function RipContent() {
                 placeholder={inputPlaceholder}
                 value={inputValue}
                 onChange={(e) => onInputChange(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") add(); }}
                 className="flex-1 font-mono text-sm"
               />
             )}
-            <Button size="sm" onClick={onAdd} disabled={!inputValue.trim()} aria-label={tc("add")}>
-              <Plus className="h-4 w-4" />
+            <Button size="sm" onClick={add} disabled={busy || !inputValue.trim()} aria-label={tc("add")}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             </Button>
           </div>
         )}
@@ -562,7 +560,8 @@ export function RipContent() {
                     size="icon"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
                     aria-label={tc("delete")}
-                    onClick={() => onRemove(item)}
+                    disabled={busy}
+                    onClick={() => runListAction(inputId, () => onRemove(item))}
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -573,7 +572,8 @@ export function RipContent() {
         )}
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   // ============================================================
   // Loading / Error states

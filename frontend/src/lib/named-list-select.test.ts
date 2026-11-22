@@ -163,6 +163,17 @@ describe("named list select", () => {
     const save = src.slice(src.indexOf("const saveOverview"), src.indexOf("// Networks tab handlers"));
     assert.match(save, /catch \(err\) \{[\s\S]*await loadData\(true\);[\s\S]*\} finally/);
     assert.match(save, /overviewProblem\(/);
+    assert.match(src, /onClick=\{\(\) => loadData\(true\)\} disabled=\{loading\}/);
+    assert.match(src, /disabled=\{busy \|\| !inputValue\.trim\(\)\}/);
+    assert.match(src, /runListAction\(inputId, \(\) => onRemove\(item\)\)/);
+  });
+
+  it("validates RIP metric and distance with the shared lab ranges", () => {
+    const redist = readFileSync(join(FRONTEND, "src/components/rip/RipRedistributeModal.tsx"), "utf8");
+    assert.match(redist, /inRange\(metric, METRIC_RANGE\)/);
+    const nd = readFileSync(join(FRONTEND, "src/components/rip/RipNetworkDistanceModal.tsx"), "utf8");
+    assert.match(nd, /inRange\(distance, DISTANCE_RANGE\)/);
+    for (const src of [redist, nd]) assert.doesNotMatch(src, /parseInt\([^)]*\)[^;]*(<|>) ?\d/);
   });
 
   it("keeps the lab default value on the RIP passive-interface picker", () => {
