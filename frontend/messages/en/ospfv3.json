@@ -95,6 +95,8 @@
     "gracePeriodPlaceholder": "Default (120)",
     "enableHelper": "Enable Helper",
     "helperRouterIds": "Helper Router IDs",
+    "helperRouterIdInvalid": "Enter a router ID in IPv4 format",
+    "helperRouterIdExists": "This router ID is already listed",
     "disableLsaCheck": "Disable LSA Check",
     "plannedOnly": "Planned Only",
     "supportedGraceTime": "Supported Grace Time (seconds)"
@@ -114,7 +116,6 @@
     "descriptionEdit": "Modify OSPFv3 area {areaId} configuration.",
     "descriptionAdd": "Configure a new OSPFv3 area for IPv6 routing.",
     "areaIdPlaceholder": "0.0.0.0 or integer",
-    "areaIdHelp": "Area identifier in dotted-decimal or integer format.",
     "areaType": "Area Type",
     "areaTypePlaceholder": "Normal (default)",
     "normal": "Normal",
@@ -128,9 +129,9 @@
     "notAdvertise": "Not Advertise",
     "advertised": "advertised",
     "notAdvertised": "not advertised",
-    "rangesHelp": "IPv6 CIDR prefixes to summarize in this area.",
     "rangeExists": "Range prefix already exists",
-    "areaIdRequired": "Area ID is required"
+    "areaIdRequired": "Area ID is required",
+    "areaIdExists": "This area already exists"
   },
   "interfaceModal": {
     "titleEdit": "Edit OSPFv3 Interface",

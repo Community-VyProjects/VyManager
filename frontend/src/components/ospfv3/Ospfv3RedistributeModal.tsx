@@ -19,8 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { Ospfv3Redistribute, Ospfv3Capabilities } from "@/lib/api/ospfv3";
+import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
 interface Ospfv3RedistributeModalProps {
@@ -72,6 +74,10 @@ export function Ospfv3RedistributeModal({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
+
   const validateForm = (): string | null => {
     if (!protocol) return t("redistributeModal.selectProtocolError");
     return null;
@@ -92,13 +98,13 @@ export function Ospfv3RedistributeModal({
         protocol,
         metric: metric.trim() || null,
         metric_type: metricType || null,
-        route_map: routeMap.trim() || null,
+        route_map: routeMap || null,
       };
 
       await onSubmit(entry);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
+      const message = (err as ApiError).message || tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -106,7 +112,7 @@ export function Ospfv3RedistributeModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("redistributeModal.title")}</DialogTitle>
@@ -157,20 +163,12 @@ export function Ospfv3RedistributeModal({
 
           <div className="space-y-2">
             <Label htmlFor="ospfv3-redist-route-map">{t("fields.routeMap")}</Label>
-            <Select
+            <NamedListSelect
+              id="ospfv3-redist-route-map"
               value={routeMap}
-              onValueChange={(v) => setRouteMap(v === "__none__" ? "" : v)}
-            >
-              <SelectTrigger id="ospfv3-redist-route-map">
-                <SelectValue placeholder={tc("none")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                {routeMapNames.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              names={routeMapNames}
+              onValueChange={setRouteMap}
+            />
           </div>
         </div>
 

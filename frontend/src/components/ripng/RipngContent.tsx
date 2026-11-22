@@ -10,13 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import {
   Table,
   TableBody,
@@ -53,7 +48,7 @@ import {
 import { routeMapService } from "@/lib/api/route-map";
 import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
-import { showService } from "@/lib/api/show";
+import type { ApiError } from "@/lib/types/api";
 import { RipngInterfaceModal } from "./RipngInterfaceModal";
 import { RipngRedistributeModal } from "./RipngRedistributeModal";
 import { RipngDistributeListInterfaceModal } from "./RipngDistributeListInterfaceModal";
@@ -76,7 +71,6 @@ export function RipngContent() {
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
   const [accessListNames, setAccessListNames] = useState<string[]>([]);
   const [prefixListNames, setPrefixListNames] = useState<string[]>([]);
-  const [systemInterfaces, setSystemInterfaces] = useState<string[]>([]);
 
   // ============================================================
   // Overview / Timers editing
@@ -140,23 +134,21 @@ export function RipngContent() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capData, routeMaps, accessLists, prefixLists, interfaces] =
+      const [configData, capData, routeMaps, accessLists, prefixLists] =
         await Promise.all([
           ripNgService.getConfig(refresh),
           ripNgService.getCapabilities(),
           routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => [] as string[]),
-          accessListService.getConfig().then((c) => c.ipv4_lists.map((al) => al.number)).catch(() => [] as string[]),
-          prefixListService.getConfig().then((c) => c.ipv4_lists.map((pl) => pl.name)).catch(() => [] as string[]),
-          showService.getAllInterfaces().then((r) => r.interfaces.map((i) => i.name)).catch(() => [] as string[]),
+          accessListService.getConfig().then((c) => c.ipv6_lists.map((al) => al.number)).catch(() => [] as string[]),
+          prefixListService.getConfig().then((c) => c.ipv6_lists.map((pl) => pl.name)).catch(() => [] as string[]),
         ]);
       setConfig(configData);
       setCapabilities(capData);
       setRouteMapNames(routeMaps);
       setAccessListNames(accessLists);
       setPrefixListNames(prefixLists);
-      setSystemInterfaces(interfaces);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
+      setError((err as ApiError).message || t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -210,7 +202,10 @@ export function RipngContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : t("errors.saveSettingsFailed"));
+      setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
+      // Global settings and timers are two commits; re-read the device so a
+      // retry does not re-send the half that already applied.
+      await loadData(true);
     } finally {
       setOverviewSaving(false);
     }
@@ -228,7 +223,7 @@ export function RipngContent() {
       setNewNetwork("");
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : t("errors.addNetworkFailed"));
+      setNetworksError((err as ApiError).message || t("errors.addNetworkFailed"));
     }
   };
 
@@ -238,7 +233,7 @@ export function RipngContent() {
       await ripNgService.removeNetwork(network);
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : t("errors.removeNetworkFailed"));
+      setNetworksError((err as ApiError).message || t("errors.removeNetworkFailed"));
     }
   };
 
@@ -250,7 +245,7 @@ export function RipngContent() {
       setNewAggregateAddress("");
       await loadData(true);
     } catch (err) {
-      setAggregateAddressesError(err instanceof Error ? err.message : t("errors.addAggregateFailed"));
+      setAggregateAddressesError((err as ApiError).message || t("errors.addAggregateFailed"));
     }
   };
 
@@ -260,7 +255,7 @@ export function RipngContent() {
       await ripNgService.removeAggregateAddress(prefix);
       await loadData(true);
     } catch (err) {
-      setAggregateAddressesError(err instanceof Error ? err.message : t("errors.removeAggregateFailed"));
+      setAggregateAddressesError((err as ApiError).message || t("errors.removeAggregateFailed"));
     }
   };
 
@@ -272,7 +267,7 @@ export function RipngContent() {
       setNewRoute("");
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : t("errors.addRouteFailed"));
+      setRoutesError((err as ApiError).message || t("errors.addRouteFailed"));
     }
   };
 
@@ -282,7 +277,7 @@ export function RipngContent() {
       await ripNgService.removeRoute(prefix);
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : t("errors.removeRouteFailed"));
+      setRoutesError((err as ApiError).message || t("errors.removeRouteFailed"));
     }
   };
 
@@ -294,7 +289,7 @@ export function RipngContent() {
       setNewPassiveIface("");
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.addPassiveIfaceFailed"));
+      setPassiveIfaceError((err as ApiError).message || t("errors.addPassiveIfaceFailed"));
     }
   };
 
@@ -304,7 +299,7 @@ export function RipngContent() {
       await ripNgService.removePassiveInterface(iface);
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.removePassiveIfaceFailed"));
+      setPassiveIfaceError((err as ApiError).message || t("errors.removePassiveIfaceFailed"));
     }
   };
 
@@ -380,7 +375,7 @@ export function RipngContent() {
       await loadData(true);
       setDlGlobalEditing(false);
     } catch (err) {
-      setDlGlobalError(err instanceof Error ? err.message : t("errors.saveFiltersFailed"));
+      setDlGlobalError((err as ApiError).message || t("errors.saveFiltersFailed"));
     } finally {
       setDlGlobalSaving(false);
     }
@@ -427,6 +422,7 @@ export function RipngContent() {
 
   const renderListSection = (
     title: string,
+    inputId: string,
     items: string[],
     inputValue: string,
     onInputChange: (v: string) => void,
@@ -435,27 +431,27 @@ export function RipngContent() {
     err: string | null,
     inputPlaceholder: string,
     isDropdown?: boolean,
-    dropdownOptions?: string[]
   ) => (
     <Card>
       <CardContent className="p-4">
-        <h3 className="font-semibold mb-3 text-sm">{title}</h3>
+        <h3 className="font-semibold mb-3 text-sm">
+          <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+        </h3>
         {hasWritePermission && (
           <div className="flex gap-2 mb-3">
-            {isDropdown && dropdownOptions ? (
-              <Select value={inputValue} onValueChange={onInputChange}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder={inputPlaceholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">{tc("shown.default")}</SelectItem>
-                  {dropdownOptions.map((o) => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {isDropdown ? (
+              <InterfaceSelect
+                id={inputId}
+                value={inputValue}
+                onValueChange={onInputChange}
+                placeholder={inputPlaceholder}
+                className="flex-1"
+                filter={(item) => !items.includes(item.name)}
+                noneOption={items.includes("default") ? undefined : { label: "default", value: "default" }}
+              />
             ) : (
               <Input
+                id={inputId}
                 placeholder={inputPlaceholder}
                 value={inputValue}
                 onChange={(e) => onInputChange(e.target.value)}
@@ -669,9 +665,9 @@ export function RipngContent() {
                     <div className="space-y-4">
                       {/* Default Metric */}
                       <div className="space-y-2">
-                        <Label>{t("overview.defaultMetric")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.defaultMetricHelp")}</p>
+                        <Label htmlFor="ripng-default-metric">{t("overview.defaultMetric")}</Label>
                         <Input
+                          id="ripng-default-metric"
                           type="number"
                           min={1}
                           max={16}
@@ -684,27 +680,14 @@ export function RipngContent() {
 
                       {/* Route Map */}
                       <div className="space-y-2">
-                        <Label>{t("overview.routeMap")}</Label>
-                        {overviewEditing ? (
-                          <Select value={ovRouteMap || "none"} onValueChange={(v) => setOvRouteMap(v === "none" ? "" : v)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={tc("none")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">{tc("none")}</SelectItem>
-                              {routeMapNames.map((rm) => (
-                                <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={config?.route_map ?? ""}
-                            disabled
-                            placeholder={tc("none")}
-                            className="font-mono"
-                          />
-                        )}
+                        <Label htmlFor="ripng-route-map">{t("overview.routeMap")}</Label>
+                        <NamedListSelect
+                          id="ripng-route-map"
+                          value={overviewEditing ? ovRouteMap : (config?.route_map ?? "")}
+                          names={routeMapNames}
+                          disabled={!overviewEditing}
+                          onValueChange={setOvRouteMap}
+                        />
                       </div>
 
                       {/* Default Information Originate */}
@@ -728,9 +711,9 @@ export function RipngContent() {
                     <h3 className="font-semibold mb-4">{t("overview.timers")}</h3>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label>{t("overview.updateInterval")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.updateHelp")}</p>
+                        <Label htmlFor="ripng-update-interval">{t("overview.updateInterval")}</Label>
                         <Input
+                          id="ripng-update-interval"
                           type="number"
                           min={5}
                           max={2147483647}
@@ -741,9 +724,9 @@ export function RipngContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("overview.timeoutInterval")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.timeoutHelp")}</p>
+                        <Label htmlFor="ripng-timeout-interval">{t("overview.timeoutInterval")}</Label>
                         <Input
+                          id="ripng-timeout-interval"
                           type="number"
                           min={5}
                           max={2147483647}
@@ -754,9 +737,9 @@ export function RipngContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("overview.garbageCollection")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("overview.gcHelp")}</p>
+                        <Label htmlFor="ripng-gc-interval">{t("overview.garbageCollection")}</Label>
                         <Input
+                          id="ripng-gc-interval"
                           type="number"
                           min={5}
                           max={2147483647}
@@ -782,6 +765,7 @@ export function RipngContent() {
               <div className="grid grid-cols-2 gap-4">
                 {renderListSection(
                   t("networks.ripngNetworks"),
+                  "ripng-list-ripngNetworks",
                   config?.networks ?? [],
                   newNetwork,
                   setNewNetwork,
@@ -792,6 +776,7 @@ export function RipngContent() {
                 )}
                 {renderListSection(
                   t("networks.aggregateAddresses"),
+                  "ripng-list-aggregateAddresses",
                   config?.aggregate_addresses ?? [],
                   newAggregateAddress,
                   setNewAggregateAddress,
@@ -802,6 +787,7 @@ export function RipngContent() {
                 )}
                 {renderListSection(
                   t("networks.staticRoutes"),
+                  "ripng-list-staticRoutes",
                   config?.routes ?? [],
                   newRoute,
                   setNewRoute,
@@ -812,15 +798,15 @@ export function RipngContent() {
                 )}
                 {renderListSection(
                   t("networks.passiveInterfaces"),
+                  "ripng-list-passiveInterfaces",
                   config?.passive_interfaces ?? [],
                   newPassiveIface,
                   setNewPassiveIface,
                   handleAddPassiveIface,
                   handleRemovePassiveIface,
                   passiveIfaceError,
-                  t("networks.selectOrTypeInterface"),
+                  tc("selectInterface"),
                   true,
-                  systemInterfaces
                 )}
               </div>
             </TabsContent>
@@ -1040,30 +1026,14 @@ export function RipngContent() {
 
                             return (
                               <div key={field} className="space-y-2">
-                                <Label>{label}</Label>
-                                {dlGlobalEditing ? (
-                                  <Select
-                                    value={(dlGlobalDraft[field] ?? "") || "none"}
-                                    onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v === "none" ? null : v })}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={tc("none")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">{tc("none")}</SelectItem>
-                                      {names.map((n) => (
-                                        <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={currentVal}
-                                    disabled
-                                    placeholder={tc("none")}
-                                    className="font-mono"
-                                  />
-                                )}
+                                <Label htmlFor={`ripng-dl-${field}`}>{label}</Label>
+                                <NamedListSelect
+                                  id={`ripng-dl-${field}`}
+                                  value={currentVal}
+                                  names={names}
+                                  disabled={!dlGlobalEditing}
+                                  onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v || null })}
+                                />
                               </div>
                             );
                           })}
@@ -1193,7 +1163,6 @@ export function RipngContent() {
         }}
         existingEntry={editingDlIface}
         existingInterfaces={config?.distribute_list.interface_filters.map((f) => f.interface) ?? []}
-        availableInterfaces={systemInterfaces}
         accessListNames={accessListNames}
         prefixListNames={prefixListNames}
         onSubmit={editingDlIface ? handleUpdateDlIface : handleCreateDlIface}

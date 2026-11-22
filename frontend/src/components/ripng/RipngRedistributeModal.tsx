@@ -19,9 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNgRedistribute } from "@/lib/api/ripng";
+import type { ApiError } from "@/lib/types/api";
 
 const DEFAULT_PROTOCOLS = ["babel", "bgp", "connected", "kernel", "ospfv3", "static"];
 
@@ -65,6 +67,7 @@ export function RipngRedistributeModal({
       setProtocol(existingEntry.protocol);
       setMetric(existingEntry.metric != null ? String(existingEntry.metric) : "");
       setRouteMap(existingEntry.route_map || "");
+      setError(null);
     } else {
       setProtocol("");
       setMetric("");
@@ -79,6 +82,10 @@ export function RipngRedistributeModal({
     setRouteMap("");
     setError(null);
     onOpenChange(false);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
   };
 
   const validate = (): string | null => {
@@ -109,14 +116,14 @@ export function RipngRedistributeModal({
       await onSubmit(entry);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -132,9 +139,9 @@ export function RipngRedistributeModal({
         <div className="space-y-4">
           {/* Protocol */}
           <div className="space-y-2">
-            <Label>{t("redistribute.protocol")}</Label>
+            <Label htmlFor="ripng-redist-protocol">{t("redistribute.protocol")}</Label>
             <Select value={protocol} onValueChange={setProtocol} disabled={isEditMode}>
-              <SelectTrigger className={isEditMode ? "bg-muted" : ""}>
+              <SelectTrigger id="ripng-redist-protocol" className={isEditMode ? "bg-muted" : ""}>
                 <SelectValue placeholder={t("redistModal.selectProtocol")} />
               </SelectTrigger>
               <SelectContent>
@@ -147,8 +154,9 @@ export function RipngRedistributeModal({
 
           {/* Metric */}
           <div className="space-y-2">
-            <Label>{t("redistribute.metric")} <span className="text-muted-foreground text-xs">{t("redistModal.metricHint")}</span></Label>
+            <Label htmlFor="ripng-redist-metric">{t("redistribute.metric")} <span className="text-muted-foreground text-xs">{t("redistModal.metricHint")}</span></Label>
             <Input
+              id="ripng-redist-metric"
               type="number"
               min={1}
               max={16}
@@ -160,18 +168,8 @@ export function RipngRedistributeModal({
 
           {/* Route Map */}
           <div className="space-y-2">
-            <Label>{t("redistribute.routeMap")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
-            <Select value={routeMap || "none"} onValueChange={(v) => setRouteMap(v === "none" ? "" : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder={tc("none")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{tc("none")}</SelectItem>
-                {routeMapNames.map((rm) => (
-                  <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="ripng-redist-route-map">{t("redistribute.routeMap")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
+            <NamedListSelect id="ripng-redist-route-map" value={routeMap} names={routeMapNames} onValueChange={setRouteMap} />
           </div>
         </div>
 

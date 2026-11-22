@@ -23,6 +23,17 @@ const CALLERS = [
   "src/components/rip/RipDistributeListInterfaceModal.tsx",
   "src/components/rip/RipNetworkDistanceModal.tsx",
   "src/components/ospf/OspfAreaModal.tsx",
+  "src/components/ripng/RipngContent.tsx",
+  "src/components/ripng/RipngDistributeListInterfaceModal.tsx",
+  "src/components/ospfv3/Ospfv3AreaModal.tsx",
+];
+
+// Route-map pickers that must use the shared control.
+const ROUTE_MAP_CALLERS = [
+  "src/components/ripng/RipngContent.tsx",
+  "src/components/ripng/RipngRedistributeModal.tsx",
+  "src/components/ospfv3/Ospfv3Content.tsx",
+  "src/components/ospfv3/Ospfv3RedistributeModal.tsx",
 ];
 
 describe("named list select options", () => {
@@ -50,19 +61,51 @@ describe("named list select", () => {
     assert.equal(existsSync(join(FRONTEND, "src/components/babel/BabelListSelect.tsx")), false);
   });
 
-  it("replaces the RIP, OSPF, and Babel copies", () => {
+  it("replaces the RIP, RIPng, OSPF, OSPFv3, and Babel copies", () => {
     for (const file of CALLERS) {
       const src = readFileSync(join(FRONTEND, file), "utf8");
       assert.match(src, /NamedListSelect/, file);
       assert.doesNotMatch(src, /BabelListSelect/, file);
       assert.doesNotMatch(src, /accessListNames\.map/, file);
       assert.doesNotMatch(src, /prefixListNames\.map/, file);
+      assert.doesNotMatch(src, /"__none__"|value="none"/, file);
     }
   });
 
   it("does not keep a route-map copy on the RIP page", () => {
     const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
     assert.doesNotMatch(src, /routeMapNames\.map/);
+  });
+
+  it("does not keep a route-map copy in RIPng or OSPFv3", () => {
+    for (const file of ROUTE_MAP_CALLERS) {
+      const src = readFileSync(join(FRONTEND, file), "utf8");
+      assert.match(src, /NamedListSelect/, file);
+      assert.doesNotMatch(src, /routeMapNames\.map/, file);
+      assert.doesNotMatch(src, /"__none__"|value="none"/, file);
+    }
+  });
+
+  it("loads the IPv6 access and prefix lists that RIPng and OSPFv3 reference", () => {
+    for (const file of ["src/components/ripng/RipngContent.tsx", "src/components/ospfv3/Ospfv3Content.tsx"]) {
+      const src = readFileSync(join(FRONTEND, file), "utf8");
+      assert.doesNotMatch(src, /ipv4_lists/, file);
+      assert.match(src, /accessListService\.getConfig\(\)\.then\(\(c\) => c\.ipv6_lists/, file);
+    }
+    const ripng = readFileSync(join(FRONTEND, "src/components/ripng/RipngContent.tsx"), "utf8");
+    assert.match(ripng, /prefixListService\.getConfig\(\)\.then\(\(c\) => c\.ipv6_lists/);
+  });
+
+  it("uses InterfaceSelect for the RIPng distribute-list and passive interfaces", () => {
+    const modal = readFileSync(join(FRONTEND, "src/components/ripng/RipngDistributeListInterfaceModal.tsx"), "utf8");
+    assert.match(modal, /InterfaceSelect/);
+    assert.match(modal, /filter=/);
+    assert.doesNotMatch(modal, /from "@\/components\/ui\/select"/);
+    const page = readFileSync(join(FRONTEND, "src/components/ripng/RipngContent.tsx"), "utf8");
+    assert.match(page, /InterfaceSelect/);
+    assert.match(page, /label: "default", value: "default"/);
+    assert.match(page, /items\.includes\("default"\)/);
+    assert.doesNotMatch(page, /showService/);
   });
 
   it("uses InterfaceSelect for the RIP distribute-list interface", () => {

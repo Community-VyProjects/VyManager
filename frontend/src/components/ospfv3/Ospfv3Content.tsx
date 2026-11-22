@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import {
   Table,
   TableBody,
@@ -48,6 +49,7 @@ import {
 } from "@/lib/api/ospfv3";
 import { routeMapService } from "@/lib/api/route-map";
 import { accessListService } from "@/lib/api/access-list";
+import type { ApiError } from "@/lib/types/api";
 import { Ospfv3AreaModal } from "./Ospfv3AreaModal";
 import { Ospfv3InterfaceModal } from "./Ospfv3InterfaceModal";
 import { Ospfv3RedistributeModal } from "./Ospfv3RedistributeModal";
@@ -122,6 +124,7 @@ export function Ospfv3Content() {
   const [grHelperEnable, setGrHelperEnable] = useState(false);
   const [grHelperRouterIds, setGrHelperRouterIds] = useState<string[]>([]);
   const [grHelperRouterIdDraft, setGrHelperRouterIdDraft] = useState("");
+  const [grHelperRouterIdError, setGrHelperRouterIdError] = useState<string | null>(null);
   const [grHelperLsaCheck, setGrHelperLsaCheck] = useState(false);
   const [grHelperPlannedOnly, setGrHelperPlannedOnly] = useState(false);
   const [grHelperGraceTime, setGrHelperGraceTime] = useState("");
@@ -141,12 +144,12 @@ export function Ospfv3Content() {
       // so we catch errors silently and default to empty arrays
       const [rmNames, aclNames] = await Promise.all([
         routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => []),
-        accessListService.getConfig().then((c) => c.ipv4_lists.map((al) => al.number)).catch(() => []),
+        accessListService.getConfig().then((c) => c.ipv6_lists.map((al) => al.number)).catch(() => []),
       ]);
       setRouteMapNames(rmNames);
       setAccessListNames(aclNames);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.loadFailed"));
+      setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -260,7 +263,7 @@ export function Ospfv3Content() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : t("page.saveParametersFailed"));
+      setOverviewError((err as ApiError).message || t("page.saveParametersFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -291,12 +294,12 @@ export function Ospfv3Content() {
         always: diAlways,
         metric: diMetric.trim() ? parseInt(diMetric.trim(), 10) : null,
         metric_type: diMetricType ? parseInt(diMetricType, 10) : null,
-        route_map: diRouteMap.trim() || null,
+        route_map: diRouteMap || null,
       });
       await loadData(true);
       setDiEditing(false);
     } catch (err) {
-      setDiError(err instanceof Error ? err.message : t("page.saveDefaultInfoFailed"));
+      setDiError((err as ApiError).message || t("page.saveDefaultInfoFailed"));
     } finally {
       setDiSaving(false);
     }
@@ -317,6 +320,7 @@ export function Ospfv3Content() {
     setGrHelperEnable(config.graceful_restart.helper.enable);
     setGrHelperRouterIds([...(config.graceful_restart.helper.router_ids || [])]);
     setGrHelperRouterIdDraft("");
+    setGrHelperRouterIdError(null);
     setGrHelperLsaCheck(config.graceful_restart.helper.lsa_check_disable);
     setGrHelperPlannedOnly(config.graceful_restart.helper.planned_only);
     setGrHelperGraceTime(config.graceful_restart.helper.supported_grace_time != null ? String(config.graceful_restart.helper.supported_grace_time) : "");
@@ -356,7 +360,10 @@ export function Ospfv3Content() {
       await loadData(true);
       setAdvancedEditing(false);
     } catch (err) {
-      setAdvancedError(err instanceof Error ? err.message : t("page.saveAdvancedFailed"));
+      setAdvancedError((err as ApiError).message || t("page.saveAdvancedFailed"));
+      // Distance and graceful restart are two commits; re-read the device so
+      // a retry does not re-send the half that already applied.
+      await loadData(true);
     } finally {
       setAdvancedSaving(false);
     }
@@ -515,7 +522,7 @@ export function Ospfv3Content() {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setOverviewEditing(false)}>
+                      <Button size="sm" variant="outline" onClick={() => { setOverviewEditing(false); setOverviewError(null); }}>
                         {tc("cancel")}
                       </Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
@@ -540,8 +547,9 @@ export function Ospfv3Content() {
                     <h3 className="font-semibold mb-4">{t("overview.parameters")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">{t("fields.routerId")}</Label>
+                        <Label htmlFor="ospfv3-router-id" className="text-sm">{t("fields.routerId")}</Label>
                         <Input
+                          id="ospfv3-router-id"
                           value={overviewEditing ? routerId : (config?.parameters.router_id ?? "")}
                           disabled={!overviewEditing}
                           onChange={(e) => setRouterId(e.target.value)}
@@ -549,8 +557,9 @@ export function Ospfv3Content() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">{t("overview.referenceBandwidth")}</Label>
+                        <Label htmlFor="ospfv3-ref-bandwidth" className="text-sm">{t("overview.referenceBandwidth")}</Label>
                         <Input
+                          id="ospfv3-ref-bandwidth"
                           type="number"
                           value={overviewEditing ? refBandwidth : (config?.auto_cost_reference_bandwidth != null ? String(config.auto_cost_reference_bandwidth) : "")}
                           disabled={!overviewEditing}
@@ -602,7 +611,7 @@ export function Ospfv3Content() {
                           </Button>
                         ) : (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => setDiEditing(false)}>
+                            <Button size="sm" variant="outline" onClick={() => { setDiEditing(false); setDiError(null); }}>
                               {tc("cancel")}
                             </Button>
                             <Button size="sm" onClick={saveDI} disabled={diSaving}>
@@ -640,8 +649,9 @@ export function Ospfv3Content() {
                         <Label htmlFor="ospfv3-di-always">{t("overview.always")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("fields.metric")}</Label>
+                        <Label htmlFor="ospfv3-di-metric" className="text-sm">{t("fields.metric")}</Label>
                         <Input
+                          id="ospfv3-di-metric"
                           type="number"
                           value={diEditing ? diMetric : (config?.default_information.metric != null ? String(config.default_information.metric) : "")}
                           disabled={!diEditing}
@@ -650,13 +660,13 @@ export function Ospfv3Content() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">{t("fields.metricType")}</Label>
+                        <Label htmlFor="ospfv3-di-metric-type" className="text-sm">{t("fields.metricType")}</Label>
                         <Select
                           value={diEditing ? diMetricType : (config?.default_information.metric_type != null ? String(config.default_information.metric_type) : "")}
                           onValueChange={setDiMetricType}
                           disabled={!diEditing}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="ospfv3-di-metric-type">
                             <SelectValue placeholder={tc("default")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -666,22 +676,14 @@ export function Ospfv3Content() {
                         </Select>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("fields.routeMap")}</Label>
-                        <Select
+                        <Label htmlFor="ospfv3-di-route-map" className="text-sm">{t("fields.routeMap")}</Label>
+                        <NamedListSelect
+                          id="ospfv3-di-route-map"
                           value={diEditing ? diRouteMap : (config?.default_information.route_map ?? "")}
-                          onValueChange={(v) => setDiRouteMap(v === "__none__" ? "" : v)}
+                          names={routeMapNames}
                           disabled={!diEditing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={tc("none")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">{tc("none")}</SelectItem>
-                            {routeMapNames.map((name) => (
-                              <SelectItem key={name} value={name}>{name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          onValueChange={setDiRouteMap}
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -1065,7 +1067,7 @@ export function Ospfv3Content() {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setAdvancedEditing(false)}>
+                      <Button size="sm" variant="outline" onClick={() => { setAdvancedEditing(false); setAdvancedError(null); }}>
                         {tc("cancel")}
                       </Button>
                       <Button size="sm" onClick={saveAdvanced} disabled={advancedSaving}>
@@ -1090,8 +1092,9 @@ export function Ospfv3Content() {
                     <h3 className="font-semibold mb-4">{t("advanced.administrativeDistance")}</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm">{t("advanced.globalDistance")}</Label>
+                        <Label htmlFor="ospfv3-dist-global" className="text-sm">{t("advanced.globalDistance")}</Label>
                         <Input
+                          id="ospfv3-dist-global"
                           type="number"
                           value={advancedEditing ? distGlobal : (config?.distance.global_value != null ? String(config.distance.global_value) : "")}
                           disabled={!advancedEditing}
@@ -1102,8 +1105,9 @@ export function Ospfv3Content() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">{t("advanced.external")}</Label>
+                        <Label htmlFor="ospfv3-dist-external" className="text-sm">{t("advanced.external")}</Label>
                         <Input
+                          id="ospfv3-dist-external"
                           type="number"
                           value={advancedEditing ? distExternal : (config?.distance.ospfv3.external != null ? String(config.distance.ospfv3.external) : "")}
                           disabled={!advancedEditing}
@@ -1114,8 +1118,9 @@ export function Ospfv3Content() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">{t("advanced.interArea")}</Label>
+                        <Label htmlFor="ospfv3-dist-inter-area" className="text-sm">{t("advanced.interArea")}</Label>
                         <Input
+                          id="ospfv3-dist-inter-area"
                           type="number"
                           value={advancedEditing ? distInterArea : (config?.distance.ospfv3.inter_area != null ? String(config.distance.ospfv3.inter_area) : "")}
                           disabled={!advancedEditing}
@@ -1126,8 +1131,9 @@ export function Ospfv3Content() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">{t("advanced.intraArea")}</Label>
+                        <Label htmlFor="ospfv3-dist-intra-area" className="text-sm">{t("advanced.intraArea")}</Label>
                         <Input
+                          id="ospfv3-dist-intra-area"
                           type="number"
                           value={advancedEditing ? distIntraArea : (config?.distance.ospfv3.intra_area != null ? String(config.distance.ospfv3.intra_area) : "")}
                           disabled={!advancedEditing}
@@ -1156,8 +1162,9 @@ export function Ospfv3Content() {
                         <Label htmlFor="ospfv3-gr-enabled">{t("advanced.enableGracefulRestart")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("advanced.gracePeriod")}</Label>
+                        <Label htmlFor="ospfv3-gr-period" className="text-sm">{t("advanced.gracePeriod")}</Label>
                         <Input
+                          id="ospfv3-gr-period"
                           type="number"
                           value={advancedEditing ? grPeriod : (config?.graceful_restart.grace_period != null ? String(config.graceful_restart.grace_period) : "")}
                           disabled={!advancedEditing}
@@ -1175,7 +1182,7 @@ export function Ospfv3Content() {
                         <Label htmlFor="ospfv3-gr-helper">{t("advanced.enableHelper")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("advanced.helperRouterIds")}</Label>
+                        <Label htmlFor="ospfv3-gr-helper-router-id" className="text-sm">{t("advanced.helperRouterIds")}</Label>
                         <div className="space-y-2 mt-1">
                           {(advancedEditing ? grHelperRouterIds : (config?.graceful_restart.helper.router_ids || [])).map((id) => (
                             <div key={id} className="flex items-center gap-2">
@@ -1197,7 +1204,7 @@ export function Ospfv3Content() {
                               <Input
                                 id="ospfv3-gr-helper-router-id"
                                 value={grHelperRouterIdDraft}
-                                onChange={(e) => setGrHelperRouterIdDraft(e.target.value)}
+                                onChange={(e) => { setGrHelperRouterIdDraft(e.target.value); setGrHelperRouterIdError(null); }}
                                 placeholder="192.0.2.1"
                               />
                               <Button
@@ -1208,14 +1215,25 @@ export function Ospfv3Content() {
                                   const id = grHelperRouterIdDraft.trim();
                                   const parts = id.split(".");
                                   const valid = parts.length === 4 && parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255);
-                                  if (!valid || grHelperRouterIds.includes(id)) return;
+                                  if (!valid) {
+                                    setGrHelperRouterIdError(t("advanced.helperRouterIdInvalid"));
+                                    return;
+                                  }
+                                  if (grHelperRouterIds.includes(id)) {
+                                    setGrHelperRouterIdError(t("advanced.helperRouterIdExists"));
+                                    return;
+                                  }
                                   setGrHelperRouterIds([...grHelperRouterIds, id]);
                                   setGrHelperRouterIdDraft("");
+                                  setGrHelperRouterIdError(null);
                                 }}
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
+                          )}
+                          {advancedEditing && grHelperRouterIdError && (
+                            <p className="text-sm text-destructive">{grHelperRouterIdError}</p>
                           )}
                         </div>
                       </div>
@@ -1238,8 +1256,9 @@ export function Ospfv3Content() {
                         <Label htmlFor="ospfv3-gr-planned">{t("advanced.plannedOnly")}</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">{t("advanced.supportedGraceTime")}</Label>
+                        <Label htmlFor="ospfv3-gr-grace-time" className="text-sm">{t("advanced.supportedGraceTime")}</Label>
                         <Input
+                          id="ospfv3-gr-grace-time"
                           type="number"
                           value={advancedEditing ? grHelperGraceTime : (config?.graceful_restart.helper.supported_grace_time != null ? String(config.graceful_restart.helper.supported_grace_time) : "")}
                           disabled={!advancedEditing}
@@ -1262,6 +1281,7 @@ export function Ospfv3Content() {
         onOpenChange={setAreaModalOpen}
         onSubmit={editingArea ? handleUpdateArea : handleCreateArea}
         existingArea={editingArea}
+        existingAreaIds={config?.areas.map((a) => a.area_id) ?? []}
         accessListNames={accessListNames}
       />
 
