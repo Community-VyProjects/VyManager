@@ -139,8 +139,10 @@ describe("named list select", () => {
       assert.doesNotMatch(src, /<SelectItem value="restart">/);
     }
     assert.match(neighbor, /!isEditMode && configuredAddresses\.some\(\(a\) => sameNeighborAddress\(a, trimmed\)\)/);
-    assert.match(neighbor, /!isEditMode && !isValidIPv4\(trimmed\) && !isValidIPv6\(trimmed\)/);
-    assert.match(neighbor, /neighborRangeProblem\(/);
+    assert.match(neighbor, /!isEditMode && !isNeighborAddress\(trimmed\)/);
+    assert.match(neighbor, /firstRangeProblem\(/);
+    assert.match(neighbor, /NEIGHBOR_AF_RANGES/);
+    assert.match(peerGroup, /PEER_GROUP_RANGES/);
     assert.match(peerGroup, /!isEditMode && configuredNames\.includes\(name\.trim\(\)\)/);
     assert.doesNotMatch(peerGroup, /localAsRequired|localRoleRequired/);
   });
@@ -169,7 +171,8 @@ describe("named list select", () => {
     assert.match(page, /!hasWritePermission \? null : !paramsEditing/);
     assert.match(page, /disabled=\{afSaving \|\| !hasWritePermission\}/);
     const bmpTab = page.slice(page.indexOf('<TabsContent value="bmp">'), page.indexOf("</TabsContent>", page.indexOf('<TabsContent value="bmp">')));
-    assert.doesNotMatch(bmpTab, /disabled=\{bmpSaving/);
+    assert.doesNotMatch(bmpTab, /disabled=\{bmpSaving\}/);
+    assert.match(bmpTab, /\{hasWritePermission && \(\n\s*<div className="flex flex-wrap items-end gap-3">/);
   });
 
   it("loads the IPv6 access and prefix lists that RIPng and OSPFv3 reference", () => {

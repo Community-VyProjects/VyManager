@@ -73,6 +73,7 @@ import { afiNameKey, formatUnknownAfi } from "./afi-name";
 import { thrownMessage } from "@/lib/api-error";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { canonicalPrefix, firstRangeProblem, HOLDTIME_RANGE, KEEPALIVE_RANGE, OVERVIEW_RANGES } from "@/lib/api/bgp-ranges";
 
 function failedSaveMessage(
   result: { success: boolean; error?: string | null } | null | undefined,
@@ -231,10 +232,19 @@ export function BgpContent() {
 
   const handleOverviewSave = async () => {
     if (!config) return;
+    const range = firstRangeProblem({ keepalive, holdtime }, OVERVIEW_RANGES);
+    if (range) {
+      setOverviewError(t("form.rangeInvalid", {
+        field: t(range.field === "keepalive" ? "content.overview.keepalive" : "content.overview.holdTime"),
+        min: range.range.min,
+        max: range.range.max,
+      }));
+      return;
+    }
     setOverviewSaving(true);
     setOverviewError(null);
     try {
-      const result = await bgpService.saveOverview(config, systemAs, routerId, keepalive, holdtime);
+      const result = await bgpService.saveOverview(config, systemAs.trim(), routerId.trim(), keepalive.trim(), holdtime.trim());
       const message = failedSaveMessage(result, t("content.saveOverviewFailed"));
       if (message) {
         setOverviewError(message);
@@ -356,7 +366,7 @@ export function BgpContent() {
   const handleAddNetwork = async () => {
     const prefix = afNetworkPrefix.trim();
     if (!prefix) return;
-    if (currentAf?.networks.some((n) => n.prefix === prefix)) {
+    if (currentAf?.networks.some((n) => canonicalPrefix(n.prefix) === canonicalPrefix(prefix))) {
       setAfError(t("content.networkExists", { prefix }));
       return;
     }
@@ -452,7 +462,7 @@ export function BgpContent() {
   const handleAddAggregate = async () => {
     const prefix = afAggPrefix.trim();
     if (!prefix) return;
-    if (currentAf?.aggregate_addresses.some((a) => a.prefix === prefix)) {
+    if (currentAf?.aggregate_addresses.some((a) => canonicalPrefix(a.prefix) === canonicalPrefix(prefix))) {
       setAfError(t("content.aggregateExists", { prefix }));
       return;
     }
@@ -782,9 +792,10 @@ export function BgpContent() {
                   <CardContent className="p-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label>{t("content.overview.systemAs")}</Label>
+                        <Label htmlFor="bgp-overview-system-as">{t("content.overview.systemAs")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-system-as"
                             value={systemAs}
                             onChange={(e) => setSystemAs(e.target.value)}
                             placeholder={t("eg", { value: "65001" })}
@@ -799,9 +810,10 @@ export function BgpContent() {
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("content.overview.routerId")}</Label>
+                        <Label htmlFor="bgp-overview-router-id">{t("content.overview.routerId")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-router-id"
                             value={routerId}
                             onChange={(e) => setRouterId(e.target.value)}
                             placeholder={t("eg", { value: "10.0.0.1" })}
@@ -816,9 +828,12 @@ export function BgpContent() {
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("content.overview.keepalive")}</Label>
+                        <Label htmlFor="bgp-overview-keepalive">{t("content.overview.keepalive")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-keepalive"
+                            min={KEEPALIVE_RANGE.min}
+                            max={KEEPALIVE_RANGE.max}
                             type="number"
                             value={keepalive}
                             onChange={(e) => setKeepalive(e.target.value)}
@@ -834,9 +849,12 @@ export function BgpContent() {
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("content.overview.holdTime")}</Label>
+                        <Label htmlFor="bgp-overview-holdtime">{t("content.overview.holdTime")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-holdtime"
+                            min={HOLDTIME_RANGE.min}
+                            max={HOLDTIME_RANGE.max}
                             type="number"
                             value={holdtime}
                             onChange={(e) => setHoldtime(e.target.value)}
@@ -1969,71 +1987,73 @@ export function BgpContent() {
                     {tc("save")}
                   </Button>
                 </div>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-[140px] space-y-1">
-                    <Label className="text-xs">{tc("name")}</Label>
-                    <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" disabled={!hasWritePermission} />
-                  </div>
-                  <div className="w-[160px] space-y-1">
-                    <Label className="text-xs">{t("content.address")}</Label>
-                    <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" disabled={!hasWritePermission} />
-                  </div>
-                  <div className="w-[100px] space-y-1">
-                    <Label className="text-xs">{t("neighborModal.port")}</Label>
-                    <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" disabled={!hasWritePermission} />
-                  </div>
-                  <div className="w-[100px] space-y-1">
-                    <Label className="text-xs">{t("content.bmp.minRetry")}</Label>
-                    <Input type="number" value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" disabled={!hasWritePermission} />
-                  </div>
-                  <div className="w-[100px] space-y-1">
-                    <Label className="text-xs">{t("content.bmp.maxRetry")}</Label>
-                    <Input type="number" value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" disabled={!hasWritePermission} />
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={!hasWritePermission || bmpSaving || !bmpName.trim()}
-                    onClick={async () => {
-                      const targetName = bmpName.trim();
-                      if (config?.bmp?.targets.some((target) => target.name === targetName)) {
-                        setBmpError(t("content.bmpTargetExists", { name: targetName }));
-                        return;
-                      }
-                      setBmpSaving(true);
-                      setBmpError(null);
-                      try {
-                        const created: BgpBmpTarget = {
-                          name: targetName,
-                          address: bmpAddress.trim() || null,
-                          port: bmpPort.trim() ? Number(bmpPort) : null,
-                          min_retry: bmpMinRetry.trim() ? Number(bmpMinRetry) : null,
-                          max_retry: bmpMaxRetry.trim() ? Number(bmpMaxRetry) : null,
-                          mirror: false,
-                          source_interface: null,
-                          monitors: [],
-                        };
-                        const result = await bgpService.saveBmpTarget(null, created);
-                        const message = failedSaveMessage(result, t("content.saveFailed"));
-                        if (message) {
-                          setBmpError(message);
+                {hasWritePermission && (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="w-[140px] space-y-1">
+                      <Label className="text-xs">{tc("name")}</Label>
+                      <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[160px] space-y-1">
+                      <Label className="text-xs">{t("content.address")}</Label>
+                      <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[100px] space-y-1">
+                      <Label className="text-xs">{t("neighborModal.port")}</Label>
+                      <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[100px] space-y-1">
+                      <Label className="text-xs">{t("content.bmp.minRetry")}</Label>
+                      <Input type="number" value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[100px] space-y-1">
+                      <Label className="text-xs">{t("content.bmp.maxRetry")}</Label>
+                      <Input type="number" value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" />
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={bmpSaving || !bmpName.trim()}
+                      onClick={async () => {
+                        const targetName = bmpName.trim();
+                        if (config?.bmp?.targets.some((target) => target.name === targetName)) {
+                          setBmpError(t("content.bmpTargetExists", { name: targetName }));
                           return;
                         }
-                        setBmpName("");
-                        setBmpAddress("");
-                        setBmpPort("");
-                        setBmpMinRetry("");
-                        setBmpMaxRetry("");
-                        await loadData(true);
-                      } catch (err) {
-                        setBmpError(thrownMessage(err, t("content.saveFailed")));
-                      } finally {
-                        setBmpSaving(false);
-                      }
-                    }}
-                  >
-                    {tc("add")}
-                  </Button>
-                </div>
+                        setBmpSaving(true);
+                        setBmpError(null);
+                        try {
+                          const created: BgpBmpTarget = {
+                            name: targetName,
+                            address: bmpAddress.trim() || null,
+                            port: bmpPort.trim() ? Number(bmpPort) : null,
+                            min_retry: bmpMinRetry.trim() ? Number(bmpMinRetry) : null,
+                            max_retry: bmpMaxRetry.trim() ? Number(bmpMaxRetry) : null,
+                            mirror: false,
+                            source_interface: null,
+                            monitors: [],
+                          };
+                          const result = await bgpService.saveBmpTarget(null, created);
+                          const message = failedSaveMessage(result, t("content.saveFailed"));
+                          if (message) {
+                            setBmpError(message);
+                            return;
+                          }
+                          setBmpName("");
+                          setBmpAddress("");
+                          setBmpPort("");
+                          setBmpMinRetry("");
+                          setBmpMaxRetry("");
+                          await loadData(true);
+                        } catch (err) {
+                          setBmpError(thrownMessage(err, t("content.saveFailed")));
+                        } finally {
+                          setBmpSaving(false);
+                        }
+                      }}
+                    >
+                      {tc("add")}
+                    </Button>
+                  </div>
+                )}
                 {(config?.bmp?.targets ?? []).length === 0 && (
                   <p className="text-sm text-muted-foreground">{tc("notSet")}</p>
                 )}

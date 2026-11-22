@@ -25,17 +25,24 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { NONE_SENTINEL } from "@/lib/named-list-select-options";
-import { isValidIPv4, isValidIPv6 } from "@/lib/validators/firewall";
 import {
   ADVERTISEMENT_INTERVAL_RANGE,
+  ALLOWAS_IN_RANGE,
+  BFD_HOLD_TIME_RANGE,
   CONNECT_TIMER_RANGE,
   EBGP_MULTIHOP_RANGE,
+  firstRangeProblem,
   HOLDTIME_RANGE,
+  isNeighborAddress,
   KEEPALIVE_RANGE,
-  neighborRangeProblem,
+  MAXIMUM_PREFIX_RANGE,
+  NEIGHBOR_AF_RANGES,
+  NEIGHBOR_RANGES,
   PORT_RANGE,
   sameNeighborAddress,
   TTL_SECURITY_RANGE,
+  WEIGHT_RANGE,
+  type NeighborAfRangeField,
   type NeighborRangeField,
 } from "@/lib/api/bgp-ranges";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -75,7 +82,14 @@ const RANGE_LABEL_KEYS = {
   connect: "neighborModal.connectTimer",
   keepalive: "neighborModal.keepalive",
   holdtime: "neighborModal.holdtime",
+  bfdHoldTime: "form.bfdStrictHoldTime",
 } as const satisfies Record<NeighborRangeField, string>;
+
+const AF_RANGE_LABEL_KEYS = {
+  maximumPrefix: "neighborModal.maximumPrefix",
+  allowasIn: "neighborModal.allowasIn",
+  weight: "neighborModal.weight",
+} as const satisfies Record<NeighborAfRangeField, string>;
 
 const emptyAfConfig = (): BgpNeighborAddressFamilyConfig => ({
   route_map_export: null,
@@ -395,27 +409,49 @@ export function BgpNeighborModal({
     if (!trimmed) {
       return t("neighborModal.addressRequired");
     }
-    if (!isEditMode && !isValidIPv4(trimmed) && !isValidIPv6(trimmed)) {
+    if (!isEditMode && !isNeighborAddress(trimmed)) {
       return t("neighborModal.addressInvalid");
     }
     if (!isEditMode && configuredAddresses.some((a) => sameNeighborAddress(a, trimmed))) {
       return t("neighborModal.addressExists", { address: trimmed });
     }
-    const range = neighborRangeProblem({
-      ebgpMultihop,
-      ttlSecurityHops,
-      port,
-      advertisementInterval,
-      connect: timerConnect,
-      keepalive: timerKeepalive,
-      holdtime: timerHoldtime,
-    });
+    const range = firstRangeProblem(
+      {
+        ebgpMultihop,
+        ttlSecurityHops,
+        port,
+        advertisementInterval,
+        connect: timerConnect,
+        keepalive: timerKeepalive,
+        holdtime: timerHoldtime,
+        bfdHoldTime: bfdEnabled && bfdStrict ? bfdStrictHoldTime : "",
+      },
+      NEIGHBOR_RANGES,
+    );
     if (range) {
-      return t("neighborModal.rangeInvalid", {
+      return t("form.rangeInvalid", {
         field: t(RANGE_LABEL_KEYS[range.field]),
         min: range.range.min,
         max: range.range.max,
       });
+    }
+    for (const [afi, af] of Object.entries(addressFamilies)) {
+      const afRange = firstRangeProblem(
+        {
+          maximumPrefix: af.maximum_prefix != null ? String(af.maximum_prefix) : "",
+          allowasIn: af.allowas_in_number != null ? String(af.allowas_in_number) : "",
+          weight: af.weight != null ? String(af.weight) : "",
+        },
+        NEIGHBOR_AF_RANGES,
+      );
+      if (afRange) {
+        return t("form.afRangeInvalid", {
+          afi,
+          field: t(AF_RANGE_LABEL_KEYS[afRange.field]),
+          min: afRange.range.min,
+          max: afRange.range.max,
+        });
+      }
     }
     return null;
   };
@@ -470,8 +506,8 @@ export function BgpNeighborModal({
           profile: bfdProfile.trim() || null,
           strict: bfdEnabled && bfdStrict,
           strict_hold_time:
-            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim() && Number.isFinite(Number(bfdStrictHoldTime))
-              ? parseInt(bfdStrictHoldTime.trim(), 10)
+            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim()
+              ? Number(bfdStrictHoldTime.trim())
               : null,
         },
         capability: {
@@ -855,8 +891,8 @@ export function BgpNeighborModal({
                             <Input
                               id="bgp-neighbor-bfd-hold"
                               type="number"
-                              min={1}
-                              max={4294967295}
+                              min={BFD_HOLD_TIME_RANGE.min}
+                              max={BFD_HOLD_TIME_RANGE.max}
                               value={bfdStrictHoldTime}
                               onChange={(e) => setBfdStrictHoldTime(e.target.value)}
                               className="h-9"
@@ -1469,12 +1505,13 @@ export function BgpNeighborModal({
                                     afi,
                                     "maximum_prefix",
                                     e.target.value
-                                      ? parseInt(e.target.value, 10)
+                                      ? Number(e.target.value)
                                       : null
                                   )
                                 }
                                 placeholder={t("neighborModal.maxPrefixesPlaceholder")}
-                                min={1}
+                                min={MAXIMUM_PREFIX_RANGE.min}
+                                max={MAXIMUM_PREFIX_RANGE.max}
                               />
                             </div>
 
@@ -1496,13 +1533,13 @@ export function BgpNeighborModal({
                                     afi,
                                     "allowas_in_number",
                                     e.target.value
-                                      ? parseInt(e.target.value, 10)
+                                      ? Number(e.target.value)
                                       : null
                                   )
                                 }
                                 placeholder={t("neighborModal.count")}
-                                min={1}
-                                max={10}
+                                min={ALLOWAS_IN_RANGE.min}
+                                max={ALLOWAS_IN_RANGE.max}
                               />
                             </div>
 
@@ -1524,13 +1561,13 @@ export function BgpNeighborModal({
                                     afi,
                                     "weight",
                                     e.target.value
-                                      ? parseInt(e.target.value, 10)
+                                      ? Number(e.target.value)
                                       : null
                                   )
                                 }
                                 placeholder={t("neighborModal.weight")}
-                                min={0}
-                                max={65535}
+                                min={WEIGHT_RANGE.min}
+                                max={WEIGHT_RANGE.max}
                               />
                             </div>
                           </div>

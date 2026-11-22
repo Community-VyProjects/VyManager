@@ -25,7 +25,14 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { NONE_SENTINEL } from "@/lib/named-list-select-options";
-import { EBGP_MULTIHOP_RANGE, inRange, TTL_SECURITY_RANGE } from "@/lib/api/bgp-ranges";
+import {
+  BFD_HOLD_TIME_RANGE,
+  EBGP_MULTIHOP_RANGE,
+  firstRangeProblem,
+  PEER_GROUP_RANGES,
+  TTL_SECURITY_RANGE,
+  type PeerGroupRangeField,
+} from "@/lib/api/bgp-ranges";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type {
@@ -44,6 +51,13 @@ interface BgpPeerGroupModalProps {
   routeMapNames: string[];
   bfdProfileNames: string[];
 }
+
+/** Label of each range-checked field, for the range error. */
+const RANGE_LABEL_KEYS = {
+  ebgpMultihop: "form.ebgpMultihop",
+  ttlSecurityHops: "form.ttlSecurityHops",
+  bfdHoldTime: "form.bfdStrictHoldTime",
+} as const satisfies Record<PeerGroupRangeField, string>;
 
 interface AddressFamilyFormState {
   route_map_import: string;
@@ -317,12 +331,20 @@ export function BgpPeerGroupModal({
       return t("peerGroupModal.nameExists", { name: name.trim() });
     }
 
-    if (!inRange(ebgpMultihop, EBGP_MULTIHOP_RANGE)) {
-      return t("peerGroupModal.ebgpMultihopRange");
-    }
-
-    if (!inRange(ttlSecurityHops, TTL_SECURITY_RANGE)) {
-      return t("peerGroupModal.ttlRange");
+    const range = firstRangeProblem(
+      {
+        ebgpMultihop,
+        ttlSecurityHops,
+        bfdHoldTime: bfdEnabled && bfdStrict ? bfdStrictHoldTime : "",
+      },
+      PEER_GROUP_RANGES,
+    );
+    if (range) {
+      return t("form.rangeInvalid", {
+        field: t(RANGE_LABEL_KEYS[range.field]),
+        min: range.range.min,
+        max: range.range.max,
+      });
     }
 
     return null;
@@ -389,8 +411,8 @@ export function BgpPeerGroupModal({
             bfdEnabled && bfdProfile.trim() ? bfdProfile.trim() : null,
           strict: bfdEnabled && bfdStrict,
           strict_hold_time:
-            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim() && Number.isFinite(Number(bfdStrictHoldTime))
-              ? parseInt(bfdStrictHoldTime.trim(), 10)
+            bfdEnabled && bfdStrict && bfdStrictHoldTime.trim()
+              ? Number(bfdStrictHoldTime.trim())
               : null,
         },
         capability: {
@@ -713,8 +735,8 @@ export function BgpPeerGroupModal({
                             <Input
                               id="bgp-pg-bfd-hold"
                               type="number"
-                              min={1}
-                              max={4294967295}
+                              min={BFD_HOLD_TIME_RANGE.min}
+                              max={BFD_HOLD_TIME_RANGE.max}
                               value={bfdStrictHoldTime}
                               onChange={(e) => setBfdStrictHoldTime(e.target.value)}
                               className="h-9"
