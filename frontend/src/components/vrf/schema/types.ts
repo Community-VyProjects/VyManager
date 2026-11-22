@@ -29,6 +29,8 @@ export interface FieldSpec {
   options?: SelectOption[];
   placeholder?: string;
   help?: string;
+  /** The value is a router secret: the config read returns it as MASKED_SECRET. */
+  secret?: boolean;
   /** Capability flag (capabilities.features[capability].supported) gating the field. */
   capability?: string;
   /** Only render this field when the current entity id is one of these values. */
