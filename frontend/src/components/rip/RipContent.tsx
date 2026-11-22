@@ -526,6 +526,7 @@ export function RipContent() {
                 id={inputId}
                 value={inputValue}
                 onValueChange={onInputChange}
+                disabled={busy}
                 placeholder={inputPlaceholder}
                 className="flex-1"
                 filter={(item) => !items.includes(item.name)}
@@ -536,6 +537,7 @@ export function RipContent() {
                 id={inputId}
                 placeholder={inputPlaceholder}
                 value={inputValue}
+                disabled={busy}
                 onChange={(e) => onInputChange(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") add(); }}
                 className="flex-1 font-mono text-sm"
