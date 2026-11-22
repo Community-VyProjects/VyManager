@@ -7,44 +7,52 @@ routing protocol configuration within VRF instances.
 Config tree: vrf name <NAME> protocols isis
   advertise-high-metrics
   advertise-passive-only
-  area-password (md5/plaintext-password, authenticate-snp: send-only/validate)
+  area-password (md5/plaintext-password)
   default-information (originate: ipv4/ipv6 x level-1/level-2: always, metric, route-map)
-  domain-password (md5/plaintext-password, authenticate-snp: send-only/validate)
+  domain-password (md5/plaintext-password)
   dynamic-hostname
-  interface (bfd, bfd-profile, circuit-type, hello-interval, hello-multiplier,
-             hello-padding, ldp-sync: holddown, metric, network,
+  fast-reroute lfa (local: load-sharing disable, priority-limit, tiebreaker;
+                    remote: prefix-list)
+  interface (bfd, bfd profile, circuit-type, hello-interval, hello-multiplier,
+             hello-padding, ldp-sync: disable/holddown, metric, network,
              no-three-way-handshake, passive, password: md5/plaintext-password,
              priority, psnp-interval)
-  ldp-sync
-  level (all/1/2: lsp-gen-interval, max-lsp-lifetime, spf-interval, purge-originator)
+  ldp-sync (holddown)
+  level
   log-adjacency-changes
+  lsp-gen-interval
   lsp-mtu
   lsp-refresh-interval
+  max-lsp-lifetime
   metric-style (narrow/transition/wide)
   net (NET address)
+  purge-originator
   redistribute (ipv4/ipv6 x protocol: level-1/level-2, metric, route-map)
   segment-routing (global-block, local-block, maximum-label-depth,
                    prefix with index/absolute/explicit-null/no-php-flag)
   set-attached-bit
-  set-overload-bit (on-startup)
+  set-overload-bit
   spf-delay-ietf (init-delay, long-delay, short-delay, holddown, time-to-learn)
   spf-interval
-  topology (ipv4-multicast, ipv4-mgmt, ipv6-unicast)
-  traffic-engineering (address-family: ipv4/ipv6, enable, inter-area)
+  topology
+  traffic-engineering (address, enable)
 
 The shared class holds the paths both labs have. Interface fast-reroute,
 segment-routing srv6, traffic-engineering export and redistribute ipv4 nhrp
-exist only on VyOS 1.5; the subclass in ``vrf_versions`` adds them.
+exist only on VyOS 1.5; the subclass in ``vrf_isis_versions`` adds them.
 """
 
 from typing import Dict, FrozenSet, List, Optional, Tuple
 
-from vyos_mappers.isis.isis import _REDIST_IPV4, _REDIST_IPV6
 from ..base import BaseFeatureMapper
 
 
 class VrfIsisMapper(BaseFeatureMapper):
     """Mapper for VRF ISIS paths both VyOS 1.4 and 1.5 have."""
+
+    # ``redistribute <af> <protocol>`` both labs have.
+    _REDIST_IPV4 = frozenset({"babel", "bgp", "connected", "kernel", "ospf", "rip", "static"})
+    _REDIST_IPV6 = frozenset({"babel", "bgp", "connected", "kernel", "ospf6", "ripng", "static"})
 
     # Version-only nodes, each with the path methods below it. The methods
     # live on the version subclass; VRF dispatch calls ``require_node`` with
@@ -96,19 +104,20 @@ class VrfIsisMapper(BaseFeatureMapper):
             raise ValueError(f"{node} is not supported on this device")
 
     def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
-        return _REDIST_IPV4
+        return self._REDIST_IPV4
 
     def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
-        return _REDIST_IPV6
+        return self._REDIST_IPV6
+
+    def _redistribute_protocols(self, af: str) -> FrozenSet[str]:
+        if af == "ipv4":
+            return self.redistribute_ipv4_protocols()
+        if af == "ipv6":
+            return self.redistribute_ipv6_protocols()
+        raise ValueError(f"unknown IS-IS redistribute address family {af}")
 
     def _require_redistribute(self, af: str, protocol: str) -> None:
-        if af == "ipv4":
-            allowed = self.redistribute_ipv4_protocols()
-        elif af == "ipv6":
-            allowed = self.redistribute_ipv6_protocols()
-        else:
-            raise ValueError(f"unknown IS-IS redistribute address family {af}")
-        if protocol not in allowed:
+        if protocol not in self._redistribute_protocols(af):
             raise ValueError(
                 f"redistribute {protocol} is not supported on this device")
 
@@ -178,9 +187,6 @@ class VrfIsisMapper(BaseFeatureMapper):
     def get_isis_spf_interval(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["spf-interval", value]
 
-    def get_isis_set_overload_bit_on_startup(self, name: str, value: str) -> List[str]:
-        return self._base(name) + ["set-overload-bit", "on-startup", value]
-
     # ========================================================================
     # Area Password
     # ========================================================================
@@ -191,9 +197,6 @@ class VrfIsisMapper(BaseFeatureMapper):
     def get_isis_area_password_plaintext_password(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["area-password", "plaintext-password", value]
 
-    def get_isis_area_password_authenticate_snp(self, name: str, value: str) -> List[str]:
-        return self._base(name) + ["area-password", "authenticate-snp", value]
-
     # ========================================================================
     # Domain Password
     # ========================================================================
@@ -203,9 +206,6 @@ class VrfIsisMapper(BaseFeatureMapper):
 
     def get_isis_domain_password_plaintext_password(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["domain-password", "plaintext-password", value]
-
-    def get_isis_domain_password_authenticate_snp(self, name: str, value: str) -> List[str]:
-        return self._base(name) + ["domain-password", "authenticate-snp", value]
 
     # ========================================================================
     # Default Information Originate
@@ -300,7 +300,8 @@ class VrfIsisMapper(BaseFeatureMapper):
     # Redistribute
     #   redistribute <af> <protocol> <level> [metric <val>|route-map <val>]
     #   af: ipv4, ipv6
-    #   protocol: babel, bgp, connected, isis, kernel, ospf, ospf6, rip, ripng, static
+    #   protocol: ipv4 babel, bgp, connected, kernel, ospf, rip, static (+ nhrp on 1.5);
+    #             ipv6 babel, bgp, connected, kernel, ospf6, ripng, static
     #   level: level-1, level-2
     # ========================================================================
 
@@ -309,6 +310,7 @@ class VrfIsisMapper(BaseFeatureMapper):
         return self._base(name) + ["redistribute", af, protocol]
 
     def get_isis_redistribute_delete(self, name: str, af: str, protocol: str) -> List[str]:
+        self._redistribute_protocols(af)
         return self._base(name) + ["redistribute", af, protocol]
 
     def get_isis_redistribute_level(self, name: str, af: str, protocol: str, level: str) -> List[str]:
@@ -316,6 +318,7 @@ class VrfIsisMapper(BaseFeatureMapper):
         return self._base(name) + ["redistribute", af, protocol, level]
 
     def get_isis_redistribute_level_delete(self, name: str, af: str, protocol: str, level: str) -> List[str]:
+        self._redistribute_protocols(af)
         return self._base(name) + ["redistribute", af, protocol, level]
 
     def get_isis_redistribute_metric(self, name: str, af: str, protocol: str, level: str, value: str) -> List[str]:
@@ -371,13 +374,6 @@ class VrfIsisMapper(BaseFeatureMapper):
 
     def get_isis_interface_ldp_sync_disable(self, name: str, iface: str) -> List[str]:
         return self._base(name) + ["interface", iface, "ldp-sync", "disable"]
-
-    # ========================================================================
-    # Traffic Engineering address
-    # ========================================================================
-
-    def get_isis_traffic_engineering_address(self, name: str, value: str) -> List[str]:
-        return self._base(name) + ["traffic-engineering", "address", value]
 
     # ========================================================================
     # Segment Routing
@@ -465,15 +461,11 @@ class VrfIsisMapper(BaseFeatureMapper):
     # ========================================================================
     # Traffic Engineering
     #   traffic-engineering enable
-    #   traffic-engineering inter-area
-    #   traffic-engineering address-family <af>   (ipv4, ipv6)
+    #   traffic-engineering address <ipv4>
     # ========================================================================
 
     def get_isis_traffic_engineering_enable(self, name: str) -> List[str]:
         return self._base(name) + ["traffic-engineering", "enable"]
 
-    def get_isis_traffic_engineering_inter_area(self, name: str) -> List[str]:
-        return self._base(name) + ["traffic-engineering", "inter-area"]
-
-    def get_isis_traffic_engineering_address_family(self, name: str, value: str) -> List[str]:
-        return self._base(name) + ["traffic-engineering", "address-family", value]
+    def get_isis_traffic_engineering_address(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["traffic-engineering", "address", value]

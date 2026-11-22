@@ -83,7 +83,8 @@ def _versioned_path_node(mapper: Any, proto: str, suffix: str) -> Optional[str]:
     path_node = getattr(mapper, "path_node", None)
     if path_node is None:
         return None
-    return path_node(f"get_{proto}_{suffix}") or path_node(f"get_{proto}_{suffix}_delete")
+    # The same set-path names _mapper_path looks up.
+    return path_node(f"get_{proto}_{suffix}") or path_node(f"get_{suffix}")
 
 
 def parse_vrf_protocol_op(name: str) -> Optional[Tuple[str, str, Optional[str]]]:
@@ -156,6 +157,8 @@ def _mapper_path(
         params = [p for p in inspect.signature(getter).parameters if p != "self"]
         extra = max(len(params) - 1, 0)
         if extra == 0:
+            if value:
+                continue
             return getter(vrf_name)
         if not value:
             continue
@@ -199,7 +202,9 @@ def _parent_node_delete_path(
             path = getter(vrf_name, *tokens, dummy)
     except TypeError:
         return None
-    if not path:
+    if not path or path[-1] != dummy:
+        # The omitted value is not the last element (a level in the middle
+        # of the path), so dropping it would send the dummy to the device.
         return None
     return path[:-1]
 
@@ -415,5 +420,13 @@ def run_vrf_protocol_op(
         path = _mapper_path(mapper, proto, suffix, vrf_name, value, verb)
         if path is not None:
             return owner.add_set(path) if verb == "set" else owner.add_delete(path)
+        if any(
+            hasattr(mapper, candidate)
+            for candidate in (
+                f"get_{proto}_{suffix}", f"get_{suffix}", f"get_{proto}_{suffix}_delete", f"get_{suffix}_delete"
+            )
+        ):
+            # The op exists; its packed value does not fit the path.
+            raise ArityError("has the wrong number of comma-separated values")
 
     raise AttributeError(inner_name)

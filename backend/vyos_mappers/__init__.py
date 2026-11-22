@@ -73,7 +73,8 @@ from .ospfv3 import Ospfv3Mapper
 from .ospfv3.ospfv3_versions import get_ospfv3_mapper
 from .vrf import VrfMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
-from .vrf.vrf_versions import get_vrf_isis_mapper, get_vrf_mapper
+from .vrf.vrf_versions import get_vrf_mapper
+from .vrf.vrf_isis_versions import get_vrf_isis_mapper
 from .system.performance_versions import get_system_performance_mapper
 from .system.system_mapper import SystemMapper
 from .system.system_versions import get_system_mapper

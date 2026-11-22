@@ -9,10 +9,12 @@ turn either on.
 
 import pytest
 
+from vyos_builders.vrf.vrf_protocol import ArityError
+
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.vrf.vrf_isis import VrfIsisMapper
-from vyos_mappers.vrf.vrf_versions import VrfIsisMapperV1_5
+from vyos_mappers.vrf.vrf_isis_versions import VrfIsisMapperV1_5
 
 ROLLING = "2026.09.23-0027-rolling"
 PREFIX = ["vrf", "name", "T-V", "protocols", "isis"]
@@ -188,3 +190,60 @@ def test_fast_reroute_flag_needs_every_node(monkeypatch, missing):
 def test_unknown_redistribute_family_is_rejected():
     with pytest.raises(ValueError, match="unknown IS-IS redistribute address family"):
         VrfIsisMapper("1.4").get_isis_redistribute("T-V", "ipv5", "connected")
+
+
+@pytest.mark.parametrize(
+    "op, value",
+    [
+        ("delete_vrf_isis_interface_fr_lfa_level_enable", "eth0"),
+        ("delete_vrf_isis_interface_fr_ti_lfa_level_node_protection", "eth0"),
+        ("delete_vrf_isis_interface_fr_ti_lfa_level_node_protection_link_fallback", "eth0"),
+        ("delete_vrf_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp", "eth0"),
+        ("delete_vrf_isis_default_information_originate_always", "ipv4"),
+        ("delete_vrf_isis_segment_routing_prefix_index_explicit_null", None),
+        ("delete_vrf_isis_segment_routing_prefix_absolute_no_php_flag", None),
+        ("set_vrf_isis_interface_fr_ti_lfa_level", "eth0"),
+        ("delete_vrf_isis_segment_routing_srv6_node_msd", None),
+        ("set_vrf_isis_traffic_engineering_export", "extra"),
+        ("set_vrf_isis_set_attached_bit", "extra"),
+    ],
+)
+def test_value_that_fits_no_path_is_an_arity_error(op, value):
+    """A short value must not drop a middle element to a parent delete (the
+    dummy would reach the device), and a value on a valueless leaf is not
+    silently ignored."""
+    with pytest.raises(ArityError, match=f"^Operation {op} has the wrong number of comma-separated values$"):
+        _run(ROLLING, op, value)
+
+
+def test_trailing_value_delete_still_drops_to_the_parent():
+    assert _run(ROLLING, "delete_vrf_isis_interface_fr_remote_lfa_level_maximum_metric", "eth0,level-1") == [
+        ("delete", IFACE_FR + ["remote-lfa", "level-1", "maximum-metric"])
+    ]
+
+
+def test_unprefixed_alias_is_gated_too():
+    """`get_{suffix}` is a lookup candidate, so the gate checks it as well."""
+    with pytest.raises(ValueError, match="^interface fast-reroute is not supported on this device$"):
+        _run("1.4", "set_vrf_isis_isis_interface_fr_ti_lfa_level", "eth0,level-1")
+
+
+@pytest.mark.parametrize("op, value", [
+    ("delete_vrf_isis_redistribute", "ipv5,connected"),
+    ("delete_vrf_isis_redistribute_level", "ipv5,connected,level-1"),
+])
+def test_redistribute_delete_checks_the_family(op, value):
+    with pytest.raises(ValueError, match="unknown IS-IS redistribute address family ipv5"):
+        _run("1.4", op, value)
+
+
+@pytest.mark.parametrize("method", [
+    "get_isis_set_overload_bit_on_startup",
+    "get_isis_area_password_authenticate_snp",
+    "get_isis_domain_password_authenticate_snp",
+    "get_isis_traffic_engineering_inter_area",
+    "get_isis_traffic_engineering_address_family",
+])
+def test_no_path_for_a_node_neither_lab_has(method):
+    for cls in (VrfIsisMapper, VrfIsisMapperV1_5):
+        assert not hasattr(cls, method)

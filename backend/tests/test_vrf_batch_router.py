@@ -128,12 +128,14 @@ def test_unknown_op_is_400(client):
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_unresolvable_protocol_op_is_400(client, commit, version):
-    """A packed protocol op whose value names no mapper path raises
-    AttributeError in vrf_protocol; the client sent it, so it is a 400."""
+    """A packed protocol op whose value fits no mapper path raises
+    ArityError in vrf_protocol; the client sent it, so it is a 400 naming the op."""
     commit["version"] = version
     resp = _post(client, [{"op": "set_vrf_ospf_parameters_router_id", "value": "red"}])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"].startswith("Unknown operation: ")
+    assert resp.json()["detail"] == (
+        "Operation set_vrf_ospf_parameters_router_id has the wrong number of comma-separated values"
+    )
     assert client.executed == []
 
 
