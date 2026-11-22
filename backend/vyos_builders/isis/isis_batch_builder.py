@@ -561,6 +561,9 @@ class IsisBatchBuilder(BatchBuilder):
     def delete_redistribute_ipv4(self, protocol: str, level: str) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_redistribute_delete_path("ipv4", protocol, level))
 
+    def delete_redistribute_ipv4_protocol(self, protocol: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_protocol_delete_path("ipv4", protocol))
+
     def set_redistribute_ipv4_metric(self, protocol: str, level: str, metric: str) -> "IsisBatchBuilder":
         return self.add_set(self.m.get_redistribute_metric_path("ipv4", protocol, level, metric))
 
@@ -578,6 +581,9 @@ class IsisBatchBuilder(BatchBuilder):
 
     def delete_redistribute_ipv6(self, protocol: str, level: str) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_redistribute_delete_path("ipv6", protocol, level))
+
+    def delete_redistribute_ipv6_protocol(self, protocol: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_protocol_delete_path("ipv6", protocol))
 
     def set_redistribute_ipv6_metric(self, protocol: str, level: str, metric: str) -> "IsisBatchBuilder":
         return self.add_set(self.m.get_redistribute_metric_path("ipv6", protocol, level, metric))
@@ -600,6 +606,9 @@ class IsisBatchBuilder(BatchBuilder):
 
     def delete_default_info_ipv4(self, level: str) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_default_info_path("ipv4", level))
+
+    def delete_default_info_ipv4_family(self) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_default_info_family_path("ipv4"))
 
     def set_default_info_ipv4_always(self, level: str) -> "IsisBatchBuilder":
         return self.add_set(self.m.get_default_info_always_path("ipv4", level))
@@ -624,6 +633,9 @@ class IsisBatchBuilder(BatchBuilder):
 
     def delete_default_info_ipv6(self, level: str) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_default_info_path("ipv6", level))
+
+    def delete_default_info_ipv6_family(self) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_default_info_family_path("ipv6"))
 
     def set_default_info_ipv6_always(self, level: str) -> "IsisBatchBuilder":
         return self.add_set(self.m.get_default_info_always_path("ipv6", level))

@@ -366,8 +366,12 @@ class IsisService {
     return this.batchConfigure(isisRedistributeOps(family, original, form));
   }
 
-  async deleteRedistribute(family: IsisFamily, entry: IsisRedistributeEntry): Promise<VyOSResponse> {
-    return this.batchConfigure(isisDeleteRedistributeOps(family, entry));
+  async deleteRedistribute(
+    family: IsisFamily,
+    existing: IsisRedistributeEntry[],
+    entry: IsisRedistributeEntry,
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisDeleteRedistributeOps(family, existing, entry));
   }
 
   async saveDefaultInfo(
@@ -378,8 +382,12 @@ class IsisService {
     return this.batchConfigure(isisDefaultInfoOps(family, original, form));
   }
 
-  async deleteDefaultInfo(family: IsisFamily, entry: IsisDefaultInfoEntry): Promise<VyOSResponse> {
-    return this.batchConfigure(isisDeleteDefaultInfoOps(family, entry));
+  async deleteDefaultInfo(
+    family: IsisFamily,
+    existing: IsisDefaultInfoEntry[],
+    entry: IsisDefaultInfoEntry,
+  ): Promise<VyOSResponse> {
+    return this.batchConfigure(isisDeleteDefaultInfoOps(family, existing, entry));
   }
 
   // -------------------------------------------------------------------------

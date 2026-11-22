@@ -199,6 +199,13 @@ describe("interface passwords (md5 and plaintext-password are independent)", () 
     ]);
   });
 
+  it("clearing the only stored mode deletes the password node", () => {
+    const form = isisInterfaceForm(md5);
+    assert.deepEqual(isisInterfaceOps(md5, { ...form, password_md5: " " }, FRR), [
+      { op: "delete_interface_password", value: "eth0" },
+    ]);
+  });
+
   it("setting the other mode keeps the stored one", () => {
     const form = isisInterfaceForm(md5);
     assert.deepEqual(isisInterfaceOps(md5, { ...form, password_plaintext: "pw" }, FRR), [
@@ -792,7 +799,13 @@ describe("redistribute and default-information", () => {
       { op: "delete_redistribute_ipv6_metric", value: "ospf6,level-2" },
       { op: "delete_redistribute_ipv6_route_map", value: "ospf6,level-2" },
     ]);
-    assert.deepEqual(isisDeleteRedistributeOps("ipv6", stored), [{ op: "delete_redistribute_ipv6", value: "ospf6,level-2" }]);
+    assert.deepEqual(isisDeleteRedistributeOps("ipv6", [stored, { ...stored, level: "level-1" }], stored), [
+      { op: "delete_redistribute_ipv6", value: "ospf6,level-2" },
+    ]);
+    // The protocol's last level deletes the protocol node (verify rejects it empty).
+    assert.deepEqual(isisDeleteRedistributeOps("ipv6", [stored, { ...stored, protocol: "static" }], stored), [
+      { op: "delete_redistribute_ipv6_protocol", value: "ospf6" },
+    ]);
   });
 
   it("redistribute checks, including the global level", () => {
@@ -848,7 +861,10 @@ describe("redistribute and default-information", () => {
       { op: "set_default_info_ipv6_always", value: "level-1" },
       { op: "set_default_info_ipv6_metric", value: "level-1,3" },
     ]);
-    assert.deepEqual(isisDeleteDefaultInfoOps("ipv6", stored), [{ op: "delete_default_info_ipv6", value: "level-2" }]);
+    assert.deepEqual(isisDeleteDefaultInfoOps("ipv6", [stored, { ...stored, level: "level-1" }], stored), [
+      { op: "delete_default_info_ipv6", value: "level-2" },
+    ]);
+    assert.deepEqual(isisDeleteDefaultInfoOps("ipv6", [stored], stored), [{ op: "delete_default_info_ipv6_family" }]);
     assert.deepEqual(isisDefaultInfoProblem("ipv4", null, isisDefaultInfoForm(stored), [stored]), {
       key: "defaultInfoDuplicate", name: "ipv4", level: "level-2",
     });

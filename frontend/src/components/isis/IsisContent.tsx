@@ -275,7 +275,7 @@ export function IsisContent() {
       confirmLabel: t("delete.remove"),
       destructive: true,
       run: async () => {
-        await isisService.deleteRedistribute(family, entry);
+        await isisService.deleteRedistribute(family, redistEntries[family], entry);
         await reload();
       },
     });
@@ -287,7 +287,7 @@ export function IsisContent() {
       confirmLabel: t("delete.remove"),
       destructive: true,
       run: async () => {
-        await isisService.deleteDefaultInfo(family, entry);
+        await isisService.deleteDefaultInfo(family, defaultInfoEntries[family], entry);
         await reload();
       },
     });

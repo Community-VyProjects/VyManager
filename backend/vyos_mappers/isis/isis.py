@@ -459,9 +459,12 @@ class IsisMapper(BaseFeatureMapper):
     # family, so a protocol this device no longer lists stays deletable.
     # -----------------------------------------------------------------------
 
-    def _redistribute(self, af: str, protocol: str, level: str) -> List[str]:
+    def _redistribute_protocol(self, af: str, protocol: str) -> List[str]:
         self._redistribute_protocols(af)
-        return BASE + ["redistribute", af, protocol, level]
+        return BASE + ["redistribute", af, protocol]
+
+    def _redistribute(self, af: str, protocol: str, level: str) -> List[str]:
+        return self._redistribute_protocol(af, protocol) + [level]
 
     def get_redistribute_path(self, af: str, protocol: str, level: str) -> List[str]:
         self._require_redistribute(af, protocol)
@@ -469,6 +472,11 @@ class IsisMapper(BaseFeatureMapper):
 
     def get_redistribute_delete_path(self, af: str, protocol: str, level: str) -> List[str]:
         return self._redistribute(af, protocol, level)
+
+    def get_redistribute_protocol_delete_path(self, af: str, protocol: str) -> List[str]:
+        # Deleting a protocol's last level keeps an empty protocol node,
+        # which verify rejects; the screen deletes the node instead.
+        return self._redistribute_protocol(af, protocol)
 
     def get_redistribute_metric_path(self, af: str, protocol: str, level: str, val: str) -> List[str]:
         self._require_redistribute(af, protocol)
@@ -488,10 +496,13 @@ class IsisMapper(BaseFeatureMapper):
     # Default-information originate IPv4 / IPv6
     # -----------------------------------------------------------------------
 
-    def get_default_info_path(self, af: str, level: str) -> List[str]:
+    def get_default_info_family_path(self, af: str) -> List[str]:
         if af not in ("ipv4", "ipv6"):
             raise ValueError(f"unknown IS-IS default-information address family {af}")
-        return BASE + ["default-information", "originate", af, level]
+        return BASE + ["default-information", "originate", af]
+
+    def get_default_info_path(self, af: str, level: str) -> List[str]:
+        return self.get_default_info_family_path(af) + [level]
 
     def get_default_info_always_path(self, af: str, level: str) -> List[str]:
         return self.get_default_info_path(af, level) + ["always"]

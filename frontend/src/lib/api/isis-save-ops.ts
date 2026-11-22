@@ -505,11 +505,11 @@ function frrOps(ops: Op[], name: string, before: IsisInterfaceForm | null, after
   }
 }
 
-/** md5 and plaintext-password are independent; clearing both stored ones deletes the node. */
+/** md5 and plaintext-password are independent; when no stored mode is left, delete the node. */
 function interfacePasswordOps(ops: Op[], name: string, original: IsisInterface | null, form: IsisInterfaceForm): void {
   const md5Stored = !!isisText(original?.password_md5);
   const plainStored = !!isisText(original?.password_plaintext);
-  if (md5Stored && plainStored && isCleared(form.password_md5) && isCleared(form.password_plaintext)) {
+  if ((md5Stored || plainStored) && isCleared(form.password_md5) && isCleared(form.password_plaintext)) {
     push(ops, "delete_interface_password", name);
     return;
   }
@@ -1191,8 +1191,20 @@ export function isisRedistributeOps(
   return ops;
 }
 
-export function isisDeleteRedistributeOps(family: IsisFamily, entry: IsisRedistributeEntry): Op[] {
-  return [{ op: `delete_redistribute_${family}`, value: `${isisText(entry.protocol)},${isisText(entry.level)}` }];
+/**
+ * Deleting a protocol's last level keeps an empty ``redistribute <af> <proto>``
+ * node, which verify rejects, so the last level deletes the protocol node.
+ */
+export function isisDeleteRedistributeOps(
+  family: IsisFamily,
+  existing: IsisRedistributeEntry[],
+  entry: IsisRedistributeEntry,
+): Op[] {
+  const protocol = isisText(entry.protocol);
+  const level = isisText(entry.level);
+  const others = existing.some((e) => isisText(e.protocol) === protocol && isisText(e.level) !== level);
+  if (!others) return [{ op: `delete_redistribute_${family}_protocol`, value: protocol }];
+  return [{ op: `delete_redistribute_${family}`, value: `${protocol},${level}` }];
 }
 
 /**
@@ -1255,8 +1267,15 @@ export function isisDefaultInfoOps(
   return ops;
 }
 
-export function isisDeleteDefaultInfoOps(family: IsisFamily, entry: IsisDefaultInfoEntry): Op[] {
-  return [{ op: `delete_default_info_${family}`, value: isisText(entry.level) }];
+/** The family's last level deletes ``originate <af>``, so no empty node stays behind. */
+export function isisDeleteDefaultInfoOps(
+  family: IsisFamily,
+  existing: IsisDefaultInfoEntry[],
+  entry: IsisDefaultInfoEntry,
+): Op[] {
+  const level = isisText(entry.level);
+  if (!existing.some((e) => isisText(e.level) !== level)) return [{ op: `delete_default_info_${family}_family` }];
+  return [{ op: `delete_default_info_${family}`, value: level }];
 }
 
 export function isisDefaultInfoProblem(
