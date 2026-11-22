@@ -115,6 +115,7 @@
     "disableLoadSharingL1": "禁用负载分担 L1",
     "disableLoadSharingL2": "禁用负载分担 L2",
     "allLevels": "所有级别",
+    "noLevelInactive": "无级别（未生效）",
     "ldpSync": "LDP 同步",
     "priorityLimit": "优先级限制",
     "tiebreaker": "决胜规则",

@@ -76,6 +76,8 @@ export function IsisFrrCard({
   const plLevels = isisPriorityLimitFreeLevels(frr.lfa_priority_limit);
   const plLevelShown = plLevels.includes(plLevel) ? plLevel : plLevels[0] ?? "";
   const levelText = (level: string | null) => level ?? t("advanced.allLevels");
+  // A bare priority-limit / tiebreaker has no level; FRR ignores it, so it is not "all levels".
+  const bareLevelText = (level: string | null) => level ?? t("advanced.noLevelInactive");
 
   // verify counts remote prefix-list names: once one exists, only its free levels can be added.
   const rplExisting = frr.lfa_remote_prefix_list[0]?.prefix_list ?? null;
@@ -180,10 +182,10 @@ export function IsisFrrCard({
           <div className="flex flex-wrap gap-1 mb-2">
             {frr.lfa_priority_limit.map((e) => (
               <span key={`${e.priority}|${e.level ?? ""}`} className={chip}>
-                {e.priority} {levelText(e.level)}
+                {e.priority} {bareLevelText(e.level)}
                 {removeButton(() => ask(
                   null,
-                  t("confirm.removePriorityLimit", { name: e.priority, level: levelText(e.level) }),
+                  t("confirm.removePriorityLimit", { name: e.priority, level: bareLevelText(e.level) }),
                   t("delete.remove"),
                   () => isisService.removeFrrPriorityLimit(frr.lfa_priority_limit, e),
                   true,
@@ -233,10 +235,10 @@ export function IsisFrrCard({
           <div className="flex flex-wrap gap-1 mb-2">
             {frr.lfa_tiebreaker.map((e) => (
               <span key={`${e.tb_type}|${e.index}|${e.level ?? ""}`} className={chip}>
-                {e.tb_type} {e.index} {levelText(e.level)}
+                {e.tb_type} {e.index} {bareLevelText(e.level)}
                 {removeButton(() => ask(
                   null,
-                  t("confirm.removeTiebreaker", { name: e.tb_type, index: e.index, level: levelText(e.level) }),
+                  t("confirm.removeTiebreaker", { name: e.tb_type, index: e.index, level: bareLevelText(e.level) }),
                   t("delete.remove"),
                   () => isisService.removeFrrTiebreaker(frr.lfa_tiebreaker, e),
                   true,

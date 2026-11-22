@@ -467,13 +467,6 @@ export function IsisContent() {
             </div>
           )}
 
-          {hasWritePermission && setupProblem && (
-            <div className="mb-4 p-3 rounded-md bg-muted text-muted-foreground text-sm flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <p>{problemText(setupProblem)}</p>
-            </div>
-          )}
-
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4">
             <Card>

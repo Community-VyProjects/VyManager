@@ -115,6 +115,7 @@
     "disableLoadSharingL1": "Disable load-sharing L1",
     "disableLoadSharingL2": "Disable load-sharing L2",
     "allLevels": "all levels",
+    "noLevelInactive": "no level (inactive)",
     "ldpSync": "LDP sync",
     "priorityLimit": "Priority limit",
     "tiebreaker": "Tiebreaker",

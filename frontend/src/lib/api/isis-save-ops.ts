@@ -1314,7 +1314,7 @@ export function isisRemotePrefixListOps(action: "set" | "delete", prefixList: st
  * tiebreaker index still holds its index in verify), so the last level, and a
  * null-level chip (that bare parent), delete the parent instead.
  */
-function lastLevel<T extends { level: string | null }>(existing: T[], entry: T, same: (e: T) => boolean): string | null {
+function levelToDelete<T extends { level: string | null }>(existing: T[], entry: T, same: (e: T) => boolean): string | null {
   if (entry.level === null) return null;
   const others = existing.filter((e) => same(e) && e !== entry && e.level !== null && isisText(e.level) !== isisText(entry.level));
   return others.length === 0 ? null : isisText(entry.level);
@@ -1322,19 +1322,19 @@ function lastLevel<T extends { level: string | null }>(existing: T[], entry: T, 
 
 export function isisPriorityLimitRemoveOps(existing: IsisFrrPriorityLimit[], entry: IsisFrrPriorityLimit): Op[] {
   const p = isisText(entry.priority);
-  return isisPriorityLimitOps("delete", p, lastLevel(existing, entry, (e) => isisText(e.priority) === p));
+  return isisPriorityLimitOps("delete", p, levelToDelete(existing, entry, (e) => isisText(e.priority) === p));
 }
 
 export function isisTiebreakerRemoveOps(existing: IsisFrrTiebreaker[], entry: IsisFrrTiebreaker): Op[] {
   const t = isisText(entry.tb_type);
   const i = isisText(entry.index);
-  const level = lastLevel(existing, entry, (e) => isisText(e.tb_type) === t && isisText(e.index) === i);
+  const level = levelToDelete(existing, entry, (e) => isisText(e.tb_type) === t && isisText(e.index) === i);
   return isisTiebreakerOps("delete", t, i, level);
 }
 
 export function isisRemotePrefixListRemoveOps(existing: IsisFrrRemotePrefixList[], entry: IsisFrrRemotePrefixList): Op[] {
   const n = isisText(entry.prefix_list);
-  return isisRemotePrefixListOps("delete", n, lastLevel(existing, entry, (e) => isisText(e.prefix_list) === n));
+  return isisRemotePrefixListOps("delete", n, levelToDelete(existing, entry, (e) => isisText(e.prefix_list) === n));
 }
 
 /** verify: a level may carry only one priority-limit (a bare leftover holds no level). */
