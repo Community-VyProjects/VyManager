@@ -4,6 +4,8 @@ Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 Generated for issue #711; edit the tables directly if the mapper changes.
 """
 
+import inspect
+
 import pytest
 
 from vyos_builders.firewall.ipv6 import FirewallIPv6BatchBuilder
@@ -310,3 +312,35 @@ def test_ipv6_v1_5_only_paths(method, args, op, expected_path):
 @pytest.mark.parametrize("method, args, op, expected_path", V14_ONLY_CASES)
 def test_ipv6_v1_4_only_paths(method, args, op, expected_path):
     _run("1.4", method, args, op, expected_path)
+
+
+# prerouting raw has no default-log leaf on 1.5 (#1446); no golden row.
+NO_LAB_LEAF = {"set_prerouting_raw_default_log", "delete_prerouting_raw_default_log"}
+
+
+def test_ipv6_every_builder_op_has_a_golden_row():
+    builder = FirewallIPv6BatchBuilder(version="1.5")
+    ops = {
+        name for name, _ in inspect.getmembers(builder, callable)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    listed = {case[0] for case in COMMON_CASES + V15_ONLY_CASES + V14_ONLY_CASES}
+    assert ops - NO_LAB_LEAF == listed
+
+
+@pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
+def test_ipv6_v1_5_only_ops_raise_on_1_4(method, args, op, expected_path):
+    builder = FirewallIPv6BatchBuilder(version="1.4")
+    if method.startswith(("set_rule_set", "delete_rule_set")):
+        pytest.skip("rule set is still on the shared class (#1446)")
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize("method, args, op, expected_path", V14_ONLY_CASES)
+def test_ipv6_v1_4_only_ops_raise_on_1_5(method, args, op, expected_path):
+    builder = FirewallIPv6BatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match="not supported"):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []

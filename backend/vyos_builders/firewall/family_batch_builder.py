@@ -4,14 +4,14 @@ Firewall address-family batch builder.
 One implementation parameterized by family (ipv4 or ipv6).
 """
 
-from typing import Any, Dict, cast
+from typing import Any, Dict, List, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.firewall.family import FirewallFamilyMapper
 from vyos_builders.base import BatchBuilder
 
 
 class FirewallFamilyBatchBuilder(BatchBuilder):
-    """Complete batch builder for IPv4 firewall operations"""
+    """Batch builder for firewall ipv4 and ipv6 operations."""
 
     def __init__(self, version: str, family: str = "ipv4"):
         if family not in ("ipv4", "ipv6"):
@@ -24,6 +24,15 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
     # ========================================================================
     # Core Batch Operations
     # ========================================================================
+
+    def _m(self) -> FirewallFamilyMapper:
+        return cast(FirewallFamilyMapper, self.mappers[self.mapper_key])
+
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a node only one VyOS version has; ValueError elsewhere."""
+        mapper = self._m()
+        mapper.require_node(node)
+        return getattr(mapper, method)(*args)
 
     def clear(self) -> None:
         """Clear all operations from the batch."""
@@ -39,22 +48,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_base_chain_rule(self, chain: str, rule_number: int) -> "FirewallFamilyBatchBuilder":
         """Create a rule in a base chain (forward, input, output)."""
-        path = self.mappers[self.mapper_key].get_base_chain_rule(chain, rule_number)
+        path = self._m().get_base_chain_rule(chain, rule_number)
         return self.add_set(path)
 
     def delete_base_chain_rule(self, chain: str, rule_number: int) -> "FirewallFamilyBatchBuilder":
         """Delete a rule from a base chain."""
-        path = self.mappers[self.mapper_key].get_base_chain_rule_path(chain, rule_number)
+        path = self._m().get_base_chain_rule_path(chain, rule_number)
         return self.add_delete(path)
 
     def set_base_chain_default_action(self, chain: str, action: str) -> "FirewallFamilyBatchBuilder":
         """Set default action for a base chain."""
-        path = self.mappers[self.mapper_key].get_base_chain_default_action(chain, action)
+        path = self._m().get_base_chain_default_action(chain, action)
         return self.add_set(path)
 
     def delete_base_chain_default_action(self, chain: str) -> "FirewallFamilyBatchBuilder":
         """Delete default action from a base chain."""
-        path = self.mappers[self.mapper_key].get_base_chain_default_action_path(chain)
+        path = self._m().get_base_chain_default_action_path(chain)
         return self.add_delete(path)
 
     # ========================================================================
@@ -63,42 +72,42 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_custom_chain(self, chain_name: str) -> "FirewallFamilyBatchBuilder":
         """Create a custom named chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain(chain_name)
+        path = self._m().get_custom_chain(chain_name)
         return self.add_set(path)
 
     def delete_custom_chain(self, chain_name: str) -> "FirewallFamilyBatchBuilder":
         """Delete a custom named chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_path(chain_name)
+        path = self._m().get_custom_chain_path(chain_name)
         return self.add_delete(path)
 
     def set_custom_chain_description(self, chain_name: str, description: str) -> "FirewallFamilyBatchBuilder":
         """Set description for a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_description(chain_name, description)
+        path = self._m().get_custom_chain_description(chain_name, description)
         return self.add_set(path)
 
     def delete_custom_chain_description(self, chain_name: str) -> "FirewallFamilyBatchBuilder":
         """Delete description from a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_description_path(chain_name)
+        path = self._m().get_custom_chain_description_path(chain_name)
         return self.add_delete(path)
 
     def set_custom_chain_default_action(self, chain_name: str, action: str) -> "FirewallFamilyBatchBuilder":
         """Set default action for a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_default_action(chain_name, action)
+        path = self._m().get_custom_chain_default_action(chain_name, action)
         return self.add_set(path)
 
     def delete_custom_chain_default_action(self, chain_name: str) -> "FirewallFamilyBatchBuilder":
         """Delete default action from a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_default_action_path(chain_name)
+        path = self._m().get_custom_chain_default_action_path(chain_name)
         return self.add_delete(path)
 
     def set_custom_chain_rule(self, chain_name: str, rule_number: int) -> "FirewallFamilyBatchBuilder":
         """Create a rule in a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_rule(chain_name, rule_number)
+        path = self._m().get_custom_chain_rule(chain_name, rule_number)
         return self.add_set(path)
 
     def delete_custom_chain_rule(self, chain_name: str, rule_number: int) -> "FirewallFamilyBatchBuilder":
         """Delete a rule from a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_rule_path(chain_name, rule_number)
+        path = self._m().get_custom_chain_rule_path(chain_name, rule_number)
         return self.add_delete(path)
 
     # ========================================================================
@@ -107,52 +116,52 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_description(self, chain: str, rule_number: int, description: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set rule description."""
-        path = self.mappers[self.mapper_key].get_rule_description(chain, rule_number, description, is_custom)
+        path = self._m().get_rule_description(chain, rule_number, description, is_custom)
         return self.add_set(path)
 
     def delete_rule_description(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete rule description."""
-        path = self.mappers[self.mapper_key].get_rule_description_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_description_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_action(self, chain: str, rule_number: int, action: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set rule action (accept, drop, reject, continue, return, jump, queue, synproxy)."""
-        path = self.mappers[self.mapper_key].get_rule_action(chain, rule_number, action, is_custom)
+        path = self._m().get_rule_action(chain, rule_number, action, is_custom)
         return self.add_set(path)
 
     def delete_rule_action(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete rule action."""
-        path = self.mappers[self.mapper_key].get_rule_action_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_action_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_disable(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Disable a rule."""
-        path = self.mappers[self.mapper_key].get_rule_disable(chain, rule_number, is_custom)
+        path = self._m().get_rule_disable(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_disable(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable a rule (remove disable flag)."""
-        path = self.mappers[self.mapper_key].get_rule_disable_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_disable_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_log(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable logging for a rule."""
-        path = self.mappers[self.mapper_key].get_rule_log(chain, rule_number, is_custom)
+        path = self._m().get_rule_log(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_log(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Disable logging for a rule."""
-        path = self.mappers[self.mapper_key].get_rule_log_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_log_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_protocol(self, chain: str, rule_number: int, protocol: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set rule protocol."""
-        path = self.mappers[self.mapper_key].get_rule_protocol(chain, rule_number, protocol, is_custom)
+        path = self._m().get_rule_protocol(chain, rule_number, protocol, is_custom)
         return self.add_set(path)
 
     def delete_rule_protocol(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete rule protocol."""
-        path = self.mappers[self.mapper_key].get_rule_protocol_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_protocol_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -161,127 +170,127 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_source_address(self, chain: str, rule_number: int, address: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source address."""
-        path = self.mappers[self.mapper_key].get_rule_source_address(chain, rule_number, address, is_custom)
+        path = self._m().get_rule_source_address(chain, rule_number, address, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source address."""
-        path = self.mappers[self.mapper_key].get_rule_source_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_port(self, chain: str, rule_number: int, port: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source port."""
-        path = self.mappers[self.mapper_key].get_rule_source_port(chain, rule_number, port, is_custom)
+        path = self._m().get_rule_source_port(chain, rule_number, port, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_port(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source port."""
-        path = self.mappers[self.mapper_key].get_rule_source_port_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_port_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_mac_address(self, chain: str, rule_number: int, mac_address: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source MAC address."""
-        path = self.mappers[self.mapper_key].get_rule_source_mac_address(chain, rule_number, mac_address, is_custom)
+        path = self._m().get_rule_source_mac_address(chain, rule_number, mac_address, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_mac_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source MAC address."""
-        path = self.mappers[self.mapper_key].get_rule_source_mac_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_mac_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_geoip_country(self, chain: str, rule_number: int, country_code: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source GeoIP country code."""
-        path = self.mappers[self.mapper_key].get_rule_source_geoip_country(chain, rule_number, country_code, is_custom)
+        path = self._m().get_rule_source_geoip_country(chain, rule_number, country_code, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_geoip_country(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source GeoIP country code."""
-        path = self.mappers[self.mapper_key].get_rule_source_geoip_country_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_geoip_country_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_geoip_inverse(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable source GeoIP inverse match."""
-        path = self.mappers[self.mapper_key].get_rule_source_geoip_inverse(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_geoip_inverse(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_geoip_inverse(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source GeoIP inverse match."""
-        path = self.mappers[self.mapper_key].get_rule_source_geoip_inverse_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_geoip_inverse_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_source_geoip(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete the entire source GeoIP node (used when removing the last country)."""
-        path = self.mappers[self.mapper_key].get_rule_source_geoip_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_geoip_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_source(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete the entire source node (used when switching to 'any')."""
-        path = self.mappers[self.mapper_key].get_rule_source_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_group_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source address group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_address(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_source_group_address(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire source group node."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_source_group_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source address group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_group_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_group_network(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source network group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_network(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_source_group_network(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_group_network(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source network group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_network_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_group_network_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_group_port(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source port group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_port(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_source_group_port(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_group_port(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source port group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_port_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_group_port_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_group_mac(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source MAC group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_mac(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_source_group_mac(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_group_mac(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source MAC group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_mac_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_group_mac_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_group_domain(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source domain group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_domain(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_source_group_domain(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_group_domain(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source domain group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_domain_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_group_domain_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_mac(self, chain: str, rule_number: int, mac: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source MAC address."""
-        path = self.mappers[self.mapper_key].get_rule_source_mac(chain, rule_number, mac, is_custom)
+        path = self._m().get_rule_source_mac(chain, rule_number, mac, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_mac(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source MAC address."""
-        path = self.mappers[self.mapper_key].get_rule_source_mac_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_mac_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -290,127 +299,127 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_destination_address(self, chain: str, rule_number: int, address: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination address."""
-        path = self.mappers[self.mapper_key].get_rule_destination_address(chain, rule_number, address, is_custom)
+        path = self._m().get_rule_destination_address(chain, rule_number, address, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination address."""
-        path = self.mappers[self.mapper_key].get_rule_destination_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_port(self, chain: str, rule_number: int, port: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination port."""
-        path = self.mappers[self.mapper_key].get_rule_destination_port(chain, rule_number, port, is_custom)
+        path = self._m().get_rule_destination_port(chain, rule_number, port, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_port(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination port."""
-        path = self.mappers[self.mapper_key].get_rule_destination_port_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_port_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_geoip_country(self, chain: str, rule_number: int, country_code: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination GeoIP country code."""
-        path = self.mappers[self.mapper_key].get_rule_destination_geoip_country(chain, rule_number, country_code, is_custom)
+        path = self._m().get_rule_destination_geoip_country(chain, rule_number, country_code, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_geoip_country(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination GeoIP country code."""
-        path = self.mappers[self.mapper_key].get_rule_destination_geoip_country_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_geoip_country_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_geoip_inverse(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable destination GeoIP inverse match."""
-        path = self.mappers[self.mapper_key].get_rule_destination_geoip_inverse(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_geoip_inverse(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_geoip_inverse(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination GeoIP inverse match."""
-        path = self.mappers[self.mapper_key].get_rule_destination_geoip_inverse_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_geoip_inverse_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_destination_geoip(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete the entire destination GeoIP node (used when removing the last country)."""
-        path = self.mappers[self.mapper_key].get_rule_destination_geoip_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_geoip_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_destination(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete the entire destination node (used when switching to 'any')."""
-        path = self.mappers[self.mapper_key].get_rule_destination_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination address group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_address(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_destination_group_address(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire destination group node."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_destination_group_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination address group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_group_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_network(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination network group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_network(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_destination_group_network(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_group_network(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination network group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_network_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_group_network_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_port(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination port group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_port(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_destination_group_port(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_group_port(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination port group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_port_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_group_port_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_mac(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination MAC group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_mac(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_destination_group_mac(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_group_mac(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination MAC group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_mac_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_group_mac_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_domain(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination domain group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_domain(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_destination_group_domain(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_group_domain(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination domain group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_domain_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_group_domain_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_group_remote(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source remote group (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_remote(chain, rule_number, group_name, is_custom)
+        path = self._versioned_path("remote-group", "get_rule_source_group_remote", chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_group_remote(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source remote group (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_remote_path(chain, rule_number, is_custom)
+        path = self._versioned_path("remote-group", "get_rule_source_group_remote_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_remote(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination remote group (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_remote(chain, rule_number, group_name, is_custom)
+        path = self._versioned_path("remote-group", "get_rule_destination_group_remote", chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_group_remote(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination remote group (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_remote_path(chain, rule_number, is_custom)
+        path = self._versioned_path("remote-group", "get_rule_destination_group_remote_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -419,42 +428,42 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_state_established(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable established state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_established(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_established(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_state_established(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Disable established state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_established_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_established_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_state_new(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable new state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_new(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_new(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_state_new(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Disable new state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_new_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_new_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_state_related(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable related state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_related(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_related(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_state_related(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Disable related state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_related_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_related_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_state_invalid(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable invalid state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_invalid(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_invalid(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_state_invalid(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Disable invalid state matching."""
-        path = self.mappers[self.mapper_key].get_rule_state_invalid_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_state_invalid_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -463,22 +472,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_inbound_interface(self, chain: str, rule_number: int, interface: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set inbound interface."""
-        path = self.mappers[self.mapper_key].get_rule_inbound_interface(chain, rule_number, interface, is_custom)
+        path = self._m().get_rule_inbound_interface(chain, rule_number, interface, is_custom)
         return self.add_set(path)
 
     def delete_rule_inbound_interface(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete inbound interface."""
-        path = self.mappers[self.mapper_key].get_rule_inbound_interface_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_inbound_interface_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_outbound_interface(self, chain: str, rule_number: int, interface: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set outbound interface."""
-        path = self.mappers[self.mapper_key].get_rule_outbound_interface(chain, rule_number, interface, is_custom)
+        path = self._m().get_rule_outbound_interface(chain, rule_number, interface, is_custom)
         return self.add_set(path)
 
     def delete_rule_outbound_interface(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete outbound interface."""
-        path = self.mappers[self.mapper_key].get_rule_outbound_interface_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_outbound_interface_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -487,32 +496,32 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_set_dscp(self, chain: str, rule_number: int, dscp: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set DSCP value."""
-        path = self.mappers[self.mapper_key].get_rule_set_dscp(chain, rule_number, dscp, is_custom)
+        path = self._m().get_rule_set_dscp(chain, rule_number, dscp, is_custom)
         return self.add_set(path)
 
     def delete_rule_set_dscp(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete DSCP value."""
-        path = self.mappers[self.mapper_key].get_rule_set_dscp_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_set_dscp_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_set_mark(self, chain: str, rule_number: int, mark: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set packet mark."""
-        path = self.mappers[self.mapper_key].get_rule_set_mark(chain, rule_number, mark, is_custom)
+        path = self._m().get_rule_set_mark(chain, rule_number, mark, is_custom)
         return self.add_set(path)
 
     def delete_rule_set_mark(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete packet mark."""
-        path = self.mappers[self.mapper_key].get_rule_set_mark_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_set_mark_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_set_ttl(self, chain: str, rule_number: int, ttl: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set TTL value."""
-        path = self.mappers[self.mapper_key].get_rule_set_ttl(chain, rule_number, ttl, is_custom)
+        path = self._m().get_rule_set_ttl(chain, rule_number, ttl, is_custom)
         return self.add_set(path)
 
     def delete_rule_set_ttl(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete TTL value."""
-        path = self.mappers[self.mapper_key].get_rule_set_ttl_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_set_ttl_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -521,12 +530,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_tcp_flags(self, chain: str, rule_number: int, flag: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set TCP flags."""
-        path = self.mappers[self.mapper_key].get_rule_tcp_flags(chain, rule_number, flag, is_custom)
+        path = self._m().get_rule_tcp_flags(chain, rule_number, flag, is_custom)
         return self.add_set(path)
 
     def delete_rule_tcp_flags(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete TCP flags."""
-        path = self.mappers[self.mapper_key].get_rule_tcp_flags_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_tcp_flags_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -535,12 +544,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_icmp_type_name(self, chain: str, rule_number: int, icmp_type: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set ICMP type name."""
-        path = self.mappers[self.mapper_key].get_rule_icmp_type_name(chain, rule_number, icmp_type, is_custom)
+        path = self._m().get_rule_icmp_type_name(chain, rule_number, icmp_type, is_custom)
         return self.add_set(path)
 
     def delete_rule_icmp_type_name(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete ICMP type name."""
-        path = self.mappers[self.mapper_key].get_rule_icmp_type_name_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_icmp_type_name_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -549,12 +558,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_jump_target(self, chain: str, rule_number: int, target: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set jump target (for jump action)."""
-        path = self.mappers[self.mapper_key].get_rule_jump_target(chain, rule_number, target, is_custom)
+        path = self._m().get_rule_jump_target(chain, rule_number, target, is_custom)
         return self.add_set(path)
 
     def delete_rule_jump_target(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete jump target."""
-        path = self.mappers[self.mapper_key].get_rule_jump_target_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_jump_target_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -563,12 +572,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_offload_target(self, chain: str, rule_number: int, target: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set offload target (flowtable) for the rule."""
-        path = self.mappers[self.mapper_key].get_rule_offload_target(chain, rule_number, target, is_custom)
+        path = self._m().get_rule_offload_target(chain, rule_number, target, is_custom)
         return self.add_set(path)
 
     def delete_rule_offload_target(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete offload target."""
-        path = self.mappers[self.mapper_key].get_rule_offload_target_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_offload_target_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -577,22 +586,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_base_chain_description(self, chain: str, description: str) -> "FirewallFamilyBatchBuilder":
         """Set base chain description."""
-        path = self.mappers[self.mapper_key].get_base_chain_description(chain, description)
+        path = self._m().get_base_chain_description(chain, description)
         return self.add_set(path)
 
     def delete_base_chain_description(self, chain: str) -> "FirewallFamilyBatchBuilder":
         """Delete base chain description."""
-        path = self.mappers[self.mapper_key].get_base_chain_description_path(chain)
+        path = self._m().get_base_chain_description_path(chain)
         return self.add_delete(path)
 
     def set_base_chain_default_log(self, chain: str) -> "FirewallFamilyBatchBuilder":
         """Enable default logging for a base chain."""
-        path = self.mappers[self.mapper_key].get_base_chain_default_log(chain)
+        path = self._m().get_base_chain_default_log(chain)
         return self.add_set(path)
 
     def delete_base_chain_default_log(self, chain: str) -> "FirewallFamilyBatchBuilder":
         """Delete default logging for a base chain."""
-        path = self.mappers[self.mapper_key].get_base_chain_default_log_path(chain)
+        path = self._m().get_base_chain_default_log_path(chain)
         return self.add_delete(path)
 
     # ========================================================================
@@ -601,22 +610,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_custom_chain_default_log(self, chain_name: str) -> "FirewallFamilyBatchBuilder":
         """Enable default logging for a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_default_log(chain_name)
+        path = self._m().get_custom_chain_default_log(chain_name)
         return self.add_set(path)
 
     def delete_custom_chain_default_log(self, chain_name: str) -> "FirewallFamilyBatchBuilder":
         """Delete default logging for a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_default_log_path(chain_name)
+        path = self._m().get_custom_chain_default_log_path(chain_name)
         return self.add_delete(path)
 
     def set_custom_chain_default_jump_target(self, chain_name: str, target: str) -> "FirewallFamilyBatchBuilder":
         """Set default jump target for a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_default_jump_target(chain_name, target)
+        path = self._m().get_custom_chain_default_jump_target(chain_name, target)
         return self.add_set(path)
 
     def delete_custom_chain_default_jump_target(self, chain_name: str) -> "FirewallFamilyBatchBuilder":
         """Delete default jump target for a custom chain."""
-        path = self.mappers[self.mapper_key].get_custom_chain_default_jump_target_path(chain_name)
+        path = self._m().get_custom_chain_default_jump_target_path(chain_name)
         return self.add_delete(path)
 
     # ========================================================================
@@ -625,12 +634,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_connection_mark(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set connection mark match."""
-        path = self.mappers[self.mapper_key].get_rule_connection_mark(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_connection_mark(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_connection_mark(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete connection mark match."""
-        path = self.mappers[self.mapper_key].get_rule_connection_mark_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_connection_mark_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -639,12 +648,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_connection_status_nat(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set connection status NAT."""
-        path = self.mappers[self.mapper_key].get_rule_connection_status_nat(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_connection_status_nat(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_connection_status_nat(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete connection status NAT."""
-        path = self.mappers[self.mapper_key].get_rule_connection_status_nat_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_connection_status_nat_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -653,12 +662,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_conntrack_helper(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set conntrack helper."""
-        path = self.mappers[self.mapper_key].get_rule_conntrack_helper(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_conntrack_helper(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_conntrack_helper(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete conntrack helper."""
-        path = self.mappers[self.mapper_key].get_rule_conntrack_helper_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_conntrack_helper_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -667,12 +676,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_dscp(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set DSCP match value."""
-        path = self.mappers[self.mapper_key].get_rule_dscp(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_dscp(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_dscp(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete DSCP match value."""
-        path = self.mappers[self.mapper_key].get_rule_dscp_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_dscp_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -681,12 +690,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_dscp_exclude(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set DSCP exclude value."""
-        path = self.mappers[self.mapper_key].get_rule_dscp_exclude(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_dscp_exclude(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_dscp_exclude(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete DSCP exclude value."""
-        path = self.mappers[self.mapper_key].get_rule_dscp_exclude_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_dscp_exclude_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -695,27 +704,27 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_fragment_match_frag(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable fragment match."""
-        path = self.mappers[self.mapper_key].get_rule_fragment_match_frag(chain, rule_number, is_custom)
+        path = self._m().get_rule_fragment_match_frag(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_fragment_match_frag(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete fragment match."""
-        path = self.mappers[self.mapper_key].get_rule_fragment_match_frag_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_fragment_match_frag_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_fragment_match_non_frag(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable non-fragment match."""
-        path = self.mappers[self.mapper_key].get_rule_fragment_match_non_frag(chain, rule_number, is_custom)
+        path = self._m().get_rule_fragment_match_non_frag(chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_fragment_match_non_frag(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete non-fragment match."""
-        path = self.mappers[self.mapper_key].get_rule_fragment_match_non_frag_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_fragment_match_non_frag_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_fragment(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire fragment node."""
-        path = self.mappers[self.mapper_key].get_rule_fragment_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_fragment_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -724,22 +733,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_icmp_code(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set ICMP code."""
-        path = self.mappers[self.mapper_key].get_rule_icmp_code(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_icmp_code(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_icmp_code(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete ICMP code."""
-        path = self.mappers[self.mapper_key].get_rule_icmp_code_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_icmp_code_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_icmp_type(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set ICMP type."""
-        path = self.mappers[self.mapper_key].get_rule_icmp_type(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_icmp_type(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_icmp_type(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete ICMP type."""
-        path = self.mappers[self.mapper_key].get_rule_icmp_type_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_icmp_type_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -748,22 +757,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_inbound_interface_group(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set inbound interface group."""
-        path = self.mappers[self.mapper_key].get_rule_inbound_interface_group(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_inbound_interface_group(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_inbound_interface_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete inbound interface group."""
-        path = self.mappers[self.mapper_key].get_rule_inbound_interface_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_inbound_interface_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_outbound_interface_group(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set outbound interface group."""
-        path = self.mappers[self.mapper_key].get_rule_outbound_interface_group(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_outbound_interface_group(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_outbound_interface_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete outbound interface group."""
-        path = self.mappers[self.mapper_key].get_rule_outbound_interface_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_outbound_interface_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -772,27 +781,27 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_ipsec_match_ipsec(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable IPsec match."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_ipsec(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-match", "get_rule_ipsec_match_ipsec", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_ipsec_match_ipsec(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete IPsec match."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_ipsec_path(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-match", "get_rule_ipsec_match_ipsec_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_ipsec_match_none(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable IPsec none match."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_none(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-match", "get_rule_ipsec_match_none", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_ipsec_match_none(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete IPsec none match."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_none_path(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-match", "get_rule_ipsec_match_none_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_ipsec(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire IPsec node."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_ipsec_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -801,42 +810,42 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_ipsec_match_ipsec_in(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable IPsec inbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_ipsec_in(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_ipsec_in", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_ipsec_match_ipsec_in(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete IPsec inbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_ipsec_in_path(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_ipsec_in_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_ipsec_match_ipsec_out(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable IPsec outbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_ipsec_out(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_ipsec_out", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_ipsec_match_ipsec_out(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete IPsec outbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_ipsec_out_path(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_ipsec_out_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_ipsec_match_none_in(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable IPsec none inbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_none_in(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_none_in", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_ipsec_match_none_in(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete IPsec none inbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_none_in_path(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_none_in_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_ipsec_match_none_out(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable IPsec none outbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_none_out(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_none_out", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_ipsec_match_none_out(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete IPsec none outbound match (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_ipsec_match_none_out_path(chain, rule_number, is_custom)
+        path = self._versioned_path("ipsec-directional", "get_rule_ipsec_match_none_out_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -845,27 +854,27 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_limit_rate(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set rate limit."""
-        path = self.mappers[self.mapper_key].get_rule_limit_rate(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_limit_rate(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_limit_rate(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete rate limit."""
-        path = self.mappers[self.mapper_key].get_rule_limit_rate_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_limit_rate_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_limit_burst(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set limit burst."""
-        path = self.mappers[self.mapper_key].get_rule_limit_burst(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_limit_burst(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_limit_burst(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete limit burst."""
-        path = self.mappers[self.mapper_key].get_rule_limit_burst_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_limit_burst_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_limit(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire limit node."""
-        path = self.mappers[self.mapper_key].get_rule_limit_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_limit_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -874,47 +883,47 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_log_options_group(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set log options group."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_group(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_log_options_group(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_log_options_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete log options group."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_log_options_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_log_options_level(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set log options level."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_level(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_log_options_level(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_log_options_level(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete log options level."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_level_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_log_options_level_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_log_options_queue_threshold(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set log options queue threshold."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_queue_threshold(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_log_options_queue_threshold(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_log_options_queue_threshold(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete log options queue threshold."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_queue_threshold_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_log_options_queue_threshold_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_log_options_snapshot_length(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set log options snapshot length."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_snapshot_length(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_log_options_snapshot_length(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_log_options_snapshot_length(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete log options snapshot length."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_snapshot_length_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_log_options_snapshot_length_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_log_options(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire log options node."""
-        path = self.mappers[self.mapper_key].get_rule_log_options_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_log_options_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -923,12 +932,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_mark(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set mark match value."""
-        path = self.mappers[self.mapper_key].get_rule_mark(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_mark(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_mark(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete mark match value."""
-        path = self.mappers[self.mapper_key].get_rule_mark_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_mark_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -937,12 +946,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_packet_length(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set packet length match."""
-        path = self.mappers[self.mapper_key].get_rule_packet_length(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_packet_length(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_packet_length(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete packet length match."""
-        path = self.mappers[self.mapper_key].get_rule_packet_length_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_packet_length_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -951,12 +960,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_packet_length_exclude(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set packet length exclude match."""
-        path = self.mappers[self.mapper_key].get_rule_packet_length_exclude(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_packet_length_exclude(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_packet_length_exclude(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete packet length exclude match."""
-        path = self.mappers[self.mapper_key].get_rule_packet_length_exclude_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_packet_length_exclude_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -965,12 +974,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_packet_type(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set packet type match."""
-        path = self.mappers[self.mapper_key].get_rule_packet_type(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_packet_type(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_packet_type(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete packet type match."""
-        path = self.mappers[self.mapper_key].get_rule_packet_type_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_packet_type_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -979,12 +988,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_queue(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set queue number."""
-        path = self.mappers[self.mapper_key].get_rule_queue(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_queue(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_queue(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete queue number."""
-        path = self.mappers[self.mapper_key].get_rule_queue_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_queue_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -993,12 +1002,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_queue_options(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set queue options."""
-        path = self.mappers[self.mapper_key].get_rule_queue_options(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_queue_options(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_queue_options(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete queue options."""
-        path = self.mappers[self.mapper_key].get_rule_queue_options_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_queue_options_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1007,27 +1016,27 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_recent_count(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set recent count."""
-        path = self.mappers[self.mapper_key].get_rule_recent_count(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_recent_count(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_recent_count(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete recent count."""
-        path = self.mappers[self.mapper_key].get_rule_recent_count_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_recent_count_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_recent_time(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set recent time."""
-        path = self.mappers[self.mapper_key].get_rule_recent_time(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_recent_time(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_recent_time(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete recent time."""
-        path = self.mappers[self.mapper_key].get_rule_recent_time_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_recent_time_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_recent(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire recent node."""
-        path = self.mappers[self.mapper_key].get_rule_recent_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_recent_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1036,22 +1045,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_source_fqdn(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source FQDN."""
-        path = self.mappers[self.mapper_key].get_rule_source_fqdn(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_source_fqdn(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_fqdn(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source FQDN."""
-        path = self.mappers[self.mapper_key].get_rule_source_fqdn_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_fqdn_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_source_address_mask(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source address mask."""
-        path = self.mappers[self.mapper_key].get_rule_source_address_mask(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_source_address_mask(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_address_mask(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source address mask."""
-        path = self.mappers[self.mapper_key].get_rule_source_address_mask_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_address_mask_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1060,32 +1069,32 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_destination_fqdn(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination FQDN."""
-        path = self.mappers[self.mapper_key].get_rule_destination_fqdn(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_destination_fqdn(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_fqdn(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination FQDN."""
-        path = self.mappers[self.mapper_key].get_rule_destination_fqdn_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_fqdn_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_address_mask(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination address mask."""
-        path = self.mappers[self.mapper_key].get_rule_destination_address_mask(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_destination_address_mask(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_address_mask(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination address mask."""
-        path = self.mappers[self.mapper_key].get_rule_destination_address_mask_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_address_mask_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_mac_address(self, chain: str, rule_number: int, mac: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination MAC address."""
-        path = self.mappers[self.mapper_key].get_rule_destination_mac_address(chain, rule_number, mac, is_custom)
+        path = self._m().get_rule_destination_mac_address(chain, rule_number, mac, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_mac_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination MAC address."""
-        path = self.mappers[self.mapper_key].get_rule_destination_mac_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_mac_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1094,22 +1103,22 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_source_group_dynamic_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set source dynamic address group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_dynamic_address(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_source_group_dynamic_address(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_source_group_dynamic_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete source dynamic address group."""
-        path = self.mappers[self.mapper_key].get_rule_source_group_dynamic_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_source_group_dynamic_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_dynamic_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set destination dynamic address group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_dynamic_address(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_destination_group_dynamic_address(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_destination_group_dynamic_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete destination dynamic address group."""
-        path = self.mappers[self.mapper_key].get_rule_destination_group_dynamic_address_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_destination_group_dynamic_address_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1118,27 +1127,27 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_synproxy_tcp_mss(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set synproxy TCP MSS."""
-        path = self.mappers[self.mapper_key].get_rule_synproxy_tcp_mss(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_synproxy_tcp_mss(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_synproxy_tcp_mss(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete synproxy TCP MSS."""
-        path = self.mappers[self.mapper_key].get_rule_synproxy_tcp_mss_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_synproxy_tcp_mss_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_synproxy_tcp_window_scale(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set synproxy TCP window scale."""
-        path = self.mappers[self.mapper_key].get_rule_synproxy_tcp_window_scale(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_synproxy_tcp_window_scale(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_synproxy_tcp_window_scale(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete synproxy TCP window scale."""
-        path = self.mappers[self.mapper_key].get_rule_synproxy_tcp_window_scale_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_synproxy_tcp_window_scale_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_synproxy(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire synproxy node."""
-        path = self.mappers[self.mapper_key].get_rule_synproxy_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_synproxy_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1147,12 +1156,12 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_tcp_mss(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set TCP MSS match value."""
-        path = self.mappers[self.mapper_key].get_rule_tcp_mss(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_tcp_mss(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_tcp_mss(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete TCP MSS match value."""
-        path = self.mappers[self.mapper_key].get_rule_tcp_mss_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_tcp_mss_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1161,57 +1170,57 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_time_startdate(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set time start date."""
-        path = self.mappers[self.mapper_key].get_rule_time_startdate(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_time_startdate(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_time_startdate(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete time start date."""
-        path = self.mappers[self.mapper_key].get_rule_time_startdate_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_time_startdate_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_time_starttime(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set time start time."""
-        path = self.mappers[self.mapper_key].get_rule_time_starttime(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_time_starttime(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_time_starttime(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete time start time."""
-        path = self.mappers[self.mapper_key].get_rule_time_starttime_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_time_starttime_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_time_stopdate(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set time stop date."""
-        path = self.mappers[self.mapper_key].get_rule_time_stopdate(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_time_stopdate(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_time_stopdate(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete time stop date."""
-        path = self.mappers[self.mapper_key].get_rule_time_stopdate_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_time_stopdate_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_time_stoptime(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set time stop time."""
-        path = self.mappers[self.mapper_key].get_rule_time_stoptime(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_time_stoptime(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_time_stoptime(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete time stop time."""
-        path = self.mappers[self.mapper_key].get_rule_time_stoptime_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_time_stoptime_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_time_weekdays(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set time weekdays."""
-        path = self.mappers[self.mapper_key].get_rule_time_weekdays(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_time_weekdays(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_time_weekdays(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete time weekdays."""
-        path = self.mappers[self.mapper_key].get_rule_time_weekdays_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_time_weekdays_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_time(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire time node."""
-        path = self.mappers[self.mapper_key].get_rule_time_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_time_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1220,37 +1229,37 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_ttl_eq(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set TTL equal match."""
-        path = self.mappers[self.mapper_key].get_rule_ttl_eq(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_ttl_eq(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_ttl_eq(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete TTL equal match."""
-        path = self.mappers[self.mapper_key].get_rule_ttl_eq_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_ttl_eq_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_ttl_gt(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set TTL greater-than match."""
-        path = self.mappers[self.mapper_key].get_rule_ttl_gt(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_ttl_gt(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_ttl_gt(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete TTL greater-than match."""
-        path = self.mappers[self.mapper_key].get_rule_ttl_gt_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_ttl_gt_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_ttl_lt(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set TTL less-than match."""
-        path = self.mappers[self.mapper_key].get_rule_ttl_lt(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_ttl_lt(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_ttl_lt(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete TTL less-than match."""
-        path = self.mappers[self.mapper_key].get_rule_ttl_lt_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_ttl_lt_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_ttl(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire TTL node."""
-        path = self.mappers[self.mapper_key].get_rule_ttl_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_ttl_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1259,57 +1268,57 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_add_address_to_group_src_group(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set add address to group source group name."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_src_group(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_add_address_to_group_src_group(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_add_address_to_group_src_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete add address to group source group name."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_src_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_add_address_to_group_src_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_add_address_to_group_src_timeout(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set add address to group source timeout."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_src_timeout(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_add_address_to_group_src_timeout(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_add_address_to_group_src_timeout(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete add address to group source timeout."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_src_timeout_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_add_address_to_group_src_timeout_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_add_address_to_group_src(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire add address to group source node."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_src_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_add_address_to_group_src_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_add_address_to_group_dst_group(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set add address to group destination group name."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_dst_group(chain, rule_number, group_name, is_custom)
+        path = self._m().get_rule_add_address_to_group_dst_group(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
     def delete_rule_add_address_to_group_dst_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete add address to group destination group name."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_dst_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_add_address_to_group_dst_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_add_address_to_group_dst_timeout(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set add address to group destination timeout."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_dst_timeout(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_add_address_to_group_dst_timeout(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_add_address_to_group_dst_timeout(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete add address to group destination timeout."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_dst_timeout_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_add_address_to_group_dst_timeout_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_add_address_to_group_dst(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire add address to group destination node."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_dst_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_add_address_to_group_dst_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_add_address_to_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire add address to group node."""
-        path = self.mappers[self.mapper_key].get_rule_add_address_to_group_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_add_address_to_group_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1318,27 +1327,27 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_set_connection_mark(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set connection mark (packet modification)."""
-        path = self.mappers[self.mapper_key].get_rule_set_connection_mark(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_set_connection_mark(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_set_connection_mark(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete connection mark (packet modification)."""
-        path = self.mappers[self.mapper_key].get_rule_set_connection_mark_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_set_connection_mark_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_set_tcp_mss(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set TCP MSS (packet modification)."""
-        path = self.mappers[self.mapper_key].get_rule_set_tcp_mss(chain, rule_number, value, is_custom)
+        path = self._m().get_rule_set_tcp_mss(chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_set_tcp_mss(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete TCP MSS (packet modification)."""
-        path = self.mappers[self.mapper_key].get_rule_set_tcp_mss_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_set_tcp_mss_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_set(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire set node (packet modifications)."""
-        path = self.mappers[self.mapper_key].get_rule_set_path(chain, rule_number, is_custom)
+        path = self._m().get_rule_set_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1347,97 +1356,97 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_rule_gre_key(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set GRE key (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_key(chain, rule_number, value, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_key", chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_key(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE key (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_key_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_key_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_version(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set GRE version (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_version(chain, rule_number, value, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_version", chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_version(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE version (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_version_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_version_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_inner_proto(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Set GRE inner protocol (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_inner_proto(chain, rule_number, value, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_inner_proto", chain, rule_number, value, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_inner_proto(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE inner protocol (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_inner_proto_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_inner_proto_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_flags_checksum(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable GRE checksum flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_checksum(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_checksum", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_flags_checksum(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE checksum flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_checksum_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_checksum_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_flags_checksum_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable GRE checksum unset flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_checksum_unset(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_checksum_unset", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_flags_checksum_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE checksum unset flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_checksum_unset_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_checksum_unset_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_flags_key(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable GRE key flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_key(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_key", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_flags_key(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE key flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_key_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_key_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_flags_key_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable GRE key unset flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_key_unset(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_key_unset", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_flags_key_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE key unset flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_key_unset_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_key_unset_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_flags_sequence(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable GRE sequence flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_sequence(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_sequence", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_flags_sequence(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE sequence flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_sequence_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_sequence_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_gre_flags_sequence_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Enable GRE sequence unset flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_sequence_unset(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_sequence_unset", chain, rule_number, is_custom)
         return self.add_set(path)
 
     def delete_rule_gre_flags_sequence_unset(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete GRE sequence unset flag (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_flags_sequence_unset_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_flags_sequence_unset_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def delete_rule_gre(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
         """Delete entire GRE node (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_rule_gre_path(chain, rule_number, is_custom)
+        path = self._versioned_path("gre", "get_rule_gre_path", chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================
@@ -1446,52 +1455,52 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
     def set_prerouting_raw_rule(self, rule_number: int) -> "FirewallFamilyBatchBuilder":
         """Create a prerouting raw rule (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_rule(rule_number)
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_rule", rule_number)
         return self.add_set(path)
 
     def delete_prerouting_raw_rule(self, rule_number: int) -> "FirewallFamilyBatchBuilder":
         """Delete a prerouting raw rule (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_rule_path(rule_number)
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_rule_path", rule_number)
         return self.add_delete(path)
 
     def set_prerouting_raw_default_action(self, action: str) -> "FirewallFamilyBatchBuilder":
         """Set prerouting raw default action (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_default_action(action)
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_default_action", action)
         return self.add_set(path)
 
     def delete_prerouting_raw_default_action(self) -> "FirewallFamilyBatchBuilder":
         """Delete prerouting raw default action (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_default_action_path()
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_default_action_path")
         return self.add_delete(path)
 
     def set_prerouting_raw_description(self, description: str) -> "FirewallFamilyBatchBuilder":
         """Set prerouting raw description (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_description(description)
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_description", description)
         return self.add_set(path)
 
     def delete_prerouting_raw_description(self) -> "FirewallFamilyBatchBuilder":
         """Delete prerouting raw description (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_description_path()
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_description_path")
         return self.add_delete(path)
 
     def set_prerouting_raw_default_log(self) -> "FirewallFamilyBatchBuilder":
         """Enable prerouting raw default logging (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_default_log()
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_default_log")
         return self.add_set(path)
 
     def delete_prerouting_raw_default_log(self) -> "FirewallFamilyBatchBuilder":
         """Delete prerouting raw default logging (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_default_log_path()
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_default_log_path")
         return self.add_delete(path)
 
     def set_prerouting_raw_default_jump_target(self, target: str) -> "FirewallFamilyBatchBuilder":
         """Set prerouting raw default jump target (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_default_jump_target(target)
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_default_jump_target", target)
         return self.add_set(path)
 
     def delete_prerouting_raw_default_jump_target(self) -> "FirewallFamilyBatchBuilder":
         """Delete prerouting raw default jump target (VyOS 1.5+ only)."""
-        path = self.mappers[self.mapper_key].get_prerouting_raw_default_jump_target_path()
+        path = self._versioned_path("prerouting-raw", "get_prerouting_raw_default_jump_target_path")
         return self.add_delete(path)
 
     # ========================================================================
@@ -1504,8 +1513,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
 
         Returns feature flags indicating which operations are supported.
         """
-        mapper = cast(FirewallFamilyMapper, self.mappers[self.mapper_key])
-        node = mapper.has_rule_node
+        nodes = self._m().versioned_nodes()
 
         return {
             "version": self.version,
@@ -1527,7 +1535,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                     "description": "Address, network, and port group references",
                 },
                 "remote_group": {
-                    "supported": node("remote-group"),
+                    "supported": "remote-group" in nodes,
                     "description": "Remote group support",
                 },
                 "connection_state": {
@@ -1563,11 +1571,11 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                     "description": "Jump to custom chains",
                 },
                 "prerouting_raw": {
-                    "supported": node("prerouting-raw"),
+                    "supported": "prerouting-raw" in nodes,
                     "description": "Prerouting raw chain",
                 },
                 "gre_matching": {
-                    "supported": node("gre"),
+                    "supported": "gre" in nodes,
                     "description": "GRE header matching",
                 },
                 "ipsec_matching": {
@@ -1575,7 +1583,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                     "description": "IPsec traffic matching",
                 },
                 "ipsec_directional": {
-                    "supported": node("ipsec-directional"),
+                    "supported": "ipsec-directional" in nodes,
                     "description": "Directional IPsec matching",
                 },
                 "connection_mark": {
@@ -1647,16 +1655,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                 "related",
                 "invalid"
             ],
-            "tcp_flags": [
-                "syn",
-                "ack",
-                "fin",
-                "rst",
-                "psh",
-                "urg",
-                "ecn",
-                "cwr"
-            ],
+            "tcp_flags": self._m().tcp_flag_names(),
         }
 
     def set_rule_set_hop_limit(self, chain: str, rule_number: int, hop_limit: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
