@@ -30,6 +30,7 @@ const CALLERS = [
 
 // Route-map pickers that must use the shared control.
 const ROUTE_MAP_CALLERS = [
+  "src/components/rip/RipRedistributeModal.tsx",
   "src/components/ripng/RipngContent.tsx",
   "src/components/ripng/RipngRedistributeModal.tsx",
   "src/components/ospfv3/Ospfv3Content.tsx",
@@ -77,7 +78,14 @@ describe("named list select", () => {
     assert.doesNotMatch(src, /routeMapNames\.map/);
   });
 
-  it("does not keep a route-map copy in RIPng or OSPFv3", () => {
+  it("reads the RIP redistribute protocols from capabilities", () => {
+    const modal = readFileSync(join(FRONTEND, "src/components/rip/RipRedistributeModal.tsx"), "utf8");
+    assert.doesNotMatch(modal, /ALL_PROTOCOLS|"nhrp"/);
+    const page = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
+    assert.match(page, /protocols=\{capabilities\?\.features\.redistribute\.protocols \|\| \[\]\}/);
+  });
+
+  it("does not keep a route-map copy in RIP, RIPng or OSPFv3", () => {
     for (const file of ROUTE_MAP_CALLERS) {
       const src = readFileSync(join(FRONTEND, file), "utf8");
       assert.match(src, /NamedListSelect/, file);
@@ -114,6 +122,22 @@ describe("named list select", () => {
     assert.match(src, /filter=/);
     assert.doesNotMatch(src, /from "@\/components\/ui\/select"/);
     assert.doesNotMatch(src, /type: ""/);
+    assert.match(src, /!aclIn && !aclOut && !plIn && !plOut\) return t\("validation\.selectList"\)/);
+  });
+
+  it("labels the RIP list-section inputs", () => {
+    const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
+    assert.match(src, /<Label htmlFor=\{inputId\}/);
+    for (const id of ["ripNetworks", "neighbors", "staticRoutes", "passiveInterfaces"]) {
+      assert.match(src, new RegExp(`"rip-list-${id}"`), id);
+    }
+  });
+
+  it("keeps the RIP delete dialog open with the device error", () => {
+    const src = readFileSync(join(FRONTEND, "src/components/rip/DeleteRipModal.tsx"), "utf8");
+    assert.match(src, /event\.preventDefault\(\)/);
+    assert.match(src, /\(err as ApiError\)\.message/);
+    assert.match(src, /if \(loading\) return;/);
   });
 
   it("keeps the lab default value on the RIP passive-interface picker", () => {

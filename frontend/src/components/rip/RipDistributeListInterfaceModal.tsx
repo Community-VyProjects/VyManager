@@ -16,6 +16,7 @@ import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipDistributeListInterface } from "@/lib/api/rip";
+import type { ApiError } from "@/lib/types/api";
 
 interface RipDistributeListInterfaceModalProps {
   open: boolean;
@@ -80,6 +81,7 @@ export function RipDistributeListInterfaceModal({
 
   const validate = (): string | null => {
     if (!iface) return t("validation.selectInterface");
+    if (!aclIn && !aclOut && !plIn && !plOut) return t("validation.selectList");
     return null;
   };
 
@@ -104,14 +106,18 @@ export function RipDistributeListInterfaceModal({
       await onSubmit(entry);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>

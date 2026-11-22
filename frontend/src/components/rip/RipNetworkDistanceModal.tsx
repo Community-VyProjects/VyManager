@@ -16,6 +16,7 @@ import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNetworkDistance } from "@/lib/api/rip";
+import type { ApiError } from "@/lib/types/api";
 
 interface RipNetworkDistanceModalProps {
   open: boolean;
@@ -98,14 +99,18 @@ export function RipNetworkDistanceModal({
       await onSubmit(entry);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>

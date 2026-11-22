@@ -99,6 +99,7 @@
   },
   "validation": {
     "selectInterface": "Please select an interface",
+    "selectList": "Select at least one access list or prefix list",
     "md5KeyIdRequired": "All MD5 keys must have a key ID",
     "md5KeyIdRange": "MD5 key ID must be 1-255",
     "md5PasswordRequired": "All MD5 keys must have a password",

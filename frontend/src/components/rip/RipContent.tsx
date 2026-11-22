@@ -63,6 +63,7 @@ import { RipDistributeListInterfaceModal } from "./RipDistributeListInterfaceMod
 import { DeleteRipModal } from "./DeleteRipModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import type { ApiError } from "@/lib/types/api";
 
 export function RipContent() {
   const t = useTranslations("rip");
@@ -71,7 +72,7 @@ export function RipContent() {
   const hasWritePermission = canWrite(FeatureGroup.RIP);
 
   const [config, setConfig] = useState<RipConfig | null>(null);
-  const [, setCapabilities] = useState<RipCapabilities | null>(null);
+  const [capabilities, setCapabilities] = useState<RipCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -165,7 +166,7 @@ export function RipContent() {
       setAccessListNames(accessLists);
       setPrefixListNames(prefixLists);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
+      setError((err as ApiError).message || t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -223,7 +224,7 @@ export function RipContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : t("errors.saveSettingsFailed"));
+      setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
     } finally {
       setOverviewSaving(false);
     }
@@ -241,7 +242,7 @@ export function RipContent() {
       setNewNetwork("");
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : t("errors.addNetworkFailed"));
+      setNetworksError((err as ApiError).message || t("errors.addNetworkFailed"));
     }
   };
 
@@ -251,7 +252,7 @@ export function RipContent() {
       await ripService.removeNetwork(network);
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : t("errors.removeNetworkFailed"));
+      setNetworksError((err as ApiError).message || t("errors.removeNetworkFailed"));
     }
   };
 
@@ -263,7 +264,7 @@ export function RipContent() {
       setNewNeighbor("");
       await loadData(true);
     } catch (err) {
-      setNeighborsError(err instanceof Error ? err.message : t("errors.addNeighborFailed"));
+      setNeighborsError((err as ApiError).message || t("errors.addNeighborFailed"));
     }
   };
 
@@ -273,7 +274,7 @@ export function RipContent() {
       await ripService.removeNeighbor(address);
       await loadData(true);
     } catch (err) {
-      setNeighborsError(err instanceof Error ? err.message : t("errors.removeNeighborFailed"));
+      setNeighborsError((err as ApiError).message || t("errors.removeNeighborFailed"));
     }
   };
 
@@ -285,7 +286,7 @@ export function RipContent() {
       setNewRoute("");
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : t("errors.addRouteFailed"));
+      setRoutesError((err as ApiError).message || t("errors.addRouteFailed"));
     }
   };
 
@@ -295,7 +296,7 @@ export function RipContent() {
       await ripService.removeRoute(prefix);
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : t("errors.removeRouteFailed"));
+      setRoutesError((err as ApiError).message || t("errors.removeRouteFailed"));
     }
   };
 
@@ -307,7 +308,7 @@ export function RipContent() {
       setNewPassiveIface("");
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.addPassiveIfaceFailed"));
+      setPassiveIfaceError((err as ApiError).message || t("errors.addPassiveIfaceFailed"));
     }
   };
 
@@ -317,7 +318,7 @@ export function RipContent() {
       await ripService.removePassiveInterface(iface);
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.removePassiveIfaceFailed"));
+      setPassiveIfaceError((err as ApiError).message || t("errors.removePassiveIfaceFailed"));
     }
   };
 
@@ -415,7 +416,7 @@ export function RipContent() {
       await loadData(true);
       setDlGlobalEditing(false);
     } catch (err) {
-      setDlGlobalError(err instanceof Error ? err.message : t("errors.saveFiltersFailed"));
+      setDlGlobalError((err as ApiError).message || t("errors.saveFiltersFailed"));
     } finally {
       setDlGlobalSaving(false);
     }
@@ -459,6 +460,7 @@ export function RipContent() {
 
   const renderListSection = (
     title: string,
+    inputId: string,
     items: string[],
     inputValue: string,
     onInputChange: (v: string) => void,
@@ -470,11 +472,14 @@ export function RipContent() {
   ) => (
     <Card>
       <CardContent className="p-4">
-        <h3 className="font-semibold mb-3 text-sm">{title}</h3>
+        <h3 className="font-semibold mb-3 text-sm">
+          <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+        </h3>
         {hasWritePermission && (
           <div className="flex gap-2 mb-3">
             {isDropdown ? (
               <InterfaceSelect
+                id={inputId}
                 value={inputValue}
                 onValueChange={onInputChange}
                 placeholder={inputPlaceholder}
@@ -484,6 +489,7 @@ export function RipContent() {
               />
             ) : (
               <Input
+                id={inputId}
                 placeholder={inputPlaceholder}
                 value={inputValue}
                 onChange={(e) => onInputChange(e.target.value)}
@@ -497,7 +503,7 @@ export function RipContent() {
           </div>
         )}
         {err && (
-          <p className="text-sm text-destructive mb-2">{err}</p>
+          <p className="text-sm text-destructive mb-2 whitespace-pre-wrap">{err}</p>
         )}
         {items.length === 0 ? (
           <p className="text-xs text-muted-foreground">{t("networks.noneConfigured")}</p>
@@ -831,6 +837,7 @@ export function RipContent() {
               <div className="grid grid-cols-2 gap-4">
                 {renderListSection(
                   t("networks.ripNetworks"),
+                  "rip-list-ripNetworks",
                   config?.networks ?? [],
                   newNetwork,
                   setNewNetwork,
@@ -841,6 +848,7 @@ export function RipContent() {
                 )}
                 {renderListSection(
                   t("networks.neighbors"),
+                  "rip-list-neighbors",
                   config?.neighbors ?? [],
                   newNeighbor,
                   setNewNeighbor,
@@ -851,6 +859,7 @@ export function RipContent() {
                 )}
                 {renderListSection(
                   t("networks.staticRoutes"),
+                  "rip-list-staticRoutes",
                   config?.routes ?? [],
                   newRoute,
                   setNewRoute,
@@ -861,6 +870,7 @@ export function RipContent() {
                 )}
                 {renderListSection(
                   t("networks.passiveInterfaces"),
+                  "rip-list-passiveInterfaces",
                   config?.passive_interfaces ?? [],
                   newPassiveIface,
                   setNewPassiveIface,
@@ -1305,6 +1315,7 @@ export function RipContent() {
         existingEntry={editingRedist}
         existingProtocols={config?.redistribute.map((r) => r.protocol) ?? []}
         routeMapNames={routeMapNames}
+        protocols={capabilities?.features.redistribute.protocols || []}
         onSubmit={editingRedist ? handleUpdateRedist : handleCreateRedist}
       />
 

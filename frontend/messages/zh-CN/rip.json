@@ -99,6 +99,7 @@
   },
   "validation": {
     "selectInterface": "请选择一个接口",
+    "selectList": "请至少选择一个访问列表或前缀列表",
     "md5KeyIdRequired": "所有 MD5 密钥都必须有密钥 ID",
     "md5KeyIdRange": "MD5 密钥 ID 必须为 1-255",
     "md5PasswordRequired": "所有 MD5 密钥都必须有密码",
