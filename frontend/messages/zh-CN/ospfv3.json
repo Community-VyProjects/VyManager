@@ -95,6 +95,8 @@
     "gracePeriodPlaceholder": "默认 (120)",
     "enableHelper": "启用辅助模式",
     "helperRouterIds": "辅助路由器 ID",
+    "helperRouterIdInvalid": "请输入 IPv4 格式的路由器 ID",
+    "helperRouterIdExists": "该路由器 ID 已在列表中",
     "disableLsaCheck": "禁用 LSA 检查",
     "plannedOnly": "仅计划内重启",
     "supportedGraceTime": "支持的宽限时间（秒）"

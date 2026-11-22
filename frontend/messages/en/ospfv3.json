@@ -95,6 +95,8 @@
     "gracePeriodPlaceholder": "Default (120)",
     "enableHelper": "Enable Helper",
     "helperRouterIds": "Helper Router IDs",
+    "helperRouterIdInvalid": "Enter a router ID in IPv4 format",
+    "helperRouterIdExists": "This router ID is already listed",
     "disableLsaCheck": "Disable LSA Check",
     "plannedOnly": "Planned Only",
     "supportedGraceTime": "Supported Grace Time (seconds)"

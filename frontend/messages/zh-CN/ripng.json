@@ -88,6 +88,7 @@
   "validation": {
     "selectInterface": "请选择一个接口",
     "selectProtocol": "请选择一个协议",
+    "selectList": "请至少选择一个访问列表或前缀列表",
     "metricRange": "度量值必须在 1 到 16 之间"
   },
   "interfaceModal": {

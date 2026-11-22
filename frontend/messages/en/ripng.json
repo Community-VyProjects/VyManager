@@ -88,6 +88,7 @@
   "validation": {
     "selectInterface": "Please select an interface",
     "selectProtocol": "Please select a protocol",
+    "selectList": "Select at least one access list or prefix list",
     "metricRange": "Metric must be between 1 and 16"
   },
   "interfaceModal": {

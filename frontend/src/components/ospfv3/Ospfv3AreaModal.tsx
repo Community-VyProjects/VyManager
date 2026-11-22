@@ -265,7 +265,7 @@ export function Ospfv3AreaModal({
                   value={newRangeAdvertise ? "advertise" : "not-advertise"}
                   onValueChange={(v) => setNewRangeAdvertise(v === "advertise")}
                 >
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-36" aria-label={t("fields.ranges")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

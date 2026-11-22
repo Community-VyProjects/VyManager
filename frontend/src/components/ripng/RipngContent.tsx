@@ -203,6 +203,9 @@ export function RipngContent() {
       setOverviewEditing(false);
     } catch (err) {
       setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
+      // Global settings and timers are two commits; re-read the device so a
+      // retry does not re-send the half that already applied.
+      await loadData(true);
     } finally {
       setOverviewSaving(false);
     }
@@ -419,6 +422,7 @@ export function RipngContent() {
 
   const renderListSection = (
     title: string,
+    inputId: string,
     items: string[],
     inputValue: string,
     onInputChange: (v: string) => void,
@@ -430,11 +434,14 @@ export function RipngContent() {
   ) => (
     <Card>
       <CardContent className="p-4">
-        <h3 className="font-semibold mb-3 text-sm">{title}</h3>
+        <h3 className="font-semibold mb-3 text-sm">
+          <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+        </h3>
         {hasWritePermission && (
           <div className="flex gap-2 mb-3">
             {isDropdown ? (
               <InterfaceSelect
+                id={inputId}
                 value={inputValue}
                 onValueChange={onInputChange}
                 placeholder={inputPlaceholder}
@@ -444,6 +451,7 @@ export function RipngContent() {
               />
             ) : (
               <Input
+                id={inputId}
                 placeholder={inputPlaceholder}
                 value={inputValue}
                 onChange={(e) => onInputChange(e.target.value)}
@@ -757,6 +765,7 @@ export function RipngContent() {
               <div className="grid grid-cols-2 gap-4">
                 {renderListSection(
                   t("networks.ripngNetworks"),
+                  "ripng-list-ripngNetworks",
                   config?.networks ?? [],
                   newNetwork,
                   setNewNetwork,
@@ -767,6 +776,7 @@ export function RipngContent() {
                 )}
                 {renderListSection(
                   t("networks.aggregateAddresses"),
+                  "ripng-list-aggregateAddresses",
                   config?.aggregate_addresses ?? [],
                   newAggregateAddress,
                   setNewAggregateAddress,
@@ -777,6 +787,7 @@ export function RipngContent() {
                 )}
                 {renderListSection(
                   t("networks.staticRoutes"),
+                  "ripng-list-staticRoutes",
                   config?.routes ?? [],
                   newRoute,
                   setNewRoute,
@@ -787,6 +798,7 @@ export function RipngContent() {
                 )}
                 {renderListSection(
                   t("networks.passiveInterfaces"),
+                  "ripng-list-passiveInterfaces",
                   config?.passive_interfaces ?? [],
                   newPassiveIface,
                   setNewPassiveIface,

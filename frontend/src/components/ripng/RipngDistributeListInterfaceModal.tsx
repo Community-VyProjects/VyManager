@@ -85,6 +85,7 @@ export function RipngDistributeListInterfaceModal({
 
   const validate = (): string | null => {
     if (!iface) return t("validation.selectInterface");
+    if (!aclIn && !aclOut && !plIn && !plOut) return t("validation.selectList");
     return null;
   };
 

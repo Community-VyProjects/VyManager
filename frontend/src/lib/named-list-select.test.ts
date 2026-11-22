@@ -28,7 +28,7 @@ const CALLERS = [
   "src/components/ospfv3/Ospfv3AreaModal.tsx",
 ];
 
-// Route-map pickers that already use the shared control.
+// Route-map pickers that must use the shared control.
 const ROUTE_MAP_CALLERS = [
   "src/components/ripng/RipngContent.tsx",
   "src/components/ripng/RipngRedistributeModal.tsx",
@@ -61,13 +61,14 @@ describe("named list select", () => {
     assert.equal(existsSync(join(FRONTEND, "src/components/babel/BabelListSelect.tsx")), false);
   });
 
-  it("replaces the RIP, OSPF, and Babel copies", () => {
+  it("replaces the RIP, RIPng, OSPF, OSPFv3, and Babel copies", () => {
     for (const file of CALLERS) {
       const src = readFileSync(join(FRONTEND, file), "utf8");
       assert.match(src, /NamedListSelect/, file);
       assert.doesNotMatch(src, /BabelListSelect/, file);
       assert.doesNotMatch(src, /accessListNames\.map/, file);
       assert.doesNotMatch(src, /prefixListNames\.map/, file);
+      assert.doesNotMatch(src, /"__none__"|value="none"/, file);
     }
   });
 
@@ -103,6 +104,7 @@ describe("named list select", () => {
     const page = readFileSync(join(FRONTEND, "src/components/ripng/RipngContent.tsx"), "utf8");
     assert.match(page, /InterfaceSelect/);
     assert.match(page, /label: "default", value: "default"/);
+    assert.match(page, /items\.includes\("default"\)/);
     assert.doesNotMatch(page, /showService/);
   });
 
