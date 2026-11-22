@@ -14,12 +14,16 @@ from fastapi import HTTPException
 from routers.interfaces.interface_batch import BatchOperation, BatchRequest, run_interface_batch
 from vyos_builders.interfaces.dummy import DummyInterfaceBuilderMixin
 from vyos_mappers.interfaces.dummy import DummyInterfaceMapper
+from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.interfaces.dummy_versions import get_dummy_mapper
-from vyos_mappers.interfaces.dummy_versions.v1_4 import DummyMapper_v1_4
 from vyos_mappers.interfaces.dummy_versions.v1_5 import DummyMapper_v1_5
 
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/interfaces/DummyModal.tsx"
+VERSIONS_DIR = REPO / "backend/vyos_mappers/interfaces/dummy_versions"
+
+# ``show version`` on the 1.5 lab reports a rolling build, not "1.5".
+ROLLING = "2026.09.23-0027-rolling"
 
 MAC = "00:11:22:33:44:55"
 NETNS = "ns1"
@@ -36,20 +40,45 @@ def _ops(builder):
     return [(item["op"], item["path"]) for item in builder.get_operations()]
 
 
-def test_v14_mapper_has_no_mac_or_netns_paths():
-    mapper = get_dummy_mapper("1.4")
-    assert isinstance(mapper, DummyMapper_v1_4)
+@pytest.mark.parametrize("version", ["1.4", "1.4.3"])
+def test_v14_mapper_is_the_shared_class(version):
+    mapper = get_dummy_mapper(version)
+    assert type(mapper) is DummyInterfaceMapper
     assert mapper.versioned_interface_nodes() == frozenset()
     assert not hasattr(mapper, "get_mac")
     assert not hasattr(mapper, "get_netns")
 
 
-def test_v15_mapper_emits_mac_and_netns_paths():
-    mapper = get_dummy_mapper("1.5")
+def test_no_v14_version_file():
+    """Both labs share every 1.4 leaf, so 1.4 has no subclass file."""
+    assert (VERSIONS_DIR / "__init__.py").is_file()
+    assert (VERSIONS_DIR / "v1_5.py").is_file()
+    assert not (VERSIONS_DIR / "v1_4.py").exists()
+
+
+@pytest.mark.parametrize("version", ["1.5", ROLLING, "latest", "1.6", ""])
+def test_v15_mapper_emits_mac_and_netns_paths(version):
+    mapper = get_dummy_mapper(version)
     assert isinstance(mapper, DummyMapper_v1_5)
     assert mapper.versioned_interface_nodes() == frozenset({"mac", "netns"})
     assert mapper.get_mac("dum0", MAC) == ["interfaces", "dummy", "dum0", "mac", MAC]
+    assert mapper.get_mac_path("dum0") == ["interfaces", "dummy", "dum0", "mac"]
     assert mapper.get_netns("dum0", NETNS) == ["interfaces", "dummy", "dum0", "netns", NETNS]
+    assert mapper.get_netns_path("dum0") == ["interfaces", "dummy", "dum0", "netns"]
+
+
+def test_registry_sends_a_rolling_version_to_the_v15_mapper():
+    assert isinstance(CommandMapperRegistry.get_mapper("interface_dummy", ROLLING), DummyMapper_v1_5)
+    assert type(CommandMapperRegistry.get_mapper("interface_dummy", "1.4")) is DummyInterfaceMapper
+
+
+def test_rolling_capabilities_advertise_mac_and_netns():
+    caps = DummyInterfaceBuilderMixin(version=ROLLING).get_capabilities()
+    assert caps["features"]["mac"]["supported"] is True
+    assert caps["features"]["netns"]["supported"] is True
+    builder = DummyInterfaceBuilderMixin(version=ROLLING)
+    builder.set_mac("dum0", MAC)
+    assert _ops(builder) == [("set", ["interfaces", "dummy", "dum0", "mac", MAC])]
 
 
 @pytest.mark.parametrize("method, args, op, expected_path", V15_CASES)

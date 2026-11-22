@@ -128,12 +128,14 @@ def test_unknown_op_is_400(client):
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_unresolvable_protocol_op_is_400(client, commit, version):
-    """A packed protocol op whose value names no mapper path raises
-    AttributeError in vrf_protocol; the client sent it, so it is a 400."""
+    """A packed protocol op whose value fits no mapper path raises
+    ArityError in vrf_protocol; the client sent it, so it is a 400 naming the op."""
     commit["version"] = version
     resp = _post(client, [{"op": "set_vrf_ospf_parameters_router_id", "value": "red"}])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"].startswith("Unknown operation: ")
+    assert resp.json()["detail"] == (
+        "Operation set_vrf_ospf_parameters_router_id has the wrong number of comma-separated values"
+    )
     assert client.executed == []
 
 
@@ -154,6 +156,55 @@ def test_protocol_route_map_sets_the_path(client, family):
     assert ops[0]["path"] == ["vrf", "name", "T-V", family, "protocol", "bgp", "route-map", "T-RM"]
 
 
+# Lab ``allowed:`` lines of ``vrf name <vrf> ip|ipv6 protocol``.
+PROTOCOLS = {
+    "1.4": {
+        "ip": ["any", "babel", "bgp", "connected", "eigrp", "isis", "kernel", "ospf", "rip", "static", "table"],
+        "ipv6": ["any", "babel", "bgp", "connected", "isis", "kernel", "ospfv3", "ripng", "static", "table"],
+    },
+    "1.5": {
+        "ip": ["any", "babel", "bgp", "eigrp", "isis", "ospf", "rip", "static"],
+        "ipv6": ["any", "babel", "bgp", "isis", "ospfv3", "ripng", "static"],
+    },
+}
+
+
+@pytest.mark.parametrize("version, lab", [("1.4", "1.4"), ("1.5", "1.5"), ("2026.09.23-0027-rolling", "1.5")])
+def test_protocol_lists_come_from_the_mapper(version, lab):
+    from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
+
+    flag = VrfBatchBuilder(version).get_capabilities()["features"]["protocol_route_maps"]
+    assert flag["ip_protocols"] == PROTOCOLS[lab]["ip"]
+    assert flag["ipv6_protocols"] == PROTOCOLS[lab]["ipv6"]
+
+
+@pytest.mark.parametrize("family", ["ip", "ipv6"])
+@pytest.mark.parametrize("op, value", [
+    ("set_vrf_{family}_protocol_route_map", "T-V,connected,T-RM"),
+    ("delete_vrf_{family}_protocol_route_map", "T-V,kernel"),
+])
+def test_1_4_only_protocol_on_1_5_is_400(client, commit, family, op, value):
+    commit["version"] = "1.5"
+    resp = _post(client, [{"op": op.format(family=family), "value": value}])
+    assert resp.status_code == 400, resp.text
+    protocol = value.split(",")[1]
+    assert resp.json()["detail"] == f"vrf {family} protocol {protocol} is not supported on this device"
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("family", ["ip", "ipv6"])
+def test_1_4_only_protocol_on_1_4_sets_and_deletes(client, family):
+    resp = _post(client, [
+        {"op": f"set_vrf_{family}_protocol_route_map", "value": "T-V,table,T-RM"},
+        {"op": f"delete_vrf_{family}_protocol_route_map", "value": "T-V,kernel"},
+    ])
+    assert resp.status_code == 200, resp.text
+    assert client.executed == [[
+        {"op": "set", "path": VRF + [family, "protocol", "table", "route-map", "T-RM"]},
+        {"op": "delete", "path": VRF + [family, "protocol", "kernel", "route-map"]},
+    ]]
+
+
 def test_1_5_static_leaf_on_1_4_is_400(client):
     resp = _post(client, [
         {"op": "set_vrf", "value": "T-V"},
@@ -161,6 +212,18 @@ def test_1_5_static_leaf_on_1_4_is_400(client):
     ])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "protocols static route segments is not supported on this device"
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("operation, node", [
+    ({"op": "set_vrf_isis_interface_fr_ti_lfa_level", "value": "T-V,eth0,level-1"}, "interface fast-reroute"),
+    ({"op": "delete_vrf_isis_segment_routing_srv6_locator", "value": "T-V,T-LOC"}, "segment-routing srv6"),
+    ({"op": "set_vrf_isis_traffic_engineering_export", "value": "T-V"}, "traffic-engineering export"),
+])
+def test_1_5_isis_leaf_on_1_4_is_400(client, operation, node):
+    resp = _post(client, [{"op": "set_vrf_isis_net", "value": "T-V,49.0001.1921.6800.1002.00"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"{node} is not supported on this device"
     assert client.executed == []
 
 

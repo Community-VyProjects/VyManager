@@ -1,14 +1,43 @@
 """Read-model for VRF config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. VRF static routes are read by the global static route walker.
+the tree. VRF static routes are read by the global static route walker and
+the VRF DHCP server by the global DHCP server read model.
 """
 
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.dhcp_server.dhcp_server import DHCPServerMapper
 from vyos_mappers.static_routes.config_parse import parse_routes
 from vyos_mappers.static_routes.static_routes import StaticRoutesMapper
+
+MASKED_SECRET = "***"
+
+# Secret leaves in each raw sub-tree the response returns; "*" is a tag node.
+_SECRET_PATHS: Dict[str, Tuple[Tuple[str, ...], ...]] = {
+    "bgp": (
+        ("neighbor", "*", "password"),
+        ("peer-group", "*", "password"),
+    ),
+    "isis": (
+        ("area-password", "md5"),
+        ("area-password", "plaintext-password"),
+        ("domain-password", "md5"),
+        ("domain-password", "plaintext-password"),
+        ("interface", "*", "password", "md5"),
+        ("interface", "*", "password", "plaintext-password"),
+    ),
+    "ospf": (
+        ("interface", "*", "authentication", "plaintext-password"),
+        ("interface", "*", "authentication", "md5", "key-id", "*", "md5-key"),
+        ("area", "*", "virtual-link", "*", "authentication", "plaintext-password"),
+        ("area", "*", "virtual-link", "*", "authentication", "md5", "key-id", "*", "md5-key"),
+    ),
+    "dhcp-server": (
+        ("dynamic-dns-update", "tsig-key", "*", "secret"),
+    ),
+}
 
 
 def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -17,14 +46,39 @@ def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     if not vrf_config:
         return {"bind_to_all": False, "instances": []}
 
-    # The static route tree is the global one; its mapper picks the version form.
+    # The static route and DHCP server trees are the global ones; their
+    # mappers pick the version form.
     static_mapper = cast(
         StaticRoutesMapper, CommandMapperRegistry.get_mapper("static_routes", mapper.version)
     )
+    dhcp_mapper = cast(
+        DHCPServerMapper, CommandMapperRegistry.get_mapper("dhcp_server", mapper.version)
+    )
     return {
         "bind_to_all": "bind-to-all" in vrf_config,
-        "instances": parse_vrf_instances(vrf_config.get("name", {}), static_mapper),
+        "instances": parse_vrf_instances(vrf_config.get("name", {}), static_mapper, dhcp_mapper),
     }
+
+
+def _mask_path(node: Any, path: Tuple[str, ...]) -> Any:
+    """Copy ``node`` with the leaf at ``path`` replaced by the mask."""
+    if not isinstance(node, dict):
+        return node
+    head, rest = path[0], path[1:]
+    keys = list(node) if head == "*" else [head] if head in node else []
+    if not keys:
+        return node
+    out = dict(node)
+    for key in keys:
+        out[key] = _mask_path(node[key], rest) if rest else MASKED_SECRET
+    return out
+
+
+def masked_raw(feature: str, raw: Any) -> Any:
+    """Return the raw sub-tree with every secret leaf of ``feature`` masked."""
+    for path in _SECRET_PATHS[feature]:
+        raw = _mask_path(raw, path)
+    return raw
 
 
 def parse_ip_settings(config: dict, family: str) -> Dict[str, Any]:
@@ -142,9 +196,9 @@ def _parse_failover_check(check_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_failover_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse failover configuration from VRF protocols."""
-    failover_config = protocols_config.get("failover", {})
-    if not failover_config:
+    if "failover" not in protocols_config:
         return None
+    failover_config = protocols_config["failover"] or {}
 
     routes = []
     for dest, dest_data in (failover_config.get("route", {}) or {}).items():
@@ -192,9 +246,9 @@ def parse_failover_config(protocols_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_ospf_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse OSPF summary from VRF protocols."""
-    ospf_config = protocols_config.get("ospf", {})
-    if not ospf_config:
+    if "ospf" not in protocols_config:
         return None
+    ospf_config = protocols_config["ospf"] or {}
 
     router_id = None
     params = ospf_config.get("parameters", {})
@@ -211,15 +265,15 @@ def parse_ospf_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
         "areas": areas,
         "interfaces": interfaces,
         "redistribute": redistribute,
-        "raw_config": ospf_config,
+        "raw_config": masked_raw("ospf", ospf_config),
     }
 
 
 def parse_ospfv3_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse OSPFv3 summary from VRF protocols."""
-    ospfv3_config = protocols_config.get("ospfv3", {})
-    if not ospfv3_config:
+    if "ospfv3" not in protocols_config:
         return None
+    ospfv3_config = protocols_config["ospfv3"] or {}
 
     router_id = None
     params = ospfv3_config.get("parameters", {})
@@ -242,9 +296,9 @@ def parse_ospfv3_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
 
 def parse_isis_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse IS-IS summary from VRF protocols."""
-    isis_config = protocols_config.get("isis", {})
-    if not isis_config:
+    if "isis" not in protocols_config:
         return None
+    isis_config = protocols_config["isis"] or {}
 
     net = isis_config.get("net")
     interfaces = list(isis_config.get("interface", {}).keys()) if isinstance(isis_config.get("interface"), dict) else []
@@ -266,15 +320,15 @@ def parse_isis_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
         "interfaces": interfaces,
         "redistribute_ipv4": redistribute_ipv4,
         "redistribute_ipv6": redistribute_ipv6,
-        "raw_config": isis_config,
+        "raw_config": masked_raw("isis", isis_config),
     }
 
 
 def parse_bgp_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
     """Parse BGP summary from VRF protocols."""
-    bgp_config = protocols_config.get("bgp", {})
-    if not bgp_config:
+    if "bgp" not in protocols_config:
         return None
+    bgp_config = protocols_config["bgp"] or {}
 
     system_as = None
     as_val = bgp_config.get("system-as")
@@ -319,56 +373,50 @@ def parse_bgp_summary(protocols_config: dict) -> Optional[Dict[str, Any]]:
         "neighbors": neighbors,
         "peer_groups": peer_groups,
         "address_families": address_families,
-        "raw_config": bgp_config,
+        "raw_config": masked_raw("bgp", bgp_config),
     }
 
 
-def parse_dhcp_config(service_config: dict) -> Optional[Dict[str, Any]]:
-    """Parse DHCP server configuration from VRF service."""
-    dhcp_config = service_config.get("dhcp-server", {})
-    if not dhcp_config:
+def parse_dhcp_config(
+    service_config: dict, dhcp_mapper: DHCPServerMapper
+) -> Optional[Dict[str, Any]]:
+    """Summarise ``vrf name <vrf> service dhcp-server``.
+
+    The tree is the global ``service dhcp-server`` tree, so the global read
+    model parses it.
+    """
+    if "dhcp-server" not in service_config:
         return None
-
-    shared_networks = []
-    for net_name, net_data in (dhcp_config.get("shared-network-name", {}) or {}).items():
-        if net_data is None:
-            net_data = {}
-
-        subnets = []
-        for prefix, subnet_data in (net_data.get("subnet", {}) or {}).items():
-            if subnet_data is None:
-                subnet_data = {}
-            subnets.append(
-                {
-                    "prefix": prefix,
-                    "default_router": subnet_data.get("default-router") or (subnet_data.get("option", {}) or {}).get("default-router"),
-                    "ranges": len(subnet_data.get("range", {})) if isinstance(subnet_data.get("range"), dict) else 0,
-                    "static_mappings": len(subnet_data.get("static-mapping", {})) if isinstance(subnet_data.get("static-mapping"), dict) else 0,
-                }
-            )
-
-        shared_networks.append(
-            {
-                "name": net_name,
-                "description": net_data.get("description"),
-                "disabled": "disable" in net_data,
-                "subnets": subnets,
-            }
-        )
-
+    parsed = dhcp_mapper.parse_config({"service": service_config})
     return {
         "configured": True,
-        "disabled": "disable" in dhcp_config,
-        "shared_networks": shared_networks,
-        "raw_config": dhcp_config,
+        "disabled": parsed["global_config"]["disable"],
+        "shared_networks": [
+            {
+                "name": network["name"],
+                "description": network["description"],
+                "disabled": network["disable"],
+                "subnets": [
+                    {
+                        "prefix": subnet["subnet"],
+                        "default_router": subnet["default_router"],
+                        "ranges": len(subnet["ranges"]),
+                        "static_mappings": len(subnet["static_mappings"]),
+                    }
+                    for subnet in network["subnets"]
+                ],
+            }
+            for network in parsed["shared_networks"]
+        ],
+        "raw_config": masked_raw("dhcp-server", service_config["dhcp-server"] or {}),
     }
 
 
 def parse_dhcpv6_config(service_config: dict) -> Optional[Dict[str, Any]]:
     """Parse DHCPv6 server configuration from VRF service."""
-    dhcpv6_config = service_config.get("dhcpv6-server", {})
-    if not dhcpv6_config:
+    if "dhcpv6-server" not in service_config:
         return None
+    dhcpv6_config = service_config["dhcpv6-server"] or {}
 
     shared_networks = []
     for net_name, net_data in (dhcpv6_config.get("shared-network-name", {}) or {}).items():
@@ -404,7 +452,9 @@ def parse_dhcpv6_config(service_config: dict) -> Optional[Dict[str, Any]]:
     }
 
 
-def parse_vrf_instances(names_raw: dict, static_mapper: StaticRoutesMapper) -> List[Dict[str, Any]]:
+def parse_vrf_instances(
+    names_raw: dict, static_mapper: StaticRoutesMapper, dhcp_mapper: DHCPServerMapper
+) -> List[Dict[str, Any]]:
     """Parse VRF instance configurations."""
     instances = []
 
@@ -430,7 +480,7 @@ def parse_vrf_instances(names_raw: dict, static_mapper: StaticRoutesMapper) -> L
         isis = parse_isis_summary(protocols_config) if isinstance(protocols_config, dict) else None
         bgp = parse_bgp_summary(protocols_config) if isinstance(protocols_config, dict) else None
 
-        dhcp = parse_dhcp_config(service_config) if isinstance(service_config, dict) else None
+        dhcp = parse_dhcp_config(service_config, dhcp_mapper) if isinstance(service_config, dict) else None
         dhcpv6 = parse_dhcpv6_config(service_config) if isinstance(service_config, dict) else None
 
         instances.append(

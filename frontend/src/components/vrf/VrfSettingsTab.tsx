@@ -20,15 +20,31 @@ import {
   AlertCircle,
   Loader2,
   Pencil,
+  Plus,
   Save,
   X,
   Trash2,
 } from "lucide-react";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   VrfInstance,
   VrfCapabilities,
   vrfService,
 } from "@/lib/api/vrf";
+import type { ApiError } from "@/lib/types/api";
+import {
+  FAMILY_LABEL,
+  ProtocolRouteMapModal,
+  type ProtocolRouteMapTarget,
+  type RouteMapFamily,
+} from "./ProtocolRouteMapModal";
 
 interface VrfSettingsTabProps {
   vrf: VrfInstance;
@@ -39,6 +55,7 @@ interface VrfSettingsTabProps {
 
 export function VrfSettingsTab({
   vrf,
+  capabilities,
   canWrite,
   onRefresh,
 }: VrfSettingsTabProps) {
@@ -48,6 +65,12 @@ export function VrfSettingsTab({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Protocol route-map add/edit and delete
+  const [routeMapTarget, setRouteMapTarget] = useState<ProtocolRouteMapTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProtocolRouteMapTarget | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Form fields
   const [description, setDescription] = useState(vrf.description ?? "");
@@ -98,23 +121,50 @@ export function VrfSettingsTab({
       setEditing(false);
       onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("settings.saveFailed"));
+      setError((err as ApiError).message || t("settings.saveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteRouteMap = async (family: "ip" | "ipv6", protocol: string) => {
-    try {
-      const result = await vrfService.deleteIpProtocolRouteMap(vrf.name, family, protocol);
-      if (!result.success) {
-        throw new Error(result.error || t("settings.deleteRouteMapFailed"));
-      }
-      onRefresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("settings.deleteRouteMapFailed"));
+  // A delete in flight keeps the dialog open so its result is shown.
+  const handleDeleteOpenChange = (next: boolean) => {
+    if (!next && !deleting) {
+      setDeleteTarget(null);
+      setDeleteError(null);
     }
   };
+
+  const handleDeleteRouteMap = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const result = await vrfService.deleteIpProtocolRouteMap(
+        vrf.name,
+        deleteTarget.family,
+        deleteTarget.protocol
+      );
+      if (!result.success) {
+        setDeleteError(result.error || t("settings.deleteRouteMapFailed"));
+        return;
+      }
+      setDeleteTarget(null);
+      onRefresh();
+    } catch (err) {
+      setDeleteError((err as ApiError).message || t("settings.deleteRouteMapFailed"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const routeMapRows = (["ip", "ipv6"] as RouteMapFamily[]).flatMap((family) =>
+    vrf[family].protocol_route_maps.map((rm) => ({
+      family,
+      protocol: rm.protocol,
+      routeMap: rm.route_map,
+    }))
+  );
 
   return (
     <div className="space-y-6">
@@ -317,67 +367,123 @@ export function VrfSettingsTab({
       </Card>
 
       {/* Protocol Route Maps */}
-      {(vrf.ip.protocol_route_maps.length > 0 || vrf.ipv6.protocol_route_maps.length > 0) && (
+      {(canWrite || routeMapRows.length > 0) && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("settings.protocolRouteMaps")}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{t("settings.protocolRouteMaps")}</CardTitle>
+              {canWrite && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRouteMapTarget({ family: "ip", protocol: "", routeMap: "" })}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  {t("settings.addRouteMap")}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>{t("settings.family")}</TableHead>
-                  <TableHead>{t("settings.protocol")}</TableHead>
-                  <TableHead>{t("settings.routeMap")}</TableHead>
-                  {canWrite && <TableHead className="w-[60px]" />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vrf.ip.protocol_route_maps.map((rm) => (
-                  <TableRow key={`ip-${rm.protocol}`}>
-                    <TableCell>
-                      <Badge variant="outline">IPv4</Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{rm.protocol}</TableCell>
-                    <TableCell className="font-mono text-sm">{rm.route_map}</TableCell>
-                    {canWrite && (
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteRouteMap("ip", rm.protocol)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    )}
+            {routeMapRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("settings.noRouteMaps")}</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>{t("settings.family")}</TableHead>
+                    <TableHead>{t("settings.protocol")}</TableHead>
+                    <TableHead>{t("settings.routeMap")}</TableHead>
+                    {canWrite && <TableHead className="w-[100px]" />}
                   </TableRow>
-                ))}
-                {vrf.ipv6.protocol_route_maps.map((rm) => (
-                  <TableRow key={`ipv6-${rm.protocol}`}>
-                    <TableCell>
-                      <Badge variant="outline">IPv6</Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{rm.protocol}</TableCell>
-                    <TableCell className="font-mono text-sm">{rm.route_map}</TableCell>
-                    {canWrite && (
+                </TableHeader>
+                <TableBody>
+                  {routeMapRows.map((row) => (
+                    <TableRow key={`${row.family}-${row.protocol}`}>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteRouteMap("ipv6", rm.protocol)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
+                        <Badge variant="outline">{FAMILY_LABEL[row.family]}</Badge>
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      <TableCell className="font-mono text-sm">{row.protocol}</TableCell>
+                      <TableCell className="font-mono text-sm">{row.routeMap}</TableCell>
+                      {canWrite && (
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={tc("edit")}
+                              onClick={() => setRouteMapTarget(row)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={tc("delete")}
+                              onClick={() => {
+                                setDeleteError(null);
+                                setDeleteTarget(row);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       )}
+
+      <ProtocolRouteMapModal
+        target={routeMapTarget}
+        onClose={() => setRouteMapTarget(null)}
+        vrf={vrf}
+        capabilities={capabilities}
+        onSaved={onRefresh}
+      />
+
+      <Dialog open={deleteTarget !== null} onOpenChange={handleDeleteOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              {t("settings.deleteRouteMapTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {deleteTarget &&
+                t("settings.deleteRouteMapDescription", {
+                  routeMap: deleteTarget.routeMap,
+                  family: FAMILY_LABEL[deleteTarget.family],
+                  protocol: deleteTarget.protocol,
+                })}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm whitespace-pre-wrap">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {deleteError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleDeleteOpenChange(false)}
+              disabled={deleting}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteRouteMap} disabled={deleting}>
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {tc("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Configured Protocols Overview */}
       <Card>

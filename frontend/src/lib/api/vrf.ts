@@ -269,7 +269,10 @@ export interface VrfCapabilities {
     vni: VrfFeatureFlag;
     ip_settings: VrfFeatureFlag;
     ipv6_settings: VrfFeatureFlag;
-    protocol_route_maps: VrfFeatureFlag;
+    protocol_route_maps: VrfFeatureFlag & {
+      ip_protocols: string[];
+      ipv6_protocols: string[];
+    };
     static_routes: VrfFeatureFlag;
     rpki: VrfFeatureFlag;
     failover: VrfFeatureFlag;
@@ -288,10 +291,6 @@ export interface VrfCapabilities {
     isis_redistribute_nhrp: VrfFeatureFlag;
     bgp_redistribute_nhrp: VrfFeatureFlag;
     l2vpn_evpn_control_flags: VrfFeatureFlag;
-  };
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
   };
   instance_name?: string;
   instance_id?: string;

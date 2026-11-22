@@ -4,7 +4,7 @@ Firewall Batch Builders
 Batch operation builders for firewall features.
 """
 
-from .groups import FirewallGroupsBatchBuilder
+from .groups_batch_builder import FirewallGroupsBatchBuilder
 from .ipv4 import FirewallIPv4BatchBuilder
 from .ipv6 import FirewallIPv6BatchBuilder
 from .bridge_batch_builder import BridgeFirewallBatchBuilder

@@ -26,10 +26,9 @@ from .interfaces.vti_versions import get_vti_mapper
 from .interfaces.wireless_versions import get_wireless_mapper
 from .interfaces.wwan_versions import get_wwan_mapper
 from .interfaces.catalog_versions import get_interface_catalog_mapper
-from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
+from .firewall import FirewallGroupsMapper, FirewallFamilyMapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
-from .firewall.ipv4_versions import get_firewall_ipv4_mapper
-from .firewall.ipv6_versions import get_firewall_ipv6_mapper
+from .firewall.family_versions import get_firewall_ipv4_mapper, get_firewall_ipv6_mapper
 from .firewall.zones_versions import get_firewall_zones_mapper
 from .firewall.bridge_versions import get_bridge_firewall_mapper
 from .nat import NATMapper
@@ -74,9 +73,12 @@ from .ospfv3.ospfv3_versions import get_ospfv3_mapper
 from .vrf import VrfMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf.vrf_versions import get_vrf_mapper
+from .vrf.vrf_isis_versions import get_vrf_isis_mapper
 from .system.performance_versions import get_system_performance_mapper
 from .system.system_mapper import SystemMapper
 from .system.system_versions import get_system_mapper
+from .system.updates import SystemUpdatesMapper
+from .power import PowerMapper
 from .high_availability import HighAvailabilityMapper
 from .high_availability.high_availability_versions import get_high_availability_mapper
 from .load_balancing.load_balancing_versions import get_load_balancing_mapper
@@ -260,11 +262,16 @@ CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 # VRF sub-mappers. OSPF and BGP take version so redistribute nhrp can raise on 1.4.
 CommandMapperRegistry.register_feature("vrf_ospf", VrfOspfMapper)
 CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
-CommandMapperRegistry.register_feature("vrf_isis", VrfIsisMapper)
+# VRF IS-IS uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("vrf_isis", get_vrf_isis_mapper)
 CommandMapperRegistry.register_feature("vrf_bgp", VrfBgpMapper)
 CommandMapperRegistry.register_feature("system_performance", get_system_performance_mapper)
 # System general mapper (hostname, login, syslog, conntrack, etc.)
 CommandMapperRegistry.register_feature("system", get_system_mapper)
+# Op-mode show system updates; both versions have it
+CommandMapperRegistry.register_feature("system_updates", SystemUpdatesMapper)
+# Op-mode reboot, poweroff and show reboot; both versions have them
+CommandMapperRegistry.register_feature("power", PowerMapper)
 # High Availability uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("high_availability", get_high_availability_mapper)
 # Load Balancing uses factory for version-specific mappers
@@ -357,11 +364,12 @@ __all__ = [
     "BaseFeatureMapper",
     "CommandMapperRegistry",
     "SystemMapper",
+    "SystemUpdatesMapper",
+    "PowerMapper",
     "EthernetInterfaceMapper",
     "DummyInterfaceMapper",
     "FirewallGroupsMapper",
-    "FirewallIPv4Mapper",
-    "FirewallIPv6Mapper",
+    "FirewallFamilyMapper",
     "NATMapper",
     "NAT64Mapper",
     "NAT66Mapper",

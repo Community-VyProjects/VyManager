@@ -11,7 +11,7 @@ Uses session-based architecture - VyOS instance comes from user's active session
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, cast
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import re
@@ -19,6 +19,8 @@ import uuid
 from contextlib import AbstractAsyncContextManager
 
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.power import PowerMapper
 from vyos_service import VyOSService
 from fastapi_permissions import require_read_permission, require_write_permission
 from org_scope import request_scoped_conn
@@ -96,6 +98,17 @@ class PowerStatusResponse(BaseModel):
     cancelled_by_name: Optional[str] = None
 
 
+# ========================================================================
+# Helper: Power op paths
+# ========================================================================
+
+
+def _power_mapper(service: VyOSService) -> PowerMapper:
+    """The power op paths for this device."""
+    return cast(
+        PowerMapper,
+        CommandMapperRegistry.get_mapper("power", service.get_version() or ""),
+    )
 
 
 # ========================================================================
@@ -226,7 +239,9 @@ async def get_scheduled_power_status(
     # timezone conversion is needed.
     try:
         service = get_service()
-        response = await run_in_threadpool(service.device.show, path=["reboot"])
+        response = await run_in_threadpool(
+            service.device.show, path=_power_mapper(service).get_status_show_path()
+        )
         if response.status != 200 or response.error:
             raise RuntimeError(f"VyOS command failed: {response.error}")
         output = response.result if isinstance(response.result, str) else ""
@@ -266,24 +281,31 @@ async def get_vyos_timezone(service) -> Optional[str]:
         return None
 
 
-def _action_path(body: PowerActionRequest) -> tuple[list[str], Optional[datetime]]:
+def _action_path(
+    mapper: PowerMapper, body: PowerActionRequest
+) -> tuple[list[str], Optional[datetime]]:
     """Op path for the action and, for 'in', the UTC time it fires; 400 on a bad value."""
     if body.action == "at":
         if not body.value or not _AT_TIME.fullmatch(body.value):
             raise HTTPException(status_code=400, detail=_AT_DETAIL)
-        return ["at", body.value], None
+        return mapper.get_at_path(body.value), None
     if body.action == "in":
         minutes = (body.value or "").lstrip("0")
         if not _IN_MINUTES.fullmatch(minutes):
             raise HTTPException(status_code=400, detail=_IN_DETAIL)
-        return ["in", minutes], _utcnow() + timedelta(minutes=int(minutes))
-    return [body.action], None
+        return mapper.get_in_path(minutes), _utcnow() + timedelta(minutes=int(minutes))
+    if body.action == "cancel":
+        return mapper.get_cancel_path(), None
+    return mapper.get_now_path(), None
 
 
 def _check_reply(response) -> None:
     """500 when the device call failed, 400 when powerctrl rejected the request."""
     if response.status != 200 or response.error:
-        raise HTTPException(status_code=500, detail=f"VyOS command failed: {response.error}")
+        logger.warning(
+            "Power action failed (status %s): %s", response.status, response.error
+        )
+        raise HTTPException(status_code=500, detail="VyOS command failed")
     if isinstance(response.result, str) and any(
         marker in response.result for marker in _REJECTED_MARKERS
     ):
@@ -352,7 +374,7 @@ async def _run_power_action(
     user = request.state.user
     instance_id = request.state.instance["id"]
 
-    path, scheduled_time = _action_path(body)
+    path, scheduled_time = _action_path(_power_mapper(service), body)
 
     # 'at' replies with the device-local time, so the timezone converts it.
     vyos_timezone = await get_vyos_timezone(service) if body.action == "at" else None
@@ -365,7 +387,8 @@ async def _run_power_action(
         _check_reply(response)
 
         if body.action == "at":
-            scheduled_time = parse_scheduled_time(response.result, vyos_timezone)
+            output = response.result if isinstance(response.result, str) else ""
+            scheduled_time = parse_scheduled_time(output, vyos_timezone)
             if not scheduled_time:
                 logger.warning("Could not read the scheduled %s time from %r", kind, response.result)
     except HTTPException:

@@ -12,9 +12,10 @@ Example output::
     Update URL: https://github.com/vyos/vyos-nightly-build/releases/download/2026.06.04-1035-rolling/vyos-2026.06.04-1035-rolling-generic-amd64.iso
 
 When no newer image exists, only the ``Current version`` line is present. When
-``update-check url`` is not configured (or the command is unsupported) the
-output is empty / lacks a current-version line, which we surface as
-``configured = False`` rather than an error.
+``update-check url`` is not configured the device still answers HTTP 200, with
+``system update-check not configured`` and no current-version line, which we
+surface as ``configured = False``. A refused or failed reply never reaches this
+parser: the callers report it as a device error.
 
 Shared by the per-instance endpoint (routers/show.py) and the site-level
 fan-out (routers/site_updates).
@@ -54,7 +55,7 @@ def parse_system_updates(output: Optional[str]) -> SystemUpdatesInfo:
 
     current = _RE_CURRENT.search(text)
     if not current:
-        # No current-version line: update-check is not configured (or unsupported).
+        # No current-version line: update-check is not configured.
         return SystemUpdatesInfo(configured=False)
 
     available = _RE_AVAILABLE.search(text)

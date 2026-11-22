@@ -1,6 +1,6 @@
-"""IPv4 firewall batch builder. Implementation lives in family.py."""
+"""IPv4 firewall batch builder. Implementation lives in family_batch_builder.py."""
 
-from .family import FirewallFamilyBatchBuilder
+from .family_batch_builder import FirewallFamilyBatchBuilder
 
 
 class FirewallIPv4BatchBuilder(FirewallFamilyBatchBuilder):

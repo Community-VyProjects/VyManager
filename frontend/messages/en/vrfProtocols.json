@@ -90,7 +90,8 @@
   },
   "schemaEditor": {
     "select": "Select…",
-    "addListItem": "Add {label}…"
+    "addListItem": "Add {label}…",
+    "secretIsMask": "{field}: enter the secret itself, not the mask."
   },
   "entityList": {
     "deleteFailed": "Delete failed",
@@ -150,9 +151,6 @@
       },
       "area": {
         "label": "Area"
-      },
-      "areaPasswordAuthenticateSnp": {
-        "label": "Area authenticate-snp"
       },
       "areaPasswordMd5": {
         "label": "Area password (MD5)"
@@ -324,9 +322,6 @@
       },
       "distributeListImport": {
         "label": "Distribute-list import"
-      },
-      "domainPasswordAuthenticateSnp": {
-        "label": "Domain authenticate-snp"
       },
       "domainPasswordMd5": {
         "label": "Domain password (MD5)"
@@ -976,9 +971,6 @@
       "setOverloadBit": {
         "label": "Set overload bit"
       },
-      "setOverloadBitOnStartup": {
-        "label": "Overload bit on startup (s)"
-      },
       "shortcut": {
         "label": "Shortcut"
       },
@@ -1050,9 +1042,6 @@
       },
       "trafficEngineeringExport": {
         "label": "TE export"
-      },
-      "trafficEngineeringInterArea": {
-        "label": "TE inter-area"
       },
       "transmitDelay": {
         "label": "Transmit delay"
@@ -1143,8 +1132,10 @@
       "ipv4Multicast": "IPv4 multicast",
       "ipv4Unicast": "IPv4 unicast",
       "ipv4Vpn": "IPv4 VPN",
+      "ipv6Dstsrc": "IPv6 dst-src",
       "ipv6Flowspec": "IPv6 flowspec",
       "ipv6LabeledUnicast": "IPv6 labeled-unicast",
+      "ipv6Mgmt": "IPv6 mgmt",
       "ipv6Multicast": "IPv6 multicast",
       "ipv6Unicast": "IPv6 unicast",
       "ipv6Vpn": "IPv6 VPN",
@@ -1176,13 +1167,11 @@
       "rsClient": "RS client",
       "rsServer": "RS server",
       "secondary": "Secondary",
-      "sendOnly": "Send only",
       "shortcut": "Shortcut",
       "standard": "Standard",
       "static": "Static",
       "stub": "Stub",
       "transition": "Transition",
-      "validate": "Validate",
       "wide": "Wide"
     },
     "bgpAf": {

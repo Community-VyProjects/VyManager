@@ -16,6 +16,7 @@ export const ISIS_SCHEMA: SectionSpec[] = [
       ] },
       { op: "vrf_isis_topology", label: "Topology", type: "select", path: ["topology"], options: [
         { value: "ipv4-multicast", label: "IPv4 multicast" }, { value: "ipv4-mgmt", label: "IPv4 mgmt" }, { value: "ipv6-unicast", label: "IPv6 unicast" },
+        { value: "ipv6-multicast", label: "IPv6 multicast" }, { value: "ipv6-mgmt", label: "IPv6 mgmt" }, { value: "ipv6-dstsrc", label: "IPv6 dst-src" },
       ] },
       { op: "vrf_isis_dynamic_hostname", label: "Dynamic hostname", type: "toggle", path: ["dynamic-hostname"] },
       { op: "vrf_isis_log_adjacency_changes", label: "Log adjacency changes", type: "toggle", path: ["log-adjacency-changes"] },
@@ -23,7 +24,6 @@ export const ISIS_SCHEMA: SectionSpec[] = [
       { op: "vrf_isis_advertise_passive_only", label: "Advertise passive only", type: "toggle", path: ["advertise-passive-only"] },
       { op: "vrf_isis_set_attached_bit", label: "Set attached bit", type: "toggle", path: ["set-attached-bit"] },
       { op: "vrf_isis_set_overload_bit", label: "Set overload bit", type: "toggle", path: ["set-overload-bit"] },
-      { op: "vrf_isis_set_overload_bit_on_startup", label: "Overload bit on startup (s)", type: "number", path: ["set-overload-bit", "on-startup"] },
     ],
   },
   {
@@ -54,21 +54,14 @@ export const ISIS_SCHEMA: SectionSpec[] = [
     fields: [
       { op: "vrf_isis_area_password_plaintext_password", label: "Area password (plaintext)", type: "text", path: ["area-password", "plaintext-password"] },
       { op: "vrf_isis_area_password_md5", label: "Area password (MD5)", type: "text", path: ["area-password", "md5"] },
-      { op: "vrf_isis_area_password_authenticate_snp", label: "Area authenticate-snp", type: "select", options: [
-        { value: "send-only", label: "Send only" }, { value: "validate", label: "Validate" },
-      ], path: ["area-password", "authenticate-snp"] },
       { op: "vrf_isis_domain_password_plaintext_password", label: "Domain password (plaintext)", type: "text", path: ["domain-password", "plaintext-password"] },
       { op: "vrf_isis_domain_password_md5", label: "Domain password (MD5)", type: "text", path: ["domain-password", "md5"] },
-      { op: "vrf_isis_domain_password_authenticate_snp", label: "Domain authenticate-snp", type: "select", options: [
-        { value: "send-only", label: "Send only" }, { value: "validate", label: "Validate" },
-      ], path: ["domain-password", "authenticate-snp"] },
     ],
   },
   {
     title: "Traffic engineering & Segment routing",
     fields: [
       { op: "vrf_isis_traffic_engineering_enable", label: "TE enable", type: "toggle", path: ["traffic-engineering", "enable"] },
-      { op: "vrf_isis_traffic_engineering_inter_area", label: "TE inter-area", type: "toggle", path: ["traffic-engineering", "inter-area"] },
       { op: "vrf_isis_traffic_engineering_export", label: "TE export", type: "toggle", path: ["traffic-engineering", "export"], capability: "isis_fast_reroute" },
       { op: "vrf_isis_traffic_engineering_address", label: "TE router address", type: "text", path: ["traffic-engineering", "address"] },
       { op: "vrf_isis_segment_routing_maximum_label_depth", label: "SR max label depth", type: "number", path: ["segment-routing", "maximum-label-depth"] },
