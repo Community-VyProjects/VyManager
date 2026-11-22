@@ -1,6 +1,6 @@
 """IS-IS leaves only the VyOS 1.5 template tree has."""
 
-from typing import Dict, FrozenSet, List, Optional, Tuple
+from typing import FrozenSet, List, Tuple
 
 from ..isis import BASE, IsisMapper
 
@@ -24,8 +24,8 @@ class IsisMapperV1_5(IsisMapper):
     def srv6_node_msd_types(self) -> List[str]:
         return ["max-end-d", "max-end-pop", "max-h-encaps", "max-segs-left"]
 
-    def lsp_timer_defaults(self) -> Optional[Dict[str, int]]:
-        return {"lsp_gen_interval": 30, "lsp_refresh_interval": 900, "max_lsp_lifetime": 1200}
+    def lsp_timer_checks(self) -> bool:
+        return True
 
     # -----------------------------------------------------------------------
     # Interface fast-reroute

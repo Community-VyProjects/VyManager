@@ -152,8 +152,12 @@ def test_bare_load_sharing_disable_and_remote_prefix_list_parse():
     tree = _tree()
     frr = tree["protocols"]["isis"]["fast-reroute"]["lfa"]
     frr["local"]["load-sharing"] = {"disable": {}}
+    frr["local"]["priority-limit"] = {"high": {}}
+    frr["local"]["tiebreaker"] = {"downstream": {"index": {"7": {}}}}
     frr["remote"] = {"prefix-list": {"PL9": {}}}
     parsed = get_isis_mapper("1.4").parse_config(tree)["fast_reroute"]
+    assert parsed["lfa_priority_limit"] == [{"priority": "high", "level": None}]
+    assert parsed["lfa_tiebreaker"] == [{"tb_type": "downstream", "index": "7", "level": None}]
     assert parsed["lfa_load_sharing_disable"] is True
     assert parsed["lfa_load_sharing_disable_level1"] is False
     assert parsed["lfa_remote_prefix_list"] == [{"prefix_list": "PL9", "level": None}]

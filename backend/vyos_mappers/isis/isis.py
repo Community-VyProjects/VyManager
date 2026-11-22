@@ -7,7 +7,7 @@ redistribute ipv4 nhrp exist only on VyOS 1.5; the subclass in
 ``isis_versions`` adds them.
 """
 
-from typing import Any, Dict, FrozenSet, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, List, Tuple
 
 from ..base import BaseFeatureMapper
 
@@ -135,14 +135,18 @@ class IsisMapper(BaseFeatureMapper):
         """``segment-routing srv6 node-msd`` children; none on 1.4."""
         return []
 
-    def lsp_timer_defaults(self) -> Optional[Dict[str, int]]:
-        """Defaults for the LSP timer cross-checks verify runs, or None.
+    def lsp_timer_defaults(self) -> Dict[str, int]:
+        """FRR defaults for the LSP timers (the same on both labs)."""
+        return {"lsp_gen_interval": 30, "lsp_refresh_interval": 900, "max_lsp_lifetime": 1200}
+
+    def lsp_timer_checks(self) -> bool:
+        """Whether verify cross-checks the LSP timers.
 
         1.5 verify rejects ``lsp-gen-interval >= lsp-refresh-interval`` and
         ``max-lsp-lifetime < lsp-refresh-interval + 300``, filling unset
-        timers with these defaults. 1.4 verify has neither check.
+        timers with ``lsp_timer_defaults``. 1.4 verify has neither check.
         """
-        return None
+        return False
 
     @staticmethod
     def _require_choice(kind: str, value: str, allowed: List[str]) -> None:
@@ -327,17 +331,23 @@ class IsisMapper(BaseFeatureMapper):
     def get_frr_lfa_load_sharing_disable_level2_path(self) -> List[str]:
         return self.get_frr_lfa_load_sharing_disable_path() + ["level-2"]
 
-    def get_frr_lfa_priority_limit_path(self, priority: str, level: str) -> List[str]:
+    def get_frr_lfa_priority_limit_name_path(self, priority: str) -> List[str]:
+        """``priority-limit <priority>``; deleting its last level leaves this bare node."""
         self._require_choice("priority-limit", priority, self.lfa_priority_limit_values())
-        return BASE + ["fast-reroute", "lfa", "local", "priority-limit", priority, level]
+        return BASE + ["fast-reroute", "lfa", "local", "priority-limit", priority]
+
+    def get_frr_lfa_priority_limit_path(self, priority: str, level: str) -> List[str]:
+        return self.get_frr_lfa_priority_limit_name_path(priority) + [level]
+
+    def get_frr_lfa_tiebreaker_index_name_path(self, tb_type: str, index: str) -> List[str]:
+        """``tiebreaker <type> index <n>``; a bare one still holds index n in verify."""
+        self._require_choice("tiebreaker", tb_type, self.lfa_tiebreaker_values())
+        return BASE + ["fast-reroute", "lfa", "local", "tiebreaker", tb_type, "index", index]
 
     def get_frr_lfa_tiebreaker_index_path(
         self, tb_type: str, index: str, level: str
     ) -> List[str]:
-        self._require_choice("tiebreaker", tb_type, self.lfa_tiebreaker_values())
-        return BASE + [
-            "fast-reroute", "lfa", "local", "tiebreaker", tb_type, "index", index, level,
-        ]
+        return self.get_frr_lfa_tiebreaker_index_name_path(tb_type, index) + [level]
 
     def get_frr_lfa_remote_prefix_list_name_path(self, prefix_list: str) -> List[str]:
         """Bare ``remote prefix-list <name>``: FRR applies it on every level."""

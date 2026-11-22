@@ -315,22 +315,27 @@ def parse_frr_global(raw: dict) -> Dict[str, Any]:
     remote_raw = (lfa_raw.get("remote", {}) or {}) if isinstance(lfa_raw, dict) else {}
     pl_list_raw = (remote_raw.get("prefix-list", {}) or {}) if isinstance(remote_raw, dict) else {}
 
-    priority_limit: List[Dict[str, str]] = []
+    priority_limit: List[Dict[str, Any]] = []
     if isinstance(pl_raw, dict):
         for priority, levels in pl_raw.items():
-            if not isinstance(levels, dict):
+            if not isinstance(levels, dict) or not levels:
+                # A bare ``priority-limit <p>`` is left when its last level is
+                # deleted alone; FRR renders nothing for it.
+                priority_limit.append({"priority": priority, "level": None})
                 continue
             for level in levels:
                 priority_limit.append({"priority": priority, "level": level})
 
-    tiebreaker: List[Dict[str, str]] = []
+    tiebreaker: List[Dict[str, Any]] = []
     if isinstance(tb_raw, dict):
         for tb_type, type_cfg in tb_raw.items():
             index_map = (type_cfg or {}).get("index", {}) if isinstance(type_cfg, dict) else {}
             if not isinstance(index_map, dict):
                 continue
             for index, levels in index_map.items():
-                if not isinstance(levels, dict):
+                if not isinstance(levels, dict) or not levels:
+                    # A bare ``index <n>`` renders nothing but still holds n in verify.
+                    tiebreaker.append({"tb_type": tb_type, "index": str(index), "level": None})
                     continue
                 for level in levels:
                     tiebreaker.append(
@@ -358,9 +363,9 @@ def parse_frr_global(raw: dict) -> Dict[str, Any]:
         "lfa_load_sharing_disable_level2": (
             "level-2" in disable_raw if isinstance(disable_raw, dict) else False
         ),
-        "lfa_priority_limit": sorted(priority_limit, key=lambda x: (x["priority"], x["level"])),
+        "lfa_priority_limit": sorted(priority_limit, key=lambda x: (x["priority"], x["level"] or "")),
         "lfa_tiebreaker": sorted(
-            tiebreaker, key=lambda x: (x["tb_type"], x["index"], x["level"])
+            tiebreaker, key=lambda x: (x["tb_type"], x["index"], x["level"] or "")
         ),
         "lfa_remote_prefix_list": sorted(
             remote_pl, key=lambda x: (x["prefix_list"], x["level"] or "")

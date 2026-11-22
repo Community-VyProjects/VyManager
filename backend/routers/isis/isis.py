@@ -181,14 +181,14 @@ class IsisTrafficEngineering(BaseModel):
 class IsisFrrPriorityLimit(BaseModel):
     """Global LFA local priority-limit entry."""
     priority: str
-    level: str
+    level: Optional[str] = None
 
 
 class IsisFrrTiebreaker(BaseModel):
     """Global LFA local tiebreaker entry."""
     tb_type: str
     index: str
-    level: str
+    level: Optional[str] = None
 
 
 class IsisFrrRemotePrefixList(BaseModel):

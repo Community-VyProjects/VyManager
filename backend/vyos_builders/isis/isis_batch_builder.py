@@ -62,6 +62,7 @@ class IsisBatchBuilder(BatchBuilder):
             },
             "lsp_refresh_interval": {"min": lsp_refresh_min, "max": lsp_refresh_max},
             "lsp_timer_defaults": self.m.lsp_timer_defaults(),
+            "lsp_timer_checks": self.m.lsp_timer_checks(),
             "area_password_modes": self.m.area_password_modes(),
             "domain_password_modes": self.m.domain_password_modes(),
             "srv6_node_msd_types": self.m.srv6_node_msd_types(),
@@ -288,6 +289,14 @@ class IsisBatchBuilder(BatchBuilder):
 
     def delete_frr_lfa_priority_limit(self, priority: str, level: str) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_frr_lfa_priority_limit_path(priority, level))
+
+    def delete_frr_lfa_priority_limit_all_levels(self, priority: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_frr_lfa_priority_limit_name_path(priority))
+
+    def delete_frr_lfa_tiebreaker_index_all_levels(
+        self, tb_type: str, index: str
+    ) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_frr_lfa_tiebreaker_index_name_path(tb_type, index))
 
     def set_frr_lfa_tiebreaker_index(
         self, tb_type: str, index: str, level: str

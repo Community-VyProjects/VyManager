@@ -179,6 +179,8 @@ COMMON_CASES = [
     ('set_frr_lfa_load_sharing_disable', (), 'set', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'load-sharing', 'disable']),
     ('delete_frr_lfa_load_sharing_disable', (), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'load-sharing', 'disable']),
     ('set_ldp_sync', (), 'set', ['protocols', 'isis', 'ldp-sync']),
+    ('delete_frr_lfa_priority_limit_all_levels', ('high',), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'priority-limit', 'high']),
+    ('delete_frr_lfa_tiebreaker_index_all_levels', ('downstream', '1'), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'tiebreaker', 'downstream', 'index', '1']),
     ('delete_ldp_sync_holddown', (), 'delete', ['protocols', 'isis', 'ldp-sync', 'holddown']),
 ]
 
@@ -325,10 +327,11 @@ def test_isis_capabilities_read_mapper_allowlists():
     assert v14["lfa_tiebreaker_values"] == [
         "downstream", "lowest-backup-metric", "node-protecting",
     ]
-    assert v14["lsp_timer_defaults"] is None
-    assert v15["lsp_timer_defaults"] == {
+    assert v14["lsp_timer_defaults"] == v15["lsp_timer_defaults"] == {
         "lsp_gen_interval": 30, "lsp_refresh_interval": 900, "max_lsp_lifetime": 1200,
     }
+    assert v14["lsp_timer_checks"] is False
+    assert v15["lsp_timer_checks"] is True
     assert set(v14["features"]) == {"interface_fast_reroute", "srv6", "te_export"}
     assert "babel" in v14["redistribute_protocols"]["ipv4"]
     assert "nhrp" not in v14["redistribute_protocols"]["ipv4"]
@@ -344,6 +347,8 @@ def test_isis_capabilities_read_mapper_allowlists():
     ("set_frr_lfa_tiebreaker_index", ("random", "1", "level-1")),
     ("set_sr_srv6_node_msd", ("max-foo", "5")),
     ("delete_sr_srv6_node_msd", ("max-foo",)),
+    ("delete_frr_lfa_priority_limit_all_levels", ("urgent",)),
+    ("delete_frr_lfa_tiebreaker_index_all_levels", ("random", "1")),
 ])
 def test_builder_rejects_values_the_lab_does_not_allow(version, method, args):
     builder = IsisBatchBuilder(version=version)
