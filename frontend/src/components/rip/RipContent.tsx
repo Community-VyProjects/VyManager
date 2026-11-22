@@ -63,6 +63,13 @@ import { RipDistributeListInterfaceModal } from "./RipDistributeListInterfaceMod
 import { DeleteRipModal } from "./DeleteRipModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import type { ApiError } from "@/lib/types/api";
+import {
+  DISTANCE_RANGE,
+  METRIC_RANGE,
+  TIMER_RANGE,
+  overviewProblem,
+} from "@/lib/api/rip-ranges";
 
 export function RipContent() {
   const t = useTranslations("rip");
@@ -71,7 +78,7 @@ export function RipContent() {
   const hasWritePermission = canWrite(FeatureGroup.RIP);
 
   const [config, setConfig] = useState<RipConfig | null>(null);
-  const [, setCapabilities] = useState<RipCapabilities | null>(null);
+  const [capabilities, setCapabilities] = useState<RipCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -106,6 +113,8 @@ export function RipContent() {
   const [routesError, setRoutesError] = useState<string | null>(null);
   const [newPassiveIface, setNewPassiveIface] = useState("");
   const [passiveIfaceError, setPassiveIfaceError] = useState<string | null>(null);
+  // Id of the list section whose add or remove commit is running.
+  const [listBusy, setListBusy] = useState<string | null>(null);
 
   // ============================================================
   // Interface modal state
@@ -165,7 +174,7 @@ export function RipContent() {
       setAccessListNames(accessLists);
       setPrefixListNames(prefixLists);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
+      setError((err as ApiError).message || t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -200,6 +209,19 @@ export function RipContent() {
 
   const saveOverview = async () => {
     if (!config) return;
+    const problem = overviewProblem(
+      ovDefaultDistance,
+      ovDefaultMetric,
+      [ovTimerUpdate, ovTimerTimeout, ovTimerGc],
+    );
+    if (problem) {
+      setOverviewError(
+        problem === "timerRange"
+          ? t("validation.timerRange", { min: String(TIMER_RANGE.min), max: String(TIMER_RANGE.max) })
+          : t(`validation.${problem}`),
+      );
+      return;
+    }
     try {
       setOverviewSaving(true);
       setOverviewError(null);
@@ -223,7 +245,9 @@ export function RipContent() {
       await loadData(true);
       setOverviewEditing(false);
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : t("errors.saveSettingsFailed"));
+      setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
+      // Global settings and timers are two commits; re-read so a retry diffs against the device.
+      await loadData(true);
     } finally {
       setOverviewSaving(false);
     }
@@ -241,7 +265,7 @@ export function RipContent() {
       setNewNetwork("");
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : t("errors.addNetworkFailed"));
+      setNetworksError((err as ApiError).message || t("errors.addNetworkFailed"));
     }
   };
 
@@ -251,7 +275,7 @@ export function RipContent() {
       await ripService.removeNetwork(network);
       await loadData(true);
     } catch (err) {
-      setNetworksError(err instanceof Error ? err.message : t("errors.removeNetworkFailed"));
+      setNetworksError((err as ApiError).message || t("errors.removeNetworkFailed"));
     }
   };
 
@@ -263,7 +287,7 @@ export function RipContent() {
       setNewNeighbor("");
       await loadData(true);
     } catch (err) {
-      setNeighborsError(err instanceof Error ? err.message : t("errors.addNeighborFailed"));
+      setNeighborsError((err as ApiError).message || t("errors.addNeighborFailed"));
     }
   };
 
@@ -273,7 +297,7 @@ export function RipContent() {
       await ripService.removeNeighbor(address);
       await loadData(true);
     } catch (err) {
-      setNeighborsError(err instanceof Error ? err.message : t("errors.removeNeighborFailed"));
+      setNeighborsError((err as ApiError).message || t("errors.removeNeighborFailed"));
     }
   };
 
@@ -285,7 +309,7 @@ export function RipContent() {
       setNewRoute("");
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : t("errors.addRouteFailed"));
+      setRoutesError((err as ApiError).message || t("errors.addRouteFailed"));
     }
   };
 
@@ -295,7 +319,7 @@ export function RipContent() {
       await ripService.removeRoute(prefix);
       await loadData(true);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : t("errors.removeRouteFailed"));
+      setRoutesError((err as ApiError).message || t("errors.removeRouteFailed"));
     }
   };
 
@@ -307,7 +331,7 @@ export function RipContent() {
       setNewPassiveIface("");
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.addPassiveIfaceFailed"));
+      setPassiveIfaceError((err as ApiError).message || t("errors.addPassiveIfaceFailed"));
     }
   };
 
@@ -317,7 +341,7 @@ export function RipContent() {
       await ripService.removePassiveInterface(iface);
       await loadData(true);
     } catch (err) {
-      setPassiveIfaceError(err instanceof Error ? err.message : t("errors.removePassiveIfaceFailed"));
+      setPassiveIfaceError((err as ApiError).message || t("errors.removePassiveIfaceFailed"));
     }
   };
 
@@ -415,7 +439,7 @@ export function RipContent() {
       await loadData(true);
       setDlGlobalEditing(false);
     } catch (err) {
-      setDlGlobalError(err instanceof Error ? err.message : t("errors.saveFiltersFailed"));
+      setDlGlobalError((err as ApiError).message || t("errors.saveFiltersFailed"));
     } finally {
       setDlGlobalSaving(false);
     }
@@ -457,8 +481,19 @@ export function RipContent() {
   // Render helpers
   // ============================================================
 
+  const runListAction = async (sectionId: string, action: () => Promise<void>) => {
+    if (listBusy) return;
+    setListBusy(sectionId);
+    try {
+      await action();
+    } finally {
+      setListBusy(null);
+    }
+  };
+
   const renderListSection = (
     title: string,
+    inputId: string,
     items: string[],
     inputValue: string,
     onInputChange: (v: string) => void,
@@ -467,16 +502,31 @@ export function RipContent() {
     err: string | null,
     inputPlaceholder: string,
     isDropdown?: boolean,
-  ) => (
+  ) => {
+    // Every section waits while any list commit runs; only the running one spins.
+    const busy = listBusy !== null;
+    const running = listBusy === inputId;
+    const add = () => {
+      if (inputValue.trim()) runListAction(inputId, onAdd);
+    };
+    return (
     <Card>
       <CardContent className="p-4">
-        <h3 className="font-semibold mb-3 text-sm">{title}</h3>
+        <h3 className="font-semibold mb-3 text-sm">
+          {hasWritePermission ? (
+            <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+          ) : (
+            title
+          )}
+        </h3>
         {hasWritePermission && (
           <div className="flex gap-2 mb-3">
             {isDropdown ? (
               <InterfaceSelect
+                id={inputId}
                 value={inputValue}
                 onValueChange={onInputChange}
+                disabled={busy}
                 placeholder={inputPlaceholder}
                 className="flex-1"
                 filter={(item) => !items.includes(item.name)}
@@ -484,20 +534,22 @@ export function RipContent() {
               />
             ) : (
               <Input
+                id={inputId}
                 placeholder={inputPlaceholder}
                 value={inputValue}
+                disabled={busy}
                 onChange={(e) => onInputChange(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") add(); }}
                 className="flex-1 font-mono text-sm"
               />
             )}
-            <Button size="sm" onClick={onAdd} disabled={!inputValue.trim()}>
-              <Plus className="h-4 w-4" />
+            <Button size="sm" onClick={add} disabled={busy || !inputValue.trim()} aria-label={tc("add")}>
+              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             </Button>
           </div>
         )}
         {err && (
-          <p className="text-sm text-destructive mb-2">{err}</p>
+          <p className="text-sm text-destructive mb-2 whitespace-pre-wrap">{err}</p>
         )}
         {items.length === 0 ? (
           <p className="text-xs text-muted-foreground">{t("networks.noneConfigured")}</p>
@@ -511,7 +563,9 @@ export function RipContent() {
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={() => onRemove(item)}
+                    aria-label={tc("delete")}
+                    disabled={busy}
+                    onClick={() => runListAction(inputId, () => onRemove(item))}
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -522,13 +576,14 @@ export function RipContent() {
         )}
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   // ============================================================
   // Loading / Error states
   // ============================================================
 
-  if (loading) {
+  if (loading && !config) {
     return (
       <div className="flex items-center justify-center h-full">
         <LoadingSpinner />
@@ -569,8 +624,8 @@ export function RipContent() {
                 {t("header.subtitle")}
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2${loading ? " animate-spin" : ""}`} />
               {tc("refresh")}
             </Button>
           </div>
@@ -674,7 +729,7 @@ export function RipContent() {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>{tc("cancel")}</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditOverview} disabled={overviewSaving}>{tc("cancel")}</Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         {tc("save")}
@@ -720,8 +775,8 @@ export function RipContent() {
                         <Input
                           id="rip-default-distance"
                           type="number"
-                          min={1}
-                          max={255}
+                          min={DISTANCE_RANGE.min}
+                          max={DISTANCE_RANGE.max}
                           placeholder="120"
                           value={overviewEditing ? ovDefaultDistance : (config?.default_distance ?? "")}
                           disabled={!overviewEditing}
@@ -735,8 +790,8 @@ export function RipContent() {
                         <Input
                           id="rip-default-metric"
                           type="number"
-                          min={1}
-                          max={16}
+                          min={METRIC_RANGE.min}
+                          max={METRIC_RANGE.max}
                           placeholder="1"
                           value={overviewEditing ? ovDefaultMetric : (config?.default_metric ?? "")}
                           disabled={!overviewEditing}
@@ -781,8 +836,8 @@ export function RipContent() {
                         <Input
                           id="rip-update-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={TIMER_RANGE.min}
+                          max={TIMER_RANGE.max}
                           placeholder="30"
                           value={overviewEditing ? ovTimerUpdate : (config?.timers.update ?? "")}
                           disabled={!overviewEditing}
@@ -794,8 +849,8 @@ export function RipContent() {
                         <Input
                           id="rip-timeout-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={TIMER_RANGE.min}
+                          max={TIMER_RANGE.max}
                           placeholder="180"
                           value={overviewEditing ? ovTimerTimeout : (config?.timers.timeout ?? "")}
                           disabled={!overviewEditing}
@@ -807,8 +862,8 @@ export function RipContent() {
                         <Input
                           id="rip-gc-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={TIMER_RANGE.min}
+                          max={TIMER_RANGE.max}
                           placeholder="120"
                           value={overviewEditing ? ovTimerGc : (config?.timers.garbage_collection ?? "")}
                           disabled={!overviewEditing}
@@ -831,6 +886,7 @@ export function RipContent() {
               <div className="grid grid-cols-2 gap-4">
                 {renderListSection(
                   t("networks.ripNetworks"),
+                  "rip-list-ripNetworks",
                   config?.networks ?? [],
                   newNetwork,
                   setNewNetwork,
@@ -841,6 +897,7 @@ export function RipContent() {
                 )}
                 {renderListSection(
                   t("networks.neighbors"),
+                  "rip-list-neighbors",
                   config?.neighbors ?? [],
                   newNeighbor,
                   setNewNeighbor,
@@ -851,6 +908,7 @@ export function RipContent() {
                 )}
                 {renderListSection(
                   t("networks.staticRoutes"),
+                  "rip-list-staticRoutes",
                   config?.routes ?? [],
                   newRoute,
                   setNewRoute,
@@ -861,6 +919,7 @@ export function RipContent() {
                 )}
                 {renderListSection(
                   t("networks.passiveInterfaces"),
+                  "rip-list-passiveInterfaces",
                   config?.passive_interfaces ?? [],
                   newPassiveIface,
                   setNewPassiveIface,
@@ -955,13 +1014,13 @@ export function RipContent() {
                               {hasWritePermission && (
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8"
+                                    variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                     onClick={() => { setEditingIface(iface); setIfaceModalOpen(true); }}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                     onClick={() => setDeletingIface(iface)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1037,13 +1096,13 @@ export function RipContent() {
                               {hasWritePermission && (
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8"
+                                    variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                     onClick={() => { setEditingRedist(r); setRedistModalOpen(true); }}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                     onClick={() => setDeletingRedist(r)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1081,7 +1140,7 @@ export function RipContent() {
                           </Button>
                         ) : (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal}>{tc("cancel")}</Button>
+                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal} disabled={dlGlobalSaving}>{tc("cancel")}</Button>
                             <Button size="sm" onClick={saveDlGlobal} disabled={dlGlobalSaving}>
                               {dlGlobalSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                               {tc("save")}
@@ -1173,13 +1232,13 @@ export function RipContent() {
                                     {hasWritePermission && (
                                       <div className="flex items-center justify-end gap-1">
                                         <Button
-                                          variant="ghost" size="icon" className="h-8 w-8"
+                                          variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                           onClick={() => { setEditingDlIface(f); setDlIfaceModalOpen(true); }}
                                         >
                                           <Pencil className="h-4 w-4" />
                                         </Button>
                                         <Button
-                                          variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                          variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                           onClick={() => setDeletingDlIface(f)}
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -1249,13 +1308,13 @@ export function RipContent() {
                                   {hasWritePermission && (
                                     <div className="flex items-center justify-end gap-1">
                                       <Button
-                                        variant="ghost" size="icon" className="h-8 w-8"
+                                        variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
                                         onClick={() => { setEditingNd(nd); setNdModalOpen(true); }}
                                       >
                                         <Pencil className="h-4 w-4" />
                                       </Button>
                                       <Button
-                                        variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                        variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
                                         onClick={() => setDeletingNd(nd)}
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -1305,6 +1364,7 @@ export function RipContent() {
         existingEntry={editingRedist}
         existingProtocols={config?.redistribute.map((r) => r.protocol) ?? []}
         routeMapNames={routeMapNames}
+        protocols={capabilities?.features.redistribute.protocols || []}
         onSubmit={editingRedist ? handleUpdateRedist : handleCreateRedist}
       />
 

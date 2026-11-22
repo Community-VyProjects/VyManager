@@ -19,11 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipRedistribute } from "@/lib/api/rip";
-
-const ALL_PROTOCOLS = ["babel", "bgp", "connected", "isis", "kernel", "nhrp", "ospf", "static"];
+import type { ApiError } from "@/lib/types/api";
+import { METRIC_RANGE, inRange } from "@/lib/api/rip-ranges";
 
 interface RipRedistributeModalProps {
   open: boolean;
@@ -32,6 +33,8 @@ interface RipRedistributeModalProps {
   existingEntry?: RipRedistribute | null;
   existingProtocols: string[];
   routeMapNames: string[];
+  /** Redistribute sources the device offers, from capabilities. */
+  protocols: string[];
 }
 
 export function RipRedistributeModal({
@@ -41,6 +44,7 @@ export function RipRedistributeModal({
   existingEntry,
   existingProtocols,
   routeMapNames,
+  protocols,
 }: RipRedistributeModalProps) {
   const t = useTranslations("rip");
   const tc = useTranslations("common");
@@ -54,8 +58,10 @@ export function RipRedistributeModal({
   const [error, setError] = useState<string | null>(null);
 
   const availableProtocols = isEditMode
-    ? ALL_PROTOCOLS
-    : ALL_PROTOCOLS.filter((p) => !existingProtocols.includes(p));
+    ? (existingEntry && !protocols.includes(existingEntry.protocol)
+        ? [existingEntry.protocol, ...protocols]
+        : protocols)
+    : protocols.filter((p) => !existingProtocols.includes(p));
 
   useEffect(() => {
     if (!open) return;
@@ -63,6 +69,7 @@ export function RipRedistributeModal({
       setProtocol(existingEntry.protocol);
       setMetric(existingEntry.metric != null ? String(existingEntry.metric) : "");
       setRouteMap(existingEntry.route_map || "");
+      setError(null);
     } else {
       setProtocol("");
       setMetric("");
@@ -79,12 +86,13 @@ export function RipRedistributeModal({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
+
   const validate = (): string | null => {
     if (!protocol) return t("validation.selectProtocol");
-    if (metric.trim()) {
-      const val = parseInt(metric.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 16) return t("validation.metricRange");
-    }
+    if (!inRange(metric, METRIC_RANGE)) return t("validation.metricRange");
     return null;
   };
 
@@ -107,14 +115,14 @@ export function RipRedistributeModal({
       await onSubmit(entry);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -130,9 +138,9 @@ export function RipRedistributeModal({
         <div className="space-y-4">
           {/* Protocol */}
           <div className="space-y-2">
-            <Label>{t("redistribute.protocol")}</Label>
+            <Label htmlFor="rip-redist-protocol">{t("redistribute.protocol")}</Label>
             <Select value={protocol} onValueChange={setProtocol} disabled={isEditMode}>
-              <SelectTrigger className={isEditMode ? "bg-muted" : ""}>
+              <SelectTrigger id="rip-redist-protocol" className={isEditMode ? "bg-muted" : ""}>
                 <SelectValue placeholder={t("redistModal.selectProtocol")} />
               </SelectTrigger>
               <SelectContent>
@@ -145,11 +153,12 @@ export function RipRedistributeModal({
 
           {/* Metric */}
           <div className="space-y-2">
-            <Label>{t("redistribute.metric")} <span className="text-muted-foreground text-xs">{t("redistModal.metricHint")}</span></Label>
+            <Label htmlFor="rip-redist-metric">{t("redistribute.metric")} <span className="text-muted-foreground text-xs">{t("redistModal.metricHint")}</span></Label>
             <Input
+              id="rip-redist-metric"
               type="number"
-              min={1}
-              max={16}
+              min={METRIC_RANGE.min}
+              max={METRIC_RANGE.max}
               placeholder={tc("default")}
               value={metric}
               onChange={(e) => setMetric(e.target.value)}
@@ -158,18 +167,8 @@ export function RipRedistributeModal({
 
           {/* Route Map */}
           <div className="space-y-2">
-            <Label>{t("redistribute.routeMap")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
-            <Select value={routeMap || "none"} onValueChange={(v) => setRouteMap(v === "none" ? "" : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder={tc("none")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{tc("none")}</SelectItem>
-                {routeMapNames.map((rm) => (
-                  <SelectItem key={rm} value={rm} className="font-mono">{rm}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="rip-redist-route-map">{t("redistribute.routeMap")} <span className="text-muted-foreground text-xs">{t("modal.optionalHint")}</span></Label>
+            <NamedListSelect id="rip-redist-route-map" value={routeMap} names={routeMapNames} onValueChange={setRouteMap} />
           </div>
         </div>
 

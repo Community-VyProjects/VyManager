@@ -99,6 +99,7 @@
   },
   "validation": {
     "selectInterface": "Please select an interface",
+    "selectList": "Select at least one access list or prefix list",
     "md5KeyIdRequired": "All MD5 keys must have a key ID",
     "md5KeyIdRange": "MD5 key ID must be 1-255",
     "md5PasswordRequired": "All MD5 keys must have a password",
@@ -109,7 +110,8 @@
     "distanceRequired": "Distance is required",
     "distanceRange": "Distance must be between 1 and 255",
     "selectProtocol": "Please select a protocol",
-    "metricRange": "Metric must be between 1 and 16"
+    "metricRange": "Metric must be between 1 and 16",
+    "timerRange": "Timers must be between {min} and {max} seconds"
   },
   "interfaceModal": {
     "editTitle": "Edit RIP Interface",
