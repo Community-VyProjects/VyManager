@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 # Builder parameter names the batch handler fills from the operation value.
 VALUE_PARAMS = (
     "value", "description", "address", "port", "protocol", "action",
-    "interface", "interface_name", "dscp", "mark", "ttl", "hop_limit",
+    "interface", "dscp", "mark", "ttl", "hop_limit",
     "icmp_type", "icmpv6_type", "target", "flag", "group_name",
-    "mac_address", "country_code", "mac", "rate", "burst", "level", "count",
+    "mac_address", "country_code", "mac",
 )
 
 
@@ -237,7 +237,7 @@ class FirewallBatchOperation(BaseModel):
 
 class FirewallBatchRequest(BaseModel):
     """Model for batch firewall rule configuration."""
-    chain: str = Field(..., description="Chain name (forward, input, output, or custom chain)")
+    chain: str = Field(..., description="Chain name (forward, input, output, prerouting_raw on 1.5, or a custom chain)")
     rule_number: Optional[int] = Field(None, description="Rule number (not needed for chain operations)")
     is_custom_chain: bool = Field(False, description="Whether this is a custom chain")
     operations: List[FirewallBatchOperation] = Field(..., description="List of operations to perform")
@@ -405,8 +405,9 @@ def build_router(family: str) -> APIRouter:
             builder = FirewallFamilyBatchBuilder(version=version, family=family)
 
             # The checks below bind every op argument (each op takes at most one
-            # value). ValueError is a missing node or an unknown base chain.
-            # Neither wraps execute_batch: an empty batch stays a 500.
+            # value). ValueError is a missing node, an unknown base chain, or a
+            # bad value; the catch does not wrap execute_batch, so an empty
+            # batch stays a 500.
             try:
                 for operation in request.operations:
                     method_name = operation.op
@@ -445,8 +446,8 @@ def build_router(family: str) -> APIRouter:
 
                     method(*args)
             except ValueError as e:
-                # The mapper raises ValueError for a node this version lacks
-                # or a base chain that does not exist.
+                # The mapper raises ValueError for a node this version lacks,
+                # a base chain that does not exist, or a bad tcp flag.
                 raise HTTPException(status_code=400, detail=str(e))
 
             response = await run_in_threadpool(service.execute_batch, builder)
@@ -831,8 +832,8 @@ def build_router(family: str) -> APIRouter:
                         builder.set_rule_icmp_type(request.chain, new_number, icmp_type, request.is_custom_chain)
 
             except ValueError as e:
-                # The mapper raises ValueError for a node this version lacks
-                # or a base chain that does not exist.
+                # The mapper raises ValueError for a node this version lacks,
+                # a base chain that does not exist, or a bad tcp flag.
                 raise HTTPException(status_code=400, detail=str(e))
 
             response = await run_in_threadpool(service.execute_batch, builder)

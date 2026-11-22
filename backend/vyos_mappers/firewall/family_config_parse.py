@@ -144,11 +144,11 @@ def _parse_rule(
         packet_mods = {
             "dscp": set_data.get("dscp"),
             "mark": set_data.get("mark"),
-            "ttl": set_data.get(mapper._hop_leaf),
+            "ttl": set_data.get(mapper.hop_leaf),
         }
 
     icmp_type_name = icmp_code = icmp_type = None
-    icmp = rule.get(mapper._icmp_leaf) or {}
+    icmp = rule.get(mapper.icmp_leaf) or {}
     if isinstance(icmp, dict) and icmp:
         icmp_type_name = icmp.get("type-name") or None
         if icmp.get("code") not in (None, ""):
@@ -165,7 +165,7 @@ def _parse_rule(
     synproxy = rule.get("synproxy", {})
     tcp = rule.get("tcp", {})
     time = rule.get("time", {})
-    hop = rule.get(mapper._hop_leaf, {})
+    hop = rule.get(mapper.hop_leaf, {})
     aatg = rule.get("add-address-to-group", {})
 
     add_address_to_group = None

@@ -26,10 +26,9 @@ from .interfaces.vti_versions import get_vti_mapper
 from .interfaces.wireless_versions import get_wireless_mapper
 from .interfaces.wwan_versions import get_wwan_mapper
 from .interfaces.catalog_versions import get_interface_catalog_mapper
-from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
+from .firewall import FirewallGroupsMapper, FirewallFamilyMapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
-from .firewall.ipv4_versions import get_firewall_ipv4_mapper
-from .firewall.ipv6_versions import get_firewall_ipv6_mapper
+from .firewall.family_versions import get_firewall_ipv4_mapper, get_firewall_ipv6_mapper
 from .firewall.zones_versions import get_firewall_zones_mapper
 from .firewall.bridge_versions import get_bridge_firewall_mapper
 from .nat import NATMapper
@@ -370,8 +369,7 @@ __all__ = [
     "EthernetInterfaceMapper",
     "DummyInterfaceMapper",
     "FirewallGroupsMapper",
-    "FirewallIPv4Mapper",
-    "FirewallIPv6Mapper",
+    "FirewallFamilyMapper",
     "NATMapper",
     "NAT64Mapper",
     "NAT66Mapper",

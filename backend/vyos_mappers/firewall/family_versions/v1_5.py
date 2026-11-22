@@ -16,6 +16,11 @@ class FirewallFamilyMapperV1_5(FirewallFamilyMapper):
     def versioned_nodes(self) -> FrozenSet[str]:
         return frozenset({"remote-group", "ipsec-directional", "gre", "prerouting-raw"})
 
+    def _base_chain_parts(self, chain: str) -> List[str]:
+        if chain == "prerouting_raw":
+            return ["prerouting", "raw"]
+        return super()._base_chain_parts(chain)
+
     # ========================================================================
     # Remote Group Match
     # ========================================================================

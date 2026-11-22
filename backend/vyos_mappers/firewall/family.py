@@ -40,20 +40,21 @@ class FirewallFamilyMapper(BaseFeatureMapper):
 
         return parse_family_config(self, full_config)
 
+    def tcp_flag_names(self) -> List[str]:
+        """TCP flags under ``tcp flags`` and ``tcp flags not`` on both labs."""
+        return ["syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr"]
+
     def _base_chain_parts(self, chain: str) -> List[str]:
-        if chain in ("prerouting", "prerouting_raw"):
-            self.require_node("prerouting-raw")
-            return ["prerouting", "raw"]
         if chain not in ("forward", "input", "output"):
             raise ValueError(f"firewall {self.family} base chain {chain} does not exist")
         return [chain, "filter"]
 
     @property
-    def _hop_leaf(self) -> str:
+    def hop_leaf(self) -> str:
         return "ttl" if self.family == "ipv4" else "hop-limit"
 
     @property
-    def _icmp_leaf(self) -> str:
+    def icmp_leaf(self) -> str:
         return "icmp" if self.family == "ipv4" else "icmpv6"
 
     # ========================================================================
@@ -571,14 +572,14 @@ class FirewallFamilyMapper(BaseFeatureMapper):
     def get_rule_set_ttl(self, chain: str, rule_number: int, ttl: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting TTL value."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "set", self._hop_leaf, ttl]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "set", self._hop_leaf, ttl]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "set", self.hop_leaf, ttl]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "set", self.hop_leaf, ttl]
 
     def get_rule_set_ttl_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for TTL (for deletion)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "set", self._hop_leaf]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "set", self._hop_leaf]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), "set", self.hop_leaf]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "set", self.hop_leaf]
 
     # ========================================================================
     # Rule Properties - TCP Flags
@@ -593,15 +594,19 @@ class FirewallFamilyMapper(BaseFeatureMapper):
 
         VyOS expects: set firewall ipv4 forward filter rule 100 tcp flags [not] <flag>
         """
-        # Split flag into components if it contains "not"
         flag_parts = flag.split()
+        names = self.tcp_flag_names()
+        valid = (len(flag_parts) == 1 and flag_parts[0] in names) or (
+            len(flag_parts) == 2 and flag_parts[0] == "not" and flag_parts[1] in names
+        )
+        if not valid:
+            raise ValueError(f"firewall tcp flag {flag!r} is not a flag or 'not <flag>'")
 
         if is_custom:
             base_path = ["firewall", self.family, "name", chain, "rule", str(rule_number), "tcp", "flags"]
         else:
             base_path = ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), "tcp", "flags"]
 
-        # Add flag components to path
         return base_path + flag_parts
 
     def get_rule_tcp_flags_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
@@ -617,14 +622,14 @@ class FirewallFamilyMapper(BaseFeatureMapper):
     def get_rule_icmp_type_name(self, chain: str, rule_number: int, icmp_type: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting ICMP type name."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._icmp_leaf, "type-name", icmp_type]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._icmp_leaf, "type-name", icmp_type]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.icmp_leaf, "type-name", icmp_type]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.icmp_leaf, "type-name", icmp_type]
 
     def get_rule_icmp_type_name_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for ICMP type name (for deletion)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._icmp_leaf, "type-name"]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._icmp_leaf, "type-name"]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.icmp_leaf, "type-name"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.icmp_leaf, "type-name"]
 
     # ========================================================================
     # Rule Properties - Jump Target
@@ -819,26 +824,26 @@ class FirewallFamilyMapper(BaseFeatureMapper):
     def get_rule_icmp_code(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting ICMP code."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._icmp_leaf, "code", value]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._icmp_leaf, "code", value]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.icmp_leaf, "code", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.icmp_leaf, "code", value]
 
     def get_rule_icmp_code_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for ICMP code (for deletion)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._icmp_leaf, "code"]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._icmp_leaf, "code"]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.icmp_leaf, "code"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.icmp_leaf, "code"]
 
     def get_rule_icmp_type(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting ICMP type (numeric)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._icmp_leaf, "type", value]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._icmp_leaf, "type", value]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.icmp_leaf, "type", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.icmp_leaf, "type", value]
 
     def get_rule_icmp_type_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for ICMP type (for deletion)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._icmp_leaf, "type"]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._icmp_leaf, "type"]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.icmp_leaf, "type"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.icmp_leaf, "type"]
 
     # ========================================================================
     # Rule Properties - Interface Group (inbound/outbound)
@@ -1313,44 +1318,44 @@ class FirewallFamilyMapper(BaseFeatureMapper):
     def get_rule_ttl_eq(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting TTL equal match."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._hop_leaf, "eq", value]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._hop_leaf, "eq", value]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.hop_leaf, "eq", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.hop_leaf, "eq", value]
 
     def get_rule_ttl_eq_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for TTL equal match (for deletion)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._hop_leaf, "eq"]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._hop_leaf, "eq"]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.hop_leaf, "eq"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.hop_leaf, "eq"]
 
     def get_rule_ttl_gt(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting TTL greater-than match."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._hop_leaf, "gt", value]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._hop_leaf, "gt", value]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.hop_leaf, "gt", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.hop_leaf, "gt", value]
 
     def get_rule_ttl_gt_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for TTL greater-than match (for deletion)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._hop_leaf, "gt"]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._hop_leaf, "gt"]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.hop_leaf, "gt"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.hop_leaf, "gt"]
 
     def get_rule_ttl_lt(self, chain: str, rule_number: int, value: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting TTL less-than match."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._hop_leaf, "lt", value]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._hop_leaf, "lt", value]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.hop_leaf, "lt", value]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.hop_leaf, "lt", value]
 
     def get_rule_ttl_lt_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for TTL less-than match (for deletion)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._hop_leaf, "lt"]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._hop_leaf, "lt"]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.hop_leaf, "lt"]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.hop_leaf, "lt"]
 
     def get_rule_ttl_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for TTL node (for deletion of entire TTL section)."""
         if is_custom:
-            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self._hop_leaf]
-        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self._hop_leaf]
+            return ["firewall", self.family, "name", chain, "rule", str(rule_number), self.hop_leaf]
+        return ["firewall", self.family, *self._base_chain_parts(chain), "rule", str(rule_number), self.hop_leaf]
 
     # ========================================================================
     # Rule Properties - Add Address to Group

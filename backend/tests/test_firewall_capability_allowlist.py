@@ -92,7 +92,7 @@ def test_group_capability_ops_match_the_builder(version):
 
 def test_nondirectional_ipsec_follows_the_allowlist():
     builder = FirewallFamilyBatchBuilder(version="1.4")
-    with pytest.raises(ValueError, match="not supported"):
+    with pytest.raises(ValueError, match="base chain prerouting_raw does not exist"):
         builder.set_rule_ipsec_match_ipsec("prerouting_raw", 10, False)
     assert builder.get_operations() == []
     builder.set_rule_ipsec_match_ipsec("forward", 10, False)
@@ -185,7 +185,7 @@ def test_family_flags_read_the_mapper_allowlist(monkeypatch):
     with pytest.raises(ValueError, match="not supported"):
         builder.set_rule_source_group_remote("forward", 10, "RG", False)
     with pytest.raises(ValueError, match="not supported"):
-        builder.set_rule_action("prerouting_raw", 10, "drop", False)
+        builder.set_prerouting_raw_rule(10)
     assert builder.get_operations() == []
 
 
@@ -233,6 +233,32 @@ def test_family_versions_package_has_no_merge_proxy():
     assert sorted(p.name for p in package.glob("*.py")) == ["__init__.py", "v1_4.py", "v1_5.py"]
     assert "MergedMapper" not in Path(family_versions.__file__).read_text()
     assert "__getattr__" not in Path(family_versions.__file__).read_text()
+    # One factory: no per-family re-export packages or shared-class aliases.
+    firewall = package.parent
+    for rel in ("ipv4.py", "ipv6.py", "ipv4_versions/__init__.py", "ipv6_versions/__init__.py"):
+        assert not (firewall / rel).exists(), rel
+
+
+def test_family_tcp_flags_come_from_the_mapper(monkeypatch):
+    """Only a lab flag or 'not <flag>' becomes a path node; capabilities list the same set."""
+    builder = FirewallFamilyBatchBuilder(version="1.4")
+    assert builder.get_capabilities()["tcp_flags"] == builder._m().tcp_flag_names()
+    builder.set_rule_tcp_flags("forward", 10, "syn", False)
+    builder.set_rule_tcp_flags("forward", 10, "not ack", False)
+    assert [op["path"][-3:] for op in builder.get_operations()] == [
+        ["tcp", "flags", "syn"],
+        ["flags", "not", "ack"],
+    ]
+    builder.clear()
+    for bad in ("", "not", "syn ack", "not not", "syn extra node", "bogus", "not bogus"):
+        with pytest.raises(ValueError, match="tcp flag"):
+            builder.set_rule_tcp_flags("forward", 10, bad, False)
+    assert builder.get_operations() == []
+    monkeypatch.setattr(FirewallFamilyMapper, "tcp_flag_names", lambda self: ["syn"])
+    narrowed = FirewallFamilyBatchBuilder(version="1.5")
+    assert narrowed.get_capabilities()["tcp_flags"] == ["syn"]
+    with pytest.raises(ValueError, match="tcp flag"):
+        narrowed.set_rule_tcp_flags("forward", 10, "ack", False)
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
@@ -289,7 +315,7 @@ def test_family_batch_maps_unsupported_nodes_to_400(monkeypatch):
         },
     )
     assert batch.status_code == 400, batch.text
-    assert "not supported" in batch.json()["detail"]
+    assert batch.json()["detail"] == "firewall ipv4 base chain prerouting_raw does not exist"
     reorder = client.post(
         "/vyos/firewall/ipv4/reorder",
         json={
@@ -298,10 +324,10 @@ def test_family_batch_maps_unsupported_nodes_to_400(monkeypatch):
         },
     )
     assert reorder.status_code == 400, reorder.text
-    assert "not supported" in reorder.json()["detail"]
+    assert reorder.json()["detail"] == "firewall ipv4 base chain prerouting_raw does not exist"
     assert executed == []
     builder = FirewallFamilyBatchBuilder(version="1.4")
-    with pytest.raises(ValueError, match="not supported"):
+    with pytest.raises(ValueError, match="does not exist"):
         builder.set_rule_action("prerouting_raw", 10, "drop", False)
     assert builder.get_operations() == []
 

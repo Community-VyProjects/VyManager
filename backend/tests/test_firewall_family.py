@@ -1,5 +1,6 @@
 """Firewall IPv4/IPv6 stacks share one family implementation (issue #662)."""
 
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -7,6 +8,8 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
+from batch_dispatch import INTERNAL_BUILDER_METHODS
+from routers.firewall.family import VALUE_PARAMS
 from vyos_mappers.firewall.family_versions import get_firewall_family_mapper
 from vyos_mappers.firewall.family_versions.v1_5 import FirewallFamilyMapperV1_5
 from vyos_builders.firewall.family_batch_builder import FirewallFamilyBatchBuilder
@@ -129,8 +132,6 @@ def test_builders_are_thin_family_wrappers():
 def test_ipv4_ipv6_modules_do_not_reimplement_the_stack():
     root = Path(__file__).resolve().parents[1]
     for rel in (
-        "vyos_mappers/firewall/ipv4.py",
-        "vyos_mappers/firewall/ipv6.py",
         "vyos_builders/firewall/ipv4.py",
         "vyos_builders/firewall/ipv6.py",
         "routers/firewall/ipv4.py",
@@ -193,8 +194,11 @@ def test_batch_binds_chain_rule_and_value(monkeypatch, family):
         rule_number=10,
     )
     assert resp.status_code == 200, resp.text
-    assert resp.json()["success"] is True
-    assert resp.json()["error"] is None
+    assert resp.json() == {
+        "success": True,
+        "data": {"message": "Firewall configuration updated"},
+        "error": None,
+    }
     rule = ["firewall", family, "forward", "filter", "rule", "10"]
     assert executed == [[
         {"op": "set", "path": rule},
@@ -454,15 +458,12 @@ def test_config_and_reorder_keep_icmp_code_and_type(monkeypatch, family, leaf):
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_every_batch_op_takes_at_most_one_bound_value(version):
     """The batch handler binds chain, rule, one value, and is_custom; nothing else."""
-    import inspect
-
-    from routers.firewall.family import VALUE_PARAMS
-
     bound = {"chain", "chain_name", "rule_number", "is_custom"}
     builder = FirewallFamilyBatchBuilder(version, family="ipv6")
+    # Every name resolve_batch_method accepts, not only set_/delete_ ops.
     ops = [
         (name, method) for name, method in inspect.getmembers(builder, callable)
-        if name.startswith(("set_", "delete_", "create_"))
+        if not name.startswith("_") and name not in INTERNAL_BUILDER_METHODS
     ]
     assert ops
     for name, method in ops:
@@ -492,6 +493,7 @@ def test_batch_and_reorder_reject_an_unknown_base_chain(monkeypatch, chain):
         json={"chain": chain, "rules": [{"old_number": 10, "new_number": 20, "rule_data": {}}]},
     )
     assert reorder.status_code == 400, reorder.text
+    assert reorder.json()["detail"] == f"firewall ipv4 base chain {chain} does not exist"
     assert executed == []
     custom = _batch(
         client,

@@ -1655,16 +1655,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                 "related",
                 "invalid"
             ],
-            "tcp_flags": [
-                "syn",
-                "ack",
-                "fin",
-                "rst",
-                "psh",
-                "urg",
-                "ecn",
-                "cwr"
-            ],
+            "tcp_flags": self._m().tcp_flag_names(),
         }
 
     def set_rule_set_hop_limit(self, chain: str, rule_number: int, hop_limit: str, is_custom: bool = False) -> "FirewallFamilyBatchBuilder":
