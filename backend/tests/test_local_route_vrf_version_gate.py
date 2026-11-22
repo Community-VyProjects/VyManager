@@ -2,8 +2,9 @@
 
 validateTmplPath: ``policy {local-route,local-route6} rule N set vrf`` is
 INVALID on 1.4.3 and VALID on 1.5, while ``set table`` is VALID on both.
-The mapper owns that answer, capabilities read it, and the modal hides the
-VRF choice from the capability.
+The ``set vrf`` path methods live on the 1.5 subclass, the shared class is
+the 1.4 mapper, capabilities read ``versioned_nodes()``, and the modal hides
+the VRF choice from the capability.
 """
 
 import inspect
@@ -13,18 +14,20 @@ from pathlib import Path
 import pytest
 
 from tests.local_route_client import local_route_client
-from vyos_builders.local_route.local_route import LocalRouteBatchBuilder
-from vyos_mappers.local_route.local_route import LocalRouteMapper
+from vyos_builders.local_route.local_route_batch_builder import LocalRouteBatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.local_route.local_route import SET_VRF, LocalRouteMapper
 from vyos_mappers.local_route.local_route_versions import get_local_route_mapper
 from vyos_mappers.local_route.local_route_versions.v1_5 import LocalRouteMapperV1_5
 
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/policies/LocalRouteModal.tsx"
+VERSIONS = REPO / "backend/vyos_mappers/local_route/local_route_versions"
 
 VRF = "blue"
 
 VRF_MAPPER_METHODS = sorted(
-    name for name, _ in inspect.getmembers(LocalRouteMapper, predicate=inspect.isfunction)
+    name for name, _ in inspect.getmembers(LocalRouteMapperV1_5, predicate=inspect.isfunction)
     if "_set_vrf" in name
 )
 
@@ -51,19 +54,56 @@ def _args(method):
 
 def test_every_vrf_mapper_method_is_covered():
     assert len(VRF_MAPPER_METHODS) == 4
+    assert LocalRouteMapper._VERSIONED_NODES[SET_VRF] in VRF_MAPPER_METHODS
+
+
+# ---------------------------------------------------------------------------
+# Mapper shape: shared class on 1.4, 1.5 subclass holds the vrf paths
+# ---------------------------------------------------------------------------
+
+
+def test_v14_factory_returns_the_shared_class():
+    assert type(get_local_route_mapper("1.4")) is LocalRouteMapper
+    assert type(CommandMapperRegistry.get_mapper("local_route", "1.4.3")) is LocalRouteMapper
+
+
+@pytest.mark.parametrize("version", ["1.5", "latest", "2026.11.20-0019-rolling"])
+def test_non_14_factory_returns_the_subclass(version):
+    assert type(get_local_route_mapper(version)) is LocalRouteMapperV1_5
+
+
+def test_versions_package_has_no_empty_v14_file():
+    assert sorted(p.name for p in VERSIONS.glob("*.py")) == ["__init__.py", "v1_5.py"]
+
+
+@pytest.mark.parametrize("name", VRF_MAPPER_METHODS)
+def test_shared_class_has_no_vrf_path(name):
+    assert not hasattr(LocalRouteMapper, name)
+    assert not hasattr(get_local_route_mapper("1.4"), name)
+
+
+def test_versioned_nodes_per_version():
+    assert get_local_route_mapper("1.4").versioned_nodes() == frozenset()
+    assert get_local_route_mapper("1.5").versioned_nodes() == frozenset({SET_VRF})
+
+
+def test_missing_vrf_path_turns_the_node_off(monkeypatch):
+    monkeypatch.delattr(LocalRouteMapperV1_5, LocalRouteMapper._VERSIONED_NODES[SET_VRF])
+    assert get_local_route_mapper("1.5").versioned_nodes() == frozenset()
+
+
+def test_require_node_rejects_on_1_4():
+    with pytest.raises(
+        ValueError,
+        match="policy local-route/local-route6 rule set vrf is not supported on this device",
+    ):
+        get_local_route_mapper("1.4").require_node(SET_VRF)
+    get_local_route_mapper("1.5").require_node(SET_VRF)
 
 
 # ---------------------------------------------------------------------------
 # Mapper and builder: emitted on 1.5, rejected on 1.4 with nothing queued
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("name", VRF_MAPPER_METHODS)
-def test_v14_mapper_rejects_every_vrf_path(name):
-    method = getattr(get_local_route_mapper("1.4"), name)
-    with pytest.raises(ValueError, match="not supported on this device"):
-        method(*_args(method))
-
 
 @pytest.mark.parametrize("version", ["1.5", "latest"])
 @pytest.mark.parametrize("name", VRF_MAPPER_METHODS)
@@ -118,7 +158,7 @@ def test_v15_capabilities_advertise_vrf(version):
 
 def test_vrf_capability_reads_the_mapper(monkeypatch):
     """A handwritten version check in get_capabilities() would ignore this."""
-    monkeypatch.setattr(LocalRouteMapperV1_5, "versioned_rule_set_actions", lambda self: frozenset())
+    monkeypatch.setattr(LocalRouteMapperV1_5, "versioned_nodes", lambda self: frozenset())
     features = LocalRouteBatchBuilder(version="1.5").get_capabilities()["features"]
     assert features["vrf_support"]["supported"] is False
 

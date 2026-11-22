@@ -2,28 +2,43 @@
 Local Route Command Mapper
 
 Handles command path generation for VyOS local route policy configuration.
-Version-specific logic is in version-specific files.
+``set vrf`` under a local-route or local-route6 rule exists only on 1.5; its
+path methods live on the 1.5 subclass. ``_VERSIONED_NODES`` maps that node to
+the subclass path method that defines it; ``versioned_nodes()`` is the set the
+device has.
 """
 
 from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
+# Version-only rule node (key of LocalRouteMapper._VERSIONED_NODES).
+SET_VRF = "set vrf"
+
 
 class LocalRouteMapper(BaseFeatureMapper):
-    """Base mapper with common operations for local route policy"""
+    """Local route policy commands both VyOS versions have."""
 
-    # Rule ``set`` actions that exist on 1.5 and not on 1.4 for both
-    # local-route and local-route6 (validateTmplPath on both). Version
-    # subclasses narrow this set.
-    _RULE_SET_VERSIONED = ("vrf",)
+    _VERSIONED_NODES: Dict[str, str] = {
+        SET_VRF: "get_local_route_rule_set_vrf",
+    }
 
-    def versioned_rule_set_actions(self) -> FrozenSet[str]:
-        """Version-dependent rule ``set`` actions this device has."""
-        return frozenset(self._RULE_SET_VERSIONED)
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only rule nodes this device has.
 
-    def _require_rule_set(self, action: str) -> None:
-        if action not in self.versioned_rule_set_actions():
-            raise ValueError(f"local-route rule set {action} is not supported on this device")
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(
+                f"policy local-route/local-route6 rule {node} is not supported on this device"
+            )
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_local_route_config
@@ -143,18 +158,6 @@ class LocalRouteMapper(BaseFeatureMapper):
     def get_local_route_rule_set_table_path(self, rule_number: int) -> List[str]:
         """Get command path for IPv4 rule table (for deletion)."""
         return ["policy", "local-route", "rule", str(rule_number), "set", "table"]
-
-    def get_local_route_rule_set_vrf(
-        self, rule_number: int, vrf: str
-    ) -> List[str]:
-        """Get command path for IPv4 rule VRF."""
-        self._require_rule_set("vrf")
-        return ["policy", "local-route", "rule", str(rule_number), "set", "vrf", vrf]
-
-    def get_local_route_rule_set_vrf_path(self, rule_number: int) -> List[str]:
-        """Get command path for IPv4 rule VRF (for deletion)."""
-        self._require_rule_set("vrf")
-        return ["policy", "local-route", "rule", str(rule_number), "set", "vrf"]
 
     # ========================================================================
     # IPv6 Local Route - Rule Paths
@@ -281,15 +284,3 @@ class LocalRouteMapper(BaseFeatureMapper):
     def get_local_route6_rule_set_table_path(self, rule_number: int) -> List[str]:
         """Get command path for IPv6 rule table (for deletion)."""
         return ["policy", "local-route6", "rule", str(rule_number), "set", "table"]
-
-    def get_local_route6_rule_set_vrf(
-        self, rule_number: int, vrf: str
-    ) -> List[str]:
-        """Get command path for IPv6 rule VRF."""
-        self._require_rule_set("vrf")
-        return ["policy", "local-route6", "rule", str(rule_number), "set", "vrf", vrf]
-
-    def get_local_route6_rule_set_vrf_path(self, rule_number: int) -> List[str]:
-        """Get command path for IPv6 rule VRF (for deletion)."""
-        self._require_rule_set("vrf")
-        return ["policy", "local-route6", "rule", str(rule_number), "set", "vrf"]
