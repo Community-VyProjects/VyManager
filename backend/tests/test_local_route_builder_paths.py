@@ -11,7 +11,7 @@ import pytest
 
 from tests.dispatchable_ops import dispatchable_ops
 from tests.test_local_route_vrf_version_gate import BUILDER_CASES as VRF_CASES
-from vyos_builders.local_route.local_route import LocalRouteBatchBuilder
+from vyos_builders.local_route.local_route_batch_builder import LocalRouteBatchBuilder
 
 
 def _run(version, method, args, op, expected_path):

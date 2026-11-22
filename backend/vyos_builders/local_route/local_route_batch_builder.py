@@ -2,11 +2,14 @@
 Local Route Batch Builder
 
 Provides all batch operations for VyOS local route policy configuration.
-Handles both IPv4 (local-route) and IPv6 (local-route6) rules.
+Handles both IPv4 (local-route) and IPv6 (local-route6) rules. A rule node
+only one VyOS version has goes through ``_versioned_path`` and raises
+``ValueError`` elsewhere.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, List, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.local_route.local_route import SET_VRF, LocalRouteMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -21,16 +24,18 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     # ========================================================================
-    # Core Batch Operations
+    # Core
     # ========================================================================
 
-    def clear(self) -> None:
-        """Clear all operations from the batch."""
-        self._operations = []
+    @property
+    def m(self) -> LocalRouteMapper:
+        return cast(LocalRouteMapper, self.mappers[self.mapper_key])
 
-    def operation_count(self) -> int:
-        """Get the number of operations in the batch."""
-        return len(self._operations)
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a rule node only one VyOS version has; ValueError elsewhere."""
+        mapper = self.m
+        mapper.require_node(node)
+        return getattr(mapper, method)(*args)
 
     # ========================================================================
     # IPv4 Local Route - Rule Operations
@@ -38,12 +43,12 @@ class LocalRouteBatchBuilder(BatchBuilder):
 
     def set_local_route_rule(self, rule_number: int) -> "LocalRouteBatchBuilder":
         """Create IPv4 local route rule."""
-        path = self.mappers[self.mapper_key].get_local_route_rule(rule_number)
+        path = self.m.get_local_route_rule(rule_number)
         return self.add_set(path)
 
     def delete_local_route_rule(self, rule_number: int) -> "LocalRouteBatchBuilder":
         """Delete IPv4 local route rule."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_path(rule_number)
+        path = self.m.get_local_route_rule_path(rule_number)
         return self.add_delete(path)
 
     # ========================================================================
@@ -54,7 +59,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, source: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv4 rule source address/prefix."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_source(
+        path = self.m.get_local_route_rule_source(
             rule_number, source
         )
         return self.add_set(path)
@@ -63,7 +68,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv4 rule source."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_source_path(
+        path = self.m.get_local_route_rule_source_path(
             rule_number
         )
         return self.add_delete(path)
@@ -72,7 +77,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, destination: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv4 rule destination address/prefix."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_destination(
+        path = self.m.get_local_route_rule_destination(
             rule_number, destination
         )
         return self.add_set(path)
@@ -81,7 +86,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv4 rule destination."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_destination_path(
+        path = self.m.get_local_route_rule_destination_path(
             rule_number
         )
         return self.add_delete(path)
@@ -90,7 +95,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, interface: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv4 rule inbound interface."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_inbound_interface(
+        path = self.m.get_local_route_rule_inbound_interface(
             rule_number, interface
         )
         return self.add_set(path)
@@ -99,15 +104,13 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv4 rule inbound interface."""
-        path = self.mappers[
-            self.mapper_key
-        ].get_local_route_rule_inbound_interface_path(rule_number)
+        path = self.m.get_local_route_rule_inbound_interface_path(rule_number)
         return self.add_delete(path)
 
     def set_local_route_rule_fwmark(
         self, rule_number: int, fwmark: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_fwmark(
+        path = self.m.get_local_route_rule_fwmark(
             rule_number, fwmark
         )
         return self.add_set(path)
@@ -115,7 +118,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route_rule_fwmark(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_fwmark_path(
+        path = self.m.get_local_route_rule_fwmark_path(
             rule_number
         )
         return self.add_delete(path)
@@ -123,7 +126,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def set_local_route_rule_protocol(
         self, rule_number: int, protocol: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_protocol(
+        path = self.m.get_local_route_rule_protocol(
             rule_number, protocol
         )
         return self.add_set(path)
@@ -131,7 +134,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route_rule_protocol(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_protocol_path(
+        path = self.m.get_local_route_rule_protocol_path(
             rule_number
         )
         return self.add_delete(path)
@@ -139,7 +142,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def set_local_route_rule_source_port(
         self, rule_number: int, port: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_source_port(
+        path = self.m.get_local_route_rule_source_port(
             rule_number, port
         )
         return self.add_set(path)
@@ -147,7 +150,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route_rule_source_port(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_source_port_path(
+        path = self.m.get_local_route_rule_source_port_path(
             rule_number
         )
         return self.add_delete(path)
@@ -155,7 +158,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def set_local_route_rule_destination_port(
         self, rule_number: int, port: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_destination_port(
+        path = self.m.get_local_route_rule_destination_port(
             rule_number, port
         )
         return self.add_set(path)
@@ -163,7 +166,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route_rule_destination_port(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route_rule_destination_port_path(
+        path = self.m.get_local_route_rule_destination_port_path(
             rule_number
         )
         return self.add_delete(path)
@@ -172,7 +175,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, table: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv4 rule routing table."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_set_table(
+        path = self.m.get_local_route_rule_set_table(
             rule_number, table
         )
         return self.add_set(path)
@@ -181,7 +184,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv4 rule routing table."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_set_table_path(
+        path = self.m.get_local_route_rule_set_table_path(
             rule_number
         )
         return self.add_delete(path)
@@ -190,18 +193,14 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, vrf: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv4 rule VRF (VyOS 1.5+)."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_set_vrf(
-            rule_number, vrf
-        )
+        path = self._versioned_path(SET_VRF, "get_local_route_rule_set_vrf", rule_number, vrf)
         return self.add_set(path)
 
     def delete_local_route_rule_set_vrf(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv4 rule VRF."""
-        path = self.mappers[self.mapper_key].get_local_route_rule_set_vrf_path(
-            rule_number
-        )
+        path = self._versioned_path(SET_VRF, "get_local_route_rule_set_vrf_path", rule_number)
         return self.add_delete(path)
 
     # ========================================================================
@@ -210,12 +209,12 @@ class LocalRouteBatchBuilder(BatchBuilder):
 
     def set_local_route6_rule(self, rule_number: int) -> "LocalRouteBatchBuilder":
         """Create IPv6 local route rule."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule(rule_number)
+        path = self.m.get_local_route6_rule(rule_number)
         return self.add_set(path)
 
     def delete_local_route6_rule(self, rule_number: int) -> "LocalRouteBatchBuilder":
         """Delete IPv6 local route rule."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_path(rule_number)
+        path = self.m.get_local_route6_rule_path(rule_number)
         return self.add_delete(path)
 
     # ========================================================================
@@ -226,7 +225,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, source: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv6 rule source address/prefix."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_source(
+        path = self.m.get_local_route6_rule_source(
             rule_number, source
         )
         return self.add_set(path)
@@ -235,7 +234,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv6 rule source."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_source_path(
+        path = self.m.get_local_route6_rule_source_path(
             rule_number
         )
         return self.add_delete(path)
@@ -244,7 +243,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, destination: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv6 rule destination address/prefix."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_destination(
+        path = self.m.get_local_route6_rule_destination(
             rule_number, destination
         )
         return self.add_set(path)
@@ -253,7 +252,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv6 rule destination."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_destination_path(
+        path = self.m.get_local_route6_rule_destination_path(
             rule_number
         )
         return self.add_delete(path)
@@ -262,7 +261,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, interface: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv6 rule inbound interface."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_inbound_interface(
+        path = self.m.get_local_route6_rule_inbound_interface(
             rule_number, interface
         )
         return self.add_set(path)
@@ -271,15 +270,13 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv6 rule inbound interface."""
-        path = self.mappers[
-            self.mapper_key
-        ].get_local_route6_rule_inbound_interface_path(rule_number)
+        path = self.m.get_local_route6_rule_inbound_interface_path(rule_number)
         return self.add_delete(path)
 
     def set_local_route6_rule_fwmark(
         self, rule_number: int, fwmark: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_fwmark(
+        path = self.m.get_local_route6_rule_fwmark(
             rule_number, fwmark
         )
         return self.add_set(path)
@@ -287,7 +284,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route6_rule_fwmark(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_fwmark_path(
+        path = self.m.get_local_route6_rule_fwmark_path(
             rule_number
         )
         return self.add_delete(path)
@@ -295,7 +292,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def set_local_route6_rule_protocol(
         self, rule_number: int, protocol: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_protocol(
+        path = self.m.get_local_route6_rule_protocol(
             rule_number, protocol
         )
         return self.add_set(path)
@@ -303,7 +300,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route6_rule_protocol(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_protocol_path(
+        path = self.m.get_local_route6_rule_protocol_path(
             rule_number
         )
         return self.add_delete(path)
@@ -311,7 +308,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def set_local_route6_rule_source_port(
         self, rule_number: int, port: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_source_port(
+        path = self.m.get_local_route6_rule_source_port(
             rule_number, port
         )
         return self.add_set(path)
@@ -319,7 +316,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route6_rule_source_port(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_source_port_path(
+        path = self.m.get_local_route6_rule_source_port_path(
             rule_number
         )
         return self.add_delete(path)
@@ -327,7 +324,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def set_local_route6_rule_destination_port(
         self, rule_number: int, port: str
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_destination_port(
+        path = self.m.get_local_route6_rule_destination_port(
             rule_number, port
         )
         return self.add_set(path)
@@ -335,7 +332,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
     def delete_local_route6_rule_destination_port(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
-        path = self.mappers[self.mapper_key].get_local_route6_rule_destination_port_path(
+        path = self.m.get_local_route6_rule_destination_port_path(
             rule_number
         )
         return self.add_delete(path)
@@ -344,7 +341,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, table: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv6 rule routing table."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_set_table(
+        path = self.m.get_local_route6_rule_set_table(
             rule_number, table
         )
         return self.add_set(path)
@@ -353,7 +350,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv6 rule routing table."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_set_table_path(
+        path = self.m.get_local_route6_rule_set_table_path(
             rule_number
         )
         return self.add_delete(path)
@@ -362,18 +359,14 @@ class LocalRouteBatchBuilder(BatchBuilder):
         self, rule_number: int, vrf: str
     ) -> "LocalRouteBatchBuilder":
         """Set IPv6 rule VRF (VyOS 1.5+)."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_set_vrf(
-            rule_number, vrf
-        )
+        path = self._versioned_path(SET_VRF, "get_local_route6_rule_set_vrf", rule_number, vrf)
         return self.add_set(path)
 
     def delete_local_route6_rule_set_vrf(
         self, rule_number: int
     ) -> "LocalRouteBatchBuilder":
         """Delete IPv6 rule VRF."""
-        path = self.mappers[self.mapper_key].get_local_route6_rule_set_vrf_path(
-            rule_number
-        )
+        path = self._versioned_path(SET_VRF, "get_local_route6_rule_set_vrf_path", rule_number)
         return self.add_delete(path)
 
     # ========================================================================
@@ -382,8 +375,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
-        mapper = self.mappers[self.mapper_key]
-        supports_vrf = "vrf" in mapper.versioned_rule_set_actions()
+        supports_vrf = SET_VRF in self.m.versioned_nodes()
 
         return {
             "version": self.version,
@@ -436,7 +428,7 @@ class LocalRouteBatchBuilder(BatchBuilder):
                 },
                 "vrf_support": {
                     "supported": supports_vrf,
-                    "description": "Route to specific VRF instance (VyOS 1.5+ only)",
+                    "description": "Route to specific VRF instance",
                 },
             },
         }
