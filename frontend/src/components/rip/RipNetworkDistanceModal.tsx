@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNetworkDistance } from "@/lib/api/rip";
 import type { ApiError } from "@/lib/types/api";
 import { DISTANCE_RANGE, inRange } from "@/lib/api/rip-ranges";
+import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
 
 interface RipNetworkDistanceModalProps {
   open: boolean;
@@ -28,6 +29,7 @@ interface RipNetworkDistanceModalProps {
   accessListNames: string[];
 }
 
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function RipNetworkDistanceModal({
   open,
   onOpenChange,
@@ -40,43 +42,27 @@ export function RipNetworkDistanceModal({
   const tc = useTranslations("common");
   const isEditMode = !!existingEntry;
 
-  const [prefix, setPrefix] = useState("");
-  const [distance, setDistance] = useState("");
-  const [accessList, setAccessList] = useState("");
+  const [prefix, setPrefix] = useState(existingEntry?.prefix ?? "");
+  const [distance, setDistance] = useState(existingEntry?.distance != null ? String(existingEntry.distance) : "");
+  const [accessList, setAccessList] = useState(existingEntry?.access_list ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    if (existingEntry) {
-      setPrefix(existingEntry.prefix);
-      setDistance(existingEntry.distance != null ? String(existingEntry.distance) : "");
-      setAccessList(existingEntry.access_list || "");
-      setError(null);
-    } else {
-      setPrefix("");
-      setDistance("");
-      setAccessList("");
-      setError(null);
-    }
-  }, [open, existingEntry]);
-
-  const handleClose = () => {
-    setPrefix("");
-    setDistance("");
-    setAccessList("");
-    setError(null);
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const validate = (): string | null => {
-    if (!prefix.trim()) return t("validation.prefixRequired");
-    if (!isEditMode && existingPrefixes.includes(prefix.trim())) {
-      return t("validation.prefixExists");
+    const trimmed = prefix.trim();
+    if (!trimmed) return t("validation.prefixRequired");
+    if (!isEditMode) {
+      if (!isIPv4Prefix(trimmed)) return t("validation.prefixInvalid");
+      if (existingPrefixes.includes(trimmed)) return t("validation.prefixExists");
     }
     if (!distance.trim()) return t("validation.distanceRequired");
-    if (!inRange(distance, DISTANCE_RANGE)) return t("validation.distanceRange");
+    if (!inRange(distance, DISTANCE_RANGE)) return t("validation.distanceRange", DISTANCE_RANGE);
     return null;
   };
 
@@ -89,7 +75,7 @@ export function RipNetworkDistanceModal({
 
     const entry: RipNetworkDistance = {
       prefix: prefix.trim(),
-      distance: parseInt(distance.trim(), 10),
+      distance: Number(distance.trim()),
       access_list: accessList || null,
     };
 
@@ -97,16 +83,12 @@ export function RipNetworkDistanceModal({
       setLoading(true);
       setError(null);
       await onSubmit(entry);
-      handleClose();
+      onOpenChange(false);
     } catch (err) {
       setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleOpenChange = (next: boolean) => {
-    if (!next && !loading) handleClose();
   };
 
   return (
@@ -169,7 +151,7 @@ export function RipNetworkDistanceModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

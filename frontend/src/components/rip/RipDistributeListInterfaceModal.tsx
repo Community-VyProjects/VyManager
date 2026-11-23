@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipDistributeListInterface } from "@/lib/api/rip";
 import type { ApiError } from "@/lib/types/api";
+import { ripDistributeListInterfaceEmpty } from "@/lib/api/rip-save-ops";
 
 interface RipDistributeListInterfaceModalProps {
   open: boolean;
@@ -28,6 +29,7 @@ interface RipDistributeListInterfaceModalProps {
   prefixListNames: string[];
 }
 
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function RipDistributeListInterfaceModal({
   open,
   onOpenChange,
@@ -41,57 +43,21 @@ export function RipDistributeListInterfaceModal({
   const tc = useTranslations("common");
   const isEditMode = !!existingEntry;
 
-  const [iface, setIface] = useState("");
-  const [aclIn, setAclIn] = useState("");
-  const [aclOut, setAclOut] = useState("");
-  const [plIn, setPlIn] = useState("");
-  const [plOut, setPlOut] = useState("");
+  const [iface, setIface] = useState(existingEntry?.interface ?? "");
+  const [aclIn, setAclIn] = useState(existingEntry?.access_list_in ?? "");
+  const [aclOut, setAclOut] = useState(existingEntry?.access_list_out ?? "");
+  const [plIn, setPlIn] = useState(existingEntry?.prefix_list_in ?? "");
+  const [plOut, setPlOut] = useState(existingEntry?.prefix_list_out ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    if (existingEntry) {
-      setIface(existingEntry.interface);
-      setAclIn(existingEntry.access_list_in || "");
-      setAclOut(existingEntry.access_list_out || "");
-      setPlIn(existingEntry.prefix_list_in || "");
-      setPlOut(existingEntry.prefix_list_out || "");
-      setError(null);
-    } else {
-      setIface("");
-      setAclIn("");
-      setAclOut("");
-      setPlIn("");
-      setPlOut("");
-      setError(null);
-    }
-  }, [open, existingEntry]);
-
-  const handleClose = () => {
-    setIface("");
-    setAclIn("");
-    setAclOut("");
-    setPlIn("");
-    setPlOut("");
-    setError(null);
-    onOpenChange(false);
-  };
-
-  const validate = (): string | null => {
-    if (!iface) return t("validation.selectInterface");
-    if (!aclIn && !aclOut && !plIn && !plOut) return t("validation.selectList");
-    return null;
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
     const entry: RipDistributeListInterface = {
       interface: iface,
       access_list_in: aclIn || null,
@@ -99,21 +65,25 @@ export function RipDistributeListInterfaceModal({
       prefix_list_in: plIn || null,
       prefix_list_out: plOut || null,
     };
+    if (!iface) {
+      setError(t("validation.selectInterface"));
+      return;
+    }
+    if (ripDistributeListInterfaceEmpty(entry)) {
+      setError(t("validation.selectList"));
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
       await onSubmit(entry);
-      handleClose();
+      onOpenChange(false);
     } catch (err) {
       setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleOpenChange = (next: boolean) => {
-    if (!next && !loading) handleClose();
   };
 
   return (
@@ -171,7 +141,7 @@ export function RipDistributeListInterfaceModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

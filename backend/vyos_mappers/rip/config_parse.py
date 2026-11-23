@@ -1,10 +1,13 @@
 """Read-model for RIP config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree.
+the tree. Interface MD5 key passwords and the plaintext password are secrets
+and load masked.
 """
 
 from typing import Any, Dict, List, Optional
+
+MASKED_SECRET = "***"
 
 
 def _safe_int(value) -> Optional[int]:
@@ -88,12 +91,11 @@ def _parse_interfaces(raw: dict) -> List[Dict[str, Any]]:
 
         md5_keys = []
         for key_id, key_cfg in md5_raw.items():
-            if key_cfg is None:
-                key_cfg = {}
+            has_password = isinstance(key_cfg, dict) and bool(key_cfg.get("password"))
             md5_keys.append(
                 {
                     "key_id": str(key_id),
-                    "password": key_cfg.get("password", "") if isinstance(key_cfg, dict) else "",
+                    "password": MASKED_SECRET if has_password else "",
                 }
             )
 
@@ -115,7 +117,7 @@ def _parse_interfaces(raw: dict) -> List[Dict[str, Any]]:
                 "name": iface_name,
                 "authentication_type": auth_type,
                 "md5_keys": md5_keys,
-                "plaintext_password": plaintext,
+                "plaintext_password": MASKED_SECRET if plaintext else None,
                 "receive_version": (cfg.get("receive", {}) or {}).get("version"),
                 "send_version": (cfg.get("send", {}) or {}).get("version"),
                 "split_horizon": split_horizon,
@@ -173,27 +175,13 @@ def _parse_timers(raw: dict) -> Dict[str, Any]:
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/rip/config payload."""
-    rip_raw = full_config.get("protocols", {}).get("rip", {})
-
-    if not rip_raw:
-        return {
-            "default_distance": None,
-            "default_information_originate": False,
-            "default_metric": None,
-            "route_map": None,
-            "version": None,
-            "networks": [],
-            "neighbors": [],
-            "routes": [],
-            "passive_interfaces": [],
-            "distribute_list": _parse_distribute_list({}),
-            "interfaces": [],
-            "network_distances": [],
-            "redistribute": [],
-            "timers": _parse_timers({}),
-        }
+    protocols = full_config.get("protocols") or {}
+    # A bare ``protocols rip`` parses as {} but still exists on the device.
+    configured = "rip" in protocols
+    rip_raw = protocols.get("rip") or {}
 
     return {
+        "configured": configured,
         "default_distance": _safe_int(rip_raw.get("default-distance")),
         "default_information_originate": "originate"
         in (rip_raw.get("default-information") or {}),

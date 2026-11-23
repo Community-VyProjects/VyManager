@@ -229,7 +229,7 @@ describe("named list select", () => {
     assert.match(src, /filter=/);
     assert.doesNotMatch(src, /from "@\/components\/ui\/select"/);
     assert.doesNotMatch(src, /type: ""/);
-    assert.match(src, /!aclIn && !aclOut && !plIn && !plOut\) return t\("validation\.selectList"\)/);
+    assert.match(src, /if \(ripDistributeListInterfaceEmpty\(entry\)\) \{\s*setError\(t\("validation\.selectList"\)\)/);
   });
 
   it("labels the RIP list-section inputs", () => {
@@ -249,30 +249,35 @@ describe("named list select", () => {
 
   it("keeps the RIP modals open during a save and shows the ApiError detail", () => {
     for (const file of [
+      "src/components/rip/RipInterfaceModal.tsx",
       "src/components/rip/RipRedistributeModal.tsx",
       "src/components/rip/RipNetworkDistanceModal.tsx",
       "src/components/rip/RipDistributeListInterfaceModal.tsx",
     ]) {
       const src = readFileSync(join(FRONTEND, file), "utf8");
-      assert.match(src, /if \(!next && !loading\) handleClose\(\);/, file);
+      assert.match(src, /if \(!next && loading\) return;/, file);
       assert.match(src, /<Dialog open=\{open\} onOpenChange=\{handleOpenChange\}>/, file);
       assert.match(src, /\(err as ApiError\)\.message/, file);
       assert.doesNotMatch(src, /instanceof Error/, file);
+      // Seeded from props; the page remounts the modal with a new key instead of an effect reset.
+      assert.doesNotMatch(src, /useEffect/, file);
     }
   });
 
-  it("keeps the RIP page mounted on refresh and re-reads after a failed overview save", () => {
+  it("keeps the RIP page mounted on refresh and commits the overview as one batch", () => {
     const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
     assert.match(src, /if \(loading && !config\)/);
     assert.doesNotMatch(src, /instanceof Error/);
     assert.match(src, /onClick=\{cancelEditOverview\} disabled=\{overviewSaving\}/);
     assert.match(src, /onClick=\{cancelEditDlGlobal\} disabled=\{dlGlobalSaving\}/);
     const save = src.slice(src.indexOf("const saveOverview"), src.indexOf("// Networks tab handlers"));
-    assert.match(save, /catch \(err\) \{[\s\S]*await loadData\(true\);[\s\S]*\} finally/);
     assert.match(save, /overviewProblem\(/);
-    assert.match(src, /onClick=\{\(\) => loadData\(true\)\} disabled=\{loading\}/);
+    assert.match(save, /ripService\.updateSettings\(/);
+    assert.doesNotMatch(save, /updateTimers|updateGlobalSettings/);
+    assert.match(src, /onClick=\{\(\) => void reload\(\)\} disabled=\{refreshing\}/);
     assert.match(src, /disabled=\{busy \|\| !inputValue\.trim\(\)\}/);
-    assert.match(src, /runListAction\(inputId, \(\) => onRemove\(item\)\)/);
+    // A list remove opens the confirm dialog instead of committing at once.
+    assert.match(src, /onClick=\{\(\) => openDelete\(kind, item\)\}/);
   });
 
   it("validates RIP metric and distance with the shared lab ranges", () => {
@@ -285,7 +290,7 @@ describe("named list select", () => {
 
   it("keeps the lab default value on the RIP passive-interface picker", () => {
     const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
-    assert.match(src, /label: "default", value: "default"/);
+    assert.match(src, /label: tc\("shown\.default"\), value: "default"/);
     assert.match(src, /items\.includes\("default"\)/);
   });
 

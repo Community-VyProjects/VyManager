@@ -1,16 +1,31 @@
-"""RIP Protocol Command Mapper."""
-from typing import List
+"""RIP Protocol Command Mapper.
+
+The command tree is the same on VyOS 1.4 and 1.5 except ``redistribute nhrp``,
+which only 1.5 has (``rip_versions/v1_5.py``).
+"""
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class RipMapper(BaseFeatureMapper):
-    """Base mapper for RIP protocol configuration paths."""
+    """Shared RIP paths for VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    _REDISTRIBUTE = frozenset({"babel", "bgp", "connected", "isis", "kernel", "ospf", "static"})
+
+    # ========================================================================
+    # Core
+    # ========================================================================
 
     def _rip(self) -> List[str]:
         return ["protocols", "rip"]
+
+    def redistribute_protocols(self) -> FrozenSet[str]:
+        """``protocols rip redistribute`` sources on this device."""
+        return self._REDISTRIBUTE
+
+    def _require_redistribute(self, protocol: str) -> None:
+        if protocol not in self.redistribute_protocols():
+            raise ValueError(f"redistribute {protocol} is not supported on this device")
 
     # ========================================================================
     # Global settings
@@ -164,6 +179,9 @@ class RipMapper(BaseFeatureMapper):
     def get_interface_authentication_plaintext(self, iface: str, password: str) -> List[str]:
         return self._rip() + ["interface", iface, "authentication", "plaintext-password", password]
 
+    def get_interface_authentication_plaintext_delete(self, iface: str) -> List[str]:
+        return self._rip() + ["interface", iface, "authentication", "plaintext-password"]
+
     def get_interface_authentication_delete(self, iface: str) -> List[str]:
         return self._rip() + ["interface", iface, "authentication"]
 
@@ -201,6 +219,9 @@ class RipMapper(BaseFeatureMapper):
     def get_network_distance_access_list(self, prefix: str, acl: str) -> List[str]:
         return self._rip() + ["network-distance", prefix, "access-list", acl]
 
+    def get_network_distance_access_list_delete(self, prefix: str) -> List[str]:
+        return self._rip() + ["network-distance", prefix, "access-list"]
+
     def get_network_distance_delete(self, prefix: str) -> List[str]:
         return self._rip() + ["network-distance", prefix]
 
@@ -209,15 +230,27 @@ class RipMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_redistribute(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._rip() + ["redistribute", protocol]
 
     def get_redistribute_metric(self, protocol: str, value: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._rip() + ["redistribute", protocol, "metric", value]
 
+    def get_redistribute_metric_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
+        return self._rip() + ["redistribute", protocol, "metric"]
+
     def get_redistribute_route_map(self, protocol: str, value: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._rip() + ["redistribute", protocol, "route-map", value]
 
+    def get_redistribute_route_map_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
+        return self._rip() + ["redistribute", protocol, "route-map"]
+
     def get_redistribute_delete(self, protocol: str) -> List[str]:
+        self._require_redistribute(protocol)
         return self._rip() + ["redistribute", protocol]
 
     # ========================================================================
@@ -251,3 +284,12 @@ class RipMapper(BaseFeatureMapper):
 
     def get_rip_delete(self) -> List[str]:
         return self._rip()
+
+    # ========================================================================
+    # Config parse
+    # ========================================================================
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_rip_config
+
+        return parse_rip_config(self, full_config)
