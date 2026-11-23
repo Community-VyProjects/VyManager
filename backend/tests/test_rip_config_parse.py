@@ -29,7 +29,7 @@ def _tree():
                 "interface": {
                     "eth0": {
                         "authentication": {
-                            "md5": {"1": {"password": "secret"}},
+                            "md5": {"1": {"password": "secret"}, "2": {}},
                         },
                         "split-horizon": {"poison-reverse": {}, "disable": {}},
                         "receive": {"version": "2"},
@@ -79,14 +79,20 @@ def test_parse_config_distinctive_fields():
     eth0 = parsed["interfaces"][0]
     assert eth0["name"] == "eth0"
     assert eth0["authentication_type"] == "md5"
-    assert eth0["md5_keys"] == [{"key_id": "1", "password": "secret"}]
+    assert eth0["md5_keys"] == [
+        {"key_id": "1", "password": "***"},
+        {"key_id": "2", "password": ""},
+    ]
+    assert eth0["plaintext_password"] is None
     assert eth0["split_horizon"] == "poison-reverse"
     assert eth0["receive_version"] == "2"
     assert eth0["send_version"] == "1"
     eth3 = parsed["interfaces"][1]
     assert eth3["authentication_type"] == "plaintext"
-    assert eth3["plaintext_password"] == "plain"
+    assert eth3["md5_keys"] == []
+    assert eth3["plaintext_password"] == "***"
     assert eth3["split_horizon"] == "disable"
+    assert parsed["configured"] is True
     assert parsed["network_distances"] == [
         {"prefix": "10.2.0.0/16", "distance": 5, "access_list": "ACL-DIST"}
     ]
@@ -102,14 +108,29 @@ def test_parse_config_distinctive_fields():
 
 def test_empty_tree():
     parsed = get_rip_mapper("1.4").parse_config({})
+    assert parsed["configured"] is False
     assert parsed["default_distance"] is None
     assert parsed["default_information_originate"] is False
     assert parsed["networks"] == []
     assert parsed["interfaces"] == []
     assert parsed["distribute_list"]["interface_filters"] == []
     assert parsed["timers"]["update"] is None
-    assert parsed == get_rip_mapper("1.5").parse_config({"protocols": {"rip": {}}})
-    assert parsed == get_rip_mapper("1.5").parse_config({"protocols": {"rip": None}})
+    assert parsed == get_rip_mapper("1.5").parse_config({"protocols": {}})
+
+
+def test_bare_root_is_configured_with_the_empty_shape():
+    """A bare ``protocols rip`` parses as {} but exists, so the page can delete it."""
+    empty = get_rip_mapper("1.4").parse_config({})
+    for tree in ({"protocols": {"rip": {}}}, {"protocols": {"rip": None}}):
+        parsed = get_rip_mapper("1.5").parse_config(tree)
+        assert parsed["configured"] is True
+        assert parsed["default_information_originate"] is False
+        assert {**parsed, "configured": False} == empty
+
+    from routers.rip.rip import RipConfig
+
+    assert RipConfig(**get_rip_mapper("1.5").parse_config({"protocols": {"rip": {}}})).configured is True
+    assert RipConfig(**empty).configured is False
 
 
 
@@ -143,8 +164,11 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     response = client.get("/vyos/rip/config")
     assert response.status_code == 200, response.text
     body = response.json()
+    assert body == expected
     assert body["default_distance"] == expected["default_distance"]
     assert body["interfaces"][0]["authentication_type"] == "md5"
     assert body["interfaces"][0]["split_horizon"] == "poison-reverse"
     assert body["timers"]["garbage_collection"] == 120
     assert body["default_metric"] is None
+    assert "secret" not in response.text
+    assert "plain\"" not in response.text

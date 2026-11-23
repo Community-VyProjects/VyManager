@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,7 @@ interface RipRedistributeModalProps {
   protocols: string[];
 }
 
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function RipRedistributeModal({
   open,
   onOpenChange,
@@ -50,9 +51,9 @@ export function RipRedistributeModal({
   const tc = useTranslations("common");
   const isEditMode = !!existingEntry;
 
-  const [protocol, setProtocol] = useState("");
-  const [metric, setMetric] = useState("");
-  const [routeMap, setRouteMap] = useState("");
+  const [protocol, setProtocol] = useState(existingEntry?.protocol ?? "");
+  const [metric, setMetric] = useState(existingEntry?.metric != null ? String(existingEntry.metric) : "");
+  const [routeMap, setRouteMap] = useState(existingEntry?.route_map ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,36 +64,14 @@ export function RipRedistributeModal({
         : protocols)
     : protocols.filter((p) => !existingProtocols.includes(p));
 
-  useEffect(() => {
-    if (!open) return;
-    if (existingEntry) {
-      setProtocol(existingEntry.protocol);
-      setMetric(existingEntry.metric != null ? String(existingEntry.metric) : "");
-      setRouteMap(existingEntry.route_map || "");
-      setError(null);
-    } else {
-      setProtocol("");
-      setMetric("");
-      setRouteMap("");
-      setError(null);
-    }
-  }, [open, existingEntry]);
-
-  const handleClose = () => {
-    setProtocol("");
-    setMetric("");
-    setRouteMap("");
-    setError(null);
-    onOpenChange(false);
-  };
-
   const handleOpenChange = (next: boolean) => {
-    if (!next && !loading) handleClose();
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const validate = (): string | null => {
     if (!protocol) return t("validation.selectProtocol");
-    if (!inRange(metric, METRIC_RANGE)) return t("validation.metricRange");
+    if (!inRange(metric, METRIC_RANGE)) return t("validation.metricRange", METRIC_RANGE);
     return null;
   };
 
@@ -105,7 +84,7 @@ export function RipRedistributeModal({
 
     const entry: RipRedistribute = {
       protocol,
-      metric: metric.trim() ? parseInt(metric.trim(), 10) : null,
+      metric: metric.trim() ? Number(metric.trim()) : null,
       route_map: routeMap || null,
     };
 
@@ -113,7 +92,7 @@ export function RipRedistributeModal({
       setLoading(true);
       setError(null);
       await onSubmit(entry);
-      handleClose();
+      onOpenChange(false);
     } catch (err) {
       setError((err as ApiError).message || tc("operationFailed"));
     } finally {
@@ -153,7 +132,7 @@ export function RipRedistributeModal({
 
           {/* Metric */}
           <div className="space-y-2">
-            <Label htmlFor="rip-redist-metric">{t("redistribute.metric")} <span className="text-muted-foreground text-xs">{t("redistModal.metricHint")}</span></Label>
+            <Label htmlFor="rip-redist-metric">{t("redistribute.metric")} <span className="text-muted-foreground text-xs">{t("redistModal.metricHint", METRIC_RANGE)}</span></Label>
             <Input
               id="rip-redist-metric"
               type="number"
@@ -180,7 +159,7 @@ export function RipRedistributeModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

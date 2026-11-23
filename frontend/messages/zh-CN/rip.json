@@ -1,20 +1,18 @@
 {
   "example": "例如 {value}",
+  "versionOption": "v{value}",
   "header": {
     "title": "RIP 协议",
-    "subtitle": "路由信息协议 — 距离矢量路由"
+    "subtitle": "路由信息协议 — 距离矢量路由",
+    "deleteRip": "删除 RIP"
   },
   "errors": {
     "loadFailed": "加载 RIP 配置失败",
     "saveSettingsFailed": "保存设置失败",
     "addNetworkFailed": "添加网络失败",
-    "removeNetworkFailed": "移除网络失败",
     "addNeighborFailed": "添加邻居失败",
-    "removeNeighborFailed": "移除邻居失败",
     "addRouteFailed": "添加路由失败",
-    "removeRouteFailed": "移除路由失败",
     "addPassiveIfaceFailed": "添加被动接口失败",
-    "removePassiveIfaceFailed": "移除被动接口失败",
     "saveFiltersFailed": "保存过滤器失败"
   },
   "stats": {
@@ -89,9 +87,10 @@
     "accessList": "访问列表"
   },
   "deleteModal": {
-    "title": "删除 RIP {type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} other {接口过滤器}}",
-    "description": "确定要删除 RIP {type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} other {接口过滤器}} <mono>{name}</mono> 吗？此操作无法撤销。",
-    "confirm": "删除{type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} other {接口过滤器}}"
+    "title": "删除 RIP {type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} network {网络} neighbor {邻居} route {静态路由} passiveInterface {被动接口} rip {配置} other {接口过滤器}}",
+    "description": "确定要删除 RIP {type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} network {网络} neighbor {邻居} route {静态路由} passiveInterface {被动接口} other {接口过滤器}} <mono>{name}</mono> 吗？此操作无法撤销。",
+    "ripDescription": "确定要从此路由器删除全部 RIP 配置吗？此操作无法撤销。",
+    "confirm": "删除{type, select, interface {接口} redistribution {重分发} networkDistance {网络距离} network {网络} neighbor {邻居} route {静态路由} passiveInterface {被动接口} rip {RIP} other {接口过滤器}}"
   },
   "modal": {
     "adding": "正在添加...",
@@ -100,17 +99,21 @@
   "validation": {
     "selectInterface": "请选择一个接口",
     "selectList": "请至少选择一个访问列表或前缀列表",
+    "md5KeyRequired": "请至少添加一个 MD5 密钥",
     "md5KeyIdRequired": "所有 MD5 密钥都必须有密钥 ID",
-    "md5KeyIdRange": "MD5 密钥 ID 必须为 1-255",
+    "md5KeyIdRange": "MD5 密钥 ID 必须在 {min} 到 {max} 之间",
+    "md5KeyIdDuplicate": "每个 MD5 密钥 ID 只能使用一次",
     "md5PasswordRequired": "所有 MD5 密钥都必须有密码",
-    "md5PasswordLength": "MD5 密钥密码不能超过 16 个字符",
-    "plaintextLength": "明文密码不能超过 16 个字符",
+    "md5PasswordInvalid": "MD5 密钥密码最多 {max} 个字符且不能包含空格",
+    "plaintextRequired": "请输入明文密码",
+    "plaintextInvalid": "明文密码最多 {max} 个字符且不能包含空格",
     "prefixRequired": "网络前缀为必填项",
+    "prefixInvalid": "请输入未设置主机位的 IPv4 前缀，例如 10.0.0.0/8",
     "prefixExists": "该前缀已配置",
     "distanceRequired": "距离为必填项",
-    "distanceRange": "距离必须在 1 到 255 之间",
+    "distanceRange": "距离必须在 {min} 到 {max} 之间",
     "selectProtocol": "请选择一个协议",
-    "metricRange": "度量值必须在 1 到 16 之间",
+    "metricRange": "度量值必须在 {min} 到 {max} 之间",
     "timerRange": "计时器必须在 {min} 到 {max} 秒之间"
   },
   "interfaceModal": {
@@ -119,12 +122,12 @@
     "editDescription": "修改 {name} 的 RIP 设置。",
     "addDescription": "配置每个接口的 RIP 认证、版本和水平分割。",
     "authentication": "认证",
+    "md5": "MD5",
     "plaintext": "明文",
-    "md5Help": "MD5 密钥对（密钥 ID 1-255，密码不超过 16 个字符）",
     "keyId": "密钥 ID",
     "password": "密码",
     "addKey": "添加密钥",
-    "plaintextPlaceholder": "密码（不超过 16 个字符）",
+    "plaintextPlaceholder": "密码（最多 {max} 个字符）",
     "sendVersion": "发送版本",
     "receiveVersion": "接收版本",
     "disable": "禁用",
@@ -147,6 +150,6 @@
     "editDescription": "修改 {protocol} 的重分发设置。",
     "addDescription": "配置一个要重分发到 RIP 的新协议。",
     "selectProtocol": "选择协议",
-    "metricHint": "（可选，1-16）"
+    "metricHint": "（可选，{min}-{max}）"
   }
 }

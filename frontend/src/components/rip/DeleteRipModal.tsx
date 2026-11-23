@@ -15,10 +15,22 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ApiError } from "@/lib/types/api";
 
+export type RipDeleteKind =
+  | "interface"
+  | "redistribution"
+  | "networkDistance"
+  | "interfaceFilter"
+  | "network"
+  | "neighbor"
+  | "route"
+  | "passiveInterface"
+  | "rip";
+
 interface DeleteRipModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  itemType: "interface" | "redistribution" | "networkDistance" | "interfaceFilter";
+  itemType: RipDeleteKind;
+  /** Name of the deleted object; unused for the whole-protocol delete. */
   itemName: string;
   /** Commits the delete and closes the dialog; a rejection keeps it open with the device error. */
   onConfirm: () => Promise<void>;
@@ -63,11 +75,13 @@ export function DeleteRipModal({
         <AlertDialogHeader>
           <AlertDialogTitle>{t("deleteModal.title", { type: itemType })}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t.rich("deleteModal.description", {
-              type: itemType,
-              name: itemName,
-              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
-            })}
+            {itemType === "rip"
+              ? t("deleteModal.ripDescription")
+              : t.rich("deleteModal.description", {
+                  type: itemType,
+                  name: itemName,
+                  mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+                })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
