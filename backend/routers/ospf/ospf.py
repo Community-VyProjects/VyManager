@@ -15,9 +15,8 @@ from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.ospf import OspfMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/ospf", tags=["ospf"])
@@ -241,7 +240,14 @@ class OspfConfig(BaseModel):
 class OspfBatchOperation(BaseModel):
     """Single operation in a batch request."""
     op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Operation value")
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class OspfBatchRequest(BaseModel):
@@ -323,24 +329,7 @@ async def ospf_batch_configure(http_request: Request, body: OspfBatchRequest):
 
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 0:
-                    method()
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(",", count - 1)
-                if len(parts) != count or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count} values",
-                    )
-                method(*parts)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as exc:
             # The mapper raises ValueError for a leaf this device does not have.
             raise HTTPException(status_code=400, detail=str(exc))
