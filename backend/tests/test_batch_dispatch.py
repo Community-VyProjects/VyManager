@@ -125,6 +125,32 @@ def test_item_op_bad_input_is_400(op, value, detail):
     assert builder.calls == []
 
 
+def test_item_op_keeps_a_blank_value_when_blank_is_not_missing():
+    builder = _ItemBuilder()
+    call_item_batch_op(builder, "set_leaf", "eth1", "  ", blank_is_missing=False)
+    call_item_batch_op(builder, "set_pair", "eth1", " | ", blank_is_missing=False)
+    assert builder.calls == [
+        ("set_leaf", "eth1", "  "),
+        ("set_pair", "eth1", " ", " "),
+    ]
+
+
+@pytest.mark.parametrize("op, value, detail", [
+    ("set_leaf", None, "Operation set_leaf requires a value"),
+    ("set_leaf", "", "Operation set_leaf requires a value"),
+    ("set_pair", "k|", "Operation set_pair requires 2 values"),
+    ("set_pair", "|v", "Operation set_pair requires 2 values"),
+    ("delete_item", " ", "Operation delete_item takes no value"),
+])
+def test_item_op_without_blank_check_still_rejects_missing_parts(op, value, detail):
+    builder = _ItemBuilder()
+    with pytest.raises(HTTPException) as ei:
+        call_item_batch_op(builder, op, "eth1", value, blank_is_missing=False)
+    assert ei.value.status_code == 400
+    assert ei.value.detail == detail
+    assert builder.calls == []
+
+
 def test_comma_op_splits_into_the_parameter_count():
     builder = _CommaBuilder()
     call_comma_batch_op(builder, "delete_all", None)

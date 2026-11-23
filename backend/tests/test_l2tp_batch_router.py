@@ -135,11 +135,49 @@ def test_batch_missing_value_is_400(client, service, operation):
     assert service.executed == []
 
 
+@pytest.mark.parametrize("item_name,op,value", [
+    ("T-pool", "delete_client_ip_pool", "range"),
+    ("T-u", "delete_local_user", "static-ip"),
+    ("l2tp", "delete_l2tp", "x"),
+    ("l2tp", "set_ppp_disable_ccp", "x"),
+])
+def test_batch_item_only_op_with_a_value_is_400(client, service, item_name, op, value):
+    """A value on an item-only op must not run the wider op on the item."""
+    resp = _post(client, item_name, [
+        {"op": "set_mtu", "value": "1400"},
+        {"op": op, "value": value},
+    ])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {op} takes no value"
+    assert service.executed == []
+
+
 @pytest.mark.parametrize("value", ["192.0.2.1", "192.0.2.1|", "|1812"])
 def test_batch_short_multi_arg_value_is_400(client, service, value):
     resp = _post(client, "l2tp", [{"op": "set_radius_server_port", "value": value}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Operation set_radius_server_port requires 2 values"
+    assert service.executed == []
+
+
+def test_batch_whitespace_secret_reaches_the_device_as_typed(client, service):
+    """Passwords and RADIUS keys accept spaces; a blank-looking value is not missing."""
+    resp = _post(client, "T-u", [
+        {"op": "set_local_user_password", "value": "   "},
+        {"op": "set_radius_server_key", "value": "192.0.2.1|  "},
+    ])
+    assert resp.status_code == 200, resp.text
+    assert service.executed == [[
+        {"op": "set", "path": BASE + ["authentication", "local-users", "username", "T-u", "password", "   "]},
+        {"op": "set", "path": BASE + ["authentication", "radius", "server", "192.0.2.1", "key", "  "]},
+    ]]
+
+
+@pytest.mark.parametrize("op", ["add_set", "get_capabilities", "_mapper"])
+def test_batch_plumbing_op_is_400(client, service, op):
+    resp = _post(client, "l2tp", [{"op": op, "value": "x"}])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Invalid operation: {op}"
     assert service.executed == []
 
 
