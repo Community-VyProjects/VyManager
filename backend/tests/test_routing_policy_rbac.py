@@ -66,6 +66,7 @@ DYNAMIC_DISPATCH_FILES = [
     "babel/babel.py",
     "conntrack_sync/conntrack_sync.py",
     "isis/isis.py",
+    "webproxy/webproxy.py",
 ]
 
 
