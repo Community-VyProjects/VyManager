@@ -118,7 +118,15 @@ async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest)
 
         try:
             for operation in request.operations:
-                call_item_batch_op(builder, operation.op, request.item_name, operation.value)
+                # Passwords and secrets accept spaces, so a whitespace-only
+                # value is sent to the device as typed.
+                call_item_batch_op(
+                    builder,
+                    operation.op,
+                    request.item_name,
+                    operation.value,
+                    blank_is_missing=False,
+                )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
