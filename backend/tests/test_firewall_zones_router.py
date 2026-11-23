@@ -358,7 +358,7 @@ def test_batch_node_missing_on_1_4_is_400(client14, op, value):
     assert executed == []
 
 
-@pytest.mark.parametrize("name", ["", "  "])
+@pytest.mark.parametrize("name", ["", "  ", " LAN", "LAN "])
 def test_batch_rejects_blank_zone_name(client, name):
     test_client, executed = client
     resp = _batch(test_client, [{"op": "set_zone"}], name=name)
@@ -440,6 +440,8 @@ def test_provision_skips_a_blank_description(client):
     {"vrfs": ["blue", "blue"]},
     {"existing_zones": [""]},
     {"existing_zones": ["WAN", "WAN"]},
+    {"existing_zones": ["WAN", "WAN "]},
+    {"interfaces": [" eth1"]},
     {"existing_zones": ["LAN"]},
     {"existing_zones": ["LOCAL"]},
     {"zone_name": "LOCAL"},
@@ -455,6 +457,7 @@ def test_provision_rejects_bad_names(client, body):
 @pytest.mark.parametrize("body", [
     {"peer_zones": [""]},
     {"peer_zones": ["WAN", "WAN"]},
+    {"peer_zones": ["LOCAL "]},
     {"peer_zones": ["LAN"]},
     {"peer_zones": ["LOCAL"]},
     {"zone_name": "LOCAL"},
@@ -485,7 +488,7 @@ def test_provision_and_deprovision_need_policies_write(monkeypatch, call):
 
 
 @pytest.mark.parametrize("call", [_provision, _deprovision])
-@pytest.mark.parametrize("name", ["", "  "])
+@pytest.mark.parametrize("name", ["", "  ", " LAN", "LAN "])
 def test_provision_and_deprovision_reject_blank_zone_name(client, call, name):
     test_client, executed = client
     resp = call(test_client, zone_name=name)

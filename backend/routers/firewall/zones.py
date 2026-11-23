@@ -40,14 +40,14 @@ LOCAL_ZONE = "LOCAL"
 
 
 def _zone_name_not_blank(value: str) -> str:
-    if not value.strip():
-        raise ValueError("zone_name must not be blank")
+    if not value or value != value.strip():
+        raise ValueError("zone_name must not be blank or padded")
     return value
 
 
 def _names_not_blank_or_repeated(values: List[str]) -> List[str]:
-    if any(not value.strip() for value in values):
-        raise ValueError("names must not be blank")
+    if any(not value or value != value.strip() for value in values):
+        raise ValueError("names must not be blank or padded")
     if len(set(values)) != len(values):
         raise ValueError("names must not repeat")
     return values
