@@ -71,6 +71,7 @@ DYNAMIC_DISPATCH_FILES = [
     "bfd/bfd.py",
     "ospf/ospf.py",
     "rip/rip.py",
+    "segment_routing/segment_routing.py",
 ]
 
 
