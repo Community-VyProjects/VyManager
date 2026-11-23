@@ -36,6 +36,11 @@ import {
 
 const VERSIONS = ["1", "2"];
 
+/** A key row in the editor; ``uid`` is the React key and never changes while the row lives. */
+interface KeyRow extends RipMd5Key {
+  uid: number;
+}
+
 interface RipInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,9 +66,10 @@ export function RipInterfaceModal({
   const [authType, setAuthType] = useState<RipAuthMode>(
     (existingInterface?.authentication_type as RipAuthMode | null | undefined) || "",
   );
-  const [md5Keys, setMd5Keys] = useState<RipMd5Key[]>(
-    (existingInterface?.md5_keys ?? []).map((key) => ({ ...key })),
+  const [md5Keys, setMd5Keys] = useState<KeyRow[]>(
+    (existingInterface?.md5_keys ?? []).map((key, uid) => ({ ...key, uid })),
   );
+  const [nextUid, setNextUid] = useState(md5Keys.length);
   const [plaintextPassword, setPlaintextPassword] = useState(existingInterface?.plaintext_password ?? "");
   const [sendVersion, setSendVersion] = useState(existingInterface?.send_version ?? "");
   const [receiveVersion, setReceiveVersion] = useState(existingInterface?.receive_version ?? "");
@@ -78,24 +84,24 @@ export function RipInterfaceModal({
   };
 
   const addMd5Key = () => {
-    setMd5Keys([...md5Keys, { key_id: ripNextKeyId(md5Keys, existingInterface?.md5_keys), password: "" }]);
+    const keyId = ripNextKeyId(md5Keys, existingInterface?.md5_keys);
+    setMd5Keys([...md5Keys, { uid: nextUid, key_id: keyId, password: "" }]);
+    setNextUid(nextUid + 1);
   };
 
-  const removeMd5Key = (idx: number) => {
-    setMd5Keys(md5Keys.filter((_, i) => i !== idx));
+  const removeMd5Key = (uid: number) => {
+    setMd5Keys(md5Keys.filter((key) => key.uid !== uid));
   };
 
-  const updateMd5Key = (idx: number, field: "key_id" | "password", value: string) => {
-    const updated = [...md5Keys];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setMd5Keys(updated);
+  const updateMd5Key = (uid: number, field: "key_id" | "password", value: string) => {
+    setMd5Keys(md5Keys.map((key) => (key.uid === uid ? { ...key, [field]: value } : key)));
   };
 
   const handleSubmit = async () => {
     const config: RipInterface = {
       name,
       authentication_type: authType || null,
-      md5_keys: authType === "md5" ? md5Keys : [],
+      md5_keys: authType === "md5" ? md5Keys.map(({ key_id, password }) => ({ key_id, password })) : [],
       plaintext_password: authType === "plaintext" ? plaintextPassword : null,
       send_version: sendVersion || null,
       receive_version: receiveVersion || null,
@@ -170,8 +176,8 @@ export function RipInterfaceModal({
 
               {authType === "md5" && (
                 <div className="space-y-2 pl-2 border-l-2 border-border">
-                  {md5Keys.map((key, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                  {md5Keys.map((key) => (
+                    <div key={key.uid} className="flex items-center gap-2">
                       <Input
                         type="number"
                         aria-label={t("interfaceModal.keyId")}
@@ -179,7 +185,7 @@ export function RipInterfaceModal({
                         min={MD5_KEY_ID_RANGE.min}
                         max={MD5_KEY_ID_RANGE.max}
                         value={key.key_id}
-                        onChange={(e) => updateMd5Key(idx, "key_id", e.target.value)}
+                        onChange={(e) => updateMd5Key(key.uid, "key_id", e.target.value)}
                         className="w-24"
                       />
                       <Input
@@ -189,7 +195,7 @@ export function RipInterfaceModal({
                         placeholder={t("interfaceModal.password")}
                         maxLength={PASSWORD_MAX_LENGTH}
                         value={key.password}
-                        onChange={(e) => updateMd5Key(idx, "password", e.target.value)}
+                        onChange={(e) => updateMd5Key(key.uid, "password", e.target.value)}
                         className="flex-1"
                       />
                       <Button
@@ -197,7 +203,7 @@ export function RipInterfaceModal({
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         aria-label={tc("delete")}
-                        onClick={() => removeMd5Key(idx)}
+                        onClick={() => removeMd5Key(key.uid)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

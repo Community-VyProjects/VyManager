@@ -56,6 +56,7 @@ import { routeMapService } from "@/lib/api/route-map";
 import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
 import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
 import { RipInterfaceModal } from "./RipInterfaceModal";
 import { RipRedistributeModal } from "./RipRedistributeModal";
 import { RipNetworkDistanceModal } from "./RipNetworkDistanceModal";
@@ -254,8 +255,8 @@ export function RipContent() {
         default_information_originate: ovOriginate,
         timers: { update: ovTimerUpdate, timeout: ovTimerTimeout, garbage_collection: ovTimerGc },
       });
+      await reload();
       setOverviewEditing(false);
-      void reload();
     } catch (err) {
       setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
     } finally {
@@ -268,11 +269,16 @@ export function RipContent() {
   // ============================================================
 
   const handleAddNetwork = async () => {
+    const network = newNetwork.trim();
+    if (!isIPv4Prefix(network)) {
+      setNetworksError(t("validation.prefixInvalid"));
+      return;
+    }
     try {
       setNetworksError(null);
-      await ripService.addNetwork(newNetwork.trim());
+      await ripService.addNetwork(network);
       setNewNetwork("");
-      void reload();
+      await reload();
     } catch (err) {
       setNetworksError((err as ApiError).message || t("errors.addNetworkFailed"));
     }
@@ -283,18 +289,23 @@ export function RipContent() {
       setNeighborsError(null);
       await ripService.addNeighbor(newNeighbor.trim());
       setNewNeighbor("");
-      void reload();
+      await reload();
     } catch (err) {
       setNeighborsError((err as ApiError).message || t("errors.addNeighborFailed"));
     }
   };
 
   const handleAddRoute = async () => {
+    const route = newRoute.trim();
+    if (!isIPv4Prefix(route)) {
+      setRoutesError(t("validation.prefixInvalid"));
+      return;
+    }
     try {
       setRoutesError(null);
-      await ripService.addRoute(newRoute.trim());
+      await ripService.addRoute(route);
       setNewRoute("");
-      void reload();
+      await reload();
     } catch (err) {
       setRoutesError((err as ApiError).message || t("errors.addRouteFailed"));
     }
@@ -305,7 +316,7 @@ export function RipContent() {
       setPassiveIfaceError(null);
       await ripService.addPassiveInterface(newPassiveIface.trim());
       setNewPassiveIface("");
-      void reload();
+      await reload();
     } catch (err) {
       setPassiveIfaceError((err as ApiError).message || t("errors.addPassiveIfaceFailed"));
     }
@@ -324,7 +335,7 @@ export function RipContent() {
   const submitIface = async (iface: RipInterface) => {
     if (editingIface) await ripService.updateInterface(editingIface, iface);
     else await ripService.createInterface(iface);
-    void reload();
+    await reload();
   };
 
   const openRedistModal = (entry: RipRedistribute | null) => {
@@ -336,7 +347,7 @@ export function RipContent() {
   const submitRedist = async (entry: RipRedistribute) => {
     if (editingRedist) await ripService.updateRedistribute(editingRedist, entry);
     else await ripService.createRedistribute(entry);
-    void reload();
+    await reload();
   };
 
   const openNdModal = (entry: RipNetworkDistance | null) => {
@@ -348,7 +359,7 @@ export function RipContent() {
   const submitNd = async (entry: RipNetworkDistance) => {
     if (editingNd) await ripService.updateNetworkDistance(editingNd, entry);
     else await ripService.createNetworkDistance(entry);
-    void reload();
+    await reload();
   };
 
   const openDlIfaceModal = (entry: RipDistributeListInterface | null) => {
@@ -360,7 +371,7 @@ export function RipContent() {
   const submitDlIface = async (entry: RipDistributeListInterface) => {
     if (editingDlIface) await ripService.updateDistributeListInterface(editingDlIface, entry);
     else await ripService.createDistributeListInterface(entry);
-    void reload();
+    await reload();
   };
 
   const openDelete = (kind: RipDeleteKind, name: string) => {
@@ -401,8 +412,8 @@ export function RipContent() {
         config.distribute_list.global_filters,
         dlGlobalDraft
       );
+      await reload();
       setDlGlobalEditing(false);
-      void reload();
     } catch (err) {
       setDlGlobalError((err as ApiError).message || t("errors.saveFiltersFailed"));
     } finally {
@@ -478,7 +489,7 @@ export function RipContent() {
                 placeholder={inputPlaceholder}
                 className="flex-1"
                 filter={(item) => !items.includes(item.name)}
-                noneOption={items.includes("default") ? undefined : { label: "default", value: "default" }}
+                noneOption={items.includes("default") ? undefined : { label: tc("shown.default"), value: "default" }}
               />
             ) : (
               <Input

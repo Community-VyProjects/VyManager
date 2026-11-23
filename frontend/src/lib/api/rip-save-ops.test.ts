@@ -252,6 +252,18 @@ describe("interface save check", () => {
     assert.equal(ripInterfaceProblem(noPassword, md5([{ key_id: "1", password: MASKED_SECRET }])), "md5PasswordRequired");
   });
 
+  it("keeps a stored key that has no password and requires one on a new key", () => {
+    const stored = md5([{ key_id: "1", password: "" }]);
+    const edited = { ...stored, send_version: "2" };
+    assert.equal(ripInterfaceProblem(stored, edited), null);
+    assert.deepEqual(ripInterfaceOps(stored, edited), [{ op: "set_interface_send_version", value: "eth0,2" }]);
+    assert.equal(
+      ripInterfaceProblem(stored, md5([{ key_id: "1", password: "" }, { key_id: "2", password: "" }])),
+      "md5PasswordRequired",
+    );
+    assert.equal(ripInterfaceProblem(MD5_STORED, md5([{ key_id: "1", password: "" }])), "md5PasswordRequired");
+  });
+
   it("checks the plaintext password and its mask", () => {
     const plain = (password: string) => iface({ authentication_type: "plaintext", plaintext_password: password });
     assert.equal(ripInterfaceProblem(null, plain(" ")), "plaintextRequired");

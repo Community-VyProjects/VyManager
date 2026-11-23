@@ -127,14 +127,6 @@ export function ripSettingsOps(original: RipConfig, updated: RipSettingsDraft): 
 
 export type RipAuthMode = "" | "md5" | "plaintext";
 
-/** Mode the stored node holds: md5 when it has keys, then plaintext. */
-export function ripAuthMode(iface: Pick<RipInterface, "md5_keys" | "plaintext_password"> | null | undefined): RipAuthMode {
-  if (!iface) return "";
-  if ((iface.md5_keys || []).length > 0) return "md5";
-  if (ripText(iface.plaintext_password)) return "plaintext";
-  return "";
-}
-
 /** Rows with the id and password trimmed. A row the user never filled is dropped. */
 export function ripMd5Rows(keys: RipMd5Key[] | null | undefined): RipMd5Key[] {
   return (keys || [])
@@ -183,7 +175,11 @@ export function ripInterfaceProblem(original: RipInterface | null, updated: RipI
       }
       if (seen.has(row.key_id)) return "md5KeyIdDuplicate";
       seen.add(row.key_id);
-      if (!row.password) return "md5PasswordRequired";
+      if (!row.password) {
+        // A key the device stores without a password stays as stored; a new key needs one.
+        if (stored.get(row.key_id) !== "") return "md5PasswordRequired";
+        continue;
+      }
       if (row.password === MASKED_SECRET) {
         // The mask keeps a stored password; on any other key it is not a password.
         if (stored.get(row.key_id) !== MASKED_SECRET) return "md5PasswordRequired";
@@ -236,7 +232,7 @@ export function ripInterfaceOps(original: RipInterface | null, updated: RipInter
       }
     }
     for (const row of rows) {
-      // A masked key is kept as stored; a mask on a new key is blocked by ripInterfaceProblem.
+      // A masked key, or a stored key with no password, stays as stored; ripInterfaceProblem blocks both on a new key.
       if (row.password === MASKED_SECRET || row.password === "") continue;
       ops.push({ op: "set_interface_authentication_md5_key", value: `${name},${row.key_id},${row.password}` });
     }

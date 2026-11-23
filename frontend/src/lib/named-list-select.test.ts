@@ -290,7 +290,7 @@ describe("named list select", () => {
 
   it("keeps the lab default value on the RIP passive-interface picker", () => {
     const src = readFileSync(join(FRONTEND, "src/components/rip/RipContent.tsx"), "utf8");
-    assert.match(src, /label: "default", value: "default"/);
+    assert.match(src, /label: tc\("shown\.default"\), value: "default"/);
     assert.match(src, /items\.includes\("default"\)/);
   });
 

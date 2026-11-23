@@ -59,9 +59,7 @@ export function RipRedistributeModal({
   const [error, setError] = useState<string | null>(null);
 
   const availableProtocols = isEditMode
-    ? (existingEntry && !protocols.includes(existingEntry.protocol)
-        ? [existingEntry.protocol, ...protocols]
-        : protocols)
+    ? protocols
     : protocols.filter((p) => !existingProtocols.includes(p));
 
   const handleOpenChange = (next: boolean) => {
