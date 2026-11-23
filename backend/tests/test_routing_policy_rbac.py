@@ -70,6 +70,7 @@ DYNAMIC_DISPATCH_FILES = [
     "https/https.py",
     "bfd/bfd.py",
     "ospf/ospf.py",
+    "rip/rip.py",
 ]
 
 

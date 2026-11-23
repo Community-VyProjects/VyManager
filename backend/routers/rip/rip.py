@@ -16,9 +16,8 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders.rip import RipBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.rip.rip import RipMapper
 
@@ -107,7 +106,15 @@ class RipConfig(BaseModel):
 
 class RipBatchOperation(BaseModel):
     op: str = Field(..., description="Builder method name")
-    value: Optional[str] = Field(None, description="Comma-separated arguments")
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class RipBatchRequest(BaseModel):
@@ -185,24 +192,7 @@ async def rip_batch_configure(http_request: Request, body: RipBatchRequest):
 
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 0:
-                    method()
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(",", count - 1)
-                if len(parts) != count or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count} values",
-                    )
-                method(*parts)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as e:
             # The mapper raises ValueError for a redistribute source this version lacks.
             raise HTTPException(status_code=400, detail=str(e))
