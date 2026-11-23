@@ -1,4 +1,4 @@
-"""HTTPS batch route: comma-split args, HTTP 400 on a missing value.
+"""HTTPS routes: comma-split batch args, HTTP 400 paths, session and permission checks.
 
 execute_batch and get_full_config run through run_in_threadpool (locked in
 test_batch_off_event_loop.py). These tests drive the handlers end to end with
@@ -6,9 +6,11 @@ a stub service so the emitted ops and the 400 paths are checked.
 """
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 
-from https_router_client import HttpsService, https_client
+from https_router_client import ROUTER, HttpsService, https_client
+from rbac_permissions import FeatureGroup
 
 BASE = ["service", "https"]
 
@@ -70,11 +72,32 @@ def test_batch_short_value_is_400(client, value):
     assert service.executed == []
 
 
-def test_batch_unknown_op_is_400(client):
+@pytest.mark.parametrize("operation", [
+    {"op": "delete_https", "value": "listen-address"},
+    {"op": "delete_api_keys", "value": "vym"},
+    {"op": "set_api_graphql", "value": "true"},
+    {"op": "delete_port", "value": "443"},
+    {"op": "set_api_rest", "value": "x"},
+])
+def test_batch_value_on_zero_arg_op_is_400(client, operation):
+    """A value on a zero-arg op is 400, not the op run with the value dropped."""
     test_client, service = client
-    resp = _post(test_client, [{"op": "no_such_op", "value": "x"}])
+    resp = _post(test_client, [{"op": "set_port", "value": "8443"}, operation])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "Unknown operation: no_such_op"
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
+    assert service.executed == []
+
+
+@pytest.mark.parametrize("op, detail", [
+    ("no_such_op", "Unknown operation: no_such_op"),
+    ("_versioned_path", "Invalid operation: _versioned_path"),
+    ("get_capabilities", "Invalid operation: get_capabilities"),
+])
+def test_batch_unknown_op_is_400(client, op, detail):
+    test_client, service = client
+    resp = _post(test_client, [{"op": op, "value": "x"}])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == detail
     assert service.executed == []
 
 
@@ -115,11 +138,44 @@ def test_capabilities_come_from_the_mapper(monkeypatch):
     assert features["api_graphql_auth"]["auth_types"] == ["key", "token"]
 
 
-@pytest.mark.parametrize("path", ["/vyos/https/capabilities", "/vyos/https/config"])
-def test_session_http_exception_is_not_swallowed(monkeypatch, path):
+@pytest.mark.parametrize("method, path", [
+    ("get", "/vyos/https/capabilities"),
+    ("get", "/vyos/https/config"),
+    ("post", "/vyos/https/batch"),
+])
+def test_session_http_exception_is_not_swallowed(monkeypatch, method, path):
     def boom(_req):
         raise HTTPException(status_code=503, detail="session down")
 
-    resp = https_client(monkeypatch, HttpsService(), session=boom).get(path)
+    test_client = https_client(monkeypatch, HttpsService(), session=boom)
+    kwargs = {"json": {"operations": [{"op": "delete_port"}]}} if method == "post" else {}
+    resp = getattr(test_client, method)(path, **kwargs)
     assert resp.status_code == 503, resp.text
     assert resp.json()["detail"] == "session down"
+
+
+@pytest.mark.parametrize("method, path, kind", [
+    ("get", "/vyos/https/capabilities", "read"),
+    ("get", "/vyos/https/config", "read"),
+    ("post", "/vyos/https/batch", "write"),
+])
+def test_routes_check_the_https_permission(monkeypatch, method, path, kind):
+    seen = []
+
+    def recorder(name):
+        async def check(_request, feature):
+            seen.append((name, feature))
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return check
+
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", recorder("read"))
+    monkeypatch.setattr(f"{ROUTER}.require_write_permission", recorder("write"))
+
+    from routers.https.https import router
+
+    app = FastAPI()
+    app.include_router(router)
+    kwargs = {"json": {"operations": [{"op": "delete_port"}]}} if method == "post" else {}
+    resp = getattr(TestClient(app), method)(path, **kwargs)
+    assert resp.status_code == 403, resp.text
+    assert seen == [(kind, FeatureGroup.HTTPS)]

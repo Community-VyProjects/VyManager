@@ -67,6 +67,7 @@ DYNAMIC_DISPATCH_FILES = [
     "conntrack_sync/conntrack_sync.py",
     "isis/isis.py",
     "webproxy/webproxy.py",
+    "https/https.py",
 ]
 
 
