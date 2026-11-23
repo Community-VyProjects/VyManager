@@ -53,7 +53,8 @@ GATED_HANDLERS = {
     "prefix_list/prefix_list.py": {},
 }
 
-# router file → handlers that dispatch getattr(builder, operation.op)
+# router files whose batch handlers dispatch a client-supplied op name
+# through resolve_batch_method or call_comma_batch_op
 DYNAMIC_DISPATCH_FILES = [
     "local_route/local_route.py",
     "as_path_list/as_path_list.py",
