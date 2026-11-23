@@ -390,13 +390,29 @@ def test_batch_rejected_commit_reports_failure(client, commit, status, error):
 # ---------------------------------------------------------------------------
 
 
+def _rulesets(*names):
+    return {name: {"default-action": "drop"} for name in names}
+
+
 TREE = {
     "firewall": {
         "zone": {
-            "WAN": {"member": {"interface": "eth0"}},
-            "DMZ": {"member": {"interface": "eth2"}},
-            "ROUTER": {"local-zone": {}, "default-action": "drop"},
-        }
+            "WAN": {
+                "member": {"interface": "eth0"},
+                "from": {"DMZ": {"firewall": {"name": "DMZ-WAN"}}, "ROUTER": {}},
+            },
+            "DMZ": {
+                "member": {"interface": "eth2"},
+                "from": {"WAN": {"firewall": {"name": "WAN-DMZ", "ipv6-name": "WAN-DMZ-V6"}}},
+            },
+            "ROUTER": {
+                "local-zone": {},
+                "default-action": "drop",
+                "from": {"WAN": {"firewall": {"name": "WAN-ROUTER"}}},
+            },
+        },
+        "ipv4": {"name": _rulesets("WAN-WAN", "WAN-DMZ", "DMZ-WAN", "WAN-ROUTER", "OTHER")},
+        "ipv6": {"name": _rulesets("WAN-DMZ-V6", "ROUTER-WAN-V6")},
     }
 }
 
@@ -456,6 +472,26 @@ def test_provision_first_zone_creates_the_local_zone(monkeypatch, commit):
     assert ("set", _zone("LOCAL") + ["local-zone"]) in ops
     assert ("set", _zone("LOCAL") + ["default-action", "drop"]) in ops
     assert ("set", LAN + ["from", "LOCAL", "firewall", "name", "LOCAL-LAN"]) in ops
+    assert ("set", LAN + ["intra-zone-filtering", "firewall", "ipv6-name", "LAN-LAN-V6"]) in ops
+
+
+@pytest.mark.parametrize("existing", [["WAN"], ["WAN", "DMZ", "GONE"]])
+def test_provision_peers_must_match_the_device(zoned, existing):
+    test_client, executed = zoned
+    resp = _provision(test_client, existing_zones=existing)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "existing_zones must list every other non-local zone on the device"
+    assert executed == []
+
+
+@pytest.mark.parametrize("family, chain", [("ipv4", "LAN-WAN"), ("ipv6", "ROUTER-LAN-V6"), ("ipv4", "LAN-LAN")])
+def test_provision_never_overwrites_an_existing_ruleset(monkeypatch, family, chain):
+    tree = {"firewall": {**TREE["firewall"], family: {"name": _rulesets(chain)}}}
+    test_client, executed = zones_client(monkeypatch, "1.5", full_config=tree)
+    resp = _provision(test_client)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Ruleset {chain} already exists"
+    assert executed == []
 
 
 def test_provision_without_a_local_zone_needs_first_zone(monkeypatch):
@@ -565,39 +601,57 @@ def test_provision_and_deprovision_reject_blank_zone_name(zoned, call, name):
     assert executed == []
 
 
-def test_deprovision_deletes_through_the_device_local_zone(zoned):
+def test_deprovision_deletes_what_exists_through_the_device_local_zone(zoned):
     test_client, executed = zoned
     resp = _deprovision(test_client)
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": True, "data": {"message": "Zone deprovisioned"}, "error": None}
-    ops = executed[0]
-    assert ops[0] == ("delete", _zone("WAN"))
-    assert ("delete", _zone("DMZ") + ["from", "WAN"]) in ops
-    assert ("delete", _zone("ROUTER") + ["from", "WAN"]) in ops
-    assert ("delete", ["firewall", "ipv6", "name", "WAN-ROUTER-V6"]) in ops
-    assert ("delete", _zone("ROUTER")) not in ops
-    assert not [path for _op, path in ops if "LOCAL" in path or "WAN-LOCAL" in path]
+    assert executed == [[
+        ("delete", _zone("WAN")),
+        ("delete", _zone("DMZ") + ["from", "WAN"]),
+        ("delete", _zone("ROUTER") + ["from", "WAN"]),
+        ("delete", ["firewall", "ipv4", "name", "WAN-WAN"]),
+        ("delete", ["firewall", "ipv4", "name", "WAN-DMZ"]),
+        ("delete", ["firewall", "ipv4", "name", "DMZ-WAN"]),
+        ("delete", ["firewall", "ipv4", "name", "WAN-ROUTER"]),
+        ("delete", ["firewall", "ipv6", "name", "WAN-DMZ-V6"]),
+        ("delete", ["firewall", "ipv6", "name", "ROUTER-WAN-V6"]),
+    ]]
 
 
-def test_deprovision_last_zone_deletes_the_local_zone(zoned):
-    test_client, executed = zoned
+def test_deprovision_last_zone_deletes_the_local_zone(monkeypatch):
+    tree = {"firewall": {**TREE["firewall"], "zone": {
+        "WAN": TREE["firewall"]["zone"]["WAN"],
+        "ROUTER": TREE["firewall"]["zone"]["ROUTER"],
+    }}}
+    test_client, executed = zones_client(monkeypatch, "1.5", full_config=tree)
     resp = _deprovision(test_client, peer_zones=[], is_last_zone=True)
     assert resp.status_code == 200, resp.text
     ops = executed[0]
-    assert ("delete", _zone("ROUTER")) in ops
+    assert ops[:2] == [("delete", _zone("WAN")), ("delete", _zone("ROUTER"))]
     assert ("delete", _zone("ROUTER") + ["from", "WAN"]) not in ops
 
 
-def test_deprovision_without_a_local_zone_skips_local_deletes(monkeypatch):
+def test_deprovision_without_a_local_zone_deletes_only_what_exists(monkeypatch):
+    """A zone built outside VyManager, with none of the named chains, still deletes."""
     tree = {"firewall": {"zone": {"WAN": {}}}}
     test_client, executed = zones_client(monkeypatch, "1.5", full_config=tree)
     resp = _deprovision(test_client, peer_zones=[], is_last_zone=True)
     assert resp.status_code == 200, resp.text
-    assert executed == [[
-        ("delete", _zone("WAN")),
-        ("delete", ["firewall", "ipv4", "name", "WAN-WAN"]),
-        ("delete", ["firewall", "ipv6", "name", "WAN-WAN-V6"]),
-    ]]
+    assert executed == [[("delete", _zone("WAN"))]]
+
+
+@pytest.mark.parametrize("body", [
+    {"peer_zones": []},
+    {"peer_zones": ["DMZ", "GONE"]},
+    {"is_last_zone": True},
+])
+def test_deprovision_peers_must_match_the_device(zoned, body):
+    test_client, executed = zoned
+    resp = _deprovision(test_client, **body)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "peer_zones and is_last_zone must match the zones on the device"
+    assert executed == []
 
 
 def test_deprovision_missing_zone_is_404(zoned):
