@@ -75,6 +75,7 @@ DYNAMIC_DISPATCH_FILES = [
     "static_routes/static_routes.py",
     "suricata/suricata.py",
     "ipoe_server/ipoe_server.py",
+    "l2tp/l2tp.py",
 ]
 
 

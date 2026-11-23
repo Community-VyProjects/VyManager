@@ -126,6 +126,7 @@ def test_batch_pool_name_is_the_item_name(client, service):
 @pytest.mark.parametrize("operation", [
     {"op": "set_mtu"},
     {"op": "set_mtu", "value": ""},
+    {"op": "set_mtu", "value": "   "},
     {"op": "set_radius_server_port"},
 ])
 def test_batch_missing_value_is_400(client, service, operation):
@@ -135,7 +136,24 @@ def test_batch_missing_value_is_400(client, service, operation):
     assert service.executed == []
 
 
-@pytest.mark.parametrize("value", ["192.0.2.1", "192.0.2.1|", "|1812"])
+@pytest.mark.parametrize("item_name,op,value", [
+    ("T-pool", "delete_client_ip_pool", "range"),
+    ("T-u", "delete_local_user", "static-ip"),
+    ("l2tp", "delete_l2tp", "x"),
+    ("l2tp", "set_ppp_disable_ccp", "x"),
+])
+def test_batch_item_only_op_with_a_value_is_400(client, service, item_name, op, value):
+    """A value on an item-only op must not run the wider op on the item."""
+    resp = _post(client, item_name, [
+        {"op": "set_mtu", "value": "1400"},
+        {"op": op, "value": value},
+    ])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {op} takes no value"
+    assert service.executed == []
+
+
+@pytest.mark.parametrize("value", ["192.0.2.1", "192.0.2.1|", "|1812", "192.0.2.1|  "])
 def test_batch_short_multi_arg_value_is_400(client, service, value):
     resp = _post(client, "l2tp", [{"op": "set_radius_server_port", "value": value}])
     assert resp.status_code == 400, resp.text

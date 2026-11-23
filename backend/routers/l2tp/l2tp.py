@@ -16,9 +16,8 @@ from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.l2tp import L2TPMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -119,24 +118,7 @@ async def l2tp_batch_configure(http_request: Request, request: L2TPBatchRequest)
 
         try:
             for operation in request.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 1:
-                    method(request.item_name)
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split("|", count - 2)
-                if len(parts) != count - 1 or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count - 1} values",
-                    )
-                method(request.item_name, *parts)
+                call_item_batch_op(builder, operation.op, request.item_name, operation.value)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
