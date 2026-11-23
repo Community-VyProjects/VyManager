@@ -48,7 +48,8 @@ export type NeighborRangeField =
   | "keepalive"
   | "holdtime"
   | "bfdHoldTime"
-  | "localAs";
+  | "localAs"
+  | "remoteAs";
 
 export const NEIGHBOR_RANGES: Record<NeighborRangeField, NumberRange> = {
   ebgpMultihop: EBGP_MULTIHOP_RANGE,
@@ -60,15 +61,17 @@ export const NEIGHBOR_RANGES: Record<NeighborRangeField, NumberRange> = {
   holdtime: HOLDTIME_RANGE,
   bfdHoldTime: BFD_HOLD_TIME_RANGE,
   localAs: ASN_RANGE,
+  remoteAs: ASN_RANGE,
 };
 
-export type PeerGroupRangeField = "ebgpMultihop" | "ttlSecurityHops" | "bfdHoldTime" | "localAs";
+export type PeerGroupRangeField = "ebgpMultihop" | "ttlSecurityHops" | "bfdHoldTime" | "localAs" | "remoteAs";
 
 export const PEER_GROUP_RANGES: Record<PeerGroupRangeField, NumberRange> = {
   ebgpMultihop: EBGP_MULTIHOP_RANGE,
   ttlSecurityHops: TTL_SECURITY_RANGE,
   bfdHoldTime: BFD_HOLD_TIME_RANGE,
   localAs: ASN_RANGE,
+  remoteAs: ASN_RANGE,
 };
 
 export type OverviewRangeField = "systemAs" | "keepalive" | "holdtime";
@@ -129,6 +132,73 @@ export function parametersProblem(values: {
   if (establish != null && maxDelay == null) return "updateDelayNeedsMaxDelay";
   if (establish != null && maxDelay != null && establish > maxDelay) return "updateDelayEstablishTooLarge";
   return null;
+}
+
+/** Remote-as text to range-check: a number is an ASN; a keyword (the list differs by version) is left to the lab. */
+export function remoteAsNumber(value: string): string {
+  return /^\d+$/.test(value.trim()) ? value : "";
+}
+
+export type PeerProblem =
+  | "localAsIsSystemAs"
+  | "localAsIsRemoteAs"
+  | "multihopWithTtl"
+  | "overrideWithStrict"
+  | "passwordWhitespace"
+  | "remoteAsRequired"
+  | "remoteAsOverridesPeerGroup";
+
+/**
+ * Lab verify rules across neighbor or peer-group leaves, as a `form.*` message key.
+ * `neighbor` is set only for a neighbor; the remote-as rules apply to address neighbors only.
+ */
+export function peerProblem(values: {
+  localAs: string;
+  systemAs: string | null | undefined;
+  ebgpMultihop: string;
+  ttlSecurityHops: string;
+  overrideCapability: boolean;
+  strictCapabilityMatch?: boolean;
+  password: string;
+  neighbor?: { address: string; remoteAs: string; peerGroup: string; peerGroupRemoteAs: string | null | undefined };
+}): PeerProblem | null {
+  const localAs = values.localAs.trim();
+  const neighbor = values.neighbor;
+  if (localAs && localAs === (values.systemAs ?? "").trim()) return "localAsIsSystemAs";
+  if (neighbor && localAs && localAs === neighbor.remoteAs.trim()) return "localAsIsRemoteAs";
+  if (values.ebgpMultihop.trim() && values.ttlSecurityHops.trim()) return "multihopWithTtl";
+  if (values.overrideCapability && values.strictCapabilityMatch) return "overrideWithStrict";
+  if (values.password.trim().includes(" ")) return "passwordWhitespace";
+  if (neighbor && isIPAddress(neighbor.address)) {
+    const own = neighbor.remoteAs.trim();
+    const inherited = neighbor.peerGroup ? (neighbor.peerGroupRemoteAs ?? "") : "";
+    if (!own && !inherited) return "remoteAsRequired";
+    if (own && inherited) return "remoteAsOverridesPeerGroup";
+  }
+  return null;
+}
+
+/** Address family of an AFI name (`ipv6-unicast` is ipv6; every other network AFI is ipv4). */
+export function afiFamily(afi: string): "ipv4" | "ipv6" {
+  return afi.startsWith("ipv6") ? "ipv6" : "ipv4";
+}
+
+/** A network prefix as the lab's ipaddrcheck `--is-ipv4-net` / `--is-ipv6-net` accepts it (host bits zero). */
+export function isNetworkPrefix(value: string, family: "ipv4" | "ipv6"): boolean {
+  const parts = value.trim().split("/");
+  if (parts.length !== 2 || !/^\d{1,3}$/.test(parts[1])) return false;
+  const [address, lengthText] = parts;
+  const length = Number(lengthText);
+  if (family === "ipv4") {
+    if (!address || length > 32 || !isIPv4Address(address)) return false;
+    return hostBitsZero(address.split(".").map((octet) => Number(octet).toString(2).padStart(8, "0")), length);
+  }
+  if (!address || length > 128 || address.includes("%") || address.includes(".") || !isValidIPv6(address)) return false;
+  return hostBitsZero(canonicalAddress(address).split(":").map((group) => parseInt(group, 16).toString(2).padStart(16, "0")), length);
+}
+
+function hostBitsZero(groups: string[], length: number): boolean {
+  return !groups.join("").slice(length).includes("1");
 }
 
 export type NeighborAfRangeField = "maximumPrefix" | "allowasIn" | "weight";

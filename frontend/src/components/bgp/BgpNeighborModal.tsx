@@ -38,7 +38,9 @@ import {
   MAXIMUM_PREFIX_RANGE,
   NEIGHBOR_AF_RANGES,
   NEIGHBOR_RANGES,
+  peerProblem,
   PORT_RANGE,
+  remoteAsNumber,
   sameNeighborAddress,
   TTL_SECURITY_RANGE,
   WEIGHT_RANGE,
@@ -63,6 +65,9 @@ interface BgpNeighborModalProps {
   onSubmit: (neighbor: BgpNeighbor) => Promise<void>;
   existingNeighbor?: BgpNeighbor | null;
   peerGroups: string[];
+  /** Remote-as each configured peer group sets, by name (null when it sets none). */
+  peerGroupRemoteAs: Record<string, string | null>;
+  systemAs: string | null;
   configuredAddresses: string[];
   routeMapNames: string[];
   bfdProfileNames: string[];
@@ -84,6 +89,7 @@ const RANGE_LABEL_KEYS = {
   holdtime: "neighborModal.holdtime",
   bfdHoldTime: "form.bfdStrictHoldTime",
   localAs: "form.localAs",
+  remoteAs: "form.remoteAs",
 } as const satisfies Record<NeighborRangeField, string>;
 
 const AF_RANGE_LABEL_KEYS = {
@@ -135,6 +141,8 @@ export function BgpNeighborModal({
   onSubmit,
   existingNeighbor,
   peerGroups,
+  peerGroupRemoteAs,
+  systemAs,
   configuredAddresses,
   routeMapNames,
   bfdProfileNames,
@@ -427,6 +435,7 @@ export function BgpNeighborModal({
         holdtime: timerHoldtime,
         bfdHoldTime: bfdEnabled && bfdStrict ? bfdStrictHoldTime : "",
         localAs: localAsAsn,
+        remoteAs: remoteAsNumber(remoteAs),
       },
       NEIGHBOR_RANGES,
     );
@@ -436,6 +445,19 @@ export function BgpNeighborModal({
         min: range.range.min,
         max: range.range.max,
       });
+    }
+    const problem = peerProblem({
+      localAs: localAsAsn,
+      systemAs,
+      ebgpMultihop,
+      ttlSecurityHops,
+      overrideCapability,
+      strictCapabilityMatch,
+      password,
+      neighbor: { address: trimmed, remoteAs, peerGroup, peerGroupRemoteAs: peerGroupRemoteAs[peerGroup] },
+    });
+    if (problem) {
+      return t(`form.${problem}`);
     }
     for (const [afi, af] of Object.entries(addressFamilies)) {
       const afRange = firstRangeProblem(

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  afiFamily,
   BMP_MIRROR_BUFFER_RANGE,
   BMP_TARGET_RANGES,
   canonicalPrefix,
@@ -8,6 +9,7 @@ import {
   inRange,
   isIPv4Address,
   isIPAddress,
+  isNetworkPrefix,
   NEIGHBOR_AF_RANGES,
   NEIGHBOR_RANGES,
   numberText,
@@ -15,7 +17,9 @@ import {
   PARAMETERS_RANGES,
   parametersProblem,
   PEER_GROUP_RANGES,
+  peerProblem,
   REDISTRIBUTE_METRIC_RANGE,
+  remoteAsNumber,
   sameNeighborAddress,
 } from "./bgp-ranges.ts";
 
@@ -29,6 +33,7 @@ const EMPTY = {
   holdtime: "",
   bfdHoldTime: "",
   localAs: "",
+  remoteAs: "",
 };
 
 const EMPTY_PARAMS = {
@@ -57,6 +62,7 @@ describe("BGP ranges", () => {
           holdtime: "0",
           bfdHoldTime: "4294967295",
           localAs: "4294967294",
+          remoteAs: "4294967294",
         },
         NEIGHBOR_RANGES,
       ),
@@ -75,11 +81,11 @@ describe("BGP ranges", () => {
     assert.equal(firstRangeProblem({ ...EMPTY, localAs: "4294967295" }, NEIGHBOR_RANGES)?.field, "localAs");
     assert.deepEqual(firstRangeProblem({ ...EMPTY, connect: "-1" }, NEIGHBOR_RANGES)?.range, { min: 0, max: 65535 });
     assert.equal(
-      firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "1.5", localAs: "" }, PEER_GROUP_RANGES)?.field,
+      firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "1.5", localAs: "", remoteAs: "" }, PEER_GROUP_RANGES)?.field,
       "bfdHoldTime",
     );
     assert.equal(
-      firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "", localAs: "0" }, PEER_GROUP_RANGES)?.field,
+      firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "", localAs: "0", remoteAs: "" }, PEER_GROUP_RANGES)?.field,
       "localAs",
     );
     assert.equal(firstRangeProblem({ systemAs: "", keepalive: "65536", holdtime: "" }, OVERVIEW_RANGES)?.field, "keepalive");
@@ -119,6 +125,47 @@ describe("BGP ranges", () => {
     assert.equal(parametersProblem({ ...none, updateDelayEstablishWait: 10 }), "updateDelayNeedsMaxDelay");
     assert.equal(parametersProblem({ ...none, updateDelayEstablishWait: 10, updateDelayMaxDelay: 5 }), "updateDelayEstablishTooLarge");
     assert.equal(parametersProblem({ ...none, updateDelayEstablishWait: 10, updateDelayMaxDelay: 10 }), null);
+  });
+
+  it("applies the lab verify rules across neighbor and peer-group leaves", () => {
+    const base = { localAs: "", systemAs: "65000", ebgpMultihop: "", ttlSecurityHops: "", overrideCapability: false, password: "" };
+    const peer = { address: "192.0.2.1", remoteAs: "65001", peerGroup: "", peerGroupRemoteAs: null };
+    assert.equal(peerProblem(base), null);
+    assert.equal(peerProblem({ ...base, localAs: "65000" }), "localAsIsSystemAs");
+    assert.equal(peerProblem({ ...base, localAs: "65001", neighbor: peer }), "localAsIsRemoteAs");
+    assert.equal(peerProblem({ ...base, localAs: "65001" }), null);
+    assert.equal(peerProblem({ ...base, ebgpMultihop: "2", ttlSecurityHops: "1" }), "multihopWithTtl");
+    assert.equal(peerProblem({ ...base, overrideCapability: true, strictCapabilityMatch: true }), "overrideWithStrict");
+    assert.equal(peerProblem({ ...base, password: "a b" }), "passwordWhitespace");
+    assert.equal(peerProblem({ ...base, password: " ab " }), null);
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, remoteAs: "" } }), "remoteAsRequired");
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, remoteAs: "", peerGroup: "PG" } }), "remoteAsRequired");
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, remoteAs: "", peerGroup: "PG", peerGroupRemoteAs: "65002" } }), null);
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, peerGroup: "PG", peerGroupRemoteAs: "65002" } }), "remoteAsOverridesPeerGroup");
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, address: "eth0", remoteAs: "" } }), null);
+    assert.equal(remoteAsNumber("65001"), "65001");
+    assert.equal(remoteAsNumber("internal"), "");
+    assert.equal(firstRangeProblem({ ...EMPTY, remoteAs: remoteAsNumber("4294967295") }, NEIGHBOR_RANGES)?.field, "remoteAs");
+    assert.equal(firstRangeProblem({ ebgpMultihop: "", ttlSecurityHops: "", bfdHoldTime: "", localAs: "", remoteAs: remoteAsNumber("0") }, PEER_GROUP_RANGES)?.field, "remoteAs");
+    assert.equal(firstRangeProblem({ ...EMPTY, remoteAs: remoteAsNumber("external") }, NEIGHBOR_RANGES), null);
+  });
+
+  it("accepts only network prefixes the lab ipaddrcheck accepts", () => {
+    assert.equal(isNetworkPrefix("10.0.0.0/24", "ipv4"), true);
+    assert.equal(isNetworkPrefix("0.0.0.0/0", "ipv4"), true);
+    assert.equal(isNetworkPrefix("10.0.0.1/24", "ipv4"), false);
+    assert.equal(isNetworkPrefix("010.0.0.0/24", "ipv4"), false);
+    assert.equal(isNetworkPrefix("10.0.0.0", "ipv4"), false);
+    assert.equal(isNetworkPrefix("10.0.0.0/33", "ipv4"), false);
+    assert.equal(isNetworkPrefix("2001:db8::/32", "ipv4"), false);
+    assert.equal(isNetworkPrefix("2001:db8::/32", "ipv6"), true);
+    assert.equal(isNetworkPrefix("::/0", "ipv6"), true);
+    assert.equal(isNetworkPrefix("2001:db8::1/32", "ipv6"), false);
+    assert.equal(isNetworkPrefix("2001:db8::/129", "ipv6"), false);
+    assert.equal(isNetworkPrefix("2001:db8::", "ipv6"), false);
+    assert.equal(isNetworkPrefix("10.0.0.0/24", "ipv6"), false);
+    assert.equal(afiFamily("ipv6-unicast"), "ipv6");
+    assert.equal(afiFamily("ipv4-multicast"), "ipv4");
   });
 
   it("accepts only addresses the lab ipaddrcheck accepts", () => {

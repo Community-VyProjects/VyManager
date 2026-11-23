@@ -75,6 +75,7 @@ import { thrownMessage } from "@/lib/api-error";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import {
+  afiFamily,
   BMP_MAX_RETRY_RANGE,
   BMP_MIN_RETRY_RANGE,
   BMP_MIRROR_BUFFER_RANGE,
@@ -86,6 +87,7 @@ import {
   inRange,
   isIPAddress,
   isIPv4Address,
+  isNetworkPrefix,
   KEEPALIVE_RANGE,
   LOCAL_PREF_RANGE,
   numberText,
@@ -292,6 +294,10 @@ export function BgpContent() {
 
   const handleOverviewSave = async () => {
     if (!config) return;
+    if (!systemAs.trim()) {
+      setOverviewError(t("content.systemAsRequired"));
+      return;
+    }
     const range = firstRangeProblem({ systemAs, keepalive, holdtime }, OVERVIEW_RANGES);
     if (range) {
       setOverviewError(t("form.rangeInvalid", {
@@ -430,6 +436,10 @@ export function BgpContent() {
   const handleAddNetwork = async () => {
     const prefix = afNetworkPrefix.trim();
     if (!prefix) return;
+    if (!isNetworkPrefix(prefix, afiFamily(selectedAfi))) {
+      setAfError(t("content.prefixInvalid", { prefix, afi: selectedAfi }));
+      return;
+    }
     if (currentAf?.networks.some((n) => canonicalPrefix(n.prefix) === canonicalPrefix(prefix))) {
       setAfError(t("content.networkExists", { prefix }));
       return;
@@ -554,6 +564,10 @@ export function BgpContent() {
   const handleAddAggregate = async () => {
     const prefix = afAggPrefix.trim();
     if (!prefix) return;
+    if (!isNetworkPrefix(prefix, afiFamily(selectedAfi))) {
+      setAfError(t("content.prefixInvalid", { prefix, afi: selectedAfi }));
+      return;
+    }
     if (currentAf?.aggregate_addresses.some((a) => canonicalPrefix(a.prefix) === canonicalPrefix(prefix))) {
       setAfError(t("content.aggregateExists", { prefix }));
       return;
@@ -2408,6 +2422,8 @@ export function BgpContent() {
         }}
         existingNeighbor={editingNeighbor}
         peerGroups={config?.peer_groups.map((pg) => pg.name) ?? []}
+        peerGroupRemoteAs={Object.fromEntries(config?.peer_groups.map((pg) => [pg.name, pg.remote_as]) ?? [])}
+        systemAs={config?.system_as ?? null}
         configuredAddresses={config?.neighbors.map((n) => n.address) ?? []}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
@@ -2430,6 +2446,7 @@ export function BgpContent() {
         }}
         existingPeerGroup={editingPeerGroup}
         configuredNames={config?.peer_groups.map((pg) => pg.name) ?? []}
+        systemAs={config?.system_as ?? null}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
         bfdProfileNames={bfdProfileNames}

@@ -30,6 +30,8 @@ import {
   EBGP_MULTIHOP_RANGE,
   firstRangeProblem,
   PEER_GROUP_RANGES,
+  peerProblem,
+  remoteAsNumber,
   TTL_SECURITY_RANGE,
   type PeerGroupRangeField,
 } from "@/lib/api/bgp-ranges";
@@ -47,6 +49,7 @@ interface BgpPeerGroupModalProps {
   onSubmit: (peerGroup: BgpPeerGroup) => Promise<void>;
   existingPeerGroup?: BgpPeerGroup | null;
   configuredNames: string[];
+  systemAs: string | null;
   capabilities?: BgpCapabilities | null;
   routeMapNames: string[];
   bfdProfileNames: string[];
@@ -58,6 +61,7 @@ const RANGE_LABEL_KEYS = {
   ttlSecurityHops: "form.ttlSecurityHops",
   bfdHoldTime: "form.bfdStrictHoldTime",
   localAs: "form.localAs",
+  remoteAs: "form.remoteAs",
 } as const satisfies Record<PeerGroupRangeField, string>;
 
 interface AddressFamilyFormState {
@@ -115,6 +119,7 @@ export function BgpPeerGroupModal({
   onSubmit,
   existingPeerGroup,
   configuredNames,
+  systemAs,
   capabilities,
   routeMapNames,
   bfdProfileNames,
@@ -338,6 +343,7 @@ export function BgpPeerGroupModal({
         ttlSecurityHops,
         bfdHoldTime: bfdEnabled && bfdStrict ? bfdStrictHoldTime : "",
         localAs: localAsAsn,
+        remoteAs: remoteAsNumber(remoteAs),
       },
       PEER_GROUP_RANGES,
     );
@@ -347,6 +353,18 @@ export function BgpPeerGroupModal({
         min: range.range.min,
         max: range.range.max,
       });
+    }
+
+    const problem = peerProblem({
+      localAs: localAsAsn,
+      systemAs,
+      ebgpMultihop,
+      ttlSecurityHops,
+      overrideCapability,
+      password,
+    });
+    if (problem) {
+      return t(`form.${problem}`);
     }
 
     return null;

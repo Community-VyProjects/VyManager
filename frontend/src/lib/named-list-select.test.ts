@@ -140,6 +140,10 @@ describe("named list select", () => {
     }
     assert.match(neighbor, /!isEditMode && configuredAddresses\.some\(\(a\) => sameNeighborAddress\(a, trimmed\)\)/);
     assert.match(neighbor, /!isEditMode && !isIPAddress\(trimmed\)/);
+    assert.match(neighbor, /peerProblem\(\{[\s\S]*?neighbor: \{ address: trimmed, remoteAs, peerGroup, peerGroupRemoteAs: peerGroupRemoteAs\[peerGroup\] \}/);
+    assert.match(neighbor, /remoteAs: remoteAsNumber\(remoteAs\)/);
+    assert.match(peerGroup, /peerProblem\(\{/);
+    assert.match(peerGroup, /remoteAs: remoteAsNumber\(remoteAs\)/);
     assert.match(neighbor, /firstRangeProblem\(/);
     assert.match(neighbor, /NEIGHBOR_AF_RANGES/);
     assert.match(peerGroup, /PEER_GROUP_RANGES/);
@@ -162,6 +166,8 @@ describe("named list select", () => {
     assert.match(page, /setAfRedistProto\(""\);\n\s*setAfRedistTable\(""\);\n\s*\}, \[selectedAfi\]\);/);
     assert.match(page, /content\.bmpTargetExists/);
     assert.match(page, /const bmpTargetOk = [^\n]*\n\s*if \(!isIPAddress\(address\)\) \{/);
+    assert.equal(page.match(/isNetworkPrefix\(prefix, afiFamily\(selectedAfi\)\)/g)?.length, 2);
+    assert.match(page, /content\.systemAsRequired/);
     assert.match(page, /\.filter\(\(p\) => !currentAf\?\.redistribute\.some\(\(r\) => r\.protocol === p\)\)/);
     const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
     assert.match(neighbor, /existingNeighbor\?\.address_families\[afi\]/);
