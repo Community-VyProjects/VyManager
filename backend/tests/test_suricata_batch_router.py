@@ -1,10 +1,11 @@
-"""Suricata batch route: comma-split args, HTTP 400 on a missing value.
+"""Suricata router: comma-split args, a value on a zero-arg op, 400s, failed commits.
 
-execute_batch and get_full_config run through run_in_threadpool (locked in
-test_batch_off_event_loop.py). These tests drive the handlers end to end with
-a stub service so the emitted ops and the 400 paths are checked.
+A stub service records what the handler sends. Device calls must run off the
+event loop: the app middleware records the loop thread and the stub compares
+its own thread against it.
 """
 
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -15,55 +16,76 @@ ROUTER = "routers.suricata.suricata"
 BASE = ["service", "suricata"]
 
 
-def _app(monkeypatch, service):
-    async def allow(*_args, **_kwargs):
-        return None
+@pytest.fixture
+def commit():
+    return {"status": 200, "error": None, "version": "1.5", "execute_error": None}
 
-    monkeypatch.setattr(f"{ROUTER}.require_write_permission", allow)
-    monkeypatch.setattr(f"{ROUTER}.require_read_permission", allow)
-    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: service)
+
+@pytest.fixture
+def config():
+    return {}
+
+
+@pytest.fixture
+def client(monkeypatch, commit, config):
+    executed = []
+    loop_threads = set()
+    device_threads = []
+    permissions = []
+
+    async def read(_req, feature):
+        permissions.append(("read", feature))
+
+    async def write(_req, feature):
+        permissions.append(("write", feature))
+
+    class Service:
+        def get_version(self):
+            return commit["version"]
+
+        def get_full_config(self, refresh=False):
+            device_threads.append(threading.current_thread())
+            return config
+
+        def execute_batch(self, batch):
+            device_threads.append(threading.current_thread())
+            if commit["execute_error"]:
+                raise ValueError(commit["execute_error"])
+            if batch.is_empty():
+                raise ValueError("Cannot execute empty batch")
+            executed.append(batch.get_operations())
+            return SimpleNamespace(status=commit["status"], result="", error=commit["error"])
+
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", read)
+    monkeypatch.setattr(f"{ROUTER}.require_write_permission", write)
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: Service())
 
     from routers.suricata.suricata import router
 
     app = FastAPI()
+
+    @app.middleware("http")
+    async def record_loop(request, call_next):
+        loop_threads.add(threading.current_thread())
+        return await call_next(request)
+
     app.include_router(router)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield SimpleNamespace(
+            http=test_client,
+            executed=executed,
+            loop_threads=loop_threads,
+            device_threads=device_threads,
+            permissions=permissions,
+        )
 
 
-class Service:
-    def __init__(self, version="1.5", status=200, error=None, config=None):
-        self.version = version
-        self.status = status
-        self.error = error
-        self.config = config or {}
-        self.executed = []
-
-    def get_version(self):
-        return self.version
-
-    def get_full_config(self, refresh=False):
-        return self.config
-
-    def execute_batch(self, batch):
-        if batch.is_empty():
-            raise ValueError("Cannot execute empty batch")
-        self.executed.append(batch.get_operations())
-        return SimpleNamespace(status=self.status, result="", error=self.error)
-
-
-@pytest.fixture
-def client(monkeypatch):
-    service = Service()
-    return _app(monkeypatch, service), service
-
-
-def _post(test_client, operations):
-    return test_client.post("/vyos/suricata/batch", json={"operations": operations})
+def _post(c, operations):
+    return c.http.post("/vyos/suricata/batch", json={"operations": operations})
 
 
 def test_batch_splits_values_onto_builder_args(client):
-    test_client, service = client
-    resp = _post(test_client, [
+    resp = _post(client, [
         {"op": "delete_log"},
         {"op": "set_interface", "value": "eth0"},
         {"op": "set_address", "value": "home-net,10.0.0.0/8"},
@@ -71,15 +93,28 @@ def test_batch_splits_values_onto_builder_args(client):
         {"op": "delete_suricata"},
     ])
     assert resp.status_code == 200, resp.text
-    assert resp.json()["success"] is True
-    assert resp.json()["data"]["message"] == "Suricata configuration updated"
-    assert service.executed == [[
+    assert resp.json() == {
+        "success": True,
+        "data": {"message": "Suricata configuration updated"},
+        "error": None,
+    }
+    assert client.executed == [[
         {"op": "delete", "path": BASE + ["log"]},
         {"op": "set", "path": BASE + ["interface", "eth0"]},
         {"op": "set", "path": BASE + ["address-group", "home-net", "address", "10.0.0.0/8"]},
         {"op": "set", "path": BASE + ["port-group", "web-ports", "group", "!http-ports"]},
         {"op": "delete", "path": BASE},
     ]]
+    assert client.permissions == [("write", "SURICATA")]
+
+
+def test_device_calls_run_off_the_event_loop(client):
+    assert client.http.get("/vyos/suricata/config").status_code == 200
+    assert _post(client, [{"op": "set_interface", "value": "eth0"}]).status_code == 200
+    assert len(client.device_threads) == 2
+    assert client.loop_threads
+    for thread in client.device_threads:
+        assert thread not in client.loop_threads
 
 
 @pytest.mark.parametrize("operation", [
@@ -89,92 +124,92 @@ def test_batch_splits_values_onto_builder_args(client):
     {"op": "set_address", "value": ""},
 ])
 def test_batch_missing_value_is_400(client, operation):
-    test_client, service = client
-    resp = _post(test_client, [operation])
+    resp = _post(client, [operation])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == f"Operation {operation['op']} requires a value"
-    assert service.executed == []
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("op", ["delete_log", "delete_suricata"])
+@pytest.mark.parametrize("value", ["eth0", "x"])
+def test_batch_value_on_zero_arg_op_is_400(client, op, value):
+    """A value on a zero-arg op is 400, not the wider op run with the value dropped."""
+    resp = _post(client, [
+        {"op": "set_interface", "value": "eth0"},
+        {"op": op, "value": value},
+    ])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {op} takes no value"
+    assert client.executed == []
 
 
 @pytest.mark.parametrize("value", ["home-net", "home-net,", ",10.0.0.0/8"])
 def test_batch_short_value_is_400(client, value):
-    test_client, service = client
-    resp = _post(test_client, [{"op": "set_address", "value": value}])
+    resp = _post(client, [{"op": "set_address", "value": value}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Operation set_address requires 2 values"
-    assert service.executed == []
+    assert client.executed == []
 
 
 def test_batch_unknown_op_is_400(client):
-    test_client, service = client
-    resp = _post(test_client, [{"op": "no_such_op", "value": "x"}])
+    resp = _post(client, [{"op": "no_such_op", "value": "x"}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Unknown operation: no_such_op"
-    assert service.executed == []
+    assert client.executed == []
 
 
 def test_batch_comma_in_one_arg_value_reaches_the_mapper(client):
     """split(",", 0) keeps the comma; the mapper rejects it with ValueError."""
-    test_client, service = client
-    resp = _post(test_client, [{"op": "set_log_eve_filename", "value": "eve,json"}])
+    resp = _post(client, [{"op": "set_log_eve_filename", "value": "eve,json"}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Invalid log file name"
-    assert service.executed == []
+    assert client.executed == []
 
 
-def test_batch_on_1_4_is_400(monkeypatch):
-    service = Service(version="1.4")
-    resp = _post(_app(monkeypatch, service), [{"op": "set_interface", "value": "eth0"}])
+def test_batch_on_1_4_is_400(client, commit):
+    commit["version"] = "1.4"
+    resp = _post(client, [{"op": "set_interface", "value": "eth0"}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Suricata is not supported on this device"
-    assert service.executed == []
+    assert client.executed == []
 
 
 def test_batch_empty_skips_the_device(client):
-    test_client, service = client
-    resp = _post(test_client, [])
+    resp = _post(client, [])
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
         "success": True,
         "data": {"message": "No Suricata changes"},
         "error": None,
     }
-    assert service.executed == []
+    assert client.executed == []
+    assert client.device_threads == []
 
 
-def test_batch_empty_batch_error_from_device_is_500(monkeypatch):
+def test_batch_value_error_from_device_is_500(client, commit):
     """A ValueError from execute_batch is not a version gate; it stays a 500."""
-
-    class Failing(Service):
-        def execute_batch(self, batch):
-            raise ValueError("Cannot execute empty batch")
-
-    resp = _post(_app(monkeypatch, Failing()), [{"op": "delete_suricata"}])
+    commit["execute_error"] = "Cannot execute empty batch"
+    resp = _post(client, [{"op": "delete_suricata"}])
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
 
 
-def test_batch_failed_commit_omits_updated_message(monkeypatch):
-    service = Service(status=400, error="commit failed")
-    resp = _post(_app(monkeypatch, service), [{"op": "delete_suricata"}])
+def test_failed_commit_reports_the_error(client, commit):
+    commit.update(status=400, error="Commit failed: T-err")
+    resp = _post(client, [{"op": "delete_suricata"}])
     assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["success"] is False
-    assert body["data"] is None
-    assert body["error"] == "commit failed"
+    assert resp.json() == {"success": False, "data": None, "error": "Commit failed: T-err"}
 
 
-def test_config_route_parses_through_the_mapper(monkeypatch):
-    service = Service(config={
-        "service": {
-            "suricata": {
-                "interface": "eth0",
-                "port-group": {"http-ports": {"port": {"80": {}, "!8080": {}}}},
-                "log": {"eve": {"filetype": "syslog"}},
-            },
+def test_config_route_parses_through_the_mapper(client, config):
+    config["service"] = {
+        "suricata": {
+            "interface": "eth0",
+            "port-group": {"http-ports": {"port": {"80": {}, "!8080": {}}}},
+            "log": {"eve": {"filetype": "syslog"}},
         },
-    })
-    resp = _app(monkeypatch, service).get("/vyos/suricata/config")
+    }
+    resp = client.http.get("/vyos/suricata/config")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
         "configured": True,
@@ -198,23 +233,19 @@ def test_config_route_parses_through_the_mapper(monkeypatch):
             "types_set": False,
         },
     }
+    assert client.permissions == [("read", "SURICATA")]
 
 
-@pytest.mark.parametrize("path", ["/vyos/suricata/capabilities", "/vyos/suricata/config"])
-def test_session_http_exception_is_not_swallowed(monkeypatch, path):
-    async def allow(*_args, **_kwargs):
-        return None
+@pytest.mark.parametrize("method,path,body", [
+    ("get", "/vyos/suricata/capabilities", None),
+    ("get", "/vyos/suricata/config", None),
+    ("post", "/vyos/suricata/batch", {"operations": []}),
+])
+def test_session_400_passes_through(client, monkeypatch, method, path, body):
+    def no_session(_req):
+        raise HTTPException(status_code=400, detail="No active session")
 
-    def boom(_req):
-        raise HTTPException(status_code=503, detail="session down")
-
-    monkeypatch.setattr(f"{ROUTER}.require_read_permission", allow)
-    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", boom)
-
-    from routers.suricata.suricata import router
-
-    app = FastAPI()
-    app.include_router(router)
-    resp = TestClient(app).get(path)
-    assert resp.status_code == 503, resp.text
-    assert resp.json()["detail"] == "session down"
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", no_session)
+    resp = getattr(client.http, method)(path, **({"json": body} if body is not None else {}))
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "No active session"
