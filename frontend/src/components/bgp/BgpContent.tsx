@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -53,6 +55,7 @@ import {
 } from "@/lib/api/bgp";
 import { routeMapService } from "@/lib/api/route-map";
 import { bfdService } from "@/lib/api/bfd";
+import { staticRoutesService } from "@/lib/api/static-routes";
 import { BgpNeighborModal } from "./BgpNeighborModal";
 import { BgpPeerGroupModal } from "./BgpPeerGroupModal";
 import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
@@ -69,6 +72,38 @@ import {
 } from "@/components/ui/alert-dialog";
 import { afiNameKey, formatUnknownAfi } from "./afi-name";
 import { thrownMessage } from "@/lib/api-error";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
+import {
+  afiFamily,
+  BMP_MAX_RETRY_RANGE,
+  BMP_MIN_RETRY_RANGE,
+  BMP_MIRROR_BUFFER_RANGE,
+  BMP_TARGET_RANGES,
+  canonicalPrefix,
+  DISTANCE_RANGE,
+  firstRangeProblem,
+  HOLDTIME_RANGE,
+  inRange,
+  isIPAddress,
+  isIPv4Address,
+  isNetworkPrefix,
+  KEEPALIVE_RANGE,
+  LOCAL_PREF_RANGE,
+  numberText,
+  peerGroupMembersOf,
+  OVERVIEW_RANGES,
+  PARAMETERS_RANGES,
+  parametersProblem,
+  PORT_RANGE,
+  QUEUE_LIMIT_RANGE,
+  REDISTRIBUTE_METRIC_RANGE,
+  UPDATE_DELAY_ESTABLISH_WAIT_RANGE,
+  UPDATE_DELAY_MAX_DELAY_RANGE,
+  type BmpTargetRangeField,
+  type OverviewRangeField,
+  type ParametersRangeField,
+} from "@/lib/api/bgp-ranges";
 
 function failedSaveMessage(
   result: { success: boolean; error?: string | null } | null | undefined,
@@ -88,9 +123,40 @@ function maximumPathCount(raw: string): number | null | undefined {
   return n;
 }
 
+/** Label of each range-checked field, for the range error. */
+const OVERVIEW_RANGE_LABEL_KEYS = {
+  systemAs: "content.overview.systemAs",
+  keepalive: "content.overview.keepalive",
+  holdtime: "content.overview.holdTime",
+} as const satisfies Record<OverviewRangeField, string>;
+
+const BMP_RANGE_LABEL_KEYS = {
+  port: "neighborModal.port",
+  minRetry: "content.bmp.minRetry",
+  maxRetry: "content.bmp.maxRetry",
+} as const satisfies Record<BmpTargetRangeField, string>;
+
+const PARAMETERS_RANGE_LABEL_KEYS = {
+  defaultLocalPref: "content.params.defaultLocalPref",
+  inputQueueLimit: "content.params.inputQueueLimit",
+  outputQueueLimit: "content.params.outputQueueLimit",
+  updateDelayEstablishWait: "content.params.updateDelayEstablishWait",
+  updateDelayMaxDelay: "content.params.updateDelayMaxDelay",
+  distanceExternal: "content.params.distance.external",
+  distanceInternal: "content.params.distance.internal",
+  distanceLocal: "content.params.distance.local",
+} as const satisfies Record<ParametersRangeField, string>;
+
+/** A number input's text as a number, or null when empty. */
+function optionalNumber(raw: string): number | null {
+  return raw.trim() ? Number(raw.trim()) : null;
+}
+
 export function BgpContent() {
   const t = useTranslations("bgp");
   const tc = useTranslations("common");
+  const { canWrite } = usePermissions();
+  const hasWritePermission = canWrite(FeatureGroup.BGP);
   const [config, setConfig] = useState<BgpConfig | null>(null);
   const [capabilities, setCapabilities] = useState<BgpCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,9 +200,10 @@ export function BgpContent() {
   const [afMaxEbgp, setAfMaxEbgp] = useState("");
   const [afMaxIbgp, setAfMaxIbgp] = useState("");
 
-  // Route-map and BFD profile names for dropdowns
+  // Route-map, BFD profile and static table names for dropdowns
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
   const [bfdProfileNames, setBfdProfileNames] = useState<string[]>([]);
+  const [staticTableIds, setStaticTableIds] = useState<string[]>([]);
 
   // Parameters state
   const [paramsEditing, setParamsEditing] = useState(false);
@@ -171,31 +238,28 @@ export function BgpContent() {
 
       // Load auxiliary data for dropdowns - these require separate permissions
       // so we catch errors silently and default to empty arrays
-      const [rmNames, bfdNames] = await Promise.all([
+      const [rmNames, bfdNames, tableIds] = await Promise.all([
         routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => []),
         bfdService.getConfig().then((c) => c.profiles.map((p) => p.name)).catch(() => []),
+        staticRoutesService.getConfig().then((c) => c.routing_tables.map((rt) => String(rt.table_id))).catch(() => []),
       ]);
       setRouteMapNames(rmNames);
       setBfdProfileNames(bfdNames);
+      setStaticTableIds(tableIds);
 
-      // Initialize overview fields
-      setSystemAs(configData.system_as || "");
-      setRouterId(configData.parameters.router_id || "");
-      setKeepalive(configData.timers.keepalive?.toString() || "");
-      setHoldtime(configData.timers.holdtime?.toString() || "");
       // Initialize selected AFI
-      if (!selectedAfi && capData.address_family_types.global.length > 0) {
-        setSelectedAfi(capData.address_family_types.global[0]);
-      }
+      const firstAfi = capData.address_family_types.global[0];
+      if (firstAfi) setSelectedAfi((prev) => prev || firstAfi);
     } catch (err) {
       setError(thrownMessage(err, t("content.loadFailed")));
     } finally {
       setLoading(false);
     }
-  }, [selectedAfi, t]);
+  }, [t]);
 
   useEffect(() => {
     setAfRedistProto("");
+    setAfRedistTable("");
   }, [selectedAfi]);
 
   useEffect(() => {
@@ -231,10 +295,27 @@ export function BgpContent() {
 
   const handleOverviewSave = async () => {
     if (!config) return;
+    if (!systemAs.trim()) {
+      setOverviewError(t("content.systemAsRequired"));
+      return;
+    }
+    const range = firstRangeProblem({ systemAs, keepalive, holdtime }, OVERVIEW_RANGES);
+    if (range) {
+      setOverviewError(t("form.rangeInvalid", {
+        field: t(OVERVIEW_RANGE_LABEL_KEYS[range.field]),
+        min: range.range.min,
+        max: range.range.max,
+      }));
+      return;
+    }
+    if (routerId.trim() && !isIPv4Address(routerId)) {
+      setOverviewError(t("form.ipv4Invalid", { field: t("content.overview.routerId") }));
+      return;
+    }
     setOverviewSaving(true);
     setOverviewError(null);
     try {
-      const result = await bgpService.saveOverview(config, systemAs, routerId, keepalive, holdtime);
+      const result = await bgpService.saveOverview(config, systemAs.trim(), routerId.trim(), keepalive.trim(), holdtime.trim());
       const message = failedSaveMessage(result, t("content.saveOverviewFailed"));
       if (message) {
         setOverviewError(message);
@@ -249,13 +330,18 @@ export function BgpContent() {
     }
   };
 
+  const handleOverviewEdit = () => {
+    if (!config) return;
+    // Seed the draft from the loaded config when editing starts, so a later reload does not wipe it.
+    setSystemAs(config.system_as || "");
+    setRouterId(config.parameters.router_id || "");
+    setKeepalive(config.timers.keepalive?.toString() || "");
+    setHoldtime(config.timers.holdtime?.toString() || "");
+    setOverviewError(null);
+    setOverviewEditing(true);
+  };
+
   const handleOverviewCancel = () => {
-    if (config) {
-      setSystemAs(config.system_as || "");
-      setRouterId(config.parameters.router_id || "");
-      setKeepalive(config.timers.keepalive?.toString() || "");
-      setHoldtime(config.timers.holdtime?.toString() || "");
-    }
     setOverviewEditing(false);
     setOverviewError(null);
   };
@@ -276,7 +362,6 @@ export function BgpContent() {
     const result = await bgpService.updateNeighbor(editingNeighbor, neighbor);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setEditingNeighbor(null);
     await loadData(true);
   };
 
@@ -285,7 +370,6 @@ export function BgpContent() {
     const result = await bgpService.deleteNeighbor(deletingNeighbor);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setDeletingNeighbor(null);
     await loadData(true);
   };
 
@@ -305,7 +389,6 @@ export function BgpContent() {
     const result = await bgpService.updatePeerGroup(editingPeerGroup, pg);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setEditingPeerGroup(null);
     await loadData(true);
   };
 
@@ -314,7 +397,6 @@ export function BgpContent() {
     const result = await bgpService.deletePeerGroup(deletingPeerGroup.name);
     const message = failedSaveMessage(result, t("content.saveFailed"));
     if (message) throw new Error(message);
-    setDeletingPeerGroup(null);
     await loadData(true);
   };
 
@@ -353,11 +435,20 @@ export function BgpContent() {
   };
 
   const handleAddNetwork = async () => {
-    if (!afNetworkPrefix.trim()) return;
+    const prefix = afNetworkPrefix.trim();
+    if (!prefix) return;
+    if (!isNetworkPrefix(prefix, afiFamily(selectedAfi))) {
+      setAfError(t("content.prefixInvalid", { prefix, afi: selectedAfi }));
+      return;
+    }
+    if (currentAf?.networks.some((n) => canonicalPrefix(n.prefix) === canonicalPrefix(prefix))) {
+      setAfError(t("content.networkExists", { prefix }));
+      return;
+    }
     setAfSaving(true);
     setAfError(null);
     try {
-      const result = await bgpService.addNetwork(selectedAfi, afNetworkPrefix.trim(), afNetworkRouteMap.trim() || undefined);
+      const result = await bgpService.addNetwork(selectedAfi, prefix, afNetworkRouteMap.trim() || undefined);
       const message = failedSaveMessage(result, t("content.addNetworkFailed"));
       if (message) {
         setAfError(message);
@@ -396,8 +487,36 @@ export function BgpContent() {
     }
   };
 
+  /** Shows the range error and returns false when the redistribute metric is outside the lab range. */
+  const redistributeMetricOk = (): boolean => {
+    if (inRange(afRedistMetric, REDISTRIBUTE_METRIC_RANGE)) return true;
+    setAfError(t("form.rangeInvalid", {
+      field: t("content.af.metric"),
+      min: REDISTRIBUTE_METRIC_RANGE.min,
+      max: REDISTRIBUTE_METRIC_RANGE.max,
+    }));
+    return false;
+  };
+
+  /** Shows the error and returns false when a BMP target address (required by the lab) or number is not one it accepts. */
+  const bmpTargetOk = (address: string, values: Record<BmpTargetRangeField, string>): boolean => {
+    if (!isIPAddress(address)) {
+      setBmpError(t("form.ipAddressInvalid", { field: t("content.address") }));
+      return false;
+    }
+    const range = firstRangeProblem(values, BMP_TARGET_RANGES);
+    if (!range) return true;
+    setBmpError(t("form.rangeInvalid", {
+      field: t(BMP_RANGE_LABEL_KEYS[range.field]),
+      min: range.range.min,
+      max: range.range.max,
+    }));
+    return false;
+  };
+
   const handleAddRedistribute = async () => {
     if (!afRedistProto) return;
+    if (!redistributeMetricOk()) return;
     setAfSaving(true);
     setAfError(null);
     try {
@@ -444,11 +563,20 @@ export function BgpContent() {
   };
 
   const handleAddAggregate = async () => {
-    if (!afAggPrefix.trim()) return;
+    const prefix = afAggPrefix.trim();
+    if (!prefix) return;
+    if (!isNetworkPrefix(prefix, afiFamily(selectedAfi))) {
+      setAfError(t("content.prefixInvalid", { prefix, afi: selectedAfi }));
+      return;
+    }
+    if (currentAf?.aggregate_addresses.some((a) => canonicalPrefix(a.prefix) === canonicalPrefix(prefix))) {
+      setAfError(t("content.aggregateExists", { prefix }));
+      return;
+    }
     setAfSaving(true);
     setAfError(null);
     try {
-      const result = await bgpService.addAggregateAddress(selectedAfi, afAggPrefix.trim(), afAggAsSet, afAggSummaryOnly, afAggRouteMap.trim() || undefined);
+      const result = await bgpService.addAggregateAddress(selectedAfi, prefix, afAggAsSet, afAggSummaryOnly, afAggRouteMap.trim() || undefined);
       const message = failedSaveMessage(result, t("content.addAggregateFailed"));
       if (message) {
         setAfError(message);
@@ -534,10 +662,49 @@ export function BgpContent() {
 
   const handleParamsSave = async () => {
     if (!config || !editParams) return;
+    const range = firstRangeProblem(
+      {
+        defaultLocalPref: numberText(editParams.default_local_pref),
+        inputQueueLimit: numberText(editParams.input_queue_limit),
+        outputQueueLimit: numberText(editParams.output_queue_limit),
+        updateDelayEstablishWait: numberText(editParams.update_delay_establish_wait),
+        updateDelayMaxDelay: numberText(editParams.update_delay_max_delay),
+        distanceExternal: numberText(editParams.distance_global?.external),
+        distanceInternal: numberText(editParams.distance_global?.internal),
+        distanceLocal: numberText(editParams.distance_global?.local),
+      },
+      PARAMETERS_RANGES,
+    );
+    if (range) {
+      setParamsError(t("form.rangeInvalid", {
+        field: t(PARAMETERS_RANGE_LABEL_KEYS[range.field]),
+        min: range.range.min,
+        max: range.range.max,
+      }));
+      return;
+    }
+    if (editParams.cluster_id?.trim() && !isIPv4Address(editParams.cluster_id)) {
+      setParamsError(t("form.ipv4Invalid", { field: t("content.params.clusterId") }));
+      return;
+    }
+    const problem = parametersProblem({
+      distanceExternal: editParams.distance_global?.external,
+      distanceInternal: editParams.distance_global?.internal,
+      distanceLocal: editParams.distance_global?.local,
+      updateDelayEstablishWait: editParams.update_delay_establish_wait,
+      updateDelayMaxDelay: editParams.update_delay_max_delay,
+    });
+    if (problem) {
+      setParamsError(t(`content.params.${problem}`));
+      return;
+    }
     setParamsSaving(true);
     setParamsError(null);
     try {
-      const result = await bgpService.saveParameters(config.parameters, editParams);
+      const result = await bgpService.saveParameters(config.parameters, {
+        ...editParams,
+        cluster_id: editParams.cluster_id?.trim() || null,
+      });
       const message = failedSaveMessage(result, t("content.saveParamsFailed"));
       if (message) {
         setParamsError(message);
@@ -567,28 +734,26 @@ export function BgpContent() {
   // Helpers
   // ==========================================================================
 
-  const getMembersOfPeerGroup = (pgName: string): number => {
-    return config?.neighbors.filter((n) => n.peer_group === pgName).length ?? 0;
-  };
-
   const formatAfi = (afi: string): string => {
     const key = afiNameKey(afi);
     if (key) return t(`content.afiNames.${key}`);
     return formatUnknownAfi(afi);
   };
 
-  const redistributeProtocols =
-    (selectedAfi === "ipv6-unicast"
-      ? capabilities?.redistribute_protocols?.["ipv6-unicast"]
-      : selectedAfi === "ipv4-unicast"
-        ? capabilities?.redistribute_protocols?.["ipv4-unicast"]
-        : []) ?? [];
+  const afLeaves = capabilities?.address_family_leaves?.global?.[selectedAfi] ?? [];
+  const peerGroupMembers = peerGroupMembersOf(config?.neighbors ?? []);
+  const afRedistributeAll = (selectedAfi === "ipv6-unicast"
+    ? capabilities?.redistribute_protocols?.["ipv6-unicast"]
+    : selectedAfi === "ipv4-unicast"
+      ? capabilities?.redistribute_protocols?.["ipv4-unicast"]
+      : []) ?? [];
+  const redistributeProtocols = afRedistributeAll.filter((p) => !currentAf?.redistribute.some((r) => r.protocol === p));
 
   // ==========================================================================
   // Render
   // ==========================================================================
 
-  if (loading) {
+  if (loading && !config) {
     return (
       <div className="flex items-center justify-center h-full">
         <LoadingSpinner />
@@ -622,14 +787,20 @@ export function BgpContent() {
                 )}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadData(true)}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {tc("refresh")}
-            </Button>
+            <div className="flex items-center gap-2">
+              {!hasWritePermission && (
+                <Badge variant="secondary">{tc("readOnly")}</Badge>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadData(true)}
+                disabled={loading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {tc("refresh")}
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -731,8 +902,8 @@ export function BgpContent() {
                   <p className="text-sm text-muted-foreground">
                     {t("content.overview.description")}
                   </p>
-                  {!overviewEditing ? (
-                    <Button size="sm" variant="outline" onClick={() => setOverviewEditing(true)}>
+                  {!hasWritePermission ? null : !overviewEditing ? (
+                    <Button size="sm" variant="outline" onClick={handleOverviewEdit}>
                       <Pencil className="h-4 w-4 mr-2" />
                       {tc("edit")}
                     </Button>
@@ -764,9 +935,10 @@ export function BgpContent() {
                   <CardContent className="p-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label>{t("content.overview.systemAs")}</Label>
+                        <Label htmlFor="bgp-overview-system-as">{t("content.overview.systemAs")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-system-as"
                             value={systemAs}
                             onChange={(e) => setSystemAs(e.target.value)}
                             placeholder={t("eg", { value: "65001" })}
@@ -781,9 +953,10 @@ export function BgpContent() {
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("content.overview.routerId")}</Label>
+                        <Label htmlFor="bgp-overview-router-id">{t("content.overview.routerId")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-router-id"
                             value={routerId}
                             onChange={(e) => setRouterId(e.target.value)}
                             placeholder={t("eg", { value: "10.0.0.1" })}
@@ -798,9 +971,12 @@ export function BgpContent() {
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("content.overview.keepalive")}</Label>
+                        <Label htmlFor="bgp-overview-keepalive">{t("content.overview.keepalive")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-keepalive"
+                            min={KEEPALIVE_RANGE.min}
+                            max={KEEPALIVE_RANGE.max}
                             type="number"
                             value={keepalive}
                             onChange={(e) => setKeepalive(e.target.value)}
@@ -816,9 +992,12 @@ export function BgpContent() {
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("content.overview.holdTime")}</Label>
+                        <Label htmlFor="bgp-overview-holdtime">{t("content.overview.holdTime")}</Label>
                         {overviewEditing ? (
                           <Input
+                            id="bgp-overview-holdtime"
+                            min={HOLDTIME_RANGE.min}
+                            max={HOLDTIME_RANGE.max}
                             type="number"
                             value={holdtime}
                             onChange={(e) => setHoldtime(e.target.value)}
@@ -879,10 +1058,12 @@ export function BgpContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("content.neighborsTab.description")}
                 </p>
-                <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("content.neighborsTab.add")}
-                </Button>
+                {hasWritePermission && (
+                  <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("content.neighborsTab.add")}
+                  </Button>
+                )}
               </div>
 
               {neighborCount === 0 ? (
@@ -893,10 +1074,12 @@ export function BgpContent() {
                     <p className="text-xs text-muted-foreground mb-4">
                       {t("content.neighborsTab.emptyHint")}
                     </p>
-                    <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("content.neighborsTab.add")}
-                    </Button>
+                    {hasWritePermission && (
+                      <Button size="sm" onClick={() => { setEditingNeighbor(null); setNeighborModalOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("content.neighborsTab.add")}
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -912,7 +1095,7 @@ export function BgpContent() {
                           <TableHead>{t("content.peerGroup")}</TableHead>
                           <TableHead>BFD</TableHead>
                           <TableHead>{t("content.addressFamilies")}</TableHead>
-                          <TableHead className="text-right">{tc("actions")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -965,29 +1148,33 @@ export function BgpContent() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    setEditingNeighbor(neighbor);
-                                    setNeighborModalOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => setDeletingNeighbor(neighbor.address)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                            {hasWritePermission && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    aria-label={tc("edit")}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setEditingNeighbor(neighbor);
+                                      setNeighborModalOpen(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    aria-label={tc("delete")}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => setDeletingNeighbor(neighbor.address)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1005,10 +1192,12 @@ export function BgpContent() {
                 <p className="text-sm text-muted-foreground">
                   {t("content.peerGroupsTab.description")}
                 </p>
-                <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("content.peerGroupsTab.add")}
-                </Button>
+                {hasWritePermission && (
+                  <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("content.peerGroupsTab.add")}
+                  </Button>
+                )}
               </div>
 
               {peerGroupCount === 0 ? (
@@ -1019,10 +1208,12 @@ export function BgpContent() {
                     <p className="text-xs text-muted-foreground mb-4">
                       {t("content.peerGroupsTab.emptyHint")}
                     </p>
-                    <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("content.peerGroupsTab.add")}
-                    </Button>
+                    {hasWritePermission && (
+                      <Button size="sm" onClick={() => { setEditingPeerGroup(null); setPeerGroupModalOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("content.peerGroupsTab.add")}
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -1038,12 +1229,12 @@ export function BgpContent() {
                           <TableHead>BFD</TableHead>
                           <TableHead>{t("content.peerGroupsTab.members")}</TableHead>
                           <TableHead>{t("content.addressFamilies")}</TableHead>
-                          <TableHead className="text-right">{tc("actions")}</TableHead>
+                          {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {config?.peer_groups.map((pg) => {
-                          const memberCount = getMembersOfPeerGroup(pg.name);
+                          const memberCount = peerGroupMembers[pg.name]?.length ?? 0;
                           return (
                             <TableRow key={pg.name}>
                               <TableCell className="font-medium font-mono">{pg.name}</TableCell>
@@ -1093,29 +1284,33 @@ export function BgpContent() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => {
-                                      setEditingPeerGroup(pg);
-                                      setPeerGroupModalOpen(true);
-                                    }}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => setDeletingPeerGroup({ name: pg.name, members: memberCount })}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
+                              {hasWritePermission && (
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      aria-label={tc("edit")}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        setEditingPeerGroup(pg);
+                                        setPeerGroupModalOpen(true);
+                                      }}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      aria-label={tc("delete")}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={() => setDeletingPeerGroup({ name: pg.name, members: memberCount })}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           );
                         })}
@@ -1172,7 +1367,7 @@ export function BgpContent() {
                                   <Checkbox
                                     id={`evpn-flag-${flag}`}
                                     checked={checked}
-                                    disabled={afSaving}
+                                    disabled={afSaving || !hasWritePermission}
                                     onCheckedChange={(c) => {
                                       setPageConfirmError(null);
                                       setPageConfirm({
@@ -1192,9 +1387,8 @@ export function BgpContent() {
                       </Card>
                     )}
 
-                    {!isL2vpnEvpn && (
-                    <>
                     {/* Networks */}
+                    {afLeaves.includes("network") && (
                     <Card>
                       <CardContent className="p-6">
                         <h3 className="text-sm font-medium mb-4">{t("content.af.networks")}</h3>
@@ -1208,7 +1402,7 @@ export function BgpContent() {
                               <TableRow>
                                 <TableHead>{t("content.prefix")}</TableHead>
                                 <TableHead>{t("content.routeMap")}</TableHead>
-                                <TableHead className="text-right">{tc("actions")}</TableHead>
+                                {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1216,59 +1410,56 @@ export function BgpContent() {
                                 <TableRow key={net.prefix}>
                                   <TableCell className="font-mono">{net.prefix}</TableCell>
                                   <TableCell>{net.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        setPageConfirmError(null);
-                                        setPageConfirm({ label: net.prefix, run: () => handleDeleteNetwork(net.prefix) });
-                                      }}
-                                      disabled={afSaving}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                                  {hasWritePermission && (
+                                    <TableCell className="text-right">
+                                      <Button
+                                        aria-label={tc("delete")}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        onClick={() => {
+                                          setPageConfirmError(null);
+                                          setPageConfirm({ label: net.prefix, run: () => handleDeleteNetwork(net.prefix) });
+                                        }}
+                                        disabled={afSaving}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         )}
 
-                        <div className="flex items-end gap-3 mt-4">
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.prefix")}</Label>
-                            <Input
-                              value={afNetworkPrefix}
-                              onChange={(e) => setAfNetworkPrefix(e.target.value)}
-                              placeholder={t("eg", { value: "10.0.0.0/24" })}
-                              className="h-9"
-                            />
+                        {hasWritePermission && afLeaves.includes("network route-map") && (
+                          <div className="flex items-end gap-3 mt-4">
+                            <div className="flex-1 space-y-1">
+                              <Label className="text-xs">{t("content.prefix")}</Label>
+                              <Input
+                                value={afNetworkPrefix}
+                                onChange={(e) => setAfNetworkPrefix(e.target.value)}
+                                placeholder={t("eg", { value: "10.0.0.0/24" })}
+                                className="h-9"
+                              />
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <Label htmlFor="bgp-af-network-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                              <NamedListSelect id="bgp-af-network-route-map" value={afNetworkRouteMap} names={routeMapNames} onValueChange={setAfNetworkRouteMap} />
+                            </div>
+                            <Button size="sm" onClick={handleAddNetwork} disabled={afSaving || !afNetworkPrefix.trim()}>
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                              {tc("add")}
+                            </Button>
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <Select value={afNetworkRouteMap || "__none__"} onValueChange={(v) => setAfNetworkRouteMap(v === "__none__" ? "" : v)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <Button size="sm" onClick={handleAddNetwork} disabled={afSaving || !afNetworkPrefix.trim()}>
-                            {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            {tc("add")}
-                          </Button>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
+                    )}
 
                     {/* Redistribute */}
+                    {afRedistributeAll.length > 0 && (
                     <Card>
                       <CardContent className="p-6">
                         <h3 className="text-sm font-medium mb-4">{t("content.af.redistribute")}</h3>
@@ -1283,7 +1474,7 @@ export function BgpContent() {
                                 <TableHead>{t("content.af.protocol")}</TableHead>
                                 <TableHead>{t("content.routeMap")}</TableHead>
                                 <TableHead>{t("content.af.metric")}</TableHead>
-                                <TableHead className="text-right">{tc("actions")}</TableHead>
+                                {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1292,87 +1483,94 @@ export function BgpContent() {
                                   <TableCell className="font-mono">{rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol}</TableCell>
                                   <TableCell>{rd.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
                                   <TableCell className="font-mono">{rd.metric || <span className="text-muted-foreground">-</span>}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        setPageConfirmError(null);
-                                        setPageConfirm({
-                                          label: rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol,
-                                          run: () => handleDeleteRedistribute(rd.protocol, rd.table ?? undefined),
-                                        });
-                                      }}
-                                      disabled={afSaving}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                                  {hasWritePermission && (
+                                    <TableCell className="text-right">
+                                      <Button
+                                        aria-label={tc("delete")}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        onClick={() => {
+                                          setPageConfirmError(null);
+                                          setPageConfirm({
+                                            label: rd.protocol === "table" ? `${t("content.af.table")} ${rd.table}` : rd.protocol,
+                                            run: () => handleDeleteRedistribute(rd.protocol, rd.table ?? undefined),
+                                          });
+                                        }}
+                                        disabled={afSaving}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         )}
 
-                        <div className="flex items-end gap-3 mt-4">
-                          <div className="w-[160px] space-y-1">
-                            <Label className="text-xs">{t("content.af.protocol")}</Label>
-                            <Select value={afRedistProto} onValueChange={setAfRedistProto}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={t("content.af.selectEllipsis")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {redistributeProtocols.map((p) => (
-                                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <Select value={afRedistRouteMap || "__none__"} onValueChange={(v) => setAfRedistRouteMap(v === "__none__" ? "" : v)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="w-[100px] space-y-1">
-                            <Label className="text-xs">{t("content.af.metric")}</Label>
-                            <Input
-                              value={afRedistMetric}
-                              onChange={(e) => setAfRedistMetric(e.target.value)}
-                              placeholder={t("eg", { value: "100" })}
-                              className="h-9"
-                            />
-                          </div>
-                          <Button size="sm" onClick={handleAddRedistribute} disabled={afSaving || !afRedistProto}>
-                            {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            {tc("add")}
-                          </Button>
-                        </div>
-                        {(capabilities?.redistribute_table_afis ?? []).includes(selectedAfi) && (
+                        {hasWritePermission && (
                           <div className="flex items-end gap-3 mt-4">
                             <div className="w-[160px] space-y-1">
-                              <Label className="text-xs">{t("content.af.table")}</Label>
-                              <Input type="number" value={afRedistTable} onChange={(e) => setAfRedistTable(e.target.value)} className="h-9" />
+                              <Label className="text-xs">{t("content.af.protocol")}</Label>
+                              <Select value={afRedistProto} onValueChange={setAfRedistProto}>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder={t("content.af.selectEllipsis")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {redistributeProtocols.map((p) => (
+                                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <Label htmlFor="bgp-af-redist-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                              <NamedListSelect id="bgp-af-redist-route-map" value={afRedistRouteMap} names={routeMapNames} onValueChange={setAfRedistRouteMap} />
+                            </div>
+                            <div className="w-[100px] space-y-1">
+                              <Label className="text-xs">{t("content.af.metric")}</Label>
+                              <Input
+                                type="number"
+                                min={REDISTRIBUTE_METRIC_RANGE.min}
+                                max={REDISTRIBUTE_METRIC_RANGE.max}
+                                value={afRedistMetric}
+                                onChange={(e) => setAfRedistMetric(e.target.value)}
+                                placeholder={t("eg", { value: "100" })}
+                                className="h-9"
+                              />
+                            </div>
+                            <Button size="sm" onClick={handleAddRedistribute} disabled={afSaving || !afRedistProto}>
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                              {tc("add")}
+                            </Button>
+                          </div>
+                        )}
+                        {hasWritePermission && (capabilities?.redistribute_table_afis ?? []).includes(selectedAfi) && (
+                          <div className="flex items-end gap-3 mt-4">
+                            <div className="w-[160px] space-y-1">
+                              <Label htmlFor="bgp-af-redist-table" className="text-xs">{t("content.af.table")}</Label>
+                              <NamedListSelect
+                                id="bgp-af-redist-table"
+                                value={afRedistTable}
+                                names={staticTableIds.filter(
+                                  (id) => !(currentAf?.redistribute ?? []).some((r) => r.protocol === "table" && r.table === id),
+                                )}
+                                onValueChange={setAfRedistTable}
+                              />
                             </div>
                             <Button
                               size="sm"
-                              disabled={afSaving || !afRedistTable.trim()}
+                              disabled={afSaving || !afRedistTable}
                               onClick={async () => {
+                                const table = afRedistTable;
+                                if (!redistributeMetricOk()) return;
                                 setAfSaving(true);
                                 setAfError(null);
                                 try {
                                   const result = await bgpService.addRedistributeTable(
                                     selectedAfi,
-                                    afRedistTable.trim(),
+                                    table,
                                     afRedistRouteMap.trim() || undefined,
                                     afRedistMetric.trim() || undefined,
                                   );
@@ -1398,8 +1596,10 @@ export function BgpContent() {
                         )}
                       </CardContent>
                     </Card>
+                    )}
 
                     {/* Aggregate Addresses */}
+                    {afLeaves.includes("aggregate-address") && (
                     <Card>
                       <CardContent className="p-6">
                         <h3 className="text-sm font-medium mb-4">{t("content.af.aggregate")}</h3>
@@ -1415,7 +1615,7 @@ export function BgpContent() {
                                 <TableHead>{t("content.af.asSet")}</TableHead>
                                 <TableHead>{t("content.af.summaryOnly")}</TableHead>
                                 <TableHead>{t("content.routeMap")}</TableHead>
-                                <TableHead className="text-right">{tc("actions")}</TableHead>
+                                {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1425,76 +1625,70 @@ export function BgpContent() {
                                   <TableCell>{agg.as_set ? t("content.yes") : t("content.no")}</TableCell>
                                   <TableCell>{agg.summary_only ? t("content.yes") : t("content.no")}</TableCell>
                                   <TableCell>{agg.route_map || <span className="text-muted-foreground">-</span>}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        setPageConfirmError(null);
-                                        setPageConfirm({ label: agg.prefix, run: () => handleDeleteAggregate(agg.prefix) });
-                                      }}
-                                      disabled={afSaving}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                                  {hasWritePermission && (
+                                    <TableCell className="text-right">
+                                      <Button
+                                        aria-label={tc("delete")}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        onClick={() => {
+                                          setPageConfirmError(null);
+                                          setPageConfirm({ label: agg.prefix, run: () => handleDeleteAggregate(agg.prefix) });
+                                        }}
+                                        disabled={afSaving}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         )}
 
-                        <div className="flex items-end gap-3 mt-4">
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.prefix")}</Label>
-                            <Input
-                              value={afAggPrefix}
-                              onChange={(e) => setAfAggPrefix(e.target.value)}
-                              placeholder={t("eg", { value: "10.0.0.0/8" })}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs">{t("content.routeMapOptional")}</Label>
-                            <Select value={afAggRouteMap || "__none__"} onValueChange={(v) => setAfAggRouteMap(v === "__none__" ? "" : v)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={tc("none")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                                {routeMapNames.map((name) => (
-                                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex items-center gap-3 pb-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <Checkbox
-                                id="agg-as-set"
-                                checked={afAggAsSet}
-                                onCheckedChange={(c) => setAfAggAsSet(c === true)}
+                        {hasWritePermission && (
+                          <div className="flex items-end gap-3 mt-4">
+                            <div className="flex-1 space-y-1">
+                              <Label className="text-xs">{t("content.prefix")}</Label>
+                              <Input
+                                value={afAggPrefix}
+                                onChange={(e) => setAfAggPrefix(e.target.value)}
+                                placeholder={t("eg", { value: "10.0.0.0/8" })}
+                                className="h-9"
                               />
-                              <Label htmlFor="agg-as-set" className="text-xs cursor-pointer">{t("content.af.asSet")}</Label>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <Checkbox
-                                id="agg-summary"
-                                checked={afAggSummaryOnly}
-                                onCheckedChange={(c) => setAfAggSummaryOnly(c === true)}
-                              />
-                              <Label htmlFor="agg-summary" className="text-xs cursor-pointer">{t("content.af.summaryOnly")}</Label>
+                            <div className="flex-1 space-y-1">
+                              <Label htmlFor="bgp-af-agg-route-map" className="text-xs">{t("content.routeMapOptional")}</Label>
+                              <NamedListSelect id="bgp-af-agg-route-map" value={afAggRouteMap} names={routeMapNames} onValueChange={setAfAggRouteMap} />
                             </div>
+                            <div className="flex items-center gap-3 pb-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                  id="agg-as-set"
+                                  checked={afAggAsSet}
+                                  onCheckedChange={(c) => setAfAggAsSet(c === true)}
+                                />
+                                <Label htmlFor="agg-as-set" className="text-xs cursor-pointer">{t("content.af.asSet")}</Label>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                  id="agg-summary"
+                                  checked={afAggSummaryOnly}
+                                  onCheckedChange={(c) => setAfAggSummaryOnly(c === true)}
+                                />
+                                <Label htmlFor="agg-summary" className="text-xs cursor-pointer">{t("content.af.summaryOnly")}</Label>
+                              </div>
+                            </div>
+                            <Button size="sm" onClick={handleAddAggregate} disabled={afSaving || !afAggPrefix.trim()}>
+                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                              {tc("add")}
+                            </Button>
                           </div>
-                          <Button size="sm" onClick={handleAddAggregate} disabled={afSaving || !afAggPrefix.trim()}>
-                            {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                            {tc("add")}
-                          </Button>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
-                    </>
                     )}
 
                     {/* Maximum Paths */}
@@ -1511,7 +1705,7 @@ export function BgpContent() {
                                 value={afMaxEbgp}
                                 onChange={(e) => setAfMaxEbgp(e.target.value)}
                                 className="h-9"
-                                disabled={afSaving}
+                                disabled={afSaving || !hasWritePermission}
                               />
                             </div>
                             <div className="w-[160px] space-y-1">
@@ -1522,20 +1716,22 @@ export function BgpContent() {
                                 value={afMaxIbgp}
                                 onChange={(e) => setAfMaxIbgp(e.target.value)}
                                 className="h-9"
-                                disabled={afSaving}
+                                disabled={afSaving || !hasWritePermission}
                               />
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={handleSaveMaximumPaths}
-                              disabled={afSaving || (
-                                afMaxEbgp.trim() === (currentAf?.maximum_paths_ebgp != null ? String(currentAf.maximum_paths_ebgp) : "")
-                                && afMaxIbgp.trim() === (currentAf?.maximum_paths_ibgp != null ? String(currentAf.maximum_paths_ibgp) : "")
-                              )}
-                            >
-                              {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                              {tc("save")}
-                            </Button>
+                            {hasWritePermission && (
+                              <Button
+                                size="sm"
+                                onClick={handleSaveMaximumPaths}
+                                disabled={afSaving || (
+                                  afMaxEbgp.trim() === (currentAf?.maximum_paths_ebgp != null ? String(currentAf.maximum_paths_ebgp) : "")
+                                  && afMaxIbgp.trim() === (currentAf?.maximum_paths_ibgp != null ? String(currentAf.maximum_paths_ibgp) : "")
+                                )}
+                              >
+                                {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                                {tc("save")}
+                              </Button>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -1554,7 +1750,7 @@ export function BgpContent() {
                   <p className="text-sm text-muted-foreground">
                     {t("content.params.description")}
                   </p>
-                  {!paramsEditing ? (
+                  {!hasWritePermission ? null : !paramsEditing ? (
                     <Button size="sm" variant="outline" onClick={handleParamsEdit}>
                       <Pencil className="h-4 w-4 mr-2" />
                       {tc("edit")}
@@ -1608,8 +1804,10 @@ export function BgpContent() {
                         {paramsEditing && editParams ? (
                           <Input
                             type="number"
+                            min={LOCAL_PREF_RANGE.min}
+                            max={LOCAL_PREF_RANGE.max}
                             value={editParams.default_local_pref ?? ""}
-                            onChange={(e) => updateParam("default_local_pref", e.target.value ? parseInt(e.target.value, 10) : null)}
+                            onChange={(e) => updateParam("default_local_pref", optionalNumber(e.target.value))}
                             placeholder="100"
                             className="h-9"
                           />
@@ -1721,20 +1919,20 @@ export function BgpContent() {
                             <Label className="text-xs">{t("content.params.bestpath.bandwidth.label")}</Label>
                             {paramsEditing && editParams ? (
                               <Select
-                                value={editParams.bestpath.bandwidth || "__none__"}
+                                value={editParams.bestpath.bandwidth || NONE_SENTINEL}
                                 onValueChange={(v) => {
                                   setEditParams({
                                     ...editParams,
                                     bestpath: {
                                       ...editParams.bestpath,
-                                      bandwidth: v === "__none__" ? null : v,
+                                      bandwidth: v === NONE_SENTINEL ? null : v,
                                     },
                                   });
                                 }}
                               >
                                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
+                                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                                   {(capabilities.features.bestpath_bandwidth.values || []).map((value) => (
                                     <SelectItem key={value} value={value}>{value}</SelectItem>
                                   ))}
@@ -1798,12 +1996,12 @@ export function BgpContent() {
                             <Label className="text-xs">{t("content.params.asNotation")}</Label>
                             {paramsEditing && editParams ? (
                               <Select
-                                value={editParams.as_notation || "__none__"}
-                                onValueChange={(v) => updateParam("as_notation", v === "__none__" ? null : v)}
+                                value={editParams.as_notation || NONE_SENTINEL}
+                                onValueChange={(v) => updateParam("as_notation", v === NONE_SENTINEL ? null : v)}
                               >
                                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__none__">{tc("none")}</SelectItem>
+                                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
                                   {(capabilities.features.as_notation.values || []).map((value) => (
                                     <SelectItem key={value} value={value}>{value}</SelectItem>
                                   ))}
@@ -1818,7 +2016,7 @@ export function BgpContent() {
                           <div className="space-y-2">
                             <Label className="text-xs">{t("content.params.inputQueueLimit")}</Label>
                             {paramsEditing && editParams ? (
-                              <Input type="number" className="h-9" value={editParams.input_queue_limit ?? ""} onChange={(e) => updateParam("input_queue_limit", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                              <Input type="number" className="h-9" min={QUEUE_LIMIT_RANGE.min} max={QUEUE_LIMIT_RANGE.max} value={editParams.input_queue_limit ?? ""} onChange={(e) => updateParam("input_queue_limit", optionalNumber(e.target.value))} />
                             ) : (
                               <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.input_queue_limit ?? tc("notSet")}</p>
                             )}
@@ -1828,7 +2026,7 @@ export function BgpContent() {
                           <div className="space-y-2">
                             <Label className="text-xs">{t("content.params.outputQueueLimit")}</Label>
                             {paramsEditing && editParams ? (
-                              <Input type="number" className="h-9" value={editParams.output_queue_limit ?? ""} onChange={(e) => updateParam("output_queue_limit", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                              <Input type="number" className="h-9" min={QUEUE_LIMIT_RANGE.min} max={QUEUE_LIMIT_RANGE.max} value={editParams.output_queue_limit ?? ""} onChange={(e) => updateParam("output_queue_limit", optionalNumber(e.target.value))} />
                             ) : (
                               <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.output_queue_limit ?? tc("notSet")}</p>
                             )}
@@ -1839,7 +2037,7 @@ export function BgpContent() {
                             <div className="space-y-2">
                               <Label className="text-xs">{t("content.params.updateDelayEstablishWait")}</Label>
                               {paramsEditing && editParams ? (
-                                <Input type="number" className="h-9" value={editParams.update_delay_establish_wait ?? ""} onChange={(e) => updateParam("update_delay_establish_wait", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                                <Input type="number" className="h-9" min={UPDATE_DELAY_ESTABLISH_WAIT_RANGE.min} max={UPDATE_DELAY_ESTABLISH_WAIT_RANGE.max} value={editParams.update_delay_establish_wait ?? ""} onChange={(e) => updateParam("update_delay_establish_wait", optionalNumber(e.target.value))} />
                               ) : (
                                 <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.update_delay_establish_wait ?? tc("notSet")}</p>
                               )}
@@ -1847,7 +2045,7 @@ export function BgpContent() {
                             <div className="space-y-2">
                               <Label className="text-xs">{t("content.params.updateDelayMaxDelay")}</Label>
                               {paramsEditing && editParams ? (
-                                <Input type="number" className="h-9" value={editParams.update_delay_max_delay ?? ""} onChange={(e) => updateParam("update_delay_max_delay", e.target.value ? parseInt(e.target.value, 10) : null)} />
+                                <Input type="number" className="h-9" min={UPDATE_DELAY_MAX_DELAY_RANGE.min} max={UPDATE_DELAY_MAX_DELAY_RANGE.max} value={editParams.update_delay_max_delay ?? ""} onChange={(e) => updateParam("update_delay_max_delay", optionalNumber(e.target.value))} />
                               ) : (
                                 <p className="text-sm font-mono p-2 bg-muted rounded-md">{config?.parameters.update_delay_max_delay ?? tc("notSet")}</p>
                               )}
@@ -1876,13 +2074,15 @@ export function BgpContent() {
                             {paramsEditing && editParams ? (
                               <Input
                                 type="number"
+                                min={DISTANCE_RANGE.min}
+                                max={DISTANCE_RANGE.max}
                                 value={dg?.[key] ?? ""}
                                 onChange={(e) => {
                                   setEditParams({
                                     ...editParams,
                                     distance_global: {
                                       ...editParams.distance_global,
-                                      [key]: e.target.value ? parseInt(e.target.value, 10) : null,
+                                      [key]: optionalNumber(e.target.value),
                                     },
                                   });
                                 }}
@@ -1913,97 +2113,118 @@ export function BgpContent() {
                     <Label className="text-xs">{t("content.bmp.mirrorBufferLimit")}</Label>
                     <Input
                       type="number"
+                      min={BMP_MIRROR_BUFFER_RANGE.min}
+                      max={BMP_MIRROR_BUFFER_RANGE.max}
                       value={bmpBuffer}
                       onChange={(e) => setBmpBuffer(e.target.value)}
                       className="h-9"
+                      disabled={!hasWritePermission}
                     />
                   </div>
-                  <Button
-                    size="sm"
-                    disabled={bmpSaving}
-                    onClick={async () => {
-                      setBmpSaving(true);
-                      setBmpError(null);
-                      try {
+                  {hasWritePermission && (
+                    <Button
+                      size="sm"
+                      disabled={bmpSaving}
+                      onClick={async () => {
                         const loaded = config?.bmp?.mirror_buffer_limit != null ? String(config.bmp.mirror_buffer_limit) : "";
                         if (bmpBuffer.trim() === loaded) return;
-                        const result = await bgpService.setBmpMirrorBufferLimit(bmpBuffer.trim() ? Number(bmpBuffer) : null);
-                        const message = failedSaveMessage(result, t("content.saveFailed"));
-                        if (message) {
-                          setBmpError(message);
+                        if (!inRange(bmpBuffer, BMP_MIRROR_BUFFER_RANGE)) {
+                          setBmpError(t("form.rangeInvalid", {
+                            field: t("content.bmp.mirrorBufferLimit"),
+                            min: BMP_MIRROR_BUFFER_RANGE.min,
+                            max: BMP_MIRROR_BUFFER_RANGE.max,
+                          }));
                           return;
                         }
-                        await loadData(true);
-                      } catch (err) {
-                        setBmpError(thrownMessage(err, t("content.saveFailed")));
-                      } finally {
-                        setBmpSaving(false);
-                      }
-                    }}
-                  >
-                    {tc("save")}
-                  </Button>
+                        setBmpSaving(true);
+                        setBmpError(null);
+                        try {
+                          const result = await bgpService.setBmpMirrorBufferLimit(optionalNumber(bmpBuffer));
+                          const message = failedSaveMessage(result, t("content.saveFailed"));
+                          if (message) {
+                            setBmpError(message);
+                            return;
+                          }
+                          await loadData(true);
+                        } catch (err) {
+                          setBmpError(thrownMessage(err, t("content.saveFailed")));
+                        } finally {
+                          setBmpSaving(false);
+                        }
+                      }}
+                    >
+                      {tc("save")}
+                    </Button>
+                  )}
                 </div>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-[140px] space-y-1">
-                    <Label className="text-xs">{tc("name")}</Label>
-                    <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" />
-                  </div>
-                  <div className="w-[160px] space-y-1">
-                    <Label className="text-xs">{t("content.address")}</Label>
-                    <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" />
-                  </div>
-                  <div className="w-[100px] space-y-1">
-                    <Label className="text-xs">{t("neighborModal.port")}</Label>
-                    <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
-                  </div>
-                  <div className="w-[100px] space-y-1">
-                    <Label className="text-xs">{t("content.bmp.minRetry")}</Label>
-                    <Input type="number" value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" />
-                  </div>
-                  <div className="w-[100px] space-y-1">
-                    <Label className="text-xs">{t("content.bmp.maxRetry")}</Label>
-                    <Input type="number" value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" />
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={bmpSaving || !bmpName.trim()}
-                    onClick={async () => {
-                      setBmpSaving(true);
-                      setBmpError(null);
-                      try {
-                        const created: BgpBmpTarget = {
-                          name: bmpName.trim(),
-                          address: bmpAddress.trim() || null,
-                          port: bmpPort.trim() ? Number(bmpPort) : null,
-                          min_retry: bmpMinRetry.trim() ? Number(bmpMinRetry) : null,
-                          max_retry: bmpMaxRetry.trim() ? Number(bmpMaxRetry) : null,
-                          mirror: false,
-                          source_interface: null,
-                          monitors: [],
-                        };
-                        const result = await bgpService.saveBmpTarget(null, created);
-                        const message = failedSaveMessage(result, t("content.saveFailed"));
-                        if (message) {
-                          setBmpError(message);
+                {hasWritePermission && (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="w-[140px] space-y-1">
+                      <Label className="text-xs">{tc("name")}</Label>
+                      <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[160px] space-y-1">
+                      <Label className="text-xs">{t("content.address")}</Label>
+                      <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[100px] space-y-1">
+                      <Label className="text-xs">{t("neighborModal.port")}</Label>
+                      <Input type="number" min={PORT_RANGE.min} max={PORT_RANGE.max} value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[100px] space-y-1">
+                      <Label className="text-xs">{t("content.bmp.minRetry")}</Label>
+                      <Input type="number" min={BMP_MIN_RETRY_RANGE.min} max={BMP_MIN_RETRY_RANGE.max} value={bmpMinRetry} onChange={(e) => setBmpMinRetry(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="w-[100px] space-y-1">
+                      <Label className="text-xs">{t("content.bmp.maxRetry")}</Label>
+                      <Input type="number" min={BMP_MAX_RETRY_RANGE.min} max={BMP_MAX_RETRY_RANGE.max} value={bmpMaxRetry} onChange={(e) => setBmpMaxRetry(e.target.value)} className="h-9" />
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={bmpSaving || !bmpName.trim()}
+                      onClick={async () => {
+                        const targetName = bmpName.trim();
+                        if (config?.bmp?.targets.some((target) => target.name === targetName)) {
+                          setBmpError(t("content.bmpTargetExists", { name: targetName }));
                           return;
                         }
-                        setBmpName("");
-                        setBmpAddress("");
-                        setBmpPort("");
-                        setBmpMinRetry("");
-                        setBmpMaxRetry("");
-                        await loadData(true);
-                      } catch (err) {
-                        setBmpError(thrownMessage(err, t("content.saveFailed")));
-                      } finally {
-                        setBmpSaving(false);
-                      }
-                    }}
-                  >
-                    {tc("add")}
-                  </Button>
-                </div>
+                        if (!bmpTargetOk(bmpAddress, { port: bmpPort, minRetry: bmpMinRetry, maxRetry: bmpMaxRetry })) return;
+                        setBmpSaving(true);
+                        setBmpError(null);
+                        try {
+                          const created: BgpBmpTarget = {
+                            name: targetName,
+                            address: bmpAddress.trim(),
+                            port: optionalNumber(bmpPort),
+                            min_retry: optionalNumber(bmpMinRetry),
+                            max_retry: optionalNumber(bmpMaxRetry),
+                            mirror: false,
+                            source_interface: null,
+                            monitors: [],
+                          };
+                          const result = await bgpService.saveBmpTarget(null, created);
+                          const message = failedSaveMessage(result, t("content.saveFailed"));
+                          if (message) {
+                            setBmpError(message);
+                            return;
+                          }
+                          setBmpName("");
+                          setBmpAddress("");
+                          setBmpPort("");
+                          setBmpMinRetry("");
+                          setBmpMaxRetry("");
+                          await loadData(true);
+                        } catch (err) {
+                          setBmpError(thrownMessage(err, t("content.saveFailed")));
+                        } finally {
+                          setBmpSaving(false);
+                        }
+                      }}
+                    >
+                      {tc("add")}
+                    </Button>
+                  </div>
+                )}
                 {(config?.bmp?.targets ?? []).length === 0 && (
                   <p className="text-sm text-muted-foreground">{tc("notSet")}</p>
                 )}
@@ -2012,75 +2233,84 @@ export function BgpContent() {
                     <CardContent className="p-6 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-mono">{target.name}</p>
-                        <Button size="sm" variant="ghost" onClick={() => { setBmpError(null); setDeletingBmpTarget(target.name); }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {hasWritePermission && (
+                          <Button size="sm" variant="ghost" aria-label={tc("delete")} disabled={bmpSaving} onClick={() => { setBmpError(null); setDeletingBmpTarget(target.name); }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {([
-                          ["address", t("content.address"), target.address ?? ""],
-                          ["port", t("neighborModal.port"), target.port ?? ""],
-                          ["min_retry", t("content.bmp.minRetry"), target.min_retry ?? ""],
-                          ["max_retry", t("content.bmp.maxRetry"), target.max_retry ?? ""],
-                        ] as const).map(([key, label, current]) => (
+                          ["address", t("content.address"), target.address ?? "", null],
+                          ["port", t("neighborModal.port"), target.port ?? "", PORT_RANGE],
+                          ["min_retry", t("content.bmp.minRetry"), target.min_retry ?? "", BMP_MIN_RETRY_RANGE],
+                          ["max_retry", t("content.bmp.maxRetry"), target.max_retry ?? "", BMP_MAX_RETRY_RANGE],
+                        ] as const).map(([key, label, current, range]) => (
                           <div key={key} className="space-y-1">
                             <Label className="text-xs">{label}</Label>
                             <Input
-                              type={key === "address" ? "text" : "number"}
+                              type={range ? "number" : "text"}
+                              min={range?.min}
+                              max={range?.max}
                               value={String((bmpEdits[target.name]?.[key] ?? current) ?? "")}
                               onChange={(e) => setBmpEdits((prev) => ({
                                 ...prev,
                                 [target.name]: { ...prev[target.name], [key]: e.target.value },
                               }))}
                               className="h-9"
+                              disabled={!hasWritePermission}
                             />
                           </div>
                         ))}
                       </div>
-                      <Button
-                        size="sm"
-                        disabled={bmpSaving}
-                        onClick={async () => {
-                          setBmpSaving(true);
-                          setBmpError(null);
-                          try {
+                      {hasWritePermission && (
+                        <Button
+                          size="sm"
+                          disabled={bmpSaving}
+                          onClick={async () => {
                             const draft = bmpEdits[target.name] ?? {};
-                            const num = (raw: string | number | null | undefined) => {
-                              if (raw == null || raw === "") return null;
-                              return Number(raw);
-                            };
-                            const updated: BgpBmpTarget = {
-                              ...target,
-                              address: draft.address != null ? (String(draft.address).trim() || null) : target.address,
-                              port: draft.port != null ? num(draft.port) : target.port,
-                              min_retry: draft.min_retry != null ? num(draft.min_retry) : target.min_retry,
-                              max_retry: draft.max_retry != null ? num(draft.max_retry) : target.max_retry,
-                            };
-                            const result = await bgpService.saveBmpTarget(target, updated);
-                            const message = failedSaveMessage(result, t("content.saveFailed"));
-                            if (message) {
-                              setBmpError(message);
-                              return;
+                            const address = draft.address ?? (target.address ?? "");
+                            const port = draft.port ?? numberText(target.port);
+                            const minRetry = draft.min_retry ?? numberText(target.min_retry);
+                            const maxRetry = draft.max_retry ?? numberText(target.max_retry);
+                            if (!bmpTargetOk(address, { port, minRetry, maxRetry })) return;
+                            setBmpSaving(true);
+                            setBmpError(null);
+                            try {
+                              const updated: BgpBmpTarget = {
+                                ...target,
+                                address: address.trim(),
+                                port: optionalNumber(port),
+                                min_retry: optionalNumber(minRetry),
+                                max_retry: optionalNumber(maxRetry),
+                              };
+                              const result = await bgpService.saveBmpTarget(target, updated);
+                              const message = failedSaveMessage(result, t("content.saveFailed"));
+                              if (message) {
+                                setBmpError(message);
+                                return;
+                              }
+                              setBmpEdits((prev) => {
+                                const next = { ...prev };
+                                delete next[target.name];
+                                return next;
+                              });
+                              await loadData(true);
+                            } catch (err) {
+                              setBmpError(thrownMessage(err, t("content.saveFailed")));
+                            } finally {
+                              setBmpSaving(false);
                             }
-                            setBmpEdits((prev) => {
-                              const next = { ...prev };
-                              delete next[target.name];
-                              return next;
-                            });
-                            await loadData(true);
-                          } catch (err) {
-                            setBmpError(thrownMessage(err, t("content.saveFailed")));
-                          } finally {
-                            setBmpSaving(false);
-                          }
-                        }}
-                      >
-                        {tc("save")}
-                      </Button>
+                          }}
+                        >
+                          {tc("save")}
+                        </Button>
+                      )}
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`bmp-mirror-${target.name}`}
                           checked={target.mirror}
+                          disabled={!hasWritePermission || bmpSaving}
                           onCheckedChange={(checked) => {
                             setBmpError(null);
                             setBmpConfirm(() => async () => {
@@ -2110,6 +2340,7 @@ export function BgpContent() {
                           <Label className="text-xs">{t("content.bmp.sourceInterface")}</Label>
                           <InterfaceSelect
                             value={target.source_interface || ""}
+                            disabled={!hasWritePermission || bmpSaving}
                             noneOption={{ label: tc("none"), value: "" }}
                             onValueChange={(value) => {
                               setBmpError(null);
@@ -2144,6 +2375,7 @@ export function BgpContent() {
                                 <Checkbox
                                   id={`bmp-${target.name}-${afi}-${policy}`}
                                   checked={target.monitors.some((item) => item.afi === afi && item.policy === policy)}
+                                  disabled={!hasWritePermission || bmpSaving}
                                   onCheckedChange={(checked) => {
                                     setBmpError(null);
                                     setBmpConfirm(() => async () => {
@@ -2190,6 +2422,10 @@ export function BgpContent() {
         }}
         existingNeighbor={editingNeighbor}
         peerGroups={config?.peer_groups.map((pg) => pg.name) ?? []}
+        peerGroupRemoteAs={Object.fromEntries(config?.peer_groups.map((pg) => [pg.name, pg.remote_as]) ?? [])}
+        systemAs={config?.system_as ?? null}
+        peerGroupMembers={peerGroupMembers}
+        configuredAddresses={config?.neighbors.map((n) => n.address) ?? []}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
         bfdProfileNames={bfdProfileNames}
@@ -2210,6 +2446,9 @@ export function BgpContent() {
           if (!open) setEditingPeerGroup(null);
         }}
         existingPeerGroup={editingPeerGroup}
+        configuredNames={config?.peer_groups.map((pg) => pg.name) ?? []}
+        systemAs={config?.system_as ?? null}
+        peerGroupMembers={peerGroupMembers}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
         bfdProfileNames={bfdProfileNames}
@@ -2224,7 +2463,7 @@ export function BgpContent() {
         onConfirm={handleDeletePeerGroup}
       />
 
-      <AlertDialog open={!!pageConfirm} onOpenChange={(open) => { if (!open) { setPageConfirm(null); setPageConfirmError(null); } }}>
+      <AlertDialog open={!!pageConfirm} onOpenChange={(open) => { if (!open && !pageConfirmSaving) { setPageConfirm(null); setPageConfirmError(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.bmp.applyChange")}</AlertDialogTitle>
@@ -2254,7 +2493,7 @@ export function BgpContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!bmpConfirm} onOpenChange={(open) => { if (!open) setBmpConfirm(null); }}>
+      <AlertDialog open={!!bmpConfirm} onOpenChange={(open) => { if (!open && !bmpSaving) setBmpConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.bmp.applyChange")}</AlertDialogTitle>
@@ -2276,7 +2515,7 @@ export function BgpContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={!!deletingBmpTarget} onOpenChange={(open) => { if (!open) setDeletingBmpTarget(null); }}>
+      <AlertDialog open={!!deletingBmpTarget} onOpenChange={(open) => { if (!open && !bmpSaving) setDeletingBmpTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.bmp.deleteTarget")}</AlertDialogTitle>

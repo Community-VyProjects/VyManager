@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,9 +33,13 @@ export function DeleteBgpNeighborModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) setError(null);
-  }, [open]);
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      if (loading) return;
+      setError(null);
+    }
+    onOpenChange(next);
+  };
 
   const handleConfirm = async (event: React.MouseEvent) => {
     event.preventDefault();
@@ -52,7 +56,7 @@ export function DeleteBgpNeighborModal({
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("deleteNeighbor.title")}</AlertDialogTitle>

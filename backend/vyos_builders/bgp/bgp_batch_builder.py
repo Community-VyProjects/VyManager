@@ -1462,27 +1462,22 @@ class BgpBatchBuilder(BatchBuilder):
             "redistribute_table_afis": sorted(self.m.redistribute_table_afis()),
             "maximum_paths_afis": sorted(self.m.maximum_paths_afis()),
             "address_family_types": {
-                "neighbor": [
-                    "ipv4-unicast", "ipv6-unicast",
-                    "ipv4-multicast", "ipv6-multicast",
-                    "ipv4-labeled-unicast", "ipv6-labeled-unicast",
-                    "ipv4-vpn", "ipv6-vpn",
-                    "ipv4-flowspec", "ipv6-flowspec",
-                    "l2vpn-evpn",
-                ],
-                "peer_group": [
-                    "ipv4-unicast", "ipv6-unicast",
-                    "ipv4-labeled-unicast", "ipv6-labeled-unicast",
-                    "ipv4-vpn", "ipv6-vpn",
-                    "l2vpn-evpn",
-                ],
-                "global": [
-                    "ipv4-unicast", "ipv6-unicast",
-                    "ipv4-multicast", "ipv6-multicast",
-                    "ipv4-labeled-unicast", "ipv6-labeled-unicast",
-                    "ipv4-vpn", "ipv6-vpn",
-                    "ipv4-flowspec", "ipv6-flowspec",
-                    "l2vpn-evpn",
-                ],
+                "neighbor": self.m.neighbor_address_families(),
+                "peer_group": self.m.peer_group_address_families(),
+                "global": self.m.address_families(),
+            },
+            "address_family_leaves": {
+                "neighbor": {
+                    afi: sorted(self.m.neighbor_af_leaves(afi))
+                    for afi in self.m.neighbor_address_families()
+                },
+                "peer_group": {
+                    afi: sorted(self.m.peer_group_af_leaves(afi))
+                    for afi in self.m.peer_group_address_families()
+                },
+                "global": {
+                    afi: sorted(self.m.af_leaves(afi))
+                    for afi in self.m.address_families()
+                },
             },
         }
