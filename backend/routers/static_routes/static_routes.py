@@ -5,7 +5,6 @@ API endpoints for ``protocols static``: routes, routing tables, the
 route-map, static ARP, multicast routes and neighbor proxy.
 """
 
-import inspect
 import logging
 from typing import Any, Dict, List, Optional, cast
 
@@ -13,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
@@ -152,7 +151,15 @@ class StaticRoutesConfig(BaseModel):
 class StaticRoutesBatchOperation(BaseModel):
     """One builder op; arguments are comma-separated in ``value``."""
     op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Comma-separated arguments")
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class StaticRoutesBatchRequest(BaseModel):
@@ -222,24 +229,7 @@ async def static_routes_batch_configure(http_request: Request, body: StaticRoute
 
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 0:
-                    method()
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(",", count - 1)
-                if len(parts) != count or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count} values",
-                    )
-                method(*parts)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as e:
             # The mapper raises ValueError for a leaf this version lacks.
             raise HTTPException(status_code=400, detail=str(e))

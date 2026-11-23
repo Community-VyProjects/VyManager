@@ -1,4 +1,4 @@
-"""Static routes router: comma-split args, version-gate 400s, failed commits.
+"""Static routes router: comma-split args, version-gate 400s, a value on a zero-arg op, failed commits.
 
 A stub service records what the handler sends. Device calls must run off the
 event loop: the app middleware records the loop thread and the stub compares
@@ -125,6 +125,18 @@ def test_batch_missing_value_is_400(client, operation):
     resp = _post(client, [operation])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == f"Operation {operation['op']} requires a value"
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("value", ["T-RM", "x"])
+def test_batch_value_on_zero_arg_op_is_400(client, value):
+    """A value on a zero-arg op is 400, not the op run with the value dropped."""
+    resp = _post(client, [
+        {"op": "set_ipv4_route", "value": "198.51.100.0/24"},
+        {"op": "delete_route_map", "value": value},
+    ])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "Operation delete_route_map takes no value"
     assert client.executed == []
 
 
