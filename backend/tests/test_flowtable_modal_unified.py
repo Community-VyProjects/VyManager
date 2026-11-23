@@ -22,14 +22,12 @@ def test_unified_modal_has_existing_and_both_ops():
     text = (FW / "FlowtableModal.tsx").read_text()
     assert "existing?: Flowtable | null" in text
     assert "const isEdit = !!existing" in text
-    assert "createFlowtable" in text
-    assert "updateFlowtable" in text
-    assert 't("modal.nameHintEdit")' in text
-    assert (
-        en_message(REPO, "firewallFlowtables.json", "modal.nameHintEdit")
-        == "Flowtable name cannot be changed. Delete and recreate to rename."
-    )
+    assert "flowtablesService.saveFlowtable(existing ?? null, draft)" in text
     assert "disabled={isEdit}" in text
+    assert (
+        en_message(REPO, "firewallFlowtables.json", "modal.editTitle")
+        == "Edit Flowtable: {name}"
+    )
 
 
 def test_flowtables_page_uses_unified_modal():

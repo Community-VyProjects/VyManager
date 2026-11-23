@@ -5,14 +5,18 @@ Handles path generation for VyOS flowtable commands.
 Flowtables syntax is the same in VyOS 1.4 and 1.5.
 """
 
-from typing import List
+from typing import Any, Dict, List
+
+from ..base import BaseFeatureMapper
 
 
-class FlowtablesMapper:
+class FlowtablesMapper(BaseFeatureMapper):
     """Mapper for firewall flowtable commands."""
 
-    def __init__(self, version: str):
-        self.version = version
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .flowtables_config_parse import parse_config as parse_flowtables_config
+
+        return parse_flowtables_config(self, full_config)
 
     # ========================================================================
     # Flowtable paths
@@ -33,10 +37,6 @@ class FlowtablesMapper:
     def get_flowtable_interface(self, name: str, interface: str) -> List[str]:
         """Get path for flowtable interface."""
         return ["firewall", "flowtable", name, "interface", interface]
-
-    def get_flowtable_interface_path(self, name: str) -> List[str]:
-        """Get path for flowtable interfaces (for delete all)."""
-        return ["firewall", "flowtable", name, "interface"]
 
     def get_flowtable_offload(self, name: str, offload_type: str) -> List[str]:
         """Get path for flowtable offload type (hardware or software)."""

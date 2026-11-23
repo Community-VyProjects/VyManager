@@ -43,10 +43,15 @@ import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { FlowtableModal } from "@/components/firewall/FlowtableModal";
 import { DeleteFlowtableModal } from "@/components/firewall/DeleteFlowtableModal";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
+import type { ApiError } from "@/lib/types/api";
 
 export default function FlowtablesPage() {
   const t = useTranslations("firewallFlowtables");
   const tc = useTranslations("common");
+  const { canWrite } = usePermissions();
+  const hasWrite = canWrite(FeatureGroup.FIREWALL_FLOWTABLES);
   // Data state
   const [config, setConfig] = useState<FlowtablesConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<FlowtablesCapabilities | null>(null);
@@ -66,7 +71,7 @@ export default function FlowtablesPage() {
       const data = await flowtablesService.getConfig(refresh);
       setConfig(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.loadFailed"));
+      setError((err as ApiError).message || t("page.loadFailed"));
       console.error("Error fetching flowtables config:", err);
     } finally {
       setLoading(false);
@@ -142,10 +147,12 @@ export default function FlowtablesPage() {
               >
                 <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
               </Button>
-              <Button onClick={() => setCreateModalOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("createFlowtable")}
-              </Button>
+              {hasWrite && (
+                <Button onClick={() => setCreateModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("createFlowtable")}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -212,7 +219,7 @@ export default function FlowtablesPage() {
                       ? t("page.adjustSearch")
                       : t("page.emptyDescription")}
                   </p>
-                  {!searchQuery && (
+                  {!searchQuery && hasWrite && (
                     <Button onClick={() => setCreateModalOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       {t("page.createFirst")}
@@ -230,7 +237,9 @@ export default function FlowtablesPage() {
                     <TableHead className="w-[300px]">{tc("description")}</TableHead>
                     <TableHead>{t("interfaces")}</TableHead>
                     <TableHead className="w-[150px]">{t("offloadType")}</TableHead>
-                    <TableHead className="w-[100px] text-right">{tc("actions")}</TableHead>
+                    {hasWrite && (
+                      <TableHead className="w-[100px] text-right">{tc("actions")}</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -265,31 +274,33 @@ export default function FlowtablesPage() {
                           className={cn("gap-1 capitalize", getOffloadBadgeClass(ft.offload))}
                         >
                           {getOffloadIcon(ft.offload)}
-                          {ft.offload || "software"}
+                          {ft.offload || tc("default")}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditingFlowtable(ft)}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {tc("edit")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setDeletingFlowtable(ft)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {tc("delete")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      {hasWrite && (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setEditingFlowtable(ft)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {tc("edit")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeletingFlowtable(ft)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {tc("delete")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -300,25 +311,30 @@ export default function FlowtablesPage() {
       </div>
 
       {/* Modals */}
-      <FlowtableModal
-        open={createModalOpen || !!editingFlowtable}
-        onOpenChange={(open) => {
-          if (!open) {
-            setCreateModalOpen(false);
-            setEditingFlowtable(null);
-          }
-        }}
-        onSuccess={() => fetchConfig(true)}
-        existingFlowtables={flowtables}
-        existing={editingFlowtable}
-      />
+      {hasWrite && (createModalOpen || editingFlowtable) && (
+        <FlowtableModal
+          key={editingFlowtable?.name ?? ""}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCreateModalOpen(false);
+              setEditingFlowtable(null);
+            }
+          }}
+          onSuccess={() => fetchConfig(true)}
+          existingFlowtables={flowtables}
+          existing={editingFlowtable}
+          offloadTypes={capabilities?.offload_types || []}
+        />
+      )}
 
-      <DeleteFlowtableModal
-        open={!!deletingFlowtable}
-        onOpenChange={(open) => !open && setDeletingFlowtable(null)}
-        onSuccess={() => fetchConfig(true)}
-        flowtable={deletingFlowtable}
-      />
+      {hasWrite && deletingFlowtable && (
+        <DeleteFlowtableModal
+          key={deletingFlowtable.name}
+          onOpenChange={(open) => !open && setDeletingFlowtable(null)}
+          onSuccess={() => fetchConfig(true)}
+          flowtable={deletingFlowtable}
+        />
+      )}
     </AppLayout>
   );
 }

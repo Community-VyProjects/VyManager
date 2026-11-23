@@ -1,0 +1,46 @@
+"""Read-model for firewall flowtable config.
+
+Mappers own the VyOS tree. Routers call parse_config and do not walk it.
+"""
+
+from typing import Any, Dict, List, Optional
+
+
+def _names(value: Any) -> List[str]:
+    """A multi leaf: one value is a string, several are a list."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, dict):
+        return list(value.keys())
+    return []
+
+
+def _text(value: Any) -> Optional[str]:
+    return value if isinstance(value, str) else None
+
+
+def _value(value: Any) -> Optional[str]:
+    """A value leaf: a string, or a one-key dict ({"software": {}})."""
+    if isinstance(value, dict):
+        return next(iter(value), None)
+    return _text(value)
+
+
+def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Return {"flowtables": [...], "total": n} for the flowtables response."""
+    firewall = (full_config or {}).get("firewall")
+    tables = firewall.get("flowtable") if isinstance(firewall, dict) else None
+    flowtables = []
+    if isinstance(tables, dict):
+        for name, data in tables.items():
+            if not isinstance(data, dict):
+                continue
+            flowtables.append({
+                "name": name,
+                "description": _text(data.get("description")),
+                "interfaces": _names(data.get("interface")),
+                "offload": _value(data.get("offload")),
+            })
+    return {"flowtables": flowtables, "total": len(flowtables)}
