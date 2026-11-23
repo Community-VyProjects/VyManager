@@ -446,7 +446,7 @@ def _zone(name):
 
 def test_provision_wires_chains_to_the_device_local_zone(zoned):
     test_client, executed = zoned
-    resp = _provision(test_client, default_action="reject", is_first_zone=True)
+    resp = _provision(test_client, default_action="reject")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": True, "data": {"message": "Zone provisioned"}, "error": None}
     assert len(executed) == 1
@@ -460,7 +460,7 @@ def test_provision_wires_chains_to_the_device_local_zone(zoned):
     assert ("set", ["firewall", "ipv4", "name", "DMZ-LAN", "default-action", "drop"]) in ops
     assert ("set", LAN + ["from", "ROUTER", "firewall", "name", "ROUTER-LAN"]) in ops
     assert ("set", _zone("ROUTER") + ["from", "LAN", "firewall", "ipv6-name", "LAN-ROUTER-V6"]) in ops
-    # The existing local zone is reused, even when the client says first zone.
+    # The existing local zone is reused under its own name.
     assert not [path for _op, path in ops if "LOCAL" in path or "local-zone" in path]
 
 
@@ -475,12 +475,29 @@ def test_provision_first_zone_creates_the_local_zone(monkeypatch, commit):
     assert ("set", LAN + ["intra-zone-filtering", "firewall", "ipv6-name", "LAN-LAN-V6"]) in ops
 
 
-@pytest.mark.parametrize("existing", [["WAN"], ["WAN", "DMZ", "GONE"]])
-def test_provision_peers_must_match_the_device(zoned, existing):
+def test_provision_first_zone_reuses_an_existing_local_zone(monkeypatch):
+    tree = {"firewall": {"zone": {"ROUTER": {"local-zone": {}}}}}
+    test_client, executed = zones_client(monkeypatch, "1.5", full_config=tree)
+    resp = _provision(test_client, existing_zones=[], is_first_zone=True)
+    assert resp.status_code == 200, resp.text
+    ops = executed[0]
+    assert ("set", LAN + ["from", "ROUTER", "firewall", "name", "ROUTER-LAN"]) in ops
+    assert not [path for _op, path in ops if "LOCAL" in path or "local-zone" in path]
+
+
+@pytest.mark.parametrize("body", [
+    {"existing_zones": ["WAN"]},
+    {"existing_zones": ["WAN", "DMZ", "GONE"]},
+    {"existing_zones": ["WAN", "DMZ", "ROUTER"]},
+    {"existing_zones": ["WAN", "DMZ", "LAN"]},
+    {"is_first_zone": True},
+])
+def test_provision_peers_must_match_the_device(zoned, body):
+    """A first-zone flag with zones present would add a local zone that drops their traffic."""
     test_client, executed = zoned
-    resp = _provision(test_client, existing_zones=existing)
+    resp = _provision(test_client, **body)
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "existing_zones must list every other non-local zone on the device"
+    assert resp.json()["detail"] == "existing_zones and is_first_zone must match the zones on the device"
     assert executed == []
 
 
@@ -494,9 +511,10 @@ def test_provision_never_overwrites_an_existing_ruleset(monkeypatch, family, cha
     assert executed == []
 
 
-def test_provision_without_a_local_zone_needs_first_zone(monkeypatch):
-    test_client, executed = zones_client(monkeypatch, "1.5")
-    resp = _provision(test_client, existing_zones=[])
+def test_provision_with_zones_but_no_local_zone_is_400(monkeypatch):
+    tree = {"firewall": {"zone": {"WAN": {}}}}
+    test_client, executed = zones_client(monkeypatch, "1.5", full_config=tree)
+    resp = _provision(test_client, existing_zones=["WAN"])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "The device has no local zone"
     assert executed == []
@@ -511,20 +529,12 @@ def test_provision_existing_zone_is_400(zoned, name):
     assert executed == []
 
 
-def test_provision_local_zone_as_peer_is_400(zoned):
-    test_client, executed = zoned
-    resp = _provision(test_client, existing_zones=["WAN", "ROUTER"])
-    assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "The local zone ROUTER cannot be a peer or the zone itself"
-    assert executed == []
-
-
 def test_provision_new_local_zone_name_is_400(monkeypatch):
     """The first zone cannot take the name the new local zone gets."""
     test_client, executed = zones_client(monkeypatch, "1.5")
     resp = _provision(test_client, zone_name="LOCAL", existing_zones=[], is_first_zone=True)
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "The local zone LOCAL cannot be a peer or the zone itself"
+    assert resp.json()["detail"] == "Zone LOCAL is the local zone"
     assert executed == []
 
 
@@ -551,7 +561,6 @@ def test_provision_skips_a_blank_description(zoned):
     {"existing_zones": [""]},
     {"existing_zones": ["WAN", "WAN"]},
     {"existing_zones": ["WAN", "WAN "]},
-    {"existing_zones": ["LAN"]},
 ])
 def test_provision_rejects_bad_names(zoned, body):
     """Each name becomes a path node or a pair chain name."""
@@ -565,7 +574,6 @@ def test_provision_rejects_bad_names(zoned, body):
     {"peer_zones": [""]},
     {"peer_zones": ["DMZ", "DMZ"]},
     {"peer_zones": ["DMZ "]},
-    {"peer_zones": ["WAN"]},
 ])
 def test_deprovision_rejects_bad_names(zoned, body):
     test_client, executed = zoned
@@ -644,6 +652,7 @@ def test_deprovision_without_a_local_zone_deletes_only_what_exists(monkeypatch):
 @pytest.mark.parametrize("body", [
     {"peer_zones": []},
     {"peer_zones": ["DMZ", "GONE"]},
+    {"peer_zones": ["DMZ", "WAN"]},
     {"is_last_zone": True},
 ])
 def test_deprovision_peers_must_match_the_device(zoned, body):
@@ -662,12 +671,19 @@ def test_deprovision_missing_zone_is_404(zoned):
     assert executed == []
 
 
-@pytest.mark.parametrize("body", [{"zone_name": "ROUTER"}, {"peer_zones": ["DMZ", "ROUTER"]}])
-def test_deprovision_local_zone_as_subject_or_peer_is_400(zoned, body):
+def test_deprovision_the_local_zone_is_400(zoned):
     test_client, executed = zoned
-    resp = _deprovision(test_client, **body)
+    resp = _deprovision(test_client, zone_name="ROUTER", peer_zones=["WAN", "DMZ"])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "The local zone ROUTER cannot be a peer or the zone itself"
+    assert resp.json()["detail"] == "Zone ROUTER is the local zone"
+    assert executed == []
+
+
+def test_deprovision_local_zone_as_peer_is_400(zoned):
+    test_client, executed = zoned
+    resp = _deprovision(test_client, peer_zones=["DMZ", "ROUTER"])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "peer_zones and is_last_zone must match the zones on the device"
     assert executed == []
 
 

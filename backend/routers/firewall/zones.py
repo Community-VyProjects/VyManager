@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Literal, Optional, Set, Tuple, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.firewall import (
     FirewallZonesBatchBuilder,
@@ -52,12 +52,6 @@ def _names_not_blank_or_repeated(values: List[str]) -> List[str]:
     return values
 
 
-def _not_self(zone_name: str, peers: List[str]) -> None:
-    """Pair chains and from-zone refs are built from these names."""
-    if zone_name in peers:
-        raise ValueError("peer zones must not include the zone itself")
-
-
 def _local_zone_name(parsed: Dict[str, Any]) -> Optional[str]:
     """The configured zone marked local-zone, whatever it is called."""
     for zone in parsed["zones"]:
@@ -66,11 +60,12 @@ def _local_zone_name(parsed: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _reject_local_peer(local: str, zone_name: str, peers: List[str]) -> None:
-    if zone_name == local or local in peers:
+def _reject_local_zone_name(local: str, zone_name: str) -> None:
+    """Provision and deprovision act on a non-local zone, never the local one."""
+    if zone_name == local:
         raise HTTPException(
             status_code=400,
-            detail=f"The local zone {local} cannot be a peer or the zone itself",
+            detail=f"Zone {zone_name} is the local zone",
         )
 
 
@@ -149,11 +144,6 @@ class ZoneProvisionRequest(BaseModel):
     _zone_name = field_validator("zone_name")(_zone_name_not_blank)
     _names = field_validator("interfaces", "vrfs", "existing_zones")(_names_not_blank_or_repeated)
 
-    @model_validator(mode="after")
-    def _peers(self) -> "ZoneProvisionRequest":
-        _not_self(self.zone_name, self.existing_zones)
-        return self
-
 
 class ZoneDeprovisionRequest(BaseModel):
     """Request to atomically remove a zone and all its chains/policies."""
@@ -169,11 +159,6 @@ class ZoneDeprovisionRequest(BaseModel):
 
     _zone_name = field_validator("zone_name")(_zone_name_not_blank)
     _names = field_validator("peer_zones")(_names_not_blank_or_repeated)
-
-    @model_validator(mode="after")
-    def _peers(self) -> "ZoneDeprovisionRequest":
-        _not_self(self.zone_name, self.peer_zones)
-        return self
 
 
 class ZoneFromPolicy(BaseModel):
@@ -377,17 +362,18 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
         name = request.zone_name
         if any(zone["name"] == name for zone in parsed["zones"]):
             raise HTTPException(status_code=400, detail=f"Zone {name} already exists")
+        others = _non_local_zones(parsed, name)
+        if set(request.existing_zones) != others or request.is_first_zone != (not others):
+            raise HTTPException(
+                status_code=400,
+                detail="existing_zones and is_first_zone must match the zones on the device",
+            )
         local = _local_zone_name(parsed)
         if local is None and not request.is_first_zone:
             raise HTTPException(status_code=400, detail="The device has no local zone")
         create_local = local is None
         local = local or LOCAL_ZONE
-        _reject_local_peer(local, name, request.existing_zones)
-        if set(request.existing_zones) != _non_local_zones(parsed, name):
-            raise HTTPException(
-                status_code=400,
-                detail="existing_zones must list every other non-local zone on the device",
-            )
+        _reject_local_zone_name(local, name)
 
         # Each (src, dst) pair gets an IPv4 and an IPv6 chain, wired as
         # zone dst, from src. src == dst is the intra-zone chain.
@@ -494,7 +480,7 @@ async def deprovision_zone(http_request: Request, request: ZoneDeprovisionReques
             raise HTTPException(status_code=404, detail=f"Zone {name} does not exist")
         local = _local_zone_name(parsed)
         if local is not None:
-            _reject_local_peer(local, name, request.peer_zones)
+            _reject_local_zone_name(local, name)
         peers = _non_local_zones(parsed, name)
         if set(request.peer_zones) != peers or request.is_last_zone != (not peers):
             raise HTTPException(
