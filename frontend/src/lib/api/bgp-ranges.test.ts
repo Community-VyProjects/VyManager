@@ -7,12 +7,13 @@ import {
   firstRangeProblem,
   inRange,
   isIPv4Address,
-  isNeighborAddress,
+  isIPAddress,
   NEIGHBOR_AF_RANGES,
   NEIGHBOR_RANGES,
   numberText,
   OVERVIEW_RANGES,
   PARAMETERS_RANGES,
+  parametersProblem,
   PEER_GROUP_RANGES,
   REDISTRIBUTE_METRIC_RANGE,
   sameNeighborAddress,
@@ -109,13 +110,24 @@ describe("BGP ranges", () => {
     assert.equal(firstRangeProblem({ port: "65536", minRetry: "", maxRetry: "" }, BMP_TARGET_RANGES)?.field, "port");
   });
 
+  it("applies the lab verify rules across parameter leaves", () => {
+    const none = { distanceExternal: null, distanceInternal: null, distanceLocal: null, updateDelayEstablishWait: null, updateDelayMaxDelay: null };
+    assert.equal(parametersProblem(none), null);
+    assert.equal(parametersProblem({ ...none, distanceExternal: 20, distanceInternal: 200, distanceLocal: 200 }), null);
+    assert.equal(parametersProblem({ ...none, distanceExternal: 20 }), "distanceIncomplete");
+    assert.equal(parametersProblem({ ...none, updateDelayMaxDelay: 0 }), null);
+    assert.equal(parametersProblem({ ...none, updateDelayEstablishWait: 10 }), "updateDelayNeedsMaxDelay");
+    assert.equal(parametersProblem({ ...none, updateDelayEstablishWait: 10, updateDelayMaxDelay: 5 }), "updateDelayEstablishTooLarge");
+    assert.equal(parametersProblem({ ...none, updateDelayEstablishWait: 10, updateDelayMaxDelay: 10 }), null);
+  });
+
   it("accepts only addresses the lab ipaddrcheck accepts", () => {
-    assert.equal(isNeighborAddress("192.0.2.1"), true);
-    assert.equal(isNeighborAddress("2001:db8::1"), true);
-    assert.equal(isNeighborAddress("192.0.2.01"), false);
-    assert.equal(isNeighborAddress("fe80::1%eth0"), false);
-    assert.equal(isNeighborAddress("foo.bar"), false);
-    assert.equal(isNeighborAddress("eth0"), false);
+    assert.equal(isIPAddress("192.0.2.1"), true);
+    assert.equal(isIPAddress("2001:db8::1"), true);
+    assert.equal(isIPAddress("192.0.2.01"), false);
+    assert.equal(isIPAddress("fe80::1%eth0"), false);
+    assert.equal(isIPAddress("foo.bar"), false);
+    assert.equal(isIPAddress("eth0"), false);
     assert.equal(isIPv4Address("10.0.0.1"), true);
     assert.equal(isIPv4Address("10.0.0.01"), false);
     assert.equal(isIPv4Address("2001:db8::1"), false);

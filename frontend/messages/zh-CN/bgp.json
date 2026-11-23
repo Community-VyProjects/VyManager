@@ -105,6 +105,9 @@
       "outputQueueLimit": "输出队列限制",
       "updateDelayEstablishWait": "建立等待",
       "updateDelayMaxDelay": "最大延迟",
+      "updateDelayNeedsMaxDelay": "设置建立等待时必须设置最大延迟。",
+      "updateDelayEstablishTooLarge": "建立等待不能大于最大延迟。",
+      "distanceIncomplete": "三个管理距离须全部设置或全部留空。",
       "sessionTitle": "AS 表示法与队列",
       "distanceTitle": "管理距离",
       "flags": {
@@ -174,6 +177,7 @@
     "rangeInvalid": "{field} 必须是 {min} 到 {max} 之间的整数。",
     "afRangeInvalid": "{afi}：{field} 必须是 {min} 到 {max} 之间的整数。",
     "ipv4Invalid": "{field} 必须是有效的 IPv4 地址。",
+    "ipAddressInvalid": "{field} 必须是有效的 IPv4 或 IPv6 地址。",
     "overrideCapabilityHelp": "覆盖能力协商结果。",
     "disableCapNeg": "禁用能力协商",
     "disableConnectedCheck": "禁用直连检查",

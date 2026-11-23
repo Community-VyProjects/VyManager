@@ -113,6 +113,24 @@ export function numberText(value: number | string | null | undefined): string {
   return value == null ? "" : String(value);
 }
 
+/** Lab verify rules across parameter leaves, as a `content.params.*` message key. */
+export function parametersProblem(values: {
+  distanceExternal: number | null | undefined;
+  distanceInternal: number | null | undefined;
+  distanceLocal: number | null | undefined;
+  updateDelayEstablishWait: number | null | undefined;
+  updateDelayMaxDelay: number | null | undefined;
+}): "distanceIncomplete" | "updateDelayNeedsMaxDelay" | "updateDelayEstablishTooLarge" | null {
+  const distances = [values.distanceExternal, values.distanceInternal, values.distanceLocal];
+  const setCount = distances.filter((d) => d != null).length;
+  if (setCount > 0 && setCount < distances.length) return "distanceIncomplete";
+  const establish = values.updateDelayEstablishWait;
+  const maxDelay = values.updateDelayMaxDelay;
+  if (establish != null && maxDelay == null) return "updateDelayNeedsMaxDelay";
+  if (establish != null && maxDelay != null && establish > maxDelay) return "updateDelayEstablishTooLarge";
+  return null;
+}
+
 export type NeighborAfRangeField = "maximumPrefix" | "allowasIn" | "weight";
 
 export const NEIGHBOR_AF_RANGES: Record<NeighborAfRangeField, NumberRange> = {
@@ -122,7 +140,7 @@ export const NEIGHBOR_AF_RANGES: Record<NeighborAfRangeField, NumberRange> = {
 };
 
 /** A single IPv4 or IPv6 address as the lab's ipaddrcheck accepts it (no leading-zero octet, no zone). */
-export function isNeighborAddress(value: string): boolean {
+export function isIPAddress(value: string): boolean {
   const text = value.trim();
   if (text.includes("%")) return false;
   if (isValidIPv4(text)) return isIPv4Address(text);

@@ -139,7 +139,7 @@ describe("named list select", () => {
       assert.doesNotMatch(src, /<SelectItem value="restart">/);
     }
     assert.match(neighbor, /!isEditMode && configuredAddresses\.some\(\(a\) => sameNeighborAddress\(a, trimmed\)\)/);
-    assert.match(neighbor, /!isEditMode && !isNeighborAddress\(trimmed\)/);
+    assert.match(neighbor, /!isEditMode && !isIPAddress\(trimmed\)/);
     assert.match(neighbor, /firstRangeProblem\(/);
     assert.match(neighbor, /NEIGHBOR_AF_RANGES/);
     assert.match(peerGroup, /PEER_GROUP_RANGES/);
@@ -159,6 +159,7 @@ describe("named list select", () => {
     assert.match(page, /staticRoutesService\.getConfig\(\)/);
     assert.match(page, /names=\{staticTableIds\.filter\(/);
     assert.doesNotMatch(page, /<Input type="number" value=\{afRedistTable\}/);
+    assert.match(page, /setAfRedistProto\(""\);\n\s*setAfRedistTable\(""\);\n\s*\}, \[selectedAfi\]\);/);
     assert.match(page, /content\.bmpTargetExists/);
     assert.match(page, /\.filter\(\(p\) => !currentAf\?\.redistribute\.some\(\(r\) => r\.protocol === p\)\)/);
     const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");

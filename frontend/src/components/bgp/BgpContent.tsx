@@ -84,12 +84,14 @@ import {
   firstRangeProblem,
   HOLDTIME_RANGE,
   inRange,
+  isIPAddress,
   isIPv4Address,
   KEEPALIVE_RANGE,
   LOCAL_PREF_RANGE,
   numberText,
   OVERVIEW_RANGES,
   PARAMETERS_RANGES,
+  parametersProblem,
   PORT_RANGE,
   QUEUE_LIMIT_RANGE,
   REDISTRIBUTE_METRIC_RANGE,
@@ -254,6 +256,7 @@ export function BgpContent() {
 
   useEffect(() => {
     setAfRedistProto("");
+    setAfRedistTable("");
   }, [selectedAfi]);
 
   useEffect(() => {
@@ -484,8 +487,12 @@ export function BgpContent() {
     return false;
   };
 
-  /** Shows the range error and returns false when a BMP target number is outside the lab range. */
-  const bmpTargetRangeOk = (values: Record<BmpTargetRangeField, string>): boolean => {
+  /** Shows the error and returns false when a BMP target address or number is not one the lab accepts. */
+  const bmpTargetOk = (address: string, values: Record<BmpTargetRangeField, string>): boolean => {
+    if (address.trim() && !isIPAddress(address)) {
+      setBmpError(t("form.ipAddressInvalid", { field: t("content.address") }));
+      return false;
+    }
     const range = firstRangeProblem(values, BMP_TARGET_RANGES);
     if (!range) return true;
     setBmpError(t("form.rangeInvalid", {
@@ -663,6 +670,17 @@ export function BgpContent() {
     }
     if (editParams.cluster_id?.trim() && !isIPv4Address(editParams.cluster_id)) {
       setParamsError(t("form.ipv4Invalid", { field: t("content.params.clusterId") }));
+      return;
+    }
+    const problem = parametersProblem({
+      distanceExternal: editParams.distance_global?.external,
+      distanceInternal: editParams.distance_global?.internal,
+      distanceLocal: editParams.distance_global?.local,
+      updateDelayEstablishWait: editParams.update_delay_establish_wait,
+      updateDelayMaxDelay: editParams.update_delay_max_delay,
+    });
+    if (problem) {
+      setParamsError(t(`content.params.${problem}`));
       return;
     }
     setParamsSaving(true);
@@ -2156,7 +2174,7 @@ export function BgpContent() {
                           setBmpError(t("content.bmpTargetExists", { name: targetName }));
                           return;
                         }
-                        if (!bmpTargetRangeOk({ port: bmpPort, minRetry: bmpMinRetry, maxRetry: bmpMaxRetry })) return;
+                        if (!bmpTargetOk(bmpAddress, { port: bmpPort, minRetry: bmpMinRetry, maxRetry: bmpMaxRetry })) return;
                         setBmpSaving(true);
                         setBmpError(null);
                         try {
@@ -2237,16 +2255,17 @@ export function BgpContent() {
                           disabled={bmpSaving}
                           onClick={async () => {
                             const draft = bmpEdits[target.name] ?? {};
+                            const address = draft.address ?? (target.address ?? "");
                             const port = draft.port ?? numberText(target.port);
                             const minRetry = draft.min_retry ?? numberText(target.min_retry);
                             const maxRetry = draft.max_retry ?? numberText(target.max_retry);
-                            if (!bmpTargetRangeOk({ port, minRetry, maxRetry })) return;
+                            if (!bmpTargetOk(address, { port, minRetry, maxRetry })) return;
                             setBmpSaving(true);
                             setBmpError(null);
                             try {
                               const updated: BgpBmpTarget = {
                                 ...target,
-                                address: draft.address != null ? (draft.address.trim() || null) : target.address,
+                                address: address.trim() || null,
                                 port: optionalNumber(port),
                                 min_retry: optionalNumber(minRetry),
                                 max_retry: optionalNumber(maxRetry),

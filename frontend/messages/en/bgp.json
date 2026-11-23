@@ -105,6 +105,9 @@
       "outputQueueLimit": "Output queue limit",
       "updateDelayEstablishWait": "Establish wait",
       "updateDelayMaxDelay": "Max delay",
+      "updateDelayNeedsMaxDelay": "Establish wait requires a max delay.",
+      "updateDelayEstablishTooLarge": "Establish wait cannot be greater than max delay.",
+      "distanceIncomplete": "Set all three administrative distances, or none.",
       "sessionTitle": "AS notation and queues",
       "distanceTitle": "Administrative Distance",
       "flags": {
@@ -174,6 +177,7 @@
     "rangeInvalid": "{field} must be a whole number from {min} to {max}.",
     "afRangeInvalid": "{afi}: {field} must be a whole number from {min} to {max}.",
     "ipv4Invalid": "{field} must be a valid IPv4 address.",
+    "ipAddressInvalid": "{field} must be a valid IPv4 or IPv6 address.",
     "overrideCapabilityHelp": "Override capability negotiation result.",
     "disableCapNeg": "Disable Capability Negotiation",
     "disableConnectedCheck": "Disable Connected Check",

@@ -33,7 +33,7 @@ import {
   EBGP_MULTIHOP_RANGE,
   firstRangeProblem,
   HOLDTIME_RANGE,
-  isNeighborAddress,
+  isIPAddress,
   KEEPALIVE_RANGE,
   MAXIMUM_PREFIX_RANGE,
   NEIGHBOR_AF_RANGES,
@@ -410,7 +410,7 @@ export function BgpNeighborModal({
     if (!trimmed) {
       return t("neighborModal.addressRequired");
     }
-    if (!isEditMode && !isNeighborAddress(trimmed)) {
+    if (!isEditMode && !isIPAddress(trimmed)) {
       return t("neighborModal.addressInvalid");
     }
     if (!isEditMode && configuredAddresses.some((a) => sameNeighborAddress(a, trimmed))) {
