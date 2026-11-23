@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -26,182 +26,118 @@ import {
   Layers,
   Settings2,
 } from "lucide-react";
-import { ConntrackSyncConfig, ConntrackSyncInterface } from "@/lib/api/conntrack-sync";
+import type { ConntrackSyncConfig, ConntrackSyncFeatures } from "@/lib/api/conntrack-sync";
+import {
+  conntrackSyncDraft,
+  conntrackSyncProblem,
+  type ConntrackSyncDraft,
+  type ConntrackSyncInterfaceDraft,
+} from "@/lib/api/conntrack-sync-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 
 interface ConntrackSyncModalProps {
-  open: boolean;
   config: ConntrackSyncConfig;
+  features: ConntrackSyncFeatures;
   onClose: () => void;
-  onSubmit: (updated: ConntrackSyncConfig) => Promise<void>;
+  onSubmit: (draft: ConntrackSyncDraft) => Promise<void>;
 }
 
-const ACCEPT_PROTOCOLS = ["tcp", "udp", "icmp", "icmp6", "sctp", "dccp"] as const;
-const EXPECT_SYNC_PROTOCOLS = ["all", "ftp", "sip", "h323", "nfs", "sqlnet"] as const;
+type ListField = "accept_protocols" | "expect_sync" | "listen_addresses" | "ignore_addresses";
 
-interface IfaceRow extends ConntrackSyncInterface {
-  key: number;
-}
-
-export function ConntrackSyncModal({ open, config, onClose, onSubmit }: ConntrackSyncModalProps) {
+/** Mounted only while open, so the draft starts from the loaded config. */
+export function ConntrackSyncModal({ config, features, onClose, onSubmit }: ConntrackSyncModalProps) {
   const t = useTranslations("conntrackSync");
   const tc = useTranslations("common");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Available interfaces from VyOS
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
+  const [interfacesLoading, setInterfacesLoading] = useState(true);
 
-  // Tab 1 — Interfaces
-  const [ifaceRows, setIfaceRows] = useState<IfaceRow[]>([]);
-  const [nextKey, setNextKey] = useState(0);
-
-  // Tab 2 — Protocols & Failover
-  const [acceptProtocols, setAcceptProtocols] = useState<string[]>([]);
-  const [expectSync, setExpectSync] = useState<string[]>([]);
-  const [vrrpSyncGroup, setVrrpSyncGroup] = useState("");
-
-  // Tab 3 — Advanced
-  const [eventListenQueueSize, setEventListenQueueSize] = useState("");
-  const [syncQueueSize, setSyncQueueSize] = useState("");
-  const [mcastGroup, setMcastGroup] = useState("");
-  const [listenAddresses, setListenAddresses] = useState<string[]>([]);
+  const [draft, setDraft] = useState<ConntrackSyncDraft>(() => conntrackSyncDraft(config));
   const [listenInput, setListenInput] = useState("");
-  const [ignoreAddresses, setIgnoreAddresses] = useState<string[]>([]);
   const [ignoreInput, setIgnoreInput] = useState("");
-  const [disableExternalCache, setDisableExternalCache] = useState(false);
-  const [disableSyslog, setDisableSyslog] = useState(false);
-  const [startupResync, setStartupResync] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
-    setError(null);
-
-    // Load available interfaces (non-critical)
-    setInterfacesLoading(true);
-    showService.getAllInterfaces()
-      .then((res) => setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
+    let active = true;
+    showService
+      .getAllInterfaces()
+      .then((res) => {
+        if (active) setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name)));
+      })
       .catch(() => {/* non-critical */})
-      .finally(() => setInterfacesLoading(false));
+      .finally(() => {
+        if (active) setInterfacesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-    const rows: IfaceRow[] = config.interfaces.map((iface, i) => ({
-      key: i,
-      name: iface.name,
-      peer: iface.peer ?? null,
-      port: iface.port ?? null,
-    }));
-    setIfaceRows(rows);
-    setNextKey(rows.length);
-
-    setAcceptProtocols([...config.accept_protocols]);
-    setExpectSync([...config.expect_sync]);
-    setVrrpSyncGroup(config.failover_mechanism?.vrrp?.sync_group ?? "");
-
-    setEventListenQueueSize(config.event_listen_queue_size != null ? String(config.event_listen_queue_size) : "");
-    setSyncQueueSize(config.sync_queue_size != null ? String(config.sync_queue_size) : "");
-    setMcastGroup(config.mcast_group ?? "");
-    setListenAddresses([...config.listen_addresses]);
-    setIgnoreAddresses([...config.ignore_addresses]);
-    setListenInput("");
-    setIgnoreInput("");
-    setDisableExternalCache(config.disable_external_cache);
-    setDisableSyslog(config.disable_syslog);
-    setStartupResync(config.startup_resync);
-  }, [open, config]);
+  function update<K extends keyof ConntrackSyncDraft>(field: K, value: ConntrackSyncDraft[K]) {
+    setDraft((prev) => ({ ...prev, [field]: value }));
+  }
 
   function addIfaceRow() {
-    setIfaceRows((prev) => [...prev, { key: nextKey, name: "", peer: null, port: null }]);
-    setNextKey((k) => k + 1);
+    setDraft((prev) => ({ ...prev, interfaces: [...prev.interfaces, { name: "", peer: "", port: "" }] }));
   }
 
-  function removeIfaceRow(key: number) {
-    setIfaceRows((prev) => prev.filter((r) => r.key !== key));
+  function removeIfaceRow(index: number) {
+    setDraft((prev) => ({ ...prev, interfaces: prev.interfaces.filter((_, i) => i !== index) }));
   }
 
-  function updateIfaceRow(key: number, field: keyof ConntrackSyncInterface, value: string) {
-    setIfaceRows((prev) =>
-      prev.map((r) => {
-        if (r.key !== key) return r;
-        if (field === "port") {
-          const n = value === "" ? null : parseInt(value, 10);
-          return { ...r, port: isNaN(n as number) ? null : n };
-        }
-        return { ...r, [field]: value || null };
-      })
-    );
+  function updateIfaceRow(index: number, field: keyof ConntrackSyncInterfaceDraft, value: string) {
+    setDraft((prev) => ({
+      ...prev,
+      interfaces: prev.interfaces.map((row, i) => (i === index ? { ...row, [field]: value } : row)),
+    }));
   }
 
-  function toggleProtocol(list: string[], setList: (v: string[]) => void, value: string) {
-    setList(list.includes(value) ? list.filter((p) => p !== value) : [...list, value]);
+  function toggle(field: "accept_protocols" | "expect_sync", value: string) {
+    setDraft((prev) => {
+      const list = prev[field];
+      return { ...prev, [field]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] };
+    });
   }
 
-  function addListenAddress() {
-    const addr = listenInput.trim();
-    if (addr && !listenAddresses.includes(addr)) {
-      setListenAddresses((prev) => [...prev, addr]);
+  function addToList(field: ListField, input: string, clear: () => void) {
+    const value = input.trim();
+    if (value) {
+      setDraft((prev) => (prev[field].includes(value) ? prev : { ...prev, [field]: [...prev[field], value] }));
     }
-    setListenInput("");
+    clear();
   }
 
-  function addIgnoreAddress() {
-    const addr = ignoreInput.trim();
-    if (addr && !ignoreAddresses.includes(addr)) {
-      setIgnoreAddresses((prev) => [...prev, addr]);
-    }
-    setIgnoreInput("");
+  function removeFromList(field: ListField, value: string) {
+    setDraft((prev) => ({ ...prev, [field]: prev[field].filter((v) => v !== value) }));
   }
 
-  function validate(): string | null {
-    for (const row of ifaceRows) {
-      if (!row.name.trim()) return t("modal.rowNameRequired");
-      if (row.port != null && (row.port < 1 || row.port > 65535)) {
-        return t("modal.portRange", { name: row.name });
-      }
-    }
-    const names = ifaceRows.map((r) => r.name.trim());
-    if (new Set(names).size !== names.length) return t("modal.duplicateNames");
-    return null;
+  function handleOpenChange(open: boolean) {
+    if (!open && !saving) onClose();
   }
 
   async function handleSubmit() {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+    const problem = conntrackSyncProblem(draft, features);
+    if (problem) {
+      setError(t(`validation.${problem.key}`, problem.values));
       return;
     }
     setError(null);
-    setLoading(true);
+    setSaving(true);
     try {
-      const updated: ConntrackSyncConfig = {
-        accept_protocols: acceptProtocols,
-        disable_external_cache: disableExternalCache,
-        disable_syslog: disableSyslog,
-        event_listen_queue_size: eventListenQueueSize ? parseInt(eventListenQueueSize, 10) : null,
-        expect_sync: expectSync,
-        failover_mechanism: vrrpSyncGroup.trim()
-          ? { vrrp: { sync_group: vrrpSyncGroup.trim() } }
-          : null,
-        ignore_addresses: ignoreAddresses,
-        interfaces: ifaceRows
-          .filter((r) => r.name.trim())
-          .map((r) => ({ name: r.name.trim(), peer: r.peer || null, port: r.port ?? null })),
-        listen_addresses: listenAddresses,
-        mcast_group: mcastGroup.trim() || null,
-        startup_resync: startupResync,
-        sync_queue_size: syncQueueSize ? parseInt(syncQueueSize, 10) : null,
-      };
-      await onSubmit(updated);
+      await onSubmit(draft);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("modal.unexpectedError"));
+      setError((err as ApiError).message || t("modal.unexpectedError"));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t("modal.title")}</DialogTitle>
@@ -230,31 +166,24 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
           <TabsContent value="interfaces" className="flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-3 py-2">
-                <p className="text-sm text-muted-foreground">
-                  {t.rich("modal.interfacesIntro", {
-                    b: (chunks) => <span className="font-medium">{chunks}</span>,
-                    mono: (chunks) => <span className="font-mono text-xs">{chunks}</span>,
-                  })}
-                </p>
-
-                {ifaceRows.length === 0 && (
+                {draft.interfaces.length === 0 && (
                   <div className="border border-dashed rounded-md p-6 text-center text-sm text-muted-foreground">
                     {t("modal.noInterfaces")}
                   </div>
                 )}
 
-                {ifaceRows.map((row) => (
-                  <div key={row.key} className="grid grid-cols-[1fr_1fr_100px_32px] gap-2 items-end">
+                {draft.interfaces.map((row, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_1fr_100px_32px] gap-2 items-end">
                     <div className="space-y-1">
                       <Label className="text-xs">{t("modal.interface")}</Label>
                       <InterfaceSelect
                         value={row.name}
-                        onValueChange={(val) => updateIfaceRow(row.key, "name", val)}
+                        onValueChange={(val) => updateIfaceRow(index, "name", val)}
                         disabled={interfacesLoading}
                         interfaces={availableInterfaces.filter(
                           (iface) =>
                             iface.name === row.name ||
-                            !ifaceRows.some((r) => r.key !== row.key && r.name === iface.name)
+                            !draft.interfaces.some((r, i) => i !== index && r.name === iface.name)
                         )}
                         placeholder={tc("selectInterface")}
                         emptyText={t("modal.noInterfacesFound")}
@@ -264,26 +193,25 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                       <Label className="text-xs">{t("modal.peerIp")}</Label>
                       <Input
                         placeholder={t("modal.peerIpPlaceholder")}
-                        value={row.peer ?? ""}
-                        onChange={(e) => updateIfaceRow(row.key, "peer", e.target.value)}
+                        value={row.peer}
+                        onChange={(e) => updateIfaceRow(index, "peer", e.target.value)}
                       />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">{t("modal.port")}</Label>
                       <Input
                         type="number"
-                        placeholder="3780"
-                        min={1}
-                        max={65535}
-                        value={row.port ?? ""}
-                        onChange={(e) => updateIfaceRow(row.key, "port", e.target.value)}
+                        min={features.interface_port.min}
+                        max={features.interface_port.max}
+                        value={row.port}
+                        onChange={(e) => updateIfaceRow(index, "port", e.target.value)}
                       />
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="text-destructive hover:text-destructive mb-0"
-                      onClick={() => removeIfaceRow(row.key)}
+                      onClick={() => removeIfaceRow(index)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -302,23 +230,15 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
           <TabsContent value="protocols" className="flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-6 py-2">
-                {/* Accept Protocols */}
                 <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">{t("modal.acceptProtocols")}</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("modal.acceptProtocolsHint")}
-                    </p>
-                  </div>
+                  <Label className="text-sm font-medium">{t("modal.acceptProtocols")}</Label>
                   <div className="grid grid-cols-3 gap-3">
-                    {ACCEPT_PROTOCOLS.map((proto) => (
+                    {features.accept_protocol.options.map((proto) => (
                       <div key={proto} className="flex items-center space-x-2">
                         <Checkbox
                           id={`accept-${proto}`}
-                          checked={acceptProtocols.includes(proto)}
-                          onCheckedChange={() =>
-                            toggleProtocol(acceptProtocols, setAcceptProtocols, proto)
-                          }
+                          checked={draft.accept_protocols.includes(proto)}
+                          onCheckedChange={() => toggle("accept_protocols", proto)}
                         />
                         <Label htmlFor={`accept-${proto}`} className="font-mono text-sm cursor-pointer">
                           {proto}
@@ -328,23 +248,15 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                   </div>
                 </div>
 
-                {/* Expect Sync */}
                 <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">{t("modal.expectSync")}</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("modal.expectSyncHint")}
-                    </p>
-                  </div>
+                  <Label className="text-sm font-medium">{t("modal.expectSync")}</Label>
                   <div className="grid grid-cols-3 gap-3">
-                    {EXPECT_SYNC_PROTOCOLS.map((proto) => (
+                    {features.expect_sync.options.map((proto) => (
                       <div key={proto} className="flex items-center space-x-2">
                         <Checkbox
                           id={`expect-${proto}`}
-                          checked={expectSync.includes(proto)}
-                          onCheckedChange={() =>
-                            toggleProtocol(expectSync, setExpectSync, proto)
-                          }
+                          checked={draft.expect_sync.includes(proto)}
+                          onCheckedChange={() => toggle("expect_sync", proto)}
                         />
                         <Label htmlFor={`expect-${proto}`} className="font-mono text-sm cursor-pointer">
                           {proto}
@@ -354,25 +266,16 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                   </div>
                 </div>
 
-                {/* Failover Mechanism */}
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">{t("modal.failoverMechanism")}</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("modal.failoverHint")}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="vrrp-sync-group" className="text-xs">
-                      {t("modal.vrrpSyncGroup")}
-                    </Label>
-                    <Input
-                      id="vrrp-sync-group"
-                      placeholder={t("modal.vrrpSyncGroupPlaceholder")}
-                      value={vrrpSyncGroup}
-                      onChange={(e) => setVrrpSyncGroup(e.target.value)}
-                    />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="vrrp-sync-group" className="text-sm font-medium">
+                    {t("modal.vrrpSyncGroup")}
+                  </Label>
+                  <NamedListSelect
+                    id="vrrp-sync-group"
+                    value={draft.sync_group}
+                    names={config.vrrp_sync_groups}
+                    onValueChange={(value) => update("sync_group", value)}
+                  />
                 </div>
               </div>
             </ScrollArea>
@@ -382,7 +285,6 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
           <TabsContent value="advanced" className="flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-6 py-2">
-                {/* Queue Sizes */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">{t("modal.queueSizes")}</Label>
                   <div className="grid grid-cols-2 gap-4">
@@ -393,10 +295,11 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                       <Input
                         id="event-queue"
                         type="number"
-                        min={1}
-                        placeholder={t("modal.defaultValue", { value: "8" })}
-                        value={eventListenQueueSize}
-                        onChange={(e) => setEventListenQueueSize(e.target.value)}
+                        min={features.event_listen_queue_size.min}
+                        max={features.event_listen_queue_size.max}
+                        placeholder={t("modal.defaultValue", { value: features.event_listen_queue_size.default })}
+                        value={draft.event_listen_queue_size}
+                        onChange={(e) => update("event_listen_queue_size", e.target.value)}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -406,56 +309,73 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                       <Input
                         id="sync-queue"
                         type="number"
-                        min={1}
-                        placeholder={t("modal.defaultValue", { value: "1" })}
-                        value={syncQueueSize}
-                        onChange={(e) => setSyncQueueSize(e.target.value)}
+                        min={features.sync_queue_size.min}
+                        max={features.sync_queue_size.max}
+                        placeholder={t("modal.defaultValue", { value: features.sync_queue_size.default })}
+                        value={draft.sync_queue_size}
+                        onChange={(e) => update("sync_queue_size", e.target.value)}
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Multicast Group */}
+                {features.purge_timeout.supported && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="purge-timeout" className="text-sm font-medium">
+                      {t("modal.purgeTimeout")}
+                    </Label>
+                    <Input
+                      id="purge-timeout"
+                      type="number"
+                      min={features.purge_timeout.min}
+                      max={features.purge_timeout.max}
+                      value={draft.purge_timeout}
+                      onChange={(e) => update("purge_timeout", e.target.value)}
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label htmlFor="mcast-group" className="text-sm font-medium">
                     {t("modal.multicastGroup")}
                   </Label>
                   <Input
                     id="mcast-group"
-                    placeholder={t("modal.defaultValue", { value: "225.0.0.50" })}
-                    value={mcastGroup}
-                    onChange={(e) => setMcastGroup(e.target.value)}
+                    placeholder={t("modal.defaultValue", { value: features.mcast_group.default })}
+                    value={draft.mcast_group}
+                    onChange={(e) => update("mcast_group", e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t("modal.multicastGroupHint")}
-                  </p>
                 </div>
 
-                {/* Listen Addresses */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">{t("modal.listenAddresses")}</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t("modal.listenAddressesHint")}
-                  </p>
                   <div className="flex gap-2">
                     <Input
                       placeholder={t("modal.listenAddressPlaceholder")}
                       value={listenInput}
                       onChange={(e) => setListenInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addListenAddress())}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" &&
+                        (e.preventDefault(), addToList("listen_addresses", listenInput, () => setListenInput("")))
+                      }
                     />
-                    <Button type="button" variant="outline" size="sm" onClick={addListenAddress}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addToList("listen_addresses", listenInput, () => setListenInput(""))}
+                    >
                       {tc("add")}
                     </Button>
                   </div>
-                  {listenAddresses.length > 0 && (
+                  {draft.listen_addresses.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      {listenAddresses.map((addr) => (
+                      {draft.listen_addresses.map((addr) => (
                         <Badge
                           key={addr}
                           variant="secondary"
                           className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground gap-1"
-                          onClick={() => setListenAddresses((prev) => prev.filter((a) => a !== addr))}
+                          onClick={() => removeFromList("listen_addresses", addr)}
                         >
                           {addr} ×
                         </Badge>
@@ -464,31 +384,35 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                   )}
                 </div>
 
-                {/* Ignore Addresses */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">{t("modal.ignoreAddresses")}</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t("modal.ignoreAddressesHint")}
-                  </p>
                   <div className="flex gap-2">
                     <Input
                       placeholder={t("modal.ignoreAddressPlaceholder")}
                       value={ignoreInput}
                       onChange={(e) => setIgnoreInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addIgnoreAddress())}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" &&
+                        (e.preventDefault(), addToList("ignore_addresses", ignoreInput, () => setIgnoreInput("")))
+                      }
                     />
-                    <Button type="button" variant="outline" size="sm" onClick={addIgnoreAddress}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addToList("ignore_addresses", ignoreInput, () => setIgnoreInput(""))}
+                    >
                       {tc("add")}
                     </Button>
                   </div>
-                  {ignoreAddresses.length > 0 && (
+                  {draft.ignore_addresses.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      {ignoreAddresses.map((addr) => (
+                      {draft.ignore_addresses.map((addr) => (
                         <Badge
                           key={addr}
                           variant="secondary"
                           className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground gap-1"
-                          onClick={() => setIgnoreAddresses((prev) => prev.filter((a) => a !== addr))}
+                          onClick={() => removeFromList("ignore_addresses", addr)}
                         >
                           {addr} ×
                         </Badge>
@@ -497,57 +421,38 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                   )}
                 </div>
 
-                {/* Flags */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">{t("modal.options")}</Label>
                   <div className="space-y-3">
-                    <div className="flex items-start space-x-2.5">
+                    <div className="flex items-center space-x-2.5">
                       <Checkbox
                         id="disable-external-cache"
-                        checked={disableExternalCache}
-                        onCheckedChange={(v) => setDisableExternalCache(!!v)}
-                        className="mt-0.5"
+                        checked={draft.disable_external_cache}
+                        onCheckedChange={(v) => update("disable_external_cache", !!v)}
                       />
-                      <div>
-                        <Label htmlFor="disable-external-cache" className="cursor-pointer font-normal">
-                          {t("modal.disableExternalCache")}
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {t("modal.disableExternalCacheHint")}
-                        </p>
-                      </div>
+                      <Label htmlFor="disable-external-cache" className="cursor-pointer font-normal">
+                        {t("modal.disableExternalCache")}
+                      </Label>
                     </div>
-                    <div className="flex items-start space-x-2.5">
+                    <div className="flex items-center space-x-2.5">
                       <Checkbox
                         id="disable-syslog"
-                        checked={disableSyslog}
-                        onCheckedChange={(v) => setDisableSyslog(!!v)}
-                        className="mt-0.5"
+                        checked={draft.disable_syslog}
+                        onCheckedChange={(v) => update("disable_syslog", !!v)}
                       />
-                      <div>
-                        <Label htmlFor="disable-syslog" className="cursor-pointer font-normal">
-                          {t("modal.disableSyslog")}
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {t("modal.disableSyslogHint")}
-                        </p>
-                      </div>
+                      <Label htmlFor="disable-syslog" className="cursor-pointer font-normal">
+                        {t("modal.disableSyslog")}
+                      </Label>
                     </div>
-                    <div className="flex items-start space-x-2.5">
+                    <div className="flex items-center space-x-2.5">
                       <Checkbox
                         id="startup-resync"
-                        checked={startupResync}
-                        onCheckedChange={(v) => setStartupResync(!!v)}
-                        className="mt-0.5"
+                        checked={draft.startup_resync}
+                        onCheckedChange={(v) => update("startup_resync", !!v)}
                       />
-                      <div>
-                        <Label htmlFor="startup-resync" className="cursor-pointer font-normal">
-                          {t("modal.startupResync")}
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {t("modal.startupResyncHint")}
-                        </p>
-                      </div>
+                      <Label htmlFor="startup-resync" className="cursor-pointer font-normal">
+                        {t("modal.startupResync")}
+                      </Label>
                     </div>
                   </div>
                 </div>
@@ -564,11 +469,11 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
         )}
 
         <DialogFooter className="shrink-0">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <Button onClick={handleSubmit} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {tc("save")}
           </Button>
         </DialogFooter>

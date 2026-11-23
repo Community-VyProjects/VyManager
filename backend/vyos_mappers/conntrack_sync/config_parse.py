@@ -68,30 +68,28 @@ def parse_interfaces(raw: Any) -> List[Dict[str, Any]]:
     return sorted(interfaces, key=lambda i: i["name"])
 
 
-def _empty() -> Dict[str, Any]:
-    return {
-        "accept_protocols": [],
-        "disable_external_cache": False,
-        "disable_syslog": False,
-        "event_listen_queue_size": None,
-        "expect_sync": [],
-        "failover_mechanism": None,
-        "ignore_addresses": [],
-        "interfaces": [],
-        "listen_addresses": [],
-        "mcast_group": None,
-        "startup_resync": False,
-        "sync_queue_size": None,
-    }
+def parse_vrrp_sync_groups(full_config: Dict[str, Any]) -> List[str]:
+    """Names `failover-mechanism vrrp sync-group` may pick.
+
+    The lab completes that leaf from `high-availability vrrp sync-group`, and
+    verify rejects a name that is not configured there.
+    """
+    ha = full_config.get("high-availability")
+    vrrp = ha.get("vrrp") if isinstance(ha, dict) else None
+    groups = vrrp.get("sync-group") if isinstance(vrrp, dict) else None
+    return sorted(groups) if isinstance(groups, dict) else []
 
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/conntrack-sync/config payload."""
-    cs_raw = full_config.get("service", {}).get("conntrack-sync", {})
-    if not cs_raw:
-        return _empty()
+    service = full_config.get("service")
+    service = service if isinstance(service, dict) else {}
+    configured = "conntrack-sync" in service
+    cs_raw = service.get("conntrack-sync") if configured else None
+    cs_raw = cs_raw if isinstance(cs_raw, dict) else {}
 
     return {
+        "configured": configured,
         "accept_protocols": _parse_multi(cs_raw.get("accept-protocol")),
         "disable_external_cache": "disable-external-cache" in cs_raw,
         "disable_syslog": "disable-syslog" in cs_raw,
@@ -102,6 +100,8 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
         "interfaces": parse_interfaces(cs_raw.get("interface")),
         "listen_addresses": sorted(_parse_multi(cs_raw.get("listen-address"))),
         "mcast_group": cs_raw.get("mcast-group"),
+        "purge_timeout": _parse_int(cs_raw.get("purge-timeout")),
         "startup_resync": "startup-resync" in cs_raw,
         "sync_queue_size": _parse_int(cs_raw.get("sync-queue-size")),
+        "vrrp_sync_groups": parse_vrrp_sync_groups(full_config),
     }

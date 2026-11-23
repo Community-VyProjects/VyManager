@@ -17,108 +17,74 @@ Structure:
         sync-group <name>
     ignore-address <ipv4|ipv6|prefix>                 # multi-value
     interface <name>
-      peer <ipv4>
+      peer <ipv4|ipv6>                                # ipv6 on 1.5
       port <1-65535>
-    listen-address <ipv4>                             # multi-value
-    mcast-group <ipv4-multicast>                      # default: 225.0.0.50
+    listen-address <ipv4|ipv6>                        # multi-value; ipv6 on 1.5
+    mcast-group <ipv4-multicast|ipv6-multicast>       # default: 225.0.0.50; ipv6 on 1.5
+    purge-timeout <1-2147483647>                      # 1.5 only
     startup-resync                                    # presence flag
     sync-queue-size <u32>                             # default: 1 MB
 
-The template structure is identical between VyOS 1.4 and 1.5.
-Multi-argument batch operations encode compound values as "arg1,arg2"
-(comma-separated), matching the project's standard batch dispatch pattern.
+The mapper allowlist (versioned_nodes) decides which version-only leaves
+this device has. Multi-argument batch operations encode compound values as
+"arg1,arg2" (comma-separated), matching the project's standard batch
+dispatch pattern.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.conntrack_sync.conntrack_sync import ConntrackSyncMapper
 from vyos_builders.base import BatchBuilder
+
+# Lab val_help bounds, the same on 1.4 and 1.5.
+U32_RANGE = {"min": 0, "max": 4294967295}
+PORT_RANGE = {"min": 1, "max": 65535}
+PURGE_TIMEOUT_RANGE = {"min": 1, "max": 2147483647}
 
 
 class ConntrackSyncBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("conntrack_sync", version)
+        self.m = cast(
+            ConntrackSyncMapper, CommandMapperRegistry.get_mapper("conntrack_sync", version)
+        )
 
     # -----------------------------------------------------------------------
     # Capabilities
     # -----------------------------------------------------------------------
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
+        nodes = self.m.versioned_nodes()
+        families = self.m.address_families()
 
         return {
             "version": self.version,
             "features": {
-                "conntrack_sync": {
-                    "supported": True,
-                    "description": "Connection tracking synchronization service",
-                },
                 "accept_protocol": {
                     "supported": True,
-                    "description": "Protocols to sync conntrack entries for",
-                    "options": ["tcp", "udp", "icmp", "icmp6", "sctp", "dccp"],
+                    "options": self.m.accept_protocol_values(),
                 },
-                "disable_external_cache": {
-                    "supported": True,
-                    "description": "Directly inject flow-states into kernel connection tracking",
-                },
-                "disable_syslog": {
-                    "supported": True,
-                    "description": "Disable connection logging via syslog",
-                },
-                "event_listen_queue_size": {
-                    "supported": True,
-                    "description": "Queue size (MB) for local conntrack events",
-                    "default": 8,
-                },
+                "disable_external_cache": {"supported": True},
+                "disable_syslog": {"supported": True},
+                "event_listen_queue_size": {"supported": True, "default": 8, **U32_RANGE},
                 "expect_sync": {
                     "supported": True,
-                    "description": "Protocols for which expect entries are synchronized",
-                    "options": ["all", "ftp", "sip", "h323", "nfs", "sqlnet"],
+                    "options": self.m.expect_sync_values(),
                 },
-                "failover_vrrp": {
-                    "supported": True,
-                    "description": "Use VRRP sync-group as failover mechanism",
-                },
-                "ignore_address": {
-                    "supported": True,
-                    "description": "IP addresses/prefixes excluded from sync",
-                },
-                "interface": {
-                    "supported": True,
-                    "description": "Interface used for syncing conntrack entries",
-                },
-                "interface_peer": {
-                    "supported": True,
-                    "description": "Unicast peer IPv4 address per interface (disables multicast)",
-                },
-                "interface_port": {
-                    "supported": True,
-                    "description": "UDP port number per interface (1–65535)",
-                },
-                "listen_address": {
-                    "supported": True,
-                    "description": "Local IPv4 addresses to listen on",
-                },
+                "failover_vrrp": {"supported": True},
+                "ignore_address": {"supported": True},
+                "interface": {"supported": True},
+                "interface_peer": {"supported": True, "families": families},
+                "interface_port": {"supported": True, **PORT_RANGE},
+                "listen_address": {"supported": True, "families": families},
                 "mcast_group": {
                     "supported": True,
-                    "description": "Multicast group for syncing conntrack entries",
                     "default": "225.0.0.50",
+                    "families": families,
                 },
-                "startup_resync": {
-                    "supported": True,
-                    "description": "Request full conntrack table resync at startup",
-                },
-                "sync_queue_size": {
-                    "supported": True,
-                    "description": "Queue size (MB) for syncing conntrack entries",
-                    "default": 1,
-                },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
+                "purge_timeout": {"supported": "purge-timeout" in nodes, **PURGE_TIMEOUT_RANGE},
+                "startup_resync": {"supported": True},
+                "sync_queue_size": {"supported": True, "default": 1, **U32_RANGE},
             },
         }
 
@@ -266,6 +232,18 @@ class ConntrackSyncBatchBuilder(BatchBuilder):
 
     def delete_mcast_group(self) -> "ConntrackSyncBatchBuilder":
         return self.add_delete(self.m.get_mcast_group_delete())
+
+    # -----------------------------------------------------------------------
+    # purge-timeout (1.5 only)
+    # -----------------------------------------------------------------------
+
+    def set_purge_timeout(self, timeout: str) -> "ConntrackSyncBatchBuilder":
+        self.m.require_node("purge-timeout")
+        return self.add_set(getattr(self.m, "get_purge_timeout")(timeout))
+
+    def delete_purge_timeout(self) -> "ConntrackSyncBatchBuilder":
+        self.m.require_node("purge-timeout")
+        return self.add_delete(getattr(self.m, "get_purge_timeout_delete")())
 
     # -----------------------------------------------------------------------
     # startup-resync (presence flag)
