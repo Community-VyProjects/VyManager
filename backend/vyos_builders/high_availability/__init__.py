@@ -1,3 +1,3 @@
-from .high_availability import HighAvailabilityBatchBuilder
+from .high_availability_batch_builder import HighAvailabilityBatchBuilder
 
 __all__ = ["HighAvailabilityBatchBuilder"]

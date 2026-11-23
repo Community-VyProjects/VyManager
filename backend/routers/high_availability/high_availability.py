@@ -1,14 +1,17 @@
 import inspect
+from typing import Any, Dict, List, Optional, cast
+
 from fastapi import APIRouter, HTTPException, Request
-from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Dict
+from starlette.concurrency import run_in_threadpool
 
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.high_availability import HighAvailabilityBatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.high_availability import HighAvailabilityMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op, resolve_batch_method
 
 router = APIRouter(prefix="/vyos/high-availability", tags=["high-availability"])
 
@@ -42,40 +45,39 @@ async def get_config(request: Request, refresh: bool = False):
     await require_read_permission(request, FeatureGroup.HIGH_AVAILABILITY)
     service = get_session_vyos_service(request)
     full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-    from vyos_mappers import CommandMapperRegistry
-    mapper = CommandMapperRegistry.get_mapper("high_availability", service.get_version())
+    mapper = cast(
+        HighAvailabilityMapper,
+        CommandMapperRegistry.get_mapper("high_availability", service.get_version()),
+    )
     return mapper.parse_config(full_config)
 
 
 @router.post("/batch", response_model=VyOSResponse)
 async def batch_configure(http_request: Request, request: BatchRequest):
+    """Run a batch of high-availability ops in one commit.
+
+    Each op's first parameter is bound to ``item_name`` and the value fills
+    the rest, split on ``|``; an item-only op takes no value. Global ops name
+    their first parameter ``_name`` and ignore ``item_name``; every other op
+    needs one.
+    """
     await require_write_permission(http_request, FeatureGroup.HIGH_AVAILABILITY)
     service = get_session_vyos_service(http_request)
     batch = HighAvailabilityBatchBuilder(version=service.get_version())
 
     try:
         for op in request.operations:
-            method = resolve_batch_method(batch, op.op)
-
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                method(request.item_name)
-            elif len(params) == 2 and op.value is not None:
-                method(request.item_name, op.value)
-            elif len(params) == 2:
-                method(request.item_name)
+            params = list(inspect.signature(resolve_batch_method(batch, op.op)).parameters)
+            if params and params[0] != "_name" and not request.item_name.strip():
+                raise HTTPException(status_code=400, detail=f"Operation {op.op} requires item_name")
+            call_item_batch_op(batch, op.op, request.item_name, op.value)
     except ValueError as e:
+        # The 1.4 mapper rejects a VRRP leaf that only exists on 1.5.
         raise HTTPException(status_code=400, detail=str(e))
 
     if batch.is_empty():
         return VyOSResponse(success=True)
 
     response = await run_in_threadpool(service.execute_batch, batch)
-    return VyOSResponse(
-        success=response.status == 200,
-        error=response.error if response.status != 200 else None,
-    )
+    ok = response.status == 200 and not response.error
+    return VyOSResponse(success=ok, error=None if ok else response.error)
