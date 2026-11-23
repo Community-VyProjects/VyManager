@@ -5,17 +5,26 @@ test_batch_off_event_loop.py). These tests check the config payload, the
 emitted ops, and the 400/422/500 paths.
 """
 
-import pytest
+import inspect
 
-from tests.local_route_client import local_route_client
+import pytest
+from fastapi import HTTPException
+
+from tests.local_route_client import MODULE, local_route_client
+from vyos_builders.local_route.local_route_batch_builder import LocalRouteBatchBuilder
 
 V4 = ["policy", "local-route", "rule"]
 V6 = ["policy", "local-route6", "rule"]
 
 
 @pytest.fixture
-def client(monkeypatch):
-    return local_route_client(monkeypatch, "1.4")
+def commit():
+    return {"status": 200, "error": None}
+
+
+@pytest.fixture
+def client(monkeypatch, commit):
+    return local_route_client(monkeypatch, "1.4", commit=commit)
 
 
 def _batch(test_client, operations, rule_type="ipv4"):
@@ -84,17 +93,47 @@ def test_batch_passes_rule_number_and_value(client):
     resp = _batch(test_client, [
         {"op": "set_local_route_rule"},
         {"op": "set_local_route_rule_source", "value": "192.0.2.1"},
-        {"op": "delete_local_route_rule_fwmark", "value": "ignored"},
+        {"op": "delete_local_route_rule_fwmark"},
         {"op": "set_local_route_rule_set_table", "value": "main"},
     ])
     assert resp.status_code == 200, resp.text
-    assert resp.json()["success"] is True
+    assert resp.json() == {"success": True, "data": {"message": "Configuration updated"}, "error": None}
     assert executed == [[
         ("set", V4 + ["10"]),
         ("set", V4 + ["10", "source", "address", "192.0.2.1"]),
         ("delete", V4 + ["10", "fwmark"]),
         ("set", V4 + ["10", "set", "table", "main"]),
     ]]
+
+
+def test_builder_ops_take_the_rule_and_at_most_one_value():
+    """The handler binds rule_number first and the value second, nothing more."""
+    builder = LocalRouteBatchBuilder(version="1.5")
+    ops = [
+        (name, member)
+        for name, member in inspect.getmembers(builder, inspect.ismethod)
+        if name.startswith(("set_", "delete_", "create_"))
+    ]
+    assert ops
+    for name, method in ops:
+        params = list(inspect.signature(method).parameters)
+        assert params[0] == "rule_number", name
+        assert len(params) in (1, 2), name
+
+
+@pytest.mark.parametrize("rule_type, op", [
+    ("ipv4", "delete_local_route_rule"),
+    ("ipv4", "delete_local_route_rule_fwmark"),
+    ("ipv6", "set_local_route6_rule"),
+    ("ipv6", "delete_local_route6_rule_set_table"),
+])
+def test_batch_value_on_rule_only_op_is_400(client, rule_type, op):
+    """A dropped value would run the wider op (delete the rule, not one leaf)."""
+    test_client, executed = client
+    resp = _batch(test_client, [{"op": op, "value": "x"}], rule_type)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {op} takes no value"
+    assert executed == []
 
 
 def test_batch_passes_ipv6_ops(client):
@@ -135,6 +174,7 @@ def test_batch_rejects_unknown_rule_type(client):
 @pytest.mark.parametrize("rule_type, operation", [
     ("ipv4", {"op": "set_local_route_rule_source"}),
     ("ipv4", {"op": "set_local_route_rule_source", "value": ""}),
+    ("ipv4", {"op": "set_local_route_rule_source", "value": "  "}),
     ("ipv6", {"op": "set_local_route6_rule_protocol", "value": None}),
 ])
 def test_batch_missing_value_is_400(client, rule_type, operation):
@@ -170,6 +210,43 @@ def test_batch_empty_is_500(client):
     assert executed == []
 
 
+@pytest.mark.parametrize("status, error", [(400, "Commit failed"), (200, "set failed")])
+def test_batch_rejected_commit_reports_failure(client, commit, status, error):
+    test_client, executed = client
+    commit.update(status=status, error=error)
+    resp = _batch(test_client, [{"op": "set_local_route_rule"}])
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "data": None, "error": error}
+    assert executed == [[("set", V4 + ["10"])]]
+
+
+@pytest.mark.parametrize("method, path, payload", [
+    ("get", "/vyos/local-route/capabilities", None),
+    ("get", "/vyos/local-route/config", None),
+    ("post", "/vyos/local-route/batch", {
+        "rule_number": 10, "rule_type": "ipv4", "operations": [{"op": "set_local_route_rule"}],
+    }),
+    ("post", "/vyos/local-route/reorder", {
+        "rule_type": "ipv4", "rules": [{"old_number": 10, "new_number": 20, "rule_data": {}}],
+    }),
+], ids=["capabilities", "config", "batch", "reorder"])
+def test_session_400_passes_through(client, monkeypatch, method, path, payload):
+    """A session lookup 400 is not turned into a 500 by the catch-all."""
+    test_client, executed = client
+
+    def no_session(_request):
+        raise HTTPException(status_code=400, detail="No active VyOS session")
+
+    monkeypatch.setattr(f"{MODULE}.get_session_vyos_service", no_session)
+    if method == "get":
+        resp = test_client.get(path)
+    else:
+        resp = test_client.post(path, json=payload)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "No active VyOS session"
+    assert executed == []
+
+
 def _reorder(test_client, rules, rule_type="ipv4"):
     return test_client.post(
         "/vyos/local-route/reorder", json={"rule_type": rule_type, "rules": rules}
@@ -198,7 +275,9 @@ def test_reorder_recreates_every_leaf(client, rule_type, base):
         {"old_number": 20, "new_number": 10, "rule_data": {"rule_number": 20, "table": "main"}},
     ], rule_type)
     assert resp.status_code == 200, resp.text
-    assert resp.json()["success"] is True
+    assert resp.json() == {
+        "success": True, "data": {"message": "Rules reordered successfully"}, "error": None,
+    }
     assert executed == [[
         ("delete", base + ["20"]),
         ("delete", base + ["10"]),
@@ -255,3 +334,13 @@ def test_reorder_empty_is_500(client):
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
     assert executed == []
+
+
+@pytest.mark.parametrize("status, error", [(400, "Commit failed"), (200, "set failed")])
+def test_reorder_rejected_commit_reports_failure(client, commit, status, error):
+    test_client, executed = client
+    commit.update(status=status, error=error)
+    resp = _reorder(test_client, [{"old_number": 10, "new_number": 20, "rule_data": {"table": "main"}}])
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "data": None, "error": error}
+    assert len(executed) == 1
