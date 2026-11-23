@@ -227,6 +227,20 @@ def test_1_5_isis_leaf_on_1_4_is_400(client, operation, node):
     assert client.executed == []
 
 
+@pytest.mark.parametrize("operation, detail", [
+    ({"op": "set_vrf_bgp_peer_group_solo", "value": "T-V,PG"}, "peer-group solo is not supported on this device"),
+    ({"op": "delete_vrf_bgp_af_redistribute_metric", "value": "T-V,ipv4-unicast,nhrp"},
+     "redistribute nhrp is not supported on this device"),
+    ({"op": "delete_vrf_bgp_af_redistribute_table_metric", "value": "T-V,ipv6-unicast,10"},
+     "redistribute table is not supported for ipv6-unicast on this device"),
+])
+def test_1_5_bgp_leaf_on_1_4_is_400(client, operation, detail):
+    resp = _post(client, [{"op": "set_vrf_bgp_system_as", "value": "T-V,65001"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == detail
+    assert client.executed == []
+
+
 def test_failed_commit_reports_the_error(client, commit):
     commit.update(status=200, error="Commit failed: T-err")
     resp = _post(client, [{"op": "set_vrf", "value": "T-V"}])
