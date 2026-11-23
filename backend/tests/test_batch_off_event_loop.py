@@ -83,7 +83,9 @@ FIREWALL_ZONES_OFFLOADED = [
     ("get_config", "routers/firewall/zones.py", "get_full_config", 1),
     ("batch_configure", "routers/firewall/zones.py", "execute_batch", 1),
     ("provision_zone", "routers/firewall/zones.py", "execute_batch", 1),
+    ("provision_zone", "routers/firewall/zones.py", "get_full_config", 1),
     ("deprovision_zone", "routers/firewall/zones.py", "execute_batch", 1),
+    ("deprovision_zone", "routers/firewall/zones.py", "get_full_config", 1),
 ]
 
 FIREWALL_BRIDGE_OFFLOADED = [

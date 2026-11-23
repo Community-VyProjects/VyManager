@@ -390,21 +390,47 @@ def test_batch_rejected_commit_reports_failure(client, commit, status, error):
 # ---------------------------------------------------------------------------
 
 
+TREE = {
+    "firewall": {
+        "zone": {
+            "WAN": {"member": {"interface": "eth0"}},
+            "DMZ": {"member": {"interface": "eth2"}},
+            "ROUTER": {"local-zone": {}, "default-action": "drop"},
+        }
+    }
+}
+
+
+@pytest.fixture
+def zoned(monkeypatch, commit):
+    """A device whose local zone is named ROUTER, not LOCAL."""
+    return zones_client(monkeypatch, "1.5", full_config=TREE, commit=commit)
+
+
 def _provision(test_client, **body):
-    payload = {"zone_name": "LAN", "interfaces": ["eth1"], "is_first_zone": True}
+    payload = {
+        "zone_name": "LAN",
+        "interfaces": ["eth1"],
+        "existing_zones": ["WAN", "DMZ"],
+        "is_first_zone": False,
+    }
     payload.update(body)
     return test_client.post(f"{PREFIX}/provision", json=payload)
 
 
 def _deprovision(test_client, **body):
-    payload = {"zone_name": "LAN", "peer_zones": ["WAN"], "is_last_zone": False}
+    payload = {"zone_name": "WAN", "peer_zones": ["DMZ"], "is_last_zone": False}
     payload.update(body)
     return test_client.post(f"{PREFIX}/deprovision", json=payload)
 
 
-def test_provision_commits_the_zone_and_chains(client):
-    test_client, executed = client
-    resp = _provision(test_client, default_action="reject", existing_zones=["WAN"])
+def _zone(name):
+    return ["firewall", "zone", name]
+
+
+def test_provision_wires_chains_to_the_device_local_zone(zoned):
+    test_client, executed = zoned
+    resp = _provision(test_client, default_action="reject", is_first_zone=True)
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": True, "data": {"message": "Zone provisioned"}, "error": None}
     assert len(executed) == 1
@@ -414,20 +440,67 @@ def test_provision_commits_the_zone_and_chains(client):
         ("set", LAN + ["default-action", "reject"]),
         ("set", LAN + ["member", "interface", "eth1"]),
     ]
-    assert ("set", ["firewall", "zone", "LOCAL", "local-zone"]) in ops
-    assert ("set", ["firewall", "zone", "WAN", "from", "LAN", "firewall", "name", "LAN-WAN"]) in ops
-    assert ("set", ["firewall", "ipv4", "name", "WAN-LAN", "default-action", "drop"]) in ops
+    assert ("set", _zone("WAN") + ["from", "LAN", "firewall", "name", "LAN-WAN"]) in ops
+    assert ("set", ["firewall", "ipv4", "name", "DMZ-LAN", "default-action", "drop"]) in ops
+    assert ("set", LAN + ["from", "ROUTER", "firewall", "name", "ROUTER-LAN"]) in ops
+    assert ("set", _zone("ROUTER") + ["from", "LAN", "firewall", "ipv6-name", "LAN-ROUTER-V6"]) in ops
+    # The existing local zone is reused, even when the client says first zone.
+    assert not [path for _op, path in ops if "LOCAL" in path or "local-zone" in path]
 
 
-def test_provision_rejects_an_unknown_default_action(client):
-    test_client, executed = client
+def test_provision_first_zone_creates_the_local_zone(monkeypatch, commit):
+    test_client, executed = zones_client(monkeypatch, "1.5", commit=commit)
+    resp = _provision(test_client, existing_zones=[], is_first_zone=True)
+    assert resp.status_code == 200, resp.text
+    ops = executed[0]
+    assert ("set", _zone("LOCAL") + ["local-zone"]) in ops
+    assert ("set", _zone("LOCAL") + ["default-action", "drop"]) in ops
+    assert ("set", LAN + ["from", "LOCAL", "firewall", "name", "LOCAL-LAN"]) in ops
+
+
+def test_provision_without_a_local_zone_needs_first_zone(monkeypatch):
+    test_client, executed = zones_client(monkeypatch, "1.5")
+    resp = _provision(test_client, existing_zones=[])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "The device has no local zone"
+    assert executed == []
+
+
+@pytest.mark.parametrize("name", ["WAN", "ROUTER"])
+def test_provision_existing_zone_is_400(zoned, name):
+    test_client, executed = zoned
+    resp = _provision(test_client, zone_name=name, existing_zones=[])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Zone {name} already exists"
+    assert executed == []
+
+
+def test_provision_local_zone_as_peer_is_400(zoned):
+    test_client, executed = zoned
+    resp = _provision(test_client, existing_zones=["WAN", "ROUTER"])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "The local zone ROUTER cannot be a peer or the zone itself"
+    assert executed == []
+
+
+def test_provision_new_local_zone_name_is_400(monkeypatch):
+    """The first zone cannot take the name the new local zone gets."""
+    test_client, executed = zones_client(monkeypatch, "1.5")
+    resp = _provision(test_client, zone_name="LOCAL", existing_zones=[], is_first_zone=True)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "The local zone LOCAL cannot be a peer or the zone itself"
+    assert executed == []
+
+
+def test_provision_rejects_an_unknown_default_action(zoned):
+    test_client, executed = zoned
     resp = _provision(test_client, default_action="accept")
     assert resp.status_code == 422, resp.text
     assert executed == []
 
 
-def test_provision_skips_a_blank_description(client):
-    test_client, executed = client
+def test_provision_skips_a_blank_description(zoned):
+    test_client, executed = zoned
     resp = _provision(test_client, description="   ")
     assert resp.status_code == 200, resp.text
     assert not [path for _op, path in executed[0] if "description" in path]
@@ -435,20 +508,18 @@ def test_provision_skips_a_blank_description(client):
 
 @pytest.mark.parametrize("body", [
     {"interfaces": [""]},
+    {"interfaces": [" eth1"]},
     {"interfaces": ["eth1", "eth1"]},
     {"vrfs": ["  "]},
     {"vrfs": ["blue", "blue"]},
     {"existing_zones": [""]},
     {"existing_zones": ["WAN", "WAN"]},
     {"existing_zones": ["WAN", "WAN "]},
-    {"interfaces": [" eth1"]},
     {"existing_zones": ["LAN"]},
-    {"existing_zones": ["LOCAL"]},
-    {"zone_name": "LOCAL"},
 ])
-def test_provision_rejects_bad_names(client, body):
+def test_provision_rejects_bad_names(zoned, body):
     """Each name becomes a path node or a pair chain name."""
-    test_client, executed = client
+    test_client, executed = zoned
     resp = _provision(test_client, **body)
     assert resp.status_code == 422, resp.text
     assert executed == []
@@ -456,14 +527,12 @@ def test_provision_rejects_bad_names(client, body):
 
 @pytest.mark.parametrize("body", [
     {"peer_zones": [""]},
-    {"peer_zones": ["WAN", "WAN"]},
-    {"peer_zones": ["LOCAL "]},
-    {"peer_zones": ["LAN"]},
-    {"peer_zones": ["LOCAL"]},
-    {"zone_name": "LOCAL"},
+    {"peer_zones": ["DMZ", "DMZ"]},
+    {"peer_zones": ["DMZ "]},
+    {"peer_zones": ["WAN"]},
 ])
-def test_deprovision_rejects_bad_names(client, body):
-    test_client, executed = client
+def test_deprovision_rejects_bad_names(zoned, body):
+    test_client, executed = zoned
     resp = _deprovision(test_client, **body)
     assert resp.status_code == 422, resp.text
     assert executed == []
@@ -472,7 +541,7 @@ def test_deprovision_rejects_bad_names(client, body):
 @pytest.mark.parametrize("call", [_provision, _deprovision])
 def test_provision_and_deprovision_need_policies_write(monkeypatch, call):
     """Both write firewall ipv4/ipv6 rulesets, which the policies screen owns."""
-    test_client, executed = zones_client(monkeypatch, "1.5")
+    test_client, executed = zones_client(monkeypatch, "1.5", full_config=TREE)
     checked = []
 
     async def write(_request, feature):
@@ -489,29 +558,69 @@ def test_provision_and_deprovision_need_policies_write(monkeypatch, call):
 
 @pytest.mark.parametrize("call", [_provision, _deprovision])
 @pytest.mark.parametrize("name", ["", "  ", " LAN", "LAN "])
-def test_provision_and_deprovision_reject_blank_zone_name(client, call, name):
-    test_client, executed = client
+def test_provision_and_deprovision_reject_blank_zone_name(zoned, call, name):
+    test_client, executed = zoned
     resp = call(test_client, zone_name=name)
     assert resp.status_code == 422, resp.text
     assert executed == []
 
 
-def test_deprovision_commits_the_deletes(client):
-    test_client, executed = client
+def test_deprovision_deletes_through_the_device_local_zone(zoned):
+    test_client, executed = zoned
     resp = _deprovision(test_client)
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": True, "data": {"message": "Zone deprovisioned"}, "error": None}
     ops = executed[0]
-    assert ops[0] == ("delete", LAN)
-    assert ("delete", ["firewall", "zone", "WAN", "from", "LAN"]) in ops
-    assert ("delete", ["firewall", "zone", "LOCAL", "from", "LAN"]) in ops
-    assert ("delete", ["firewall", "ipv6", "name", "LAN-LOCAL-V6"]) in ops
+    assert ops[0] == ("delete", _zone("WAN"))
+    assert ("delete", _zone("DMZ") + ["from", "WAN"]) in ops
+    assert ("delete", _zone("ROUTER") + ["from", "WAN"]) in ops
+    assert ("delete", ["firewall", "ipv6", "name", "WAN-ROUTER-V6"]) in ops
+    assert ("delete", _zone("ROUTER")) not in ops
+    assert not [path for _op, path in ops if "LOCAL" in path or "WAN-LOCAL" in path]
+
+
+def test_deprovision_last_zone_deletes_the_local_zone(zoned):
+    test_client, executed = zoned
+    resp = _deprovision(test_client, peer_zones=[], is_last_zone=True)
+    assert resp.status_code == 200, resp.text
+    ops = executed[0]
+    assert ("delete", _zone("ROUTER")) in ops
+    assert ("delete", _zone("ROUTER") + ["from", "WAN"]) not in ops
+
+
+def test_deprovision_without_a_local_zone_skips_local_deletes(monkeypatch):
+    tree = {"firewall": {"zone": {"WAN": {}}}}
+    test_client, executed = zones_client(monkeypatch, "1.5", full_config=tree)
+    resp = _deprovision(test_client, peer_zones=[], is_last_zone=True)
+    assert resp.status_code == 200, resp.text
+    assert executed == [[
+        ("delete", _zone("WAN")),
+        ("delete", ["firewall", "ipv4", "name", "WAN-WAN"]),
+        ("delete", ["firewall", "ipv6", "name", "WAN-WAN-V6"]),
+    ]]
+
+
+def test_deprovision_missing_zone_is_404(zoned):
+    test_client, executed = zoned
+    resp = _deprovision(test_client, zone_name="LAN")
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"] == "Zone LAN does not exist"
+    assert executed == []
+
+
+@pytest.mark.parametrize("body", [{"zone_name": "ROUTER"}, {"peer_zones": ["DMZ", "ROUTER"]}])
+def test_deprovision_local_zone_as_subject_or_peer_is_400(zoned, body):
+    test_client, executed = zoned
+    resp = _deprovision(test_client, **body)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "The local zone ROUTER cannot be a peer or the zone itself"
+    assert executed == []
 
 
 @pytest.mark.parametrize("call", [_provision, _deprovision])
 @pytest.mark.parametrize("status, error", [(400, "Commit failed"), (200, "set failed")])
-def test_provision_and_deprovision_rejected_commit_report_failure(client, commit, call, status, error):
-    test_client, executed = client
+def test_provision_and_deprovision_rejected_commit_report_failure(zoned, commit, call, status, error):
+    test_client, executed = zoned
     commit.update(status=status, error=error)
     resp = call(test_client)
     assert resp.status_code == 200, resp.text
@@ -526,6 +635,9 @@ def test_provision_and_deprovision_device_error_is_500(monkeypatch, call):
     class Broken:
         def get_version(self):
             return "1.5"
+
+        def get_full_config(self, refresh=False):
+            return TREE
 
         def execute_batch(self, _batch):
             raise RuntimeError("device down")

@@ -34,8 +34,7 @@ router = APIRouter(prefix="/vyos/firewall/zones", tags=["firewall-zones"])
 # Builder ops that split "from_zone:chain_name" themselves.
 COMPOSITE_OPS = frozenset({"set_zone_from_ipv4", "set_zone_from_ipv6"})
 
-# The local zone /provision creates for the first zone and /deprovision
-# removes with the last one.
+# The name /provision gives the local zone when the device has none yet.
 LOCAL_ZONE = "LOCAL"
 
 
@@ -53,12 +52,26 @@ def _names_not_blank_or_repeated(values: List[str]) -> List[str]:
     return values
 
 
-def _not_local_or_self(zone_name: str, peers: List[str]) -> None:
+def _not_self(zone_name: str, peers: List[str]) -> None:
     """Pair chains and from-zone refs are built from these names."""
-    if zone_name == LOCAL_ZONE:
-        raise ValueError(f"zone_name must not be {LOCAL_ZONE}")
-    if zone_name in peers or LOCAL_ZONE in peers:
-        raise ValueError(f"peer zones must not include the zone itself or {LOCAL_ZONE}")
+    if zone_name in peers:
+        raise ValueError("peer zones must not include the zone itself")
+
+
+def _local_zone_name(parsed: Dict[str, Any]) -> Optional[str]:
+    """The configured zone marked local-zone, whatever it is called."""
+    for zone in parsed["zones"]:
+        if zone["local_zone"]:
+            return zone["name"]
+    return None
+
+
+def _reject_local_peer(local: str, zone_name: str, peers: List[str]) -> None:
+    if zone_name == local or local in peers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"The local zone {local} cannot be a peer or the zone itself",
+        )
 
 
 def _composite_ok(value: str) -> bool:
@@ -130,7 +143,7 @@ class ZoneProvisionRequest(BaseModel):
     )
     is_first_zone: bool = Field(
         False,
-        description="When True, also create the LOCAL zone and LOCAL-zone chains"
+        description="When True and the device has no local zone, create one named LOCAL"
     )
 
     _zone_name = field_validator("zone_name")(_zone_name_not_blank)
@@ -138,7 +151,7 @@ class ZoneProvisionRequest(BaseModel):
 
     @model_validator(mode="after")
     def _peers(self) -> "ZoneProvisionRequest":
-        _not_local_or_self(self.zone_name, self.existing_zones)
+        _not_self(self.zone_name, self.existing_zones)
         return self
 
 
@@ -151,7 +164,7 @@ class ZoneDeprovisionRequest(BaseModel):
     )
     is_last_zone: bool = Field(
         False,
-        description="When True, also delete the LOCAL zone and LOCAL-zone chains"
+        description="When True, also delete the device's local zone"
     )
 
     _zone_name = field_validator("zone_name")(_zone_name_not_blank)
@@ -159,7 +172,7 @@ class ZoneDeprovisionRequest(BaseModel):
 
     @model_validator(mode="after")
     def _peers(self) -> "ZoneDeprovisionRequest":
-        _not_local_or_self(self.zone_name, self.peer_zones)
+        _not_self(self.zone_name, self.peer_zones)
         return self
 
 
@@ -318,7 +331,9 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
     - The zone with its configuration
     - IPv4 + IPv6 chains for every zone pair (both directions), default drop
     - From-zone assignments wired for each pair
-    - If is_first_zone: LOCAL zone + LOCAL-{zone} / {zone}-LOCAL chains (default drop + rule 10 accept)
+    - LOCAL-{zone} / {zone}-LOCAL chains (default drop + rule 10 accept) wired to the
+      device's local zone, under whatever name it has. If the device has none and
+      is_first_zone is set, a local zone named LOCAL is created first.
 
     The chains are firewall ipv4/ipv6 rulesets, so policies write is required too.
     """
@@ -328,12 +343,26 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
+        mapper = cast(
+            FirewallZonesMapper,
+            CommandMapperRegistry.get_mapper("firewall_zones", version),
+        )
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        parsed = mapper.parse_config(full_config)
+
+        name = request.zone_name
+        if any(zone["name"] == name for zone in parsed["zones"]):
+            raise HTTPException(status_code=400, detail=f"Zone {name} already exists")
+        local = _local_zone_name(parsed)
+        if local is None and not request.is_first_zone:
+            raise HTTPException(status_code=400, detail="The device has no local zone")
+        create_local = local is None
+        local = local or LOCAL_ZONE
+        _reject_local_peer(local, name, request.existing_zones)
 
         z_batch = FirewallZonesBatchBuilder(version=version)
         v4_batch = FirewallIPv4BatchBuilder(version=version)
         v6_batch = FirewallIPv6BatchBuilder(version=version)
-
-        name = request.zone_name
 
         # 1. Create the zone
         z_batch.set_zone(name)
@@ -386,36 +415,36 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
             z_batch.set_zone_from_firewall_name(name, peer, b4)
             z_batch.set_zone_from_firewall_ipv6_name(name, peer, b6)
 
-        # 4. Create LOCAL zone if this is the first zone
-        if request.is_first_zone:
-            z_batch.set_zone(LOCAL_ZONE)
-            z_batch.set_zone_local_zone(LOCAL_ZONE)
-            z_batch.set_zone_default_action(LOCAL_ZONE, "drop")
+        # 4. Create the local zone if the device has none
+        if create_local:
+            z_batch.set_zone(local)
+            z_batch.set_zone_local_zone(local)
+            z_batch.set_zone_default_action(local, "drop")
 
-        # 5. Always create LOCAL ↔ NEW chains (LOCAL zone exists after first zone is provisioned)
-        # LOCAL → NEW (traffic from LOCAL arriving at NEW)
-        loc_to_new_v4 = f"{LOCAL_ZONE}-{name}"
-        loc_to_new_v6 = f"{LOCAL_ZONE}-{name}-V6"
+        # 5. Always create local ↔ NEW chains
+        # LOCAL → NEW (traffic from the local zone arriving at NEW)
+        loc_to_new_v4 = f"{local}-{name}"
+        loc_to_new_v6 = f"{local}-{name}-V6"
         for chain, builder in [(loc_to_new_v4, v4_batch), (loc_to_new_v6, v6_batch)]:
             builder.set_custom_chain(chain)
             builder.set_custom_chain_default_action(chain, "drop")
             builder.set_custom_chain_rule(chain, 10)
             builder.set_rule_action(chain, 10, "accept", is_custom=True)
-        z_batch.set_zone_from(name, LOCAL_ZONE)
-        z_batch.set_zone_from_firewall_name(name, LOCAL_ZONE, loc_to_new_v4)
-        z_batch.set_zone_from_firewall_ipv6_name(name, LOCAL_ZONE, loc_to_new_v6)
+        z_batch.set_zone_from(name, local)
+        z_batch.set_zone_from_firewall_name(name, local, loc_to_new_v4)
+        z_batch.set_zone_from_firewall_ipv6_name(name, local, loc_to_new_v6)
 
-        # NEW → LOCAL (traffic from NEW arriving at LOCAL)
-        new_to_loc_v4 = f"{name}-{LOCAL_ZONE}"
-        new_to_loc_v6 = f"{name}-{LOCAL_ZONE}-V6"
+        # NEW → LOCAL (traffic from NEW arriving at the local zone)
+        new_to_loc_v4 = f"{name}-{local}"
+        new_to_loc_v6 = f"{name}-{local}-V6"
         for chain, builder in [(new_to_loc_v4, v4_batch), (new_to_loc_v6, v6_batch)]:
             builder.set_custom_chain(chain)
             builder.set_custom_chain_default_action(chain, "drop")
             builder.set_custom_chain_rule(chain, 10)
             builder.set_rule_action(chain, 10, "accept", is_custom=True)
-        z_batch.set_zone_from(LOCAL_ZONE, name)
-        z_batch.set_zone_from_firewall_name(LOCAL_ZONE, name, new_to_loc_v4)
-        z_batch.set_zone_from_firewall_ipv6_name(LOCAL_ZONE, name, new_to_loc_v6)
+        z_batch.set_zone_from(local, name)
+        z_batch.set_zone_from_firewall_name(local, name, new_to_loc_v4)
+        z_batch.set_zone_from_firewall_ipv6_name(local, name, new_to_loc_v6)
 
         merged = _MergedBatch()
         merged.extend(z_batch)
@@ -445,7 +474,8 @@ async def deprovision_zone(http_request: Request, request: ZoneDeprovisionReques
     - The zone itself
     - IPv4 + IPv6 chains for every pair involving this zone
     - From-zone references to this zone in all peer zones
-    - If is_last_zone: LOCAL zone + all LOCAL-zone chains
+    - The local ↔ zone chains and the local zone's from-zone ref, using the
+      device's local zone name; with is_last_zone the local zone itself instead
 
     The chains are firewall ipv4/ipv6 rulesets, so policies write is required too.
     """
@@ -455,12 +485,23 @@ async def deprovision_zone(http_request: Request, request: ZoneDeprovisionReques
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
+        mapper = cast(
+            FirewallZonesMapper,
+            CommandMapperRegistry.get_mapper("firewall_zones", version),
+        )
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        parsed = mapper.parse_config(full_config)
+
+        name = request.zone_name
+        if not any(zone["name"] == name for zone in parsed["zones"]):
+            raise HTTPException(status_code=404, detail=f"Zone {name} does not exist")
+        local = _local_zone_name(parsed)
+        if local is not None:
+            _reject_local_peer(local, name, request.peer_zones)
 
         z_batch = FirewallZonesBatchBuilder(version=version)
         v4_batch = FirewallIPv4BatchBuilder(version=version)
         v6_batch = FirewallIPv6BatchBuilder(version=version)
-
-        name = request.zone_name
 
         # 1. Delete the zone
         z_batch.delete_zone(name)
@@ -483,20 +524,20 @@ async def deprovision_zone(http_request: Request, request: ZoneDeprovisionReques
             # Remove from-zone references in peer zones pointing to this zone
             z_batch.delete_zone_from(peer, name)
 
-        # 4. Always delete LOCAL ↔ NAME chains (created for every zone)
-        for chain, builder in [
-            (f"{LOCAL_ZONE}-{name}", v4_batch),
-            (f"{LOCAL_ZONE}-{name}-V6", v6_batch),
-            (f"{name}-{LOCAL_ZONE}", v4_batch),
-            (f"{name}-{LOCAL_ZONE}-V6", v6_batch),
-        ]:
-            builder.delete_custom_chain(chain)
-
-        # 5. Delete LOCAL zone if this is the last non-local zone; otherwise clean up its from-zone ref
-        if request.is_last_zone:
-            z_batch.delete_zone(LOCAL_ZONE)
-        else:
-            z_batch.delete_zone_from(LOCAL_ZONE, name)
+        # 4. Delete local ↔ NAME chains (provision creates them for every zone)
+        # 5. Delete the local zone with the last non-local zone; otherwise its from-zone ref
+        if local is not None:
+            for chain, builder in [
+                (f"{local}-{name}", v4_batch),
+                (f"{local}-{name}-V6", v6_batch),
+                (f"{name}-{local}", v4_batch),
+                (f"{name}-{local}-V6", v6_batch),
+            ]:
+                builder.delete_custom_chain(chain)
+            if request.is_last_zone:
+                z_batch.delete_zone(local)
+            else:
+                z_batch.delete_zone_from(local, name)
 
         merged = _MergedBatch()
         merged.extend(z_batch)
