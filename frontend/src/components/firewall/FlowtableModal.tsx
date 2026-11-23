@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -77,7 +76,7 @@ export function FlowtableModal({
       existingFlowtables.map((ft) => ft.name)
     );
     if (problem) {
-      setError(t(`modal.${problem}`, { max: FLOWTABLE_DESCRIPTION_MAX }));
+      setError(t(`modal.${problem}`));
       return;
     }
     setLoading(true);
@@ -130,13 +129,12 @@ export function FlowtableModal({
 
           <div className="space-y-2">
             <Label htmlFor="description">{tc("description")}</Label>
-            <Textarea
+            <Input
               id="description"
               value={draft.description}
               onChange={(e) => set("description")(e.target.value)}
               placeholder={tc("optionalDescription")}
               maxLength={FLOWTABLE_DESCRIPTION_MAX}
-              rows={2}
             />
           </div>
 

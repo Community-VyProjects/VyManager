@@ -21,6 +21,13 @@ def _text(value: Any) -> Optional[str]:
     return value if isinstance(value, str) else None
 
 
+def _value(value: Any) -> Optional[str]:
+    """A value leaf: a string, or a one-key dict ({"software": {}})."""
+    if isinstance(value, dict):
+        return next(iter(value), None)
+    return _text(value)
+
+
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Return {"flowtables": [...], "total": n} for the flowtables response."""
     firewall = (full_config or {}).get("firewall")
@@ -34,6 +41,6 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
                 "name": name,
                 "description": _text(data.get("description")),
                 "interfaces": _names(data.get("interface")),
-                "offload": _text(data.get("offload")),
+                "offload": _value(data.get("offload")),
             })
     return {"flowtables": flowtables, "total": len(flowtables)}

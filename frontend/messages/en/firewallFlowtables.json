@@ -24,7 +24,6 @@
     "nameRequired": "Name is required",
     "nameInvalid": "Name must start with a letter or number and contain only letters, numbers, dots, hyphens, and underscores",
     "nameExists": "A flowtable with this name already exists",
-    "descriptionTooLong": "Description must be at most {max} characters",
     "interfaceRequired": "At least one interface is required",
     "updateFailed": "Failed to update flowtable",
     "createFailed": "Failed to create flowtable",

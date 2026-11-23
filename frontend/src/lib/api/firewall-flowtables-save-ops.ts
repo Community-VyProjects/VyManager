@@ -3,7 +3,7 @@ import type { Flowtable, FlowtableBatchOperation } from "./firewall-flowtables";
 /** Lab `firewall flowtable <name>` syntax (VyOS 1.4 and 1.5). */
 const NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
 
-/** Lab `description` syntax `.{0,255}`. */
+/** Lab `description` syntax `.{0,255}` (the input caps it). */
 export const FLOWTABLE_DESCRIPTION_MAX = 255;
 
 export interface FlowtableDraft {
@@ -18,7 +18,6 @@ export type FlowtableProblem =
   | "nameRequired"
   | "nameInvalid"
   | "nameExists"
-  | "descriptionTooLong"
   | "interfaceRequired";
 
 export function flowtableDraft(flowtable: Flowtable | null | undefined): FlowtableDraft {
@@ -64,7 +63,6 @@ export function flowtableProblem(
     if (!NAME_PATTERN.test(next.name)) return "nameInvalid";
     if (existingNames.includes(next.name)) return "nameExists";
   }
-  if (next.description.length > FLOWTABLE_DESCRIPTION_MAX) return "descriptionTooLong";
   if (next.interfaces.length === 0) return "interfaceRequired";
   return null;
 }

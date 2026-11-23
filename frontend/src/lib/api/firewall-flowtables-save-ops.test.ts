@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  FLOWTABLE_DESCRIPTION_MAX,
   flowtableDraft,
   flowtableProblem,
   flowtableSaveOps,
@@ -101,12 +100,6 @@ describe("flowtableProblem", () => {
   it("requires an interface after trimming", () => {
     assert.equal(flowtableProblem(null, draft({ interfaces: [" "] }), []), "interfaceRequired");
     assert.equal(flowtableProblem(FT, { ...flowtableDraft(FT), interfaces: [] }, []), "interfaceRequired");
-  });
-
-  it("bounds the description at the lab limit", () => {
-    const ok = "x".repeat(FLOWTABLE_DESCRIPTION_MAX);
-    assert.equal(flowtableProblem(null, draft({ description: ok }), []), null);
-    assert.equal(flowtableProblem(null, draft({ description: ok + "x" }), []), "descriptionTooLong");
   });
 });
 

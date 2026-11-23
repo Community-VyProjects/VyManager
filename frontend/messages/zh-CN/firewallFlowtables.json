@@ -24,7 +24,6 @@
     "nameRequired": "名称为必填项",
     "nameInvalid": "名称必须以字母或数字开头，且只能包含字母、数字、点、连字符和下划线",
     "nameExists": "已存在同名流表",
-    "descriptionTooLong": "描述最多 {max} 个字符",
     "interfaceRequired": "至少需要一个接口",
     "updateFailed": "更新流表失败",
     "createFailed": "创建流表失败",

@@ -86,7 +86,7 @@ def test_config_returns_parsed_flowtables(monkeypatch):
                     "offload": "hardware",
                 },
                 "FT2": {"interface": "eth2"},
-                "FT3": {"interface": {"eth3": {}}},
+                "FT3": {"interface": {"eth3": {}}, "offload": {"software": {}}},
             }
         }
     }
@@ -97,7 +97,7 @@ def test_config_returns_parsed_flowtables(monkeypatch):
         "flowtables": [
             {"name": "FT1", "description": "LAN", "interfaces": ["eth0", "eth1"], "offload": "hardware"},
             {"name": "FT2", "description": None, "interfaces": ["eth2"], "offload": None},
-            {"name": "FT3", "description": None, "interfaces": ["eth3"], "offload": None},
+            {"name": "FT3", "description": None, "interfaces": ["eth3"], "offload": "software"},
         ],
         "total": 3,
     }
