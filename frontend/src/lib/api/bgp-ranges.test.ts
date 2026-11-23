@@ -161,18 +161,21 @@ describe("BGP ranges", () => {
     assert.equal(peerProblem({ ...n, neighbor: { ...member, memberRemoteAs: ["65000"] } }), "peerGroupMixed");
     assert.equal(peerProblem({ ...base, remoteAs: "internal", neighbor: { ...member, memberRemoteAs: ["65000"] } }), null);
     // A peer group's members.
-    assert.equal(peerProblem({ ...n, members: [{ address: "192.0.2.1", remoteAs: null }] }), null);
-    assert.equal(peerProblem({ ...n, members: [{ address: "192.0.2.1", remoteAs: "65003" }] }), "memberOverridesRemoteAs");
-    assert.equal(peerProblem({ ...base, members: [{ address: "192.0.2.1", remoteAs: null }] }), "memberNeedsRemoteAs");
-    assert.equal(peerProblem({ ...base, members: [{ address: "192.0.2.1", remoteAs: "65003" }] }), null);
-    assert.equal(peerProblem({ ...base, members: [{ address: "eth0", remoteAs: null }] }), null);
+    assert.equal(peerProblem({ ...n, members: [{ address: "192.0.2.1", remoteAs: null, localAs: null }] }), null);
+    assert.equal(peerProblem({ ...n, members: [{ address: "192.0.2.1", remoteAs: "65003", localAs: null }] }), "memberOverridesRemoteAs");
+    assert.equal(peerProblem({ ...base, members: [{ address: "192.0.2.1", remoteAs: null, localAs: null }] }), "memberNeedsRemoteAs");
+    assert.equal(peerProblem({ ...base, members: [{ address: "192.0.2.1", remoteAs: "65003", localAs: null }] }), null);
+    assert.equal(peerProblem({ ...base, members: [{ address: "eth0", remoteAs: null, localAs: null }] }), null);
+    assert.equal(peerProblem({ ...base, remoteAs: "65000", members: [{ address: "192.0.2.1", remoteAs: null, localAs: "65010" }] }), "memberLocalAsNeedsEbgp");
+    assert.equal(peerProblem({ ...n, members: [{ address: "192.0.2.1", remoteAs: null, localAs: "65010" }] }), null);
+    assert.equal(peerProblem({ ...base, remoteAs: "internal", members: [{ address: "192.0.2.1", remoteAs: null, localAs: "65010" }] }), null);
     assert.deepEqual(
       peerGroupMembersOf([
-        { address: "192.0.2.1", remote_as: null, peer_group: "PG" },
-        { address: "192.0.2.2", remote_as: "65003", peer_group: null },
-        { address: "192.0.2.3", remote_as: "65004", peer_group: "PG" },
+        { address: "192.0.2.1", remote_as: null, peer_group: "PG", local_as: { asn: null } },
+        { address: "192.0.2.2", remote_as: "65003", peer_group: null, local_as: { asn: null } },
+        { address: "192.0.2.3", remote_as: "65004", peer_group: "PG", local_as: { asn: "65010" } },
       ]),
-      { PG: [{ address: "192.0.2.1", remoteAs: null }, { address: "192.0.2.3", remoteAs: "65004" }] },
+      { PG: [{ address: "192.0.2.1", remoteAs: null, localAs: null }, { address: "192.0.2.3", remoteAs: "65004", localAs: "65010" }] },
     );
     assert.equal(labeledUnicastConflict(["ipv4-unicast", "ipv6-labeled-unicast"]), null);
     assert.equal(labeledUnicastConflict(["ipv4-unicast", "ipv4-labeled-unicast"]), "IPv4");

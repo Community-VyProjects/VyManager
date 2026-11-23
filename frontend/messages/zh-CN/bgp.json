@@ -192,6 +192,7 @@
     "peerGroupMixed": "对等组成员必须全部为内部或全部为外部。",
     "memberOverridesRemoteAs": "该对等组的成员已设置自己的远程 AS；请先在成员中清除，再在此处设置。",
     "memberNeedsRemoteAs": "该对等组的成员没有自己的远程 AS；请在此保留远程 AS。",
+    "memberLocalAsNeedsEbgp": "该对等组的成员设置了本地 AS，本地 AS 仅允许用于 eBGP 对等体；此处的远程 AS 不能等于系统 AS 号。",
     "unicastWithLabeled": "{family} 单播与 {family} 标签单播不能同时启用。",
     "overrideCapabilityHelp": "覆盖能力协商结果。",
     "disableCapNeg": "禁用能力协商",

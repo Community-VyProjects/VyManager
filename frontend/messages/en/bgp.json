@@ -192,6 +192,7 @@
     "peerGroupMixed": "Peer-group members must be all internal or all external.",
     "memberOverridesRemoteAs": "A member of this peer group sets its own remote AS; clear it there before setting one here.",
     "memberNeedsRemoteAs": "A member of this peer group has no remote AS of its own; keep the remote AS here.",
+    "memberLocalAsNeedsEbgp": "A member of this peer group sets a local AS, which is allowed only for eBGP peers; the remote AS here cannot be the system AS number.",
     "unicastWithLabeled": "{family} unicast and {family} labeled unicast cannot both be enabled.",
     "overrideCapabilityHelp": "Override capability negotiation result.",
     "disableCapNeg": "Disable Capability Negotiation",

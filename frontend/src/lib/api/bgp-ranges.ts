@@ -151,21 +151,23 @@ export type PeerProblem =
   | "interfaceRemoteAs"
   | "peerGroupMixed"
   | "memberOverridesRemoteAs"
-  | "memberNeedsRemoteAs";
+  | "memberNeedsRemoteAs"
+  | "memberLocalAsNeedsEbgp";
 
 /** A configured neighbor of a peer group, as the verify rules read it. */
 export interface PeerGroupMember {
   address: string;
   remoteAs: string | null;
+  localAs: string | null;
 }
 
 /** Configured neighbors grouped by the peer group they name. */
 export function peerGroupMembersOf(
-  neighbors: { address: string; remote_as: string | null; peer_group: string | null }[],
+  neighbors: { address: string; remote_as: string | null; peer_group: string | null; local_as: { asn: string | null } }[],
 ): Record<string, PeerGroupMember[]> {
   const members: Record<string, PeerGroupMember[]> = {};
   for (const n of neighbors) {
-    if (n.peer_group) (members[n.peer_group] ??= []).push({ address: n.address, remoteAs: n.remote_as });
+    if (n.peer_group) (members[n.peer_group] ??= []).push({ address: n.address, remoteAs: n.remote_as, localAs: n.local_as.asn });
   }
   return members;
 }
@@ -220,6 +222,7 @@ export function peerProblem(values: {
   if (values.members) {
     if (own && values.members.some((m) => m.remoteAs)) return "memberOverridesRemoteAs";
     if (!own && values.members.some((m) => isIPAddress(m.address) && !m.remoteAs)) return "memberNeedsRemoteAs";
+    if (own && own === systemAs && values.members.some((m) => m.localAs && !m.remoteAs)) return "memberLocalAsNeedsEbgp";
   }
   return null;
 }

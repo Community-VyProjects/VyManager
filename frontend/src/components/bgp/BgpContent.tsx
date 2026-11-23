@@ -734,10 +734,6 @@ export function BgpContent() {
   // Helpers
   // ==========================================================================
 
-  const getMembersOfPeerGroup = (pgName: string): number => {
-    return config?.neighbors.filter((n) => n.peer_group === pgName).length ?? 0;
-  };
-
   const formatAfi = (afi: string): string => {
     const key = afiNameKey(afi);
     if (key) return t(`content.afiNames.${key}`);
@@ -1238,7 +1234,7 @@ export function BgpContent() {
                       </TableHeader>
                       <TableBody>
                         {config?.peer_groups.map((pg) => {
-                          const memberCount = getMembersOfPeerGroup(pg.name);
+                          const memberCount = peerGroupMembers[pg.name]?.length ?? 0;
                           return (
                             <TableRow key={pg.name}>
                               <TableCell className="font-medium font-mono">{pg.name}</TableCell>
