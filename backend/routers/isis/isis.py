@@ -19,11 +19,11 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders.isis import IsisBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.isis.isis import IsisMapper
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/isis", tags=["isis"])
@@ -306,28 +306,12 @@ async def isis_batch_configure(http_request: Request, body: IsisBatchRequest):
         service = get_session_vyos_service(http_request)
         builder = IsisBatchBuilder(version=service.get_version())
 
+        # ValueError is a leaf the device version lacks. It does not wrap
+        # execute_batch: an empty batch stays a 500.
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 0:
-                    method()
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(",", count - 1)
-                if len(parts) != count or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count} values",
-                    )
-                method(*parts)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as e:
-            # The mapper raises ValueError for a leaf this version lacks.
             raise HTTPException(status_code=400, detail=str(e))
 
         response = await run_in_threadpool(service.execute_batch, builder)
