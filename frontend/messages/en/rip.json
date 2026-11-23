@@ -109,6 +109,7 @@
     "plaintextInvalid": "The plaintext password must be up to {max} characters with no spaces",
     "prefixRequired": "Network prefix is required",
     "prefixInvalid": "Enter an IPv4 prefix with no host bits set, such as 10.0.0.0/8",
+    "neighborInvalid": "Enter an IPv4 address with no leading zeros, such as 192.168.1.1",
     "prefixExists": "This prefix is already configured",
     "distanceRequired": "Distance is required",
     "distanceRange": "Distance must be between {min} and {max}",

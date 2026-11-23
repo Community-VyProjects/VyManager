@@ -57,6 +57,7 @@ import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
 import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { isIPv4Prefix } from "@/lib/validators/ipv4-prefix";
+import { isIPv4Address } from "@/lib/api/bgp-ranges";
 import { RipInterfaceModal } from "./RipInterfaceModal";
 import { RipRedistributeModal } from "./RipRedistributeModal";
 import { RipNetworkDistanceModal } from "./RipNetworkDistanceModal";
@@ -285,9 +286,14 @@ export function RipContent() {
   };
 
   const handleAddNeighbor = async () => {
+    const neighbor = newNeighbor.trim();
+    if (!isIPv4Address(neighbor)) {
+      setNeighborsError(t("validation.neighborInvalid"));
+      return;
+    }
     try {
       setNeighborsError(null);
-      await ripService.addNeighbor(newNeighbor.trim());
+      await ripService.addNeighbor(neighbor);
       setNewNeighbor("");
       await reload();
     } catch (err) {

@@ -109,6 +109,7 @@
     "plaintextInvalid": "明文密码最多 {max} 个字符且不能包含空格",
     "prefixRequired": "网络前缀为必填项",
     "prefixInvalid": "请输入未设置主机位的 IPv4 前缀，例如 10.0.0.0/8",
+    "neighborInvalid": "请输入不含前导零的 IPv4 地址，例如 192.168.1.1",
     "prefixExists": "该前缀已配置",
     "distanceRequired": "距离为必填项",
     "distanceRange": "距离必须在 {min} 到 {max} 之间",
