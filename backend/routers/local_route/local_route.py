@@ -15,9 +15,8 @@ from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.local_route import LocalRouteMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op, resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +134,8 @@ async def get_local_route_capabilities(http_request: Request):
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
         return builder.get_capabilities()
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -167,6 +168,8 @@ async def get_local_route_config(http_request: Request, refresh: bool = False):
             CommandMapperRegistry.get_mapper("local_route", service.get_version()),
         )
         return LocalRouteConfigResponse(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -182,7 +185,9 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
     """
     Execute a batch of configuration operations for a local route rule.
 
-    Allows multiple changes in a single VyOS commit for efficiency.
+    Each op names a builder method of this rule type. The first parameter is
+    bound to ``rule_number`` and the value fills the second; a rule-only op
+    takes no value.
     """
     # Check RBAC permission
     await require_write_permission(http_request, FeatureGroup.LOCAL_ROUTE)
@@ -194,29 +199,25 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
 
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
+                # Resolve first so an unknown or internal op reports itself, not the family.
+                resolve_batch_method(builder, operation.op)
                 if ("local_route6" in operation.op) != (body.rule_type == "ipv6"):
                     raise HTTPException(
                         status_code=400,
                         detail=f"Operation {operation.op} does not match rule type {body.rule_type}",
                     )
-                count = len(inspect.signature(method).parameters)
-                if count > 1 and not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                method(*[body.rule_number, operation.value][:count])
+                call_item_batch_op(builder, operation.op, body.rule_number, operation.value)
         except ValueError as e:
             # The mapper rejects a node this device version does not have.
             raise HTTPException(status_code=400, detail=str(e))
 
         response = await run_in_threadpool(service.execute_batch, builder)
+        ok = response.status == 200 and not response.error
 
         return VyOSResponse(
-            success=response.status == 200,
-            data={"message": "Configuration updated"},
-            error=response.error if response.error else None,
+            success=ok,
+            data={"message": "Configuration updated"} if ok else None,
+            error=None if ok else response.error,
         )
     except HTTPException:
         raise
@@ -292,11 +293,12 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
             raise HTTPException(status_code=400, detail=str(e))
 
         response = await run_in_threadpool(service.execute_batch, builder)
+        ok = response.status == 200 and not response.error
 
         return VyOSResponse(
-            success=response.status == 200,
-            data={"message": "Rules reordered successfully"},
-            error=response.error if response.error else None,
+            success=ok,
+            data={"message": "Rules reordered successfully"} if ok else None,
+            error=None if ok else response.error,
         )
     except HTTPException:
         raise

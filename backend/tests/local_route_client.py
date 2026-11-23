@@ -8,9 +8,15 @@ from fastapi.testclient import TestClient
 MODULE = "routers.local_route.local_route"
 
 
-def local_route_client(monkeypatch, version, full_config=None):
-    """Return (client, executed); executed holds one [(op, path), ...] per commit."""
+def local_route_client(monkeypatch, version, full_config=None, commit=None):
+    """Return (client, executed); executed holds one [(op, path), ...] per commit.
+
+    commit is a dict with the status and error execute_batch returns; a test
+    flips it to a rejected commit with ``commit.update(...)``.
+    """
     executed = []
+    if commit is None:
+        commit = {"status": 200, "error": None}
 
     async def allow(*_args, **_kwargs):
         return None
@@ -26,7 +32,7 @@ def local_route_client(monkeypatch, version, full_config=None):
             if batch.is_empty():
                 raise ValueError("Cannot execute empty batch")
             executed.append([(item["op"], item["path"]) for item in batch.get_operations()])
-            return SimpleNamespace(status=200, result="", error=None)
+            return SimpleNamespace(status=commit["status"], result="", error=commit["error"])
 
     monkeypatch.setattr(f"{MODULE}.require_read_permission", allow)
     monkeypatch.setattr(f"{MODULE}.require_write_permission", allow)
