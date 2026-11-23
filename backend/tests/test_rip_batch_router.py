@@ -88,6 +88,21 @@ def test_batch_missing_value_is_400(client, operation):
     assert executed == []
 
 
+@pytest.mark.parametrize("operation", [
+    {"op": "delete_version", "value": "2"},
+    {"op": "delete_rip", "value": "eth0"},
+    {"op": "set_default_information_originate", "value": "true"},
+    {"op": "delete_timers", "value": "update"},
+])
+def test_batch_value_on_zero_arg_op_is_400(client, operation):
+    """A value on a zero-arg op is 400, not the op run with the value dropped."""
+    test_client, executed = client
+    resp = _post(test_client, [{"op": "set_network", "value": "10.0.0.0/8"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
+    assert executed == []
+
+
 @pytest.mark.parametrize("op, value, count", [
     ("set_interface_send_version", "eth0", 2),
     ("set_interface_send_version", "eth0,", 2),
