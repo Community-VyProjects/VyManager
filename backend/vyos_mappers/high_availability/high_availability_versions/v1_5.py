@@ -4,13 +4,17 @@
 ``vrrp snmp trap``.
 """
 
-from typing import List
+from typing import Dict, List
 
 from ..high_availability import BASE, HighAvailabilityMapper
 
 
 class HighAvailabilityMapperV1_5(HighAvailabilityMapper):
     """VyOS 1.5 high-availability mapper."""
+
+    def persistence_timeout_range(self) -> Dict[str, int]:
+        """1.5 also accepts 0 (disable persistent connections)."""
+        return {"min": 0, "max": 86400}
 
     def get_vrrp_group_health_check_timeout_path(self, name: str, value: str) -> List[str]:
         return BASE + ["vrrp", "group", name, "health-check", "timeout", value]

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -21,165 +21,128 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Loader2, Plus, Server, Trash2 } from "lucide-react";
-import type { HACapabilities, VirtualServer, RealServer } from "@/lib/api/high-availability";
+import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import type { ApiError } from "@/lib/types/api";
+import type { HACapabilities, VirtualServer } from "@/lib/api/high-availability";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import {
+  HA_RANGES,
+  virtualServerDraft,
+  virtualServerProblem,
+  type HAProblem,
+  type HARealServerDraft,
+  type VirtualServerDraft,
+  type VirtualServerProblemKey,
+} from "@/lib/api/high-availability-save-ops";
+import { HA_FIELD_LABELS } from "./ha-field-labels";
 
 interface VirtualServerModalProps {
-  open: boolean;
   onOpenChange: (open: boolean) => void;
   existingServer?: VirtualServer | null;
+  existingNames: string[];
   capabilities?: HACapabilities | null;
-  onSubmit: (vs: VirtualServer) => Promise<void>;
+  onSubmit: (draft: VirtualServerDraft) => Promise<void>;
 }
 
-interface RealServerEntry {
-  address: string;
-  port: string;
-  connection_timeout: string;
-  health_check_script: string;
-}
-
-interface FormState {
-  name: string;
-  address: string;
-  port: string;
-  protocol: string;
-  algorithm: string;
-  forward_method: string;
-  delay_loop: string;
-  persistence_timeout: string;
-  fwmark: string;
-  real_servers: RealServerEntry[];
-}
-
-const emptyForm = (): FormState => ({
-  name: "",
-  address: "",
-  port: "",
-  protocol: "",
-  algorithm: "",
-  forward_method: "",
-  delay_loop: "",
-  persistence_timeout: "",
-  fwmark: "",
-  real_servers: [],
-});
-
-function serverToForm(vs: VirtualServer): FormState {
-  return {
-    name: vs.name,
-    address: vs.address ?? "",
-    port: vs.port ?? "",
-    protocol: vs.protocol ?? "",
-    algorithm: vs.algorithm ?? "",
-    forward_method: vs.forward_method ?? "",
-    delay_loop: vs.delay_loop ?? "",
-    persistence_timeout: vs.persistence_timeout ?? "",
-    fwmark: vs.fwmark ?? "",
-    real_servers: vs.real_servers.map((rs) => ({
-      address: rs.address,
-      port: rs.port ?? "",
-      connection_timeout: rs.connection_timeout ?? "",
-      health_check_script: rs.health_check_script ?? "",
-    })),
-  };
-}
-
-function formToServer(f: FormState): VirtualServer {
-  const real_servers: RealServer[] = f.real_servers
-    .filter((rs) => rs.address.trim())
-    .map((rs) => ({
-      address: rs.address.trim(),
-      port: rs.port.trim() || null,
-      connection_timeout: rs.connection_timeout.trim() || null,
-      health_check_script: rs.health_check_script.trim() || null,
-    }));
-
-  return {
-    name: f.name.trim(),
-    address: f.address.trim() || null,
-    port: f.port.trim() || null,
-    protocol: f.protocol || null,
-    algorithm: f.algorithm || null,
-    forward_method: f.forward_method || null,
-    delay_loop: f.delay_loop.trim() || null,
-    persistence_timeout: f.persistence_timeout.trim() || null,
-    fwmark: f.fwmark.trim() || null,
-    real_servers,
-  };
-}
-
-const emptyRealServer = (): RealServerEntry => ({
+const emptyRealServer = (): HARealServerDraft => ({
   address: "",
   port: "",
   connection_timeout: "",
   health_check_script: "",
 });
 
+/** A Select of capability values with a default item that clears the leaf. */
+function ValueSelect({
+  value,
+  onChange,
+  options,
+  noneLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  noneLabel: string;
+}) {
+  return (
+    <Select value={value || NONE_SENTINEL} onValueChange={(v) => onChange(v === NONE_SENTINEL ? "" : v)}>
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE_SENTINEL}>{noneLabel}</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option} value={option}>{option}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** Rendered only while open, so the draft starts from the server each time. */
 export function VirtualServerModal({
-  open,
   onOpenChange,
   existingServer,
+  existingNames,
   capabilities,
   onSubmit,
 }: VirtualServerModalProps) {
   const t = useTranslations("highAvailability");
   const tc = useTranslations("common");
-  // Device token is "direct". "DR" is the keepalived name, not the CLI value.
-  const forwardLabels: Record<string, string> = {
-    direct: t("vsModal.forwardDr"),
-    nat: "NAT",
-    tunnel: t("vsModal.forwardTunnel"),
-  };
-  const forwardMethods = capabilities?.forward_methods ?? [];
   const isEdit = !!existingServer;
-  const [form, setForm] = useState<FormState>(emptyForm());
+  const persistence = capabilities?.persistence_timeout ?? { min: 1, max: 86400 };
+  const [draft, setDraft] = useState<VirtualServerDraft>(() => virtualServerDraft(existingServer));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setForm(existingServer ? serverToForm(existingServer) : emptyForm());
-      setError(null);
-    }
-  }, [open, existingServer]);
+  const set = <K extends keyof VirtualServerDraft>(field: K) => (value: VirtualServerDraft[K]) =>
+    setDraft((prev) => ({ ...prev, [field]: value }));
 
-  const set = (field: keyof FormState) => (value: string) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
-
-  const setRealServer = (idx: number, field: keyof RealServerEntry, value: string) => {
-    setForm((prev) => {
+  const setRealServer = (idx: number, field: keyof HARealServerDraft, value: string) => {
+    setDraft((prev) => {
       const real_servers = [...prev.real_servers];
       real_servers[idx] = { ...real_servers[idx], [field]: value };
       return { ...prev, real_servers };
     });
   };
 
-  const addRealServer = () =>
-    setForm((prev) => ({ ...prev, real_servers: [...prev.real_servers, emptyRealServer()] }));
+  const problemText = (problem: HAProblem<VirtualServerProblemKey>): string => {
+    if (problem.key === "outOfRange") {
+      const values = {
+        field: t(HA_FIELD_LABELS[problem.field!]),
+        min: problem.min!,
+        max: problem.max!,
+      };
+      return problem.address
+        ? t("realServerOutOfRange", { ...values, address: problem.address })
+        : t("outOfRange", values);
+    }
+    return t(`vsModal.${problem.key}`, { address: problem.address ?? "" });
+  };
 
-  const removeRealServer = (idx: number) =>
-    setForm((prev) => ({
-      ...prev,
-      real_servers: prev.real_servers.filter((_, i) => i !== idx),
-    }));
+  const close = (open: boolean) => {
+    if (!loading) onOpenChange(open);
+  };
 
   const handleSubmit = async () => {
     setError(null);
-    if (!form.name.trim()) { setError(t("vsModal.nameRequired")); return; }
+    const problem = virtualServerProblem(existingServer ?? null, draft, existingNames, persistence);
+    if (problem) {
+      setError(problemText(problem));
+      return;
+    }
     setLoading(true);
     try {
-      await onSubmit(formToServer(form));
+      await onSubmit(draft);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
+    <Dialog open onOpenChange={close}>
       <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{isEdit ? t("vsModal.editTitle") : t("vs.add")}</DialogTitle>
@@ -199,25 +162,22 @@ export function VirtualServerModal({
               </div>
             )}
 
-            {/* Name */}
             <div className="space-y-1.5">
               <Label>{t("vsModal.serverName")} <span className="text-destructive">*</span></Label>
               <Input
-                value={form.name}
+                value={draft.name}
                 onChange={(e) => set("name")(e.target.value)}
                 disabled={isEdit}
                 placeholder={t("example", { value: "web-lb" })}
                 className={isEdit ? "opacity-60" : ""}
               />
-              {isEdit && <p className="text-xs text-muted-foreground">{t("nameCannotChange")}</p>}
             </div>
 
-            {/* Address & Port */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 space-y-1.5">
+              <div className="space-y-1.5">
                 <Label>{t("vsModal.virtualIpAddress")}</Label>
                 <Input
-                  value={form.address}
+                  value={draft.address}
                   onChange={(e) => set("address")(e.target.value)}
                   placeholder="10.0.0.100"
                   className="font-mono"
@@ -227,182 +187,152 @@ export function VirtualServerModal({
                 <Label>{t("port")}</Label>
                 <Input
                   type="number"
-                  min={1}
-                  max={65535}
-                  value={form.port}
+                  {...HA_RANGES.port}
+                  value={draft.port}
                   onChange={(e) => set("port")(e.target.value)}
-                  placeholder="80"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("vsModal.fwMark")}</Label>
+                <Input
+                  type="number"
+                  {...HA_RANGES.fwmark}
+                  value={draft.fwmark}
+                  onChange={(e) => set("fwmark")(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Protocol, Algorithm, Forward Method */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>{t("protocol")}</Label>
-                <Select value={form.protocol} onValueChange={(v) => set("protocol")(v === "none" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("any")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t("any")}</SelectItem>
-                    <SelectItem value="tcp">TCP</SelectItem>
-                    <SelectItem value="udp">UDP</SelectItem>
-                  </SelectContent>
-                </Select>
+                <ValueSelect
+                  value={draft.protocol}
+                  onChange={set("protocol")}
+                  options={capabilities?.protocols || []}
+                  noneLabel={tc("default")}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("algorithm")}</Label>
-                <Select value={form.algorithm} onValueChange={(v) => set("algorithm")(v === "none" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={tc("default")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{tc("default")}</SelectItem>
-                    <SelectItem value="round-robin">{t("vsModal.algoRoundRobin")}</SelectItem>
-                    <SelectItem value="weighted-round-robin">{t("vsModal.algoWeightedRoundRobin")}</SelectItem>
-                    <SelectItem value="least-connection">{t("vsModal.algoLeastConnection")}</SelectItem>
-                    <SelectItem value="weighted-least-connection">{t("vsModal.algoWeightedLeastConnection")}</SelectItem>
-                    <SelectItem value="source-hashing">{t("vsModal.algoSourceHashing")}</SelectItem>
-                    <SelectItem value="destination-hashing">{t("vsModal.algoDestinationHashing")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <ValueSelect
+                  value={draft.algorithm}
+                  onChange={set("algorithm")}
+                  options={capabilities?.algorithms || []}
+                  noneLabel={tc("default")}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("vsModal.forwardMethod")}</Label>
-                <Select value={form.forward_method} onValueChange={(v) => set("forward_method")(v === "none" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={tc("default")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{tc("default")}</SelectItem>
-                    {forwardMethods.map((method) => (
-                      <SelectItem key={method} value={method}>
-                        {forwardLabels[method] ?? method}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ValueSelect
+                  value={draft.forward_method}
+                  onChange={set("forward_method")}
+                  options={capabilities?.forward_methods || []}
+                  noneLabel={tc("default")}
+                />
               </div>
             </div>
 
-            {/* Delay Loop, Persistence, FWMark */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>{t("vsModal.delayLoop")}</Label>
                 <Input
                   type="number"
-                  min={1}
-                  value={form.delay_loop}
+                  {...HA_RANGES.delay_loop}
+                  value={draft.delay_loop}
                   onChange={(e) => set("delay_loop")(e.target.value)}
-                  placeholder="10"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("vsModal.persistenceTimeout")}</Label>
                 <Input
                   type="number"
-                  min={1}
-                  value={form.persistence_timeout}
+                  min={persistence.min}
+                  max={persistence.max}
+                  value={draft.persistence_timeout}
                   onChange={(e) => set("persistence_timeout")(e.target.value)}
-                  placeholder="360"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("vsModal.fwMark")}</Label>
-                <Input
-                  value={form.fwmark}
-                  onChange={(e) => set("fwmark")(e.target.value)}
-                  placeholder={tc("optional")}
                 />
               </div>
             </div>
 
-            {/* Real Servers */}
             <Separator />
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">{t("realServers")}</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t("vsModal.realServersHelp")}</p>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={addRealServer}>
+                <Label>{t("realServers")} <span className="text-destructive">*</span></Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => set("real_servers")([...draft.real_servers, emptyRealServer()])}
+                >
                   <Plus className="h-3.5 w-3.5 mr-1" /> {t("vsModal.addServer")}
                 </Button>
               </div>
 
-              {form.real_servers.length === 0 ? (
-                <div className="border border-dashed rounded-lg p-6 flex flex-col items-center gap-2 text-center">
-                  <Server className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">{t("vsModal.noRealServers")}</p>
-                  <p className="text-xs text-muted-foreground">{t("vsModal.noRealServersHint")}</p>
+              {draft.real_servers.length === 0 ? (
+                <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
+                  {t("vsModal.noRealServers")}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {form.real_servers.map((rs, idx) => (
-                    <div key={idx} className="rounded-lg border bg-card p-4 space-y-3">
-                      {/* Card header */}
+                  {draft.real_servers.map((rs, idx) => (
+                    <div key={idx} className="rounded-lg border p-3 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        <span className="text-xs font-medium text-muted-foreground">
                           {t("vsModal.serverN", { n: idx + 1 })}
                         </span>
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => removeRealServer(idx)}
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => set("real_servers")(draft.real_servers.filter((_, i) => i !== idx))}
+                          aria-label={t("remove")}
                         >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          {t("remove")}
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-
-                      {/* Address row */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t("vsModal.ipAddress")} <span className="text-destructive">*</span></Label>
-                        <Input
-                          value={rs.address}
-                          onChange={(e) => setRealServer(idx, "address", e.target.value)}
-                          placeholder="192.168.1.10"
-                          className="font-mono"
-                        />
-                      </div>
-
-                      {/* Port + Timeout row */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs">{t("port")}</Label>
+                          <Label className="text-xs text-muted-foreground">
+                            {t("vsModal.ipAddress")} <span className="text-destructive">*</span>
+                          </Label>
                           <Input
-                            type="number"
-                            min={1}
-                            max={65535}
-                            value={rs.port}
-                            onChange={(e) => setRealServer(idx, "port", e.target.value)}
-                            placeholder={t("example", { value: "80" })}
+                            value={rs.address}
+                            onChange={(e) => setRealServer(idx, "address", e.target.value)}
+                            placeholder="10.0.0.10"
+                            className="font-mono"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs">{t("vsModal.connectionTimeout")}</Label>
+                          <Label className="text-xs text-muted-foreground">
+                            {t("port")} <span className="text-destructive">*</span>
+                          </Label>
                           <Input
                             type="number"
-                            min={1}
-                            value={rs.connection_timeout}
-                            onChange={(e) => setRealServer(idx, "connection_timeout", e.target.value)}
-                            placeholder={t("example", { value: "5" })}
+                            {...HA_RANGES.port}
+                            value={rs.port}
+                            onChange={(e) => setRealServer(idx, "port", e.target.value)}
                           />
                         </div>
-                      </div>
-
-                      {/* Health check script */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t("vsModal.healthCheckScript")}</Label>
-                        <Input
-                          value={rs.health_check_script}
-                          onChange={(e) => setRealServer(idx, "health_check_script", e.target.value)}
-                          placeholder="/etc/keepalived/check.sh"
-                          className="font-mono"
-                        />
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">{t("vsModal.connectionTimeout")}</Label>
+                          <Input
+                            type="number"
+                            {...HA_RANGES.connection_timeout}
+                            value={rs.connection_timeout}
+                            onChange={(e) => setRealServer(idx, "connection_timeout", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">{t("vsModal.healthCheckScript")}</Label>
+                          <Input
+                            value={rs.health_check_script}
+                            onChange={(e) => setRealServer(idx, "health_check_script", e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -413,7 +343,7 @@ export function VirtualServerModal({
         </div>
 
         <DialogFooter className="shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => close(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

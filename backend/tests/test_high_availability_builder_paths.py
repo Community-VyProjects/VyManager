@@ -256,9 +256,12 @@ def test_capabilities_gate_on_the_mapper_allowlist(monkeypatch):
 
 @pytest.mark.parametrize("version,expected", [("1.4", False), ("1.5", True), ("2025.11.01-0019-rolling", True)])
 def test_capabilities_follow_the_version_subclass(version, expected):
-    features = HighAvailabilityBatchBuilder(version=version).get_capabilities()["features"]
+    caps = HighAvailabilityBatchBuilder(version=version).get_capabilities()
+    features = caps["features"]
     assert {key: value["supported"] for key, value in features.items()} == {
         "vrrp_snmp_trap": expected,
         "health_check_timeout": expected,
         "sync_group_health_check_timeout": expected,
     }
+    # persistence-timeout validator: 1-86400 on 1.4, 0-86400 on 1.5.
+    assert caps["persistence_timeout"] == {"min": 0 if expected else 1, "max": 86400}

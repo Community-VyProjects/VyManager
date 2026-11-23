@@ -59,6 +59,8 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
+import type { ApiError } from "@/lib/types/api";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import {
   haService,
   HAConfig,
@@ -67,36 +69,53 @@ import {
   VrrpSyncGroup,
   VirtualServer,
 } from "@/lib/api/high-availability";
+import {
+  HA_RANGES,
+  haGlobalsDraft,
+  haGlobalsProblem,
+  type HAGlobalsDraft,
+  type VirtualServerDraft,
+  type VrrpGroupDraft,
+  type VrrpSyncGroupDraft,
+} from "@/lib/api/high-availability-save-ops";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { HA_FIELD_LABELS } from "./ha-field-labels";
+import { GarpFields } from "./HaSectionFields";
 import { VrrpGroupModal } from "./VrrpGroupModal";
 import { SyncGroupModal } from "./SyncGroupModal";
 import { VirtualServerModal } from "./VirtualServerModal";
 
 // ============================================================================
-// Delete Confirmation Dialog
+// Confirm Dialog (delete, enable, disable)
 // ============================================================================
 
-function DeleteDialog({
+function ConfirmDialog({
   open,
   onOpenChange,
   title,
   description,
+  actionLabel,
+  destructive = false,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   title: string;
   description: string;
+  actionLabel: string;
+  destructive?: boolean;
   onConfirm: () => Promise<void>;
 }) {
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) setError(null);
-  }, [open]);
+  const close = (o: boolean) => {
+    if (loading) return;
+    if (!o) setError(null);
+    onOpenChange(o);
+  };
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -105,14 +124,14 @@ function DeleteDialog({
       await onConfirm();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -125,12 +144,12 @@ function DeleteDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => close(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={loading}>
+          <Button variant={destructive ? "destructive" : "default"} onClick={handleConfirm} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {tc("delete")}
+            {actionLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -148,40 +167,37 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [startupDelay, setStartupDelay] = useState("");
-  const [version, setVersion] = useState("");
-  const [snmp, setSnmp] = useState(false);
-  const [snmpTrap, setSnmpTrap] = useState(false);
+  const [draft, setDraft] = useState<HAGlobalsDraft>(() => haGlobalsDraft(config));
 
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.HIGH_AVAILABILITY);
   const snmpTrapSupported = capabilities?.features.vrrp_snmp_trap?.supported ?? false;
+  const vrrpVersions = capabilities?.vrrp_versions || [];
 
   const openDialog = () => {
-    setStartupDelay(config.vrrp.global_parameters.startup_delay ?? "");
-    setVersion(config.vrrp.global_parameters.version ?? "");
-    setSnmp(config.vrrp.snmp);
-    setSnmpTrap(config.vrrp.snmp_trap);
+    setDraft(haGlobalsDraft(config));
     setError(null);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     setError(null);
+    const problem = haGlobalsProblem(draft);
+    if (problem) {
+      setError(t("outOfRange", {
+        field: t(HA_FIELD_LABELS[problem.field!]),
+        min: problem.min!,
+        max: problem.max!,
+      }));
+      return;
+    }
     setLoading(true);
     try {
-      await haService.updateGlobalSettings({
-        startup_delay: startupDelay.trim() || null,
-        version: version || null,
-        snmp,
-        // Trap is a child of snmp; only send it when supported and snmp is on,
-        // otherwise clear it so it never lingers under a disabled parent.
-        ...(snmpTrapSupported ? { snmp_trap: snmp && snmpTrap } : {}),
-      });
+      await haService.saveGlobals(config, draft, { snmpTrap: snmpTrapSupported });
       onSaved();
       setDialogOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -250,14 +266,15 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
 
       {/* Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!loading) setDialogOpen(o); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[88vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{t("globals.title")}</DialogTitle>
             <DialogDescription>
               {t("globals.description")}
             </DialogDescription>
           </DialogHeader>
 
+          <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
           <div className="space-y-4 py-2">
             {error && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
@@ -268,14 +285,18 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
 
             <div className="space-y-1.5">
               <Label>{t("globals.vrrpVersion")}</Label>
-              <Select value={version || "default"} onValueChange={(v) => setVersion(v === "default" ? "" : v)}>
+              <Select
+                value={draft.version || NONE_SENTINEL}
+                onValueChange={(v) => setDraft((p) => ({ ...p, version: v === NONE_SENTINEL ? "" : v }))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">{tc("default")}</SelectItem>
-                  <SelectItem value="2">{t("globals.versionN", { n: "2" })}</SelectItem>
-                  <SelectItem value="3">{t("globals.versionN", { n: "3" })}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                  {vrrpVersions.map((v) => (
+                    <SelectItem key={v} value={v}>{t("globals.versionN", { n: v })}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -284,51 +305,45 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
               <Label>{t("globals.startupDelayLabel")}</Label>
               <Input
                 type="number"
-                min={0}
-                value={startupDelay}
-                onChange={(e) => setStartupDelay(e.target.value)}
-                placeholder={t("globals.startupDelayPlaceholder")}
+                {...HA_RANGES.startup_delay}
+                value={draft.startup_delay}
+                onChange={(e) => setDraft((p) => ({ ...p, startup_delay: e.target.value }))}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("globals.startupDelayHelp")}
-              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">{t("garp")}</Label>
+              <GarpFields value={draft.garp} onChange={(garp) => setDraft((p) => ({ ...p, garp }))} />
             </div>
 
             <div className="flex items-center gap-3 rounded-lg border p-3">
               <Checkbox
                 id="snmp-dialog"
-                checked={snmp}
-                onCheckedChange={(v) => setSnmp(v === true)}
+                checked={draft.snmp}
+                onCheckedChange={(v) => setDraft((p) => ({ ...p, snmp: v === true }))}
               />
-              <div>
-                <label htmlFor="snmp-dialog" className="text-sm font-medium cursor-pointer">
-                  {t("globals.snmpNotifications")}
-                </label>
-                <p className="text-xs text-muted-foreground">{t("globals.snmpNotificationsHelp")}</p>
-              </div>
+              <label htmlFor="snmp-dialog" className="text-sm font-medium cursor-pointer">
+                {t("globals.snmpNotifications")}
+              </label>
             </div>
 
             {snmpTrapSupported && (
-              <div className={cn("flex items-center gap-3 rounded-lg border p-3", !snmp && "opacity-50")}>
+              <div className={cn("flex items-center gap-3 rounded-lg border p-3", !draft.snmp && "opacity-50")}>
                 <Checkbox
                   id="snmp-trap-dialog"
-                  checked={snmpTrap}
-                  disabled={!snmp}
-                  onCheckedChange={(v) => setSnmpTrap(v === true)}
+                  checked={draft.snmp && draft.snmp_trap}
+                  disabled={!draft.snmp}
+                  onCheckedChange={(v) => setDraft((p) => ({ ...p, snmp_trap: v === true }))}
                 />
-                <div>
-                  <label htmlFor="snmp-trap-dialog" className="text-sm font-medium cursor-pointer">
-                    {t("globals.snmpTraps")}
-                  </label>
-                  <p className="text-xs text-muted-foreground">
-                    {snmp ? t("globals.snmpTrapsHelp") : t("globals.snmpTrapsNeedsSnmp")}
-                  </p>
-                </div>
+                <label htmlFor="snmp-trap-dialog" className="text-sm font-medium cursor-pointer">
+                  {t("globals.snmpTraps")}
+                </label>
               </div>
             )}
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={loading}>
               {tc("cancel")}
             </Button>
@@ -357,11 +372,15 @@ export function HighAvailabilityContent() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedTab, setSelectedTab] = useState<"vrrp" | "sync" | "vs">("vrrp");
-  const [haDisabled, setHaDisabled] = useState(false);
-  const [togglingHA, setTogglingHA] = useState(false);
+  // The action is kept apart from `open` so the text does not flip while the dialog closes.
+  const [haConfirmOpen, setHaConfirmOpen] = useState(false);
+  const [haAction, setHaAction] = useState<"enable" | "disable">("disable");
+  const [togglingGroup, setTogglingGroup] = useState<{ name: string; disable: boolean } | null>(null);
+  const [groupConfirmOpen, setGroupConfirmOpen] = useState(false);
 
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.HIGH_AVAILABILITY);
+  const haDisabled = config?.disabled ?? false;
 
   // ---- Modal state ----
   const [vrrpGroupModal, setVrrpGroupModal] = useState(false);
@@ -387,9 +406,8 @@ export function HighAvailabilityContent() {
       ]);
       setConfig(cfg);
       setCapabilities(caps);
-      setHaDisabled(cfg.disabled);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failedToLoad"));
+      setError((err as ApiError).message || t("failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -406,17 +424,9 @@ export function HighAvailabilityContent() {
     }
   }, [searchParams]);
 
-  const handleToggleHA = async () => {
-    setTogglingHA(true);
-    try {
-      await haService.updateGlobalSettings({ disabled: !haDisabled });
-      setHaDisabled(!haDisabled);
-      await loadData(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("toggleFailed"));
-    } finally {
-      setTogglingHA(false);
-    }
+  const confirmToggleHA = () => {
+    setHaAction(haDisabled ? "enable" : "disable");
+    setHaConfirmOpen(true);
   };
 
   // ---- Stats ----
@@ -450,41 +460,27 @@ export function HighAvailabilityContent() {
   }) ?? [];
 
   // ---- Handlers ----
-  const handleCreateVrrpGroup = async (group: VrrpGroup) => {
-    await haService.createVrrpGroup(group);
+  const handleSaveVrrpGroup = async (draft: VrrpGroupDraft) => {
+    await haService.saveVrrpGroup(editingVrrpGroup, draft, {
+      healthCheckTimeout: capabilities?.features.health_check_timeout?.supported ?? false,
+    });
     await loadData(true);
   };
 
-  const handleUpdateVrrpGroup = async (group: VrrpGroup) => {
-    await haService.updateVrrpGroup(editingVrrpGroup!, group);
-    setEditingVrrpGroup(null);
+  const confirmToggleVrrpGroup = (group: VrrpGroup) => {
+    setTogglingGroup({ name: group.name, disable: !group.disabled });
+    setGroupConfirmOpen(true);
+  };
+
+  const handleSaveSyncGroup = async (draft: VrrpSyncGroupDraft) => {
+    await haService.saveSyncGroup(editingSyncGroup, draft, {
+      healthCheckTimeout: capabilities?.features.sync_group_health_check_timeout?.supported ?? false,
+    });
     await loadData(true);
   };
 
-  const handleToggleVrrpGroup = async (group: VrrpGroup) => {
-    await haService.toggleVrrpGroup(group.name, !group.disabled);
-    await loadData(true);
-  };
-
-  const handleCreateSyncGroup = async (group: VrrpSyncGroup) => {
-    await haService.createSyncGroup(group);
-    await loadData(true);
-  };
-
-  const handleUpdateSyncGroup = async (group: VrrpSyncGroup) => {
-    await haService.updateSyncGroup(editingSyncGroup!, group);
-    setEditingSyncGroup(null);
-    await loadData(true);
-  };
-
-  const handleCreateVS = async (vs: VirtualServer) => {
-    await haService.createVirtualServer(vs);
-    await loadData(true);
-  };
-
-  const handleUpdateVS = async (vs: VirtualServer) => {
-    await haService.updateVirtualServer(editingVS!, vs);
-    setEditingVS(null);
+  const handleSaveVS = async (draft: VirtualServerDraft) => {
+    await haService.saveVirtualServer(editingVS, draft);
     await loadData(true);
   };
 
@@ -524,8 +520,7 @@ export function HighAvailabilityContent() {
                   <Checkbox
                     id="ha-enabled"
                     checked={!haDisabled}
-                    onCheckedChange={() => handleToggleHA()}
-                    disabled={togglingHA}
+                    onCheckedChange={confirmToggleHA}
                   />
                   <label htmlFor="ha-enabled" className="text-sm font-medium cursor-pointer">
                     {t("haEnabled")}
@@ -764,7 +759,7 @@ export function HighAvailabilityContent() {
                                       size="icon"
                                       className="h-8 w-8"
                                       title={group.disabled ? t("vrrp.enable") : t("vrrp.disable")}
-                                      onClick={() => handleToggleVrrpGroup(group)}
+                                      onClick={() => confirmToggleVrrpGroup(group)}
                                     >
                                       {group.disabled
                                         ? <CirclePlay className="h-4 w-4 text-green-500" />
@@ -1033,37 +1028,75 @@ export function HighAvailabilityContent() {
 
       {/* ===== MODALS ===== */}
 
-      <VrrpGroupModal
-        open={vrrpGroupModal}
-        onOpenChange={(o) => { setVrrpGroupModal(o); if (!o) setEditingVrrpGroup(null); }}
-        existingGroup={editingVrrpGroup}
-        capabilities={capabilities}
-        onSubmit={editingVrrpGroup ? handleUpdateVrrpGroup : handleCreateVrrpGroup}
+      {vrrpGroupModal && (
+        <VrrpGroupModal
+          onOpenChange={(o) => { setVrrpGroupModal(o); if (!o) setEditingVrrpGroup(null); }}
+          existingGroup={editingVrrpGroup}
+          existingNames={config?.vrrp.groups.map((g) => g.name) ?? []}
+          capabilities={capabilities}
+          onSubmit={handleSaveVrrpGroup}
+        />
+      )}
+
+      {syncGroupModal && (
+        <SyncGroupModal
+          onOpenChange={(o) => { setSyncGroupModal(o); if (!o) setEditingSyncGroup(null); }}
+          existingGroup={editingSyncGroup}
+          existingNames={config?.vrrp.sync_groups.map((g) => g.name) ?? []}
+          vrrpGroups={config?.vrrp.groups ?? []}
+          capabilities={capabilities}
+          onSubmit={handleSaveSyncGroup}
+        />
+      )}
+
+      {vsModal && (
+        <VirtualServerModal
+          onOpenChange={(o) => { setVsModal(o); if (!o) setEditingVS(null); }}
+          existingServer={editingVS}
+          existingNames={config?.virtual_servers.map((vs) => vs.name) ?? []}
+          capabilities={capabilities}
+          onSubmit={handleSaveVS}
+        />
+      )}
+
+      <ConfirmDialog
+        open={haConfirmOpen}
+        onOpenChange={setHaConfirmOpen}
+        title={haAction === "disable" ? t("haConfirm.disableTitle") : t("haConfirm.enableTitle")}
+        description={haAction === "disable" ? t("haConfirm.disableDescription") : t("haConfirm.enableDescription")}
+        actionLabel={t("apply")}
+        destructive={haAction === "disable"}
+        onConfirm={async () => {
+          await haService.setHaDisabled(haAction === "disable");
+          await loadData(true);
+        }}
       />
 
-      <SyncGroupModal
-        open={syncGroupModal}
-        onOpenChange={(o) => { setSyncGroupModal(o); if (!o) setEditingSyncGroup(null); }}
-        existingGroup={editingSyncGroup}
-        vrrpGroups={config?.vrrp.groups ?? []}
-        capabilities={capabilities}
-        onSubmit={editingSyncGroup ? handleUpdateSyncGroup : handleCreateSyncGroup}
-      />
-
-      <VirtualServerModal
-        open={vsModal}
-        onOpenChange={(o) => { setVsModal(o); if (!o) setEditingVS(null); }}
-        existingServer={editingVS}
-        capabilities={capabilities}
-        onSubmit={editingVS ? handleUpdateVS : handleCreateVS}
+      <ConfirmDialog
+        open={groupConfirmOpen}
+        onOpenChange={setGroupConfirmOpen}
+        title={togglingGroup?.disable ? t("vrrp.disableTitle") : t("vrrp.enableTitle")}
+        description={
+          togglingGroup?.disable
+            ? t("vrrp.disableDescription", { name: togglingGroup?.name ?? "" })
+            : t("vrrp.enableDescription", { name: togglingGroup?.name ?? "" })
+        }
+        actionLabel={t("apply")}
+        destructive={!!togglingGroup?.disable}
+        onConfirm={async () => {
+          await haService.setVrrpGroupDisabled(togglingGroup!.name, togglingGroup!.disable);
+          await loadData(true);
+        }}
       />
 
       {/* Delete dialogs */}
-      <DeleteDialog
+      <ConfirmDialog
         open={!!deletingVrrpGroup}
         onOpenChange={(o) => { if (!o) setDeletingVrrpGroup(null); }}
         title={t("vrrp.deleteTitle")}
         description={t("vrrp.deleteDescription", { name: String(deletingVrrpGroup?.name) })}
+        actionLabel={tc("delete")}
+        destructive
         onConfirm={async () => {
           await haService.deleteVrrpGroup(deletingVrrpGroup!.name);
           setDeletingVrrpGroup(null);
@@ -1071,11 +1104,13 @@ export function HighAvailabilityContent() {
         }}
       />
 
-      <DeleteDialog
+      <ConfirmDialog
         open={!!deletingSyncGroup}
         onOpenChange={(o) => { if (!o) setDeletingSyncGroup(null); }}
         title={t("sync.deleteTitle")}
         description={t("sync.deleteDescription", { name: String(deletingSyncGroup?.name) })}
+        actionLabel={tc("delete")}
+        destructive
         onConfirm={async () => {
           await haService.deleteSyncGroup(deletingSyncGroup!.name);
           setDeletingSyncGroup(null);
@@ -1083,11 +1118,13 @@ export function HighAvailabilityContent() {
         }}
       />
 
-      <DeleteDialog
+      <ConfirmDialog
         open={!!deletingVS}
         onOpenChange={(o) => { if (!o) setDeletingVS(null); }}
         title={t("vs.deleteTitle")}
         description={t("vs.deleteDescription", { name: String(deletingVS?.name) })}
+        actionLabel={tc("delete")}
+        destructive
         onConfirm={async () => {
           await haService.deleteVirtualServer(deletingVS!.name);
           setDeletingVS(null);

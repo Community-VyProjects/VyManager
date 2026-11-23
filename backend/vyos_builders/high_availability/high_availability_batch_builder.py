@@ -512,6 +512,7 @@ class HighAvailabilityBatchBuilder(BatchBuilder):
             "protocols": self.m.protocols(),
             "auth_types": self.m.auth_types(),
             "vrrp_versions": self.m.vrrp_versions(),
+            "persistence_timeout": self.m.persistence_timeout_range(),
             "features": {
                 "vrrp_snmp_trap": {
                     "supported": "vrrp snmp trap" in nodes,

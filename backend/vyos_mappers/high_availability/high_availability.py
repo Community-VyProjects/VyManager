@@ -80,6 +80,10 @@ class HighAvailabilityMapper(BaseFeatureMapper):
     def vrrp_versions(self) -> List[str]:
         return list(self._VRRP_VERSIONS)
 
+    def persistence_timeout_range(self) -> Dict[str, int]:
+        """virtual-server persistence-timeout validator: 1-86400 on 1.4."""
+        return {"min": 1, "max": 86400}
+
     # ========================================================================
     # HA global
     # ========================================================================

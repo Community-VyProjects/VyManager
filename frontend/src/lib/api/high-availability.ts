@@ -132,6 +132,7 @@ export interface HACapabilities {
   protocols: string[];
   auth_types: string[];
   vrrp_versions: string[];
+  persistence_timeout: { min: number; max: number };
   features: {
     vrrp_snmp_trap: { supported: boolean; description: string };
     health_check_timeout: { supported: boolean; description: string };

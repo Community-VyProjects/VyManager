@@ -182,24 +182,37 @@ describe("vrrpGroupSaveOps", () => {
 
   it("reports the lab's required leaves", () => {
     const blank = vrrpGroupDraft(null);
-    assert.equal(vrrpGroupProblem(null, blank, []), "nameRequired");
-    assert.equal(vrrpGroupProblem(null, { ...blank, name: "G1" }, ["G1"]), "nameExists");
+    assert.equal(vrrpGroupProblem(null, blank, [])?.key, "nameRequired");
+    assert.equal(vrrpGroupProblem(null, { ...blank, name: "G1" }, ["G1"])?.key, "nameExists");
     const named = { ...blank, name: "G2", vrid: "1", interface: "eth1" };
-    assert.equal(vrrpGroupProblem(null, named, []), "addressRequired");
+    assert.equal(vrrpGroupProblem(null, named, [])?.key, "addressRequired");
     const addressed = { ...named, addresses: [{ address: "192.0.2.1/24", interface: "" }] };
-    assert.equal(vrrpGroupProblem(null, { ...addressed, auth_type: "ah" }, []), "passwordRequired");
+    assert.equal(vrrpGroupProblem(null, { ...addressed, auth_type: "ah" }, [])?.key, "passwordRequired");
+    assert.deepEqual(
+      vrrpGroupProblem(null, { ...addressed, auth_type: "ah", auth_password: "123456789" }, []),
+      { key: "passwordTooLong", max: 8 },
+    );
     assert.equal(vrrpGroupProblem(GROUP, { ...vrrpGroupDraft(GROUP), auth_type: "ah" }, []), null);
-    assert.equal(
+    assert.deepEqual(
       vrrpGroupProblem(null, {
         ...addressed,
         addresses: [{ address: "192.0.2.1/24", interface: "" }, { address: " 192.0.2.1/24", interface: "" }],
       }, []),
-      "duplicateAddress",
+      { key: "duplicateAddress", address: "192.0.2.1/24" },
     );
     assert.equal(
-      vrrpGroupProblem(null, { ...addressed, health_check: { ...addressed.health_check, ping: "x", script: "/s" } }, []),
+      vrrpGroupProblem(null, { ...addressed, health_check: { ...addressed.health_check, ping: "x", script: "/s" } }, [])?.key,
       "healthCheckPingAndScript",
     );
+  });
+
+  it("checks the lab ranges", () => {
+    const draft = { ...vrrpGroupDraft(GROUP), vrid: "256" };
+    assert.deepEqual(vrrpGroupProblem(GROUP, draft, []), { key: "outOfRange", field: "vrid", min: 1, max: 255 });
+    const garp = { ...vrrpGroupDraft(GROUP), garp: { ...vrrpGroupDraft(GROUP).garp, interval: "0.5" } };
+    assert.equal(vrrpGroupProblem(GROUP, garp, []), null);
+    const bad = { ...vrrpGroupDraft(GROUP), garp: { ...vrrpGroupDraft(GROUP).garp, interval: "1001" } };
+    assert.deepEqual(vrrpGroupProblem(GROUP, bad, []), { key: "outOfRange", field: "garp_interval", min: 0, max: 1000 });
   });
 });
 
@@ -234,9 +247,9 @@ describe("vrrpSyncGroupSaveOps", () => {
 
   it("rejects a member that keeps its own health-check", () => {
     const draft = vrrpSyncGroupDraft(SYNC);
-    assert.equal(vrrpSyncGroupProblem(SYNC, draft, [], ["G1"]), "memberHasHealthCheck");
+    assert.deepEqual(vrrpSyncGroupProblem(SYNC, draft, [], ["G1"]), { key: "memberHasHealthCheck", address: "G1" });
     assert.equal(vrrpSyncGroupProblem(SYNC, draft, [], []), null);
-    assert.equal(vrrpSyncGroupProblem(null, { ...draft, members: [] }, [], []), "membersRequired");
+    assert.equal(vrrpSyncGroupProblem(null, { ...draft, members: [] }, [], [])?.key, "membersRequired");
   });
 });
 
@@ -298,18 +311,28 @@ describe("virtualServerSaveOps", () => {
 
   it("reports what the lab requires", () => {
     const loaded = virtualServerDraft(VS);
-    assert.equal(virtualServerProblem(VS, loaded, []), null);
-    assert.equal(virtualServerProblem(VS, { ...loaded, address: "", fwmark: "" }, []), "addressOrFwmarkRequired");
-    assert.equal(virtualServerProblem(VS, { ...loaded, port: "" }, []), "portOrFwmarkRequired");
-    assert.equal(virtualServerProblem(VS, { ...loaded, fwmark: "5" }, []), "portAndFwmark");
-    assert.equal(virtualServerProblem(VS, { ...loaded, real_servers: [] }, []), "realServerRequired");
-    assert.equal(
-      virtualServerProblem(VS, { ...loaded, real_servers: [{ ...loaded.real_servers[0], port: " " }] }, []),
-      "realServerPortRequired",
+    const v15 = { min: 0, max: 86400 };
+    assert.equal(virtualServerProblem(VS, loaded, [], v15), null);
+    assert.equal(virtualServerProblem(VS, { ...loaded, address: "", fwmark: "" }, [], v15)?.key, "addressOrFwmarkRequired");
+    assert.equal(virtualServerProblem(VS, { ...loaded, port: "" }, [], v15)?.key, "portOrFwmarkRequired");
+    assert.equal(virtualServerProblem(VS, { ...loaded, fwmark: "5" }, [], v15)?.key, "portAndFwmark");
+    assert.equal(virtualServerProblem(VS, { ...loaded, real_servers: [] }, [], v15)?.key, "realServerRequired");
+    assert.deepEqual(
+      virtualServerProblem(VS, { ...loaded, real_servers: [{ ...loaded.real_servers[0], port: " " }] }, [], v15),
+      { key: "realServerPortRequired", address: "192.0.2.60" },
     );
-    assert.equal(
-      virtualServerProblem(VS, { ...loaded, real_servers: [loaded.real_servers[0], { ...loaded.real_servers[0] }] }, []),
-      "duplicateRealServer",
+    assert.deepEqual(
+      virtualServerProblem(VS, { ...loaded, real_servers: [loaded.real_servers[0], { ...loaded.real_servers[0] }] }, [], v15),
+      { key: "duplicateRealServer", address: "192.0.2.60" },
+    );
+    assert.equal(virtualServerProblem(VS, { ...loaded, persistence_timeout: "0" }, [], v15), null);
+    assert.deepEqual(
+      virtualServerProblem(VS, { ...loaded, persistence_timeout: "0" }, [], { min: 1, max: 86400 }),
+      { key: "outOfRange", field: "persistence_timeout", min: 1, max: 86400 },
+    );
+    assert.deepEqual(
+      virtualServerProblem(VS, { ...loaded, real_servers: [{ ...loaded.real_servers[0], port: "70000" }] }, [], v15),
+      { key: "outOfRange", field: "port", min: 0, max: 65535, address: "192.0.2.60" },
     );
   });
 });

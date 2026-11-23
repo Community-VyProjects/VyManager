@@ -2,7 +2,10 @@ import type {
   BatchOperation,
   HAConfig,
   VirtualServer,
+  VrrpGarp,
   VrrpGroup,
+  VrrpGroupHealthCheck,
+  VrrpGroupTransitionScript,
   VrrpSyncGroup,
 } from "./high-availability";
 
@@ -30,6 +33,83 @@ function textList(values: string[]): string[] {
     if (text && !out.includes(text)) out.push(text);
   }
   return out;
+}
+
+// ============================================================================
+// Numeric bounds from the lab validators (same on 1.4 and 1.5 unless noted)
+// ============================================================================
+
+export interface HARange {
+  min: number;
+  max: number;
+}
+
+export const HA_RANGES = {
+  vrid: { min: 1, max: 255 },
+  priority: { min: 1, max: 255 },
+  advertise_interval: { min: 1, max: 255 },
+  preempt_delay: { min: 0, max: 1000 },
+  startup_delay: { min: 1, max: 600 },
+  garp_interval: { min: 0, max: 1000 },
+  garp_master_delay: { min: 1, max: 1000 },
+  garp_master_refresh: { min: 1, max: 255 },
+  garp_master_refresh_repeat: { min: 1, max: 255 },
+  garp_master_repeat: { min: 1, max: 255 },
+  health_check_failure_count: { min: 1, max: 4294967295 },
+  health_check_interval: { min: 1, max: 4294967295 },
+  health_check_timeout: { min: 1, max: 4294967295 },
+  port: { min: 0, max: 65535 },
+  delay_loop: { min: 1, max: 3600 },
+  fwmark: { min: 1, max: 2147483647 },
+  connection_timeout: { min: 1, max: 86400 },
+} as const satisfies Record<string, HARange>;
+
+/** The field label keys an out-of-range problem names (highAvailability.fields.*). */
+export type HAField = keyof typeof HA_RANGES | "persistence_timeout";
+
+/** The VRRP password validator accepts at most this many characters. */
+export const HA_PASSWORD_MAX = 8;
+
+export interface HAProblem<K extends string> {
+  key: K | "outOfRange";
+  field?: HAField;
+  min?: number;
+  max?: number;
+  address?: string;
+}
+
+function outOfRange(field: HAField, value: string, range: HARange): HAProblem<never> | null {
+  if (!value) return null;
+  const decimal = field === "garp_interval" ? /^\d+(\.\d{1,3})?$/ : /^\d+$/;
+  const number = Number(value);
+  if (decimal.test(value) && number >= range.min && number <= range.max) return null;
+  return { key: "outOfRange", field, min: range.min, max: range.max };
+}
+
+function firstRange(checks: Array<[HAField, string, HARange]>): HAProblem<never> | null {
+  for (const [field, value, range] of checks) {
+    const problem = outOfRange(field, value, range);
+    if (problem) return problem;
+  }
+  return null;
+}
+
+function healthCheckRanges(value: HAHealthCheckDraft): Array<[HAField, string, HARange]> {
+  return [
+    ["health_check_failure_count", value.failure_count, HA_RANGES.health_check_failure_count],
+    ["health_check_interval", value.interval, HA_RANGES.health_check_interval],
+    ["health_check_timeout", value.timeout, HA_RANGES.health_check_timeout],
+  ];
+}
+
+function garpRanges(value: HAGarpDraft): Array<[HAField, string, HARange]> {
+  return [
+    ["garp_interval", value.interval, HA_RANGES.garp_interval],
+    ["garp_master_delay", value.master_delay, HA_RANGES.garp_master_delay],
+    ["garp_master_refresh", value.master_refresh, HA_RANGES.garp_master_refresh],
+    ["garp_master_refresh_repeat", value.master_refresh_repeat, HA_RANGES.garp_master_refresh_repeat],
+    ["garp_master_repeat", value.master_repeat, HA_RANGES.garp_master_repeat],
+  ];
 }
 
 // ============================================================================
@@ -103,7 +183,7 @@ const TRANSITION_KEYS = ["backup", "fault", "master", "stop"] as const;
 const GARP_KEYS = ["interval", "master_delay", "master_refresh", "master_refresh_repeat", "master_repeat"] as const;
 const NUMERIC_HEALTH_CHECK = new Set(["failure_count", "interval", "timeout"]);
 
-function healthCheckDraft(value: Partial<Record<string, Scalar>> | null | undefined): HAHealthCheckDraft {
+function healthCheckDraft(value: VrrpGroupHealthCheck | null | undefined): HAHealthCheckDraft {
   return {
     failure_count: haText(value?.failure_count),
     interval: haText(value?.interval),
@@ -113,7 +193,7 @@ function healthCheckDraft(value: Partial<Record<string, Scalar>> | null | undefi
   };
 }
 
-function transitionDraft(value: Partial<Record<string, Scalar>> | null | undefined): HATransitionScriptDraft {
+function transitionDraft(value: VrrpGroupTransitionScript | null | undefined): HATransitionScriptDraft {
   return {
     backup: haText(value?.backup),
     fault: haText(value?.fault),
@@ -122,7 +202,7 @@ function transitionDraft(value: Partial<Record<string, Scalar>> | null | undefin
   };
 }
 
-function garpDraft(value: Partial<Record<string, Scalar>> | null | undefined): HAGarpDraft {
+function garpDraft(value: VrrpGarp | null | undefined): HAGarpDraft {
   return {
     interval: haText(value?.interval),
     master_delay: haText(value?.master_delay),
@@ -278,7 +358,7 @@ function normalizeVrrpGroup(draft: VrrpGroupDraft, timeoutSupported: boolean): V
   };
 }
 
-export type VrrpGroupProblem =
+export type VrrpGroupProblemKey =
   | "nameRequired"
   | "nameExists"
   | "vridRequired"
@@ -286,28 +366,37 @@ export type VrrpGroupProblem =
   | "addressRequired"
   | "duplicateAddress"
   | "passwordRequired"
+  | "passwordTooLong"
   | "healthCheckPingAndScript";
 
 export function vrrpGroupProblem(
   original: VrrpGroup | null,
   draft: VrrpGroupDraft,
   existingNames: string[],
-): VrrpGroupProblem | null {
+): HAProblem<VrrpGroupProblemKey> | null {
   const next = normalizeVrrpGroup(draft, true);
-  if (!next.name) return "nameRequired";
-  if (!original && existingNames.includes(next.name)) return "nameExists";
-  if (!next.vrid) return "vridRequired";
-  if (!next.interface) return "interfaceRequired";
+  if (!next.name) return { key: "nameRequired" };
+  if (!original && existingNames.includes(next.name)) return { key: "nameExists" };
+  if (!next.vrid) return { key: "vridRequired" };
+  if (!next.interface) return { key: "interfaceRequired" };
   const addresses = draft.addresses.map((item) => haText(item.address)).filter(Boolean);
-  if (addresses.length === 0) return "addressRequired";
-  const excluded = draft.excluded_addresses.map((item) => haText(item.address)).filter(Boolean);
-  if (new Set(addresses).size !== addresses.length || new Set(excluded).size !== excluded.length) {
-    return "duplicateAddress";
+  if (addresses.length === 0) return { key: "addressRequired" };
+  for (const list of [addresses, draft.excluded_addresses.map((item) => haText(item.address)).filter(Boolean)]) {
+    const repeated = list.find((address, index) => list.indexOf(address) !== index);
+    if (repeated) return { key: "duplicateAddress", address: repeated };
   }
   const storedAuth = !!original?.authentication;
-  if (next.auth_type && !next.auth_password && !storedAuth) return "passwordRequired";
-  if (next.health_check.ping && next.health_check.script) return "healthCheckPingAndScript";
-  return null;
+  if (next.auth_type && !next.auth_password && !storedAuth) return { key: "passwordRequired" };
+  if (next.auth_password.length > HA_PASSWORD_MAX) return { key: "passwordTooLong", max: HA_PASSWORD_MAX };
+  if (next.health_check.ping && next.health_check.script) return { key: "healthCheckPingAndScript" };
+  return firstRange([
+    ["vrid", next.vrid, HA_RANGES.vrid],
+    ["priority", next.priority, HA_RANGES.priority],
+    ["advertise_interval", next.advertise_interval, HA_RANGES.advertise_interval],
+    ["preempt_delay", next.preempt_delay, HA_RANGES.preempt_delay],
+    ...healthCheckRanges(next.health_check),
+    ...garpRanges(next.garp),
+  ]);
 }
 
 function addressOps(
@@ -430,7 +519,7 @@ function normalizeSyncGroup(draft: VrrpSyncGroupDraft, timeoutSupported: boolean
   };
 }
 
-export type VrrpSyncGroupProblem =
+export type VrrpSyncGroupProblemKey =
   | "nameRequired"
   | "nameExists"
   | "membersRequired"
@@ -443,14 +532,15 @@ export function vrrpSyncGroupProblem(
   draft: VrrpSyncGroupDraft,
   existingNames: string[],
   groupsWithHealthCheck: string[],
-): VrrpSyncGroupProblem | null {
+): HAProblem<VrrpSyncGroupProblemKey> | null {
   const next = normalizeSyncGroup(draft, true);
-  if (!next.name) return "nameRequired";
-  if (!original && existingNames.includes(next.name)) return "nameExists";
-  if (next.members.length === 0) return "membersRequired";
-  if (next.health_check.ping && next.health_check.script) return "healthCheckPingAndScript";
-  if (next.members.some((member) => groupsWithHealthCheck.includes(member))) return "memberHasHealthCheck";
-  return null;
+  if (!next.name) return { key: "nameRequired" };
+  if (!original && existingNames.includes(next.name)) return { key: "nameExists" };
+  if (next.members.length === 0) return { key: "membersRequired" };
+  if (next.health_check.ping && next.health_check.script) return { key: "healthCheckPingAndScript" };
+  const blocked = next.members.find((member) => groupsWithHealthCheck.includes(member));
+  if (blocked) return { key: "memberHasHealthCheck", address: blocked };
+  return firstRange(healthCheckRanges(next.health_check));
 }
 
 export interface VrrpSyncGroupSaveOptions {
@@ -546,7 +636,7 @@ function normalizeVirtualServer(draft: VirtualServerDraft): VirtualServerDraft {
   };
 }
 
-export type VirtualServerProblem =
+export type VirtualServerProblemKey =
   | "nameRequired"
   | "nameExists"
   | "addressOrFwmarkRequired"
@@ -557,24 +647,40 @@ export type VirtualServerProblem =
   | "realServerPortRequired"
   | "duplicateRealServer";
 
+/** persistence: the persistence-timeout range from capabilities (1.5 also accepts 0). */
 export function virtualServerProblem(
   original: VirtualServer | null,
   draft: VirtualServerDraft,
   existingNames: string[],
-): VirtualServerProblem | null {
+  persistence: HARange,
+): HAProblem<VirtualServerProblemKey> | null {
   const next = normalizeVirtualServer(draft);
-  if (!next.name) return "nameRequired";
-  if (!original && existingNames.includes(next.name)) return "nameExists";
-  if (!next.address && !next.fwmark) return "addressOrFwmarkRequired";
-  if (!next.port && !next.fwmark) return "portOrFwmarkRequired";
-  if (next.port && next.fwmark) return "portAndFwmark";
-  if (next.real_servers.length === 0) return "realServerRequired";
+  if (!next.name) return { key: "nameRequired" };
+  if (!original && existingNames.includes(next.name)) return { key: "nameExists" };
+  if (!next.address && !next.fwmark) return { key: "addressOrFwmarkRequired" };
+  if (!next.port && !next.fwmark) return { key: "portOrFwmarkRequired" };
+  if (next.port && next.fwmark) return { key: "portAndFwmark" };
+  if (next.real_servers.length === 0) return { key: "realServerRequired" };
   const seen = new Set<string>();
   for (const item of next.real_servers) {
-    if (!item.address) return "realServerAddressRequired";
-    if (!item.port) return "realServerPortRequired";
-    if (seen.has(item.address)) return "duplicateRealServer";
+    if (!item.address) return { key: "realServerAddressRequired" };
+    if (!item.port) return { key: "realServerPortRequired", address: item.address };
+    if (seen.has(item.address)) return { key: "duplicateRealServer", address: item.address };
     seen.add(item.address);
+  }
+  const serverRange = firstRange([
+    ["port", next.port, HA_RANGES.port],
+    ["fwmark", next.fwmark, HA_RANGES.fwmark],
+    ["delay_loop", next.delay_loop, HA_RANGES.delay_loop],
+    ["persistence_timeout", next.persistence_timeout, persistence],
+  ]);
+  if (serverRange) return serverRange;
+  for (const item of next.real_servers) {
+    const problem = firstRange([
+      ["port", item.port, HA_RANGES.port],
+      ["connection_timeout", item.connection_timeout, HA_RANGES.connection_timeout],
+    ]);
+    if (problem) return { ...problem, address: item.address };
   }
   return null;
 }
@@ -649,6 +755,13 @@ export function haGlobalsDraft(config: HAConfig | null | undefined): HAGlobalsDr
 
 export interface HAGlobalsSaveOptions {
   snmpTrap: boolean;
+}
+
+export function haGlobalsProblem(draft: HAGlobalsDraft): HAProblem<never> | null {
+  return firstRange([
+    ["startup_delay", haNumber(draft.startup_delay), HA_RANGES.startup_delay],
+    ...garpRanges(normalizeGarp(draft.garp)),
+  ]);
 }
 
 function normalizeGlobals(draft: HAGlobalsDraft, options: HAGlobalsSaveOptions): HAGlobalsDraft {
