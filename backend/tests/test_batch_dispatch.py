@@ -151,6 +151,22 @@ def test_item_op_without_blank_check_still_rejects_missing_parts(op, value, deta
     assert builder.calls == []
 
 
+def test_item_op_splits_on_the_given_separator():
+    builder = _ItemBuilder()
+    call_item_batch_op(builder, "set_pair", 100, "address-group:T-A:B", separator=":")
+    call_item_batch_op(builder, "set_leaf", 100, "a|b:c", separator=":")
+    assert builder.calls == [
+        ("set_pair", 100, "address-group", "T-A:B"),
+        ("set_leaf", 100, "a|b:c"),
+    ]
+    with pytest.raises(HTTPException) as ei:
+        call_item_batch_op(builder, "set_pair", 100, "k|v", separator=":")
+    assert ei.value.detail == "Operation set_pair requires 2 values"
+    with pytest.raises(HTTPException) as ei:
+        call_item_batch_op(builder, "delete_item", 100, "x", separator=":")
+    assert ei.value.detail == "Operation delete_item takes no value"
+
+
 def test_comma_op_splits_into_the_parameter_count():
     builder = _CommaBuilder()
     call_comma_batch_op(builder, "delete_all", None)

@@ -6,12 +6,15 @@ a stub service so the emitted ops, the 400 paths, and the event-loop thread
 are checked.
 """
 
+import inspect
 import threading
 from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
+
+from vyos_builders.nat66 import NAT66BatchBuilder
 
 ROUTER = "routers.nat66.nat66"
 V1_4 = "1.4.3"
@@ -126,12 +129,46 @@ def test_batch_missing_value_is_400(client, service, operation):
     assert service.executed == []
 
 
-@pytest.mark.parametrize("value", ["address-group", "address-group:", ":T-A6"])
+@pytest.mark.parametrize("value", ["address-group", "address-group:", ":T-A6", "address-group: "])
 def test_batch_short_group_value_is_400(client, service, value):
     resp = _post(client, [{"op": "set_source_rule_destination_group", "value": value}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Operation set_source_rule_destination_group requires 2 values"
     assert service.executed == []
+
+
+@pytest.mark.parametrize("operation", [
+    {"op": "delete_source_rule", "value": "description"},
+    {"op": "delete_source_rule_description", "value": "T-old"},
+    {"op": "set_source_rule_disable", "value": " "},
+])
+def test_batch_rule_only_op_with_a_value_is_400(client, service, operation):
+    """A value on a rule-only op must not run the wider op (delete the whole rule)."""
+    resp = _post(client, [{"op": "set_source_rule"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
+    assert service.executed == []
+
+
+def test_batch_whitespace_value_is_400(client, service):
+    resp = _post(client, [{"op": "set_source_rule_description", "value": "  "}])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "Operation set_source_rule_description requires a value"
+    assert service.executed == []
+
+
+def test_builder_ops_bind_rule_number_first_with_at_most_two_values():
+    """The handler binds rule_number to the first parameter and ':'-splits the rest."""
+    builder = NAT66BatchBuilder(version=V1_5)
+    ops = [
+        (name, member) for name, member in inspect.getmembers(builder, inspect.ismethod)
+        if name.startswith(("set_", "delete_"))
+    ]
+    assert ops
+    for name, method in ops:
+        params = list(inspect.signature(method).parameters)
+        assert params[0] == "rule_number", name
+        assert 1 <= len(params) <= 3, name
 
 
 @pytest.mark.parametrize("rule_type, op", [

@@ -5,7 +5,7 @@ lived in each file and drifted; one helper is the only allowed dispatch.
 """
 
 import inspect
-from typing import Any, Callable, FrozenSet, Optional
+from typing import Any, Callable, FrozenSet, Optional, Union
 
 from fastapi import HTTPException
 
@@ -68,19 +68,21 @@ def call_comma_batch_op(builder: Any, op: str, value: Optional[str]) -> None:
 def call_item_batch_op(
     builder: Any,
     op: str,
-    item_name: str,
+    item_name: Union[str, int],
     value: Optional[str],
     *,
     blank_is_missing: bool = True,
+    separator: str = "|",
 ) -> None:
-    """Resolve op and call it with item_name plus value split on "|", else HTTP 400.
+    """Resolve op and call it with item_name plus value split on separator, else HTTP 400.
 
-    The first parameter is the request's item_name; the value fills the rest,
-    split into as many parts as remain, so a "|" inside the last argument is
-    kept. An item-only op rejects a value: calling it anyway drops the value
-    and runs the wider op (delete_interface for a delete that lost its leaf).
-    A whitespace-only value or part counts as missing unless blank_is_missing
-    is False, for a feature whose leaves (passwords, secrets) accept spaces.
+    The first parameter is the request's item_name (a name, or a rule number);
+    the value fills the rest, split into as many parts as remain, so the
+    separator inside the last argument is kept. An item-only op rejects a
+    value: calling it anyway drops the value and runs the wider op
+    (delete_interface for a delete that lost its leaf). A whitespace-only value
+    or part counts as missing unless blank_is_missing is False, for a feature
+    whose leaves (passwords, secrets) accept spaces.
     """
     method = resolve_batch_method(builder, op)
     count = len(inspect.signature(method).parameters)
@@ -98,7 +100,7 @@ def call_item_batch_op(
 
     if value is None or not present(value):
         raise HTTPException(status_code=400, detail=f"Operation {op} requires a value")
-    parts = value.split("|", count - 2)
+    parts = value.split(separator, count - 2)
     if len(parts) != count - 1 or not all(present(part) for part in parts):
         raise HTTPException(status_code=400, detail=f"Operation {op} requires {count - 1} values")
     method(item_name, *parts)
