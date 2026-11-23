@@ -21,6 +21,7 @@ from starlette.concurrency import run_in_threadpool
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.interfaces.catalog import InterfaceCatalogMapper
+from vyos_mappers.system.updates import SystemUpdatesMapper
 from fastapi_permissions import has_permission, require_any_read_permission, require_read_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel
@@ -450,17 +451,34 @@ async def get_system_updates(request: Request):
     The reported URL is for display only — VyManager never fetches it.
     """
     await require_read_permission(request, FeatureGroup.SYSTEM)
-    service = get_session_vyos_service(request)
+    try:
+        service = get_session_vyos_service(request)
+        mapper = cast(
+            SystemUpdatesMapper,
+            CommandMapperRegistry.get_mapper("system_updates", service.get_version() or ""),
+        )
 
-    response = await run_in_threadpool(service.device.show, path=["system", "updates"])
-    if response.status != 200:
-        # A non-200 here usually means the command is unsupported on this version
-        # or update-check is not configured — surface as "not configured", not 500.
-        return SystemUpdatesInfo(configured=False)
+        response = await run_in_threadpool(
+            service.device.show, path=mapper.get_updates_show_path()
+        )
+        # An unset update-check url is an HTTP 200 whose text has no
+        # "Current version" line, which parses as configured=False. A refused
+        # or failed reply is a device error.
+        if response.status != 200 or response.error:
+            logger.warning(
+                "'show system updates' failed (status %s): %s",
+                response.status,
+                response.error,
+            )
+            raise HTTPException(status_code=500, detail="Unable to read system updates")
 
-    return parse_system_updates(_extract_show_output(response))
+        return parse_system_updates(_extract_show_output(response))
 
-
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================

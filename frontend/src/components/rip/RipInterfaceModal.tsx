@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,135 +23,112 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { RipInterface, RipMd5Key } from "@/lib/api/rip";
-import { showService, InterfaceName } from "@/lib/api/show";
+import type { ApiError } from "@/lib/types/api";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import {
+  MD5_KEY_ID_RANGE,
+  PASSWORD_MAX_LENGTH,
+  ripInterfaceProblem,
+  ripNextKeyId,
+  type RipAuthMode,
+} from "@/lib/api/rip-save-ops";
+
+const VERSIONS = ["1", "2"];
+
+/** A key row in the editor; ``uid`` is the React key and never changes while the row lives. */
+interface KeyRow extends RipMd5Key {
+  uid: number;
+}
 
 interface RipInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (config: RipInterface) => Promise<void>;
   existingInterface?: RipInterface | null;
+  /** Interfaces RIP already configures; the Add picker leaves them out. */
+  configuredInterfaces: string[];
 }
 
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function RipInterfaceModal({
   open,
   onOpenChange,
   onSubmit,
   existingInterface,
+  configuredInterfaces,
 }: RipInterfaceModalProps) {
   const t = useTranslations("rip");
   const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
-  const [name, setName] = useState("");
-  const [authType, setAuthType] = useState("");
-  const [md5Keys, setMd5Keys] = useState<RipMd5Key[]>([]);
-  const [plaintextPassword, setPlaintextPassword] = useState("");
-  const [sendVersion, setSendVersion] = useState("");
-  const [receiveVersion, setReceiveVersion] = useState("");
-  const [splitHorizon, setSplitHorizon] = useState("");
+  const [name, setName] = useState(existingInterface?.name ?? "");
+  const [authType, setAuthType] = useState<RipAuthMode>(
+    (existingInterface?.authentication_type as RipAuthMode | null | undefined) || "",
+  );
+  const [md5Keys, setMd5Keys] = useState<KeyRow[]>(
+    (existingInterface?.md5_keys ?? []).map((key, uid) => ({ ...key, uid })),
+  );
+  const [nextUid, setNextUid] = useState(md5Keys.length);
+  const [plaintextPassword, setPlaintextPassword] = useState(existingInterface?.plaintext_password ?? "");
+  const [sendVersion, setSendVersion] = useState(existingInterface?.send_version ?? "");
+  const [receiveVersion, setReceiveVersion] = useState(existingInterface?.receive_version ?? "");
+  const [splitHorizon, setSplitHorizon] = useState(existingInterface?.split_horizon ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
-  useEffect(() => {
-    if (!open) return;
-    showService.getAllInterfaces()
-      .then((res) => setAvailableInterfaces(res.interfaces))
-      .catch(() => {});
-
-    if (existingInterface) {
-      setName(existingInterface.name);
-      setAuthType(existingInterface.authentication_type || "");
-      setMd5Keys(existingInterface.md5_keys.map((k) => ({ ...k })));
-      setPlaintextPassword(existingInterface.plaintext_password || "");
-      setSendVersion(existingInterface.send_version || "");
-      setReceiveVersion(existingInterface.receive_version || "");
-      setSplitHorizon(existingInterface.split_horizon || "");
-    } else {
-      resetForm();
-    }
-  }, [open, existingInterface]);
-
-  const resetForm = () => {
-    setName("");
-    setAuthType("");
-    setMd5Keys([]);
-    setPlaintextPassword("");
-    setSendVersion("");
-    setReceiveVersion("");
-    setSplitHorizon("");
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const addMd5Key = () => {
-    setMd5Keys([...md5Keys, { key_id: "", password: "" }]);
+    const keyId = ripNextKeyId(md5Keys, existingInterface?.md5_keys);
+    setMd5Keys([...md5Keys, { uid: nextUid, key_id: keyId, password: "" }]);
+    setNextUid(nextUid + 1);
   };
 
-  const removeMd5Key = (idx: number) => {
-    setMd5Keys(md5Keys.filter((_, i) => i !== idx));
+  const removeMd5Key = (uid: number) => {
+    setMd5Keys(md5Keys.filter((key) => key.uid !== uid));
   };
 
-  const updateMd5Key = (idx: number, field: "key_id" | "password", value: string) => {
-    const updated = [...md5Keys];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setMd5Keys(updated);
-  };
-
-  const validate = (): string | null => {
-    if (!name) return t("validation.selectInterface");
-    if (authType === "md5") {
-      for (const key of md5Keys) {
-        if (!key.key_id) return t("validation.md5KeyIdRequired");
-        const id = parseInt(key.key_id, 10);
-        if (isNaN(id) || id < 1 || id > 255) return t("validation.md5KeyIdRange");
-        if (!key.password) return t("validation.md5PasswordRequired");
-        if (key.password.length > 16) return t("validation.md5PasswordLength");
-      }
-    }
-    if (authType === "plaintext") {
-      if (plaintextPassword.length > 16) return t("validation.plaintextLength");
-    }
-    return null;
+  const updateMd5Key = (uid: number, field: "key_id" | "password", value: string) => {
+    setMd5Keys(md5Keys.map((key) => (key.uid === uid ? { ...key, [field]: value } : key)));
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
     const config: RipInterface = {
       name,
       authentication_type: authType || null,
-      md5_keys: authType === "md5" ? md5Keys : [],
-      plaintext_password: authType === "plaintext" ? plaintextPassword || null : null,
+      md5_keys: authType === "md5" ? md5Keys.map(({ key_id, password }) => ({ key_id, password })) : [],
+      plaintext_password: authType === "plaintext" ? plaintextPassword : null,
       send_version: sendVersion || null,
       receive_version: receiveVersion || null,
       split_horizon: splitHorizon || null,
     };
 
+    const problem = ripInterfaceProblem(existingInterface ?? null, config);
+    if (problem) {
+      const max = problem === "md5KeyIdRange" ? MD5_KEY_ID_RANGE.max : PASSWORD_MAX_LENGTH;
+      setError(t(`validation.${problem}`, { min: MD5_KEY_ID_RANGE.min, max }));
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       await onSubmit(config);
-      handleClose();
+      onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -175,47 +152,59 @@ export function RipInterfaceModal({
                 disabled={isEditMode}
                 id="rip-iface-name"
                 className={isEditMode ? "bg-muted" : ""}
-                interfaces={availableInterfaces}
+                placeholder={tc("selectInterface")}
+                filter={(item) => isEditMode || !configuredInterfaces.includes(item.name)}
               />
             </div>
 
             {/* Authentication */}
             <div className="space-y-3">
-              <Label>{t("interfaceModal.authentication")}</Label>
-              <Select value={authType} onValueChange={(v) => { setAuthType(v === "none" ? "" : v); setMd5Keys([]); setPlaintextPassword(""); }}>
-                <SelectTrigger>
+              <Label htmlFor="rip-iface-auth">{t("interfaceModal.authentication")}</Label>
+              <Select
+                value={authType || NONE_SENTINEL}
+                onValueChange={(v) => setAuthType(v === NONE_SENTINEL ? "" : (v as RipAuthMode))}
+              >
+                <SelectTrigger id="rip-iface-auth">
                   <SelectValue placeholder={tc("none")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{tc("none")}</SelectItem>
-                  <SelectItem value="md5">MD5</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
+                  <SelectItem value="md5">{t("interfaceModal.md5")}</SelectItem>
                   <SelectItem value="plaintext">{t("interfaceModal.plaintext")}</SelectItem>
                 </SelectContent>
               </Select>
 
               {authType === "md5" && (
                 <div className="space-y-2 pl-2 border-l-2 border-border">
-                  <p className="text-xs text-muted-foreground">{t("interfaceModal.md5Help")}</p>
-                  {md5Keys.map((key, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                  {md5Keys.map((key) => (
+                    <div key={key.uid} className="flex items-center gap-2">
                       <Input
                         type="number"
+                        aria-label={t("interfaceModal.keyId")}
                         placeholder={t("interfaceModal.keyId")}
-                        min={1}
-                        max={255}
+                        min={MD5_KEY_ID_RANGE.min}
+                        max={MD5_KEY_ID_RANGE.max}
                         value={key.key_id}
-                        onChange={(e) => updateMd5Key(idx, "key_id", e.target.value)}
+                        onChange={(e) => updateMd5Key(key.uid, "key_id", e.target.value)}
                         className="w-24"
                       />
                       <Input
                         type="password"
+                        autoComplete="new-password"
+                        aria-label={t("interfaceModal.password")}
                         placeholder={t("interfaceModal.password")}
-                        maxLength={16}
+                        maxLength={PASSWORD_MAX_LENGTH}
                         value={key.password}
-                        onChange={(e) => updateMd5Key(idx, "password", e.target.value)}
+                        onChange={(e) => updateMd5Key(key.uid, "password", e.target.value)}
                         className="flex-1"
                       />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeMd5Key(idx)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label={tc("delete")}
+                        onClick={() => removeMd5Key(key.uid)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -231,8 +220,10 @@ export function RipInterfaceModal({
                 <div className="pl-2 border-l-2 border-border">
                   <Input
                     type="password"
-                    placeholder={t("interfaceModal.plaintextPlaceholder")}
-                    maxLength={16}
+                    autoComplete="new-password"
+                    aria-label={t("interfaceModal.password")}
+                    placeholder={t("interfaceModal.plaintextPlaceholder", { max: PASSWORD_MAX_LENGTH })}
+                    maxLength={PASSWORD_MAX_LENGTH}
                     value={plaintextPassword}
                     onChange={(e) => setPlaintextPassword(e.target.value)}
                   />
@@ -243,28 +234,36 @@ export function RipInterfaceModal({
             {/* Send / Receive Version */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t("interfaceModal.sendVersion")}</Label>
-                <Select value={sendVersion} onValueChange={(v) => setSendVersion(v === "unset" ? "" : v)}>
-                  <SelectTrigger>
+                <Label htmlFor="rip-iface-send">{t("interfaceModal.sendVersion")}</Label>
+                <Select
+                  value={sendVersion || NONE_SENTINEL}
+                  onValueChange={(v) => setSendVersion(v === NONE_SENTINEL ? "" : v)}
+                >
+                  <SelectTrigger id="rip-iface-send">
                     <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">{tc("default")}</SelectItem>
-                    <SelectItem value="1">v1</SelectItem>
-                    <SelectItem value="2">v2</SelectItem>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                    {VERSIONS.map((v) => (
+                      <SelectItem key={v} value={v}>{t("versionOption", { value: v })}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>{t("interfaceModal.receiveVersion")}</Label>
-                <Select value={receiveVersion} onValueChange={(v) => setReceiveVersion(v === "unset" ? "" : v)}>
-                  <SelectTrigger>
+                <Label htmlFor="rip-iface-receive">{t("interfaceModal.receiveVersion")}</Label>
+                <Select
+                  value={receiveVersion || NONE_SENTINEL}
+                  onValueChange={(v) => setReceiveVersion(v === NONE_SENTINEL ? "" : v)}
+                >
+                  <SelectTrigger id="rip-iface-receive">
                     <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unset">{tc("default")}</SelectItem>
-                    <SelectItem value="1">v1</SelectItem>
-                    <SelectItem value="2">v2</SelectItem>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                    {VERSIONS.map((v) => (
+                      <SelectItem key={v} value={v}>{t("versionOption", { value: v })}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -272,13 +271,16 @@ export function RipInterfaceModal({
 
             {/* Split Horizon */}
             <div className="space-y-2">
-              <Label>{t("interfaces.splitHorizon")}</Label>
-              <Select value={splitHorizon} onValueChange={(v) => setSplitHorizon(v === "unset" ? "" : v)}>
-                <SelectTrigger>
+              <Label htmlFor="rip-iface-split-horizon">{t("interfaces.splitHorizon")}</Label>
+              <Select
+                value={splitHorizon || NONE_SENTINEL}
+                onValueChange={(v) => setSplitHorizon(v === NONE_SENTINEL ? "" : v)}
+              >
+                <SelectTrigger id="rip-iface-split-horizon">
                   <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unset">{tc("default")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                   <SelectItem value="disable">{t("interfaceModal.disable")}</SelectItem>
                   <SelectItem value="poison-reverse">{t("interfaceModal.poisonReverse")}</SelectItem>
                 </SelectContent>
@@ -295,7 +297,7 @@ export function RipInterfaceModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,88 +19,97 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { Loader2, AlertCircle } from "lucide-react";
-import { IsisRedistributeEntry, IsisCapabilities } from "@/lib/api/isis";
+import type { IsisCapabilities, IsisRedistributeEntry } from "@/lib/api/isis";
+import type { ApiError } from "@/lib/types/api";
+import {
+  ISIS_FAMILIES,
+  ISIS_ROUTE_METRIC,
+  isisRedistributeAllowedLevels,
+  isisRedistributeForm,
+  isisRedistributeFreeLevels,
+  isisRedistributeFreeProtocols,
+  isisRedistributeProblem,
+  type IsisFamily,
+  type IsisProblem,
+  type IsisRedistributeForm,
+} from "@/lib/api/isis-save-ops";
+import { useIsisProblemText } from "./useIsisProblemText";
 import { useTranslations } from "next-intl";
 
 interface IsisRedistributeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (entry: IsisRedistributeEntry) => Promise<void>;
-  existingProtocols: string[]; // "family|protocol|level"
+  onSubmit: (family: IsisFamily, original: IsisRedistributeEntry | null, form: IsisRedistributeForm) => Promise<void>;
+  /** The entry being edited, or null to add one. */
+  existing: { family: IsisFamily; entry: IsisRedistributeEntry } | null;
+  entries: Record<IsisFamily, IsisRedistributeEntry[]>;
   routeMapNames: string[];
   capabilities: IsisCapabilities | null;
+  /** Global ``level``; verify rejects redistribute at the other single level. */
+  globalLevel: string | null;
+  /** Blocks the save while IS-IS is not configured (the Add button is hidden then too). */
+  setupProblem: IsisProblem | null;
 }
 
-const LEVELS = ["level-1", "level-2"] as const;
-
+/** Mount with a fresh ``key`` per open: the form is read once from ``existing``. */
 export function IsisRedistributeModal({
   open,
   onOpenChange,
   onSubmit,
-  existingProtocols,
+  existing,
+  entries,
   routeMapNames,
   capabilities,
+  globalLevel,
+  setupProblem,
 }: IsisRedistributeModalProps) {
   const t = useTranslations("isis");
   const tc = useTranslations("common");
+  const problemText = useIsisProblemText();
+  const isEdit = !!existing;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [family, setFamily] = useState<IsisFamily>(existing?.family ?? "ipv4");
+  const [form, setForm] = useState<IsisRedistributeForm>(() => isisRedistributeForm(existing?.entry ?? null));
 
-  const [family, setFamily] = useState<"ipv4" | "ipv6">("ipv4");
-  const [protocol, setProtocol] = useState("");
-  const [level, setLevel] = useState("");
-  const [metric, setMetric] = useState("");
-  const [routeMap, setRouteMap] = useState("");
-
-  const protocols = capabilities?.redistribute_protocols?.[family] ?? [];
-
-  useEffect(() => {
-    if (!open) return;
-    setError(null);
-    setFamily("ipv4");
-    setProtocol("");
-    setLevel("");
-    setMetric("");
-    setRouteMap("");
-  }, [open]);
-
-  const isDuplicate =
-    protocol && level && existingProtocols.includes(`${family}|${protocol}|${level}`);
+  const protocols = capabilities?.redistribute_protocols[family] ?? [];
+  // Add offers only combinations that are not configured yet and that the global level allows.
+  const protocolOptions = isEdit
+    ? [form.protocol]
+    : isisRedistributeFreeProtocols(entries[family], protocols, globalLevel);
+  const levelOptions: readonly string[] = isEdit
+    ? [form.level]
+    : form.protocol
+      ? isisRedistributeFreeLevels(entries[family], form.protocol, globalLevel)
+      : isisRedistributeAllowedLevels(globalLevel);
 
   const handleSubmit = async () => {
-    if (!protocol) { setError(t("redistributeModal.protocolRequired")); return; }
-    if (!level) { setError(t("fields.levelRequired")); return; }
-    if (isDuplicate) { setError(t("redistributeModal.alreadyRedistributed", { protocol, level })); return; }
-
-    const entry: IsisRedistributeEntry = {
-      family,
-      protocol,
-      level,
-      metric: metric.trim() ? parseInt(metric.trim(), 10) : null,
-      route_map: routeMap || null,
-    };
-
+    const original = existing?.entry ?? null;
+    const problem = setupProblem ?? isisRedistributeProblem(original, form, entries[family], globalLevel);
+    if (problem) {
+      setError(problemText(problem));
+      return;
+    }
     try {
       setSaving(true);
       setError(null);
-      await onSubmit(entry);
+      await onSubmit(family, original, form);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("redistributeModal.addFailed"));
+      setError((err as ApiError).message || t("redistributeModal.saveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!saving) onOpenChange(next); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("redistributeModal.title")}</DialogTitle>
-          <DialogDescription>
-            {t("redistributeModal.description")}
-          </DialogDescription>
+          <DialogTitle>{isEdit ? t("redistributeModal.titleEdit") : t("redistributeModal.title")}</DialogTitle>
+          <DialogDescription>{t("redistributeModal.description")}</DialogDescription>
         </DialogHeader>
 
         {error && (
@@ -112,28 +121,31 @@ export function IsisRedistributeModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("fields.addressFamily")} <span className="text-destructive">*</span></Label>
-            <Select value={family} onValueChange={(v) => { setFamily(v as "ipv4" | "ipv6"); setProtocol(""); }}>
-              <SelectTrigger>
+            <Label htmlFor="isis-redist-family">{t("fields.addressFamily")}</Label>
+            <Select
+              value={family}
+              disabled={isEdit}
+              onValueChange={(v) => { setFamily(v as IsisFamily); setForm({ ...form, protocol: "", level: "" }); }}
+            >
+              <SelectTrigger id="isis-redist-family">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ipv4">IPv4</SelectItem>
-                {capabilities?.features.redistribute_ipv6?.supported !== false && (
-                  <SelectItem value="ipv6">IPv6</SelectItem>
-                )}
+                {ISIS_FAMILIES.map((f) => (
+                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label>{t("fields.protocol")} <span className="text-destructive">*</span></Label>
-            <Select value={protocol} onValueChange={setProtocol}>
-              <SelectTrigger>
+            <Label htmlFor="isis-redist-protocol">{t("fields.protocol")}</Label>
+            <Select value={form.protocol} disabled={isEdit} onValueChange={(v) => setForm({ ...form, protocol: v, level: "" })}>
+              <SelectTrigger id="isis-redist-protocol">
                 <SelectValue placeholder={t("fields.selectProtocol")} />
               </SelectTrigger>
               <SelectContent>
-                {protocols.map((p) => (
+                {protocolOptions.map((p) => (
                   <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
               </SelectContent>
@@ -141,60 +153,50 @@ export function IsisRedistributeModal({
           </div>
 
           <div className="space-y-2">
-            <Label>{t("fields.isisLevel")} <span className="text-destructive">*</span></Label>
-            <Select value={level} onValueChange={setLevel}>
-              <SelectTrigger>
+            <Label htmlFor="isis-redist-level">{t("fields.isisLevel")}</Label>
+            <Select value={form.level} disabled={isEdit} onValueChange={(v) => setForm({ ...form, level: v })}>
+              <SelectTrigger id="isis-redist-level">
                 <SelectValue placeholder={t("fields.selectLevel")} />
               </SelectTrigger>
               <SelectContent>
-                {LEVELS.map((l) => (
-                  <SelectItem key={l} value={l}>{l === "level-1" ? t("redistributeModal.level1") : t("redistributeModal.level2")}</SelectItem>
+                {levelOptions.map((l) => (
+                  <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {isDuplicate && (
-            <p className="text-sm text-destructive">
-              {t("redistributeModal.alreadyConfigured", { protocol, level })}
-            </p>
-          )}
-
           <div className="space-y-2">
-            <Label>{t("fields.metricOptional")}</Label>
+            <Label htmlFor="isis-redist-metric">{t("fields.metricOptional")}</Label>
             <Input
+              id="isis-redist-metric"
               type="number"
-              value={metric}
-              onChange={(e) => setMetric(e.target.value)}
+              value={form.metric}
+              onChange={(e) => setForm({ ...form, metric: e.target.value })}
               placeholder={tc("default")}
-              min={1}
-              max={16777214}
+              min={ISIS_ROUTE_METRIC.min}
+              max={ISIS_ROUTE_METRIC.max}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>{t("fields.routeMapOptional")}</Label>
-            <Select value={routeMap} onValueChange={(v) => setRouteMap(v === "__none__" ? "" : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder={tc("none")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                {routeMapNames.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="isis-redist-route-map">{t("fields.routeMapOptional")}</Label>
+            <NamedListSelect
+              id="isis-redist-route-map"
+              value={form.route_map}
+              names={routeMapNames}
+              onValueChange={(v) => setForm({ ...form, route_map: v })}
+            />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={saving || !!isDuplicate}>
+          <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {t("fields.addRedistribute")}
+            {isEdit ? tc("saveChanges") : t("fields.addRedistribute")}
           </Button>
         </DialogFooter>
       </DialogContent>

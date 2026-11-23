@@ -11,16 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNgDistributeListInterface } from "@/lib/api/ripng";
+import type { ApiError } from "@/lib/types/api";
 
 interface RipngDistributeListInterfaceModalProps {
   open: boolean;
@@ -28,7 +24,6 @@ interface RipngDistributeListInterfaceModalProps {
   onSubmit: (entry: RipNgDistributeListInterface) => Promise<void>;
   existingEntry?: RipNgDistributeListInterface | null;
   existingInterfaces: string[];
-  availableInterfaces: string[];
   accessListNames: string[];
   prefixListNames: string[];
 }
@@ -39,7 +34,6 @@ export function RipngDistributeListInterfaceModal({
   onSubmit,
   existingEntry,
   existingInterfaces,
-  availableInterfaces,
   accessListNames,
   prefixListNames,
 }: RipngDistributeListInterfaceModalProps) {
@@ -56,10 +50,6 @@ export function RipngDistributeListInterfaceModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectableInterfaces = isEditMode
-    ? availableInterfaces
-    : availableInterfaces.filter((i) => !existingInterfaces.includes(i));
-
   useEffect(() => {
     if (!open) return;
     if (existingEntry) {
@@ -68,6 +58,7 @@ export function RipngDistributeListInterfaceModal({
       setAclOut(existingEntry.access_list_out || "");
       setPlIn(existingEntry.prefix_list_in || "");
       setPlOut(existingEntry.prefix_list_out || "");
+      setError(null);
     } else {
       setIface("");
       setAclIn("");
@@ -88,8 +79,13 @@ export function RipngDistributeListInterfaceModal({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
+
   const validate = (): string | null => {
     if (!iface) return t("validation.selectInterface");
+    if (!aclIn && !aclOut && !plIn && !plOut) return t("validation.selectList");
     return null;
   };
 
@@ -114,42 +110,14 @@ export function RipngDistributeListInterfaceModal({
       await onSubmit(entry);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const renderAclSelect = (value: string, onChange: (v: string) => void, id: string) => (
-    <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
-      <SelectTrigger id={id}>
-        <SelectValue placeholder={tc("none")} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">{tc("none")}</SelectItem>
-        {accessListNames.map((al) => (
-          <SelectItem key={al} value={al} className="font-mono">{al}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  const renderPlSelect = (value: string, onChange: (v: string) => void, id: string) => (
-    <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
-      <SelectTrigger id={id}>
-        <SelectValue placeholder={tc("none")} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">{tc("none")}</SelectItem>
-        {prefixListNames.map((pl) => (
-          <SelectItem key={pl} value={pl} className="font-mono">{pl}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -163,35 +131,34 @@ export function RipngDistributeListInterfaceModal({
         <div className="space-y-4">
           {/* Interface */}
           <div className="space-y-2">
-            <Label>{t("interfaces.interface")}</Label>
-            <Select value={iface} onValueChange={setIface} disabled={isEditMode}>
-              <SelectTrigger className={isEditMode ? "bg-muted" : ""}>
-                <SelectValue placeholder={tc("selectInterface")} />
-              </SelectTrigger>
-              <SelectContent>
-                {selectableInterfaces.map((i) => (
-                  <SelectItem key={i} value={i}>{i}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="ripng-dl-iface">{t("interfaces.interface")}</Label>
+            <InterfaceSelect
+              id="ripng-dl-iface"
+              value={iface}
+              onValueChange={setIface}
+              disabled={isEditMode}
+              className={isEditMode ? "bg-muted" : ""}
+              placeholder={tc("selectInterface")}
+              filter={(item) => isEditMode || !existingInterfaces.includes(item.name)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="ripng-dl-acl-in">{t("filters.accessListIn")}</Label>
-              {renderAclSelect(aclIn, setAclIn, "ripng-dl-acl-in")}
+              <NamedListSelect id="ripng-dl-acl-in" value={aclIn} names={accessListNames} onValueChange={setAclIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ripng-dl-acl-out">{t("filters.accessListOut")}</Label>
-              {renderAclSelect(aclOut, setAclOut, "ripng-dl-acl-out")}
+              <NamedListSelect id="ripng-dl-acl-out" value={aclOut} names={accessListNames} onValueChange={setAclOut} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ripng-dl-pl-in">{t("filters.prefixListIn")}</Label>
-              {renderPlSelect(plIn, setPlIn, "ripng-dl-pl-in")}
+              <NamedListSelect id="ripng-dl-pl-in" value={plIn} names={prefixListNames} onValueChange={setPlIn} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ripng-dl-pl-out">{t("filters.prefixListOut")}</Label>
-              {renderPlSelect(plOut, setPlOut, "ripng-dl-pl-out")}
+              <NamedListSelect id="ripng-dl-pl-out" value={plOut} names={prefixListNames} onValueChange={setPlOut} />
             </div>
           </div>
         </div>

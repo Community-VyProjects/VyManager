@@ -1,7 +1,11 @@
 """Golden (method, args, expected_path) cases for ConntrackSyncBatchBuilder.
 
 Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+purge-timeout committed on the 1.5 lab (100.64.64.5) and was rejected on 1.4
+(100.64.64.4).
 """
+
+import inspect
 
 import pytest
 
@@ -69,3 +73,37 @@ def test_conntrack_sync_builder_paths(method, args, op, expected_path, version):
     getattr(builder, method)(*args)
     operations = builder.get_operations()
     assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
+
+
+# purge-timeout exists only on 1.5 (1.4 prints `[purge-timeout] is not valid`).
+V1_5_CASES = [
+    ("set_purge_timeout", ("60",), "set", BASE + ["purge-timeout", "60"]),
+    ("delete_purge_timeout", (), "delete", BASE + ["purge-timeout"]),
+]
+
+
+@pytest.mark.parametrize("method, args, op, expected_path", V1_5_CASES)
+@pytest.mark.parametrize("version", ["1.5", "2026.09.23-0027-rolling"])
+def test_conntrack_sync_builder_1_5_paths(method, args, op, expected_path, version):
+    builder = ConntrackSyncBatchBuilder(version=version)
+    getattr(builder, method)(*args)
+    operations = builder.get_operations()
+    assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
+
+
+@pytest.mark.parametrize("method, args, _op, _path", V1_5_CASES)
+def test_conntrack_sync_builder_1_5_ops_raise_on_1_4(method, args, _op, _path):
+    builder = ConntrackSyncBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="conntrack-sync purge-timeout is not supported"):
+        getattr(builder, method)(*args)
+    assert builder.is_empty()
+
+
+def test_every_builder_op_has_a_golden_row():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(ConntrackSyncBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    covered = {row[0] for row in CASES + V1_5_CASES}
+    assert ops == covered

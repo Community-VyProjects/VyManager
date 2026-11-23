@@ -2,22 +2,22 @@
 BFD Protocol Router
 
 API endpoints for managing VyOS BFD (Bidirectional Forwarding Detection) configuration.
-Supports version-aware configuration for VyOS 1.4 and 1.5.
+protocols bfd is the same on VyOS 1.4 and 1.5.
 """
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.bfd import BfdMapper
 from vyos_builders.bfd import BfdBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-from bfd_status import BfdPeerStatus, bfd_peers_gql_query, parse_bfd_peers
+from bfd_status import BfdPeerStatus, parse_bfd_peers
+from requests.exceptions import RequestException
 import inspect
-import json
-import httpx
 import logging
 from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
@@ -109,15 +109,16 @@ async def get_bfd_capabilities(request: Request):
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = BfdBatchBuilder(version=version)
+        builder = BfdBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -135,8 +136,10 @@ async def get_bfd_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("bfd", service.get_version())
+        mapper = cast(BfdMapper, CommandMapperRegistry.get_mapper("bfd", service.get_version()))
         return BfdConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -149,7 +152,7 @@ async def get_bfd_config(http_request: Request, refresh: bool = False):
 
 @router.get("/status", response_model=BfdStatusResponse)
 async def get_bfd_status(request: Request):
-    """Get live BFD sessions via the GraphQL ``Show`` op (``show bfd peers``).
+    """Get live BFD sessions from the op-mode ``show bfd peers`` command.
 
     Unlike ``/config``, this reflects the running BFD daemon and therefore
     includes ``dynamic`` peers created by routing protocols (BGP/OSPF/IS-IS with
@@ -159,28 +162,26 @@ async def get_bfd_status(request: Request):
 
     try:
         service = get_session_vyos_service(request)
-        api_key = str(service.config.apikey)
-        url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
-        payload = bfd_peers_gql_query(json.dumps(api_key))
-
-        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
-            resp = await client.post(url, json=payload, auth=("vyos", api_key))
-
-        if resp.status_code != 200:
-            logger.error("BFD status GraphQL HTTP error %d", resp.status_code)
+        mapper = cast(BfdMapper, CommandMapperRegistry.get_mapper("bfd", service.get_version()))
+        try:
+            response = await run_in_threadpool(
+                service.device.show, path=mapper.get_peers_show_path()
+            )
+        except RequestException as e:
+            logger.warning("BFD status request failed: %s", e)
             raise HTTPException(status_code=502, detail="Failed to fetch BFD status")
 
-        body = resp.json()
-        if "errors" in body:
-            logger.warning("BFD status GraphQL field errors: %s", body["errors"])
+        if response.status != 200 or response.error:
+            logger.warning(
+                "BFD status show failed (status %s): %s", response.status, response.error
+            )
+            raise HTTPException(status_code=502, detail="Failed to fetch BFD status")
 
-        node = (body.get("data") or {}).get("BfdPeers") or {}
-        result = (node.get("data") or {}).get("result")
-        peers = parse_bfd_peers(result if isinstance(result, str) else "")
-        return BfdStatusResponse(peers=peers)
+        output = response.result if isinstance(response.result, str) else ""
+        return BfdStatusResponse(peers=parse_bfd_peers(output))
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -197,36 +198,34 @@ async def bfd_batch_configure(http_request: Request, body: BfdBatchRequest):
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = BfdBatchBuilder(version=version)
+        builder = BfdBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
             method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+            count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1 and operation.value:
-                method(operation.value)
-            elif len(params) == 2 and operation.value:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value)
-            elif len(params) == 0:
-                method()
+            # Every BFD op takes the peer or profile, then at most one value.
+            if not operation.value:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} requires a value",
+                )
+            parts = operation.value.split(",", count - 1)
+            if len(parts) != count or not all(parts):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} requires {count} values",
+                )
+            method(*parts)
 
         response = await run_in_threadpool(service.execute_batch, builder)
-
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "BFD configuration updated"},
-            error=response.error if response.error else None
+            data={"message": "BFD configuration updated"} if response.status == 200 else None,
+            error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { Ospfv3Area, Ospfv3AreaRange } from "@/lib/api/ospfv3";
+import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
 interface Ospfv3AreaModalProps {
@@ -30,6 +32,7 @@ interface Ospfv3AreaModalProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (area: Ospfv3Area) => Promise<void>;
   existingArea?: Ospfv3Area | null;
+  existingAreaIds: string[];
   accessListNames?: string[];
 }
 
@@ -38,6 +41,7 @@ export function Ospfv3AreaModal({
   onOpenChange,
   onSubmit,
   existingArea,
+  existingAreaIds,
   accessListNames = [],
 }: Ospfv3AreaModalProps) {
   const t = useTranslations("ospfv3");
@@ -69,6 +73,9 @@ export function Ospfv3AreaModal({
         setRanges([...existingArea.ranges]);
         setExportList(existingArea.export_list || "");
         setImportList(existingArea.import_list || "");
+        setNewRangePrefix("");
+        setNewRangeAdvertise(true);
+        setError(null);
       } else {
         resetForm();
       }
@@ -94,6 +101,10 @@ export function Ospfv3AreaModal({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
+
   const addRange = () => {
     const prefix = newRangePrefix.trim();
     if (!prefix) return;
@@ -111,12 +122,13 @@ export function Ospfv3AreaModal({
     setError(null);
   };
 
-  const removeRange = (idx: number) => {
-    setRanges(ranges.filter((_, i) => i !== idx));
+  const removeRange = (prefix: string) => {
+    setRanges(ranges.filter((r) => r.prefix !== prefix));
   };
 
   const validateForm = (): string | null => {
     if (!areaId.trim()) return t("areaModal.areaIdRequired");
+    if (!isEditMode && existingAreaIds.includes(areaId.trim())) return t("areaModal.areaIdExists");
     return null;
   };
 
@@ -138,14 +150,14 @@ export function Ospfv3AreaModal({
         area_type_default_cost: defaultCost.trim() ? parseInt(defaultCost.trim(), 10) : null,
         nssa_default_information_originate: areaType === "nssa" ? nssaDefaultOriginate : false,
         ranges,
-        export_list: exportList.trim() || null,
-        import_list: importList.trim() || null,
+        export_list: exportList || null,
+        import_list: importList || null,
       };
 
       await onSubmit(area);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
+      const message = (err as ApiError).message || tc("operationFailed");
       setError(message);
     } finally {
       setLoading(false);
@@ -155,7 +167,7 @@ export function Ospfv3AreaModal({
   const showStubNssaOptions = areaType === "stub" || areaType === "nssa";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -181,9 +193,6 @@ export function Ospfv3AreaModal({
                 disabled={isEditMode}
                 className={isEditMode ? "bg-muted" : ""}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("areaModal.areaIdHelp")}
-              </p>
             </div>
 
             {/* Area Type */}
@@ -242,9 +251,10 @@ export function Ospfv3AreaModal({
 
             {/* Ranges */}
             <div className="space-y-2">
-              <Label>{t("fields.ranges")}</Label>
+              <Label htmlFor="ospfv3-area-range">{t("fields.ranges")}</Label>
               <div className="flex gap-2">
                 <Input
+                  id="ospfv3-area-range"
                   value={newRangePrefix}
                   onChange={(e) => setNewRangePrefix(e.target.value)}
                   placeholder={t("areaModal.rangePlaceholder")}
@@ -255,7 +265,7 @@ export function Ospfv3AreaModal({
                   value={newRangeAdvertise ? "advertise" : "not-advertise"}
                   onValueChange={(v) => setNewRangeAdvertise(v === "advertise")}
                 >
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-36" aria-label={t("fields.ranges")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -269,61 +279,42 @@ export function Ospfv3AreaModal({
               </div>
               {ranges.length > 0 && (
                 <div className="space-y-1 mt-2">
-                  {ranges.map((range, idx) => (
-                    <div key={idx} className="flex items-center justify-between rounded-md border px-3 py-1.5">
+                  {ranges.map((range) => (
+                    <div key={range.prefix} className="flex items-center justify-between rounded-md border px-3 py-1.5">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-mono">{range.prefix}</span>
                         <span className="text-xs text-muted-foreground">
                           ({range.not_advertise ? t("areaModal.notAdvertised") : t("areaModal.advertised")})
                         </span>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRange(idx)}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRange(range.prefix)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                {t("areaModal.rangesHelp")}
-              </p>
             </div>
 
             {/* Export/Import Lists */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ospfv3-area-export">{t("fields.exportList")}</Label>
-                <Select
+                <NamedListSelect
+                  id="ospfv3-area-export"
                   value={exportList}
-                  onValueChange={(v) => setExportList(v === "__none__" ? "" : v)}
-                >
-                  <SelectTrigger id="ospfv3-area-export">
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{tc("none")}</SelectItem>
-                    {accessListNames.map((name) => (
-                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  names={accessListNames}
+                  onValueChange={setExportList}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ospfv3-area-import">{t("fields.importList")}</Label>
-                <Select
+                <NamedListSelect
+                  id="ospfv3-area-import"
                   value={importList}
-                  onValueChange={(v) => setImportList(v === "__none__" ? "" : v)}
-                >
-                  <SelectTrigger id="ospfv3-area-import">
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{tc("none")}</SelectItem>
-                    {accessListNames.map((name) => (
-                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  names={accessListNames}
+                  onValueChange={setImportList}
+                />
               </div>
             </div>
           </div>

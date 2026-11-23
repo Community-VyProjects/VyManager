@@ -1,29 +1,18 @@
-"""Factory for version-specific Conntrack-Sync mappers."""
+"""Factory for Conntrack-Sync mappers.
+
+The shared class is returned directly on 1.4. ``purge-timeout`` and IPv6
+addresses exist only on 1.5, so that version gets the subclass. There is no
+merge proxy and no empty 1.4 file.
+"""
 from ..conntrack_sync import ConntrackSyncMapper
-from .v1_4 import ConntrackSyncMapperV1_4
 from .v1_5 import ConntrackSyncMapperV1_5
 
 
-def get_conntrack_sync_mapper(version: str):
-    """Return a version-merged Conntrack-Sync mapper."""
-    base = ConntrackSyncMapper(version)
+def get_conntrack_sync_mapper(version: str) -> ConntrackSyncMapper:
+    """Return the shared mapper, or the 1.5 subclass.
 
+    A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+    """
     if "1.4" in version:
-        version_specific = ConntrackSyncMapperV1_4()
-    else:
-        version_specific = ConntrackSyncMapperV1_5()
-
-    class MergedMapper:
-        # parse_config must live here. A method on the base mapper is bound
-        # to `base`, so version branches would not see the merged mapper.
-        def parse_config(self, full_config):
-            from ..config_parse import parse_config as parse_conntrack_sync_config
-
-            return parse_conntrack_sync_config(self, full_config)
-
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+        return ConntrackSyncMapper(version)
+    return ConntrackSyncMapperV1_5(version)

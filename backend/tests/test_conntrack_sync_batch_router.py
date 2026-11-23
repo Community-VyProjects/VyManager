@@ -85,6 +85,20 @@ def test_batch_missing_value_is_400(client, operation):
     assert executed == []
 
 
+@pytest.mark.parametrize("operation", [
+    {"op": "delete_interfaces", "value": "eth0"},
+    {"op": "delete_conntrack_sync", "value": "eth0"},
+    {"op": "set_disable_syslog", "value": "true"},
+])
+def test_batch_value_on_zero_arg_op_is_400(client, operation):
+    """A value on a zero-arg op is 400, not the wider op (every interface)."""
+    test_client, executed = client
+    resp = _post(test_client, [{"op": "set_accept_protocol", "value": "tcp"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
+    assert executed == []
+
+
 @pytest.mark.parametrize("value", ["eth0", "eth0,", ",192.0.2.2"])
 def test_batch_short_value_is_400(client, value):
     test_client, executed = client
@@ -99,6 +113,19 @@ def test_batch_unknown_op_is_400(client):
     resp = _post(test_client, [{"op": "no_such_op", "value": "x"}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Unknown operation: no_such_op"
+    assert executed == []
+
+
+@pytest.mark.parametrize("operation", [
+    {"op": "set_purge_timeout", "value": "60"},
+    {"op": "delete_purge_timeout"},
+])
+def test_batch_1_5_only_op_on_1_4_is_400(client, operation):
+    """The 1.4 stub has no purge-timeout; the mapper ValueError is a 400."""
+    test_client, executed = client
+    resp = _post(test_client, [{"op": "set_disable_syslog"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "conntrack-sync purge-timeout is not supported on this device"
     assert executed == []
 
 
@@ -140,8 +167,12 @@ def test_batch_failed_commit_omits_updated_message(monkeypatch):
     assert body["error"] == "commit failed"
 
 
-@pytest.mark.parametrize("path", ["/vyos/conntrack-sync/capabilities", "/vyos/conntrack-sync/config"])
-def test_session_http_exception_is_not_swallowed(monkeypatch, path):
+@pytest.mark.parametrize("method, path", [
+    ("get", "/vyos/conntrack-sync/capabilities"),
+    ("get", "/vyos/conntrack-sync/config"),
+    ("post", "/vyos/conntrack-sync/batch"),
+])
+def test_session_http_exception_is_not_swallowed(monkeypatch, method, path):
     from fastapi import HTTPException
 
     async def allow(*_args, **_kwargs):
@@ -151,12 +182,17 @@ def test_session_http_exception_is_not_swallowed(monkeypatch, path):
         raise HTTPException(status_code=503, detail="session down")
 
     monkeypatch.setattr(f"{ROUTER}.require_read_permission", allow)
+    monkeypatch.setattr(f"{ROUTER}.require_write_permission", allow)
     monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", boom)
 
     from routers.conntrack_sync.conntrack_sync import router
 
     app = FastAPI()
     app.include_router(router)
-    resp = TestClient(app).get(path)
+    test_client = TestClient(app)
+    if method == "post":
+        resp = test_client.post(path, json={"operations": [{"op": "set_disable_syslog"}]})
+    else:
+        resp = test_client.get(path)
     assert resp.status_code == 503, resp.text
     assert resp.json()["detail"] == "session down"

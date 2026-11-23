@@ -6,7 +6,7 @@ Generated for issue #711; edit the tables directly if the mapper changes.
 
 import pytest
 
-from vyos_builders.firewall.groups import FirewallGroupsBatchBuilder
+from vyos_builders.firewall.groups_batch_builder import FirewallGroupsBatchBuilder
 
 
 COMMON_CASES = [
@@ -109,3 +109,15 @@ def test_remote_group_rejected_on_1_4(method, args):
         getattr(builder, method)(*args)
     assert builder.get_operations() == []
 
+
+
+def test_every_builder_op_has_a_golden_row():
+    import inspect
+
+    builder = FirewallGroupsBatchBuilder(version="1.5")
+    ops = {
+        name for name, _ in inspect.getmembers(builder, callable)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    rows = {case[0] for case in COMMON_CASES + V15_ONLY_CASES}
+    assert ops == rows

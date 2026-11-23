@@ -1,13 +1,17 @@
 """RIP Protocol Router.
 
 API endpoints for managing VyOS RIP (Routing Information Protocol) configuration.
-Supports version-aware configuration for VyOS 1.4 and 1.5.
+
+Endpoints:
+  GET  /vyos/rip/capabilities  — version-aware feature flags
+  GET  /vyos/rip/config        — normalized RIP configuration, secrets masked
+  POST /vyos/rip/batch         — atomic set/delete operations
 """
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.rip import RipBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
@@ -16,6 +20,7 @@ import inspect
 import logging
 from batch_dispatch import resolve_batch_method
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.rip.rip import RipMapper
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +54,7 @@ class RipDistributeList(BaseModel):
 
 class RipMd5Key(BaseModel):
     key_id: str
+    # "***" when the key has a password, "" when it has none.
     password: str
 
 
@@ -56,6 +62,7 @@ class RipInterface(BaseModel):
     name: str
     authentication_type: Optional[str] = None
     md5_keys: List[RipMd5Key] = []
+    # "***" when set; the password itself is never returned.
     plaintext_password: Optional[str] = None
     receive_version: Optional[str] = None
     send_version: Optional[str] = None
@@ -81,6 +88,7 @@ class RipTimers(BaseModel):
 
 
 class RipConfig(BaseModel):
+    configured: bool = False
     default_distance: Optional[int] = None
     default_information_originate: bool = False
     default_metric: Optional[int] = None
@@ -132,6 +140,8 @@ async def get_rip_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_rip_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -150,8 +160,10 @@ async def get_rip_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("rip", service.get_version())
+        mapper = cast(RipMapper, CommandMapperRegistry.get_mapper("rip", service.get_version()))
         return RipConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_rip_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -171,38 +183,38 @@ async def rip_batch_configure(http_request: Request, body: RipBatchRequest):
         service = get_session_vyos_service(http_request)
         builder = RipBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
+                count = len(inspect.signature(method).parameters)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-            elif len(params) == 2 and operation.value is not None:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value, "")
-            elif len(params) == 3 and operation.value is not None:
-                values = operation.value.split(",", 2)
-                if len(values) == 3:
-                    method(values[0], values[1], values[2])
-                elif len(values) == 2:
-                    method(values[0], values[1], "")
+                if count == 0:
+                    method()
+                    continue
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value",
+                    )
+                parts = operation.value.split(",", count - 1)
+                if len(parts) != count or not all(parts):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires {count} values",
+                    )
+                method(*parts)
+        except ValueError as e:
+            # The mapper raises ValueError for a redistribute source this version lacks.
+            raise HTTPException(status_code=400, detail=str(e))
 
         response = await run_in_threadpool(service.execute_batch, builder)
-
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "RIP configuration updated"},
+            data={"message": "RIP configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in rip_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

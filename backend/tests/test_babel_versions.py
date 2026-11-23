@@ -56,7 +56,10 @@ def test_v14_mapper_does_not_gain_nhrp():
         mapper.get_redistribute_ipv4("nhrp")
     with pytest.raises(ValueError, match="not supported"):
         mapper.get_redistribute_ipv6("nhrp")
-    assert mapper.get_redistribute_ipv4_delete("nhrp")[-1] == "nhrp"
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_redistribute_ipv4_delete("nhrp")
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_redistribute_ipv6_delete("nhrp")
 
 
 def test_v15_subclass_owns_nhrp_not_the_version_string():
@@ -69,6 +72,27 @@ def test_v15_subclass_owns_nhrp_not_the_version_string():
     assert mapper.get_redistribute_ipv6("nhrp") == [
         "protocols", "babel", "redistribute", "ipv6", "nhrp",
     ]
+    assert mapper.get_redistribute_ipv4_delete("nhrp") == [
+        "protocols", "babel", "redistribute", "ipv4", "nhrp",
+    ]
+    assert mapper.get_redistribute_ipv6_delete("nhrp") == [
+        "protocols", "babel", "redistribute", "ipv6", "nhrp",
+    ]
+
+
+def test_redistribute_delete_rejects_an_unknown_protocol():
+    builder = BabelBatchBuilder(version="2026.09.23-rolling")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_redistribute_ipv4("not-a-protocol")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_redistribute_ipv6("not-a-protocol")
+    assert builder.get_operations() == []
+
+
+def test_shared_mapper_has_no_init_override():
+    assert "__init__" not in BabelMapper.__dict__
+    assert "__init__" not in BabelMapperV1_5.__dict__
+    assert BabelMapper("1.4").version == "1.4"
 
 
 def test_nhrp_capability_reads_the_mapper(monkeypatch):

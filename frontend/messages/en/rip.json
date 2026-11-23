@@ -1,20 +1,18 @@
 {
   "example": "e.g. {value}",
+  "versionOption": "v{value}",
   "header": {
     "title": "RIP Protocol",
-    "subtitle": "Routing Information Protocol — distance-vector routing"
+    "subtitle": "Routing Information Protocol — distance-vector routing",
+    "deleteRip": "Delete RIP"
   },
   "errors": {
     "loadFailed": "Failed to load RIP configuration",
     "saveSettingsFailed": "Failed to save settings",
     "addNetworkFailed": "Failed to add network",
-    "removeNetworkFailed": "Failed to remove network",
     "addNeighborFailed": "Failed to add neighbor",
-    "removeNeighborFailed": "Failed to remove neighbor",
     "addRouteFailed": "Failed to add route",
-    "removeRouteFailed": "Failed to remove route",
     "addPassiveIfaceFailed": "Failed to add passive interface",
-    "removePassiveIfaceFailed": "Failed to remove passive interface",
     "saveFiltersFailed": "Failed to save filters"
   },
   "stats": {
@@ -89,9 +87,10 @@
     "accessList": "Access List"
   },
   "deleteModal": {
-    "title": "Delete RIP {type, select, interface {Interface} redistribution {Redistribution} networkDistance {Network Distance} other {Interface Filter}}",
-    "description": "Are you sure you want to delete the RIP {type, select, interface {interface} redistribution {redistribution} networkDistance {network distance} other {interface filter}} <mono>{name}</mono>? This action cannot be undone.",
-    "confirm": "Delete {type, select, interface {Interface} redistribution {Redistribution} networkDistance {Network Distance} other {Interface Filter}}"
+    "title": "Delete RIP {type, select, interface {Interface} redistribution {Redistribution} networkDistance {Network Distance} network {Network} neighbor {Neighbor} route {Static Route} passiveInterface {Passive Interface} rip {Configuration} other {Interface Filter}}",
+    "description": "Are you sure you want to delete the RIP {type, select, interface {interface} redistribution {redistribution} networkDistance {network distance} network {network} neighbor {neighbor} route {static route} passiveInterface {passive interface} other {interface filter}} <mono>{name}</mono>? This action cannot be undone.",
+    "ripDescription": "Are you sure you want to delete the whole RIP configuration from this router? This action cannot be undone.",
+    "confirm": "Delete {type, select, interface {Interface} redistribution {Redistribution} networkDistance {Network Distance} network {Network} neighbor {Neighbor} route {Static Route} passiveInterface {Passive Interface} rip {RIP} other {Interface Filter}}"
   },
   "modal": {
     "adding": "Adding...",
@@ -99,17 +98,24 @@
   },
   "validation": {
     "selectInterface": "Please select an interface",
+    "selectList": "Select at least one access list or prefix list",
+    "md5KeyRequired": "Add at least one MD5 key",
     "md5KeyIdRequired": "All MD5 keys must have a key ID",
-    "md5KeyIdRange": "MD5 key ID must be 1-255",
+    "md5KeyIdRange": "MD5 key ID must be between {min} and {max}",
+    "md5KeyIdDuplicate": "Each MD5 key ID can be used only once",
     "md5PasswordRequired": "All MD5 keys must have a password",
-    "md5PasswordLength": "MD5 key password must be ≤16 characters",
-    "plaintextLength": "Plaintext password must be ≤16 characters",
+    "md5PasswordInvalid": "MD5 key passwords must be up to {max} characters with no spaces",
+    "plaintextRequired": "Enter a plaintext password",
+    "plaintextInvalid": "The plaintext password must be up to {max} characters with no spaces",
     "prefixRequired": "Network prefix is required",
+    "prefixInvalid": "Enter an IPv4 prefix with no host bits set, such as 10.0.0.0/8",
+    "neighborInvalid": "Enter an IPv4 address with no leading zeros, such as 192.168.1.1",
     "prefixExists": "This prefix is already configured",
     "distanceRequired": "Distance is required",
-    "distanceRange": "Distance must be between 1 and 255",
+    "distanceRange": "Distance must be between {min} and {max}",
     "selectProtocol": "Please select a protocol",
-    "metricRange": "Metric must be between 1 and 16"
+    "metricRange": "Metric must be between {min} and {max}",
+    "timerRange": "Timers must be between {min} and {max} seconds"
   },
   "interfaceModal": {
     "editTitle": "Edit RIP Interface",
@@ -117,12 +123,12 @@
     "editDescription": "Modify RIP settings for {name}.",
     "addDescription": "Configure per-interface RIP authentication, version, and split-horizon.",
     "authentication": "Authentication",
+    "md5": "MD5",
     "plaintext": "Plaintext",
-    "md5Help": "MD5 key pairs (key ID 1-255, password ≤16 chars)",
     "keyId": "Key ID",
     "password": "Password",
     "addKey": "Add Key",
-    "plaintextPlaceholder": "Password (≤16 chars)",
+    "plaintextPlaceholder": "Password (up to {max} characters)",
     "sendVersion": "Send Version",
     "receiveVersion": "Receive Version",
     "disable": "Disable",
@@ -145,6 +151,6 @@
     "editDescription": "Modify redistribution settings for {protocol}.",
     "addDescription": "Configure a new protocol to redistribute into RIP.",
     "selectProtocol": "Select protocol",
-    "metricHint": "(optional, 1-16)"
+    "metricHint": "(optional, {min}-{max})"
   }
 }

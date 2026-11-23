@@ -1,9 +1,15 @@
-"""VyOS 1.5 specific RIP mapper overrides.
+"""VyOS 1.5 RIP mapper.
 
-RIP configuration is identical between VyOS 1.4 and 1.5 — no overrides needed.
+``protocols rip redistribute nhrp`` exists only on 1.5.
 """
 
+from typing import FrozenSet
 
-class RipMapperV1_5:
-    """VyOS 1.5 specific RIP paths. No overrides from base."""
-    pass
+from ..rip import RipMapper
+
+
+class RipMapperV1_5(RipMapper):
+    """VyOS 1.5 RIP mapper with NHRP redistribute."""
+
+    def redistribute_protocols(self) -> FrozenSet[str]:
+        return super().redistribute_protocols() | {"nhrp"}

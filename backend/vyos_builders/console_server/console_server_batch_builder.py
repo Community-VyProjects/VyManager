@@ -6,11 +6,11 @@ Configuration lives under: service console-server
 
 Structure:
   service console-server
-    device <name>                           # tagged node (ttyS0, ttyUSB0, etc.)
-      alias <text>                          # human-readable name (1-128 chars)
+    device <name>                           # tagged node: ttyS<N> or usb<N>b<bus>p<port> (usb0b2.4p1.0)
+      alias <text>                          # [-_a-zA-Z0-9.], 1-128 chars
       data-bits <7|8>                       # default: 8
-      description <text>                   # 0-255 chars
-      parity <even|odd|none>               # default: none
+      description <text>                    # 0-255 chars
+      parity <even|odd|none>                # default: none
       speed <300|1200|2400|4800|9600|
              19200|38400|57600|115200>
       ssh
@@ -22,15 +22,16 @@ Multi-argument batch operations encode compound values as "arg1,arg2"
 (comma-separated), matching the project's standard batch dispatch pattern.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_builders.base import BatchBuilder
+from vyos_mappers.console_server.console_server import ConsoleServerMapper
 
 
 class ConsoleServerBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("console_server", version)
+        self.m = cast(ConsoleServerMapper, CommandMapperRegistry.get_mapper("console_server", version))
 
     # -----------------------------------------------------------------------
     # Capabilities

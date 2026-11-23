@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from dispatchable_ops import dispatchable_ops
-from vyos_builders.firewall.groups import FirewallGroupsBatchBuilder
+from vyos_builders.firewall.groups_batch_builder import FirewallGroupsBatchBuilder
 
 ROUTER = "routers.firewall.groups"
 BASE = ["firewall", "group"]
@@ -190,3 +190,127 @@ def test_batch_reports_a_rejected_commit(monkeypatch):
     resp = _post(test_client, [{"op": "set_address_group"}])
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": False, "data": None, "error": "Commit failed"}
+
+
+def test_batch_error_on_http_200_is_a_failure(monkeypatch):
+    """pyvyos can set error on an HTTP 200 reply; that is not a success."""
+    test_client, _executed = _client(monkeypatch, "1.5")
+
+    class ErrorOn200:
+        def get_version(self):
+            return "1.5"
+
+        def execute_batch(self, _batch):
+            return SimpleNamespace(status=200, result="", error="Commit failed")
+
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: ErrorOn200())
+    resp = _post(test_client, [{"op": "set_address_group"}])
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "data": None, "error": "Commit failed"}
+
+
+def test_batch_rejects_an_empty_group_name(client):
+    test_client, executed = client
+    resp = _post(test_client, [{"op": "set_address_group"}], group_name="")
+    assert resp.status_code == 422, resp.text
+    assert executed == []
+
+
+_EMPTY_GROUPS = {
+    "address_groups": [],
+    "ipv6_address_groups": [],
+    "network_groups": [],
+    "ipv6_network_groups": [],
+    "port_groups": [],
+    "interface_groups": [],
+    "mac_groups": [],
+    "domain_groups": [],
+    "remote_groups": [],
+    "total": 0,
+    "by_type": {
+        "address-group": 0,
+        "ipv6-address-group": 0,
+        "network-group": 0,
+        "ipv6-network-group": 0,
+        "port-group": 0,
+        "interface-group": 0,
+        "mac-group": 0,
+        "domain-group": 0,
+        "remote-group": 0,
+    },
+}
+
+
+def _config_client(monkeypatch, version, full_config):
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class Service:
+        def get_version(self):
+            return version
+
+        def get_full_config(self, refresh=False):
+            return full_config
+
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", allow)
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: Service())
+    from routers.firewall.groups import router
+
+    app = FastAPI()
+    app.include_router(router)
+    return TestClient(app)
+
+
+@pytest.mark.parametrize("full_config", [None, {}, {"firewall": {}}, {"firewall": {"group": {}}}])
+def test_config_without_groups_returns_the_same_shape(monkeypatch, full_config):
+    resp = _config_client(monkeypatch, "1.4", full_config).get("/vyos/firewall/groups/config")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == _EMPTY_GROUPS
+
+
+def test_config_reads_the_mapper_parse(monkeypatch):
+    """The handler returns parse_config through the response model; it does not walk the tree."""
+    tree = {"firewall": {"group": {
+        "address-group": {
+            "A1": {"address": "10.0.0.1", "include": "A2", "description": "hosts"},
+            "A2": {"address": ["10.0.0.2", "10.0.0.3"]},
+        },
+        "ipv6-network-group": {"N6": {"network": ["2001:db8::/32"], "include": ["N7", "N8"]}},
+        "port-group": {"P1": {"port": ["22", "443"]}},
+        "interface-group": {"I1": {"interface": "eth1"}},
+        "mac-group": {"M1": {"mac-address": "00:11:22:33:44:55"}},
+        "domain-group": {"D1": {"address": ["example.com"]}},
+        "remote-group": {"R1": {"url": "https://example.com/list.txt", "description": "feed"}},
+    }}}
+    resp = _config_client(monkeypatch, "2026.09.23-0027-rolling", tree).get(
+        "/vyos/firewall/groups/config"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["address_groups"] == [
+        {"name": "A1", "type": "address-group", "description": "hosts",
+         "members": ["10.0.0.1"], "included_groups": ["A2"]},
+        {"name": "A2", "type": "address-group", "description": None,
+         "members": ["10.0.0.2", "10.0.0.3"], "included_groups": []},
+    ]
+    assert body["ipv6_network_groups"][0]["included_groups"] == ["N7", "N8"]
+    assert body["port_groups"][0]["members"] == ["22", "443"]
+    assert body["interface_groups"][0]["members"] == ["eth1"]
+    assert body["mac_groups"][0]["members"] == ["00:11:22:33:44:55"]
+    assert body["domain_groups"][0]["members"] == ["example.com"]
+    assert body["remote_groups"] == [
+        {"name": "R1", "type": "remote-group", "description": "feed",
+         "members": ["https://example.com/list.txt"], "included_groups": []},
+    ]
+    assert body["total"] == 8
+    assert body["by_type"]["address-group"] == 2
+    assert body["by_type"]["remote-group"] == 1
+    assert body["by_type"]["network-group"] == 0
+
+
+def test_config_handler_does_not_walk_the_tree():
+    from routers.firewall.groups import get_groups_config
+
+    source = inspect.getsource(get_groups_config)
+    assert "parse_config" in source
+    assert "full_config[" not in source

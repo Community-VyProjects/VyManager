@@ -46,6 +46,10 @@ jobs:
         working-directory: frontend
         run: npm run test:ospf-save
 
+      - name: Run IS-IS save op tests
+        working-directory: frontend
+        run: npm run test:isis-save
+
       - name: Run power schedule tests
         working-directory: frontend
         run: npm run test:power-schedule
@@ -65,3 +69,15 @@ jobs:
       - name: Run VRF RPKI save op tests
         working-directory: frontend
         run: npm run test:vrf-rpki-save
+
+      - name: Run VRF schema save op tests
+        working-directory: frontend
+        run: npm run test:vrf-schema-save
+
+      - name: Run RIP save op tests
+        working-directory: frontend
+        run: npm run test:rip-save
+
+      - name: Run conntrack-sync save op tests
+        working-directory: frontend
+        run: npm run test:conntrack-sync-save

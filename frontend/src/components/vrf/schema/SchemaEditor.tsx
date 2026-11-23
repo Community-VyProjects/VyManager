@@ -25,13 +25,21 @@ import {
 import { AlertTriangle, Loader2, X } from "lucide-react";
 import {
   vrfService,
-  VrfBatchOperation,
   VrfCapabilities,
 } from "@/lib/api/vrf";
+import {
+  buildSchemaOps,
+  initialSchemaValue,
+  isSecretField,
+  schemaFieldKey,
+  schemaSecretProblem,
+  type SchemaRaw,
+  type SchemaValue,
+} from "@/lib/api/vrf-schema-save-ops";
+import type { ApiError } from "@/lib/types/api";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { FieldSpec, SectionSpec } from "./types";
 import { useSchemaText } from "./useSchemaText";
-
-type RawConfig = Record<string, unknown> | null | undefined;
 
 interface SchemaEditorProps {
   open: boolean;
@@ -39,7 +47,7 @@ interface SchemaEditorProps {
   title: string;
   vrfName: string;
   sections: SectionSpec[];
-  rawConfig: RawConfig;
+  rawConfig: SchemaRaw;
   /** Extra path args inserted between the VRF name and the value (e.g. a neighbor). */
   contextArgs?: string[];
   capabilities: VrfCapabilities;
@@ -47,43 +55,6 @@ interface SchemaEditorProps {
   onSaved: () => void;
   /** Message scope for field labels: the protocol (e.g. "bgp") or an entity group scope. */
   scope?: string;
-}
-
-const NONE = "__none__";
-
-// Unique state key per field: fields can share an `op` but differ by `args`
-// (e.g. level-1 vs level-2 metric, or per-option generic setters).
-function fieldKey(f: FieldSpec): string {
-  return f.args && f.args.length ? `${f.op}::${f.args.join(",")}` : f.op;
-}
-
-function readPath(raw: RawConfig, path: string[]): unknown {
-  let cur: unknown = raw;
-  for (const key of path) {
-    if (cur && typeof cur === "object" && key in (cur as Record<string, unknown>)) {
-      cur = (cur as Record<string, unknown>)[key];
-    } else {
-      return undefined;
-    }
-  }
-  return cur;
-}
-
-type FieldValue = string | boolean | string[];
-
-function initialValue(field: FieldSpec, raw: RawConfig): FieldValue {
-  const node = readPath(raw, field.path);
-  if (field.type === "toggle") {
-    return node !== undefined;
-  }
-  if (field.type === "list") {
-    if (Array.isArray(node)) return node.map(String);
-    if (typeof node === "string" || typeof node === "number") return [String(node)];
-    return [];
-  }
-  if (typeof node === "string") return node;
-  if (typeof node === "number") return String(node);
-  return "";
 }
 
 export function SchemaEditor({
@@ -100,6 +71,7 @@ export function SchemaEditor({
   scope,
 }: SchemaEditorProps) {
   const tc = useTranslations("common");
+  const t = useTranslations("vrfProtocols");
   const st = useSchemaText();
   const visibleSections = useMemo(
     () =>
@@ -125,14 +97,14 @@ export function SchemaEditor({
   );
 
   const initial = useMemo(() => {
-    const v: Record<string, FieldValue> = {};
+    const v: Record<string, SchemaValue> = {};
     for (const s of visibleSections) {
-      for (const f of s.fields) v[fieldKey(f)] = initialValue(f, rawConfig);
+      for (const f of s.fields) v[schemaFieldKey(f)] = initialSchemaValue(f, rawConfig);
     }
     return v;
   }, [visibleSections, rawConfig]);
 
-  const [values, setValues] = useState<Record<string, FieldValue>>(initial);
+  const [values, setValues] = useState<Record<string, SchemaValue>>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,55 +118,15 @@ export function SchemaEditor({
   }
 
   const prefix = [vrfName, ...contextArgs];
-
-  const buildOps = (): VrfBatchOperation[] => {
-    const ops: VrfBatchOperation[] = [];
-    for (const s of visibleSections) {
-      for (const f of s.fields) {
-        const cur = values[fieldKey(f)];
-        const orig = initial[fieldKey(f)];
-        if (cur === orig) continue;
-        const delOp = f.delOp || f.op;
-        const argv = [...prefix, ...(f.args ?? [])];
-        if (f.type === "toggle") {
-          ops.push(
-            cur
-              ? { op: `set_${f.op}`, value: argv.join(",") }
-              : { op: `delete_${delOp}`, value: argv.join(",") }
-          );
-        } else if (f.type === "list") {
-          const list = (cur as string[]).map((v) => v.trim()).filter(Boolean);
-          const origList = (orig as string[]) ?? [];
-          if (f.listClearAll) {
-            // Delete clears the whole leaf → clear then re-add.
-            ops.push({ op: `delete_${delOp}`, value: argv.join(",") });
-            for (const v of list) {
-              ops.push({ op: `set_${f.op}`, value: [...argv, v].join(",") });
-            }
-          } else {
-            // Per-value add/remove.
-            for (const v of list) {
-              if (!origList.includes(v)) ops.push({ op: `set_${f.op}`, value: [...argv, v].join(",") });
-            }
-            for (const v of origList) {
-              if (!list.includes(v)) ops.push({ op: `delete_${delOp}`, value: [...argv, v].join(",") });
-            }
-          }
-        } else {
-          const str = String(cur ?? "").trim();
-          if (str) {
-            ops.push({ op: `set_${f.op}`, value: [...argv, str].join(",") });
-          } else {
-            ops.push({ op: `delete_${delOp}`, value: argv.join(",") });
-          }
-        }
-      }
-    }
-    return ops;
-  };
+  const visibleFields = visibleSections.flatMap((s) => s.fields);
 
   const handleSave = async () => {
-    const ops = buildOps();
+    const masked = schemaSecretProblem(visibleFields, initial, values);
+    if (masked) {
+      setError(t("schemaEditor.secretIsMask", { field: st.field(scope, masked) }));
+      return;
+    }
+    const ops = buildSchemaOps(visibleFields, prefix, initial, values);
     if (ops.length === 0) {
       onOpenChange(false);
       return;
@@ -210,17 +142,23 @@ export function SchemaEditor({
       onSaved();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSaving(false);
     }
   };
 
-  const setField = (op: string, val: FieldValue) =>
+  // A close (Esc, overlay) mid-save would drop a failed save's error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && saving) return;
+    onOpenChange(next);
+  };
+
+  const setField = (op: string, val: SchemaValue) =>
     setValues((prev) => ({ ...prev, [op]: val }));
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -239,12 +177,12 @@ export function SchemaEditor({
                 <div className="grid grid-cols-2 gap-4">
                   {section.fields.map((field) => (
                     <FieldControl
-                      key={fieldKey(field)}
+                      key={schemaFieldKey(field)}
                       field={field}
                       scope={scope}
-                      value={values[fieldKey(field)]}
+                      value={values[schemaFieldKey(field)]}
                       disabled={!canWrite || saving}
-                      onChange={(v) => setField(fieldKey(field), v)}
+                      onChange={(v) => setField(schemaFieldKey(field), v)}
                     />
                   ))}
                 </div>
@@ -283,9 +221,9 @@ function FieldControl({
 }: {
   field: FieldSpec;
   scope?: string;
-  value: FieldValue;
+  value: SchemaValue;
   disabled: boolean;
-  onChange: (v: FieldValue) => void;
+  onChange: (v: SchemaValue) => void;
 }) {
   const t = useTranslations("vrfProtocols");
   const st = useSchemaText();
@@ -341,15 +279,15 @@ function FieldControl({
       <div className="space-y-1.5">
         <Label className="text-xs">{label}</Label>
         <Select
-          value={current || NONE}
+          value={current || NONE_SENTINEL}
           disabled={disabled}
-          onValueChange={(v) => onChange(v === NONE ? "" : v)}
+          onValueChange={(v) => onChange(v === NONE_SENTINEL ? "" : v)}
         >
           <SelectTrigger>
             <SelectValue placeholder={field.placeholder || t("schemaEditor.select")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>—</SelectItem>
+            <SelectItem value={NONE_SENTINEL}>—</SelectItem>
             {field.options?.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {st.option(o)}
@@ -366,7 +304,8 @@ function FieldControl({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <Input
-        type={field.type === "number" ? "number" : "text"}
+        type={isSecretField(field) ? "password" : field.type === "number" ? "number" : "text"}
+        autoComplete={isSecretField(field) ? "new-password" : undefined}
         value={(value as string) || ""}
         placeholder={field.placeholder}
         disabled={disabled}

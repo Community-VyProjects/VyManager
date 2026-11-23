@@ -228,3 +228,201 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     hop = body["instances"][0]["static"]["routes"][0]["next_hops"][0]
     assert hop["bfd_multi_hop_sources"] == [{"address": "192.0.2.10", "profile": None}]
     assert hop["address"] == "192.0.2.1"
+
+
+def _secret_tree():
+    return {
+        "vrf": {
+            "name": {
+                "BLUE": {
+                    "protocols": {
+                        "bgp": {
+                            "system-as": "65000",
+                            "neighbor": {"192.0.2.2": {"password": "nbr-pw", "remote-as": "65001"}},
+                            "peer-group": {"PG": {"password": "pg-pw"}},
+                        },
+                        "isis": {
+                            "net": "49.0001.1921.6800.1001.00",
+                            "area-password": {"md5": "area-md5"},
+                            "domain-password": {"plaintext-password": "dom-pw"},
+                            "interface": {
+                                "eth1": {"password": {"plaintext-password": "if-pw"}},
+                                "eth2": {"password": {"md5": "if-md5"}},
+                                "eth3": {},
+                            },
+                        },
+                        "ospf": {
+                            "interface": {
+                                "eth1": {"authentication": {"plaintext-password": "ospf-pw"}},
+                                "eth2": {
+                                    "authentication": {
+                                        "md5": {"key-id": {"1": {"md5-key": "k1"}, "2": {"md5-key": "k2"}}}
+                                    }
+                                },
+                            },
+                            "area": {
+                                "0": {
+                                    "virtual-link": {
+                                        "1.1.1.1": {"authentication": {"plaintext-password": "vl-pw"}},
+                                        "2.2.2.2": {
+                                            "authentication": {"md5": {"key-id": {"5": {"md5-key": "vl-k5"}}}}
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                    },
+                    "service": {
+                        "dhcp-server": {
+                            "dynamic-dns-update": {
+                                "send-updates": "enable",
+                                "tsig-key": {
+                                    "K1": {"algorithm": "hmac-sha256", "secret": "c2VjcmV0"},
+                                },
+                            },
+                            "shared-network-name": {
+                                "LAN": {
+                                    "description": "lan",
+                                    "disable": {},
+                                    "subnet": {
+                                        "10.1.0.0/24": {
+                                            "option": {"default-router": "10.1.0.1"},
+                                            "range": {"r1": {"start": "10.1.0.10", "stop": "10.1.0.20"}},
+                                            "static-mapping": {"h1": {"ip-address": "10.1.0.5", "mac": "00:11:22:33:44:55"}},
+                                        }
+                                    },
+                                }
+                            },
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+
+SECRETS = ("nbr-pw", "pg-pw", "area-md5", "dom-pw", "if-pw", "if-md5", "ospf-pw", "k1", "k2", "vl-pw", "vl-k5", "c2VjcmV0")
+
+
+def test_raw_configs_mask_every_secret_leaf():
+    import json
+
+    tree = _secret_tree()
+    before = json.dumps(tree, sort_keys=True)
+    for version in ("1.4", "1.5"):
+        inst = get_vrf_mapper(version).parse_config(tree)["instances"][0]
+        dumped = json.dumps(inst)
+        for secret in SECRETS:
+            assert secret not in dumped, (version, secret)
+
+        bgp = inst["bgp"]["raw_config"]
+        assert bgp["neighbor"]["192.0.2.2"] == {"password": "***", "remote-as": "65001"}
+        assert bgp["peer-group"]["PG"]["password"] == "***"
+        isis = inst["isis"]["raw_config"]
+        assert isis["area-password"] == {"md5": "***"}
+        assert isis["domain-password"] == {"plaintext-password": "***"}
+        assert isis["interface"]["eth1"]["password"] == {"plaintext-password": "***"}
+        assert isis["interface"]["eth2"]["password"] == {"md5": "***"}
+        assert isis["interface"]["eth3"] == {}
+        ospf = inst["ospf"]["raw_config"]
+        assert ospf["interface"]["eth1"]["authentication"] == {"plaintext-password": "***"}
+        assert ospf["interface"]["eth2"]["authentication"]["md5"]["key-id"] == {
+            "1": {"md5-key": "***"},
+            "2": {"md5-key": "***"},
+        }
+        links = ospf["area"]["0"]["virtual-link"]
+        assert links["1.1.1.1"]["authentication"] == {"plaintext-password": "***"}
+        assert links["2.2.2.2"]["authentication"]["md5"]["key-id"] == {"5": {"md5-key": "***"}}
+        ddns = inst["dhcp"]["raw_config"]["dynamic-dns-update"]
+        assert ddns["tsig-key"] == {"K1": {"algorithm": "hmac-sha256", "secret": "***"}}
+        assert ddns["send-updates"] == "enable"
+    # Masking copies; the cached device tree keeps its values.
+    assert json.dumps(tree, sort_keys=True) == before
+
+
+def test_dhcp_summary_comes_from_global_read_model():
+    from vyos_mappers.dhcp_server.dhcp_server_versions import get_dhcp_server_mapper
+
+    tree = _secret_tree()
+    service = tree["vrf"]["name"]["BLUE"]["service"]
+    inst = get_vrf_mapper("1.5").parse_config(tree)["instances"][0]
+    dhcp = inst["dhcp"]
+    assert dhcp["configured"] is True
+    assert dhcp["disabled"] is False
+    assert dhcp["shared_networks"] == [
+        {
+            "name": "LAN",
+            "description": "lan",
+            "disabled": True,
+            "subnets": [
+                {"prefix": "10.1.0.0/24", "default_router": "10.1.0.1", "ranges": 1, "static_mappings": 1}
+            ],
+        }
+    ]
+    glob = get_dhcp_server_mapper("1.5").parse_config({"service": service})
+    assert [n["name"] for n in glob["shared_networks"]] == ["LAN"]
+
+
+def test_bare_protocol_and_service_roots_are_present():
+    tree = {
+        "vrf": {
+            "name": {
+                "BLUE": {
+                    "protocols": {"ospf": {}, "ospfv3": None, "isis": {}, "bgp": {}, "failover": {}},
+                    "service": {"dhcpv6-server": {}},
+                }
+            }
+        }
+    }
+    for version in ("1.4", "1.5"):
+        inst = get_vrf_mapper(version).parse_config(tree)["instances"][0]
+        for key in ("ospf", "ospfv3", "isis", "bgp"):
+            assert inst[key]["configured"] is True, (version, key)
+            assert inst[key]["raw_config"] == {}, (version, key)
+        assert inst["failover"] == {"routes": [], "raw_config": {}}
+        assert inst["dhcpv6"]["configured"] is True
+        assert inst["dhcpv6"]["shared_networks"] == []
+    absent = {"vrf": {"name": {"BLUE": {"protocols": {}, "service": {}}}}}
+    inst = get_vrf_mapper("1.5").parse_config(absent)["instances"][0]
+    for key in ("ospf", "ospfv3", "isis", "bgp", "failover", "dhcp", "dhcpv6"):
+        assert inst[key] is None, key
+
+
+def test_bare_vrf_dhcp_server_is_configured():
+    tree = {"vrf": {"name": {"BLUE": {"service": {"dhcp-server": {"disable": {}}}}}}}
+    dhcp = get_vrf_mapper("1.5").parse_config(tree)["instances"][0]["dhcp"]
+    assert dhcp == {"configured": True, "disabled": True, "shared_networks": [], "raw_config": {"disable": {}}}
+    tree = {"vrf": {"name": {"BLUE": {"service": {"dhcp-server": None}}}}}
+    dhcp = get_vrf_mapper("1.5").parse_config(tree)["instances"][0]["dhcp"]
+    assert dhcp["configured"] is True and dhcp["raw_config"] == {}
+
+
+def test_get_config_response_masks_secrets(monkeypatch):
+    tree = _secret_tree()
+
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class SecretService:
+        def get_version(self):
+            return "1.5"
+
+        def get_full_config(self, refresh=False):
+            return tree
+
+    monkeypatch.setattr("routers.vrf.vrf.require_read_permission", allow)
+    monkeypatch.setattr("routers.vrf.vrf.get_session_vyos_service", lambda _req: SecretService())
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from routers.vrf.vrf import router
+
+    app = FastAPI()
+    app.include_router(router)
+    response = TestClient(app).get("/vyos/vrf/config")
+    assert response.status_code == 200, response.text
+    for secret in SECRETS:
+        assert secret not in response.text, secret
+    inst = response.json()["instances"][0]
+    assert inst["dhcp"]["raw_config"]["dynamic-dns-update"]["tsig-key"]["K1"]["secret"] == "***"
+    assert inst["dhcp"]["shared_networks"][0]["subnets"][0]["static_mappings"] == 1

@@ -13,6 +13,7 @@ import pytest
 
 from vyos_builders.babel.babel_batch_builder import BabelBatchBuilder
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
+from vyos_builders.isis.isis_batch_builder import IsisBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
 from vyos_mappers.babel.babel_versions import get_babel_mapper
@@ -20,21 +21,22 @@ from vyos_mappers.bgp.bgp_versions import get_bgp_mapper
 from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
 from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
 from vyos_mappers.isis.isis_versions import get_isis_mapper
-from vyos_mappers.isis.isis_versions.v1_4 import IsisMapperV1_4
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 from vyos_mappers.vrf.vrf_bgp import VrfBgpMapper
+from vyos_mappers.vrf.vrf_bgp_versions import get_vrf_bgp_mapper
 from vyos_mappers.vrf.vrf_isis import VrfIsisMapper
 from vyos_mappers.vrf.vrf_ospf import VrfOspfMapper
 
 
 def test_isis_v14_rejects_ti_lfa_instead_of_silent_noop():
-    mapper = IsisMapperV1_4()
-    with pytest.raises(ValueError, match="1.5"):
-        mapper.get_interface_ti_lfa_path("eth0")
-    with pytest.raises(ValueError, match="1.5"):
-        mapper.get_sr_srv6_locator_path("LOC1")
-    with pytest.raises(ValueError, match="1.5"):
-        mapper.get_te_export_path()
+    builder = IsisBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="interface fast-reroute is not supported"):
+        builder.set_interface_ti_lfa("eth0")
+    with pytest.raises(ValueError, match="segment-routing srv6 is not supported"):
+        builder.set_sr_srv6_locator("LOC1")
+    with pytest.raises(ValueError, match="traffic-engineering export is not supported"):
+        builder.set_te_export()
+    assert builder.get_operations() == []
 
 
 def test_mappers_14_reject_redistribute_nhrp():
@@ -57,9 +59,9 @@ def test_mappers_14_reject_redistribute_nhrp():
         vrf_bgp.get_bgp_af_redistribute("blue", "ipv4-unicast", "nhrp")
     isis = get_isis_mapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
-        isis.get_redistribute_ipv4_path("nhrp", "level-1")
+        isis.get_redistribute_path("ipv4", "nhrp", "level-1")
     with pytest.raises(ValueError, match="not supported"):
-        isis.get_redistribute_ipv6_path("nhrp", "level-1")
+        isis.get_redistribute_path("ipv6", "nhrp", "level-1")
     vrf_isis = VrfIsisMapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         vrf_isis.get_isis_redistribute_level("blue", "ipv4", "nhrp", "level-1")
@@ -67,10 +69,11 @@ def test_mappers_14_reject_redistribute_nhrp():
 
 def test_mappers_14_delete_redistribute_nhrp():
     babel = get_babel_mapper("1.4")
-    assert babel.get_redistribute_ipv4_delete("nhrp")[-1] == "nhrp"
+    with pytest.raises(ValueError, match="not supported"):
+        babel.get_redistribute_ipv4_delete("nhrp")
     assert VrfOspfMapper("1.4").get_ospf_redistribute_delete("blue", "nhrp")[-1] == "nhrp"
     isis = get_isis_mapper("1.4")
-    assert isis.get_redistribute_ipv4_delete_path("nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
+    assert isis.get_redistribute_delete_path("ipv4", "nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
     vrf_isis = VrfIsisMapper("1.4")
     assert vrf_isis.get_isis_redistribute_delete("blue", "ipv4", "nhrp")[-1] == "nhrp"
 
@@ -99,8 +102,9 @@ def test_babel_14_rejects_redistribute_nhrp():
     # supported protocols still pass through
     builder.set_redistribute_ipv4("bgp")
     assert builder.get_operations()
-    builder.delete_redistribute_ipv4("nhrp")
-    assert builder.get_operations()[-1]["op"] == "delete"
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_redistribute_ipv4("nhrp")
+    assert len(builder.get_operations()) == 1
 
 
 def test_babel_15_allows_redistribute_nhrp():
@@ -204,19 +208,17 @@ def test_bgp_capabilities_gate_local_rib_on_the_monitor_allowlist():
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_vrf_bgp_builder_follows_global_bmp_allowlist(version):
-    """VRF batch ops reuse the global BGP builder, so 1.5 local-rib is accepted.
-
-    The VRF mapper itself still excludes local-rib. That hole is a separate
-    issue; this test only locks the builder the VRF page calls.
-    """
-    mapper = VrfBgpMapper(version)
-    with pytest.raises(ValueError, match="not supported"):
-        mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")
+    """VRF batch ops reuse the global BGP builder, and the VRF mapper keeps
+    the same monitor allowlist: local-rib is 1.5-only on both."""
+    mapper = get_vrf_bgp_mapper(version)
     builder = VrfBatchBuilder(version=version)
     if "1.4" in version:
         with pytest.raises(ValueError, match="not supported"):
+            mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")
+        with pytest.raises(ValueError, match="not supported"):
             builder.set_vrf_bgp_bmp_target_monitor("blue", "T1,ipv4-unicast,local-rib")
     else:
+        assert mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")[-1] == "local-rib"
         builder.set_vrf_bgp_bmp_target_monitor("blue", "T1,ipv4-unicast,local-rib")
         assert builder.get_operations()[0]["path"][-1] == "local-rib"
     assert mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "pre-policy")[-1] == "pre-policy"
