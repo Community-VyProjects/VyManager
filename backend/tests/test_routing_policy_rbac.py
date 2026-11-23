@@ -69,6 +69,7 @@ DYNAMIC_DISPATCH_FILES = [
     "webproxy/webproxy.py",
     "https/https.py",
     "bfd/bfd.py",
+    "ospf/ospf.py",
 ]
 
 

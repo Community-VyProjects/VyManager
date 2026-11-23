@@ -72,8 +72,7 @@ def test_batch_splits_values_onto_builder_args(client):
         {"op": "set_interface_authentication_null", "value": "eth0"},
     ])
     assert resp.status_code == 200, resp.text
-    assert resp.json()["success"] is True
-    assert resp.json()["data"]["message"] == "OSPF configuration updated"
+    assert resp.json() == {"success": True, "data": {"message": "OSPF configuration updated"}, "error": None}
     assert service.executed == [[
         {"op": "delete", "path": BASE + ["default-metric"]},
         {"op": "set", "path": BASE + ["interface", "eth0"]},
@@ -100,6 +99,21 @@ def test_missing_value_is_400(client, operation):
     assert service.executed == []
 
 
+@pytest.mark.parametrize("operation", [
+    {"op": "delete_default_metric", "value": "10"},
+    {"op": "delete_ospf", "value": "eth0"},
+    {"op": "set_log_adjacency_changes", "value": "true"},
+    {"op": "delete_router_id", "value": "192.0.2.1"},
+])
+def test_value_on_zero_arg_op_is_400(client, operation):
+    """A value on a zero-arg op is 400, not the op run with the value dropped."""
+    test_client, service = client
+    resp = _post(test_client, [{"op": "set_interface", "value": "eth0"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
+    assert service.executed == []
+
+
 @pytest.mark.parametrize("value", ["eth0", "eth0,", ",10"])
 def test_short_multi_arg_value_is_400(client, value):
     test_client, service = client
@@ -109,10 +123,16 @@ def test_short_multi_arg_value_is_400(client, value):
     assert service.executed == []
 
 
-def test_unknown_op_is_400(client):
+@pytest.mark.parametrize("op, detail", [
+    ("not_an_op", "Unknown operation: not_an_op"),
+    ("_mapper", "Invalid operation: _mapper"),
+    ("get_capabilities", "Invalid operation: get_capabilities"),
+])
+def test_unknown_op_is_400(client, op, detail):
     test_client, service = client
-    resp = _post(test_client, [{"op": "not_an_op", "value": "x"}])
+    resp = _post(test_client, [{"op": op, "value": "x"}])
     assert resp.status_code == 400
+    assert resp.json()["detail"] == detail
     assert service.executed == []
 
 
@@ -165,3 +185,33 @@ def test_config_and_capabilities_keep_http_exception_status(monkeypatch):
     ):
         assert resp.status_code == 400
         assert resp.json()["detail"] == "No active session"
+
+
+@pytest.mark.parametrize("method,path,kind", [
+    ("get", "/vyos/ospf/capabilities", "read"),
+    ("get", "/vyos/ospf/config", "read"),
+    ("post", "/vyos/ospf/batch", "write"),
+])
+def test_routes_check_the_ospf_permission(monkeypatch, method, path, kind):
+    from fastapi import HTTPException
+    from rbac_permissions import FeatureGroup
+
+    seen = []
+
+    def recorder(name):
+        async def check(_request, feature):
+            seen.append((name, feature))
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return check
+
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", recorder("read"))
+    monkeypatch.setattr(f"{ROUTER}.require_write_permission", recorder("write"))
+
+    from routers.ospf.ospf import router
+
+    app = FastAPI()
+    app.include_router(router)
+    kwargs = {"json": {"operations": []}} if method == "post" else {}
+    resp = getattr(TestClient(app), method)(path, **kwargs)
+    assert resp.status_code == 403, resp.text
+    assert seen == [(kind, FeatureGroup.OSPF)]
