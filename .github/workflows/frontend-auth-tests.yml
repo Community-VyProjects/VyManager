@@ -77,3 +77,7 @@ jobs:
       - name: Run RIP save op tests
         working-directory: frontend
         run: npm run test:rip-save
+
+      - name: Run conntrack-sync save op tests
+        working-directory: frontend
+        run: npm run test:conntrack-sync-save

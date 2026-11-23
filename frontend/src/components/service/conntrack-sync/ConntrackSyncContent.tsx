@@ -21,8 +21,11 @@ import {
 } from "lucide-react";
 import {
   conntrackSyncService,
+  ConntrackSyncCapabilities,
   ConntrackSyncConfig,
 } from "@/lib/api/conntrack-sync";
+import type { ConntrackSyncDraft } from "@/lib/api/conntrack-sync-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { ConntrackSyncModal } from "./ConntrackSyncModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -38,45 +41,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
 
-const EMPTY_CONFIG: ConntrackSyncConfig = {
-  accept_protocols: [],
-  disable_external_cache: false,
-  disable_syslog: false,
-  event_listen_queue_size: null,
-  expect_sync: [],
-  failover_mechanism: null,
-  ignore_addresses: [],
-  interfaces: [],
-  listen_addresses: [],
-  mcast_group: null,
-  startup_resync: false,
-  sync_queue_size: null,
-};
-
-function isConfigured(config: ConntrackSyncConfig): boolean {
-  return (
-    config.interfaces.length > 0 ||
-    config.accept_protocols.length > 0 ||
-    config.expect_sync.length > 0 ||
-    !!config.failover_mechanism?.vrrp?.sync_group ||
-    config.disable_external_cache ||
-    config.disable_syslog ||
-    config.startup_resync ||
-    config.event_listen_queue_size != null ||
-    config.sync_queue_size != null ||
-    !!config.mcast_group ||
-    config.listen_addresses.length > 0 ||
-    config.ignore_addresses.length > 0
-  );
-}
-
 export function ConntrackSyncContent() {
   const t = useTranslations("conntrackSync");
   const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.CONNTRACK_SYNC);
 
-  const [config, setConfig] = useState<ConntrackSyncConfig>(EMPTY_CONFIG);
+  const [config, setConfig] = useState<ConntrackSyncConfig | null>(null);
+  const [capabilities, setCapabilities] = useState<ConntrackSyncCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -88,10 +60,14 @@ export function ConntrackSyncContent() {
     try {
       setLoading(true);
       setError(null);
-      const data = await conntrackSyncService.getConfig(refresh);
+      const [data, caps] = await Promise.all([
+        conntrackSyncService.getConfig(refresh),
+        conntrackSyncService.getCapabilities(),
+      ]);
       setConfig(data);
+      setCapabilities(caps);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
+      setError((err as ApiError).message || t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -101,11 +77,21 @@ export function ConntrackSyncContent() {
     loadData();
   }, [loadData]);
 
-  const handleSave = async (updated: ConntrackSyncConfig) => {
-    await conntrackSyncService.saveConfig(config, updated);
+  const handleSave = async (draft: ConntrackSyncDraft) => {
+    if (!config) return;
+    await conntrackSyncService.saveConfig(config, draft);
     setModalOpen(false);
     await loadData(true);
   };
+
+  function openDeleteDialog() {
+    setDeleteError(null);
+    setDeleteDialogOpen(true);
+  }
+
+  function handleDeleteOpenChange(open: boolean) {
+    if (!open && !deleteLoading) setDeleteDialogOpen(false);
+  }
 
   async function handleDelete() {
     setDeleteLoading(true);
@@ -115,13 +101,11 @@ export function ConntrackSyncContent() {
       setDeleteDialogOpen(false);
       await loadData(true);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : t("content.deleteFailed"));
+      setDeleteError((err as ApiError).message || t("content.deleteFailed"));
     } finally {
       setDeleteLoading(false);
     }
   }
-
-  const configured = isConfigured(config);
 
   if (loading) {
     return (
@@ -131,7 +115,7 @@ export function ConntrackSyncContent() {
     );
   }
 
-  if (error && !configured) {
+  if (!config || !capabilities) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
@@ -141,6 +125,9 @@ export function ConntrackSyncContent() {
       </div>
     );
   }
+
+  const features = capabilities.features;
+  const configured = config.configured;
 
   return (
     <>
@@ -176,11 +163,7 @@ export function ConntrackSyncContent() {
                     {configured ? t("content.editConfiguration") : t("content.configure")}
                   </Button>
                   {configured && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setDeleteDialogOpen(true)}
-                    >
+                    <Button size="sm" variant="destructive" onClick={openDeleteDialog}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       {t("content.remove")}
                     </Button>
@@ -338,24 +321,34 @@ export function ConntrackSyncContent() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-28 shrink-0">{t("content.multicastGroup")}</span>
-                      <span className="font-mono text-xs">{config.mcast_group ?? "225.0.0.50"}</span>
+                      <span className="font-mono text-xs">{config.mcast_group ?? features.mcast_group.default}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-28 shrink-0">{t("content.eventQueue")}</span>
                       <span className="font-mono text-xs">
                         {config.event_listen_queue_size != null
-                          ? `${config.event_listen_queue_size} MB`
-                          : t("content.defaultMb", { value: "8" })}
+                          ? t("content.sizeMb", { value: config.event_listen_queue_size })
+                          : t("content.defaultMb", { value: features.event_listen_queue_size.default })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-28 shrink-0">{t("content.syncQueue")}</span>
                       <span className="font-mono text-xs">
                         {config.sync_queue_size != null
-                          ? `${config.sync_queue_size} MB`
-                          : t("content.defaultMb", { value: "1" })}
+                          ? t("content.sizeMb", { value: config.sync_queue_size })
+                          : t("content.defaultMb", { value: features.sync_queue_size.default })}
                       </span>
                     </div>
+                    {features.purge_timeout.supported && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground w-28 shrink-0">{t("content.purgeTimeout")}</span>
+                        <span className="font-mono text-xs">
+                          {config.purge_timeout != null
+                            ? t("content.seconds", { value: config.purge_timeout })
+                            : t("content.secondsDefault", { value: features.purge_timeout.default })}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground w-28 shrink-0">{t("content.extCache")}</span>
                       {config.disable_external_cache ? (
@@ -365,7 +358,7 @@ export function ConntrackSyncContent() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-28 shrink-0">Syslog</span>
+                      <span className="text-muted-foreground w-28 shrink-0">{t("content.syslog")}</span>
                       {config.disable_syslog ? (
                         <Badge variant="secondary" className="text-xs">{tc("disabled")}</Badge>
                       ) : (
@@ -404,14 +397,16 @@ export function ConntrackSyncContent() {
         </div>
       </div>
 
-      <ConntrackSyncModal
-        open={modalOpen}
-        config={config}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSave}
-      />
+      {modalOpen && (
+        <ConntrackSyncModal
+          config={config}
+          features={features}
+          onClose={() => setModalOpen(false)}
+          onSubmit={handleSave}
+        />
+      )}
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
