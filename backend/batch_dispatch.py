@@ -4,7 +4,8 @@ Routers must not getattr(builder, operation.op) themselves. The denylist
 lived in each file and drifted; one helper is the only allowed dispatch.
 """
 
-from typing import Any, Callable, FrozenSet
+import inspect
+from typing import Any, Callable, FrozenSet, Optional
 
 from fastapi import HTTPException
 
@@ -39,3 +40,26 @@ def resolve_batch_method(builder: Any, op: str) -> Callable[..., Any]:
     if not callable(method):
         raise HTTPException(status_code=400, detail=f"Unknown operation: {op}")
     return method
+
+
+def call_comma_batch_op(builder: Any, op: str, value: Optional[str]) -> None:
+    """Resolve op and call it with value split on commas, else HTTP 400.
+
+    The value is split into as many parts as the method has parameters, so a
+    comma inside the last argument is kept. A zero-arg op rejects a value:
+    calling it anyway drops the value and runs the wider op (delete_interfaces
+    for a delete_interface that lost its name).
+    """
+    method = resolve_batch_method(builder, op)
+    count = len(inspect.signature(method).parameters)
+    if count == 0:
+        if value:
+            raise HTTPException(status_code=400, detail=f"Operation {op} takes no value")
+        method()
+        return
+    if not value:
+        raise HTTPException(status_code=400, detail=f"Operation {op} requires a value")
+    parts = value.split(",", count - 1)
+    if len(parts) != count or not all(parts):
+        raise HTTPException(status_code=400, detail=f"Operation {op} requires {count} values")
+    method(*parts)

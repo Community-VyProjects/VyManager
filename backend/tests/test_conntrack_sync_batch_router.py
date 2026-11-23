@@ -85,6 +85,20 @@ def test_batch_missing_value_is_400(client, operation):
     assert executed == []
 
 
+@pytest.mark.parametrize("operation", [
+    {"op": "delete_interfaces", "value": "eth0"},
+    {"op": "delete_conntrack_sync", "value": "eth0"},
+    {"op": "set_disable_syslog", "value": "true"},
+])
+def test_batch_value_on_zero_arg_op_is_400(client, operation):
+    """A value on a zero-arg op is 400, not the wider op (every interface)."""
+    test_client, executed = client
+    resp = _post(test_client, [{"op": "set_accept_protocol", "value": "tcp"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
+    assert executed == []
+
+
 @pytest.mark.parametrize("value", ["eth0", "eth0,", ",192.0.2.2"])
 def test_batch_short_value_is_400(client, value):
     test_client, executed = client

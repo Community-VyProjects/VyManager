@@ -18,9 +18,8 @@ from vyos_mappers.conntrack_sync.conntrack_sync import ConntrackSyncMapper
 from vyos_builders.conntrack_sync import ConntrackSyncBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -155,24 +154,7 @@ async def conntrack_sync_batch_configure(
         # an empty batch, and that stays a 500.
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 0:
-                    method()
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(",", count - 1)
-                if len(parts) != count or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count} values",
-                    )
-                method(*parts)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
