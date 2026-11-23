@@ -17,9 +17,8 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 from bfd_status import BfdPeerStatus, parse_bfd_peers
 from requests.exceptions import RequestException
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/bfd", tags=["bfd"])
@@ -82,7 +81,14 @@ class BfdStatusResponse(BaseModel):
 class BfdBatchOperation(BaseModel):
     """Single operation in a batch request."""
     op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Operation value")
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class BfdBatchRequest(BaseModel):
@@ -201,22 +207,7 @@ async def bfd_batch_configure(http_request: Request, body: BfdBatchRequest):
         builder = BfdBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            count = len(inspect.signature(method).parameters)
-
-            # Every BFD op takes the peer or profile, then at most one value.
-            if not operation.value:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {operation.op} requires a value",
-                )
-            parts = operation.value.split(",", count - 1)
-            if len(parts) != count or not all(parts):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {operation.op} requires {count} values",
-                )
-            method(*parts)
+            call_comma_batch_op(builder, operation.op, operation.value)
 
         response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
