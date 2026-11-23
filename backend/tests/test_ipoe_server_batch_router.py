@@ -118,6 +118,7 @@ def test_batch_global_op_ignores_the_request_item(client):
     {"op": "set_description", "value": "   "},
     {"op": "set_auth_mac_ip_address"},
     {"op": "set_auth_mac_ip_address", "value": ""},
+    {"op": "set_auth_mac_ip_address", "value": "   "},
 ])
 def test_batch_missing_value_is_400(client, operation):
     test_client, service = client

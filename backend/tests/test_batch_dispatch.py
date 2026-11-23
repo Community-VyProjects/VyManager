@@ -66,6 +66,9 @@ class _ItemBuilder:
     def __init__(self):
         self.calls = []
 
+    def delete_all(self):
+        self.calls.append(("delete_all",))
+
     def delete_item(self, item):
         self.calls.append(("delete_item", item))
 
@@ -90,17 +93,20 @@ def test_item_op_binds_the_item_and_splits_the_rest():
     ]
 
 
-def test_item_only_op_with_a_value_is_400():
+@pytest.mark.parametrize("value", ["mode", "  "])
+def test_item_only_op_with_a_value_is_400(value):
     """A value on an item-only op must not run the wider op."""
     builder = _ItemBuilder()
     with pytest.raises(HTTPException) as ei:
-        call_item_batch_op(builder, "delete_item", "eth1", "mode")
+        call_item_batch_op(builder, "delete_item", "eth1", value)
     assert ei.value.status_code == 400
     assert ei.value.detail == "Operation delete_item takes no value"
     assert builder.calls == []
 
 
 @pytest.mark.parametrize("op, value, detail", [
+    ("delete_all", None, "Invalid operation: delete_all"),
+    ("delete_all", "x", "Invalid operation: delete_all"),
     ("set_leaf", None, "Operation set_leaf requires a value"),
     ("set_leaf", "", "Operation set_leaf requires a value"),
     ("set_leaf", "  ", "Operation set_leaf requires a value"),

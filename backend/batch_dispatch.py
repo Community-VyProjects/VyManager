@@ -75,6 +75,9 @@ def call_item_batch_op(builder: Any, op: str, item_name: str, value: Optional[st
     """
     method = resolve_batch_method(builder, op)
     count = len(inspect.signature(method).parameters)
+    if count == 0:
+        # Not an item op: there is no parameter to bind item_name to.
+        raise HTTPException(status_code=400, detail=f"Invalid operation: {op}")
     if count == 1:
         if value:
             raise HTTPException(status_code=400, detail=f"Operation {op} takes no value")
