@@ -13,9 +13,8 @@ from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.segment_routing import SegmentRoutingBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,15 @@ class SegmentRoutingConfig(BaseModel):
 
 class SegmentRoutingBatchOperation(BaseModel):
     op: str = Field(..., description="Builder method name")
-    value: Optional[str] = Field(None, description="Comma-separated arguments")
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class SegmentRoutingBatchRequest(BaseModel):
@@ -130,24 +137,7 @@ async def segment_routing_batch_configure(http_request: Request, body: SegmentRo
         builder = SegmentRoutingBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            count = len(inspect.signature(method).parameters)
-
-            if count == 0:
-                method()
-                continue
-            if not operation.value:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {operation.op} requires a value",
-                )
-            parts = operation.value.split(",", count - 1)
-            if len(parts) != count or not all(parts):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {operation.op} requires {count} values",
-                )
-            method(*parts)
+            call_comma_batch_op(builder, operation.op, operation.value)
 
         response = await run_in_threadpool(service.execute_batch, builder)
 

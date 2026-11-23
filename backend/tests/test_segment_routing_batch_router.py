@@ -1,4 +1,4 @@
-"""Segment Routing routes: comma-split batch args, HTTP 400 on a bad value.
+"""Segment Routing routes: comma-split batch args, HTTP 400 on a bad value or a value on a zero-arg op.
 
 execute_batch and get_full_config run through run_in_threadpool (locked in
 test_batch_off_event_loop.py). These tests drive the handlers end to end with
@@ -91,6 +91,19 @@ def test_batch_missing_value_is_400(client, operation):
     resp = _post(test_client, [operation])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == f"Operation {operation['op']} requires a value"
+    assert executed == []
+
+
+@pytest.mark.parametrize("operation", [
+    {"op": "delete_srv6", "value": "loc1"},
+    {"op": "delete_segment_routing", "value": "eth0"},
+])
+def test_batch_value_on_zero_arg_op_is_400(client, operation):
+    """A value on a zero-arg op is 400, not the op run with the value dropped."""
+    test_client, executed = client
+    resp = _post(test_client, [{"op": "set_locator", "value": "loc1"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
     assert executed == []
 
 
