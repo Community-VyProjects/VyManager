@@ -152,7 +152,9 @@ export type PeerProblem =
   | "peerGroupMixed"
   | "memberOverridesRemoteAs"
   | "memberNeedsRemoteAs"
-  | "memberLocalAsNeedsEbgp";
+  | "memberLocalAsNeedsEbgp"
+  | "routeReflectorNeedsIbgp"
+  | "interfaceMultihop";
 
 /** A configured neighbor of a peer group, as the verify rules read it. */
 export interface PeerGroupMember {
@@ -186,6 +188,8 @@ export function peerProblem(values: {
   overrideCapability: boolean;
   strictCapabilityMatch?: boolean;
   password: string;
+  /** Any enabled address family sets route-reflector-client. */
+  routeReflectorClient: boolean;
   neighbor?: {
     address: string;
     peerGroup: string;
@@ -209,6 +213,7 @@ export function peerProblem(values: {
     const inherited = neighbor.peerGroup ? (neighbor.peerGroupRemoteAs ?? "") : "";
     if (!isIPAddress(neighbor.address)) {
       if (own || neighbor.peerGroup) return "interfaceRemoteAs";
+      if (values.ebgpMultihop.trim()) return "interfaceMultihop";
     } else {
       if (!own && !inherited) return "remoteAsRequired";
       if (own && inherited) return "remoteAsOverridesPeerGroup";
@@ -219,6 +224,7 @@ export function peerProblem(values: {
     effective = own || inherited;
   }
   if (localAs && effective && effective === systemAs) return "localAsNeedsEbgp";
+  if (values.routeReflectorClient && effective && !isIbgp(effective)) return "routeReflectorNeedsIbgp";
   if (values.members) {
     if (own && values.members.some((m) => m.remoteAs)) return "memberOverridesRemoteAs";
     if (!own && values.members.some((m) => isIPAddress(m.address) && !m.remoteAs)) return "memberNeedsRemoteAs";

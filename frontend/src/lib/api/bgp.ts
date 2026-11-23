@@ -311,7 +311,11 @@ export interface BgpCapabilities {
     peer_group: string[];
     global: string[];
   };
-  /** Leaves each AFI has on the device, by scope (`network route-map` names a network child). */
+  /**
+   * Leaves the screen gates per AFI, by scope. `global` holds the address-family
+   * leaves other than redistribute and maximum-paths (their own lists above) and
+   * l2vpn-evpn (its own flags); a network child is named `network <child>`.
+   */
   address_family_leaves: {
     neighbor: Record<string, string[]>;
     peer_group: Record<string, string[]>;

@@ -462,6 +462,7 @@ export function BgpNeighborModal({
       overrideCapability,
       strictCapabilityMatch,
       password,
+      routeReflectorClient: Object.values(addressFamilies).some((af) => af.route_reflector_client),
       neighbor: {
         address: trimmed,
         peerGroup,

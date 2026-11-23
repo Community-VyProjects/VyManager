@@ -130,7 +130,7 @@ describe("BGP ranges", () => {
   });
 
   it("applies the lab verify rules across neighbor and peer-group leaves", () => {
-    const base = { localAs: "", systemAs: "65000", remoteAs: "", ebgpMultihop: "", ttlSecurityHops: "", overrideCapability: false, password: "" };
+    const base = { localAs: "", systemAs: "65000", remoteAs: "", ebgpMultihop: "", ttlSecurityHops: "", overrideCapability: false, password: "", routeReflectorClient: false };
     const peer = { address: "192.0.2.1", peerGroup: "", peerGroupRemoteAs: null, memberRemoteAs: [] };
     const n = { ...base, remoteAs: "65001" };
     assert.equal(peerProblem(base), null);
@@ -149,6 +149,13 @@ describe("BGP ranges", () => {
     assert.equal(peerProblem({ ...base, neighbor: { ...peer, address: "eth0" } }), null);
     assert.equal(peerProblem({ ...n, neighbor: { ...peer, address: "eth0" } }), "interfaceRemoteAs");
     assert.equal(peerProblem({ ...base, neighbor: { ...peer, address: "eth0", peerGroup: "PG" } }), "interfaceRemoteAs");
+    assert.equal(peerProblem({ ...base, ebgpMultihop: "2", neighbor: { ...peer, address: "eth0" } }), "interfaceMultihop");
+    // Route-reflector-client is allowed only for iBGP peers.
+    assert.equal(peerProblem({ ...n, routeReflectorClient: true, neighbor: peer }), "routeReflectorNeedsIbgp");
+    assert.equal(peerProblem({ ...base, routeReflectorClient: true, neighbor: { ...peer, peerGroup: "PG", peerGroupRemoteAs: "65002" } }), "routeReflectorNeedsIbgp");
+    assert.equal(peerProblem({ ...base, remoteAs: "internal", routeReflectorClient: true, neighbor: peer }), null);
+    assert.equal(peerProblem({ ...base, remoteAs: "65000", routeReflectorClient: true, neighbor: peer }), null);
+    assert.equal(peerProblem({ ...n, routeReflectorClient: true }), "routeReflectorNeedsIbgp");
     // Local-AS is allowed only for eBGP peers.
     assert.equal(peerProblem({ ...base, remoteAs: "65000", localAs: "65009", neighbor: peer }), "localAsNeedsEbgp");
     assert.equal(peerProblem({ ...base, localAs: "65009", neighbor: { ...peer, peerGroup: "PG", peerGroupRemoteAs: "65000" } }), "localAsNeedsEbgp");

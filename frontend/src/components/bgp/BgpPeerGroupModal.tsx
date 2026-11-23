@@ -368,6 +368,7 @@ export function BgpPeerGroupModal({
       ttlSecurityHops,
       overrideCapability,
       password,
+      routeReflectorClient: [...enabledAFs].some((afi) => afConfigs[afi]?.route_reflector_client),
       members: existingPeerGroup ? (peerGroupMembers[existingPeerGroup.name] ?? []) : [],
     });
     if (problem) {

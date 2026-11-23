@@ -193,6 +193,8 @@
     "memberOverridesRemoteAs": "A member of this peer group sets its own remote AS; clear it there before setting one here.",
     "memberNeedsRemoteAs": "A member of this peer group has no remote AS of its own; keep the remote AS here.",
     "memberLocalAsNeedsEbgp": "A member of this peer group sets a local AS, which is allowed only for eBGP peers; the remote AS here cannot be the system AS number.",
+    "routeReflectorNeedsIbgp": "Route reflector client is allowed only for iBGP peers; the remote AS must be internal or the system AS number.",
+    "interfaceMultihop": "eBGP multihop cannot be used with a directly connected interface neighbor.",
     "unicastWithLabeled": "{family} unicast and {family} labeled unicast cannot both be enabled.",
     "overrideCapabilityHelp": "Override capability negotiation result.",
     "disableCapNeg": "Disable Capability Negotiation",

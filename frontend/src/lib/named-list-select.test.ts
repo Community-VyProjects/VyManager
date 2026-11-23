@@ -144,6 +144,8 @@ describe("named list select", () => {
     assert.match(neighbor, /labeledUnicastConflict\(Object\.keys\(addressFamilies\)\)/);
     assert.match(peerGroup, /members: existingPeerGroup \? \(peerGroupMembers\[existingPeerGroup\.name\] \?\? \[\]\) : \[\]/);
     assert.match(peerGroup, /labeledUnicastConflict\(enabledAFs\)/);
+    assert.match(neighbor, /routeReflectorClient: Object\.values\(addressFamilies\)\.some\(\(af\) => af\.route_reflector_client\)/);
+    assert.match(peerGroup, /routeReflectorClient: \[\.\.\.enabledAFs\]\.some\(\(afi\) => afConfigs\[afi\]\?\.route_reflector_client\)/);
     assert.match(neighbor, /remoteAs: remoteAsNumber\(remoteAs\)/);
     assert.match(peerGroup, /peerProblem\(\{/);
     assert.match(peerGroup, /remoteAs: remoteAsNumber\(remoteAs\)/);
