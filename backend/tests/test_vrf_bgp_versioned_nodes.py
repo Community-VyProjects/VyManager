@@ -225,9 +225,9 @@ CHOICE_OPS = [
      "multipath", "parameters multipath is not supported on this device"),
     ("set_vrf_bgp_parameters_bestpath_as_path", "multipath-relax",
      PREFIX + ["parameters", "bestpath", "as-path", "multipath-relax"],
-     "T-BAD", "parameters bestpath as-path T-BAD is not supported on this device"),
+     "T-BAD", "bestpath as-path T-BAD is not supported on this device"),
     ("delete_vrf_bgp_parameters_bestpath_as_path", "confed", PREFIX + ["parameters", "bestpath", "as-path", "confed"],
-     "T-BAD", "parameters bestpath as-path T-BAD is not supported on this device"),
+     "T-BAD", "bestpath as-path T-BAD is not supported on this device"),
     ("set_vrf_bgp_af_l2vpn_evpn_vni_flag", "100,advertise-svi-ip",
      PREFIX + ["address-family", "l2vpn-evpn", "vni", "100", "advertise-svi-ip"],
      "100,T-BAD", "l2vpn-evpn vni flag T-BAD is not supported on this device"),
@@ -263,9 +263,9 @@ def test_parameter_flags_match_the_lab():
 
 @pytest.mark.parametrize("call, error", [
     (lambda m: m.get_bgp_parameters_bestpath_med("T-V", "T-BAD"),
-     "parameters bestpath med T-BAD is not supported on this device"),
+     "bestpath med T-BAD is not supported on this device"),
     (lambda m: m.get_bgp_parameters_bestpath_bandwidth("T-V", "T-BAD"),
-     "parameters bestpath bandwidth T-BAD is not supported on this device"),
+     "bestpath bandwidth T-BAD is not supported on this device"),
     (lambda m: m.get_bgp_neighbor_local_role("T-V", "192.0.2.1", "T-BAD"),
      "local-role T-BAD is not supported on this device"),
     (lambda m: m.get_bgp_peer_group_local_role("T-V", "PG", "T-BAD"),
@@ -277,6 +277,17 @@ def test_enumerated_mapper_values_are_checked(call, error):
     for version in ("1.4", ROLLING):
         with pytest.raises(ValueError, match=f"^{error}$"):
             call(_vrf_bgp(version))
+
+
+@pytest.mark.parametrize("version", ["1.4", ROLLING])
+@pytest.mark.parametrize("op, leaf", [
+    ("set_vrf_bgp_parameters_bestpath_med", "med"),
+    ("set_vrf_bgp_parameters_bestpath_bandwidth", "bandwidth"),
+])
+def test_bestpath_text_matches_the_global_op(version, op, leaf):
+    """The VRF sets run the global builder; the VRF mapper paths give its text."""
+    with pytest.raises(ValueError, match=f"^bestpath {leaf} T-BAD is not supported on this device$"):
+        _run(version, op, "T-BAD")
 
 
 def test_enumerated_mapper_values_build_the_lab_path():

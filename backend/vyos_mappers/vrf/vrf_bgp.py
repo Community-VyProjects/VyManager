@@ -143,7 +143,7 @@ class VrfBgpMapper(BaseFeatureMapper):
     def _require_bestpath(self, leaf: str, value: str, allowed: FrozenSet[str]) -> None:
         if value not in allowed:
             raise ValueError(
-                f"parameters bestpath {leaf} {value} is not supported on this device")
+                f"bestpath {leaf} {value} is not supported on this device")
 
     def _require_local_role(self, role: str) -> None:
         if role not in self._LOCAL_ROLES:
