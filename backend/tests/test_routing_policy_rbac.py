@@ -63,6 +63,9 @@ DYNAMIC_DISPATCH_FILES = [
     "route_map/route_map.py",
     "access_list/access_list.py",
     "bgp/bgp.py",
+    "babel/babel.py",
+    "conntrack_sync/conntrack_sync.py",
+    "isis/isis.py",
 ]
 
 

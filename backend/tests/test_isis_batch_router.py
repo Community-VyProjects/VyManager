@@ -62,7 +62,7 @@ def test_batch_splits_values_onto_builder_args(client):
         {"op": "set_frr_lfa_tiebreaker_index", "value": "downstream,10,level-1"},
     ])
     assert resp.status_code == 200, resp.text
-    assert resp.json()["success"] is True
+    assert resp.json() == {"success": True, "data": {"message": "IS-IS configuration updated"}, "error": None}
     assert executed == [[
         {"op": "set", "path": BASE + ["set-overload-bit"]},
         {"op": "set", "path": BASE + ["level", "level-1-2"]},
@@ -78,12 +78,28 @@ def test_batch_splits_values_onto_builder_args(client):
     {"op": "set_level"},
     {"op": "set_level", "value": ""},
     {"op": "delete_interface"},
+    {"op": "delete_interface", "value": ""},
 ])
 def test_batch_missing_value_is_400(client, operation):
     test_client, executed = client
     resp = _post(test_client, [operation])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == f"Operation {operation['op']} requires a value"
+    assert executed == []
+
+
+@pytest.mark.parametrize("operation", [
+    {"op": "set_overload_bit", "value": "true"},
+    {"op": "delete_net", "value": "49.0001.1921.6800.1001.00"},
+    {"op": "delete_level", "value": "level-1-2"},
+    {"op": "delete_lsp_mtu", "value": "1497"},
+])
+def test_batch_value_on_zero_arg_op_is_400(client, operation):
+    """A value on a zero-arg op is 400, not the op run with the value dropped."""
+    test_client, executed = client
+    resp = _post(test_client, [{"op": "set_level", "value": "level-2"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {operation['op']} takes no value"
     assert executed == []
 
 
@@ -96,11 +112,16 @@ def test_batch_short_value_is_400(client, value):
     assert executed == []
 
 
-def test_batch_unknown_op_is_400(client):
+@pytest.mark.parametrize("op, detail", [
+    ("no_such_op", "Unknown operation: no_such_op"),
+    ("_mapper", "Invalid operation: _mapper"),
+    ("get_capabilities", "Invalid operation: get_capabilities"),
+])
+def test_batch_unknown_op_is_400(client, op, detail):
     test_client, executed = client
-    resp = _post(test_client, [{"op": "no_such_op", "value": "x"}])
+    resp = _post(test_client, [{"op": op, "value": "x"}])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "Unknown operation: no_such_op"
+    assert resp.json()["detail"] == detail
     assert executed == []
 
 
@@ -159,3 +180,32 @@ def test_batch_empty_is_500(client):
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
     assert executed == []
+
+
+@pytest.mark.parametrize("method, path, kind", [
+    ("get", "/vyos/isis/capabilities", "read"),
+    ("get", "/vyos/isis/config", "read"),
+    ("post", "/vyos/isis/batch", "write"),
+])
+def test_routes_check_the_isis_permission(monkeypatch, method, path, kind):
+    from rbac_permissions import FeatureGroup
+
+    seen = []
+
+    def recorder(name):
+        async def check(_request, feature):
+            seen.append((name, feature))
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return check
+
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", recorder("read"))
+    monkeypatch.setattr(f"{ROUTER}.require_write_permission", recorder("write"))
+
+    from routers.isis.isis import router
+
+    app = FastAPI()
+    app.include_router(router)
+    kwargs = {"json": {"operations": []}} if method == "post" else {}
+    resp = getattr(TestClient(app), method)(path, **kwargs)
+    assert resp.status_code == 403, resp.text
+    assert seen == [(kind, FeatureGroup.ISIS)]
