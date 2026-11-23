@@ -78,8 +78,7 @@ def test_registry_returns_shared_mapper():
         / "console_server"
         / "console_server_versions"
     )
-    for name in ("__init__.py", "v1_4.py", "v1_5.py"):
-        assert not (versions / name).exists()
+    assert not versions.exists()
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
