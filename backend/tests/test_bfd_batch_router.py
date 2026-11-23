@@ -94,7 +94,7 @@ def _post(test_client, operations):
 
 
 def test_every_op_takes_the_object_and_at_most_one_value():
-    """The handler has no zero-arg branch; this locks the arity it relies on."""
+    """Every op names a peer or profile, so a value is always required."""
     builder = BfdBatchBuilder(version="1.5")
     ops = [
         (name, member)
@@ -263,3 +263,33 @@ def test_status_unreachable_device_is_502(client, exc):
     resp = test_client.get("/vyos/bfd/status")
     assert resp.status_code == 502, resp.text
     assert resp.json()["detail"] == "Failed to fetch BFD status"
+
+
+@pytest.mark.parametrize("method,path,kind", [
+    ("get", "/vyos/bfd/capabilities", "read"),
+    ("get", "/vyos/bfd/config", "read"),
+    ("get", "/vyos/bfd/status", "read"),
+    ("post", "/vyos/bfd/batch", "write"),
+])
+def test_routes_check_the_bfd_permission(monkeypatch, method, path, kind):
+    from rbac_permissions import FeatureGroup
+
+    seen = []
+
+    def recorder(name):
+        async def check(_request, feature):
+            seen.append((name, feature))
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return check
+
+    monkeypatch.setattr(f"{ROUTER}.require_read_permission", recorder("read"))
+    monkeypatch.setattr(f"{ROUTER}.require_write_permission", recorder("write"))
+
+    from routers.bfd.bfd import router
+
+    app = FastAPI()
+    app.include_router(router)
+    kwargs = {"json": {"operations": []}} if method == "post" else {}
+    resp = getattr(TestClient(app), method)(path, **kwargs)
+    assert resp.status_code == 403, resp.text
+    assert seen == [(kind, FeatureGroup.BFD)]

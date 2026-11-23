@@ -68,6 +68,7 @@ DYNAMIC_DISPATCH_FILES = [
     "isis/isis.py",
     "webproxy/webproxy.py",
     "https/https.py",
+    "bfd/bfd.py",
 ]
 
 
