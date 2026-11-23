@@ -28,7 +28,28 @@ class VrfBgpMapper(BaseFeatureMapper):
     _TABLE_AFIS = frozenset({"ipv4-unicast"})
 
     # ``bmp target <t> monitor <afi> <policy>`` both labs have.
+    _BMP_MONITOR_AFIS = frozenset({"ipv4-unicast", "ipv6-unicast"})
     _BMP_MONITOR_POLICIES = frozenset({"pre-policy", "post-policy"})
+
+    # Valueless ``parameters <flag>`` leaves both labs have.
+    _PARAMETER_FLAGS = frozenset({
+        "allow-martian-nexthop", "always-compare-med", "deterministic-med",
+        "disable-ebgp-connected-route-check", "ebgp-requires-policy",
+        "fast-convergence", "graceful-shutdown", "log-neighbor-changes",
+        "network-import-check", "no-client-to-client-reflection",
+        "no-fast-external-failover", "no-hard-administrative-reset",
+        "no-ipv6-auto-ra", "no-suppress-duplicates", "reject-as-sets",
+        "route-reflector-allow-outbound-policy", "shutdown",
+        "suppress-fib-pending",
+    })
+
+    # ``parameters bestpath`` choices (both labs).
+    _BESTPATH_AS_PATH_OPTIONS = frozenset({"confed", "ignore", "multipath-relax"})
+    _BESTPATH_BANDWIDTH_VALUES = frozenset({"default-weight-for-missing", "ignore", "skip-missing"})
+    _BESTPATH_MED_VALUES = frozenset({"confed", "missing-as-worst"})
+
+    # ``neighbor|peer-group <x> local-role <role>`` allowed values (both labs).
+    _LOCAL_ROLES = frozenset({"customer", "peer", "provider", "rs-client", "rs-server"})
 
     _L2VPN_EVPN_CONTROL_FLAGS = (
         "advertise-all-vni",
@@ -39,6 +60,9 @@ class VrfBgpMapper(BaseFeatureMapper):
         "disable-ead-evi-rx",
         "disable-ead-evi-tx",
     )
+
+    # Valueless ``address-family l2vpn-evpn vni <vni> <flag>`` leaves (both labs).
+    _L2VPN_EVPN_VNI_FLAGS = frozenset({"advertise-default-gw", "advertise-svi-ip"})
 
     # Version-only nodes, each with the path methods below it. The methods
     # live on the version subclass; VRF dispatch calls ``require_node`` with
@@ -85,7 +109,7 @@ class VrfBgpMapper(BaseFeatureMapper):
             return self.redistribute_ipv4_protocols()
         if afi == "ipv6-unicast":
             return self.redistribute_ipv6_protocols()
-        raise ValueError(f"redistribute is not supported for {afi} on this device")
+        return frozenset()
 
     def _require_redistribute(self, afi: str, protocol: str) -> None:
         if protocol not in self._redistribute_protocols(afi):
@@ -103,10 +127,28 @@ class VrfBgpMapper(BaseFeatureMapper):
     def bmp_monitor_policies(self) -> FrozenSet[str]:
         return self._BMP_MONITOR_POLICIES
 
-    def _require_bmp_monitor_policy(self, policy: str) -> None:
+    def _require_bmp_monitor(self, afi: str, policy: str) -> None:
+        if afi not in self._BMP_MONITOR_AFIS:
+            raise ValueError(
+                f"BMP monitor is not supported for {afi} on this device")
         if policy not in self.bmp_monitor_policies():
             raise ValueError(
                 f"BMP monitor policy {policy} is not supported on this device")
+
+    def _require_parameter_flag(self, flag: str) -> None:
+        if flag not in self._PARAMETER_FLAGS:
+            raise ValueError(
+                f"parameters {flag} is not supported on this device")
+
+    def _require_bestpath(self, leaf: str, value: str, allowed: FrozenSet[str]) -> None:
+        if value not in allowed:
+            raise ValueError(
+                f"parameters bestpath {leaf} {value} is not supported on this device")
+
+    def _require_local_role(self, role: str) -> None:
+        if role not in self._LOCAL_ROLES:
+            raise ValueError(
+                f"local-role {role} is not supported on this device")
 
     def l2vpn_evpn_control_flags(self) -> FrozenSet[str]:
         return frozenset(self._L2VPN_EVPN_CONTROL_FLAGS)
@@ -115,6 +157,11 @@ class VrfBgpMapper(BaseFeatureMapper):
         if flag not in self.l2vpn_evpn_control_flags():
             raise ValueError(
                 f"l2vpn-evpn flag {flag} is not supported on this device")
+
+    def _require_l2vpn_evpn_vni_flag(self, flag: str) -> None:
+        if flag not in self._L2VPN_EVPN_VNI_FLAGS:
+            raise ValueError(
+                f"l2vpn-evpn vni flag {flag} is not supported on this device")
 
     def _base(self, name: str) -> List[str]:
         return ["vrf", "name", name, "protocols", "bgp"]
@@ -199,6 +246,7 @@ class VrfBgpMapper(BaseFeatureMapper):
 
     # Boolean parameter flags
     def get_bgp_parameters_flag(self, name: str, flag: str) -> List[str]:
+        self._require_parameter_flag(flag)
         return self._base(name) + ["parameters", flag]
 
     # ========================================================================
@@ -206,9 +254,11 @@ class VrfBgpMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_bgp_parameters_bestpath_as_path(self, name: str, option: str) -> List[str]:
+        self._require_bestpath("as-path", option, self._BESTPATH_AS_PATH_OPTIONS)
         return self._base(name) + ["parameters", "bestpath", "as-path", option]
 
     def get_bgp_parameters_bestpath_bandwidth(self, name: str, value: str) -> List[str]:
+        self._require_bestpath("bandwidth", value, self._BESTPATH_BANDWIDTH_VALUES)
         return self._base(name) + ["parameters", "bestpath", "bandwidth", value]
 
     def get_bgp_parameters_bestpath_bandwidth_delete(self, name: str) -> List[str]:
@@ -218,6 +268,7 @@ class VrfBgpMapper(BaseFeatureMapper):
         return self._base(name) + ["parameters", "bestpath", "compare-routerid"]
 
     def get_bgp_parameters_bestpath_med(self, name: str, option: str) -> List[str]:
+        self._require_bestpath("med", option, self._BESTPATH_MED_VALUES)
         return self._base(name) + ["parameters", "bestpath", "med", option]
 
     def get_bgp_parameters_bestpath_peer_type_multipath_relax(self, name: str) -> List[str]:
@@ -431,9 +482,11 @@ class VrfBgpMapper(BaseFeatureMapper):
 
     # Neighbor local-role
     def get_bgp_neighbor_local_role(self, name: str, neighbor: str, role: str) -> List[str]:
+        self._require_local_role(role)
         return self._neighbor(name, neighbor) + ["local-role", role]
 
     def get_bgp_neighbor_local_role_strict(self, name: str, neighbor: str, role: str) -> List[str]:
+        self._require_local_role(role)
         return self._neighbor(name, neighbor) + ["local-role", role, "strict"]
 
     def get_bgp_neighbor_local_role_delete(self, name: str, neighbor: str) -> List[str]:
@@ -750,9 +803,11 @@ class VrfBgpMapper(BaseFeatureMapper):
 
     # Peer-group local-role
     def get_bgp_peer_group_local_role(self, name: str, pg: str, role: str) -> List[str]:
+        self._require_local_role(role)
         return self._peer_group(name, pg) + ["local-role", role]
 
     def get_bgp_peer_group_local_role_strict(self, name: str, pg: str, role: str) -> List[str]:
+        self._require_local_role(role)
         return self._peer_group(name, pg) + ["local-role", role, "strict"]
 
     def get_bgp_peer_group_local_role_delete(self, name: str, pg: str) -> List[str]:
@@ -1028,9 +1083,7 @@ class VrfBgpMapper(BaseFeatureMapper):
         return self._af(name, afi) + ["redistribute", "table", table, "route-map", value]
 
     def get_bgp_af_redistribute_delete(self, name: str, afi: str, protocol: str) -> List[str]:
-        # The family is checked; the protocol allowlist is not, so a stale
-        # protocol stays deletable.
-        self._redistribute_protocols(afi)
+        self._require_redistribute(afi, protocol)
         return self._af(name, afi) + ["redistribute", protocol]
 
     # Distance
@@ -1182,6 +1235,7 @@ class VrfBgpMapper(BaseFeatureMapper):
         return self._af(name, "l2vpn-evpn") + ["vni", vni]
 
     def get_bgp_af_l2vpn_evpn_vni_flag(self, name: str, vni: str, flag: str) -> List[str]:
+        self._require_l2vpn_evpn_vni_flag(flag)
         return self._af(name, "l2vpn-evpn") + ["vni", vni, flag]
 
     def get_bgp_af_l2vpn_evpn_vni_rd(self, name: str, vni: str, value: str) -> List[str]:
@@ -1247,7 +1301,7 @@ class VrfBgpMapper(BaseFeatureMapper):
         return self._base(name) + ["bmp", "target", target, "mirror"]
 
     def get_bgp_bmp_target_monitor(self, name: str, target: str, afi: str, policy: str) -> List[str]:
-        self._require_bmp_monitor_policy(policy)
+        self._require_bmp_monitor(afi, policy)
         return self._base(name) + ["bmp", "target", target, "monitor", afi, policy]
 
     def get_bgp_bmp_target_delete(self, name: str, target: str) -> List[str]:

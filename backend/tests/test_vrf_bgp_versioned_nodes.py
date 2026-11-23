@@ -180,19 +180,113 @@ def test_redistribute_family_lists_differ(version):
 
 @pytest.mark.parametrize("version", ["1.4", ROLLING])
 def test_redistribute_needs_a_unicast_family(version):
+    """Same text as the global BGP mapper, which the VRF sets run."""
     mapper = _vrf_bgp(version)
     for call in (
         lambda: mapper.get_bgp_af_redistribute("T-V", "ipv4-multicast", "connected"),
         lambda: mapper.get_bgp_af_redistribute_delete("T-V", "ipv4-multicast", "connected"),
+        lambda: get_bgp_mapper(version).get_af_redistribute("ipv4-multicast", "connected"),
     ):
-        with pytest.raises(ValueError, match="^redistribute is not supported for ipv4-multicast on this device$"):
+        with pytest.raises(ValueError, match="^redistribute connected is not supported on this device$"):
             call()
 
 
-def test_redistribute_delete_skips_the_protocol_allowlist():
-    """A 1.4 device cannot hold the node, but the delete stays harmless."""
-    assert _vrf_bgp("1.4").get_bgp_af_redistribute_delete("T-V", "ipv4-unicast", "nhrp") == V4 + [
+def test_redistribute_delete_checks_the_protocol_like_the_global_op():
+    """`delete_vrf_bgp_af_redistribute` runs the global builder, which rejects
+    nhrp on 1.4; the VRF mapper path gives the same answer."""
+    with pytest.raises(ValueError, match="^redistribute nhrp is not supported on this device$"):
+        _vrf_bgp("1.4").get_bgp_af_redistribute_delete("T-V", "ipv4-unicast", "nhrp")
+    with pytest.raises(ValueError, match="^redistribute nhrp is not supported on this device$"):
+        _run("1.4", "delete_vrf_bgp_af_redistribute", "ipv4-unicast,nhrp")
+    assert _vrf_bgp(ROLLING).get_bgp_af_redistribute_delete("T-V", "ipv4-unicast", "nhrp") == V4 + [
         "redistribute", "nhrp",
+    ]
+
+
+@pytest.mark.parametrize("version, allowed", [("1.4", False), (ROLLING, True)])
+def test_redistribute_table_set_path_follows_the_labs(version, allowed):
+    mapper = _vrf_bgp(version)
+    assert mapper.get_bgp_af_redistribute_table("T-V", "ipv4-unicast", "10") == V4 + ["redistribute", "table", "10"]
+    if allowed:
+        assert mapper.get_bgp_af_redistribute_table("T-V", "ipv6-unicast", "10") == V6 + [
+            "redistribute", "table", "10",
+        ]
+    else:
+        with pytest.raises(ValueError, match="^redistribute table is not supported for ipv6-unicast on this device$"):
+            mapper.get_bgp_af_redistribute_table("T-V", "ipv6-unicast", "10")
+
+
+# Fallback ops (no global builder method) whose value is an enumerated lab
+# leaf: (op, good value, path, bad value, error)
+CHOICE_OPS = [
+    ("set_vrf_bgp_parameters_flag", "log-neighbor-changes", PREFIX + ["parameters", "log-neighbor-changes"],
+     "log-change", "parameters log-change is not supported on this device"),
+    ("delete_vrf_bgp_parameters_flag", "no-ipv6-auto-ra", PREFIX + ["parameters", "no-ipv6-auto-ra"],
+     "multipath", "parameters multipath is not supported on this device"),
+    ("set_vrf_bgp_parameters_bestpath_as_path", "multipath-relax",
+     PREFIX + ["parameters", "bestpath", "as-path", "multipath-relax"],
+     "T-BAD", "parameters bestpath as-path T-BAD is not supported on this device"),
+    ("delete_vrf_bgp_parameters_bestpath_as_path", "confed", PREFIX + ["parameters", "bestpath", "as-path", "confed"],
+     "T-BAD", "parameters bestpath as-path T-BAD is not supported on this device"),
+    ("set_vrf_bgp_af_l2vpn_evpn_vni_flag", "100,advertise-svi-ip",
+     PREFIX + ["address-family", "l2vpn-evpn", "vni", "100", "advertise-svi-ip"],
+     "100,T-BAD", "l2vpn-evpn vni flag T-BAD is not supported on this device"),
+    ("delete_vrf_bgp_neighbor_local_role_strict", "192.0.2.1,rs-client",
+     PREFIX + ["neighbor", "192.0.2.1", "local-role", "rs-client", "strict"],
+     "192.0.2.1,T-BAD", "local-role T-BAD is not supported on this device"),
+    ("delete_vrf_bgp_peer_group_local_role_strict", "PG,peer",
+     PREFIX + ["peer-group", "PG", "local-role", "peer", "strict"],
+     "PG,T-BAD", "local-role T-BAD is not supported on this device"),
+]
+
+
+@pytest.mark.parametrize("version", ["1.4", ROLLING])
+@pytest.mark.parametrize("op, good, path, bad, error", CHOICE_OPS, ids=[f"{r[0]}:{r[1]}" for r in CHOICE_OPS])
+def test_enumerated_fallback_values_follow_the_lab(version, op, good, path, bad, error):
+    assert _run(version, op, good) == [(op.split("_", 1)[0], path)]
+    with pytest.raises(ValueError, match=f"^{error}$"):
+        _run(version, op, bad)
+
+
+def test_parameter_flags_match_the_lab():
+    """Every valueless `parameters` leaf both labs have, and no other."""
+    assert VrfBgpMapper._PARAMETER_FLAGS == {
+        "allow-martian-nexthop", "always-compare-med", "deterministic-med",
+        "disable-ebgp-connected-route-check", "ebgp-requires-policy", "fast-convergence",
+        "graceful-shutdown", "log-neighbor-changes", "network-import-check",
+        "no-client-to-client-reflection", "no-fast-external-failover",
+        "no-hard-administrative-reset", "no-ipv6-auto-ra", "no-suppress-duplicates",
+        "reject-as-sets", "route-reflector-allow-outbound-policy", "shutdown",
+        "suppress-fib-pending",
+    }
+
+
+@pytest.mark.parametrize("call, error", [
+    (lambda m: m.get_bgp_parameters_bestpath_med("T-V", "T-BAD"),
+     "parameters bestpath med T-BAD is not supported on this device"),
+    (lambda m: m.get_bgp_parameters_bestpath_bandwidth("T-V", "T-BAD"),
+     "parameters bestpath bandwidth T-BAD is not supported on this device"),
+    (lambda m: m.get_bgp_neighbor_local_role("T-V", "192.0.2.1", "T-BAD"),
+     "local-role T-BAD is not supported on this device"),
+    (lambda m: m.get_bgp_peer_group_local_role("T-V", "PG", "T-BAD"),
+     "local-role T-BAD is not supported on this device"),
+    (lambda m: m.get_bgp_bmp_target_monitor("T-V", "T1", "ipv4-multicast", "pre-policy"),
+     "BMP monitor is not supported for ipv4-multicast on this device"),
+])
+def test_enumerated_mapper_values_are_checked(call, error):
+    for version in ("1.4", ROLLING):
+        with pytest.raises(ValueError, match=f"^{error}$"):
+            call(_vrf_bgp(version))
+
+
+def test_enumerated_mapper_values_build_the_lab_path():
+    mapper = _vrf_bgp("1.4")
+    assert mapper.get_bgp_parameters_bestpath_med("T-V", "missing-as-worst")[-1] == "missing-as-worst"
+    assert mapper.get_bgp_parameters_bestpath_bandwidth("T-V", "skip-missing")[-1] == "skip-missing"
+    assert mapper.get_bgp_neighbor_local_role("T-V", "192.0.2.1", "customer")[-1] == "customer"
+    assert mapper.get_bgp_peer_group_local_role("T-V", "PG", "rs-server")[-1] == "rs-server"
+    assert mapper.get_bgp_bmp_target_monitor("T-V", "T1", "ipv6-unicast", "post-policy")[-2:] == [
+        "ipv6-unicast", "post-policy",
     ]
 
 
