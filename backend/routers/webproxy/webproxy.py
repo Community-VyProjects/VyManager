@@ -4,7 +4,7 @@ Web Proxy (Squid) Router
 API endpoints for managing the VyOS webproxy service (service webproxy).
 
 Three endpoints:
-  GET  /vyos/webproxy/capabilities  — version-aware feature flags + option lists
+  GET  /vyos/webproxy/capabilities  — feature flags + option lists
   GET  /vyos/webproxy/config        — normalized webproxy configuration
   POST /vyos/webproxy/batch         — atomic set/delete operations
 
@@ -14,15 +14,15 @@ The webproxy CLI is identical on VyOS 1.4 and 1.5.
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.webproxy.webproxy import WebProxyMapper
 from vyos_builders.webproxy import WebProxyBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +192,8 @@ async def get_webproxy_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_webproxy_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -208,10 +210,11 @@ async def get_webproxy_config(http_request: Request, refresh: bool = False):
     await require_read_permission(http_request, FeatureGroup.WEBPROXY)
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
+        mapper = cast(WebProxyMapper, CommandMapperRegistry.get_mapper("webproxy", service.get_version()))
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("webproxy", version)
         return WebProxyConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_webproxy_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -231,29 +234,12 @@ async def webproxy_batch_configure(http_request: Request, body: WebProxyBatchReq
         builder = WebProxyBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            count = len(inspect.signature(method).parameters)
-
-            if count == 0:
-                method()
-                continue
-            if not operation.value:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {operation.op} requires a value",
-                )
-            parts = operation.value.split(",", count - 1)
-            if len(parts) != count or not all(parts):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {operation.op} requires {count} values",
-                )
-            method(*parts)
+            call_comma_batch_op(builder, operation.op, operation.value)
 
         response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Web proxy configuration updated"},
+            data={"message": "Web proxy configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
