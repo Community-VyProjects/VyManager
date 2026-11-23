@@ -54,7 +54,7 @@ GATED_HANDLERS = {
 }
 
 # router files whose batch handlers dispatch a client-supplied op name
-# through resolve_batch_method or call_comma_batch_op
+# through resolve_batch_method, call_comma_batch_op or call_item_batch_op
 DYNAMIC_DISPATCH_FILES = [
     "local_route/local_route.py",
     "as_path_list/as_path_list.py",
@@ -74,6 +74,7 @@ DYNAMIC_DISPATCH_FILES = [
     "segment_routing/segment_routing.py",
     "static_routes/static_routes.py",
     "suricata/suricata.py",
+    "ipoe_server/ipoe_server.py",
 ]
 
 
@@ -114,10 +115,10 @@ def test_batch_dispatch_guards_operation_names(rel_path):
     tree = ast.parse((ROUTERS_DIR / rel_path).read_text())
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
     names = {getattr(call.func, "id", None) or getattr(call.func, "attr", None) for call in calls}
-    # call_comma_batch_op resolves the name through resolve_batch_method.
-    assert names & {"resolve_batch_method", "call_comma_batch_op"}, (
-        f"{rel_path}: batch dispatch must call resolve_batch_method or "
-        "call_comma_batch_op"
+    # The call_*_batch_op helpers resolve the name through resolve_batch_method.
+    assert names & {"resolve_batch_method", "call_comma_batch_op", "call_item_batch_op"}, (
+        f"{rel_path}: batch dispatch must call resolve_batch_method, "
+        "call_comma_batch_op or call_item_batch_op"
     )
     for call in calls:
         if getattr(call.func, "id", None) != "getattr" or len(call.args) < 2:
