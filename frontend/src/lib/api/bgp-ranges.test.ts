@@ -10,6 +10,7 @@ import {
   isIPv4Address,
   isIPAddress,
   isNetworkPrefix,
+  labeledUnicastConflict,
   NEIGHBOR_AF_RANGES,
   NEIGHBOR_RANGES,
   numberText,
@@ -17,6 +18,7 @@ import {
   PARAMETERS_RANGES,
   parametersProblem,
   PEER_GROUP_RANGES,
+  peerGroupMembersOf,
   peerProblem,
   REDISTRIBUTE_METRIC_RANGE,
   remoteAsNumber,
@@ -128,21 +130,53 @@ describe("BGP ranges", () => {
   });
 
   it("applies the lab verify rules across neighbor and peer-group leaves", () => {
-    const base = { localAs: "", systemAs: "65000", ebgpMultihop: "", ttlSecurityHops: "", overrideCapability: false, password: "" };
-    const peer = { address: "192.0.2.1", remoteAs: "65001", peerGroup: "", peerGroupRemoteAs: null };
+    const base = { localAs: "", systemAs: "65000", remoteAs: "", ebgpMultihop: "", ttlSecurityHops: "", overrideCapability: false, password: "" };
+    const peer = { address: "192.0.2.1", peerGroup: "", peerGroupRemoteAs: null, memberRemoteAs: [] };
+    const n = { ...base, remoteAs: "65001" };
     assert.equal(peerProblem(base), null);
     assert.equal(peerProblem({ ...base, localAs: "65000" }), "localAsIsSystemAs");
-    assert.equal(peerProblem({ ...base, localAs: "65001", neighbor: peer }), "localAsIsRemoteAs");
+    assert.equal(peerProblem({ ...n, localAs: "65001", neighbor: peer }), "localAsIsRemoteAs");
     assert.equal(peerProblem({ ...base, localAs: "65001" }), null);
     assert.equal(peerProblem({ ...base, ebgpMultihop: "2", ttlSecurityHops: "1" }), "multihopWithTtl");
     assert.equal(peerProblem({ ...base, overrideCapability: true, strictCapabilityMatch: true }), "overrideWithStrict");
     assert.equal(peerProblem({ ...base, password: "a b" }), "passwordWhitespace");
     assert.equal(peerProblem({ ...base, password: " ab " }), null);
-    assert.equal(peerProblem({ ...base, neighbor: { ...peer, remoteAs: "" } }), "remoteAsRequired");
-    assert.equal(peerProblem({ ...base, neighbor: { ...peer, remoteAs: "", peerGroup: "PG" } }), "remoteAsRequired");
-    assert.equal(peerProblem({ ...base, neighbor: { ...peer, remoteAs: "", peerGroup: "PG", peerGroupRemoteAs: "65002" } }), null);
-    assert.equal(peerProblem({ ...base, neighbor: { ...peer, peerGroup: "PG", peerGroupRemoteAs: "65002" } }), "remoteAsOverridesPeerGroup");
-    assert.equal(peerProblem({ ...base, neighbor: { ...peer, address: "eth0", remoteAs: "" } }), null);
+    assert.equal(peerProblem({ ...base, neighbor: peer }), "remoteAsRequired");
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, peerGroup: "PG" } }), "remoteAsRequired");
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, peerGroup: "PG", peerGroupRemoteAs: "65002" } }), null);
+    assert.equal(peerProblem({ ...n, neighbor: { ...peer, peerGroup: "PG", peerGroupRemoteAs: "65002" } }), "remoteAsOverridesPeerGroup");
+    // Interface neighbors take remote-as and peer-group under the interface node.
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, address: "eth0" } }), null);
+    assert.equal(peerProblem({ ...n, neighbor: { ...peer, address: "eth0" } }), "interfaceRemoteAs");
+    assert.equal(peerProblem({ ...base, neighbor: { ...peer, address: "eth0", peerGroup: "PG" } }), "interfaceRemoteAs");
+    // Local-AS is allowed only for eBGP peers.
+    assert.equal(peerProblem({ ...base, remoteAs: "65000", localAs: "65009", neighbor: peer }), "localAsNeedsEbgp");
+    assert.equal(peerProblem({ ...base, localAs: "65009", neighbor: { ...peer, peerGroup: "PG", peerGroupRemoteAs: "65000" } }), "localAsNeedsEbgp");
+    assert.equal(peerProblem({ ...base, remoteAs: "internal", localAs: "65009", neighbor: peer }), null);
+    assert.equal(peerProblem({ ...base, remoteAs: "65000", localAs: "65009" }), "localAsNeedsEbgp");
+    // Peer-group members must be all internal or all external.
+    const member = { ...peer, peerGroup: "PG" };
+    assert.equal(peerProblem({ ...n, neighbor: { ...member, memberRemoteAs: ["65002", null] } }), null);
+    assert.equal(peerProblem({ ...n, neighbor: { ...member, memberRemoteAs: ["internal"] } }), "peerGroupMixed");
+    assert.equal(peerProblem({ ...n, neighbor: { ...member, memberRemoteAs: ["65000"] } }), "peerGroupMixed");
+    assert.equal(peerProblem({ ...base, remoteAs: "internal", neighbor: { ...member, memberRemoteAs: ["65000"] } }), null);
+    // A peer group's members.
+    assert.equal(peerProblem({ ...n, members: [{ address: "192.0.2.1", remoteAs: null }] }), null);
+    assert.equal(peerProblem({ ...n, members: [{ address: "192.0.2.1", remoteAs: "65003" }] }), "memberOverridesRemoteAs");
+    assert.equal(peerProblem({ ...base, members: [{ address: "192.0.2.1", remoteAs: null }] }), "memberNeedsRemoteAs");
+    assert.equal(peerProblem({ ...base, members: [{ address: "192.0.2.1", remoteAs: "65003" }] }), null);
+    assert.equal(peerProblem({ ...base, members: [{ address: "eth0", remoteAs: null }] }), null);
+    assert.deepEqual(
+      peerGroupMembersOf([
+        { address: "192.0.2.1", remote_as: null, peer_group: "PG" },
+        { address: "192.0.2.2", remote_as: "65003", peer_group: null },
+        { address: "192.0.2.3", remote_as: "65004", peer_group: "PG" },
+      ]),
+      { PG: [{ address: "192.0.2.1", remoteAs: null }, { address: "192.0.2.3", remoteAs: "65004" }] },
+    );
+    assert.equal(labeledUnicastConflict(["ipv4-unicast", "ipv6-labeled-unicast"]), null);
+    assert.equal(labeledUnicastConflict(["ipv4-unicast", "ipv4-labeled-unicast"]), "IPv4");
+    assert.equal(labeledUnicastConflict(new Set(["ipv6-unicast", "ipv6-labeled-unicast"])), "IPv6");
     assert.equal(remoteAsNumber("65001"), "65001");
     assert.equal(remoteAsNumber("internal"), "");
     assert.equal(firstRangeProblem({ ...EMPTY, remoteAs: remoteAsNumber("4294967295") }, NEIGHBOR_RANGES)?.field, "remoteAs");

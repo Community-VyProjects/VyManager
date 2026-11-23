@@ -35,6 +35,7 @@ import {
   HOLDTIME_RANGE,
   isIPAddress,
   KEEPALIVE_RANGE,
+  labeledUnicastConflict,
   MAXIMUM_PREFIX_RANGE,
   NEIGHBOR_AF_RANGES,
   NEIGHBOR_RANGES,
@@ -46,6 +47,7 @@ import {
   WEIGHT_RANGE,
   type NeighborAfRangeField,
   type NeighborRangeField,
+  type PeerGroupMember,
 } from "@/lib/api/bgp-ranges";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -67,6 +69,8 @@ interface BgpNeighborModalProps {
   peerGroups: string[];
   /** Remote-as each configured peer group sets, by name (null when it sets none). */
   peerGroupRemoteAs: Record<string, string | null>;
+  /** Configured neighbors of each peer group, by peer-group name. */
+  peerGroupMembers: Record<string, PeerGroupMember[]>;
   systemAs: string | null;
   configuredAddresses: string[];
   routeMapNames: string[];
@@ -142,6 +146,7 @@ export function BgpNeighborModal({
   existingNeighbor,
   peerGroups,
   peerGroupRemoteAs,
+  peerGroupMembers,
   systemAs,
   configuredAddresses,
   routeMapNames,
@@ -231,6 +236,8 @@ export function BgpNeighborModal({
   // --------------------------------------------------------------------------
   const availableAFIs: string[] =
     capabilities?.address_family_types?.neighbor ?? [];
+  const afHasLeaf = (afi: string, leaf: string): boolean =>
+    (capabilities?.address_family_leaves?.neighbor?.[afi] ?? []).includes(leaf);
 
   // --------------------------------------------------------------------------
   // Populate / reset form
@@ -449,15 +456,27 @@ export function BgpNeighborModal({
     const problem = peerProblem({
       localAs: localAsAsn,
       systemAs,
+      remoteAs,
       ebgpMultihop,
       ttlSecurityHops,
       overrideCapability,
       strictCapabilityMatch,
       password,
-      neighbor: { address: trimmed, remoteAs, peerGroup, peerGroupRemoteAs: peerGroupRemoteAs[peerGroup] },
+      neighbor: {
+        address: trimmed,
+        peerGroup,
+        peerGroupRemoteAs: peerGroupRemoteAs[peerGroup],
+        memberRemoteAs: (peerGroupMembers[peerGroup] ?? [])
+          .filter((m) => !sameNeighborAddress(m.address, trimmed))
+          .map((m) => m.remoteAs),
+      },
     });
     if (problem) {
       return t(`form.${problem}`);
+    }
+    const labeledConflict = labeledUnicastConflict(Object.keys(addressFamilies));
+    if (labeledConflict) {
+      return t("form.unicastWithLabeled", { family: labeledConflict });
     }
     for (const [afi, af] of Object.entries(addressFamilies)) {
       const afRange = firstRangeProblem(
@@ -1339,25 +1358,27 @@ export function BgpNeighborModal({
                             </div>
 
                             {/* Next-Hop Self */}
-                            <div className="flex items-center space-x-3">
-                              <Checkbox
-                                id={`bgp-af-${afi}-nexthop-self`}
-                                checked={afConfig.nexthop_self}
-                                onCheckedChange={(checked) =>
-                                  updateAfField(
-                                    afi,
-                                    "nexthop_self",
-                                    checked === true
-                                  )
-                                }
-                              />
-                              <Label
-                                htmlFor={`bgp-af-${afi}-nexthop-self`}
-                                className="cursor-pointer"
-                              >
-                                {t("neighborModal.nexthopSelf")}
-                              </Label>
-                            </div>
+                            {afHasLeaf(afi, "nexthop-self") && (
+                              <div className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={`bgp-af-${afi}-nexthop-self`}
+                                  checked={afConfig.nexthop_self}
+                                  onCheckedChange={(checked) =>
+                                    updateAfField(
+                                      afi,
+                                      "nexthop_self",
+                                      checked === true
+                                    )
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`bgp-af-${afi}-nexthop-self`}
+                                  className="cursor-pointer"
+                                >
+                                  {t("neighborModal.nexthopSelf")}
+                                </Label>
+                              </div>
+                            )}
 
                             {/* Next-Hop Self Force (sub-option) */}
                             {afConfig.nexthop_self && (
@@ -1404,25 +1425,27 @@ export function BgpNeighborModal({
                             </div>
 
                             {/* Default Originate */}
-                            <div className="flex items-center space-x-3">
-                              <Checkbox
-                                id={`bgp-af-${afi}-default-originate`}
-                                checked={afConfig.default_originate}
-                                onCheckedChange={(checked) =>
-                                  updateAfField(
-                                    afi,
-                                    "default_originate",
-                                    checked === true
-                                  )
-                                }
-                              />
-                              <Label
-                                htmlFor={`bgp-af-${afi}-default-originate`}
-                                className="cursor-pointer"
-                              >
-                                {t("neighborModal.defaultOriginate")}
-                              </Label>
-                            </div>
+                            {afHasLeaf(afi, "default-originate") && (
+                              <div className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={`bgp-af-${afi}-default-originate`}
+                                  checked={afConfig.default_originate}
+                                  onCheckedChange={(checked) =>
+                                    updateAfField(
+                                      afi,
+                                      "default_originate",
+                                      checked === true
+                                    )
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`bgp-af-${afi}-default-originate`}
+                                  className="cursor-pointer"
+                                >
+                                  {t("neighborModal.defaultOriginate")}
+                                </Label>
+                              </div>
+                            )}
 
                             {/* Default Originate Route Map (sub-option) */}
                             {afConfig.default_originate && (
@@ -1444,46 +1467,50 @@ export function BgpNeighborModal({
                             )}
 
                             {/* AS Override */}
-                            <div className="flex items-center space-x-3">
-                              <Checkbox
-                                id={`bgp-af-${afi}-as-override`}
-                                checked={afConfig.as_override}
-                                onCheckedChange={(checked) =>
-                                  updateAfField(
-                                    afi,
-                                    "as_override",
-                                    checked === true
-                                  )
-                                }
-                              />
-                              <Label
-                                htmlFor={`bgp-af-${afi}-as-override`}
-                                className="cursor-pointer"
-                              >
-                                {t("neighborModal.asOverride")}
-                              </Label>
-                            </div>
+                            {afHasLeaf(afi, "as-override") && (
+                              <div className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={`bgp-af-${afi}-as-override`}
+                                  checked={afConfig.as_override}
+                                  onCheckedChange={(checked) =>
+                                    updateAfField(
+                                      afi,
+                                      "as_override",
+                                      checked === true
+                                    )
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`bgp-af-${afi}-as-override`}
+                                  className="cursor-pointer"
+                                >
+                                  {t("neighborModal.asOverride")}
+                                </Label>
+                              </div>
+                            )}
 
                             {/* Remove Private AS */}
-                            <div className="flex items-center space-x-3">
-                              <Checkbox
-                                id={`bgp-af-${afi}-remove-private-as`}
-                                checked={afConfig.remove_private_as}
-                                onCheckedChange={(checked) =>
-                                  updateAfField(
-                                    afi,
-                                    "remove_private_as",
-                                    checked === true
-                                  )
-                                }
-                              />
-                              <Label
-                                htmlFor={`bgp-af-${afi}-remove-private-as`}
-                                className="cursor-pointer"
-                              >
-                                {t("neighborModal.removePrivateAs")}
-                              </Label>
-                            </div>
+                            {afHasLeaf(afi, "remove-private-as") && (
+                              <div className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={`bgp-af-${afi}-remove-private-as`}
+                                  checked={afConfig.remove_private_as}
+                                  onCheckedChange={(checked) =>
+                                    updateAfField(
+                                      afi,
+                                      "remove_private_as",
+                                      checked === true
+                                    )
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`bgp-af-${afi}-remove-private-as`}
+                                  className="cursor-pointer"
+                                >
+                                  {t("neighborModal.removePrivateAs")}
+                                </Label>
+                              </div>
+                            )}
 
                             {/* Remove Private AS All (sub-option) */}
                             {afConfig.remove_private_as && (
@@ -1512,88 +1539,94 @@ export function BgpNeighborModal({
                           {/* Numeric fields */}
                           <div className="grid grid-cols-3 gap-4">
                             {/* Maximum Prefix */}
-                            <div className="space-y-2">
-                              <Label htmlFor={`bgp-af-${afi}-max-prefix`}>
-                                {t("neighborModal.maximumPrefix")}
-                              </Label>
-                              <Input
-                                id={`bgp-af-${afi}-max-prefix`}
-                                type="number"
-                                value={
-                                  afConfig.maximum_prefix != null
-                                    ? String(afConfig.maximum_prefix)
-                                    : ""
-                                }
-                                onChange={(e) =>
-                                  updateAfField(
-                                    afi,
-                                    "maximum_prefix",
-                                    e.target.value
-                                      ? Number(e.target.value)
-                                      : null
-                                  )
-                                }
-                                placeholder={t("neighborModal.maxPrefixesPlaceholder")}
-                                min={MAXIMUM_PREFIX_RANGE.min}
-                                max={MAXIMUM_PREFIX_RANGE.max}
-                              />
-                            </div>
+                            {afHasLeaf(afi, "maximum-prefix") && (
+                              <div className="space-y-2">
+                                <Label htmlFor={`bgp-af-${afi}-max-prefix`}>
+                                  {t("neighborModal.maximumPrefix")}
+                                </Label>
+                                <Input
+                                  id={`bgp-af-${afi}-max-prefix`}
+                                  type="number"
+                                  value={
+                                    afConfig.maximum_prefix != null
+                                      ? String(afConfig.maximum_prefix)
+                                      : ""
+                                  }
+                                  onChange={(e) =>
+                                    updateAfField(
+                                      afi,
+                                      "maximum_prefix",
+                                      e.target.value
+                                        ? Number(e.target.value)
+                                        : null
+                                    )
+                                  }
+                                  placeholder={t("neighborModal.maxPrefixesPlaceholder")}
+                                  min={MAXIMUM_PREFIX_RANGE.min}
+                                  max={MAXIMUM_PREFIX_RANGE.max}
+                                />
+                              </div>
+                            )}
 
                             {/* Allowas-In Number */}
-                            <div className="space-y-2">
-                              <Label htmlFor={`bgp-af-${afi}-allowas-in`}>
-                                {t("neighborModal.allowasIn")}
-                              </Label>
-                              <Input
-                                id={`bgp-af-${afi}-allowas-in`}
-                                type="number"
-                                value={
-                                  afConfig.allowas_in_number != null
-                                    ? String(afConfig.allowas_in_number)
-                                    : ""
-                                }
-                                onChange={(e) =>
-                                  updateAfField(
-                                    afi,
-                                    "allowas_in_number",
-                                    e.target.value
-                                      ? Number(e.target.value)
-                                      : null
-                                  )
-                                }
-                                placeholder={t("neighborModal.count")}
-                                min={ALLOWAS_IN_RANGE.min}
-                                max={ALLOWAS_IN_RANGE.max}
-                              />
-                            </div>
+                            {afHasLeaf(afi, "allowas-in") && (
+                              <div className="space-y-2">
+                                <Label htmlFor={`bgp-af-${afi}-allowas-in`}>
+                                  {t("neighborModal.allowasIn")}
+                                </Label>
+                                <Input
+                                  id={`bgp-af-${afi}-allowas-in`}
+                                  type="number"
+                                  value={
+                                    afConfig.allowas_in_number != null
+                                      ? String(afConfig.allowas_in_number)
+                                      : ""
+                                  }
+                                  onChange={(e) =>
+                                    updateAfField(
+                                      afi,
+                                      "allowas_in_number",
+                                      e.target.value
+                                        ? Number(e.target.value)
+                                        : null
+                                    )
+                                  }
+                                  placeholder={t("neighborModal.count")}
+                                  min={ALLOWAS_IN_RANGE.min}
+                                  max={ALLOWAS_IN_RANGE.max}
+                                />
+                              </div>
+                            )}
 
                             {/* Weight */}
-                            <div className="space-y-2">
-                              <Label htmlFor={`bgp-af-${afi}-weight`}>
-                                {t("neighborModal.weight")}
-                              </Label>
-                              <Input
-                                id={`bgp-af-${afi}-weight`}
-                                type="number"
-                                value={
-                                  afConfig.weight != null
-                                    ? String(afConfig.weight)
-                                    : ""
-                                }
-                                onChange={(e) =>
-                                  updateAfField(
-                                    afi,
-                                    "weight",
-                                    e.target.value
-                                      ? Number(e.target.value)
-                                      : null
-                                  )
-                                }
-                                placeholder={t("neighborModal.weight")}
-                                min={WEIGHT_RANGE.min}
-                                max={WEIGHT_RANGE.max}
-                              />
-                            </div>
+                            {afHasLeaf(afi, "weight") && (
+                              <div className="space-y-2">
+                                <Label htmlFor={`bgp-af-${afi}-weight`}>
+                                  {t("neighborModal.weight")}
+                                </Label>
+                                <Input
+                                  id={`bgp-af-${afi}-weight`}
+                                  type="number"
+                                  value={
+                                    afConfig.weight != null
+                                      ? String(afConfig.weight)
+                                      : ""
+                                  }
+                                  onChange={(e) =>
+                                    updateAfField(
+                                      afi,
+                                      "weight",
+                                      e.target.value
+                                        ? Number(e.target.value)
+                                        : null
+                                    )
+                                  }
+                                  placeholder={t("neighborModal.weight")}
+                                  min={WEIGHT_RANGE.min}
+                                  max={WEIGHT_RANGE.max}
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

@@ -311,6 +311,12 @@ export interface BgpCapabilities {
     peer_group: string[];
     global: string[];
   };
+  /** Leaves each AFI has on the device, by scope (`network route-map` names a network child). */
+  address_family_leaves: {
+    neighbor: Record<string, string[]>;
+    peer_group: Record<string, string[]>;
+    global: Record<string, string[]>;
+  };
   instance_name?: string;
   instance_id?: string;
 }

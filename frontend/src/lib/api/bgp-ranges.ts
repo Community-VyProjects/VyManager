@@ -142,43 +142,97 @@ export function remoteAsNumber(value: string): string {
 export type PeerProblem =
   | "localAsIsSystemAs"
   | "localAsIsRemoteAs"
+  | "localAsNeedsEbgp"
   | "multihopWithTtl"
   | "overrideWithStrict"
   | "passwordWhitespace"
   | "remoteAsRequired"
-  | "remoteAsOverridesPeerGroup";
+  | "remoteAsOverridesPeerGroup"
+  | "interfaceRemoteAs"
+  | "peerGroupMixed"
+  | "memberOverridesRemoteAs"
+  | "memberNeedsRemoteAs";
+
+/** A configured neighbor of a peer group, as the verify rules read it. */
+export interface PeerGroupMember {
+  address: string;
+  remoteAs: string | null;
+}
+
+/** Configured neighbors grouped by the peer group they name. */
+export function peerGroupMembersOf(
+  neighbors: { address: string; remote_as: string | null; peer_group: string | null }[],
+): Record<string, PeerGroupMember[]> {
+  const members: Record<string, PeerGroupMember[]> = {};
+  for (const n of neighbors) {
+    if (n.peer_group) (members[n.peer_group] ??= []).push({ address: n.address, remoteAs: n.remote_as });
+  }
+  return members;
+}
 
 /**
  * Lab verify rules across neighbor or peer-group leaves, as a `form.*` message key.
- * `neighbor` is set only for a neighbor; the remote-as rules apply to address neighbors only.
+ * `neighbor` is set only for a neighbor (`memberRemoteAs`: the own remote-as of the
+ * other neighbors in its peer group); `members` only for a peer group (its neighbors).
  */
 export function peerProblem(values: {
   localAs: string;
   systemAs: string | null | undefined;
+  remoteAs: string;
   ebgpMultihop: string;
   ttlSecurityHops: string;
   overrideCapability: boolean;
   strictCapabilityMatch?: boolean;
   password: string;
-  neighbor?: { address: string; remoteAs: string; peerGroup: string; peerGroupRemoteAs: string | null | undefined };
+  neighbor?: {
+    address: string;
+    peerGroup: string;
+    peerGroupRemoteAs: string | null | undefined;
+    memberRemoteAs: (string | null)[];
+  };
+  members?: PeerGroupMember[];
 }): PeerProblem | null {
   const localAs = values.localAs.trim();
+  const systemAs = (values.systemAs ?? "").trim();
+  const own = values.remoteAs.trim();
   const neighbor = values.neighbor;
-  if (localAs && localAs === (values.systemAs ?? "").trim()) return "localAsIsSystemAs";
-  if (neighbor && localAs && localAs === neighbor.remoteAs.trim()) return "localAsIsRemoteAs";
+  const isIbgp = (asn: string) => asn === "internal" || asn === systemAs;
+  if (localAs && localAs === systemAs) return "localAsIsSystemAs";
+  if (neighbor && localAs && localAs === own) return "localAsIsRemoteAs";
   if (values.ebgpMultihop.trim() && values.ttlSecurityHops.trim()) return "multihopWithTtl";
   if (values.overrideCapability && values.strictCapabilityMatch) return "overrideWithStrict";
   if (values.password.trim().includes(" ")) return "passwordWhitespace";
-  if (neighbor && isIPAddress(neighbor.address)) {
-    const own = neighbor.remoteAs.trim();
+  let effective = own;
+  if (neighbor) {
     const inherited = neighbor.peerGroup ? (neighbor.peerGroupRemoteAs ?? "") : "";
-    if (!own && !inherited) return "remoteAsRequired";
-    if (own && inherited) return "remoteAsOverridesPeerGroup";
+    if (!isIPAddress(neighbor.address)) {
+      if (own || neighbor.peerGroup) return "interfaceRemoteAs";
+    } else {
+      if (!own && !inherited) return "remoteAsRequired";
+      if (own && inherited) return "remoteAsOverridesPeerGroup";
+    }
+    if (own && neighbor.peerGroup && neighbor.memberRemoteAs.some((asn) => asn && isIbgp(asn) !== isIbgp(own))) {
+      return "peerGroupMixed";
+    }
+    effective = own || inherited;
+  }
+  if (localAs && effective && effective === systemAs) return "localAsNeedsEbgp";
+  if (values.members) {
+    if (own && values.members.some((m) => m.remoteAs)) return "memberOverridesRemoteAs";
+    if (!own && values.members.some((m) => isIPAddress(m.address) && !m.remoteAs)) return "memberNeedsRemoteAs";
   }
   return null;
 }
 
-/** Address family of an AFI name (`ipv6-unicast` is ipv6; every other network AFI is ipv4). */
+/** The family whose unicast and labeled-unicast AFIs are both enabled (lab verify rejects that pair). */
+export function labeledUnicastConflict(afis: Iterable<string>): "IPv4" | "IPv6" | null {
+  const enabled = new Set(afis);
+  if (enabled.has("ipv4-unicast") && enabled.has("ipv4-labeled-unicast")) return "IPv4";
+  if (enabled.has("ipv6-unicast") && enabled.has("ipv6-labeled-unicast")) return "IPv6";
+  return null;
+}
+
+/** Address family of an AFI name (every `ipv6-*` AFI is ipv6; every other network AFI is ipv4). */
 export function afiFamily(afi: string): "ipv4" | "ipv6" {
   return afi.startsWith("ipv6") ? "ipv6" : "ipv4";
 }

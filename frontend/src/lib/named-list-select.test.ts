@@ -140,7 +140,10 @@ describe("named list select", () => {
     }
     assert.match(neighbor, /!isEditMode && configuredAddresses\.some\(\(a\) => sameNeighborAddress\(a, trimmed\)\)/);
     assert.match(neighbor, /!isEditMode && !isIPAddress\(trimmed\)/);
-    assert.match(neighbor, /peerProblem\(\{[\s\S]*?neighbor: \{ address: trimmed, remoteAs, peerGroup, peerGroupRemoteAs: peerGroupRemoteAs\[peerGroup\] \}/);
+    assert.match(neighbor, /peerProblem\(\{[\s\S]*?neighbor: \{\s*address: trimmed,\s*peerGroup,\s*peerGroupRemoteAs: peerGroupRemoteAs\[peerGroup\],\s*memberRemoteAs: \(peerGroupMembers\[peerGroup\] \?\? \[\]\)/);
+    assert.match(neighbor, /labeledUnicastConflict\(Object\.keys\(addressFamilies\)\)/);
+    assert.match(peerGroup, /members: existingPeerGroup \? \(peerGroupMembers\[existingPeerGroup\.name\] \?\? \[\]\) : \[\]/);
+    assert.match(peerGroup, /labeledUnicastConflict\(enabledAFs\)/);
     assert.match(neighbor, /remoteAs: remoteAsNumber\(remoteAs\)/);
     assert.match(peerGroup, /peerProblem\(\{/);
     assert.match(peerGroup, /remoteAs: remoteAsNumber\(remoteAs\)/);
@@ -171,6 +174,15 @@ describe("named list select", () => {
     assert.match(page, /\.filter\(\(p\) => !currentAf\?\.redistribute\.some\(\(r\) => r\.protocol === p\)\)/);
     const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
     assert.match(neighbor, /existingNeighbor\?\.address_families\[afi\]/);
+    assert.match(page, /const afLeaves = capabilities\?\.address_family_leaves\?\.global\?\.\[selectedAfi\] \?\? \[\];/);
+    assert.match(page, /\{afLeaves\.includes\("network"\) && \(/);
+    assert.match(page, /hasWritePermission && afLeaves\.includes\("network route-map"\) && \(/);
+    assert.match(page, /\{afLeaves\.includes\("aggregate-address"\) && \(/);
+    assert.match(page, /\{afRedistributeAll\.length > 0 && \(/);
+    assert.match(neighbor, /capabilities\?\.address_family_leaves\?\.neighbor\?\.\[afi\]/);
+    for (const leaf of ["nexthop-self", "default-originate", "as-override", "remove-private-as", "maximum-prefix", "allowas-in", "weight"]) {
+      assert.ok(neighbor.includes(`{afHasLeaf(afi, "${leaf}") && (`), leaf);
+    }
   });
 
   it("hides BGP write controls from read-only users", () => {

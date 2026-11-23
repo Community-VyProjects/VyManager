@@ -91,6 +91,7 @@ import {
   KEEPALIVE_RANGE,
   LOCAL_PREF_RANGE,
   numberText,
+  peerGroupMembersOf,
   OVERVIEW_RANGES,
   PARAMETERS_RANGES,
   parametersProblem,
@@ -743,13 +744,14 @@ export function BgpContent() {
     return formatUnknownAfi(afi);
   };
 
-  const redistributeProtocols = (
-    (selectedAfi === "ipv6-unicast"
-      ? capabilities?.redistribute_protocols?.["ipv6-unicast"]
-      : selectedAfi === "ipv4-unicast"
-        ? capabilities?.redistribute_protocols?.["ipv4-unicast"]
-        : []) ?? []
-  ).filter((p) => !currentAf?.redistribute.some((r) => r.protocol === p));
+  const afLeaves = capabilities?.address_family_leaves?.global?.[selectedAfi] ?? [];
+  const peerGroupMembers = peerGroupMembersOf(config?.neighbors ?? []);
+  const afRedistributeAll = (selectedAfi === "ipv6-unicast"
+    ? capabilities?.redistribute_protocols?.["ipv6-unicast"]
+    : selectedAfi === "ipv4-unicast"
+      ? capabilities?.redistribute_protocols?.["ipv4-unicast"]
+      : []) ?? [];
+  const redistributeProtocols = afRedistributeAll.filter((p) => !currentAf?.redistribute.some((r) => r.protocol === p));
 
   // ==========================================================================
   // Render
@@ -1389,9 +1391,8 @@ export function BgpContent() {
                       </Card>
                     )}
 
-                    {!isL2vpnEvpn && (
-                    <>
                     {/* Networks */}
+                    {afLeaves.includes("network") && (
                     <Card>
                       <CardContent className="p-6">
                         <h3 className="text-sm font-medium mb-4">{t("content.af.networks")}</h3>
@@ -1436,7 +1437,7 @@ export function BgpContent() {
                           </Table>
                         )}
 
-                        {hasWritePermission && (
+                        {hasWritePermission && afLeaves.includes("network route-map") && (
                           <div className="flex items-end gap-3 mt-4">
                             <div className="flex-1 space-y-1">
                               <Label className="text-xs">{t("content.prefix")}</Label>
@@ -1459,8 +1460,10 @@ export function BgpContent() {
                         )}
                       </CardContent>
                     </Card>
+                    )}
 
                     {/* Redistribute */}
+                    {afRedistributeAll.length > 0 && (
                     <Card>
                       <CardContent className="p-6">
                         <h3 className="text-sm font-medium mb-4">{t("content.af.redistribute")}</h3>
@@ -1597,8 +1600,10 @@ export function BgpContent() {
                         )}
                       </CardContent>
                     </Card>
+                    )}
 
                     {/* Aggregate Addresses */}
+                    {afLeaves.includes("aggregate-address") && (
                     <Card>
                       <CardContent className="p-6">
                         <h3 className="text-sm font-medium mb-4">{t("content.af.aggregate")}</h3>
@@ -1688,7 +1693,6 @@ export function BgpContent() {
                         )}
                       </CardContent>
                     </Card>
-                    </>
                     )}
 
                     {/* Maximum Paths */}
@@ -2424,6 +2428,7 @@ export function BgpContent() {
         peerGroups={config?.peer_groups.map((pg) => pg.name) ?? []}
         peerGroupRemoteAs={Object.fromEntries(config?.peer_groups.map((pg) => [pg.name, pg.remote_as]) ?? [])}
         systemAs={config?.system_as ?? null}
+        peerGroupMembers={peerGroupMembers}
         configuredAddresses={config?.neighbors.map((n) => n.address) ?? []}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
@@ -2447,6 +2452,7 @@ export function BgpContent() {
         existingPeerGroup={editingPeerGroup}
         configuredNames={config?.peer_groups.map((pg) => pg.name) ?? []}
         systemAs={config?.system_as ?? null}
+        peerGroupMembers={peerGroupMembers}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
         bfdProfileNames={bfdProfileNames}

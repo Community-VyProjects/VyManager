@@ -29,10 +29,12 @@ import {
   BFD_HOLD_TIME_RANGE,
   EBGP_MULTIHOP_RANGE,
   firstRangeProblem,
+  labeledUnicastConflict,
   PEER_GROUP_RANGES,
   peerProblem,
   remoteAsNumber,
   TTL_SECURITY_RANGE,
+  type PeerGroupMember,
   type PeerGroupRangeField,
 } from "@/lib/api/bgp-ranges";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -50,6 +52,8 @@ interface BgpPeerGroupModalProps {
   existingPeerGroup?: BgpPeerGroup | null;
   configuredNames: string[];
   systemAs: string | null;
+  /** Configured neighbors of each peer group, by peer-group name. */
+  peerGroupMembers: Record<string, PeerGroupMember[]>;
   capabilities?: BgpCapabilities | null;
   routeMapNames: string[];
   bfdProfileNames: string[];
@@ -120,6 +124,7 @@ export function BgpPeerGroupModal({
   existingPeerGroup,
   configuredNames,
   systemAs,
+  peerGroupMembers,
   capabilities,
   routeMapNames,
   bfdProfileNames,
@@ -358,13 +363,19 @@ export function BgpPeerGroupModal({
     const problem = peerProblem({
       localAs: localAsAsn,
       systemAs,
+      remoteAs,
       ebgpMultihop,
       ttlSecurityHops,
       overrideCapability,
       password,
+      members: existingPeerGroup ? (peerGroupMembers[existingPeerGroup.name] ?? []) : [],
     });
     if (problem) {
       return t(`form.${problem}`);
+    }
+    const labeledConflict = labeledUnicastConflict(enabledAFs);
+    if (labeledConflict) {
+      return t("form.unicastWithLabeled", { family: labeledConflict });
     }
 
     return null;

@@ -37,6 +37,72 @@ class BgpMapper(BaseFeatureMapper):
         "pre-policy", "post-policy",
     )
 
+    # protocols bgp address-family <afi> leaves (both labs), plus the network
+    # children, which differ by AFI: the vpn network node has only rd and
+    # label. l2vpn-evpn path methods name the AFI themselves; maximum-paths
+    # and redistribute have their own AFI lists above.
+    _AF_UNICAST = (
+        "aggregate-address", "distance", "export", "import", "label",
+        "network", "nexthop", "rd", "route-map", "route-target", "sid",
+    )
+    _AF_LEAVES: Dict[str, tuple] = {
+        "ipv4-unicast": _AF_UNICAST + ("network backdoor", "network route-map"),
+        "ipv6-unicast": _AF_UNICAST + ("network path-limit", "network route-map"),
+        "ipv4-multicast": ("aggregate-address", "distance", "network", "network backdoor", "network route-map"),
+        "ipv6-multicast": ("aggregate-address", "distance", "network", "network path-limit", "network route-map"),
+        "ipv4-labeled-unicast": ("aggregate-address", "network", "network backdoor", "network route-map"),
+        "ipv6-labeled-unicast": ("aggregate-address", "network", "network backdoor", "network route-map"),
+        "ipv4-vpn": ("network", "network label", "network rd"),
+        "ipv6-vpn": ("network", "network label", "network rd"),
+        "ipv4-flowspec": ("local-install",),
+        "ipv6-flowspec": ("local-install",),
+        "l2vpn-evpn": (),
+    }
+
+    # protocols bgp neighbor <x> address-family <afi> leaves (both labs).
+    _NEIGHBOR_AF_COMMON = (
+        "addpath-tx-all", "addpath-tx-per-as", "allowas-in", "as-override",
+        "attribute-unchanged", "conditionally-advertise",
+        "disable-send-community", "distribute-list", "filter-list",
+        "maximum-prefix", "maximum-prefix-out", "nexthop-self", "prefix-list",
+        "remove-private-as", "route-map", "route-reflector-client",
+        "route-server-client", "soft-reconfiguration", "unsuppress-map",
+        "weight",
+    )
+    _NEIGHBOR_AF_LEAVES: Dict[str, tuple] = {
+        "ipv4-unicast": _NEIGHBOR_AF_COMMON + ("capability", "default-originate"),
+        "ipv6-unicast": _NEIGHBOR_AF_COMMON + ("capability", "default-originate", "nexthop-local"),
+        "ipv4-multicast": _NEIGHBOR_AF_COMMON + ("capability", "default-originate"),
+        "ipv6-multicast": _NEIGHBOR_AF_COMMON + ("default-originate", "nexthop-local"),
+        "ipv4-labeled-unicast": _NEIGHBOR_AF_COMMON + ("capability", "default-originate"),
+        "ipv6-labeled-unicast": _NEIGHBOR_AF_COMMON + ("capability", "default-originate", "nexthop-local"),
+        "ipv4-vpn": _NEIGHBOR_AF_COMMON,
+        "ipv6-vpn": _NEIGHBOR_AF_COMMON + ("nexthop-local",),
+        "ipv4-flowspec": (
+            "filter-list", "prefix-list", "route-map", "route-reflector-client",
+            "route-server-client", "soft-reconfiguration",
+        ),
+        "ipv6-flowspec": (
+            "filter-list", "prefix-list", "route-map", "route-reflector-client",
+            "route-server-client", "soft-reconfiguration",
+        ),
+        "l2vpn-evpn": (
+            "allowas-in", "attribute-unchanged", "nexthop-self", "route-map",
+            "route-reflector-client", "route-server-client",
+            "soft-reconfiguration",
+        ),
+    }
+
+    # protocols bgp peer-group <x> address-family <afi> (both labs; same
+    # leaves per AFI as a neighbor). link-state is 1.5-only and gated as a
+    # versioned node.
+    _PEER_GROUP_AFIS = (
+        "ipv4-unicast", "ipv6-unicast",
+        "ipv4-labeled-unicast", "ipv6-labeled-unicast",
+        "ipv4-vpn", "ipv6-vpn",
+        "l2vpn-evpn",
+    )
+
     # Leaves only 1.5 has, mapped to the path method the subclass defines.
     _VERSIONED_NODES = {
         "neighbor link-state": "get_neighbor_link_state",
@@ -99,6 +165,41 @@ class BgpMapper(BaseFeatureMapper):
         if afi not in self.maximum_paths_afis():
             raise ValueError(
                 f"maximum-paths is not supported for {afi} on this device")
+
+    def address_families(self) -> List[str]:
+        return list(self._AF_LEAVES)
+
+    def af_leaves(self, afi: str) -> FrozenSet[str]:
+        return frozenset(self._AF_LEAVES.get(afi, ()))
+
+    def _require_af_leaf(self, afi: str, leaf: str) -> None:
+        if leaf not in self.af_leaves(afi):
+            raise ValueError(
+                f"{leaf} is not supported for address-family {afi} on this device")
+
+    def neighbor_address_families(self) -> List[str]:
+        return list(self._NEIGHBOR_AF_LEAVES)
+
+    def neighbor_af_leaves(self, afi: str) -> FrozenSet[str]:
+        return frozenset(self._NEIGHBOR_AF_LEAVES.get(afi, ()))
+
+    def _require_neighbor_af_leaf(self, afi: str, leaf: str) -> None:
+        if leaf not in self.neighbor_af_leaves(afi):
+            raise ValueError(
+                f"{leaf} is not supported for neighbor address-family {afi} on this device")
+
+    def peer_group_address_families(self) -> List[str]:
+        return list(self._PEER_GROUP_AFIS)
+
+    def peer_group_af_leaves(self, afi: str) -> FrozenSet[str]:
+        if afi not in self._PEER_GROUP_AFIS:
+            return frozenset()
+        return self.neighbor_af_leaves(afi)
+
+    def _require_peer_group_af_leaf(self, afi: str, leaf: str) -> None:
+        if leaf not in self.peer_group_af_leaves(afi):
+            raise ValueError(
+                f"{leaf} is not supported for peer-group address-family {afi} on this device")
 
     def as_notation_values(self) -> List[str]:
         return []
@@ -521,188 +622,251 @@ class BgpMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_neighbor_af(self, neighbor: str, afi: str) -> List[str]:
+        if afi not in self._NEIGHBOR_AF_LEAVES:
+            raise ValueError(
+                f"neighbor address-family {afi} is not supported on this device")
         return self._neighbor_af(neighbor, afi)
 
     def get_neighbor_af_route_map_export(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "route-map")
         return self._neighbor_af(neighbor, afi) + ["route-map", "export", value]
 
     def get_neighbor_af_route_map_import(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "route-map")
         return self._neighbor_af(neighbor, afi) + ["route-map", "import", value]
 
     def get_neighbor_af_route_map_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "route-map")
         return self._neighbor_af(neighbor, afi) + ["route-map"]
 
     def get_neighbor_af_route_map_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "route-map")
         return self._neighbor_af(neighbor, afi) + ["route-map", "import"]
 
     def get_neighbor_af_route_map_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "route-map")
         return self._neighbor_af(neighbor, afi) + ["route-map", "export"]
 
     def get_neighbor_af_prefix_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "prefix-list")
         return self._neighbor_af(neighbor, afi) + ["prefix-list", "export", value]
 
     def get_neighbor_af_prefix_list_import(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "prefix-list")
         return self._neighbor_af(neighbor, afi) + ["prefix-list", "import", value]
 
     def get_neighbor_af_prefix_list_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "prefix-list")
         return self._neighbor_af(neighbor, afi) + ["prefix-list"]
 
     def get_neighbor_af_prefix_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "prefix-list")
         return self._neighbor_af(neighbor, afi) + ["prefix-list", "import"]
 
     def get_neighbor_af_prefix_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "prefix-list")
         return self._neighbor_af(neighbor, afi) + ["prefix-list", "export"]
 
     def get_neighbor_af_filter_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "filter-list")
         return self._neighbor_af(neighbor, afi) + ["filter-list", "export", value]
 
     def get_neighbor_af_filter_list_import(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "filter-list")
         return self._neighbor_af(neighbor, afi) + ["filter-list", "import", value]
 
     def get_neighbor_af_filter_list_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "filter-list")
         return self._neighbor_af(neighbor, afi) + ["filter-list"]
 
     def get_neighbor_af_filter_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "filter-list")
         return self._neighbor_af(neighbor, afi) + ["filter-list", "import"]
 
     def get_neighbor_af_filter_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "filter-list")
         return self._neighbor_af(neighbor, afi) + ["filter-list", "export"]
 
     def get_neighbor_af_distribute_list_export(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "distribute-list")
         return self._neighbor_af(neighbor, afi) + ["distribute-list", "export", value]
 
     def get_neighbor_af_distribute_list_import(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "distribute-list")
         return self._neighbor_af(neighbor, afi) + ["distribute-list", "import", value]
 
     def get_neighbor_af_distribute_list_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "distribute-list")
         return self._neighbor_af(neighbor, afi) + ["distribute-list"]
 
     def get_neighbor_af_distribute_list_import_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "distribute-list")
         return self._neighbor_af(neighbor, afi) + ["distribute-list", "import"]
 
     def get_neighbor_af_distribute_list_export_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "distribute-list")
         return self._neighbor_af(neighbor, afi) + ["distribute-list", "export"]
 
     def get_neighbor_af_soft_reconfiguration_inbound(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "soft-reconfiguration")
         return self._neighbor_af(neighbor, afi) + ["soft-reconfiguration", "inbound"]
 
     def get_neighbor_af_route_reflector_client(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "route-reflector-client")
         return self._neighbor_af(neighbor, afi) + ["route-reflector-client"]
 
     def get_neighbor_af_route_server_client(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "route-server-client")
         return self._neighbor_af(neighbor, afi) + ["route-server-client"]
 
     def get_neighbor_af_nexthop_self(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "nexthop-self")
         return self._neighbor_af(neighbor, afi) + ["nexthop-self"]
 
     def get_neighbor_af_nexthop_self_force(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "nexthop-self")
         return self._neighbor_af(neighbor, afi) + ["nexthop-self", "force"]
 
     def get_neighbor_af_addpath_tx_all(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "addpath-tx-all")
         return self._neighbor_af(neighbor, afi) + ["addpath-tx-all"]
 
     def get_neighbor_af_addpath_tx_per_as(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "addpath-tx-per-as")
         return self._neighbor_af(neighbor, afi) + ["addpath-tx-per-as"]
 
     def get_neighbor_af_allowas_in_number(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "allowas-in")
         return self._neighbor_af(neighbor, afi) + ["allowas-in", "number", value]
 
     def get_neighbor_af_allowas_in_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "allowas-in")
         return self._neighbor_af(neighbor, afi) + ["allowas-in"]
 
     def get_neighbor_af_as_override(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "as-override")
         return self._neighbor_af(neighbor, afi) + ["as-override"]
 
     def get_neighbor_af_attribute_unchanged_as_path(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "attribute-unchanged")
         return self._neighbor_af(neighbor, afi) + ["attribute-unchanged", "as-path"]
 
     def get_neighbor_af_attribute_unchanged_med(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "attribute-unchanged")
         return self._neighbor_af(neighbor, afi) + ["attribute-unchanged", "med"]
 
     def get_neighbor_af_attribute_unchanged_next_hop(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "attribute-unchanged")
         return self._neighbor_af(neighbor, afi) + ["attribute-unchanged", "next-hop"]
 
     def get_neighbor_af_attribute_unchanged_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "attribute-unchanged")
         return self._neighbor_af(neighbor, afi) + ["attribute-unchanged"]
 
     def get_neighbor_af_default_originate(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "default-originate")
         return self._neighbor_af(neighbor, afi) + ["default-originate"]
 
     def get_neighbor_af_default_originate_route_map(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "default-originate")
         return self._neighbor_af(neighbor, afi) + ["default-originate", "route-map", value]
 
     def get_neighbor_af_default_originate_route_map_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "default-originate")
         return self._neighbor_af(neighbor, afi) + ["default-originate", "route-map"]
 
     def get_neighbor_af_default_originate_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "default-originate")
         return self._neighbor_af(neighbor, afi) + ["default-originate"]
 
     def get_neighbor_af_maximum_prefix(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "maximum-prefix")
         return self._neighbor_af(neighbor, afi) + ["maximum-prefix", value]
 
     def get_neighbor_af_maximum_prefix_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "maximum-prefix")
         return self._neighbor_af(neighbor, afi) + ["maximum-prefix"]
 
     def get_neighbor_af_maximum_prefix_out(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "maximum-prefix-out")
         return self._neighbor_af(neighbor, afi) + ["maximum-prefix-out", value]
 
     def get_neighbor_af_maximum_prefix_out_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "maximum-prefix-out")
         return self._neighbor_af(neighbor, afi) + ["maximum-prefix-out"]
 
     def get_neighbor_af_remove_private_as(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "remove-private-as")
         return self._neighbor_af(neighbor, afi) + ["remove-private-as"]
 
     def get_neighbor_af_remove_private_as_all(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "remove-private-as")
         return self._neighbor_af(neighbor, afi) + ["remove-private-as", "all"]
 
     def get_neighbor_af_remove_private_as_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "remove-private-as")
         return self._neighbor_af(neighbor, afi) + ["remove-private-as"]
 
     def get_neighbor_af_disable_send_community_extended(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "disable-send-community")
         return self._neighbor_af(neighbor, afi) + ["disable-send-community", "extended"]
 
     def get_neighbor_af_disable_send_community_standard(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "disable-send-community")
         return self._neighbor_af(neighbor, afi) + ["disable-send-community", "standard"]
 
     def get_neighbor_af_disable_send_community_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "disable-send-community")
         return self._neighbor_af(neighbor, afi) + ["disable-send-community"]
 
     def get_neighbor_af_weight(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "weight")
         return self._neighbor_af(neighbor, afi) + ["weight", value]
 
     def get_neighbor_af_weight_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "weight")
         return self._neighbor_af(neighbor, afi) + ["weight"]
 
     def get_neighbor_af_unsuppress_map(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "unsuppress-map")
         return self._neighbor_af(neighbor, afi) + ["unsuppress-map", value]
 
     def get_neighbor_af_unsuppress_map_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "unsuppress-map")
         return self._neighbor_af(neighbor, afi) + ["unsuppress-map"]
 
     def get_neighbor_af_conditionally_advertise_advertise_map(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "conditionally-advertise")
         return self._neighbor_af(neighbor, afi) + ["conditionally-advertise", "advertise-map", value]
 
     def get_neighbor_af_conditionally_advertise_exist_map(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "conditionally-advertise")
         return self._neighbor_af(neighbor, afi) + ["conditionally-advertise", "exist-map", value]
 
     def get_neighbor_af_conditionally_advertise_non_exist_map(self, neighbor: str, afi: str, value: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "conditionally-advertise")
         return self._neighbor_af(neighbor, afi) + ["conditionally-advertise", "non-exist-map", value]
 
     def get_neighbor_af_conditionally_advertise_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "conditionally-advertise")
         return self._neighbor_af(neighbor, afi) + ["conditionally-advertise"]
 
     # IPv6-specific: nexthop-local unchanged
     def get_neighbor_af_nexthop_local_unchanged(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "nexthop-local")
         return self._neighbor_af(neighbor, afi) + ["nexthop-local", "unchanged"]
 
     # Capability ORF
     def get_neighbor_af_capability_orf_prefix_list_receive(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "capability")
         return self._neighbor_af(neighbor, afi) + ["capability", "orf", "prefix-list", "receive"]
 
     def get_neighbor_af_capability_orf_prefix_list_send(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "capability")
         return self._neighbor_af(neighbor, afi) + ["capability", "orf", "prefix-list", "send"]
 
     def get_neighbor_af_capability_orf_delete(self, neighbor: str, afi: str) -> List[str]:
+        self._require_neighbor_af_leaf(afi, "capability")
         return self._neighbor_af(neighbor, afi) + ["capability", "orf"]
 
     # ========================================================================
@@ -831,126 +995,169 @@ class BgpMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_peer_group_af(self, name: str, afi: str) -> List[str]:
+        if afi not in self._PEER_GROUP_AFIS:
+            raise ValueError(
+                f"peer-group address-family {afi} is not supported on this device")
         return self._peer_group_af(name, afi)
 
     def get_peer_group_af_route_map_export(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "route-map")
         return self._peer_group_af(name, afi) + ["route-map", "export", value]
 
     def get_peer_group_af_route_map_import(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "route-map")
         return self._peer_group_af(name, afi) + ["route-map", "import", value]
 
     def get_peer_group_af_route_map_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "route-map")
         return self._peer_group_af(name, afi) + ["route-map"]
 
     def get_peer_group_af_route_map_import_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "route-map")
         return self._peer_group_af(name, afi) + ["route-map", "import"]
 
     def get_peer_group_af_route_map_export_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "route-map")
         return self._peer_group_af(name, afi) + ["route-map", "export"]
 
     def get_peer_group_af_prefix_list_export(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "prefix-list")
         return self._peer_group_af(name, afi) + ["prefix-list", "export", value]
 
     def get_peer_group_af_prefix_list_import(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "prefix-list")
         return self._peer_group_af(name, afi) + ["prefix-list", "import", value]
 
     def get_peer_group_af_prefix_list_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "prefix-list")
         return self._peer_group_af(name, afi) + ["prefix-list"]
 
     def get_peer_group_af_filter_list_export(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "filter-list")
         return self._peer_group_af(name, afi) + ["filter-list", "export", value]
 
     def get_peer_group_af_filter_list_import(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "filter-list")
         return self._peer_group_af(name, afi) + ["filter-list", "import", value]
 
     def get_peer_group_af_filter_list_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "filter-list")
         return self._peer_group_af(name, afi) + ["filter-list"]
 
     def get_peer_group_af_soft_reconfiguration_inbound(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "soft-reconfiguration")
         return self._peer_group_af(name, afi) + ["soft-reconfiguration", "inbound"]
 
     def get_peer_group_af_route_reflector_client(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "route-reflector-client")
         return self._peer_group_af(name, afi) + ["route-reflector-client"]
 
     def get_peer_group_af_route_server_client(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "route-server-client")
         return self._peer_group_af(name, afi) + ["route-server-client"]
 
     def get_peer_group_af_nexthop_self(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "nexthop-self")
         return self._peer_group_af(name, afi) + ["nexthop-self"]
 
     def get_peer_group_af_nexthop_self_force(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "nexthop-self")
         return self._peer_group_af(name, afi) + ["nexthop-self", "force"]
 
     def get_peer_group_af_addpath_tx_all(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "addpath-tx-all")
         return self._peer_group_af(name, afi) + ["addpath-tx-all"]
 
     def get_peer_group_af_addpath_tx_per_as(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "addpath-tx-per-as")
         return self._peer_group_af(name, afi) + ["addpath-tx-per-as"]
 
     def get_peer_group_af_allowas_in_number(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "allowas-in")
         return self._peer_group_af(name, afi) + ["allowas-in", "number", value]
 
     def get_peer_group_af_allowas_in_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "allowas-in")
         return self._peer_group_af(name, afi) + ["allowas-in"]
 
     def get_peer_group_af_as_override(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "as-override")
         return self._peer_group_af(name, afi) + ["as-override"]
 
     def get_peer_group_af_attribute_unchanged_as_path(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "attribute-unchanged")
         return self._peer_group_af(name, afi) + ["attribute-unchanged", "as-path"]
 
     def get_peer_group_af_attribute_unchanged_med(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "attribute-unchanged")
         return self._peer_group_af(name, afi) + ["attribute-unchanged", "med"]
 
     def get_peer_group_af_attribute_unchanged_next_hop(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "attribute-unchanged")
         return self._peer_group_af(name, afi) + ["attribute-unchanged", "next-hop"]
 
     def get_peer_group_af_attribute_unchanged_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "attribute-unchanged")
         return self._peer_group_af(name, afi) + ["attribute-unchanged"]
 
     def get_peer_group_af_default_originate(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "default-originate")
         return self._peer_group_af(name, afi) + ["default-originate"]
 
     def get_peer_group_af_default_originate_route_map(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "default-originate")
         return self._peer_group_af(name, afi) + ["default-originate", "route-map", value]
 
     def get_peer_group_af_default_originate_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "default-originate")
         return self._peer_group_af(name, afi) + ["default-originate"]
 
     def get_peer_group_af_maximum_prefix(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "maximum-prefix")
         return self._peer_group_af(name, afi) + ["maximum-prefix", value]
 
     def get_peer_group_af_maximum_prefix_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "maximum-prefix")
         return self._peer_group_af(name, afi) + ["maximum-prefix"]
 
     def get_peer_group_af_remove_private_as(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "remove-private-as")
         return self._peer_group_af(name, afi) + ["remove-private-as"]
 
     def get_peer_group_af_remove_private_as_all(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "remove-private-as")
         return self._peer_group_af(name, afi) + ["remove-private-as", "all"]
 
     def get_peer_group_af_remove_private_as_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "remove-private-as")
         return self._peer_group_af(name, afi) + ["remove-private-as"]
 
     def get_peer_group_af_disable_send_community_extended(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "disable-send-community")
         return self._peer_group_af(name, afi) + ["disable-send-community", "extended"]
 
     def get_peer_group_af_disable_send_community_standard(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "disable-send-community")
         return self._peer_group_af(name, afi) + ["disable-send-community", "standard"]
 
     def get_peer_group_af_disable_send_community_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "disable-send-community")
         return self._peer_group_af(name, afi) + ["disable-send-community"]
 
     def get_peer_group_af_weight(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "weight")
         return self._peer_group_af(name, afi) + ["weight", value]
 
     def get_peer_group_af_weight_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "weight")
         return self._peer_group_af(name, afi) + ["weight"]
 
     def get_peer_group_af_unsuppress_map(self, name: str, afi: str, value: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "unsuppress-map")
         return self._peer_group_af(name, afi) + ["unsuppress-map", value]
 
     def get_peer_group_af_unsuppress_map_delete(self, name: str, afi: str) -> List[str]:
+        self._require_peer_group_af_leaf(afi, "unsuppress-map")
         return self._peer_group_af(name, afi) + ["unsuppress-map"]
 
     # ========================================================================
@@ -959,40 +1166,52 @@ class BgpMapper(BaseFeatureMapper):
 
     # Network
     def get_af_network(self, afi: str, prefix: str) -> List[str]:
+        self._require_af_leaf(afi, "network")
         return self._af(afi) + ["network", prefix]
 
     def get_af_network_route_map(self, afi: str, prefix: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "network route-map")
         return self._af(afi) + ["network", prefix, "route-map", value]
 
     def get_af_network_backdoor(self, afi: str, prefix: str) -> List[str]:
+        self._require_af_leaf(afi, "network backdoor")
         return self._af(afi) + ["network", prefix, "backdoor"]
 
     def get_af_network_path_limit(self, afi: str, prefix: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "network path-limit")
         return self._af(afi) + ["network", prefix, "path-limit", value]
 
     def get_af_network_label(self, afi: str, prefix: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "network label")
         return self._af(afi) + ["network", prefix, "label", value]
 
     def get_af_network_rd(self, afi: str, prefix: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "network rd")
         return self._af(afi) + ["network", prefix, "rd", value]
 
     def get_af_network_delete(self, afi: str, prefix: str) -> List[str]:
+        self._require_af_leaf(afi, "network")
         return self._af(afi) + ["network", prefix]
 
     # Aggregate address
     def get_af_aggregate_address(self, afi: str, prefix: str) -> List[str]:
+        self._require_af_leaf(afi, "aggregate-address")
         return self._af(afi) + ["aggregate-address", prefix]
 
     def get_af_aggregate_address_as_set(self, afi: str, prefix: str) -> List[str]:
+        self._require_af_leaf(afi, "aggregate-address")
         return self._af(afi) + ["aggregate-address", prefix, "as-set"]
 
     def get_af_aggregate_address_summary_only(self, afi: str, prefix: str) -> List[str]:
+        self._require_af_leaf(afi, "aggregate-address")
         return self._af(afi) + ["aggregate-address", prefix, "summary-only"]
 
     def get_af_aggregate_address_route_map(self, afi: str, prefix: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "aggregate-address")
         return self._af(afi) + ["aggregate-address", prefix, "route-map", value]
 
     def get_af_aggregate_address_delete(self, afi: str, prefix: str) -> List[str]:
+        self._require_af_leaf(afi, "aggregate-address")
         return self._af(afi) + ["aggregate-address", prefix]
 
     # Maximum paths
@@ -1046,85 +1265,110 @@ class BgpMapper(BaseFeatureMapper):
         return self._af(afi) + ["redistribute", "table", table]
 
     def get_af_redistribute_delete(self, afi: str, protocol: str) -> List[str]:
+        self._require_redistribute(afi, protocol)
         return self._af(afi) + ["redistribute", protocol]
 
     # Distance
     def get_af_distance_external(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "distance")
         return self._af(afi) + ["distance", "external", value]
 
     def get_af_distance_internal(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "distance")
         return self._af(afi) + ["distance", "internal", value]
 
     def get_af_distance_local(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "distance")
         return self._af(afi) + ["distance", "local", value]
 
     def get_af_distance_prefix(self, afi: str, prefix: str, distance: str) -> List[str]:
+        self._require_af_leaf(afi, "distance")
         return self._af(afi) + ["distance", "prefix", prefix, "distance", distance]
 
     def get_af_distance_delete(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "distance")
         return self._af(afi) + ["distance"]
 
     # VPN export/import
     def get_af_export_vpn(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "export")
         return self._af(afi) + ["export", "vpn"]
 
     def get_af_import_vpn(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "import")
         return self._af(afi) + ["import", "vpn"]
 
     def get_af_import_vrf(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "import")
         return self._af(afi) + ["import", "vrf", value]
 
     def get_af_import_delete(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "import")
         return self._af(afi) + ["import"]
 
     # Label VPN
     def get_af_label_vpn_export(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "label")
         return self._af(afi) + ["label", "vpn", "export", value]
 
     def get_af_label_vpn_allocation_mode_per_nexthop(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "label")
         return self._af(afi) + ["label", "vpn", "allocation-mode", "per-nexthop"]
 
     def get_af_label_vpn_delete(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "label")
         return self._af(afi) + ["label", "vpn"]
 
     # Nexthop/RD/Route-target VPN
     def get_af_nexthop_vpn_export(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "nexthop")
         return self._af(afi) + ["nexthop", "vpn", "export", value]
 
     def get_af_rd_vpn_export(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "rd")
         return self._af(afi) + ["rd", "vpn", "export", value]
 
     def get_af_route_target_vpn_both(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "route-target")
         return self._af(afi) + ["route-target", "vpn", "both", value]
 
     def get_af_route_target_vpn_export(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "route-target")
         return self._af(afi) + ["route-target", "vpn", "export", value]
 
     def get_af_route_target_vpn_import(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "route-target")
         return self._af(afi) + ["route-target", "vpn", "import", value]
 
     def get_af_route_target_vpn_delete(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "route-target")
         return self._af(afi) + ["route-target", "vpn"]
 
     # Route-map VPN/VRF
     def get_af_route_map_vpn_export(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "route-map")
         return self._af(afi) + ["route-map", "vpn", "export", value]
 
     def get_af_route_map_vpn_import(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "route-map")
         return self._af(afi) + ["route-map", "vpn", "import", value]
 
     def get_af_route_map_vrf_import(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "route-map")
         return self._af(afi) + ["route-map", "vrf", "import", value]
 
     # SID VPN
     def get_af_sid_vpn_export(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "sid")
         return self._af(afi) + ["sid", "vpn", "export", value]
 
     # Flowspec
     def get_af_local_install_interface(self, afi: str, value: str) -> List[str]:
+        self._require_af_leaf(afi, "local-install")
         return self._af(afi) + ["local-install", "interface", value]
 
     def get_af_local_install_delete(self, afi: str) -> List[str]:
+        self._require_af_leaf(afi, "local-install")
         return self._af(afi) + ["local-install"]
 
     # ========================================================================
