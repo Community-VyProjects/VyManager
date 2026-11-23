@@ -9,8 +9,8 @@ Structure:
     device <name>                           # tagged node: ttyS<N> or usb<N>b<bus>p<port> (usb0b2.4p1.0)
       alias <text>                          # [-_a-zA-Z0-9.], 1-128 chars
       data-bits <7|8>                       # default: 8
-      description <text>                   # 0-255 chars
-      parity <even|odd|none>               # default: none
+      description <text>                    # 0-255 chars
+      parity <even|odd|none>                # default: none
       speed <300|1200|2400|4800|9600|
              19200|38400|57600|115200>
       ssh
