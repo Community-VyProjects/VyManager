@@ -9,15 +9,17 @@ VyOS 1.4 vs 1.5 differences:
 - Default firewall: 1.5 adds `default-firewall name/ipv6-name` (not in 1.4)
 """
 
-from typing import FrozenSet, List
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
 
 
 class FirewallZonesMapper(BaseFeatureMapper):
     """Base firewall zones mapper with shared operations for all versions."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .zones_config_parse import parse_config as parse_zones_config
+
+        return parse_zones_config(self, full_config)
 
     # validateTmplPath on both lab hosts. 1.4 assigns interfaces at the zone
     # level. 1.5 uses member interface, member vrf, and default-firewall.
