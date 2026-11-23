@@ -23,7 +23,9 @@ V6 = PREFIX + ["address-family", "ipv6-unicast"]
 # `ls .../vrf/name/node.tag/protocols/bgp/address-family/<afi>/redistribute`
 LAB_REDIST_IPV4_14 = {"babel", "connected", "isis", "kernel", "ospf", "rip", "static"}
 LAB_REDIST_IPV6_14 = {"babel", "connected", "isis", "kernel", "ospfv3", "ripng", "static"}
-LAB_15_ONLY = frozenset({"peer-group solo"})
+# 1.5-only nodes the VRF mapper has path methods for. The other 1.5-only VRF
+# BGP nodes run only through the global BGP builder.
+VERSIONED_15 = frozenset({"peer-group solo"})
 
 
 def _features(version: str):
@@ -50,7 +52,7 @@ def test_registry_returns_the_version_class(version, cls):
     assert type(CommandMapperRegistry.get_mapper("vrf_bgp", version)) is cls
 
 
-@pytest.mark.parametrize("version, nodes", [("1.4", frozenset()), ("1.5", LAB_15_ONLY), (ROLLING, LAB_15_ONLY)])
+@pytest.mark.parametrize("version, nodes", [("1.4", frozenset()), ("1.5", VERSIONED_15), (ROLLING, VERSIONED_15)])
 def test_versioned_nodes_follow_the_labs(version, nodes):
     assert _vrf_bgp(version).versioned_nodes() == nodes
 
@@ -131,7 +133,7 @@ def test_flag_and_gate_read_the_mapper_not_the_version(monkeypatch):
     assert type(CommandMapperRegistry.get_mapper("vrf_bgp", "1.4")) is VrfBgpMapper
     assert _features("1.4")["bgp_redistribute_nhrp"]["supported"] is True
     mapper = _vrf_bgp("1.4")
-    assert mapper.versioned_nodes() == LAB_15_ONLY
+    assert mapper.versioned_nodes() == VERSIONED_15
     assert _run("1.4", "delete_vrf_bgp_af_redistribute_metric", "ipv4-unicast,nhrp") == [
         ("delete", V4 + ["redistribute", "nhrp", "metric"])
     ]
@@ -237,7 +239,32 @@ CHOICE_OPS = [
     ("delete_vrf_bgp_peer_group_local_role_strict", "PG,peer",
      PREFIX + ["peer-group", "PG", "local-role", "peer", "strict"],
      "PG,T-BAD", "local-role T-BAD is not supported on this device"),
+    ("set_vrf_bgp_af_l2vpn_evpn_flag", "advertise-svi-ip",
+     PREFIX + ["address-family", "l2vpn-evpn", "advertise-svi-ip"],
+     "advertise-pip", "l2vpn-evpn flag advertise-pip is not supported on this device"),
 ]
+
+
+@pytest.mark.parametrize("version", ["1.4", ROLLING])
+@pytest.mark.parametrize("op, value, path", [
+    ("set_vrf_bgp_neighbor_interface_source_interface", "eth1,eth2",
+     PREFIX + ["neighbor", "eth1", "interface", "source-interface", "eth2"]),
+    ("delete_vrf_bgp_neighbor_interface_source_interface", "eth1",
+     PREFIX + ["neighbor", "eth1", "interface", "source-interface"]),
+])
+def test_value_leaf_fallback_carries_the_value(version, op, value, path):
+    """`interface source-interface` is a txt leaf on both labs."""
+    assert _run(version, op, value) == [(op.split("_", 1)[0], path)]
+
+
+def test_advertise_pip_is_a_value_leaf():
+    """`address-family l2vpn-evpn advertise-pip` is a txt address leaf on both labs."""
+    for version in ("1.4", ROLLING):
+        mapper = _vrf_bgp(version)
+        assert "advertise-pip" not in mapper.l2vpn_evpn_control_flags()
+        assert mapper.get_bgp_af_l2vpn_evpn_advertise_pip("T-V", "192.0.2.1") == PREFIX + [
+            "address-family", "l2vpn-evpn", "advertise-pip", "192.0.2.1",
+        ]
 
 
 @pytest.mark.parametrize("version", ["1.4", ROLLING])

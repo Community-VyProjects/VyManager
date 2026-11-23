@@ -51,10 +51,11 @@ class VrfBgpMapper(BaseFeatureMapper):
     # ``neighbor|peer-group <x> local-role <role>`` allowed values (both labs).
     _LOCAL_ROLES = frozenset({"customer", "peer", "provider", "rs-client", "rs-server"})
 
+    # Valueless ``address-family l2vpn-evpn <flag>`` leaves (both labs).
+    # advertise-pip takes an address, so it has its own path method.
     _L2VPN_EVPN_CONTROL_FLAGS = (
         "advertise-all-vni",
         "advertise-default-gw",
-        "advertise-pip",
         "advertise-svi-ip",
         "rt-auto-derive",
         "disable-ead-evi-rx",
@@ -519,8 +520,8 @@ class VrfBgpMapper(BaseFeatureMapper):
     def get_bgp_neighbor_interface_peer_group(self, name: str, neighbor: str, value: str) -> List[str]:
         return self._neighbor(name, neighbor) + ["interface", "peer-group", value]
 
-    def get_bgp_neighbor_interface_source_interface(self, name: str, neighbor: str) -> List[str]:
-        return self._neighbor(name, neighbor) + ["interface", "source-interface"]
+    def get_bgp_neighbor_interface_source_interface(self, name: str, neighbor: str, value: str) -> List[str]:
+        return self._neighbor(name, neighbor) + ["interface", "source-interface", value]
 
     def get_bgp_neighbor_interface_v6only_remote_as(self, name: str, neighbor: str, value: str) -> List[str]:
         return self._neighbor(name, neighbor) + ["interface", "v6only", "remote-as", value]
@@ -1175,6 +1176,9 @@ class VrfBgpMapper(BaseFeatureMapper):
     def get_bgp_af_l2vpn_evpn_flag(self, name: str, flag: str) -> List[str]:
         self._require_l2vpn_evpn_control_flag(flag)
         return self._af(name, "l2vpn-evpn") + [flag]
+
+    def get_bgp_af_l2vpn_evpn_advertise_pip(self, name: str, value: str) -> List[str]:
+        return self._af(name, "l2vpn-evpn") + ["advertise-pip", value]
 
     def get_bgp_af_l2vpn_evpn_advertise_ipv4_unicast(self, name: str) -> List[str]:
         return self._af(name, "l2vpn-evpn") + ["advertise", "ipv4", "unicast"]
