@@ -6,7 +6,7 @@ Configuration lives under: service console-server
 
 Structure:
   service console-server
-    device <name>                           # tagged node: ttyS<N> or usb<N>b<N>p<N>
+    device <name>                           # tagged node: ttyS<N> or usb<N>b<bus>p<port> (usb0b2.4p1.0)
       alias <text>                          # [-_a-zA-Z0-9.], 1-128 chars
       data-bits <7|8>                       # default: 8
       description <text>                   # 0-255 chars

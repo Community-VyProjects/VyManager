@@ -11,7 +11,7 @@ def _tree():
         "service": {
             "console-server": {
                 "device": {
-                    "ttyUSB0": {
+                    "usb0b2.4p1.0": {
                         "alias": "ups",
                         "data-bits": "8",
                         "description": "ups",
@@ -32,13 +32,13 @@ def _tree():
 def test_devices_sorted_and_ssh_port_coerced():
     parsed = ConsoleServerMapper("1.5").parse_config(_tree())
     names = [device["name"] for device in parsed["devices"]]
-    assert names == ["ttyS0", "ttyS1", "ttyS2", "ttyUSB0"]
+    assert names == ["ttyS0", "ttyS1", "ttyS2", "usb0b2.4p1.0"]
     by_name = {device["name"]: device for device in parsed["devices"]}
     assert by_name["ttyS0"]["ssh"] == {"port": 2022}
     assert by_name["ttyS0"]["speed"] == "115200"
     assert by_name["ttyS1"]["ssh"] is None
     assert by_name["ttyS2"]["ssh"] == {"port": None}
-    usb = by_name["ttyUSB0"]
+    usb = by_name["usb0b2.4p1.0"]
     assert usb["ssh"] == {"port": None}
     assert usb["data_bits"] == "8"
     assert usb["stop_bits"] == "1"
