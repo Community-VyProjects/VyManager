@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -17,53 +17,36 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2 } from "lucide-react";
+import type { ApiError } from "@/lib/types/api";
 import type { VrrpSyncGroup, VrrpGroup, HACapabilities } from "@/lib/api/high-availability";
+import {
+  vrrpSyncGroupDraft,
+  vrrpSyncGroupProblem,
+  type HAProblem,
+  type VrrpSyncGroupDraft,
+  type VrrpSyncGroupProblemKey,
+} from "@/lib/api/high-availability-save-ops";
+import { HA_FIELD_LABELS } from "./ha-field-labels";
+import { HealthCheckFields, TransitionScriptFields } from "./HaSectionFields";
 
 interface SyncGroupModalProps {
-  open: boolean;
   onOpenChange: (open: boolean) => void;
   existingGroup?: VrrpSyncGroup | null;
+  existingNames: string[];
   vrrpGroups: VrrpGroup[];
   capabilities?: HACapabilities | null;
-  onSubmit: (group: VrrpSyncGroup) => Promise<void>;
+  onSubmit: (draft: VrrpSyncGroupDraft) => Promise<void>;
 }
 
-interface FormState {
-  name: string;
-  members: string[];
-  hc_failure_count: string;
-  hc_interval: string;
-  hc_ping: string;
-  hc_script: string;
-  hc_timeout: string;
+function hasHealthCheck(group: VrrpGroup): boolean {
+  return Object.values(group.health_check).some(Boolean);
 }
 
-const emptyForm = (): FormState => ({
-  name: "",
-  members: [],
-  hc_failure_count: "",
-  hc_interval: "",
-  hc_ping: "",
-  hc_script: "",
-  hc_timeout: "",
-});
-
-function groupToForm(g: VrrpSyncGroup): FormState {
-  return {
-    name: g.name,
-    members: [...g.members],
-    hc_failure_count: g.health_check.failure_count ?? "",
-    hc_interval: g.health_check.interval ?? "",
-    hc_ping: g.health_check.ping ?? "",
-    hc_script: g.health_check.script ?? "",
-    hc_timeout: g.health_check.timeout ?? "",
-  };
-}
-
+/** Rendered only while open, so the draft starts from the group each time. */
 export function SyncGroupModal({
-  open,
   onOpenChange,
   existingGroup,
+  existingNames,
   vrrpGroups,
   capabilities,
   onSubmit,
@@ -71,20 +54,13 @@ export function SyncGroupModal({
   const t = useTranslations("highAvailability");
   const tc = useTranslations("common");
   const isEdit = !!existingGroup;
-  const timeoutSupported = capabilities?.features.health_check_timeout?.supported ?? false;
-  const [form, setForm] = useState<FormState>(emptyForm());
+  const timeoutSupported = capabilities?.features.sync_group_health_check_timeout?.supported ?? false;
+  const [draft, setDraft] = useState<VrrpSyncGroupDraft>(() => vrrpSyncGroupDraft(existingGroup));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setForm(existingGroup ? groupToForm(existingGroup) : emptyForm());
-      setError(null);
-    }
-  }, [open, existingGroup]);
-
   const toggleMember = (name: string) => {
-    setForm((prev) => ({
+    setDraft((prev) => ({
       ...prev,
       members: prev.members.includes(name)
         ? prev.members.filter((m) => m !== name)
@@ -92,38 +68,47 @@ export function SyncGroupModal({
     }));
   };
 
+  const problemText = (problem: HAProblem<VrrpSyncGroupProblemKey>): string => {
+    if (problem.key === "outOfRange") {
+      return t("outOfRange", {
+        field: t(HA_FIELD_LABELS[problem.field!]),
+        min: problem.min!,
+        max: problem.max!,
+      });
+    }
+    if (problem.key === "healthCheckPingAndScript") return t("healthCheckPingAndScript");
+    return t(`syncModal.${problem.key}`, { name: problem.name ?? "" });
+  };
+
+  const close = (open: boolean) => {
+    if (!loading) onOpenChange(open);
+  };
+
   const handleSubmit = async () => {
     setError(null);
-
-    if (!form.name.trim()) { setError(t("syncModal.nameRequired")); return; }
-    if (form.members.length === 0) { setError(t("syncModal.membersRequired")); return; }
-
+    const problem = vrrpSyncGroupProblem(
+      existingGroup ?? null,
+      draft,
+      existingNames,
+      vrrpGroups.filter(hasHealthCheck).map((group) => group.name),
+    );
+    if (problem) {
+      setError(problemText(problem));
+      return;
+    }
     setLoading(true);
     try {
-      await onSubmit({
-        name: form.name.trim(),
-        members: form.members,
-        health_check: {
-          failure_count: form.hc_failure_count.trim() || null,
-          interval: form.hc_interval.trim() || null,
-          ping: form.hc_ping.trim() || null,
-          script: form.hc_script.trim() || null,
-          timeout: timeoutSupported ? (form.hc_timeout.trim() || null) : null,
-        },
-        transition_script: existingGroup?.transition_script ?? {
-          backup: null, fault: null, master: null, stop: null,
-        },
-      });
+      await onSubmit(draft);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
+    <Dialog open onOpenChange={close}>
       <DialogContent className="max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{isEdit ? t("syncModal.editTitle") : t("sync.add")}</DialogTitle>
@@ -146,25 +131,18 @@ export function SyncGroupModal({
             <div className="space-y-1.5">
               <Label>{t("syncModal.name")} <span className="text-destructive">*</span></Label>
               <Input
-                value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                value={draft.name}
+                onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
                 disabled={isEdit}
                 placeholder={t("syncModal.namePlaceholder")}
                 className={isEdit ? "opacity-60" : ""}
               />
-              {isEdit && <p className="text-xs text-muted-foreground">{t("nameCannotChange")}</p>}
             </div>
 
             <Separator />
 
-            {/* Members */}
             <div className="space-y-3">
-              <div>
-                <Label>{t("syncModal.members")} <span className="text-destructive">*</span></Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("syncModal.membersHelp")}
-                </p>
-              </div>
+              <Label>{t("syncModal.members")} <span className="text-destructive">*</span></Label>
 
               {vrrpGroups.length === 0 ? (
                 <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
@@ -180,8 +158,9 @@ export function SyncGroupModal({
                     >
                       <Checkbox
                         id={`member-${g.name}`}
-                        checked={form.members.includes(g.name)}
+                        checked={draft.members.includes(g.name)}
                         onCheckedChange={() => toggleMember(g.name)}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <div className="flex-1">
                         <p className="text-sm font-medium">{g.name}</p>
@@ -195,76 +174,36 @@ export function SyncGroupModal({
                 </div>
               )}
 
-              {form.members.length > 0 && (
+              {draft.members.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {t("syncModal.membersSelected", { count: form.members.length })}
+                  {t("syncModal.membersSelected", { count: draft.members.length })}
                 </p>
               )}
             </div>
 
             <Separator />
 
-            {/* Health Check */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">{t("healthCheckOptional")}</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">{t("pingTarget")}</Label>
-                  <Input
-                    value={form.hc_ping}
-                    onChange={(e) => setForm((p) => ({ ...p, hc_ping: e.target.value }))}
-                    placeholder={t("pingPlaceholder")}
-                    className="font-mono"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">{t("intervalSeconds")}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={form.hc_interval}
-                    onChange={(e) => setForm((p) => ({ ...p, hc_interval: e.target.value }))}
-                    placeholder="10"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">{t("failureCount")}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={form.hc_failure_count}
-                    onChange={(e) => setForm((p) => ({ ...p, hc_failure_count: e.target.value }))}
-                    placeholder="3"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">{t("scriptPath")}</Label>
-                  <Input
-                    value={form.hc_script}
-                    onChange={(e) => setForm((p) => ({ ...p, hc_script: e.target.value }))}
-                    placeholder="/path/to/script.sh"
-                    className="font-mono"
-                  />
-                </div>
-                {timeoutSupported && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">{t("scriptTimeout")}</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={form.hc_timeout}
-                      onChange={(e) => setForm((p) => ({ ...p, hc_timeout: e.target.value }))}
-                      placeholder="5"
-                    />
-                  </div>
-                )}
-              </div>
+              <HealthCheckFields
+                value={draft.health_check}
+                onChange={(health_check) => setDraft((p) => ({ ...p, health_check }))}
+                timeoutSupported={timeoutSupported}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">{t("transitionScripts")}</Label>
+              <TransitionScriptFields
+                value={draft.transition_script}
+                onChange={(transition_script) => setDraft((p) => ({ ...p, transition_script }))}
+              />
             </div>
           </div>
         </div>
 
         <DialogFooter className="shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => close(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

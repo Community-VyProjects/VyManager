@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,16 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { InterfaceSelect } from "@/components/ui/interface-select";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
 import {
   Collapsible,
   CollapsibleContent,
@@ -30,208 +26,38 @@ import {
 } from "@/components/ui/collapsible";
 import { AlertCircle, ChevronDown, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api/client";
-import type { InterfaceName } from "@/lib/api/show";
-import type { VrrpGroup, VrrpGroupAddress, HACapabilities } from "@/lib/api/high-availability";
+import type { ApiError } from "@/lib/types/api";
+import type { HACapabilities, VrrpGroup, VrrpSyncGroup } from "@/lib/api/high-availability";
+import {
+  HA_PASSWORD_MAX,
+  HA_RANGES,
+  vrrpGroupDraft,
+  vrrpGroupProblem,
+  type HAAddressDraft,
+  type HAProblem,
+  type VrrpGroupDraft,
+  type VrrpGroupProblemKey,
+} from "@/lib/api/high-availability-save-ops";
+import { HA_FIELD_LABELS } from "./ha-field-labels";
+import { GarpFields, HealthCheckFields, TransitionScriptFields } from "./HaSectionFields";
 
-// ============================================================================
-// Form State
-// ============================================================================
 
-interface AddressEntry {
-  address: string;
-  interface: string;
-}
-
-interface FormState {
-  name: string;
-  vrid: string;
-  interface: string;
-  description: string;
-  addresses: AddressEntry[];
-  priority: string;
-  advertise_interval: string;
-  // Auth
-  auth_type: string;
-  auth_password: string;
-  // Preempt
-  no_preempt: boolean;
-  preempt_delay: string;
-  // Advanced
-  hello_source_address: string;
-  peer_addresses: string[];
-  track_interfaces: string[];
-  rfc3768_compatibility: boolean;
-  // Health check
-  hc_failure_count: string;
-  hc_interval: string;
-  hc_ping: string;
-  hc_script: string;
-  hc_timeout: string;
-}
-
-const emptyForm = (): FormState => ({
-  name: "",
-  vrid: "",
-  interface: "",
-  description: "",
-  addresses: [{ address: "", interface: "" }],
-  priority: "",
-  advertise_interval: "",
-  auth_type: "",
-  auth_password: "",
-  no_preempt: false,
-  preempt_delay: "",
-  hello_source_address: "",
-  peer_addresses: [],
-  track_interfaces: [],
-  rfc3768_compatibility: false,
-  hc_failure_count: "",
-  hc_interval: "",
-  hc_ping: "",
-  hc_script: "",
-  hc_timeout: "",
-});
-
-function groupToForm(g: VrrpGroup): FormState {
-  return {
-    name: g.name,
-    vrid: g.vrid ?? "",
-    interface: g.interface ?? "",
-    description: g.description ?? "",
-    addresses: g.addresses.length > 0
-      ? g.addresses.map((a) => ({ address: a.address, interface: a.interface ?? "" }))
-      : [{ address: "", interface: "" }],
-    priority: g.priority ?? "",
-    advertise_interval: g.advertise_interval ?? "",
-    auth_type: g.authentication?.type ?? "",
-    auth_password: g.authentication?.password ?? "",
-    no_preempt: g.no_preempt,
-    preempt_delay: g.preempt_delay ?? "",
-    hello_source_address: g.hello_source_address ?? "",
-    peer_addresses: [...g.peer_addresses],
-    track_interfaces: [...g.track.interfaces],
-    rfc3768_compatibility: g.rfc3768_compatibility,
-    hc_failure_count: g.health_check.failure_count ?? "",
-    hc_interval: g.health_check.interval ?? "",
-    hc_ping: g.health_check.ping ?? "",
-    hc_script: g.health_check.script ?? "",
-    hc_timeout: g.health_check.timeout ?? "",
-  };
-}
-
-function formToGroup(f: FormState, timeoutSupported: boolean, originalGroup?: VrrpGroup): VrrpGroup {
-  const validAddresses: VrrpGroupAddress[] = f.addresses
-    .filter((a) => a.address.trim())
-    .map((a) => ({ address: a.address.trim(), interface: a.interface.trim() || null }));
-
-  return {
-    name: f.name.trim(),
-    vrid: f.vrid.trim() || null,
-    interface: f.interface.trim() || null,
-    description: f.description.trim() || null,
-    addresses: validAddresses,
-    excluded_addresses: originalGroup?.excluded_addresses ?? [],
-    priority: f.priority.trim() || null,
-    advertise_interval: f.advertise_interval.trim() || null,
-    authentication: f.auth_type
-      ? { type: f.auth_type, password: f.auth_password.trim() || null }
-      : null,
-    no_preempt: f.no_preempt,
-    preempt_delay: f.preempt_delay.trim() || null,
-    hello_source_address: f.hello_source_address.trim() || null,
-    peer_addresses: f.peer_addresses.filter((p) => p.trim()),
-    track: {
-      interfaces: f.track_interfaces.filter((i) => i.trim()),
-      exclude_vrrp_interface: originalGroup?.track.exclude_vrrp_interface ?? false,
-    },
-    rfc3768_compatibility: f.rfc3768_compatibility,
-    disabled: originalGroup?.disabled ?? false,
-    health_check: {
-      failure_count: f.hc_failure_count.trim() || null,
-      interval: f.hc_interval.trim() || null,
-      ping: f.hc_ping.trim() || null,
-      script: f.hc_script.trim() || null,
-      timeout: timeoutSupported ? (f.hc_timeout.trim() || null) : null,
-    },
-    transition_script: originalGroup?.transition_script ?? {
-      backup: null, fault: null, master: null, stop: null,
-    },
-  };
-}
-
-// ============================================================================
-// Interface Select Helper
-// ============================================================================
-
-function InterfaceSelect({
-  value,
-  onChange,
-  interfaces,
-  placeholder,
-  className,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  interfaces: InterfaceName[];
-  placeholder?: string;
-  className?: string;
-}) {
-  const tc = useTranslations("common");
-  const ph = placeholder ?? tc("selectInterface");
-  // If we have no interfaces loaded yet, fall back to a plain input
-  if (interfaces.length === 0) {
-    return (
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={ph}
-        className={className}
-      />
-    );
-  }
-
-  return (
-    <Select
-      value={value || "__none__"}
-      onValueChange={(v) => onChange(v === "__none__" ? "" : v)}
-    >
-      <SelectTrigger className={className}>
-        <SelectValue placeholder={ph} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">
-          <span className="text-muted-foreground">{ph}</span>
-        </SelectItem>
-        {interfaces.map((iface) => (
-          <SelectItem key={iface.name} value={iface.name}>
-            <span className="font-mono">{iface.name}</span>
-            {iface.description && (
-              <span className="text-muted-foreground ml-2 text-xs">{iface.description}</span>
-            )}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-// ============================================================================
-// Component
-// ============================================================================
 
 interface VrrpGroupModalProps {
-  open: boolean;
   onOpenChange: (open: boolean) => void;
   existingGroup?: VrrpGroup | null;
+  existingNames: string[];
+  syncGroups: VrrpSyncGroup[];
   capabilities?: HACapabilities | null;
-  onSubmit: (group: VrrpGroup) => Promise<void>;
+  onSubmit: (draft: VrrpGroupDraft) => Promise<void>;
 }
 
+/** Rendered only while open, so the draft starts from the group each time. */
 export function VrrpGroupModal({
-  open,
   onOpenChange,
   existingGroup,
+  existingNames,
+  syncGroups,
   capabilities,
   onSubmit,
 }: VrrpGroupModalProps) {
@@ -239,97 +65,121 @@ export function VrrpGroupModal({
   const tc = useTranslations("common");
   const isEdit = !!existingGroup;
   const timeoutSupported = capabilities?.features.health_check_timeout?.supported ?? false;
-  const [form, setForm] = useState<FormState>(emptyForm());
+  const authTypes = capabilities?.auth_types || [];
+  const [draft, setDraft] = useState<VrrpGroupDraft>(() => {
+    const loaded = vrrpGroupDraft(existingGroup);
+    // A new group starts with one empty virtual address row (the lab requires one).
+    return existingGroup ? loaded : { ...loaded, addresses: [{ address: "", interface: "" }] };
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [newPeer, setNewPeer] = useState("");
 
-  // Interfaces fetched from the router
-  const [interfaces, setInterfaces] = useState<InterfaceName[]>([]);
-  const [trackIfaceSelection, setTrackIfaceSelection] = useState("");
+  const set = <K extends keyof VrrpGroupDraft>(field: K) => (value: VrrpGroupDraft[K]) =>
+    setDraft((prev) => ({ ...prev, [field]: value }));
 
-  useEffect(() => {
-    if (open) {
-      setForm(existingGroup ? groupToForm(existingGroup) : emptyForm());
-      setError(null);
-      setAdvancedOpen(false);
-      setNewPeer("");
-      setTrackIfaceSelection("");
-
-      // Fetch interfaces
-      apiClient
-        .get<{ interfaces: InterfaceName[] }>("/vyos/show/all-interfaces")
-        .then((r) => setInterfaces([...r.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
-        .catch(() => setInterfaces([]));
-    }
-  }, [open, existingGroup]);
-
-  const set = (field: keyof FormState) => (value: string | boolean) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
-
-  const setAddress = (idx: number, field: keyof AddressEntry, value: string) => {
-    setForm((prev) => {
-      const addresses = [...prev.addresses];
-      addresses[idx] = { ...addresses[idx], [field]: value };
-      return { ...prev, addresses };
+  const setAddress = (
+    list: "addresses" | "excluded_addresses",
+    idx: number,
+    field: keyof HAAddressDraft,
+    value: string,
+  ) => {
+    setDraft((prev) => {
+      const items = [...prev[list]];
+      items[idx] = { ...items[idx], [field]: value };
+      return { ...prev, [list]: items };
     });
   };
 
-  const addAddress = () =>
-    setForm((prev) => ({ ...prev, addresses: [...prev.addresses, { address: "", interface: "" }] }));
+  const addAddress = (list: "addresses" | "excluded_addresses") =>
+    setDraft((prev) => ({ ...prev, [list]: [...prev[list], { address: "", interface: "" }] }));
 
-  const removeAddress = (idx: number) =>
-    setForm((prev) => ({
-      ...prev,
-      addresses: prev.addresses.filter((_, i) => i !== idx),
-    }));
+  const removeAddress = (list: "addresses" | "excluded_addresses", idx: number) =>
+    setDraft((prev) => ({ ...prev, [list]: prev[list].filter((_, i) => i !== idx) }));
 
   const addPeer = () => {
-    const p = newPeer.trim();
-    if (p && !form.peer_addresses.includes(p)) {
-      setForm((prev) => ({ ...prev, peer_addresses: [...prev.peer_addresses, p] }));
+    const peer = newPeer.trim();
+    if (peer && !draft.peer_addresses.includes(peer)) {
+      set("peer_addresses")([...draft.peer_addresses, peer]);
       setNewPeer("");
     }
   };
 
-  const removePeer = (peer: string) =>
-    setForm((prev) => ({ ...prev, peer_addresses: prev.peer_addresses.filter((p) => p !== peer) }));
-
-  const addTrackIface = (iface: string) => {
-    if (iface && !form.track_interfaces.includes(iface)) {
-      setForm((prev) => ({ ...prev, track_interfaces: [...prev.track_interfaces, iface] }));
-      setTrackIfaceSelection("");
+  const problemText = (problem: HAProblem<VrrpGroupProblemKey>): string => {
+    if (problem.key === "outOfRange") {
+      return t("outOfRange", {
+        field: t(HA_FIELD_LABELS[problem.field!]),
+        min: problem.min!,
+        max: problem.max!,
+      });
     }
+    if (problem.key === "healthCheckPingAndScript") return t("healthCheckPingAndScript");
+    return t(`vrrpModal.${problem.key}`, {
+      address: problem.address ?? "",
+      name: problem.name ?? "",
+      max: problem.max ?? 0,
+    });
   };
 
-  const removeTrackIface = (iface: string) =>
-    setForm((prev) => ({ ...prev, track_interfaces: prev.track_interfaces.filter((i) => i !== iface) }));
-
-  const availableTrackInterfaces = interfaces.filter((i) => !form.track_interfaces.includes(i.name));
+  const close = (open: boolean) => {
+    if (!loading) onOpenChange(open);
+  };
 
   const handleSubmit = async () => {
     setError(null);
-
-    if (!form.name.trim()) { setError(t("vrrpModal.nameRequired")); return; }
-    if (!form.vrid.trim()) { setError(t("vrrpModal.vridRequired")); return; }
-    if (!form.interface.trim()) { setError(t("vrrpModal.interfaceRequired")); return; }
-    const validAddrs = form.addresses.filter((a) => a.address.trim());
-    if (validAddrs.length === 0) { setError(t("vrrpModal.addressRequired")); return; }
-
+    const problem = vrrpGroupProblem(existingGroup ?? null, draft, existingNames, syncGroups);
+    if (problem) {
+      setError(problemText(problem));
+      return;
+    }
     setLoading(true);
     try {
-      await onSubmit(formToGroup(form, timeoutSupported, existingGroup ?? undefined));
+      await onSubmit(draft);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const addressRows = (list: "addresses" | "excluded_addresses", required: boolean) => (
+    <div className="space-y-2">
+      {draft[list].map((addr, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <Input
+            value={addr.address}
+            onChange={(e) => setAddress(list, idx, "address", e.target.value)}
+            placeholder="192.168.1.1/24"
+            className="font-mono"
+          />
+          <div className="w-44 shrink-0">
+            <InterfaceSelect
+              value={addr.interface}
+              onValueChange={(v) => setAddress(list, idx, "interface", v)}
+              noneOption={{ label: t("vrrpModal.interfaceOptional"), value: "" }}
+            />
+          </div>
+          {(!required || draft[list].length > 1) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+              onClick={() => removeAddress(list, idx)}
+              aria-label={t("remove")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
+    <Dialog open onOpenChange={close}>
       <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{isEdit ? t("vrrpModal.editTitle") : t("vrrp.add")}</DialogTitle>
@@ -349,28 +199,24 @@ export function VrrpGroupModal({
               </div>
             )}
 
-            {/* Basic Settings */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>{t("vrrpModal.groupName")} <span className="text-destructive">*</span></Label>
                 <Input
-                  value={form.name}
+                  value={draft.name}
                   onChange={(e) => set("name")(e.target.value)}
                   disabled={isEdit}
                   placeholder={t("example", { value: "WAN-GROUP" })}
                   className={isEdit ? "opacity-60" : ""}
                 />
-                {isEdit && <p className="text-xs text-muted-foreground">{t("nameCannotChange")}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label>VRID <span className="text-destructive">*</span></Label>
+                <Label>{t("vrid")} <span className="text-destructive">*</span></Label>
                 <Input
                   type="number"
-                  min={1}
-                  max={255}
-                  value={form.vrid}
+                  {...HA_RANGES.vrid}
+                  value={draft.vrid}
                   onChange={(e) => set("vrid")(e.target.value)}
-                  placeholder="1–255"
                 />
               </div>
             </div>
@@ -379,9 +225,8 @@ export function VrrpGroupModal({
               <div className="space-y-1.5">
                 <Label>{t("interface")} <span className="text-destructive">*</span></Label>
                 <InterfaceSelect
-                  value={form.interface}
-                  onChange={(v) => set("interface")(v)}
-                  interfaces={interfaces}
+                  value={draft.interface}
+                  onValueChange={set("interface")}
                   placeholder={tc("selectInterface")}
                 />
               </div>
@@ -389,9 +234,8 @@ export function VrrpGroupModal({
                 <Label>{t("priority")}</Label>
                 <Input
                   type="number"
-                  min={1}
-                  max={255}
-                  value={form.priority}
+                  {...HA_RANGES.priority}
+                  value={draft.priority}
                   onChange={(e) => set("priority")(e.target.value)}
                   placeholder={t("vrrpModal.defaultValue", { value: "100" })}
                 />
@@ -403,8 +247,8 @@ export function VrrpGroupModal({
                 <Label>{t("vrrpModal.advertiseInterval")}</Label>
                 <Input
                   type="number"
-                  min={1}
-                  value={form.advertise_interval}
+                  {...HA_RANGES.advertise_interval}
+                  value={draft.advertise_interval}
                   onChange={(e) => set("advertise_interval")(e.target.value)}
                   placeholder={t("vrrpModal.defaultValue", { value: "1" })}
                 />
@@ -412,59 +256,24 @@ export function VrrpGroupModal({
               <div className="space-y-1.5">
                 <Label>{tc("description")}</Label>
                 <Input
-                  value={form.description}
+                  value={draft.description}
                   onChange={(e) => set("description")(e.target.value)}
                   placeholder={tc("optionalDescription")}
                 />
               </div>
             </div>
 
-            {/* Virtual IP Addresses */}
             <Separator />
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <Label>{t("vrrpModal.virtualAddresses")} <span className="text-destructive">*</span></Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t("vrrpModal.virtualAddressesHelp")}</p>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={addAddress}>
+                <Label>{t("vrrpModal.virtualAddresses")} <span className="text-destructive">*</span></Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => addAddress("addresses")}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> {t("vrrpModal.addIp")}
                 </Button>
               </div>
-              <div className="space-y-2">
-                {form.addresses.map((addr, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      value={addr.address}
-                      onChange={(e) => setAddress(idx, "address", e.target.value)}
-                      placeholder="192.168.1.1/24"
-                      className="font-mono"
-                    />
-                    <div className="w-44 shrink-0">
-                      <InterfaceSelect
-                        value={addr.interface}
-                        onChange={(v) => setAddress(idx, "interface", v)}
-                        interfaces={interfaces}
-                        placeholder={t("vrrpModal.interfaceOptional")}
-                      />
-                    </div>
-                    {form.addresses.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
-                        onClick={() => removeAddress(idx)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {addressRows("addresses", true)}
             </div>
 
-            {/* Advanced Settings */}
             <Separator />
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
               <CollapsibleTrigger asChild>
@@ -474,88 +283,98 @@ export function VrrpGroupModal({
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-5 pt-3">
-                {/* Authentication */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">{t("vrrpModal.excludedAddresses")}</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={() => addAddress("excluded_addresses")}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> {t("vrrpModal.addIp")}
+                    </Button>
+                  </div>
+                  {addressRows("excluded_addresses", false)}
+                </div>
+
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">{t("vrrpModal.authentication")}</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">{t("vrrpModal.type")}</Label>
-                      <Select value={form.auth_type} onValueChange={(v) => set("auth_type")(v === "none" ? "" : v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={tc("none")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">{tc("none")}</SelectItem>
-                          <SelectItem value="plaintext-password">{t("vrrpModal.plaintextPassword")}</SelectItem>
-                          <SelectItem value="ah">AH (IPAuth)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <NamedListSelect
+                        value={draft.auth_type}
+                        onValueChange={set("auth_type")}
+                        names={authTypes}
+                      />
                     </div>
-                    {form.auth_type && (
+                    {draft.auth_type && (
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">{t("vrrpModal.password")}</Label>
                         <Input
                           type="password"
-                          value={form.auth_password}
+                          autoComplete="new-password"
+                          maxLength={HA_PASSWORD_MAX}
+                          value={draft.auth_password}
                           onChange={(e) => set("auth_password")(e.target.value)}
-                          placeholder={t("vrrpModal.password")}
+                          placeholder={existingGroup?.authentication ? t("vrrpModal.passwordKeep") : undefined}
                         />
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Preempt */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">{t("vrrpModal.preemption")}</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex items-center gap-3 rounded-lg border p-3">
                       <Checkbox
                         id="no_preempt"
-                        checked={form.no_preempt}
+                        checked={draft.no_preempt}
                         onCheckedChange={(v) => set("no_preempt")(v === true)}
                       />
-                      <div>
-                        <label htmlFor="no_preempt" className="text-sm font-medium cursor-pointer">{t("vrrpModal.disablePreemption")}</label>
-                        <p className="text-xs text-muted-foreground">{t("vrrpModal.disablePreemptionHelp")}</p>
-                      </div>
+                      <label htmlFor="no_preempt" className="text-sm font-medium cursor-pointer">
+                        {t("vrrpModal.disablePreemption")}
+                      </label>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">{t("vrrpModal.preemptDelay")}</Label>
                       <Input
                         type="number"
-                        min={0}
-                        value={form.preempt_delay}
+                        {...HA_RANGES.preempt_delay}
+                        value={draft.preempt_delay}
                         onChange={(e) => set("preempt_delay")(e.target.value)}
-                        placeholder="0"
-                        disabled={form.no_preempt}
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Peer Addresses */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">{t("vrrpModal.peerAddresses")}</Label>
-                  <p className="text-xs text-muted-foreground">{t("vrrpModal.peerAddressesHelp")}</p>
                   <div className="flex gap-2">
                     <Input
                       value={newPeer}
                       onChange={(e) => setNewPeer(e.target.value)}
                       placeholder="192.168.1.2"
                       className="font-mono"
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPeer())}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addPeer();
+                        }
+                      }}
                     />
-                    <Button type="button" variant="outline" size="sm" onClick={addPeer}>
+                    <Button type="button" variant="outline" size="sm" onClick={addPeer} aria-label={t("vrrpModal.addIp")}>
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  {form.peer_addresses.length > 0 && (
+                  {draft.peer_addresses.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {form.peer_addresses.map((p) => (
-                        <Badge key={p} variant="secondary" className="gap-1 font-mono">
-                          {p}
-                          <button type="button" onClick={() => removePeer(p)} className="hover:text-destructive">
+                      {draft.peer_addresses.map((peer) => (
+                        <Badge key={peer} variant="secondary" className="gap-1 font-mono">
+                          {peer}
+                          <button
+                            type="button"
+                            onClick={() => set("peer_addresses")(draft.peer_addresses.filter((p) => p !== peer))}
+                            className="hover:text-destructive"
+                            aria-label={t("remove")}
+                          >
                             <X className="h-3 w-3" />
                           </button>
                         </Badge>
@@ -564,101 +383,51 @@ export function VrrpGroupModal({
                   )}
                 </div>
 
-                {/* Track Interfaces */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">{t("vrrpModal.trackInterfaces")}</Label>
-                  <p className="text-xs text-muted-foreground">{t("vrrpModal.trackInterfacesHelp")}</p>
-                  <div className="flex gap-2">
-                    <InterfaceSelect
-                      value={trackIfaceSelection}
-                      onChange={(v) => {
-                        setTrackIfaceSelection(v);
-                        if (v) addTrackIface(v);
-                      }}
-                      interfaces={availableTrackInterfaces}
-                      placeholder={t("vrrpModal.selectTrackInterface")}
-                      className="flex-1"
+                  <InterfaceMultiSelect
+                    values={draft.track_interfaces}
+                    onChange={set("track_interfaces")}
+                    placeholder={t("vrrpModal.selectTrackInterface")}
+                  />
+                  <div className="flex items-center gap-3 rounded-lg border p-3">
+                    <Checkbox
+                      id="track_exclude"
+                      checked={draft.track_exclude_vrrp_interface}
+                      onCheckedChange={(v) => set("track_exclude_vrrp_interface")(v === true)}
                     />
+                    <label htmlFor="track_exclude" className="text-sm font-medium cursor-pointer">
+                      {t("vrrpModal.excludeVrrpInterface")}
+                    </label>
                   </div>
-                  {form.track_interfaces.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {form.track_interfaces.map((i) => (
-                        <Badge key={i} variant="secondary" className="gap-1 font-mono">
-                          {i}
-                          <button type="button" onClick={() => removeTrackIface(i)} className="hover:text-destructive">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-                {/* Health Check */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">{t("healthCheck")}</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">{t("pingTarget")}</Label>
-                      <Input
-                        value={form.hc_ping}
-                        onChange={(e) => set("hc_ping")(e.target.value)}
-                        placeholder={t("pingPlaceholder")}
-                        className="font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">{t("intervalSeconds")}</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={form.hc_interval}
-                        onChange={(e) => set("hc_interval")(e.target.value)}
-                        placeholder="10"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">{t("failureCount")}</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={form.hc_failure_count}
-                        onChange={(e) => set("hc_failure_count")(e.target.value)}
-                        placeholder="3"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">{t("scriptPath")}</Label>
-                      <Input
-                        value={form.hc_script}
-                        onChange={(e) => set("hc_script")(e.target.value)}
-                        placeholder="/path/to/script.sh"
-                        className="font-mono"
-                      />
-                    </div>
-                    {timeoutSupported && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">{t("scriptTimeout")}</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={form.hc_timeout}
-                          onChange={(e) => set("hc_timeout")(e.target.value)}
-                          placeholder="5"
-                        />
-                      </div>
-                    )}
-                  </div>
+                  <HealthCheckFields
+                    value={draft.health_check}
+                    onChange={set("health_check")}
+                    timeoutSupported={timeoutSupported}
+                  />
                 </div>
 
-                {/* Misc */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">{t("garp")}</Label>
+                  <GarpFields value={draft.garp} onChange={set("garp")} />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">{t("transitionScripts")}</Label>
+                  <TransitionScriptFields value={draft.transition_script} onChange={set("transition_script")} />
+                </div>
+
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">{t("vrrpModal.otherOptions")}</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">{t("vrrpModal.helloSourceAddress")}</Label>
                       <Input
-                        value={form.hello_source_address}
+                        value={draft.hello_source_address}
                         onChange={(e) => set("hello_source_address")(e.target.value)}
                         placeholder={t("vrrpModal.helloSourcePlaceholder")}
                         className="font-mono"
@@ -667,13 +436,12 @@ export function VrrpGroupModal({
                     <div className="flex items-center gap-3 rounded-lg border p-3">
                       <Checkbox
                         id="rfc3768"
-                        checked={form.rfc3768_compatibility}
+                        checked={draft.rfc3768_compatibility}
                         onCheckedChange={(v) => set("rfc3768_compatibility")(v === true)}
                       />
-                      <div>
-                        <label htmlFor="rfc3768" className="text-sm font-medium cursor-pointer">{t("vrrpModal.rfc3768")}</label>
-                        <p className="text-xs text-muted-foreground">{t("vrrpModal.rfc3768Help")}</p>
-                      </div>
+                      <label htmlFor="rfc3768" className="text-sm font-medium cursor-pointer">
+                        {t("vrrpModal.rfc3768")}
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -683,7 +451,7 @@ export function VrrpGroupModal({
         </div>
 
         <DialogFooter className="shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => close(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

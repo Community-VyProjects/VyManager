@@ -81,3 +81,7 @@ jobs:
       - name: Run conntrack-sync save op tests
         working-directory: frontend
         run: npm run test:conntrack-sync-save
+
+      - name: Run high-availability save op tests
+        working-directory: frontend
+        run: npm run test:high-availability-save

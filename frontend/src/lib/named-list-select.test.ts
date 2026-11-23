@@ -101,6 +101,18 @@ describe("named list select", () => {
     }
   });
 
+  it("uses the shared control for the high-availability value picks", () => {
+    for (const file of [
+      "src/components/high-availability/VirtualServerModal.tsx",
+      "src/components/high-availability/VrrpGroupModal.tsx",
+      "src/components/high-availability/HighAvailabilityContent.tsx",
+    ]) {
+      const src = readFileSync(join(FRONTEND, file), "utf8");
+      assert.match(src, /<NamedListSelect/, file);
+      assert.doesNotMatch(src, /NONE_SENTINEL|"__none__"|<SelectItem/, file);
+    }
+  });
+
   it("uses the shared control for the BGP peer-group and BFD profile picks", () => {
     const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
     assert.match(neighbor, /<NamedListSelect id="bgp-neighbor-peer-group" value=\{peerGroup\} names=\{peerGroups\}/);
