@@ -304,14 +304,26 @@ def test_batch_short_multi_arg_value_is_400(client, value):
 
 
 @pytest.mark.parametrize("op", ["set_zone_from_ipv4", "set_zone_from_ipv6"])
-@pytest.mark.parametrize("value", ["WAN", "WAN:", ":WAN-LAN", " :X"])
+@pytest.mark.parametrize("value", ["WAN", "WAN:", ":WAN-LAN", " :X", "WAN :X", "WAN: X", "WAN:X ", "WAN:A:B"])
 def test_batch_bad_composite_value_is_400(client, op, value):
-    """The builder splits these itself; a half-empty value is not sent."""
+    """The builder splits these itself; a half-empty or padded value is not sent."""
     test_client, executed = client
     resp = _batch(test_client, [{"op": op, "value": value}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == f"Operation {op} has an invalid value"
     assert executed == []
+
+
+def test_composite_op_list_matches_the_builder_ops_that_split_on_colon():
+    from routers.firewall.zones import COMPOSITE_OPS
+
+    splitting = {
+        name
+        for name, method in inspect.getmembers(FirewallZonesBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+        and 'split(":"' in inspect.getsource(method)
+    }
+    assert set(COMPOSITE_OPS) == splitting
 
 
 def test_batch_unknown_op_is_400(client):
@@ -411,6 +423,64 @@ def test_provision_rejects_an_unknown_default_action(client):
     test_client, executed = client
     resp = _provision(test_client, default_action="accept")
     assert resp.status_code == 422, resp.text
+    assert executed == []
+
+
+def test_provision_skips_a_blank_description(client):
+    test_client, executed = client
+    resp = _provision(test_client, description="   ")
+    assert resp.status_code == 200, resp.text
+    assert not [path for _op, path in executed[0] if "description" in path]
+
+
+@pytest.mark.parametrize("body", [
+    {"interfaces": [""]},
+    {"interfaces": ["eth1", "eth1"]},
+    {"vrfs": ["  "]},
+    {"vrfs": ["blue", "blue"]},
+    {"existing_zones": [""]},
+    {"existing_zones": ["WAN", "WAN"]},
+    {"existing_zones": ["LAN"]},
+    {"existing_zones": ["LOCAL"]},
+    {"zone_name": "LOCAL"},
+])
+def test_provision_rejects_bad_names(client, body):
+    """Each name becomes a path node or a pair chain name."""
+    test_client, executed = client
+    resp = _provision(test_client, **body)
+    assert resp.status_code == 422, resp.text
+    assert executed == []
+
+
+@pytest.mark.parametrize("body", [
+    {"peer_zones": [""]},
+    {"peer_zones": ["WAN", "WAN"]},
+    {"peer_zones": ["LAN"]},
+    {"peer_zones": ["LOCAL"]},
+    {"zone_name": "LOCAL"},
+])
+def test_deprovision_rejects_bad_names(client, body):
+    test_client, executed = client
+    resp = _deprovision(test_client, **body)
+    assert resp.status_code == 422, resp.text
+    assert executed == []
+
+
+@pytest.mark.parametrize("call", [_provision, _deprovision])
+def test_provision_and_deprovision_need_policies_write(monkeypatch, call):
+    """Both write firewall ipv4/ipv6 rulesets, which the policies screen owns."""
+    test_client, executed = zones_client(monkeypatch, "1.5")
+    checked = []
+
+    async def write(_request, feature):
+        checked.append(feature.value)
+        if feature.value == "FIREWALL_POLICIES":
+            raise HTTPException(status_code=403, detail="denied")
+
+    monkeypatch.setattr(f"{MODULE}.require_write_permission", write)
+    resp = call(test_client)
+    assert resp.status_code == 403, resp.text
+    assert checked == ["FIREWALL_ZONES", "FIREWALL_POLICIES"]
     assert executed == []
 
 

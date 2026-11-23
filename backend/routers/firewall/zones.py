@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Literal, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.firewall import (
     FirewallZonesBatchBuilder,
@@ -34,6 +34,10 @@ router = APIRouter(prefix="/vyos/firewall/zones", tags=["firewall-zones"])
 # Builder ops that split "from_zone:chain_name" themselves.
 COMPOSITE_OPS = frozenset({"set_zone_from_ipv4", "set_zone_from_ipv6"})
 
+# The local zone /provision creates for the first zone and /deprovision
+# removes with the last one.
+LOCAL_ZONE = "LOCAL"
+
 
 def _zone_name_not_blank(value: str) -> str:
     if not value.strip():
@@ -41,10 +45,33 @@ def _zone_name_not_blank(value: str) -> str:
     return value
 
 
+def _names_not_blank_or_repeated(values: List[str]) -> List[str]:
+    if any(not value.strip() for value in values):
+        raise ValueError("names must not be blank")
+    if len(set(values)) != len(values):
+        raise ValueError("names must not repeat")
+    return values
+
+
+def _not_local_or_self(zone_name: str, peers: List[str]) -> None:
+    """Pair chains and from-zone refs are built from these names."""
+    if zone_name == LOCAL_ZONE:
+        raise ValueError(f"zone_name must not be {LOCAL_ZONE}")
+    if zone_name in peers or LOCAL_ZONE in peers:
+        raise ValueError(f"peer zones must not include the zone itself or {LOCAL_ZONE}")
+
+
 def _composite_ok(value: str) -> bool:
-    """A "from_zone:chain_name" value with both halves present."""
+    """A "from_zone:chain_name" value with both names present and unpadded."""
     from_zone, sep, chain = value.partition(":")
-    return bool(sep and from_zone.strip() and chain.strip())
+    return bool(
+        sep
+        and from_zone
+        and chain
+        and from_zone == from_zone.strip()
+        and chain == chain.strip()
+        and ":" not in chain
+    )
 
 
 # ============================================================================
@@ -107,6 +134,12 @@ class ZoneProvisionRequest(BaseModel):
     )
 
     _zone_name = field_validator("zone_name")(_zone_name_not_blank)
+    _names = field_validator("interfaces", "vrfs", "existing_zones")(_names_not_blank_or_repeated)
+
+    @model_validator(mode="after")
+    def _peers(self) -> "ZoneProvisionRequest":
+        _not_local_or_self(self.zone_name, self.existing_zones)
+        return self
 
 
 class ZoneDeprovisionRequest(BaseModel):
@@ -122,6 +155,12 @@ class ZoneDeprovisionRequest(BaseModel):
     )
 
     _zone_name = field_validator("zone_name")(_zone_name_not_blank)
+    _names = field_validator("peer_zones")(_names_not_blank_or_repeated)
+
+    @model_validator(mode="after")
+    def _peers(self) -> "ZoneDeprovisionRequest":
+        _not_local_or_self(self.zone_name, self.peer_zones)
+        return self
 
 
 class ZoneFromPolicy(BaseModel):
@@ -280,8 +319,11 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
     - IPv4 + IPv6 chains for every zone pair (both directions), default drop
     - From-zone assignments wired for each pair
     - If is_first_zone: LOCAL zone + LOCAL-{zone} / {zone}-LOCAL chains (default drop + rule 10 accept)
+
+    The chains are firewall ipv4/ipv6 rulesets, so policies write is required too.
     """
     await require_write_permission(http_request, FeatureGroup.FIREWALL_ZONES)
+    await require_write_permission(http_request, FeatureGroup.FIREWALL_POLICIES)
 
     try:
         service = get_session_vyos_service(http_request)
@@ -295,7 +337,7 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
 
         # 1. Create the zone
         z_batch.set_zone(name)
-        if request.description:
+        if request.description and request.description.strip():
             z_batch.set_zone_description(name, request.description)
         z_batch.set_zone_default_action(name, request.default_action)
         if request.default_log:
@@ -345,36 +387,35 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
             z_batch.set_zone_from_firewall_ipv6_name(name, peer, b6)
 
         # 4. Create LOCAL zone if this is the first zone
-        local = "LOCAL"
         if request.is_first_zone:
-            z_batch.set_zone(local)
-            z_batch.set_zone_local_zone(local)
-            z_batch.set_zone_default_action(local, "drop")
+            z_batch.set_zone(LOCAL_ZONE)
+            z_batch.set_zone_local_zone(LOCAL_ZONE)
+            z_batch.set_zone_default_action(LOCAL_ZONE, "drop")
 
         # 5. Always create LOCAL ↔ NEW chains (LOCAL zone exists after first zone is provisioned)
         # LOCAL → NEW (traffic from LOCAL arriving at NEW)
-        loc_to_new_v4 = f"LOCAL-{name}"
-        loc_to_new_v6 = f"LOCAL-{name}-V6"
+        loc_to_new_v4 = f"{LOCAL_ZONE}-{name}"
+        loc_to_new_v6 = f"{LOCAL_ZONE}-{name}-V6"
         for chain, builder in [(loc_to_new_v4, v4_batch), (loc_to_new_v6, v6_batch)]:
             builder.set_custom_chain(chain)
             builder.set_custom_chain_default_action(chain, "drop")
             builder.set_custom_chain_rule(chain, 10)
             builder.set_rule_action(chain, 10, "accept", is_custom=True)
-        z_batch.set_zone_from(name, local)
-        z_batch.set_zone_from_firewall_name(name, local, loc_to_new_v4)
-        z_batch.set_zone_from_firewall_ipv6_name(name, local, loc_to_new_v6)
+        z_batch.set_zone_from(name, LOCAL_ZONE)
+        z_batch.set_zone_from_firewall_name(name, LOCAL_ZONE, loc_to_new_v4)
+        z_batch.set_zone_from_firewall_ipv6_name(name, LOCAL_ZONE, loc_to_new_v6)
 
         # NEW → LOCAL (traffic from NEW arriving at LOCAL)
-        new_to_loc_v4 = f"{name}-LOCAL"
-        new_to_loc_v6 = f"{name}-LOCAL-V6"
+        new_to_loc_v4 = f"{name}-{LOCAL_ZONE}"
+        new_to_loc_v6 = f"{name}-{LOCAL_ZONE}-V6"
         for chain, builder in [(new_to_loc_v4, v4_batch), (new_to_loc_v6, v6_batch)]:
             builder.set_custom_chain(chain)
             builder.set_custom_chain_default_action(chain, "drop")
             builder.set_custom_chain_rule(chain, 10)
             builder.set_rule_action(chain, 10, "accept", is_custom=True)
-        z_batch.set_zone_from(local, name)
-        z_batch.set_zone_from_firewall_name(local, name, new_to_loc_v4)
-        z_batch.set_zone_from_firewall_ipv6_name(local, name, new_to_loc_v6)
+        z_batch.set_zone_from(LOCAL_ZONE, name)
+        z_batch.set_zone_from_firewall_name(LOCAL_ZONE, name, new_to_loc_v4)
+        z_batch.set_zone_from_firewall_ipv6_name(LOCAL_ZONE, name, new_to_loc_v6)
 
         merged = _MergedBatch()
         merged.extend(z_batch)
@@ -405,8 +446,11 @@ async def deprovision_zone(http_request: Request, request: ZoneDeprovisionReques
     - IPv4 + IPv6 chains for every pair involving this zone
     - From-zone references to this zone in all peer zones
     - If is_last_zone: LOCAL zone + all LOCAL-zone chains
+
+    The chains are firewall ipv4/ipv6 rulesets, so policies write is required too.
     """
     await require_write_permission(http_request, FeatureGroup.FIREWALL_ZONES)
+    await require_write_permission(http_request, FeatureGroup.FIREWALL_POLICIES)
 
     try:
         service = get_session_vyos_service(http_request)
@@ -441,18 +485,18 @@ async def deprovision_zone(http_request: Request, request: ZoneDeprovisionReques
 
         # 4. Always delete LOCAL ↔ NAME chains (created for every zone)
         for chain, builder in [
-            (f"LOCAL-{name}", v4_batch),
-            (f"LOCAL-{name}-V6", v6_batch),
-            (f"{name}-LOCAL", v4_batch),
-            (f"{name}-LOCAL-V6", v6_batch),
+            (f"{LOCAL_ZONE}-{name}", v4_batch),
+            (f"{LOCAL_ZONE}-{name}-V6", v6_batch),
+            (f"{name}-{LOCAL_ZONE}", v4_batch),
+            (f"{name}-{LOCAL_ZONE}-V6", v6_batch),
         ]:
             builder.delete_custom_chain(chain)
 
         # 5. Delete LOCAL zone if this is the last non-local zone; otherwise clean up its from-zone ref
         if request.is_last_zone:
-            z_batch.delete_zone("LOCAL")
+            z_batch.delete_zone(LOCAL_ZONE)
         else:
-            z_batch.delete_zone_from("LOCAL", name)
+            z_batch.delete_zone_from(LOCAL_ZONE, name)
 
         merged = _MergedBatch()
         merged.extend(z_batch)
