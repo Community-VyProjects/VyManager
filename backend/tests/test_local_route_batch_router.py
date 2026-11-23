@@ -185,19 +185,22 @@ def test_batch_missing_value_is_400(client, rule_type, operation):
     assert executed == []
 
 
-def test_batch_unknown_op_is_400(client):
+@pytest.mark.parametrize("rule_type", ["ipv4", "ipv6"])
+def test_batch_unknown_op_is_400(client, rule_type):
     test_client, executed = client
-    resp = _batch(test_client, [{"op": "no_such_op", "value": "x"}])
+    resp = _batch(test_client, [{"op": "no_such_op", "value": "x"}], rule_type)
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "Unknown operation: no_such_op"
     assert executed == []
 
 
-def test_batch_internal_op_is_400(client):
+@pytest.mark.parametrize("rule_type", ["ipv4", "ipv6"])
+@pytest.mark.parametrize("op", ["clear", "_operations"])
+def test_batch_internal_op_is_400(client, rule_type, op):
     test_client, executed = client
-    resp = _batch(test_client, [{"op": "clear"}])
+    resp = _batch(test_client, [{"op": op}], rule_type)
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "Invalid operation: clear"
+    assert resp.json()["detail"] == f"Invalid operation: {op}"
     assert executed == []
 
 

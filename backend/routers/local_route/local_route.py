@@ -16,7 +16,7 @@ from vyos_mappers.local_route import LocalRouteMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import logging
-from batch_dispatch import call_item_batch_op
+from batch_dispatch import call_item_batch_op, resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
@@ -199,6 +199,8 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
 
         try:
             for operation in body.operations:
+                # Resolve first so an unknown or internal op reports itself, not the family.
+                resolve_batch_method(builder, operation.op)
                 if ("local_route6" in operation.op) != (body.rule_type == "ipv6"):
                     raise HTTPException(
                         status_code=400,
