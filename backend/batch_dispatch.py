@@ -63,3 +63,29 @@ def call_comma_batch_op(builder: Any, op: str, value: Optional[str]) -> None:
     if len(parts) != count or not all(parts):
         raise HTTPException(status_code=400, detail=f"Operation {op} requires {count} values")
     method(*parts)
+
+
+def call_item_batch_op(builder: Any, op: str, item_name: str, value: Optional[str]) -> None:
+    """Resolve op and call it with item_name plus value split on "|", else HTTP 400.
+
+    The first parameter is the request's item_name; the value fills the rest,
+    split into as many parts as remain, so a "|" inside the last argument is
+    kept. An item-only op rejects a value: calling it anyway drops the value
+    and runs the wider op (delete_interface for a delete that lost its leaf).
+    """
+    method = resolve_batch_method(builder, op)
+    count = len(inspect.signature(method).parameters)
+    if count == 0:
+        # Not an item op: there is no parameter to bind item_name to.
+        raise HTTPException(status_code=400, detail=f"Invalid operation: {op}")
+    if count == 1:
+        if value:
+            raise HTTPException(status_code=400, detail=f"Operation {op} takes no value")
+        method(item_name)
+        return
+    if not value or not value.strip():
+        raise HTTPException(status_code=400, detail=f"Operation {op} requires a value")
+    parts = value.split("|", count - 2)
+    if len(parts) != count - 1 or not all(part.strip() for part in parts):
+        raise HTTPException(status_code=400, detail=f"Operation {op} requires {count - 1} values")
+    method(item_name, *parts)

@@ -14,9 +14,8 @@ from vyos_mappers.ipoe_server import IPoEServerMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from starlette.concurrency import run_in_threadpool
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -269,27 +268,23 @@ async def ipoe_batch_configure(http_request: Request, body: IPoEBatchRequest):
         builder = IPoEServerBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            # Every op takes the request item; a value op also takes the op
-            # value as one string (test_ipoe_server_batch_router locks the arity).
-            if len(inspect.signature(method).parameters) == 1:
-                method(body.item_name)
-                continue
-            if not operation.value or not operation.value.strip():
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {operation.op} requires a value",
-                )
+            value = operation.value
             # An empty part of a composite value would become an empty path node.
-            if operation.op in COMPOSITE_OPS and not all(
-                part.strip() for part in operation.value.split("|")
+            # A missing value is left to call_item_batch_op ("requires a value").
+            if (
+                operation.op in COMPOSITE_OPS
+                and value
+                and value.strip()
+                and not all(part.strip() for part in value.split("|"))
             ):
                 raise HTTPException(
                     status_code=400,
                     detail=f"Operation {operation.op} has an invalid value",
                 )
+            # Every op takes the request item; a value op also takes the op
+            # value as one string (test_ipoe_server_batch_router locks the arity).
             try:
-                method(body.item_name, operation.value)
+                call_item_batch_op(builder, operation.op, body.item_name, value)
             except ValueError:
                 # A composite value with no "|" fails the builder's split.
                 raise HTTPException(

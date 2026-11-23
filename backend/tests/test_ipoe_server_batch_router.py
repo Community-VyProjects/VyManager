@@ -118,12 +118,31 @@ def test_batch_global_op_ignores_the_request_item(client):
     {"op": "set_description", "value": "   "},
     {"op": "set_auth_mac_ip_address"},
     {"op": "set_auth_mac_ip_address", "value": ""},
+    {"op": "set_auth_mac_ip_address", "value": "   "},
 ])
 def test_batch_missing_value_is_400(client, operation):
     test_client, service = client
     resp = _post(test_client, "eth1", [operation])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == f"Operation {operation['op']} requires a value"
+    assert service.executed == []
+
+
+@pytest.mark.parametrize("item_name,op,value", [
+    ("eth1", "delete_interface", "mode"),
+    ("eth1", "delete_auth_interface", "00:11:22:33:44:55"),
+    ("192.0.2.1", "delete_radius_server", "key"),
+    ("eth1", "set_interface_vlan_mon", "x"),
+])
+def test_batch_item_only_op_with_a_value_is_400(client, item_name, op, value):
+    """A value on an item-only op must not run the wider op on the item."""
+    test_client, service = client
+    resp = _post(test_client, item_name, [
+        {"op": "set_description", "value": "lab"},
+        {"op": op, "value": value},
+    ])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"Operation {op} takes no value"
     assert service.executed == []
 
 
