@@ -23,8 +23,9 @@ V6 = PREFIX + ["address-family", "ipv6-unicast"]
 # `ls .../vrf/name/node.tag/protocols/bgp/address-family/<afi>/redistribute`
 LAB_REDIST_IPV4_14 = {"babel", "connected", "isis", "kernel", "ospf", "rip", "static"}
 LAB_REDIST_IPV6_14 = {"babel", "connected", "isis", "kernel", "ospfv3", "ripng", "static"}
-# 1.5-only nodes the VRF mapper has path methods for. The other 1.5-only VRF
-# BGP nodes run only through the global BGP builder.
+# 1.5-only nodes gated by `require_node` (path methods on the subclass). The
+# 1.5-only allowlist entries (redistribute nhrp, ipv6-unicast table, BMP
+# local-rib) are tested separately below.
 VERSIONED_15 = frozenset({"peer-group solo"})
 
 
