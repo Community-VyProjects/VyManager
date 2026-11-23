@@ -4,7 +4,7 @@ One class holds the commands both VyOS versions have. ``purge-timeout`` and
 IPv6 peer, listen and multicast addresses exist only on 1.5; those live on
 ``conntrack_sync_versions.v1_5.ConntrackSyncMapperV1_5``.
 """
-from typing import Any, Dict, FrozenSet, List
+from typing import Any, Dict, FrozenSet, List, Tuple
 
 from ..base import BaseFeatureMapper
 
@@ -16,6 +16,11 @@ EXPECT_SYNC_PROTOCOLS = ["all", "ftp", "sip", "h323", "nfs", "sqlnet"]
 
 
 class ConntrackSyncMapper(BaseFeatureMapper):
+    # Version-only CLI node -> every path method under it (on the subclass).
+    _VERSIONED_NODES: Dict[str, Tuple[str, ...]] = {
+        "purge-timeout": ("get_purge_timeout", "get_purge_timeout_delete"),
+    }
+
     # ========================================================================
     # Version allowlist
     # ========================================================================
@@ -23,13 +28,15 @@ class ConntrackSyncMapper(BaseFeatureMapper):
     def versioned_nodes(self) -> FrozenSet[str]:
         """Conntrack-sync nodes only some VyOS versions have.
 
-        Each one has its path methods on the version subclass. Capabilities
-        and the builder read this set instead of the version string.
+        A node counts when every path method below it is on this mapper.
+        Capabilities and the builder read this set instead of the version
+        string.
         """
-        nodes = []
-        if callable(getattr(self, "get_purge_timeout", None)):
-            nodes.append("purge-timeout")
-        return frozenset(nodes)
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
 
     def require_node(self, node: str) -> None:
         if node not in self.versioned_nodes():

@@ -136,6 +136,7 @@ def test_capabilities_read_the_mapper(version, supported):
     features = caps["features"]
     assert "version_info" not in caps
     assert features["purge_timeout"]["supported"] is supported
+    assert features["purge_timeout"]["default"] == 60
     families = ["ipv4", "ipv6"] if supported else ["ipv4"]
     for key in ("interface_peer", "listen_address", "mcast_group"):
         assert features[key]["families"] == families
@@ -143,21 +144,25 @@ def test_capabilities_read_the_mapper(version, supported):
     assert features["expect_sync"]["options"] == ["all", "ftp", "sip", "h323", "nfs", "sqlnet"]
 
 
-def test_capabilities_follow_the_allowlist_not_the_version(monkeypatch):
-    """Removing the 1.5 path method turns the flag off; a version check would not."""
-    monkeypatch.delattr(ConntrackSyncMapperV1_5, "get_purge_timeout")
+@pytest.mark.parametrize("method", ["get_purge_timeout", "get_purge_timeout_delete"])
+def test_capabilities_follow_the_allowlist_not_the_version(monkeypatch, method):
+    """Removing either 1.5 path method turns the flag off; a version check would not."""
+    monkeypatch.delattr(ConntrackSyncMapperV1_5, method)
     caps = ConntrackSyncBatchBuilder("1.5").get_capabilities()
     assert caps["features"]["purge_timeout"]["supported"] is False
     with pytest.raises(ValueError):
         ConntrackSyncBatchBuilder("1.5").set_purge_timeout("60")
+    with pytest.raises(ValueError):
+        ConntrackSyncBatchBuilder("1.5").delete_purge_timeout()
 
 
-def test_capabilities_follow_added_path_method(monkeypatch):
+def test_capabilities_follow_added_path_methods(monkeypatch):
+    path = ["service", "conntrack-sync", "purge-timeout"]
     monkeypatch.setattr(
-        ConntrackSyncMapper,
-        "get_purge_timeout",
-        lambda self, timeout: ["service", "conntrack-sync", "purge-timeout", timeout],
-        raising=False,
+        ConntrackSyncMapper, "get_purge_timeout", lambda self, timeout: path + [timeout], raising=False
+    )
+    monkeypatch.setattr(
+        ConntrackSyncMapper, "get_purge_timeout_delete", lambda self: list(path), raising=False
     )
     caps = ConntrackSyncBatchBuilder("1.4").get_capabilities()
     assert caps["features"]["purge_timeout"]["supported"] is True

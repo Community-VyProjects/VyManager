@@ -329,6 +329,7 @@ export function ConntrackSyncModal({ config, features, onClose, onSubmit }: Conn
                       type="number"
                       min={features.purge_timeout.min}
                       max={features.purge_timeout.max}
+                      placeholder={t("modal.defaultValue", { value: features.purge_timeout.default })}
                       value={draft.purge_timeout}
                       onChange={(e) => update("purge_timeout", e.target.value)}
                     />

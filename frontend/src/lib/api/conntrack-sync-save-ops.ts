@@ -38,7 +38,7 @@ export interface ConntrackSyncDraft {
 // Normalizers. The save check and the emit read values through these.
 // ============================================================================
 
-export function conntrackSyncText(value: Scalar): string {
+function conntrackSyncText(value: Scalar): string {
   return value == null ? "" : String(value).trim();
 }
 
@@ -58,7 +58,7 @@ export function conntrackSyncNumber(value: Scalar): string {
 }
 
 /** A value with a colon is IPv6; the lab validators decide the rest on commit. */
-export function addressFamily(address: string): "ipv4" | "ipv6" {
+function addressFamily(address: string): "ipv4" | "ipv6" {
   return address.includes(":") ? "ipv6" : "ipv4";
 }
 

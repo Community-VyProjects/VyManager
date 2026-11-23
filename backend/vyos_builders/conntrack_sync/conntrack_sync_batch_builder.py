@@ -31,7 +31,7 @@ this device has. Multi-argument batch operations encode compound values as
 dispatch pattern.
 """
 
-from typing import Dict, Any, cast
+from typing import Dict, Any, List, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.conntrack_sync.conntrack_sync import ConntrackSyncMapper
 from vyos_builders.base import BatchBuilder
@@ -48,6 +48,11 @@ class ConntrackSyncBatchBuilder(BatchBuilder):
         self.m = cast(
             ConntrackSyncMapper, CommandMapperRegistry.get_mapper("conntrack_sync", version)
         )
+
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a leaf only one VyOS version has; ValueError elsewhere."""
+        self.m.require_node(node)
+        return getattr(self.m, method)(*args)
 
     # -----------------------------------------------------------------------
     # Capabilities
@@ -82,7 +87,11 @@ class ConntrackSyncBatchBuilder(BatchBuilder):
                     "default": "225.0.0.50",
                     "families": families,
                 },
-                "purge_timeout": {"supported": "purge-timeout" in nodes, **PURGE_TIMEOUT_RANGE},
+                "purge_timeout": {
+                    "supported": "purge-timeout" in nodes,
+                    "default": 60,
+                    **PURGE_TIMEOUT_RANGE,
+                },
                 "startup_resync": {"supported": True},
                 "sync_queue_size": {"supported": True, "default": 1, **U32_RANGE},
             },
@@ -238,12 +247,10 @@ class ConntrackSyncBatchBuilder(BatchBuilder):
     # -----------------------------------------------------------------------
 
     def set_purge_timeout(self, timeout: str) -> "ConntrackSyncBatchBuilder":
-        self.m.require_node("purge-timeout")
-        return self.add_set(getattr(self.m, "get_purge_timeout")(timeout))
+        return self.add_set(self._versioned_path("purge-timeout", "get_purge_timeout", timeout))
 
     def delete_purge_timeout(self) -> "ConntrackSyncBatchBuilder":
-        self.m.require_node("purge-timeout")
-        return self.add_delete(getattr(self.m, "get_purge_timeout_delete")())
+        return self.add_delete(self._versioned_path("purge-timeout", "get_purge_timeout_delete"))
 
     # -----------------------------------------------------------------------
     # startup-resync (presence flag)

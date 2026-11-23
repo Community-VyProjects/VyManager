@@ -67,7 +67,7 @@ function features(v15: boolean): ConntrackSyncFeatures {
     interface_port: { supported: true, min: 1, max: 65535 },
     listen_address: { supported: true, families },
     mcast_group: { supported: true, default: "225.0.0.50", families },
-    purge_timeout: { supported: v15, min: 1, max: 2147483647 },
+    purge_timeout: { supported: v15, default: 60, min: 1, max: 2147483647 },
     startup_resync: { supported: true },
     sync_queue_size: { supported: true, default: 1, ...u32 },
   };

@@ -27,6 +27,7 @@
     "syncQueue": "同步队列",
     "purgeTimeout": "清除超时",
     "seconds": "{value} 秒",
+    "secondsDefault": "{value} 秒（默认）",
     "extCache": "外部缓存",
     "syslog": "系统日志",
     "listenAddresses": "监听地址",

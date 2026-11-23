@@ -345,7 +345,7 @@ export function ConntrackSyncContent() {
                         <span className="font-mono text-xs">
                           {config.purge_timeout != null
                             ? t("content.seconds", { value: config.purge_timeout })
-                            : "—"}
+                            : t("content.secondsDefault", { value: features.purge_timeout.default })}
                         </span>
                       </div>
                     )}

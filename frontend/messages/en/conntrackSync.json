@@ -27,6 +27,7 @@
     "syncQueue": "Sync Queue",
     "purgeTimeout": "Purge Timeout",
     "seconds": "{value} s",
+    "secondsDefault": "{value} s (default)",
     "extCache": "Ext. Cache",
     "syslog": "Syslog",
     "listenAddresses": "Listen Addresses",

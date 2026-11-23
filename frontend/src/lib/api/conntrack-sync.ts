@@ -56,7 +56,7 @@ export interface ConntrackSyncFeatures {
   interface_port: Supported & ConntrackSyncRange;
   listen_address: Supported & { families: string[] };
   mcast_group: Supported & { default: string; families: string[] };
-  purge_timeout: Supported & ConntrackSyncRange;
+  purge_timeout: Supported & ConntrackSyncRange & { default: number };
   startup_resync: Supported;
   sync_queue_size: Supported & ConntrackSyncRange & { default: number };
 }
