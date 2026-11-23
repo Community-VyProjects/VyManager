@@ -11,9 +11,6 @@ BASE = ["service", "console-server"]
 class ConsoleServerMapper(BaseFeatureMapper):
     """Mapper for service console-server. Identical on VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_console_server_config
 

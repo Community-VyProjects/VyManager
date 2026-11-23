@@ -65,6 +65,7 @@ def test_registry_returns_shared_mapper():
         assert type(mapper) is ConsoleServerMapper
         assert mapper.version == version
         assert "parse_config" in type(mapper).__dict__
+    assert "__init__" not in ConsoleServerMapper.__dict__
     direct = ConsoleServerMapper("1.5").parse_config(_tree())
     registered = CommandMapperRegistry.get_mapper("console_server", "1.5")
     assert isinstance(registered, ConsoleServerMapper)
