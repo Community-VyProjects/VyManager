@@ -99,12 +99,19 @@ def test_handlers_call_their_permission_check(rel_path):
 
 @pytest.mark.parametrize("rel_path", DYNAMIC_DISPATCH_FILES)
 def test_batch_dispatch_guards_operation_names(rel_path):
-    source = (ROUTERS_DIR / rel_path).read_text()
+    tree = ast.parse((ROUTERS_DIR / rel_path).read_text())
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    names = {getattr(call.func, "id", None) or getattr(call.func, "attr", None) for call in calls}
     # call_comma_batch_op resolves the name through resolve_batch_method.
-    assert "resolve_batch_method" in source or "call_comma_batch_op" in source, (
-        f"{rel_path}: getattr(builder, operation.op) dispatch must use "
-        "resolve_batch_method"
+    assert names & {"resolve_batch_method", "call_comma_batch_op"}, (
+        f"{rel_path}: batch dispatch must call resolve_batch_method or "
+        "call_comma_batch_op"
     )
-    assert "method = getattr(builder, operation.op)\n" not in source, (
-        f"{rel_path}: unguarded getattr dispatch on a client-supplied name"
-    )
+    for call in calls:
+        if getattr(call.func, "id", None) != "getattr" or len(call.args) < 2:
+            continue
+        name_arg = call.args[1]
+        assert not (isinstance(name_arg, ast.Attribute) and name_arg.attr == "op"), (
+            f"{rel_path}:{call.lineno}: unguarded getattr dispatch on a "
+            "client-supplied name"
+        )
