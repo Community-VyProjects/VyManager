@@ -487,9 +487,9 @@ export function BgpContent() {
     return false;
   };
 
-  /** Shows the error and returns false when a BMP target address or number is not one the lab accepts. */
+  /** Shows the error and returns false when a BMP target address (required by the lab) or number is not one it accepts. */
   const bmpTargetOk = (address: string, values: Record<BmpTargetRangeField, string>): boolean => {
-    if (address.trim() && !isIPAddress(address)) {
+    if (!isIPAddress(address)) {
       setBmpError(t("form.ipAddressInvalid", { field: t("content.address") }));
       return false;
     }
@@ -2180,7 +2180,7 @@ export function BgpContent() {
                         try {
                           const created: BgpBmpTarget = {
                             name: targetName,
-                            address: bmpAddress.trim() || null,
+                            address: bmpAddress.trim(),
                             port: optionalNumber(bmpPort),
                             min_retry: optionalNumber(bmpMinRetry),
                             max_retry: optionalNumber(bmpMaxRetry),
@@ -2265,7 +2265,7 @@ export function BgpContent() {
                             try {
                               const updated: BgpBmpTarget = {
                                 ...target,
-                                address: address.trim() || null,
+                                address: address.trim(),
                                 port: optionalNumber(port),
                                 min_retry: optionalNumber(minRetry),
                                 max_retry: optionalNumber(maxRetry),

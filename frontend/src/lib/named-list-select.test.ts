@@ -161,6 +161,7 @@ describe("named list select", () => {
     assert.doesNotMatch(page, /<Input type="number" value=\{afRedistTable\}/);
     assert.match(page, /setAfRedistProto\(""\);\n\s*setAfRedistTable\(""\);\n\s*\}, \[selectedAfi\]\);/);
     assert.match(page, /content\.bmpTargetExists/);
+    assert.match(page, /const bmpTargetOk = [^\n]*\n\s*if \(!isIPAddress\(address\)\) \{/);
     assert.match(page, /\.filter\(\(p\) => !currentAf\?\.redistribute\.some\(\(r\) => r\.protocol === p\)\)/);
     const neighbor = readFileSync(join(FRONTEND, "src/components/bgp/BgpNeighborModal.tsx"), "utf8");
     assert.match(neighbor, /existingNeighbor\?\.address_families\[afi\]/);
