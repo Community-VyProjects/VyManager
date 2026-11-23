@@ -74,14 +74,23 @@ class VrfMapper(BaseFeatureMapper):
     def get_vrf_description(self, name: str, value: str) -> List[str]:
         return ["vrf", "name", name, "description", value]
 
+    def get_vrf_description_delete(self, name: str) -> List[str]:
+        return ["vrf", "name", name, "description"]
+
     def get_vrf_disable(self, name: str) -> List[str]:
         return ["vrf", "name", name, "disable"]
 
     def get_vrf_table(self, name: str, value: str) -> List[str]:
         return ["vrf", "name", name, "table", value]
 
+    def get_vrf_table_delete(self, name: str) -> List[str]:
+        return ["vrf", "name", name, "table"]
+
     def get_vrf_vni(self, name: str, value: str) -> List[str]:
         return ["vrf", "name", name, "vni", value]
+
+    def get_vrf_vni_delete(self, name: str) -> List[str]:
+        return ["vrf", "name", name, "vni"]
 
     # ========================================================================
     # IP Settings
@@ -103,6 +112,9 @@ class VrfMapper(BaseFeatureMapper):
     def get_vrf_ip_protocol_route_map(self, name: str, protocol: str, route_map: str) -> List[str]:
         return ["vrf", "name", name, "ip", "protocol", protocol, "route-map", route_map]
 
+    def get_vrf_ip_protocol_route_map_delete(self, name: str, protocol: str) -> List[str]:
+        return ["vrf", "name", name, "ip", "protocol", protocol, "route-map"]
+
     # ========================================================================
     # IPv6 Settings
     # ========================================================================
@@ -122,3 +134,6 @@ class VrfMapper(BaseFeatureMapper):
 
     def get_vrf_ipv6_protocol_route_map(self, name: str, protocol: str, route_map: str) -> List[str]:
         return ["vrf", "name", name, "ipv6", "protocol", protocol, "route-map", route_map]
+
+    def get_vrf_ipv6_protocol_route_map_delete(self, name: str, protocol: str) -> List[str]:
+        return ["vrf", "name", name, "ipv6", "protocol", protocol, "route-map"]

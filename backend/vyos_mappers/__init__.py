@@ -74,6 +74,7 @@ from .vrf import VrfMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf.vrf_versions import get_vrf_mapper
 from .vrf.vrf_isis_versions import get_vrf_isis_mapper
+from .vrf.vrf_bgp_versions import get_vrf_bgp_mapper
 from .system.performance_versions import get_system_performance_mapper
 from .system.system_mapper import SystemMapper
 from .system.system_versions import get_system_mapper
@@ -259,12 +260,12 @@ CommandMapperRegistry.register_feature("ospf", get_ospf_mapper)
 CommandMapperRegistry.register_feature("ospfv3", get_ospfv3_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
-# VRF sub-mappers. OSPF and BGP take version so redistribute nhrp can raise on 1.4.
+# VRF sub-mappers. OSPF takes version so redistribute nhrp can raise on 1.4.
 CommandMapperRegistry.register_feature("vrf_ospf", VrfOspfMapper)
 CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
-# VRF IS-IS uses factory for version-specific mappers
+# VRF IS-IS and BGP use factories for version-specific mappers
 CommandMapperRegistry.register_feature("vrf_isis", get_vrf_isis_mapper)
-CommandMapperRegistry.register_feature("vrf_bgp", VrfBgpMapper)
+CommandMapperRegistry.register_feature("vrf_bgp", get_vrf_bgp_mapper)
 CommandMapperRegistry.register_feature("system_performance", get_system_performance_mapper)
 # System general mapper (hostname, login, syslog, conntrack, etc.)
 CommandMapperRegistry.register_feature("system", get_system_mapper)

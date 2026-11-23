@@ -7,25 +7,28 @@ address-families, listen ranges, BMP, SID, SRv6.
 
 Config tree: vrf name <NAME> protocols bgp
 
-Version-specific methods (nhrp redistribute, ipv6-unicast table redistribute,
-bmp local-rib, peer-group solo) will be in version-specific files.
+The shared class holds the paths both labs have. Peer-group solo, redistribute
+nhrp, ipv6-unicast redistribute table and BMP monitor local-rib exist only on
+VyOS 1.5; the subclass in ``vrf_bgp_versions`` adds them.
 """
 
-from typing import FrozenSet, List
+from typing import Dict, FrozenSet, List, Optional, Tuple
+
+from ..base import BaseFeatureMapper
 
 
-class VrfBgpMapper:
-    """Mapper for VRF BGP paths. Common between VyOS 1.4 and 1.5."""
+class VrfBgpMapper(BaseFeatureMapper):
+    """Mapper for VRF BGP paths both VyOS 1.4 and 1.5 have."""
 
-    _REDIST = (
-        "connected", "kernel", "ospf", "rip", "static", "babel", "isis",
-    )
+    # ``address-family <afi> redistribute <protocol>`` both labs have.
+    _REDIST_IPV4 = frozenset({"babel", "connected", "isis", "kernel", "ospf", "rip", "static"})
+    _REDIST_IPV6 = frozenset({"babel", "connected", "isis", "kernel", "ospfv3", "ripng", "static"})
 
-    # BMP monitor policies that exist as CLI nodes. local-rib is not a real
-    # node on 1.4 or 1.5, so it is excluded on every version.
-    _BMP_MONITOR_POLICIES = (
-        "pre-policy", "post-policy",
-    )
+    # ``address-family <afi> redistribute table`` both labs have.
+    _TABLE_AFIS = frozenset({"ipv4-unicast"})
+
+    # ``bmp target <t> monitor <afi> <policy>`` both labs have.
+    _BMP_MONITOR_POLICIES = frozenset({"pre-policy", "post-policy"})
 
     _L2VPN_EVPN_CONTROL_FLAGS = (
         "advertise-all-vni",
@@ -37,21 +40,68 @@ class VrfBgpMapper:
         "disable-ead-evi-tx",
     )
 
-    def __init__(self, version: str = ""):
-        self.version = version
+    # Version-only nodes, each with the path methods below it. The methods
+    # live on the version subclass; VRF dispatch calls ``require_node`` with
+    # ``path_node(<method>)`` before it looks one up.
+    _VERSIONED_NODES: Dict[str, Tuple[str, ...]] = {
+        "peer-group solo": ("get_bgp_peer_group_solo",),
+    }
 
-    def redistribute_protocols(self) -> FrozenSet[str]:
-        if "1.4" in self.version:
-            return frozenset(self._REDIST)
-        return frozenset(self._REDIST) | {"nhrp"}
+    # ========================================================================
+    # Core
+    # ========================================================================
 
-    def _require_redistribute(self, protocol: str) -> None:
-        if protocol not in self.redistribute_protocols():
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only nodes this device has.
+
+        A node counts when every path method below it is on this mapper.
+        VRF dispatch reads this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
+
+    def path_node(self, method: str) -> Optional[str]:
+        """The version-only node path method ``method`` sits under, if any."""
+        for node, methods in self._VERSIONED_NODES.items():
+            if method in methods:
+                return node
+        return None
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"{node} is not supported on this device")
+
+    def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
+        return self._REDIST_IPV4
+
+    def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
+        return self._REDIST_IPV6
+
+    def _redistribute_protocols(self, afi: str) -> FrozenSet[str]:
+        if afi == "ipv4-unicast":
+            return self.redistribute_ipv4_protocols()
+        if afi == "ipv6-unicast":
+            return self.redistribute_ipv6_protocols()
+        raise ValueError(f"redistribute is not supported for {afi} on this device")
+
+    def _require_redistribute(self, afi: str, protocol: str) -> None:
+        if protocol not in self._redistribute_protocols(afi):
             raise ValueError(
                 f"redistribute {protocol} is not supported on this device")
 
+    def redistribute_table_afis(self) -> FrozenSet[str]:
+        return self._TABLE_AFIS
+
+    def _require_redistribute_table(self, afi: str) -> None:
+        if afi not in self.redistribute_table_afis():
+            raise ValueError(
+                f"redistribute table is not supported for {afi} on this device")
+
     def bmp_monitor_policies(self) -> FrozenSet[str]:
-        return frozenset(self._BMP_MONITOR_POLICIES)
+        return self._BMP_MONITOR_POLICIES
 
     def _require_bmp_monitor_policy(self, policy: str) -> None:
         if policy not in self.bmp_monitor_policies():
@@ -141,20 +191,11 @@ class VrfBgpMapper:
     def get_bgp_parameters_default_local_pref_delete(self, name: str) -> List[str]:
         return self._base(name) + ["parameters", "default", "local-pref"]
 
-    def get_bgp_parameters_default_no_ipv4_unicast(self, name: str) -> List[str]:
-        return self._base(name) + ["parameters", "default", "no-ipv4-unicast"]
-
     def get_bgp_parameters_minimum_holdtime(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["parameters", "minimum-holdtime", value]
 
     def get_bgp_parameters_minimum_holdtime_delete(self, name: str) -> List[str]:
         return self._base(name) + ["parameters", "minimum-holdtime"]
-
-    def get_bgp_parameters_log_change(self, name: str) -> List[str]:
-        return self._base(name) + ["parameters", "log-change"]
-
-    def get_bgp_parameters_multipath(self, name: str) -> List[str]:
-        return self._base(name) + ["parameters", "multipath"]
 
     # Boolean parameter flags
     def get_bgp_parameters_flag(self, name: str, flag: str) -> List[str]:
@@ -909,9 +950,6 @@ class VrfBgpMapper:
     def get_bgp_interface_mpls_forwarding(self, name: str, iface: str) -> List[str]:
         return self._base(name) + ["interface", iface, "mpls", "forwarding"]
 
-    def get_bgp_peer_group_solo(self, name: str, pg: str) -> List[str]:
-        return self._peer_group(name, pg) + ["solo"]
-
     # ========================================================================
     # Global Address-Family paths
     # ========================================================================
@@ -966,27 +1004,33 @@ class VrfBgpMapper:
 
     # Redistribute
     def get_bgp_af_redistribute(self, name: str, afi: str, protocol: str) -> List[str]:
-        self._require_redistribute(protocol)
+        self._require_redistribute(afi, protocol)
         return self._af(name, afi) + ["redistribute", protocol]
 
     def get_bgp_af_redistribute_metric(self, name: str, afi: str, protocol: str, value: str) -> List[str]:
-        self._require_redistribute(protocol)
+        self._require_redistribute(afi, protocol)
         return self._af(name, afi) + ["redistribute", protocol, "metric", value]
 
     def get_bgp_af_redistribute_route_map(self, name: str, afi: str, protocol: str, value: str) -> List[str]:
-        self._require_redistribute(protocol)
+        self._require_redistribute(afi, protocol)
         return self._af(name, afi) + ["redistribute", protocol, "route-map", value]
 
     def get_bgp_af_redistribute_table(self, name: str, afi: str, table: str) -> List[str]:
+        self._require_redistribute_table(afi)
         return self._af(name, afi) + ["redistribute", "table", table]
 
     def get_bgp_af_redistribute_table_metric(self, name: str, afi: str, table: str, value: str) -> List[str]:
+        self._require_redistribute_table(afi)
         return self._af(name, afi) + ["redistribute", "table", table, "metric", value]
 
     def get_bgp_af_redistribute_table_route_map(self, name: str, afi: str, table: str, value: str) -> List[str]:
+        self._require_redistribute_table(afi)
         return self._af(name, afi) + ["redistribute", "table", table, "route-map", value]
 
     def get_bgp_af_redistribute_delete(self, name: str, afi: str, protocol: str) -> List[str]:
+        # The family is checked; the protocol allowlist is not, so a stale
+        # protocol stays deletable.
+        self._redistribute_protocols(afi)
         return self._af(name, afi) + ["redistribute", protocol]
 
     # Distance

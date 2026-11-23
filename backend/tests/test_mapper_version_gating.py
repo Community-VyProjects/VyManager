@@ -23,6 +23,7 @@ from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
 from vyos_mappers.isis.isis_versions import get_isis_mapper
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 from vyos_mappers.vrf.vrf_bgp import VrfBgpMapper
+from vyos_mappers.vrf.vrf_bgp_versions import get_vrf_bgp_mapper
 from vyos_mappers.vrf.vrf_isis import VrfIsisMapper
 from vyos_mappers.vrf.vrf_ospf import VrfOspfMapper
 
@@ -207,19 +208,17 @@ def test_bgp_capabilities_gate_local_rib_on_the_monitor_allowlist():
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_vrf_bgp_builder_follows_global_bmp_allowlist(version):
-    """VRF batch ops reuse the global BGP builder, so 1.5 local-rib is accepted.
-
-    The VRF mapper itself still excludes local-rib. That hole is a separate
-    issue; this test only locks the builder the VRF page calls.
-    """
-    mapper = VrfBgpMapper(version)
-    with pytest.raises(ValueError, match="not supported"):
-        mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")
+    """VRF batch ops reuse the global BGP builder, and the VRF mapper keeps
+    the same monitor allowlist: local-rib is 1.5-only on both."""
+    mapper = get_vrf_bgp_mapper(version)
     builder = VrfBatchBuilder(version=version)
     if "1.4" in version:
         with pytest.raises(ValueError, match="not supported"):
+            mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")
+        with pytest.raises(ValueError, match="not supported"):
             builder.set_vrf_bgp_bmp_target_monitor("blue", "T1,ipv4-unicast,local-rib")
     else:
+        assert mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")[-1] == "local-rib"
         builder.set_vrf_bgp_bmp_target_monitor("blue", "T1,ipv4-unicast,local-rib")
         assert builder.get_operations()[0]["path"][-1] == "local-rib"
     assert mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "pre-policy")[-1] == "pre-policy"
