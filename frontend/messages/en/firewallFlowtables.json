@@ -22,21 +22,16 @@
   },
   "modal": {
     "nameRequired": "Name is required",
-    "nameInvalid": "Name must start with a letter and contain only letters, numbers, hyphens, and underscores",
+    "nameInvalid": "Name must start with a letter or number and contain only letters, numbers, dots, hyphens, and underscores",
     "nameExists": "A flowtable with this name already exists",
+    "descriptionTooLong": "Description must be at most {max} characters",
     "interfaceRequired": "At least one interface is required",
     "updateFailed": "Failed to update flowtable",
     "createFailed": "Failed to create flowtable",
     "editTitle": "Edit Flowtable: {name}",
     "editDescription": "Modify the flowtable configuration.",
     "createDescription": "Create a new flowtable for fast-path packet offloading.",
-    "namePlaceholder": "e.g., FT_LAN",
-    "nameHintEdit": "Flowtable name cannot be changed. Delete and recreate to rename.",
-    "nameHintCreate": "Must start with a letter. Use letters, numbers, hyphens, and underscores.",
-    "interfacesHint": "Select the network interfaces to include in this flowtable.",
-    "offloadSoftware": "Software (kernel-based)",
-    "offloadHardware": "Hardware (NIC-based)",
-    "offloadHint": "Software offload uses the kernel for processing. Hardware offload uses the NIC (requires compatible hardware)."
+    "namePlaceholder": "e.g., FT_LAN"
   },
   "delete": {
     "title": "Delete Flowtable",

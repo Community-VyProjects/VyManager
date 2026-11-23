@@ -11,7 +11,9 @@ def _names(value: Any) -> List[str]:
     if isinstance(value, str):
         return [value]
     if isinstance(value, list):
-        return [item for item in value if isinstance(item, str)]
+        return [str(item) for item in value]
+    if isinstance(value, dict):
+        return list(value.keys())
     return []
 
 

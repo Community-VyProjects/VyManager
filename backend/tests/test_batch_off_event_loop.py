@@ -77,7 +77,6 @@ FIREWALL_FAMILY_OFFLOADED = [
 FIREWALL_FLOWTABLES_OFFLOADED = [
     ("get_flowtables_config", "routers/firewall/flowtables.py", "get_full_config", 1),
     ("batch_configure_flowtable", "routers/firewall/flowtables.py", "execute_batch", 1),
-    ("delete_flowtable", "routers/firewall/flowtables.py", "execute_batch", 1),
 ]
 
 FIREWALL_BRIDGE_OFFLOADED = [

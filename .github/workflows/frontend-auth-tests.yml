@@ -85,3 +85,7 @@ jobs:
       - name: Run high-availability save op tests
         working-directory: frontend
         run: npm run test:high-availability-save
+
+      - name: Run flowtables save op tests
+        working-directory: frontend
+        run: npm run test:flowtables-save

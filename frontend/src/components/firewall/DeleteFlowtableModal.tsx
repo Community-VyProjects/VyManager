@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertDialog,
@@ -14,16 +14,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertCircle } from "lucide-react";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteFlowtableModalProps {
-  open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  flowtable: Flowtable | null;
+  flowtable: Flowtable;
 }
 
+/** Mount with a key per flowtable so an error never carries over. */
 export function DeleteFlowtableModal({
-  open,
   onOpenChange,
   onSuccess,
   flowtable,
@@ -33,27 +33,28 @@ export function DeleteFlowtableModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleDelete = async () => {
-    if (!flowtable) return;
+  const close = (open: boolean) => {
+    if (!loading) onOpenChange(open);
+  };
 
+  const handleDelete = async (event: MouseEvent) => {
+    // AlertDialogAction closes on click; stay open until the commit succeeds.
+    event.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
       await flowtablesService.deleteFlowtable(flowtable.name);
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("delete.failed"));
+      setError((err as ApiError).message || t("delete.failed"));
     } finally {
       setLoading(false);
     }
   };
 
-  if (!flowtable) return null;
-
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open onOpenChange={close}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
@@ -68,7 +69,7 @@ export function DeleteFlowtableModal({
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 

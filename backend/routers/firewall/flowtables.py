@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.firewall import FlowtablesBatchBuilder
 from vyos_mappers import CommandMapperRegistry
@@ -41,6 +41,13 @@ class FlowtableBatchRequest(BaseModel):
     operations: List[FlowtableBatchOperation] = Field(
         ..., description="List of operations to perform"
     )
+
+    @field_validator("flowtable_name")
+    @classmethod
+    def _flowtable_name_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("flowtable_name must not be blank")
+        return value
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -187,39 +194,6 @@ async def batch_configure_flowtable(request: Request, batch_request: FlowtableBa
             data={"message": "Configuration updated"} if ok else None,
             error=None if ok else response.error,
         )
-
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.delete("/{flowtable_name}", response_model=VyOSResponse)
-async def delete_flowtable(request: Request, flowtable_name: str):
-    """
-    Delete a flowtable.
-
-    Args:
-        request: FastAPI request object
-        flowtable_name: Name of the flowtable to delete
-
-    Returns:
-        VyOSResponse with success/failure information
-
-    Requires WRITE permission on FIREWALL_FLOWTABLES feature.
-    """
-    await require_write_permission(request, FeatureGroup.FIREWALL_FLOWTABLES)
-
-    try:
-        service = get_session_vyos_service(request)
-        batch = FlowtablesBatchBuilder(version=service.get_version())
-        batch.delete_flowtable(flowtable_name)
-
-        response = await run_in_threadpool(service.execute_batch, batch)
-        ok = response.status == 200 and not response.error
-
-        return VyOSResponse(success=ok, error=None if ok else response.error)
 
     except HTTPException:
         raise

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -21,183 +21,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { InterfaceSelect } from "@/components/ui/interface-select";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle, X, Plus } from "lucide-react";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { AlertCircle } from "lucide-react";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
-import { ethernetService } from "@/lib/api/ethernet";
-import type { EthernetInterface } from "@/lib/api/types/ethernet";
+import {
+  FLOWTABLE_DESCRIPTION_MAX,
+  flowtableDraft,
+  flowtableProblem,
+  type FlowtableDraft,
+} from "@/lib/api/firewall-flowtables-save-ops";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  listedNames,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
+import type { ApiError } from "@/lib/types/api";
 
 interface FlowtableModalProps {
-  open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingFlowtables: Flowtable[];
   existing?: Flowtable | null;
+  /** Offload values from capabilities (`offload_types`). */
+  offloadTypes: string[];
 }
 
+/** Mount with a key per flowtable: the form is seeded from props once. */
 export function FlowtableModal({
-  open,
   onOpenChange,
   onSuccess,
   existingFlowtables,
   existing,
+  offloadTypes,
 }: FlowtableModalProps) {
   const t = useTranslations("firewallFlowtables");
   const tc = useTranslations("common");
   const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<FlowtableDraft>(() => flowtableDraft(existing));
 
-  // Form fields
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [interfaces, setInterfaces] = useState<string[]>([]);
-  const [offload, setOffload] = useState<string>("software");
+  const set = <K extends keyof FlowtableDraft>(key: K) => (value: FlowtableDraft[K]) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
 
-  // Available interfaces
-  const [availableInterfaces, setAvailableInterfaces] = useState<EthernetInterface[]>([]);
-  const [selectedInterface, setSelectedInterface] = useState<string>("");
-
-  useEffect(() => {
-    if (!open) return;
-    loadInterfaces();
-    if (existing) {
-      populateForm(existing);
-    } else {
-      resetForm();
-    }
-  }, [open, existing]);
-
-  const resetForm = () => {
-    setName("");
-    setDescription("");
-    setInterfaces([]);
-    setOffload("software");
-    setSelectedInterface("");
-    setError(null);
-  };
-
-  const populateForm = (ft: Flowtable) => {
-    setName(ft.name);
-    setDescription(ft.description || "");
-    setInterfaces(ft.interfaces || []);
-    setOffload(ft.offload || "software");
-    setSelectedInterface("");
-    setError(null);
-  };
-
-  const loadInterfaces = async () => {
-    try {
-      const config = await ethernetService.getConfig();
-      setAvailableInterfaces(config.interfaces);
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
-    }
-  };
-
-  const handleAddInterface = () => {
-    if (selectedInterface && !interfaces.includes(selectedInterface)) {
-      setInterfaces([...interfaces, selectedInterface]);
-      setSelectedInterface("");
-    }
-  };
-
-  const handleRemoveInterface = (iface: string) => {
-    setInterfaces(interfaces.filter((i) => i !== iface));
-  };
-
-  const validateName = (value: string): string | null => {
-    if (!value.trim()) {
-      return t("modal.nameRequired");
-    }
-    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(value)) {
-      return t("modal.nameInvalid");
-    }
-    if (existingFlowtables.some((ft) => ft.name.toLowerCase() === value.toLowerCase())) {
-      return t("modal.nameExists");
-    }
-    return null;
-  };
-
-  const submitUpdate = async () => {
-    if (!existing) return;
-
-    if (interfaces.length === 0) {
-      setError(t("modal.interfaceRequired"));
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      await flowtablesService.updateFlowtable(
-        existing.name,
-        {
-          description: description.trim() || undefined,
-          interfaces,
-          offload,
-        },
-        existing
-      );
-
-      onSuccess();
-      onOpenChange(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("modal.updateFailed"));
-    } finally {
-      setLoading(false);
-    }
+  const close = (open: boolean) => {
+    if (!loading) onOpenChange(open);
   };
 
   const handleSubmit = async () => {
-    if (isEdit) {
-      await submitUpdate();
-      return;
-    }
-
-    const nameError = validateName(name);
-    if (nameError) {
-      setError(nameError);
-      return;
-    }
-
-    if (interfaces.length === 0) {
-      setError(t("modal.interfaceRequired"));
-      return;
-    }
-
-    setLoading(true);
     setError(null);
-
+    const problem = flowtableProblem(
+      existing ?? null,
+      draft,
+      existingFlowtables.map((ft) => ft.name)
+    );
+    if (problem) {
+      setError(t(`modal.${problem}`, { max: FLOWTABLE_DESCRIPTION_MAX }));
+      return;
+    }
+    setLoading(true);
     try {
-      await flowtablesService.createFlowtable(name, {
-        description: description.trim() || undefined,
-        interfaces,
-        offload,
-      });
-
+      await flowtablesService.saveFlowtable(existing ?? null, draft);
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("modal.createFailed"));
+      setError(
+        (err as ApiError).message || (isEdit ? t("modal.updateFailed") : t("modal.createFailed"))
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open onOpenChange={close}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? t("modal.editTitle", { name: existing.name }) : t("createFlowtable")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? t("modal.editDescription")
-              : t("modal.createDescription")}
+            {isEdit ? t("modal.editDescription") : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -205,7 +110,7 @@ export function FlowtableModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
 
@@ -215,94 +120,61 @@ export function FlowtableModal({
             </Label>
             <Input
               id="name"
-              value={isEdit ? existing.name : name}
-              onChange={(e) => setName(e.target.value)}
+              value={draft.name}
+              onChange={(e) => set("name")(e.target.value)}
               placeholder={t("modal.namePlaceholder")}
               className={isEdit ? "font-mono bg-muted" : "font-mono"}
               disabled={isEdit}
             />
-            <p className="text-xs text-muted-foreground">
-              {isEdit
-                ? t("modal.nameHintEdit")
-                : t("modal.nameHintCreate")}
-            </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="description">{tc("description")}</Label>
             <Textarea
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={draft.description}
+              onChange={(e) => set("description")(e.target.value)}
               placeholder={tc("optionalDescription")}
+              maxLength={FLOWTABLE_DESCRIPTION_MAX}
               rows={2}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>
+            <Label htmlFor="interfaces">
               {t("interfaces")} <span className="text-destructive">*</span>
             </Label>
-            <div className="flex gap-2">
-              <InterfaceSelect
-                value={selectedInterface}
-                onValueChange={setSelectedInterface}
-                interfaces={availableInterfaces
-                  .filter((iface) => !interfaces.includes(iface.name))
-                  .map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
-                className="flex-1"
-                placeholder={tc("selectInterface")}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={handleAddInterface}
-                disabled={!selectedInterface}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {interfaces.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {interfaces.map((iface) => (
-                  <Badge key={iface} variant="secondary" className="gap-1">
-                    {iface}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveInterface(iface)}
-                      className="hover:text-destructive"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {t("modal.interfacesHint")}
-            </p>
+            <InterfaceMultiSelect
+              id="interfaces"
+              values={draft.interfaces}
+              onChange={set("interfaces")}
+              placeholder={tc("selectInterface")}
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="offload">{t("offloadType")}</Label>
-            <Select value={offload} onValueChange={setOffload}>
+            <Select
+              value={toNamedListValue(draft.offload)}
+              onValueChange={(value) => set("offload")(fromNamedListValue(value))}
+            >
               <SelectTrigger id="offload">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="software">{t("modal.offloadSoftware")}</SelectItem>
-                <SelectItem value="hardware">{t("modal.offloadHardware")}</SelectItem>
+                <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                {listedNames(offloadTypes, draft.offload).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              {t("modal.offloadHint")}
-            </p>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => close(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

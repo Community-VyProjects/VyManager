@@ -6,6 +6,7 @@ emitted ops, and the 400/422/500 paths.
 """
 
 import inspect
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -85,6 +86,7 @@ def test_config_returns_parsed_flowtables(monkeypatch):
                     "offload": "hardware",
                 },
                 "FT2": {"interface": "eth2"},
+                "FT3": {"interface": {"eth3": {}}},
             }
         }
     }
@@ -95,8 +97,9 @@ def test_config_returns_parsed_flowtables(monkeypatch):
         "flowtables": [
             {"name": "FT1", "description": "LAN", "interfaces": ["eth0", "eth1"], "offload": "hardware"},
             {"name": "FT2", "description": None, "interfaces": ["eth2"], "offload": None},
+            {"name": "FT3", "description": None, "interfaces": ["eth3"], "offload": None},
         ],
-        "total": 2,
+        "total": 3,
     }
 
 
@@ -192,9 +195,10 @@ def test_batch_internal_op_is_400(client, op):
     assert executed == []
 
 
-def test_batch_rejects_empty_name(client):
+@pytest.mark.parametrize("name", ["", "  "])
+def test_batch_rejects_blank_name(client, name):
     test_client, executed = client
-    resp = _batch(test_client, [{"op": "set_flowtable"}], name="")
+    resp = _batch(test_client, [{"op": "set_flowtable"}], name=name)
     assert resp.status_code == 422, resp.text
     assert executed == []
 
@@ -239,9 +243,9 @@ def test_batch_rejected_commit_reports_failure(client, commit, status, error):
 
 def test_delete_commits_the_flowtable(client):
     test_client, executed = client
-    resp = test_client.delete("/vyos/firewall/flowtables/FT1")
+    resp = _batch(test_client, [{"op": "delete_flowtable"}])
     assert resp.status_code == 200, resp.text
-    assert resp.json() == {"success": True, "data": None, "error": None}
+    assert resp.json() == {"success": True, "data": {"message": "Configuration updated"}, "error": None}
     assert executed == [[("delete", BASE)]]
 
 
@@ -249,9 +253,17 @@ def test_delete_commits_the_flowtable(client):
 def test_delete_rejected_commit_reports_failure(client, commit, status, error):
     test_client, executed = client
     commit.update(status=status, error=error)
-    resp = test_client.delete("/vyos/firewall/flowtables/FT1")
+    resp = _batch(test_client, [{"op": "delete_flowtable"}])
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": False, "data": None, "error": error}
+    assert executed == [[("delete", BASE)]]
+
+
+def test_router_has_no_delete_route():
+    """Deletion goes through POST /batch and the builder's delete_flowtable op."""
+    router = __import__(MODULE, fromlist=["router"]).router
+    methods = {method for route in router.routes for method in getattr(route, "methods", set())}
+    assert methods == {"GET", "POST"}
 
 
 @pytest.mark.parametrize("method, path, payload", [
@@ -260,8 +272,7 @@ def test_delete_rejected_commit_reports_failure(client, commit, status, error):
     ("post", "/vyos/firewall/flowtables/batch", {
         "flowtable_name": "FT1", "operations": [{"op": "set_flowtable"}],
     }),
-    ("delete", "/vyos/firewall/flowtables/FT1", None),
-], ids=["capabilities", "config", "batch", "delete"])
+], ids=["capabilities", "config", "batch"])
 def test_session_400_passes_through(client, monkeypatch, method, path, payload):
     """A session lookup 400 is not turned into a 500 by the catch-all."""
     test_client, executed = client
@@ -273,18 +284,20 @@ def test_session_400_passes_through(client, monkeypatch, method, path, payload):
     if method == "post":
         resp = test_client.post(path, json=payload)
     else:
-        resp = getattr(test_client, method)(path)
+        resp = test_client.get(path)
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "No active VyOS session"
     assert executed == []
 
 
-@pytest.mark.parametrize("method, path", [
-    ("get", "/vyos/firewall/flowtables/capabilities"),
-    ("get", "/vyos/firewall/flowtables/config"),
-    ("delete", "/vyos/firewall/flowtables/FT1"),
-], ids=["capabilities", "config", "delete"])
-def test_unexpected_error_is_logged_500(client, monkeypatch, method, path):
+@pytest.mark.parametrize("method, path, payload", [
+    ("get", "/vyos/firewall/flowtables/capabilities", None),
+    ("get", "/vyos/firewall/flowtables/config", None),
+    ("post", "/vyos/firewall/flowtables/batch", {
+        "flowtable_name": "FT1", "operations": [{"op": "set_flowtable"}],
+    }),
+], ids=["capabilities", "config", "batch"])
+def test_unexpected_error_is_logged_500(client, monkeypatch, caplog, method, path, payload):
     """The catch-all logs through the module logger, not a NameError."""
     test_client, _executed = client
 
@@ -292,6 +305,13 @@ def test_unexpected_error_is_logged_500(client, monkeypatch, method, path):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(f"{MODULE}.get_session_vyos_service", broken)
-    resp = getattr(test_client, method)(path)
+    with caplog.at_level(logging.ERROR, logger=MODULE):
+        if method == "post":
+            resp = test_client.post(path, json=payload)
+        else:
+            resp = test_client.get(path)
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
+    records = [r for r in caplog.records if r.name == MODULE]
+    assert [r.getMessage() for r in records] == ["Unhandled error"]
+    assert records[0].exc_info is not None
