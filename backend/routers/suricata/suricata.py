@@ -20,9 +20,8 @@ from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.suricata import SuricataMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,15 @@ class SuricataConfig(BaseModel):
 
 class SuricataBatchOperation(BaseModel):
     op: str = Field(..., description="Builder method name")
-    value: Optional[str] = None
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class SuricataBatchRequest(BaseModel):
@@ -116,24 +123,7 @@ async def suricata_batch_configure(http_request: Request, body: SuricataBatchReq
 
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 0:
-                    method()
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(",", count - 1)
-                if len(parts) != count or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count} values",
-                    )
-                method(*parts)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as exc:
             # The mapper raises ValueError on 1.4 and for a value the device rejects.
             raise HTTPException(status_code=400, detail=str(exc))

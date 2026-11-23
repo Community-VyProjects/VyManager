@@ -73,6 +73,7 @@ DYNAMIC_DISPATCH_FILES = [
     "rip/rip.py",
     "segment_routing/segment_routing.py",
     "static_routes/static_routes.py",
+    "suricata/suricata.py",
 ]
 
 
