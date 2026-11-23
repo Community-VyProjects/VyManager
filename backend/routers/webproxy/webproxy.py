@@ -160,8 +160,9 @@ class WebProxyBatchOperation(BaseModel):
         None,
         description=(
             "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
             "Single-arg methods: plain string. "
-            "Multi-arg methods: comma-separated."
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
         ),
     )
 
@@ -182,7 +183,7 @@ class VyOSResponse(BaseModel):
 
 @router.get("/capabilities")
 async def get_webproxy_capabilities(request: Request):
-    """Return webproxy feature capabilities based on the VyOS version."""
+    """Return webproxy feature flags and option lists."""
     await require_read_permission(request, FeatureGroup.WEBPROXY)
     try:
         service = get_session_vyos_service(request)
