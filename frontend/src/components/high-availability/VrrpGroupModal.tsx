@@ -71,7 +71,11 @@ export function VrrpGroupModal({
   const isEdit = !!existingGroup;
   const timeoutSupported = capabilities?.features.health_check_timeout?.supported ?? false;
   const authTypes = capabilities?.auth_types || [];
-  const [draft, setDraft] = useState<VrrpGroupDraft>(() => vrrpGroupDraft(existingGroup));
+  const [draft, setDraft] = useState<VrrpGroupDraft>(() => {
+    const loaded = vrrpGroupDraft(existingGroup);
+    // A new group starts with one empty virtual address row (the lab requires one).
+    return existingGroup ? loaded : { ...loaded, addresses: [{ address: "", interface: "" }] };
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
