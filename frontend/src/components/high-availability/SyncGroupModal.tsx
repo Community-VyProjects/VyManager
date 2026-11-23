@@ -77,7 +77,7 @@ export function SyncGroupModal({
       });
     }
     if (problem.key === "healthCheckPingAndScript") return t("healthCheckPingAndScript");
-    return t(`syncModal.${problem.key}`, { name: problem.address ?? "" });
+    return t(`syncModal.${problem.key}`, { name: problem.name ?? "" });
   };
 
   const close = (open: boolean) => {

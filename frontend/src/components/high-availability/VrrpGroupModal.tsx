@@ -13,13 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,7 +27,7 @@ import {
 import { AlertCircle, ChevronDown, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApiError } from "@/lib/types/api";
-import type { HACapabilities, VrrpGroup } from "@/lib/api/high-availability";
+import type { HACapabilities, VrrpGroup, VrrpSyncGroup } from "@/lib/api/high-availability";
 import {
   HA_PASSWORD_MAX,
   HA_RANGES,
@@ -44,7 +38,6 @@ import {
   type VrrpGroupDraft,
   type VrrpGroupProblemKey,
 } from "@/lib/api/high-availability-save-ops";
-import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { HA_FIELD_LABELS } from "./ha-field-labels";
 import { GarpFields, HealthCheckFields, TransitionScriptFields } from "./HaSectionFields";
 
@@ -54,6 +47,7 @@ interface VrrpGroupModalProps {
   onOpenChange: (open: boolean) => void;
   existingGroup?: VrrpGroup | null;
   existingNames: string[];
+  syncGroups: VrrpSyncGroup[];
   capabilities?: HACapabilities | null;
   onSubmit: (draft: VrrpGroupDraft) => Promise<void>;
 }
@@ -63,6 +57,7 @@ export function VrrpGroupModal({
   onOpenChange,
   existingGroup,
   existingNames,
+  syncGroups,
   capabilities,
   onSubmit,
 }: VrrpGroupModalProps) {
@@ -120,7 +115,11 @@ export function VrrpGroupModal({
       });
     }
     if (problem.key === "healthCheckPingAndScript") return t("healthCheckPingAndScript");
-    return t(`vrrpModal.${problem.key}`, { address: problem.address ?? "", max: problem.max ?? 0 });
+    return t(`vrrpModal.${problem.key}`, {
+      address: problem.address ?? "",
+      name: problem.name ?? "",
+      max: problem.max ?? 0,
+    });
   };
 
   const close = (open: boolean) => {
@@ -129,7 +128,7 @@ export function VrrpGroupModal({
 
   const handleSubmit = async () => {
     setError(null);
-    const problem = vrrpGroupProblem(existingGroup ?? null, draft, existingNames);
+    const problem = vrrpGroupProblem(existingGroup ?? null, draft, existingNames, syncGroups);
     if (problem) {
       setError(problemText(problem));
       return;
@@ -299,20 +298,11 @@ export function VrrpGroupModal({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">{t("vrrpModal.type")}</Label>
-                      <Select
-                        value={draft.auth_type || NONE_SENTINEL}
-                        onValueChange={(v) => set("auth_type")(v === NONE_SENTINEL ? "" : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
-                          {authTypes.map((type) => (
-                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <NamedListSelect
+                        value={draft.auth_type}
+                        onValueChange={set("auth_type")}
+                        names={authTypes}
+                      />
                     </div>
                     {draft.auth_type && (
                       <div className="space-y-1.5">

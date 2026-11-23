@@ -105,6 +105,15 @@ def test_batch_binds_item_name_and_value_onto_builder_args(client):
     ]]
 
 
+def test_whitespace_password_is_sent_as_typed(client):
+    test_client, service = client
+    resp = _post(test_client, "G1", [{"op": "set_vrrp_group_auth_password", "value": "  "}])
+    assert resp.status_code == 200, resp.text
+    assert service.executed == [[
+        {"op": "set", "path": BASE + ["vrrp", "group", "G1", "authentication", "password", "  "]},
+    ]]
+
+
 def test_real_server_ops_take_the_server_and_value(client):
     test_client, service = client
     resp = _post(test_client, "V1", [
@@ -232,7 +241,7 @@ def test_bad_forward_method_is_400(client):
     test_client, service = client
     resp = _post(test_client, "V1", [{"op": "set_virtual_server_forward_method", "value": "dr"}])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "forward-method dr is not supported on this device"
+    assert resp.json()["detail"] == "forward-method dr is not a valid value"
     assert service.executed == []
 
 

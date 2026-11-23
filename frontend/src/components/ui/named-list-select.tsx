@@ -24,12 +24,15 @@ export interface NamedListSelectProps {
   /** Called with the selected name, or "" when none is chosen. */
   onValueChange: (value: string) => void;
   disabled?: boolean;
+  /** Label of the empty item (default: common.none). */
+  noneLabel?: string;
 }
 
 /**
  * Shared picker for an existing named object (access list, prefix list, or
- * route map). Empty value selects none. A configured name that is missing
- * from `names` stays in the list so editing does not hide it.
+ * route map) or a capability value list. Empty value selects none. A
+ * configured name that is missing from `names` stays in the list so editing
+ * does not hide it.
  */
 export function NamedListSelect({
   id,
@@ -37,15 +40,17 @@ export function NamedListSelect({
   names,
   onValueChange,
   disabled = false,
+  noneLabel,
 }: NamedListSelectProps) {
   const tc = useTranslations("common");
+  const none = noneLabel ?? tc("none");
   if (disabled) {
     return (
       <Input
         id={id}
         value={value}
         disabled
-        placeholder={tc("none")}
+        placeholder={none}
         className="font-mono"
       />
     );
@@ -56,10 +61,10 @@ export function NamedListSelect({
       onValueChange={(next) => onValueChange(fromNamedListValue(next))}
     >
       <SelectTrigger id={id}>
-        <SelectValue placeholder={tc("none")} />
+        <SelectValue placeholder={none} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
+        <SelectItem value={NONE_SENTINEL}>{none}</SelectItem>
         {listedNames(names, value).map((name) => (
           <SelectItem key={name} value={name} className="font-mono">
             {name}

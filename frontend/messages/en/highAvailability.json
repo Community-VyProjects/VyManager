@@ -18,7 +18,6 @@
   "algorithm": "Algorithm",
   "realServers": "Real Servers",
   "port": "Port",
-  "any": "Any",
   "remove": "Remove",
   "apply": "Apply",
   "example": "e.g. {value}",
@@ -55,7 +54,6 @@
     "startupDelay": "Startup delay",
     "traps": "Traps",
     "vrrpVersion": "VRRP Version",
-    "versionN": "Version {n}",
     "startupDelayLabel": "Startup Delay (s)",
     "snmpNotifications": "SNMP Notifications",
     "snmpTraps": "SNMP Traps"
@@ -148,6 +146,7 @@
     "duplicateAddress": "Address {address} is listed twice",
     "passwordRequired": "A password is required with authentication",
     "passwordTooLong": "The password can be at most {max} characters",
+    "syncMemberHealthCheck": "This group is a member of sync group {name}, so it cannot have its own health check",
     "passwordKeep": "Leave blank to keep the current password",
     "editTitle": "Edit VRRP Group",
     "editingDescription": "Editing VRRP group \"{name}\"",

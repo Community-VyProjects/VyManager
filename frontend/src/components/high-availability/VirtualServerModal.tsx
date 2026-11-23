@@ -13,18 +13,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { ApiError } from "@/lib/types/api";
 import type { HACapabilities, VirtualServer } from "@/lib/api/high-availability";
-import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import {
   HA_RANGES,
   virtualServerDraft,
@@ -50,33 +43,6 @@ const emptyRealServer = (): HARealServerDraft => ({
   connection_timeout: "",
   health_check_script: "",
 });
-
-/** A Select of capability values with a default item that clears the leaf. */
-function ValueSelect({
-  value,
-  onChange,
-  options,
-  noneLabel,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  noneLabel: string;
-}) {
-  return (
-    <Select value={value || NONE_SENTINEL} onValueChange={(v) => onChange(v === NONE_SENTINEL ? "" : v)}>
-      <SelectTrigger>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={NONE_SENTINEL}>{noneLabel}</SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option} value={option}>{option}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
 
 /** Rendered only while open, so the draft starts from the server each time. */
 export function VirtualServerModal({
@@ -206,28 +172,28 @@ export function VirtualServerModal({
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>{t("protocol")}</Label>
-                <ValueSelect
+                <NamedListSelect
                   value={draft.protocol}
-                  onChange={set("protocol")}
-                  options={capabilities?.protocols || []}
+                  onValueChange={set("protocol")}
+                  names={capabilities?.protocols || []}
                   noneLabel={tc("default")}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("algorithm")}</Label>
-                <ValueSelect
+                <NamedListSelect
                   value={draft.algorithm}
-                  onChange={set("algorithm")}
-                  options={capabilities?.algorithms || []}
+                  onValueChange={set("algorithm")}
+                  names={capabilities?.algorithms || []}
                   noneLabel={tc("default")}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("vsModal.forwardMethod")}</Label>
-                <ValueSelect
+                <NamedListSelect
                   value={draft.forward_method}
-                  onChange={set("forward_method")}
-                  options={capabilities?.forward_methods || []}
+                  onValueChange={set("forward_method")}
+                  names={capabilities?.forward_methods || []}
                   noneLabel={tc("default")}
                 />
               </div>

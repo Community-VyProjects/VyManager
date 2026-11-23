@@ -64,7 +64,7 @@ export const HA_RANGES = {
   connection_timeout: { min: 1, max: 86400 },
 } as const satisfies Record<string, HARange>;
 
-/** The field label keys an out-of-range problem names (highAvailability.fields.*). */
+/** The fields an out-of-range problem names; ha-field-labels.ts maps each to its label key. */
 export type HAField = keyof typeof HA_RANGES | "persistence_timeout";
 
 /** The VRRP password validator accepts at most this many characters. */
@@ -76,6 +76,8 @@ export interface HAProblem<K extends string> {
   min?: number;
   max?: number;
   address?: string;
+  /** The object a problem names (a sync group, or a VRRP group). */
+  name?: string;
 }
 
 function outOfRange(field: HAField, value: string, range: HARange): HAProblem<never> | null {
@@ -212,13 +214,21 @@ function garpDraft(value: VrrpGarp | null | undefined): HAGarpDraft {
   };
 }
 
-function normalizeHealthCheck(value: HAHealthCheckDraft, timeoutSupported: boolean): HAHealthCheckDraft {
+function normalizeHealthCheck(value: HAHealthCheckDraft): HAHealthCheckDraft {
   const out = { ...value };
   for (const key of HEALTH_CHECK_KEYS) {
     out[key] = NUMERIC_HEALTH_CHECK.has(key) ? haNumber(value[key]) : haText(value[key]);
   }
-  if (!timeoutSupported) out.timeout = "";
   return out;
+}
+
+/**
+ * Where timeout is not offered (1.4, or capabilities not loaded) the draft
+ * keeps the stored value, so it is neither set nor deleted and the section
+ * still counts it when the other leaves are cleared.
+ */
+function keepHiddenTimeout(before: HAHealthCheckDraft, after: HAHealthCheckDraft, supported: boolean): void {
+  if (!supported) after.timeout = before.timeout;
 }
 
 function normalizeTransition(value: HATransitionScriptDraft): HATransitionScriptDraft {
@@ -336,7 +346,7 @@ function addressMap(items: HAAddressDraft[]): Map<string, string> {
   return out;
 }
 
-function normalizeVrrpGroup(draft: VrrpGroupDraft, timeoutSupported: boolean): VrrpGroupDraft {
+function normalizeVrrpGroup(draft: VrrpGroupDraft): VrrpGroupDraft {
   return {
     ...draft,
     name: haText(draft.name),
@@ -346,13 +356,13 @@ function normalizeVrrpGroup(draft: VrrpGroupDraft, timeoutSupported: boolean): V
     priority: haNumber(draft.priority),
     advertise_interval: haNumber(draft.advertise_interval),
     auth_type: haText(draft.auth_type),
-    // A password is sent as typed; only an all-blank field means keep.
-    auth_password: draft.auth_password.trim() ? draft.auth_password : "",
+    // A password is sent as typed (the lab accepts spaces); only an empty field means keep.
+    auth_password: draft.auth_password,
     preempt_delay: haNumber(draft.preempt_delay),
     peer_addresses: textList(draft.peer_addresses),
     hello_source_address: haText(draft.hello_source_address),
     track_interfaces: textList(draft.track_interfaces),
-    health_check: normalizeHealthCheck(draft.health_check, timeoutSupported),
+    health_check: normalizeHealthCheck(draft.health_check),
     garp: normalizeGarp(draft.garp),
     transition_script: normalizeTransition(draft.transition_script),
   };
@@ -367,14 +377,17 @@ export type VrrpGroupProblemKey =
   | "duplicateAddress"
   | "passwordRequired"
   | "passwordTooLong"
-  | "healthCheckPingAndScript";
+  | "healthCheckPingAndScript"
+  | "syncMemberHealthCheck";
 
+/** syncGroups: the configured sync groups (a member must not have its own health-check). */
 export function vrrpGroupProblem(
   original: VrrpGroup | null,
   draft: VrrpGroupDraft,
   existingNames: string[],
+  syncGroups: VrrpSyncGroup[],
 ): HAProblem<VrrpGroupProblemKey> | null {
-  const next = normalizeVrrpGroup(draft, true);
+  const next = normalizeVrrpGroup(draft);
   if (!next.name) return { key: "nameRequired" };
   if (!original && existingNames.includes(next.name)) return { key: "nameExists" };
   if (!next.vrid) return { key: "vridRequired" };
@@ -389,6 +402,10 @@ export function vrrpGroupProblem(
   if (next.auth_type && !next.auth_password && !storedAuth) return { key: "passwordRequired" };
   if (next.auth_password.length > HA_PASSWORD_MAX) return { key: "passwordTooLong", max: HA_PASSWORD_MAX };
   if (next.health_check.ping && next.health_check.script) return { key: "healthCheckPingAndScript" };
+  const syncGroup = syncGroups.find((group) => group.members.includes(next.name));
+  if (syncGroup && HEALTH_CHECK_KEYS.some((key) => next.health_check[key])) {
+    return { key: "syncMemberHealthCheck", name: syncGroup.name };
+  }
   return firstRange([
     ["vrid", next.vrid, HA_RANGES.vrid],
     ["priority", next.priority, HA_RANGES.priority],
@@ -430,8 +447,9 @@ export function vrrpGroupSaveOps(
   draft: VrrpGroupDraft,
   options: VrrpGroupSaveOptions,
 ): Op[] {
-  const before = normalizeVrrpGroup(vrrpGroupDraft(original), options.healthCheckTimeout);
-  const after = normalizeVrrpGroup(draft, options.healthCheckTimeout);
+  const before = normalizeVrrpGroup(vrrpGroupDraft(original));
+  const after = normalizeVrrpGroup(draft);
+  keepHiddenTimeout(before.health_check, after.health_check, options.healthCheckTimeout);
   const ops: Op[] = [];
   if (!original) ops.push({ op: "create_vrrp_group" });
 
@@ -510,11 +528,11 @@ export function vrrpSyncGroupDraft(group: VrrpSyncGroup | null | undefined): Vrr
   };
 }
 
-function normalizeSyncGroup(draft: VrrpSyncGroupDraft, timeoutSupported: boolean): VrrpSyncGroupDraft {
+function normalizeSyncGroup(draft: VrrpSyncGroupDraft): VrrpSyncGroupDraft {
   return {
     name: haText(draft.name),
     members: textList(draft.members),
-    health_check: normalizeHealthCheck(draft.health_check, timeoutSupported),
+    health_check: normalizeHealthCheck(draft.health_check),
     transition_script: normalizeTransition(draft.transition_script),
   };
 }
@@ -533,13 +551,13 @@ export function vrrpSyncGroupProblem(
   existingNames: string[],
   groupsWithHealthCheck: string[],
 ): HAProblem<VrrpSyncGroupProblemKey> | null {
-  const next = normalizeSyncGroup(draft, true);
+  const next = normalizeSyncGroup(draft);
   if (!next.name) return { key: "nameRequired" };
   if (!original && existingNames.includes(next.name)) return { key: "nameExists" };
   if (next.members.length === 0) return { key: "membersRequired" };
   if (next.health_check.ping && next.health_check.script) return { key: "healthCheckPingAndScript" };
   const blocked = next.members.find((member) => groupsWithHealthCheck.includes(member));
-  if (blocked) return { key: "memberHasHealthCheck", address: blocked };
+  if (blocked) return { key: "memberHasHealthCheck", name: blocked };
   return firstRange(healthCheckRanges(next.health_check));
 }
 
@@ -552,8 +570,9 @@ export function vrrpSyncGroupSaveOps(
   draft: VrrpSyncGroupDraft,
   options: VrrpSyncGroupSaveOptions,
 ): Op[] {
-  const before = normalizeSyncGroup(vrrpSyncGroupDraft(original), options.healthCheckTimeout);
-  const after = normalizeSyncGroup(draft, options.healthCheckTimeout);
+  const before = normalizeSyncGroup(vrrpSyncGroupDraft(original));
+  const after = normalizeSyncGroup(draft);
+  keepHiddenTimeout(before.health_check, after.health_check, options.healthCheckTimeout);
   const ops: Op[] = [];
   if (!original) ops.push({ op: "create_vrrp_sync_group" });
   multi(ops, "set_vrrp_sync_group_member", "delete_vrrp_sync_group_member", before.members, after.members);
@@ -707,7 +726,7 @@ export function virtualServerSaveOps(original: VirtualServer | null, draft: Virt
   );
 
   const was = new Map(before.real_servers.map((item) => [item.address, item]));
-  const now = new Map(after.real_servers.filter((item) => item.address).map((item) => [item.address, item]));
+  const now = new Map(after.real_servers.map((item) => [item.address, item]));
   for (const address of was.keys()) {
     if (!now.has(address)) ops.push({ op: "delete_virtual_server_real_server", value: address });
   }

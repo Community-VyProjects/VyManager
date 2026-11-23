@@ -47,7 +47,7 @@ COMMON_CASES = [
     ('delete_vrrp_group_health_check', ('G0',), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'health-check']),
     ('delete_vrrp_group_hello_source_address', ('G0',), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'hello-source-address']),
     ('delete_vrrp_group_no_preempt', ('G0',), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'no-preempt']),
-    ('delete_vrrp_group_peer_address', ('G0', 'G0'), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'peer-address', 'G0']),
+    ('delete_vrrp_group_peer_address', ('G0', '192.0.2.2'), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'peer-address', '192.0.2.2']),
     ('delete_vrrp_group_preempt_delay', ('G0',), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'preempt-delay']),
     ('delete_vrrp_group_rfc3768_compatibility', ('G0',), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'rfc3768-compatibility']),
     ('delete_vrrp_group_track', ('G0',), 'delete', ['high-availability', 'vrrp', 'group', 'G0', 'track']),
@@ -96,11 +96,11 @@ COMMON_CASES = [
     ('set_vrrp_group_health_check_failure_count', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'health-check', 'failure-count', '5']),
     ('set_vrrp_group_health_check_interval', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'health-check', 'interval', '5']),
     ('set_vrrp_group_health_check_ping', ('G0', '192.0.2.1'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'health-check', 'ping', '192.0.2.1']),
-    ('set_vrrp_group_health_check_script', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'health-check', 'script', '5']),
+    ('set_vrrp_group_health_check_script', ('G0', '/config/scripts/check.sh'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'health-check', 'script', '/config/scripts/check.sh']),
     ('set_vrrp_group_hello_source_address', ('G0', '192.0.2.1'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'hello-source-address', '192.0.2.1']),
     ('set_vrrp_group_interface', ('G0', 'eth0'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'interface', 'eth0']),
     ('set_vrrp_group_no_preempt', ('G0',), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'no-preempt']),
-    ('set_vrrp_group_peer_address', ('G0', 'G0'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'peer-address', 'G0']),
+    ('set_vrrp_group_peer_address', ('G0', '192.0.2.2'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'peer-address', '192.0.2.2']),
     ('set_vrrp_group_preempt_delay', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'preempt-delay', '5']),
     ('set_vrrp_group_priority', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'priority', '5']),
     ('set_vrrp_group_rfc3768_compatibility', ('G0',), 'set', ['high-availability', 'vrrp', 'group', 'G0', 'rfc3768-compatibility']),
@@ -115,7 +115,7 @@ COMMON_CASES = [
     ('set_vrrp_sync_group_health_check_failure_count', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'health-check', 'failure-count', '5']),
     ('set_vrrp_sync_group_health_check_interval', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'health-check', 'interval', '5']),
     ('set_vrrp_sync_group_health_check_ping', ('G0', '192.0.2.1'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'health-check', 'ping', '192.0.2.1']),
-    ('set_vrrp_sync_group_health_check_script', ('G0', '5'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'health-check', 'script', '5']),
+    ('set_vrrp_sync_group_health_check_script', ('G0', '/config/scripts/check.sh'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'health-check', 'script', '/config/scripts/check.sh']),
     ('set_vrrp_sync_group_member', ('G0', 'G0'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'member', 'G0']),
     ('set_vrrp_sync_group_transition_script_backup', ('G0', '/config/scripts/x.sh'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'transition-script', 'backup', '/config/scripts/x.sh']),
     ('set_vrrp_sync_group_transition_script_fault', ('G0', '/config/scripts/x.sh'), 'set', ['high-availability', 'vrrp', 'sync-group', 'G0', 'transition-script', 'fault', '/config/scripts/x.sh']),
@@ -201,7 +201,7 @@ def test_every_builder_op_has_a_golden_row():
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
 def test_forward_method_dr_is_rejected(version):
     builder = HighAvailabilityBatchBuilder(version=version)
-    with pytest.raises(ValueError, match="not supported on this device"):
+    with pytest.raises(ValueError, match="forward-method dr is not a valid value"):
         builder.set_virtual_server_forward_method("G0", "dr")
     assert builder.get_operations() == []
 

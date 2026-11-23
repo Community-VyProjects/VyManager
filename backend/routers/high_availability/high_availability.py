@@ -70,9 +70,18 @@ async def batch_configure(http_request: Request, request: BatchRequest):
             params = list(inspect.signature(resolve_batch_method(batch, op.op)).parameters)
             if params and params[0] != "_name" and not request.item_name.strip():
                 raise HTTPException(status_code=400, detail=f"Operation {op.op} requires item_name")
-            call_item_batch_op(batch, op.op, request.item_name, op.value)
+            # The VRRP password validator (.{1,8}) accepts spaces, so a
+            # whitespace-only password is sent to the device as typed.
+            call_item_batch_op(
+                batch,
+                op.op,
+                request.item_name,
+                op.value,
+                blank_is_missing=op.op != "set_vrrp_group_auth_password",
+            )
     except ValueError as e:
-        # The 1.4 mapper rejects a VRRP leaf that only exists on 1.5.
+        # The mapper rejects a leaf this version does not have (1.5-only VRRP
+        # leaves on 1.4) and a forward-method value neither version accepts.
         raise HTTPException(status_code=400, detail=str(e))
 
     if batch.is_empty():

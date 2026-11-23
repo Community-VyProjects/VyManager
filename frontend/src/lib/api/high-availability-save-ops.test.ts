@@ -119,14 +119,28 @@ describe("vrrpGroupSaveOps", () => {
     assert.deepEqual(vrrpGroupSaveOps(GROUP, draft, V14), []);
   });
 
+  it("keeps a stored timeout it does not offer when the other health-check leaves are cleared", () => {
+    const stored = { ...GROUP, health_check: { ...GROUP.health_check, timeout: "5" } };
+    const loaded = vrrpGroupDraft(stored);
+    const draft = { ...loaded, health_check: { ...loaded.health_check, script: "", interval: "" } };
+    assert.deepEqual(vrrpGroupSaveOps(stored, draft, V14), [
+      { op: "delete_vrrp_group_health_check_interval" },
+      { op: "delete_vrrp_group_health_check_script" },
+    ]);
+  });
+
   it("emits nothing for an untouched edit, and keeps the stored password", () => {
     assert.deepEqual(vrrpGroupSaveOps(GROUP, vrrpGroupDraft(GROUP), V15), []);
     assert.equal(vrrpGroupDraft(GROUP).auth_password, "");
   });
 
-  it("sets only a typed password and treats blank as keep", () => {
-    const draft = { ...vrrpGroupDraft(GROUP), auth_password: "   " };
+  it("sets a typed password as typed and treats an empty field as keep", () => {
+    const draft = { ...vrrpGroupDraft(GROUP), auth_password: "" };
     assert.deepEqual(vrrpGroupSaveOps(GROUP, draft, V15), []);
+    const spaces = { ...vrrpGroupDraft(GROUP), auth_password: "   " };
+    assert.deepEqual(vrrpGroupSaveOps(GROUP, spaces, V15), [
+      { op: "set_vrrp_group_auth_password", value: "   " },
+    ]);
     const typed = { ...vrrpGroupDraft(GROUP), auth_type: "ah", auth_password: " new " };
     assert.deepEqual(vrrpGroupSaveOps(GROUP, typed, V15), [
       { op: "set_vrrp_group_auth_type", value: "ah" },
@@ -182,37 +196,50 @@ describe("vrrpGroupSaveOps", () => {
 
   it("reports the lab's required leaves", () => {
     const blank = vrrpGroupDraft(null);
-    assert.equal(vrrpGroupProblem(null, blank, [])?.key, "nameRequired");
-    assert.equal(vrrpGroupProblem(null, { ...blank, name: "G1" }, ["G1"])?.key, "nameExists");
+    assert.equal(vrrpGroupProblem(null, blank, [], [])?.key, "nameRequired");
+    assert.equal(vrrpGroupProblem(null, { ...blank, name: "G1" }, ["G1"], [])?.key, "nameExists");
     const named = { ...blank, name: "G2", vrid: "1", interface: "eth1" };
-    assert.equal(vrrpGroupProblem(null, named, [])?.key, "addressRequired");
+    assert.equal(vrrpGroupProblem(null, named, [], [])?.key, "addressRequired");
     const addressed = { ...named, addresses: [{ address: "192.0.2.1/24", interface: "" }] };
-    assert.equal(vrrpGroupProblem(null, { ...addressed, auth_type: "ah" }, [])?.key, "passwordRequired");
+    assert.equal(vrrpGroupProblem(null, { ...addressed, auth_type: "ah" }, [], [])?.key, "passwordRequired");
     assert.deepEqual(
-      vrrpGroupProblem(null, { ...addressed, auth_type: "ah", auth_password: "123456789" }, []),
+      vrrpGroupProblem(null, { ...addressed, auth_type: "ah", auth_password: "123456789" }, [], []),
       { key: "passwordTooLong", max: 8 },
     );
-    assert.equal(vrrpGroupProblem(GROUP, { ...vrrpGroupDraft(GROUP), auth_type: "ah" }, []), null);
+    assert.equal(vrrpGroupProblem(GROUP, { ...vrrpGroupDraft(GROUP), auth_type: "ah" }, [], []), null);
     assert.deepEqual(
       vrrpGroupProblem(null, {
         ...addressed,
         addresses: [{ address: "192.0.2.1/24", interface: "" }, { address: " 192.0.2.1/24", interface: "" }],
-      }, []),
+      }, [], []),
       { key: "duplicateAddress", address: "192.0.2.1/24" },
     );
     assert.equal(
-      vrrpGroupProblem(null, { ...addressed, health_check: { ...addressed.health_check, ping: "x", script: "/s" } }, [])?.key,
+      vrrpGroupProblem(null, { ...addressed, health_check: { ...addressed.health_check, ping: "x", script: "/s" } }, [], [])?.key,
       "healthCheckPingAndScript",
     );
   });
 
+  it("rejects a health-check on a sync-group member", () => {
+    const sync: VrrpSyncGroup[] = [{
+      name: "S1", members: ["G1"], health_check: { ...EMPTY_HC }, transition_script: { ...EMPTY_TS },
+    }];
+    assert.deepEqual(vrrpGroupProblem(GROUP, vrrpGroupDraft(GROUP), [], sync), {
+      key: "syncMemberHealthCheck",
+      name: "S1",
+    });
+    const loaded = vrrpGroupDraft(GROUP);
+    const cleared = { ...loaded, health_check: { ...loaded.health_check, script: "", interval: "" } };
+    assert.equal(vrrpGroupProblem(GROUP, cleared, [], sync), null);
+  });
+
   it("checks the lab ranges", () => {
     const draft = { ...vrrpGroupDraft(GROUP), vrid: "256" };
-    assert.deepEqual(vrrpGroupProblem(GROUP, draft, []), { key: "outOfRange", field: "vrid", min: 1, max: 255 });
+    assert.deepEqual(vrrpGroupProblem(GROUP, draft, [], []), { key: "outOfRange", field: "vrid", min: 1, max: 255 });
     const garp = { ...vrrpGroupDraft(GROUP), garp: { ...vrrpGroupDraft(GROUP).garp, interval: "0.5" } };
-    assert.equal(vrrpGroupProblem(GROUP, garp, []), null);
+    assert.equal(vrrpGroupProblem(GROUP, garp, [], []), null);
     const bad = { ...vrrpGroupDraft(GROUP), garp: { ...vrrpGroupDraft(GROUP).garp, interval: "1001" } };
-    assert.deepEqual(vrrpGroupProblem(GROUP, bad, []), { key: "outOfRange", field: "garp_interval", min: 0, max: 1000 });
+    assert.deepEqual(vrrpGroupProblem(GROUP, bad, [], []), { key: "outOfRange", field: "garp_interval", min: 0, max: 1000 });
   });
 });
 
@@ -247,7 +274,7 @@ describe("vrrpSyncGroupSaveOps", () => {
 
   it("rejects a member that keeps its own health-check", () => {
     const draft = vrrpSyncGroupDraft(SYNC);
-    assert.deepEqual(vrrpSyncGroupProblem(SYNC, draft, [], ["G1"]), { key: "memberHasHealthCheck", address: "G1" });
+    assert.deepEqual(vrrpSyncGroupProblem(SYNC, draft, [], ["G1"]), { key: "memberHasHealthCheck", name: "G1" });
     assert.equal(vrrpSyncGroupProblem(SYNC, draft, [], []), null);
     assert.equal(vrrpSyncGroupProblem(null, { ...draft, members: [] }, [], [])?.key, "membersRequired");
   });

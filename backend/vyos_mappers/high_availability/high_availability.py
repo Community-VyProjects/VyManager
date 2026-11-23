@@ -298,7 +298,7 @@ class HighAvailabilityMapper(BaseFeatureMapper):
 
     def get_virtual_server_forward_method_path(self, name: str, method: str) -> List[str]:
         if method not in self._FORWARD_METHODS:
-            raise ValueError(f"forward-method {method} is not supported on this device")
+            raise ValueError(f"forward-method {method} is not a valid value")
         return BASE + ["virtual-server", name, "forward-method", method]
 
     def get_virtual_server_fwmark_path(self, name: str, value: str) -> List[str]:

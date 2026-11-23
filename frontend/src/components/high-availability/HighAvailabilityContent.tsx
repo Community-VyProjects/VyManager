@@ -32,13 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import {
   Activity,
   AlertCircle,
@@ -60,7 +54,6 @@ import {
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
 import type { ApiError } from "@/lib/types/api";
-import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import {
   haService,
   HAConfig,
@@ -285,20 +278,12 @@ function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConf
 
             <div className="space-y-1.5">
               <Label>{t("globals.vrrpVersion")}</Label>
-              <Select
-                value={draft.version || NONE_SENTINEL}
-                onValueChange={(v) => setDraft((p) => ({ ...p, version: v === NONE_SENTINEL ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
-                  {vrrpVersions.map((v) => (
-                    <SelectItem key={v} value={v}>{t("globals.versionN", { n: v })}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <NamedListSelect
+                value={draft.version}
+                onValueChange={(v) => setDraft((p) => ({ ...p, version: v }))}
+                names={vrrpVersions}
+                noneLabel={tc("default")}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -385,15 +370,20 @@ export function HighAvailabilityContent() {
   // ---- Modal state ----
   const [vrrpGroupModal, setVrrpGroupModal] = useState(false);
   const [editingVrrpGroup, setEditingVrrpGroup] = useState<VrrpGroup | null>(null);
-  const [deletingVrrpGroup, setDeletingVrrpGroup] = useState<VrrpGroup | null>(null);
 
   const [syncGroupModal, setSyncGroupModal] = useState(false);
   const [editingSyncGroup, setEditingSyncGroup] = useState<VrrpSyncGroup | null>(null);
-  const [deletingSyncGroup, setDeletingSyncGroup] = useState<VrrpSyncGroup | null>(null);
 
   const [vsModal, setVsModal] = useState(false);
   const [editingVS, setEditingVS] = useState<VirtualServer | null>(null);
-  const [deletingVS, setDeletingVS] = useState<VirtualServer | null>(null);
+
+  // The target outlives `open` so the dialog text holds while it closes.
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: "vrrp" | "sync" | "vs"; name: string } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const confirmDelete = (kind: "vrrp" | "sync" | "vs", name: string) => {
+    setDeleteTarget({ kind, name });
+    setDeleteOpen(true);
+  };
 
   // ---- Load data ----
   const loadData = useCallback(async (refresh = false) => {
@@ -689,7 +679,7 @@ export function HighAvailabilityContent() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>{tc("name")}</TableHead>
-                          <TableHead>VRID</TableHead>
+                          <TableHead>{t("vrid")}</TableHead>
                           <TableHead>{t("interface")}</TableHead>
                           <TableHead>{t("vrrp.virtualIps")}</TableHead>
                           <TableHead>{t("priority")}</TableHead>
@@ -778,7 +768,7 @@ export function HighAvailabilityContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => setDeletingVrrpGroup(group)}
+                                      onClick={() => confirmDelete("vrrp", group.name)}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -883,7 +873,7 @@ export function HighAvailabilityContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => setDeletingSyncGroup(sg)}
+                                      onClick={() => confirmDelete("sync", sg.name)}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -999,7 +989,7 @@ export function HighAvailabilityContent() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={() => setDeletingVS(vs)}
+                                      onClick={() => confirmDelete("vs", vs.name)}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -1033,6 +1023,7 @@ export function HighAvailabilityContent() {
           onOpenChange={(o) => { setVrrpGroupModal(o); if (!o) setEditingVrrpGroup(null); }}
           existingGroup={editingVrrpGroup}
           existingNames={config?.vrrp.groups.map((g) => g.name) ?? []}
+          syncGroups={config?.vrrp.sync_groups ?? []}
           capabilities={capabilities}
           onSubmit={handleSaveVrrpGroup}
         />
@@ -1089,45 +1080,19 @@ export function HighAvailabilityContent() {
         }}
       />
 
-      {/* Delete dialogs */}
+      {/* Delete dialog */}
       <ConfirmDialog
-        open={!!deletingVrrpGroup}
-        onOpenChange={(o) => { if (!o) setDeletingVrrpGroup(null); }}
-        title={t("vrrp.deleteTitle")}
-        description={t("vrrp.deleteDescription", { name: String(deletingVrrpGroup?.name) })}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t(`${deleteTarget?.kind ?? "vrrp"}.deleteTitle`)}
+        description={t(`${deleteTarget?.kind ?? "vrrp"}.deleteDescription`, { name: deleteTarget?.name ?? "" })}
         actionLabel={tc("delete")}
         destructive
         onConfirm={async () => {
-          await haService.deleteVrrpGroup(deletingVrrpGroup!.name);
-          setDeletingVrrpGroup(null);
-          await loadData(true);
-        }}
-      />
-
-      <ConfirmDialog
-        open={!!deletingSyncGroup}
-        onOpenChange={(o) => { if (!o) setDeletingSyncGroup(null); }}
-        title={t("sync.deleteTitle")}
-        description={t("sync.deleteDescription", { name: String(deletingSyncGroup?.name) })}
-        actionLabel={tc("delete")}
-        destructive
-        onConfirm={async () => {
-          await haService.deleteSyncGroup(deletingSyncGroup!.name);
-          setDeletingSyncGroup(null);
-          await loadData(true);
-        }}
-      />
-
-      <ConfirmDialog
-        open={!!deletingVS}
-        onOpenChange={(o) => { if (!o) setDeletingVS(null); }}
-        title={t("vs.deleteTitle")}
-        description={t("vs.deleteDescription", { name: String(deletingVS?.name) })}
-        actionLabel={tc("delete")}
-        destructive
-        onConfirm={async () => {
-          await haService.deleteVirtualServer(deletingVS!.name);
-          setDeletingVS(null);
+          const target = deleteTarget!;
+          if (target.kind === "vrrp") await haService.deleteVrrpGroup(target.name);
+          else if (target.kind === "sync") await haService.deleteSyncGroup(target.name);
+          else await haService.deleteVirtualServer(target.name);
           await loadData(true);
         }}
       />

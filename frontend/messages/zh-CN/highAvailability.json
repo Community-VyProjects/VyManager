@@ -18,7 +18,6 @@
   "algorithm": "调度算法",
   "realServers": "实际服务器",
   "port": "端口",
-  "any": "任意",
   "remove": "移除",
   "apply": "应用",
   "example": "例如 {value}",
@@ -55,7 +54,6 @@
     "startupDelay": "启动延迟",
     "traps": "Trap",
     "vrrpVersion": "VRRP 版本",
-    "versionN": "版本 {n}",
     "startupDelayLabel": "启动延迟（秒）",
     "snmpNotifications": "SNMP 通知",
     "snmpTraps": "SNMP Trap"
@@ -148,6 +146,7 @@
     "duplicateAddress": "地址 {address} 重复",
     "passwordRequired": "启用认证时需要密码",
     "passwordTooLong": "密码最多 {max} 个字符",
+    "syncMemberHealthCheck": "该组是同步组 {name} 的成员，不能配置自己的健康检查",
     "passwordKeep": "留空以保留当前密码",
     "editTitle": "编辑 VRRP 组",
     "editingDescription": "正在编辑 VRRP 组“{name}”",
