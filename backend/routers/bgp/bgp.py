@@ -8,15 +8,16 @@ Supports version-aware configuration for VyOS 1.4 and 1.5.
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.bgp import BgpBatchBuilder
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.bgp.bgp import BgpMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/bgp", tags=["bgp"])
@@ -375,7 +376,7 @@ async def get_bgp_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("bgp", service.get_version())
+        mapper = cast(BgpMapper, CommandMapperRegistry.get_mapper("bgp", service.get_version()))
         return BgpConfig(**mapper.parse_config(full_config))
     except HTTPException:
         raise
@@ -396,29 +397,13 @@ async def bgp_batch_configure(http_request: Request, body: BgpBatchRequest):
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = BgpBatchBuilder(version=version)
+        builder = BgpBatchBuilder(version=service.get_version())
 
+        # ValueError is a leaf the device version lacks. It does not wrap
+        # execute_batch: an empty batch stays a 500.
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 0:
-                    method()
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(",", count - 1)
-                if len(parts) != count or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count} values",
-                    )
-                method(*parts)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -426,7 +411,7 @@ async def bgp_batch_configure(http_request: Request, body: BgpBatchRequest):
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "BGP configuration updated"},
+            data={"message": "BGP configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None
         )
     except HTTPException:
