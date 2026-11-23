@@ -5,15 +5,21 @@ API endpoints for managing VyOS firewall flowtables.
 Flowtables enable fast-path packet processing by offloading established connections.
 """
 
+import logging
+from typing import Any, Dict, List, Optional, cast
+
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, ConfigDict, Field
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.firewall import FlowtablesBatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall import FlowtablesMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/flowtables", tags=["firewall-flowtables"])
 
@@ -31,13 +37,13 @@ class FlowtableBatchOperation(BaseModel):
 
 class FlowtableBatchRequest(BaseModel):
     """Model for batch flowtable configuration."""
-    flowtable_name: str = Field(..., description="Flowtable name")
+    flowtable_name: str = Field(..., min_length=1, description="Flowtable name")
     operations: List[FlowtableBatchOperation] = Field(
         ..., description="List of operations to perform"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "flowtable_name": "FT_LAN",
                 "operations": [
@@ -49,6 +55,7 @@ class FlowtableBatchRequest(BaseModel):
                 ]
             }
         }
+    )
 
 
 class VyOSResponse(BaseModel):
@@ -102,7 +109,7 @@ async def get_flowtables_capabilities(request: Request):
         return capabilities
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -125,57 +132,16 @@ async def get_flowtables_config(request: Request, refresh: bool = False):
 
     try:
         service = get_session_vyos_service(request)
-        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        if not full_config:
-            return FlowtablesConfigResponse(flowtables=[], total=0)
-
-        # Parse flowtables from firewall config
-        firewall_config = full_config.get("firewall", {})
-        flowtable_config = firewall_config.get("flowtable", {})
-
-        flowtables = []
-        if flowtable_config and isinstance(flowtable_config, dict):
-            for name, data in flowtable_config.items():
-                if not isinstance(data, dict):
-                    continue
-
-                # Parse interfaces
-                interfaces = []
-                if "interface" in data:
-                    interface_data = data["interface"]
-                    if isinstance(interface_data, dict):
-                        interfaces = list(interface_data.keys())
-                    elif isinstance(interface_data, list):
-                        interfaces = interface_data
-                    elif isinstance(interface_data, str):
-                        interfaces = [interface_data]
-
-                # Parse offload type
-                offload = None
-                if "offload" in data:
-                    offload_data = data["offload"]
-                    if isinstance(offload_data, str):
-                        offload = offload_data
-                    elif isinstance(offload_data, dict):
-                        # Could be {"software": {}} or {"hardware": {}}
-                        offload = list(offload_data.keys())[0] if offload_data else None
-
-                flowtables.append(Flowtable(
-                    name=name,
-                    description=data.get("description"),
-                    interfaces=interfaces,
-                    offload=offload,
-                ))
-
-        return FlowtablesConfigResponse(
-            flowtables=flowtables,
-            total=len(flowtables),
+        mapper = cast(
+            FlowtablesMapper,
+            CommandMapperRegistry.get_mapper("firewall_flowtables", service.get_version()),
         )
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
+        return FlowtablesConfigResponse(**mapper.parse_config(full_config))
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -200,80 +166,31 @@ async def batch_configure_flowtable(request: Request, batch_request: FlowtableBa
     await require_write_permission(request, FeatureGroup.FIREWALL_FLOWTABLES)
 
     try:
-        import inspect
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         service = get_session_vyos_service(request)
-        version = service.get_version()
+        batch = FlowtablesBatchBuilder(version=service.get_version())
 
-        # Create flowtables batch builder
-        batch = FlowtablesBatchBuilder(version=version)
-
-        # Map operations to batch builder methods
+        # Every op takes the flowtable name; a value op also takes the op
+        # value (test_firewall_flowtables_batch_router locks the arity).
         for operation in batch_request.operations:
-            op_name = operation.op
-            op_value = operation.value
+            call_item_batch_op(
+                batch, operation.op, batch_request.flowtable_name, operation.value
+            )
 
-            logger.info(f"Processing operation: {op_name} with value: {op_value}")
-
-            # Get the method from batch builder
-            method = resolve_batch_method(batch, op_name)
-
-            # Inspect method signature to determine parameters
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
-
-            # Remove 'self' from params list
-            if 'self' in params:
-                params.remove('self')
-
-            # Call the method with appropriate parameters
-            try:
-                if len(params) == 0:
-                    method()
-                elif len(params) == 1:
-                    # Method takes one parameter (flowtable name)
-                    method(batch_request.flowtable_name)
-                elif len(params) == 2:
-                    # Method takes two parameters (flowtable name, value)
-                    if op_value is None:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Operation {op_name} requires a value"
-                        )
-                    method(batch_request.flowtable_name, op_value)
-                else:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Unsupported operation signature for {op_name}"
-                    )
-            except TypeError as e:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Error calling operation {op_name}: {str(e)}"
-                )
-
-        # Execute the batch
         if batch.is_empty():
             return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
         response = await run_in_threadpool(service.execute_batch, batch)
+        ok = response.status == 200 and not response.error
 
-        if response.status != 200:
-            return VyOSResponse(
-                success=False,
-                error=response.error or "Batch operation failed"
-            )
-
-        # Handle empty string or non-dict results from VyOS API
-        result_data = response.result if isinstance(response.result, dict) else None
-        return VyOSResponse(success=True, data=result_data)
+        return VyOSResponse(
+            success=ok,
+            data={"message": "Configuration updated"} if ok else None,
+            error=None if ok else response.error,
+        )
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -296,23 +213,16 @@ async def delete_flowtable(request: Request, flowtable_name: str):
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-
-        batch = FlowtablesBatchBuilder(version=version)
+        batch = FlowtablesBatchBuilder(version=service.get_version())
         batch.delete_flowtable(flowtable_name)
 
         response = await run_in_threadpool(service.execute_batch, batch)
+        ok = response.status == 200 and not response.error
 
-        if response.status != 200:
-            return VyOSResponse(
-                success=False,
-                error=response.error or "Failed to delete flowtable"
-            )
-
-        return VyOSResponse(success=True)
+        return VyOSResponse(success=ok, error=None if ok else response.error)
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
