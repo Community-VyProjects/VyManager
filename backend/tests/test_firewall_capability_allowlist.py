@@ -22,6 +22,7 @@ from vyos_mappers.firewall.groups import FirewallGroupsMapper
 from vyos_mappers.firewall.groups_versions import get_firewall_groups_mapper
 from vyos_mappers.firewall.groups_versions.v1_5 import FirewallGroupsMapperV1_5
 from vyos_mappers.firewall.zones import FirewallZonesMapper
+from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
 
 
 def test_domain_group_flag_follows_the_device_tree():
@@ -104,17 +105,16 @@ def test_nondirectional_ipsec_follows_the_allowlist():
 
 
 def test_zone_parse_uses_the_mapper_allowlist():
-    from routers.firewall.zones import _parse_zone
-    cfg = {
+    cfg = {"firewall": {"zone": {"LAN": {
         "member": {"interface": ["eth1"], "vrf": ["blue"]},
         "default-firewall": {"name": "RS1"},
         "interface": ["eth9"],
-    }
-    latest = _parse_zone("LAN", cfg, "latest")
+    }}}}
+    latest = get_firewall_zones_mapper("latest").parse_config(cfg)["zones"][0]
     assert latest["interfaces"] == ["eth1"]
     assert latest["vrfs"] == ["blue"]
     assert latest["default_firewall"]["name"] == "RS1"
-    v14 = _parse_zone("LAN", cfg, "1.4")
+    v14 = get_firewall_zones_mapper("1.4").parse_config(cfg)["zones"][0]
     assert v14["interfaces"] == ["eth9"]
     assert v14["vrfs"] == []
     assert v14["default_firewall"] is None
@@ -353,7 +353,6 @@ def test_zone_delete_paths_raise_on_the_other_version():
     with pytest.raises(ValueError, match="not supported"):
         builder.delete_zone_default_firewall_name("LAN")
     assert builder.get_operations() == []
-    from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
     with pytest.raises(ValueError, match="not supported"):
         get_firewall_zones_mapper("1.5").get_zone_interface_path("LAN")
     with pytest.raises(ValueError, match="not supported"):

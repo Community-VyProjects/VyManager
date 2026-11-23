@@ -9,25 +9,42 @@ VyOS 1.4 vs 1.5 differences:
 - Default firewall: 1.5 adds `default-firewall name/ipv6-name`
 """
 
-from fastapi import APIRouter, Request, HTTPException
+import logging
+from typing import Any, Dict, List, Literal, Optional, cast
+
+from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.firewall import (
     FirewallZonesBatchBuilder,
     FirewallIPv4BatchBuilder,
     FirewallIPv6BatchBuilder,
 )
-from vyos_mappers.firewall.zones import FirewallZonesMapper
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.firewall import FirewallZonesMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/zones", tags=["firewall-zones"])
+
+# Builder ops that split "from_zone:chain_name" themselves.
+COMPOSITE_OPS = frozenset({"set_zone_from_ipv4", "set_zone_from_ipv6"})
+
+
+def _zone_name_not_blank(value: str) -> str:
+    if not value.strip():
+        raise ValueError("zone_name must not be blank")
+    return value
+
+
+def _composite_ok(value: str) -> bool:
+    """A "from_zone:chain_name" value with both halves present."""
+    from_zone, sep, chain = value.partition(":")
+    return bool(sep and from_zone.strip() and chain.strip())
 
 
 # ============================================================================
@@ -47,8 +64,10 @@ class ZoneBatchRequest(BaseModel):
         ..., description="List of operations to perform atomically"
     )
 
-    class Config:
-        json_schema_extra = {
+    _zone_name = field_validator("zone_name")(_zone_name_not_blank)
+
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "zone_name": "LAN",
                 "operations": [
@@ -56,9 +75,11 @@ class ZoneBatchRequest(BaseModel):
                     {"op": "set_zone_description", "value": "Internal LAN zone"},
                     {"op": "set_zone_default_action", "value": "drop"},
                     {"op": "set_zone_interface", "value": "eth1"},
+                    {"op": "set_zone_from_firewall_name", "value": "WAN:WAN-LAN"},
                 ],
             }
         }
+    )
 
 
 class VyOSResponse(BaseModel):
@@ -72,7 +93,7 @@ class ZoneProvisionRequest(BaseModel):
     """Request to atomically provision a new zone with chains and policies."""
     zone_name: str = Field(..., description="New zone name")
     description: Optional[str] = Field(None)
-    default_action: str = Field("drop", description="drop or reject")
+    default_action: Literal["drop", "reject"] = Field("drop")
     default_log: bool = Field(False)
     interfaces: List[str] = Field(default_factory=list)
     vrfs: List[str] = Field(default_factory=list)
@@ -84,6 +105,8 @@ class ZoneProvisionRequest(BaseModel):
         False,
         description="When True, also create the LOCAL zone and LOCAL-zone chains"
     )
+
+    _zone_name = field_validator("zone_name")(_zone_name_not_blank)
 
 
 class ZoneDeprovisionRequest(BaseModel):
@@ -97,6 +120,48 @@ class ZoneDeprovisionRequest(BaseModel):
         False,
         description="When True, also delete the LOCAL zone and LOCAL-zone chains"
     )
+
+    _zone_name = field_validator("zone_name")(_zone_name_not_blank)
+
+
+class ZoneFromPolicy(BaseModel):
+    """Rulesets applied to traffic arriving from another zone."""
+    from_zone: str
+    firewall_name: Optional[str] = None
+    firewall_ipv6_name: Optional[str] = None
+
+
+class ZoneIntraFiltering(BaseModel):
+    """Intra-zone filtering."""
+    action: Optional[str] = None
+    firewall_name: Optional[str] = None
+    firewall_ipv6_name: Optional[str] = None
+
+
+class ZoneDefaultFirewall(BaseModel):
+    """Rulesets applied to default-action traffic."""
+    name: Optional[str] = None
+    ipv6_name: Optional[str] = None
+
+
+class FirewallZone(BaseModel):
+    """One firewall zone."""
+    name: str
+    description: Optional[str] = None
+    default_action: Optional[str] = None
+    default_log: bool = False
+    local_zone: bool = False
+    interfaces: List[str] = []
+    vrfs: List[str] = []
+    default_firewall: Optional[ZoneDefaultFirewall] = None
+    from_zones: List[ZoneFromPolicy] = []
+    intra_zone_filtering: Optional[ZoneIntraFiltering] = None
+
+
+class ZonesConfigResponse(BaseModel):
+    """All configured firewall zones."""
+    zones: List[FirewallZone] = []
+    total: int = 0
 
 
 class _MergedBatch:
@@ -116,94 +181,6 @@ class _MergedBatch:
 
 
 # ============================================================================
-# Config Parsing Helpers
-# ============================================================================
-
-def _parse_zone(zone_name: str, zone_cfg: Dict[str, Any], version: str) -> Dict[str, Any]:
-    """
-    Parse a single zone config dict from VyOS JSON into a normalized structure.
-
-    Interface and default-firewall shape come from the mapper allowlist, the
-    same set the capability flags read.
-    """
-    nodes = FirewallZonesMapper(version).supported_zone_nodes()
-
-    # Members / interfaces
-    interfaces: List[str] = []
-    vrfs: List[str] = []
-
-    if "member-interface" in nodes:
-        member = zone_cfg.get("member", {})
-        raw_ifaces = member.get("interface", [])
-        raw_vrfs = member.get("vrf", [])
-        interfaces = raw_ifaces if isinstance(raw_ifaces, list) else [raw_ifaces]
-        vrfs = raw_vrfs if isinstance(raw_vrfs, list) else [raw_vrfs]
-    else:
-        raw_ifaces = zone_cfg.get("interface", [])
-        interfaces = raw_ifaces if isinstance(raw_ifaces, list) else [raw_ifaces]
-
-    # From-zone policies
-    from_zones: List[Dict[str, Any]] = []
-    for from_zone_name, from_cfg in zone_cfg.get("from", {}).items():
-        fw = from_cfg.get("firewall", {})
-        from_zones.append(
-            {
-                "from_zone": from_zone_name,
-                "firewall_name": fw.get("name"),
-                "firewall_ipv6_name": fw.get("ipv6-name"),
-            }
-        )
-
-    # Intra-zone filtering
-    intra = zone_cfg.get("intra-zone-filtering", {})
-    intra_fw = intra.get("firewall", {})
-    intra_zone_filtering: Optional[Dict[str, Any]] = None
-    if intra:
-        intra_zone_filtering = {
-            "action": intra.get("action"),
-            "firewall_name": intra_fw.get("name"),
-            "firewall_ipv6_name": intra_fw.get("ipv6-name"),
-        }
-
-    # Default firewall
-    default_firewall: Optional[Dict[str, Any]] = None
-    if "default-firewall" in nodes:
-        def_fw = zone_cfg.get("default-firewall", {})
-        if def_fw:
-            default_firewall = {
-                "name": def_fw.get("name"),
-                "ipv6_name": def_fw.get("ipv6-name"),
-            }
-
-    return {
-        "name": zone_name,
-        "description": zone_cfg.get("description"),
-        "default_action": zone_cfg.get("default-action"),
-        "default_log": "default-log" in zone_cfg,
-        "local_zone": "local-zone" in zone_cfg,
-        "interfaces": [i for i in interfaces if i],
-        "vrfs": [v for v in vrfs if v],
-        "default_firewall": default_firewall,
-        "from_zones": from_zones,
-        "intra_zone_filtering": intra_zone_filtering,
-    }
-
-
-def _get_zones_from_config(
-    full_config: Dict[str, Any], version: str
-) -> List[Dict[str, Any]]:
-    """Extract and parse all zones from a full VyOS config."""
-    zone_section = full_config.get("firewall", {}).get("zone", {})
-    zones = []
-    for zone_name, zone_cfg in zone_section.items():
-        try:
-            zones.append(_parse_zone(zone_name, zone_cfg, version))
-        except Exception:
-            logger.exception("Failed to parse zone %s", zone_name)
-    return zones
-
-
-# ============================================================================
 # Endpoints
 # ============================================================================
 
@@ -211,84 +188,86 @@ def _get_zones_from_config(
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware capabilities for firewall zones."""
     await require_read_permission(request, FeatureGroup.FIREWALL_ZONES)
-    service = await run_in_threadpool(get_session_vyos_service, request)
-    builder = FirewallZonesBatchBuilder(version=service.get_version())
-    return builder.get_capabilities()
-
-
-@router.get("/config")
-async def get_config(request: Request, refresh: bool = False) -> Dict[str, Any]:
-    """
-    Return all configured firewall zones in a normalized format.
-
-    Normalizes VyOS 1.4 and 1.5 differences so the frontend always receives
-    the same structure regardless of version.
-    """
-    await require_read_permission(request, FeatureGroup.FIREWALL_ZONES)
-    service = await run_in_threadpool(get_session_vyos_service, request)
 
     try:
-        full_config = await run_in_threadpool(service.get_full_config, refresh)
-        version = service.get_version()
-        zones = _get_zones_from_config(full_config, version)
-        return {"zones": zones, "total": len(zones)}
+        service = get_session_vyos_service(request)
+        builder = FirewallZonesBatchBuilder(version=service.get_version())
+        return builder.get_capabilities()
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Failed to retrieve firewall zone configuration")
-        return {"zones": [], "total": 0, "error": "Failed to retrieve zone configuration"}
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/config", response_model=ZonesConfigResponse)
+async def get_config(request: Request, refresh: bool = False) -> ZonesConfigResponse:
+    """Return all configured firewall zones in one shape for 1.4 and 1.5."""
+    await require_read_permission(request, FeatureGroup.FIREWALL_ZONES)
+
+    try:
+        service = get_session_vyos_service(request)
+        mapper = cast(
+            FirewallZonesMapper,
+            CommandMapperRegistry.get_mapper("firewall_zones", service.get_version()),
+        )
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
+        return ZonesConfigResponse(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/batch", response_model=VyOSResponse)
 async def batch_configure(http_request: Request, request: ZoneBatchRequest) -> VyOSResponse:
     """
-    Execute a batch of firewall zone operations atomically.
+    Execute a batch of firewall zone operations in one commit.
 
-    All operations are committed in a single VyOS transaction. If any operation
-    fails the entire batch is rolled back.
+    Each op names a builder method. The first parameter is bound to
+    ``zone_name``; further parameters come from ``value``, split on ``:``
+    (``from_zone:chain_name``). A zone-only op takes no value.
     """
     await require_write_permission(http_request, FeatureGroup.FIREWALL_ZONES)
-    service = await run_in_threadpool(get_session_vyos_service, http_request)
-
-    import inspect
-
-    batch = FirewallZonesBatchBuilder(version=service.get_version())
-
-    for op in request.operations:
-        try:
-            method = resolve_batch_method(batch, op.op)
-        except HTTPException as exc:
-            return VyOSResponse(success=False, error=str(exc.detail))
-        sig = inspect.signature(method)
-        # Parameters excluding 'self'
-        params = [p for p in sig.parameters.keys() if p != "self"]
-
-        try:
-            if len(params) == 1:
-                # Only zone_name — already bound as request.zone_name
-                method(request.zone_name)
-            elif len(params) == 2 and op.value is not None:
-                method(request.zone_name, op.value)
-            elif len(params) == 2:
-                return VyOSResponse(
-                    success=False,
-                    error=f"Operation '{op.op}' requires a value",
-                )
-            else:
-                return VyOSResponse(
-                    success=False,
-                    error=f"Operation '{op.op}' has unexpected signature",
-                )
-        except ValueError as exc:
-            return VyOSResponse(success=False, error=str(exc))
 
     try:
+        service = get_session_vyos_service(http_request)
+        batch = FirewallZonesBatchBuilder(version=service.get_version())
+
+        try:
+            for operation in request.operations:
+                value = operation.value
+                # A missing value is left to call_item_batch_op ("requires a value").
+                if (
+                    operation.op in COMPOSITE_OPS
+                    and value
+                    and value.strip()
+                    and not _composite_ok(value)
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} has an invalid value",
+                    )
+                call_item_batch_op(
+                    batch, operation.op, request.zone_name, value, separator=":"
+                )
+        except ValueError as exc:
+            # The mapper rejects a zone node this device does not have.
+            raise HTTPException(status_code=400, detail=str(exc))
+
         response = await run_in_threadpool(service.execute_batch, batch)
+        ok = response.status == 200 and not response.error
         return VyOSResponse(
-            success=response.status == 200,
-            error=response.error if response.status != 200 else None,
+            success=ok,
+            data={"message": "Zone configuration updated"} if ok else None,
+            error=None if ok else response.error,
         )
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Failed to execute firewall zone batch for zone '%s'", request.zone_name)
-        return VyOSResponse(success=False, error="Failed to execute zone configuration")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/provision", response_model=VyOSResponse)
@@ -300,118 +279,120 @@ async def provision_zone(http_request: Request, request: ZoneProvisionRequest) -
     - The zone with its configuration
     - IPv4 + IPv6 chains for every zone pair (both directions), default drop
     - From-zone assignments wired for each pair
-    - If is_first_zone: LOCAL zone + LOCAL-{zone} / {zone}-LOCAL chains (default drop + rule 100 accept)
+    - If is_first_zone: LOCAL zone + LOCAL-{zone} / {zone}-LOCAL chains (default drop + rule 10 accept)
     """
     await require_write_permission(http_request, FeatureGroup.FIREWALL_ZONES)
-    service = await run_in_threadpool(get_session_vyos_service, http_request)
-    version = service.get_version()
-
-    z_batch = FirewallZonesBatchBuilder(version=version)
-    v4_batch = FirewallIPv4BatchBuilder(version=version)
-    v6_batch = FirewallIPv6BatchBuilder(version=version)
-
-    name = request.zone_name
-
-    # 1. Create the zone
-    z_batch.set_zone(name)
-    if request.description:
-        z_batch.set_zone_description(name, request.description)
-    z_batch.set_zone_default_action(name, request.default_action)
-    if request.default_log:
-        z_batch.set_zone_default_log(name)
-    for iface in request.interfaces:
-        z_batch.set_zone_interface(name, iface)
-    for vrf in request.vrfs:
-        z_batch.set_zone_member_vrf(name, vrf)
-
-    # 2. Intra-zone chain (same-zone traffic filtering)
-    intra_v4 = f"{name}-{name}"
-    intra_v6 = f"{name}-{name}-V6"
-    for chain, builder in [(intra_v4, v4_batch), (intra_v6, v6_batch)]:
-        builder.set_custom_chain(chain)
-        builder.set_custom_chain_default_action(chain, "drop")
-        builder.set_custom_chain_rule(chain, 10)
-        builder.set_rule_action(chain, 10, "accept", is_custom=True)
-    z_batch.set_zone_intra_zone_firewall_name(name, intra_v4)
-    z_batch.set_zone_intra_zone_firewall_ipv6_name(name, intra_v6)
-
-    # 3. For each peer zone, create chains in both directions and wire assignments
-    for peer in request.existing_zones:
-        # Direction A: traffic originating from NEW, arriving at PEER
-        #   assigned to: zone PEER, from-zone NEW
-        a4 = f"{name}-{peer}"
-        a6 = f"{name}-{peer}-V6"
-        for chain, builder in [(a4, v4_batch), (a6, v6_batch)]:
-            builder.set_custom_chain(chain)
-            builder.set_custom_chain_default_action(chain, "drop")
-            builder.set_custom_chain_rule(chain, 10)
-            builder.set_rule_action(chain, 10, "accept", is_custom=True)
-        z_batch.set_zone_from(peer, name)
-        z_batch.set_zone_from_firewall_name(peer, name, a4)
-        z_batch.set_zone_from_firewall_ipv6_name(peer, name, a6)
-
-        # Direction B: traffic originating from PEER, arriving at NEW
-        #   assigned to: zone NEW, from-zone PEER
-        b4 = f"{peer}-{name}"
-        b6 = f"{peer}-{name}-V6"
-        for chain, builder in [(b4, v4_batch), (b6, v6_batch)]:
-            builder.set_custom_chain(chain)
-            builder.set_custom_chain_default_action(chain, "drop")
-            builder.set_custom_chain_rule(chain, 10)
-            builder.set_rule_action(chain, 10, "accept", is_custom=True)
-        z_batch.set_zone_from(name, peer)
-        z_batch.set_zone_from_firewall_name(name, peer, b4)
-        z_batch.set_zone_from_firewall_ipv6_name(name, peer, b6)
-
-    # 4. Create LOCAL zone if this is the first zone
-    local = "LOCAL"
-    if request.is_first_zone:
-        z_batch.set_zone(local)
-        z_batch.set_zone_local_zone(local)
-        z_batch.set_zone_default_action(local, "drop")
-
-    # 5. Always create LOCAL ↔ NEW chains (LOCAL zone exists after first zone is provisioned)
-    # LOCAL → NEW (traffic from LOCAL arriving at NEW)
-    loc_to_new_v4 = f"LOCAL-{name}"
-    loc_to_new_v6 = f"LOCAL-{name}-V6"
-    for chain, builder in [(loc_to_new_v4, v4_batch), (loc_to_new_v6, v6_batch)]:
-        builder.set_custom_chain(chain)
-        builder.set_custom_chain_default_action(chain, "drop")
-        builder.set_custom_chain_rule(chain, 10)
-        builder.set_rule_action(chain, 10, "accept", is_custom=True)
-    z_batch.set_zone_from(name, local)
-    z_batch.set_zone_from_firewall_name(name, local, loc_to_new_v4)
-    z_batch.set_zone_from_firewall_ipv6_name(name, local, loc_to_new_v6)
-
-    # NEW → LOCAL (traffic from NEW arriving at LOCAL)
-    new_to_loc_v4 = f"{name}-LOCAL"
-    new_to_loc_v6 = f"{name}-LOCAL-V6"
-    for chain, builder in [(new_to_loc_v4, v4_batch), (new_to_loc_v6, v6_batch)]:
-        builder.set_custom_chain(chain)
-        builder.set_custom_chain_default_action(chain, "drop")
-        builder.set_custom_chain_rule(chain, 10)
-        builder.set_rule_action(chain, 10, "accept", is_custom=True)
-    z_batch.set_zone_from(local, name)
-    z_batch.set_zone_from_firewall_name(local, name, new_to_loc_v4)
-    z_batch.set_zone_from_firewall_ipv6_name(local, name, new_to_loc_v6)
-
-    merged = _MergedBatch()
-    merged.extend(z_batch)
-    merged.extend(v4_batch)
-    merged.extend(v6_batch)
-
-    if merged.is_empty():
-        return VyOSResponse(success=True)
 
     try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+
+        z_batch = FirewallZonesBatchBuilder(version=version)
+        v4_batch = FirewallIPv4BatchBuilder(version=version)
+        v6_batch = FirewallIPv6BatchBuilder(version=version)
+
+        name = request.zone_name
+
+        # 1. Create the zone
+        z_batch.set_zone(name)
+        if request.description:
+            z_batch.set_zone_description(name, request.description)
+        z_batch.set_zone_default_action(name, request.default_action)
+        if request.default_log:
+            z_batch.set_zone_default_log(name)
+        for iface in request.interfaces:
+            z_batch.set_zone_interface(name, iface)
+        for vrf in request.vrfs:
+            z_batch.set_zone_member_vrf(name, vrf)
+
+        # 2. Intra-zone chain (same-zone traffic filtering)
+        intra_v4 = f"{name}-{name}"
+        intra_v6 = f"{name}-{name}-V6"
+        for chain, builder in [(intra_v4, v4_batch), (intra_v6, v6_batch)]:
+            builder.set_custom_chain(chain)
+            builder.set_custom_chain_default_action(chain, "drop")
+            builder.set_custom_chain_rule(chain, 10)
+            builder.set_rule_action(chain, 10, "accept", is_custom=True)
+        z_batch.set_zone_intra_zone_firewall_name(name, intra_v4)
+        z_batch.set_zone_intra_zone_firewall_ipv6_name(name, intra_v6)
+
+        # 3. For each peer zone, create chains in both directions and wire assignments
+        for peer in request.existing_zones:
+            # Direction A: traffic originating from NEW, arriving at PEER
+            #   assigned to: zone PEER, from-zone NEW
+            a4 = f"{name}-{peer}"
+            a6 = f"{name}-{peer}-V6"
+            for chain, builder in [(a4, v4_batch), (a6, v6_batch)]:
+                builder.set_custom_chain(chain)
+                builder.set_custom_chain_default_action(chain, "drop")
+                builder.set_custom_chain_rule(chain, 10)
+                builder.set_rule_action(chain, 10, "accept", is_custom=True)
+            z_batch.set_zone_from(peer, name)
+            z_batch.set_zone_from_firewall_name(peer, name, a4)
+            z_batch.set_zone_from_firewall_ipv6_name(peer, name, a6)
+
+            # Direction B: traffic originating from PEER, arriving at NEW
+            #   assigned to: zone NEW, from-zone PEER
+            b4 = f"{peer}-{name}"
+            b6 = f"{peer}-{name}-V6"
+            for chain, builder in [(b4, v4_batch), (b6, v6_batch)]:
+                builder.set_custom_chain(chain)
+                builder.set_custom_chain_default_action(chain, "drop")
+                builder.set_custom_chain_rule(chain, 10)
+                builder.set_rule_action(chain, 10, "accept", is_custom=True)
+            z_batch.set_zone_from(name, peer)
+            z_batch.set_zone_from_firewall_name(name, peer, b4)
+            z_batch.set_zone_from_firewall_ipv6_name(name, peer, b6)
+
+        # 4. Create LOCAL zone if this is the first zone
+        local = "LOCAL"
+        if request.is_first_zone:
+            z_batch.set_zone(local)
+            z_batch.set_zone_local_zone(local)
+            z_batch.set_zone_default_action(local, "drop")
+
+        # 5. Always create LOCAL ↔ NEW chains (LOCAL zone exists after first zone is provisioned)
+        # LOCAL → NEW (traffic from LOCAL arriving at NEW)
+        loc_to_new_v4 = f"LOCAL-{name}"
+        loc_to_new_v6 = f"LOCAL-{name}-V6"
+        for chain, builder in [(loc_to_new_v4, v4_batch), (loc_to_new_v6, v6_batch)]:
+            builder.set_custom_chain(chain)
+            builder.set_custom_chain_default_action(chain, "drop")
+            builder.set_custom_chain_rule(chain, 10)
+            builder.set_rule_action(chain, 10, "accept", is_custom=True)
+        z_batch.set_zone_from(name, local)
+        z_batch.set_zone_from_firewall_name(name, local, loc_to_new_v4)
+        z_batch.set_zone_from_firewall_ipv6_name(name, local, loc_to_new_v6)
+
+        # NEW → LOCAL (traffic from NEW arriving at LOCAL)
+        new_to_loc_v4 = f"{name}-LOCAL"
+        new_to_loc_v6 = f"{name}-LOCAL-V6"
+        for chain, builder in [(new_to_loc_v4, v4_batch), (new_to_loc_v6, v6_batch)]:
+            builder.set_custom_chain(chain)
+            builder.set_custom_chain_default_action(chain, "drop")
+            builder.set_custom_chain_rule(chain, 10)
+            builder.set_rule_action(chain, 10, "accept", is_custom=True)
+        z_batch.set_zone_from(local, name)
+        z_batch.set_zone_from_firewall_name(local, name, new_to_loc_v4)
+        z_batch.set_zone_from_firewall_ipv6_name(local, name, new_to_loc_v6)
+
+        merged = _MergedBatch()
+        merged.extend(z_batch)
+        merged.extend(v4_batch)
+        merged.extend(v6_batch)
+
         response = await run_in_threadpool(service.execute_batch, merged)
+        ok = response.status == 200 and not response.error
         return VyOSResponse(
-            success=response.status == 200,
-            error=response.error if response.status != 200 else None,
+            success=ok,
+            data={"message": "Zone provisioned"} if ok else None,
+            error=None if ok else response.error,
         )
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Failed to provision zone '%s'", request.zone_name)
-        return VyOSResponse(success=False, error="Failed to provision zone")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/deprovision", response_model=VyOSResponse)
@@ -426,65 +407,67 @@ async def deprovision_zone(http_request: Request, request: ZoneDeprovisionReques
     - If is_last_zone: LOCAL zone + all LOCAL-zone chains
     """
     await require_write_permission(http_request, FeatureGroup.FIREWALL_ZONES)
-    service = await run_in_threadpool(get_session_vyos_service, http_request)
-    version = service.get_version()
 
-    z_batch = FirewallZonesBatchBuilder(version=version)
-    v4_batch = FirewallIPv4BatchBuilder(version=version)
-    v6_batch = FirewallIPv6BatchBuilder(version=version)
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
 
-    name = request.zone_name
+        z_batch = FirewallZonesBatchBuilder(version=version)
+        v4_batch = FirewallIPv4BatchBuilder(version=version)
+        v6_batch = FirewallIPv6BatchBuilder(version=version)
 
-    # 1. Delete the zone
-    z_batch.delete_zone(name)
+        name = request.zone_name
 
-    # 2. Delete intra-zone chains
-    v4_batch.delete_custom_chain(f"{name}-{name}")
-    v6_batch.delete_custom_chain(f"{name}-{name}-V6")
+        # 1. Delete the zone
+        z_batch.delete_zone(name)
 
-    # 3. Delete chains and from-zone refs for every peer
-    for peer in request.peer_zones:
-        # Chains: NAME-PEER and PEER-NAME (both directions)
+        # 2. Delete intra-zone chains
+        v4_batch.delete_custom_chain(f"{name}-{name}")
+        v6_batch.delete_custom_chain(f"{name}-{name}-V6")
+
+        # 3. Delete chains and from-zone refs for every peer
+        for peer in request.peer_zones:
+            # Chains: NAME-PEER and PEER-NAME (both directions)
+            for chain, builder in [
+                (f"{name}-{peer}", v4_batch),
+                (f"{name}-{peer}-V6", v6_batch),
+                (f"{peer}-{name}", v4_batch),
+                (f"{peer}-{name}-V6", v6_batch),
+            ]:
+                builder.delete_custom_chain(chain)
+
+            # Remove from-zone references in peer zones pointing to this zone
+            z_batch.delete_zone_from(peer, name)
+
+        # 4. Always delete LOCAL ↔ NAME chains (created for every zone)
         for chain, builder in [
-            (f"{name}-{peer}", v4_batch),
-            (f"{name}-{peer}-V6", v6_batch),
-            (f"{peer}-{name}", v4_batch),
-            (f"{peer}-{name}-V6", v6_batch),
+            (f"LOCAL-{name}", v4_batch),
+            (f"LOCAL-{name}-V6", v6_batch),
+            (f"{name}-LOCAL", v4_batch),
+            (f"{name}-LOCAL-V6", v6_batch),
         ]:
             builder.delete_custom_chain(chain)
 
-        # Remove from-zone references in peer zones pointing to this zone
-        z_batch.delete_zone_from(peer, name)
+        # 5. Delete LOCAL zone if this is the last non-local zone; otherwise clean up its from-zone ref
+        if request.is_last_zone:
+            z_batch.delete_zone("LOCAL")
+        else:
+            z_batch.delete_zone_from("LOCAL", name)
 
-    # 4. Always delete LOCAL ↔ NAME chains (created for every zone)
-    for chain, builder in [
-        (f"LOCAL-{name}", v4_batch),
-        (f"LOCAL-{name}-V6", v6_batch),
-        (f"{name}-LOCAL", v4_batch),
-        (f"{name}-LOCAL-V6", v6_batch),
-    ]:
-        builder.delete_custom_chain(chain)
+        merged = _MergedBatch()
+        merged.extend(z_batch)
+        merged.extend(v4_batch)
+        merged.extend(v6_batch)
 
-    # 5. Delete LOCAL zone if this is the last non-local zone; otherwise clean up its from-zone ref
-    if request.is_last_zone:
-        z_batch.delete_zone("LOCAL")
-    else:
-        z_batch.delete_zone_from("LOCAL", name)
-
-    merged = _MergedBatch()
-    merged.extend(z_batch)
-    merged.extend(v4_batch)
-    merged.extend(v6_batch)
-
-    if merged.is_empty():
-        return VyOSResponse(success=True)
-
-    try:
         response = await run_in_threadpool(service.execute_batch, merged)
+        ok = response.status == 200 and not response.error
         return VyOSResponse(
-            success=response.status == 200,
-            error=response.error if response.status != 200 else None,
+            success=ok,
+            data={"message": "Zone deprovisioned"} if ok else None,
+            error=None if ok else response.error,
         )
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Failed to deprovision zone '%s'", request.zone_name)
-        return VyOSResponse(success=False, error="Failed to deprovision zone")
+        raise HTTPException(status_code=500, detail="Internal server error")

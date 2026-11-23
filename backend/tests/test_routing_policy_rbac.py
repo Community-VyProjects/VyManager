@@ -77,6 +77,7 @@ DYNAMIC_DISPATCH_FILES = [
     "ipoe_server/ipoe_server.py",
     "l2tp/l2tp.py",
     "nat66/nat66.py",
+    "firewall/zones.py",
 ]
 
 
