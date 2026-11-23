@@ -110,6 +110,7 @@ class RipBatchOperation(BaseModel):
         None,
         description=(
             "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
             "Single-arg methods: plain string. "
             "Multi-arg methods: comma-separated; the last argument keeps any commas."
         ),

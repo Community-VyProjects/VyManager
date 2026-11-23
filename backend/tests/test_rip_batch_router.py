@@ -1,4 +1,4 @@
-"""RIP batch route: comma-split args, HTTP 400 on a missing value.
+"""RIP batch route: comma-split args, HTTP 400 on a missing value or a value on a zero-arg op.
 
 execute_batch runs through run_in_threadpool (locked in
 test_batch_off_event_loop.py). These tests drive the handler end to end with a
