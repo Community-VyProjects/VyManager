@@ -5,7 +5,6 @@ API endpoints for managing VyOS NAT66 configuration.
 Supports source and destination NAT66 rules for IPv6-to-IPv6 translation.
 """
 
-import inspect
 import logging
 from typing import Any, Callable, Dict, List, Literal, Optional, cast
 
@@ -13,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
@@ -229,7 +228,7 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
 
     Each op names a builder method of this rule type. The first parameter is
     bound to ``rule_number``; further parameters come from ``value``, split on
-    ``:`` (``group_type:name`` for a group match).
+    ``:`` (``group_type:name`` for a group match). A rule-only op takes no value.
     """
     await require_write_permission(http_request, FeatureGroup.NAT66)
 
@@ -245,24 +244,9 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
                         status_code=400,
                         detail=f"Operation {operation.op} is not a {request.rule_type} rule operation",
                     )
-                method = resolve_batch_method(batch, operation.op)
-                count = len(inspect.signature(method).parameters)
-
-                if count == 1:
-                    method(request.rule_number)
-                    continue
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires a value",
-                    )
-                parts = operation.value.split(":", count - 2)
-                if len(parts) != count - 1 or not all(parts):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation {operation.op} requires {count - 1} values",
-                    )
-                method(request.rule_number, *parts)
+                call_item_batch_op(
+                    batch, operation.op, request.rule_number, operation.value, separator=":"
+                )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
