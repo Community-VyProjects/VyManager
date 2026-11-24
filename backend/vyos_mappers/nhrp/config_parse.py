@@ -1,10 +1,14 @@
 """Read-model for NHRP config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version keys come from the mapper (MergedMapper).
+the tree. Version keys come from the mapper (MergedMapper). The tunnel
+authentication pass phrase is a secret and loads as MASKED_SECRET, never in
+plaintext.
 """
 
 from typing import Any, Dict, List
+
+MASKED_SECRET = "***"
 
 
 def _is_1_4(mapper) -> bool:
@@ -24,9 +28,11 @@ def _to_list(val) -> List[str]:
 
 def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/nhrp/config payload."""
-    nhrp_raw = full_config.get("protocols", {}).get("nhrp", {})
-    if not nhrp_raw:
+    protocols = full_config.get("protocols") or {}
+    # A bare `protocols nhrp {}` parses as {} but the node still exists.
+    if "nhrp" not in protocols:
         return {"enabled": False, "tunnels": []}
+    nhrp_raw = protocols.get("nhrp") or {}
 
     tunnels_raw = nhrp_raw.get("tunnel", {})
     if not tunnels_raw:
@@ -86,7 +92,7 @@ def _parse_tunnel(name: str, cfg: dict, is_1_4: bool) -> Dict[str, Any]:
 
     return {
         "name": name,
-        "authentication": str(auth) if auth is not None else None,
+        "authentication": MASKED_SECRET if auth is not None else None,
         "holding_time": str(ht) if ht is not None else None,
         "maps": maps,
         "dynamic_maps": dynamic_maps,
@@ -116,7 +122,7 @@ def _parse_maps_v1_4(raw: dict) -> List[Dict[str, Any]]:
                 "tunnel_ip": tunnel_ip,
                 "nbma_address": map_cfg.get("nbma-address") if isinstance(map_cfg, dict) else None,
                 "cisco": "cisco" in map_cfg if isinstance(map_cfg, dict) else False,
-                "register_flag": "register" in map_cfg if isinstance(map_cfg, dict) else False,
+                "register": "register" in map_cfg if isinstance(map_cfg, dict) else False,
             }
         )
     return sorted(maps, key=lambda m: m["tunnel_ip"])
@@ -138,7 +144,7 @@ def _parse_maps_v1_5(raw: dict) -> List[Dict[str, Any]]:
                 "tunnel_ip": tunnel_ip,
                 "nbma_address": map_cfg.get("nbma") if isinstance(map_cfg, dict) else None,
                 "cisco": False,
-                "register_flag": False,
+                "register": False,
             }
         )
     return sorted(maps, key=lambda m: m["tunnel_ip"])
