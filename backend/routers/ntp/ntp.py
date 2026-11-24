@@ -15,15 +15,15 @@ Endpoints:
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.ntp.ntp import NTPMapper
 from vyos_builders.ntp import NTPBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,10 @@ class NTPBatchOperation(BaseModel):
         None,
         description=(
             "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
             "Single-arg methods: plain string. "
-            "Multi-arg methods: comma-separated (e.g., 'server1,prefer')."
+            "Multi-arg methods: comma-separated (e.g., 'eth0,all'); "
+            "the last argument keeps any commas."
         ),
     )
 
@@ -99,6 +101,8 @@ async def get_ntp_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_ntp_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -117,8 +121,10 @@ async def get_ntp_config(http_request: Request, refresh: bool = False):
         service = get_session_vyos_service(http_request)
         version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("ntp", version)
+        mapper = cast(NTPMapper, CommandMapperRegistry.get_mapper("ntp", version))
         return NTPConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_ntp_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -139,36 +145,20 @@ async def ntp_batch_configure(http_request: Request, body: NTPBatchRequest):
 
         try:
             for operation in body.operations:
-                method = resolve_batch_method(builder, operation.op)
-                sig = inspect.signature(method)
-                params = [p for p in sig.parameters.keys() if p != "self"]
-
-                if len(params) == 0:
-                    method()
-                elif len(params) == 1:
-                    if operation.value is not None:
-                        method(operation.value)
-                    else:
-                        method()
-                elif len(params) >= 2:
-                    if operation.value and "," in operation.value:
-                        parts = operation.value.split(",", len(params) - 1)
-                        method(*parts)
-                    elif operation.value:
-                        method(operation.value)
+                call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as e:
+            # The mapper rejects a timestamp leaf this device version does not have.
             raise HTTPException(status_code=400, detail=str(e))
 
         response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "NTP configuration updated"},
+            data={"message": "NTP configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in ntp_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
