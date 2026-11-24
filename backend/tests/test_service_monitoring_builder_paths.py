@@ -1,8 +1,9 @@
 """Service monitoring builder ops write the lab CLI paths on each version.
 
-Every builder op has a row. Rows in V15_ONLY are prometheus, network-event and
-zabbix-agent authentication, which the 1.4 lab does not have: on 1.4 those ops
-raise ValueError (the batch router turns that into a 400).
+Every builder op has a row. Rows in V15_ONLY are prometheus, network-event,
+telegraf frr-metrics and global-tag, and zabbix-agent authentication and vrf,
+which the 1.4 lab does not have: on 1.4 those ops raise ValueError (the batch
+router turns that into a 400).
 """
 
 import inspect
@@ -91,6 +92,7 @@ BOTH = [
     ('set_telegraf_loki_metric_name_label', ('name',), 'set', ['telegraf', 'loki', 'metric-name-label', 'name']),
     ('set_telegraf_loki_port', ('9000',), 'set', ['telegraf', 'loki', 'port', '9000']),
     ('set_telegraf_loki_url', ('https://h.example',), 'set', ['telegraf', 'loki', 'url', 'https://h.example']),
+    ('set_telegraf_prometheus_client', (), 'set', ['telegraf', 'prometheus-client']),
     ('set_telegraf_prometheus_client_allow_from', ('192.0.2.0/24',), 'set', ['telegraf', 'prometheus-client', 'allow-from', '192.0.2.0/24']),
     ('set_telegraf_prometheus_client_auth_password', ('p1',), 'set', ['telegraf', 'prometheus-client', 'authentication', 'password', 'p1']),
     ('set_telegraf_prometheus_client_auth_username', ('u1',), 'set', ['telegraf', 'prometheus-client', 'authentication', 'username', 'u1']),
@@ -178,7 +180,45 @@ V15_ONLY = [
     ('set_zabbix_auth_mode', ('pre-shared-secret',), 'set', ['zabbix-agent', 'authentication', 'mode', 'pre-shared-secret']),
     ('set_zabbix_auth_psk_id', ('id1',), 'set', ['zabbix-agent', 'authentication', 'psk', 'id', 'id1']),
     ('set_zabbix_auth_psk_secret', ('sec',), 'set', ['zabbix-agent', 'authentication', 'psk', 'secret', 'sec']),
+    ('delete_prometheus_frr_exporter_all_ospf_instances', (), 'delete', ['prometheus', 'frr-exporter', 'collector', 'ospf-instance']),
+    ('delete_prometheus_frr_exporter_bgp_option', ('peer-group',), 'delete', ['prometheus', 'frr-exporter', 'collector', 'bgp', 'peer-group']),
+    ('delete_prometheus_frr_exporter_bgp_peer_description', (), 'delete', ['prometheus', 'frr-exporter', 'collector', 'bgp', 'peer-description']),
+    ('delete_prometheus_frr_exporter_collector', ('pim',), 'delete', ['prometheus', 'frr-exporter', 'collector', 'pim']),
+    ('delete_prometheus_frr_exporter_ospf_instance', ('2',), 'delete', ['prometheus', 'frr-exporter', 'collector', 'ospf-instance', '2']),
+    ('delete_telegraf_all_global_tags', (), 'delete', ['telegraf', 'global-tag']),
+    ('delete_telegraf_frr_metrics', (), 'delete', ['telegraf', 'frr-metrics']),
+    ('delete_telegraf_global_tag', ('site',), 'delete', ['telegraf', 'global-tag', 'site']),
+    ('delete_zabbix_vrf', (), 'delete', ['zabbix-agent', 'vrf']),
+    ('set_network_event', (), 'set', ['network-event']),
+    ('set_prometheus_blackbox_exporter', (), 'set', ['prometheus', 'blackbox-exporter']),
+    ('set_prometheus_blackbox_icmp_module', ('probe1',), 'set', ['prometheus', 'blackbox-exporter', 'modules', 'icmp', 'name', 'probe1']),
+    ('set_prometheus_frr_exporter', (), 'set', ['prometheus', 'frr-exporter']),
+    ('set_prometheus_frr_exporter_bgp_option', ('accept-filtered-prefixes',), 'set', ['prometheus', 'frr-exporter', 'collector', 'bgp', 'accept-filtered-prefixes']),
+    ('set_prometheus_frr_exporter_bgp_peer_description', ('plain-text',), 'set', ['prometheus', 'frr-exporter', 'collector', 'bgp', 'peer-description', 'plain-text']),
+    ('set_prometheus_frr_exporter_collector', ('bgp-l2-vpn',), 'set', ['prometheus', 'frr-exporter', 'collector', 'bgp-l2-vpn']),
+    ('set_prometheus_frr_exporter_ospf_instance', ('2',), 'set', ['prometheus', 'frr-exporter', 'collector', 'ospf-instance', '2']),
+    ('set_prometheus_node_exporter', (), 'set', ['prometheus', 'node-exporter']),
+    ('set_telegraf_frr_metrics', (), 'set', ['telegraf', 'frr-metrics']),
+    ('set_telegraf_global_tag', ('site', 'dc1,rack 4'), 'set', ['telegraf', 'global-tag', 'site', 'value', 'dc1,rack 4']),
+    ('set_zabbix_vrf', ('MGMT',), 'set', ['zabbix-agent', 'vrf', 'MGMT']),
 ]
+
+
+@pytest.mark.parametrize(
+    "op,value",
+    [
+        ("set_prometheus_frr_exporter_collector", "bgp"),
+        ("set_prometheus_frr_exporter_collector", "ospf-instance"),
+        ("delete_prometheus_frr_exporter_collector", "junk"),
+        ("set_prometheus_frr_exporter_bgp_option", "peer-description"),
+        ("delete_prometheus_frr_exporter_bgp_option", "junk"),
+        ("set_prometheus_frr_exporter_bgp_peer_description", "xml"),
+    ],
+)
+def test_frr_collector_values_come_from_the_lab_list(op, value):
+    """A collector or bgp option outside the lab's child nodes is a ValueError (400), not a path."""
+    with pytest.raises(ValueError, match="Unknown frr-exporter"):
+        _run("1.5", op, (value,))
 
 
 def _run(version, op, args):
@@ -235,11 +275,24 @@ def test_capabilities_follow_the_mapper(monkeypatch):
     assert caps["network_event"]["supported"] is False
     assert caps["zabbix_agent"]["auth_modes"] == []
     assert caps["network_event"]["event_types"] == []
+    assert caps["telegraf"]["frr_metrics"]["supported"] is False
+    assert caps["telegraf"]["global_tag"]["supported"] is False
+    assert caps["zabbix_agent"]["vrf"]["supported"] is False
+    assert caps["prometheus"]["exporters"]["frr_exporter"]["collectors"] == []
     caps = ServiceMonitoringBatchBuilder("1.5").get_capabilities()["features"]
     assert caps["prometheus"]["supported"] is True
     assert caps["network_event"]["supported"] is True
     assert caps["zabbix_agent"]["auth_modes"] == ["pre-shared-secret"]
     assert caps["prometheus"]["exporters"]["blackbox_exporter"]["preferred_ip_protocol_values"] == ["ipv4", "ipv6"]
+    assert caps["telegraf"]["frr_metrics"]["supported"] is True
+    assert caps["telegraf"]["global_tag"]["supported"] is True
+    assert caps["zabbix_agent"]["vrf"]["supported"] is True
+    frr = caps["prometheus"]["exporters"]["frr_exporter"]
+    assert frr["collectors"] == ["bgp-l2-vpn", "detailed-routes", "pim"]
+    assert frr["bgp_options"] == [
+        "accept-filtered-prefixes", "advertised-prefixes", "peer-group", "peer-hostname", "peer-type",
+    ]
+    assert frr["peer_description_values"] == ["json", "plain-text"]
 
     monkeypatch.setattr(
         CommandMapperRegistry,
@@ -249,6 +302,8 @@ def test_capabilities_follow_the_mapper(monkeypatch):
     caps = ServiceMonitoringBatchBuilder("1.4").get_capabilities()["features"]
     assert caps["prometheus"]["supported"] is True
     assert caps["zabbix_agent"]["auth_modes"] == ["pre-shared-secret"]
+    assert caps["zabbix_agent"]["vrf"]["supported"] is True
+    assert caps["telegraf"]["frr_metrics"]["supported"] is True
     assert "version_info" not in ServiceMonitoringBatchBuilder("1.4").get_capabilities()
 
 

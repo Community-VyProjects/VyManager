@@ -28,6 +28,11 @@ import {
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface BlackboxModuleModalProps {
   open: boolean;
@@ -77,7 +82,13 @@ export function BlackboxModuleModal({
 
   const validateName = () => {
     if (!name.trim()) return t("blackbox.nameRequired");
+    // The batch splits multi-argument values on commas, so a name cannot hold one.
+    if (name.includes(",")) return t("blackbox.nameComma");
     if (!isEdit && existingNames.includes(name.trim())) return t("blackbox.nameExists");
+    // The lab's verify requires a query name on every DNS module.
+    if (moduleType === "dns" && !queryName.trim()) {
+      return t("common.fieldRequired", { field: t("blackbox.queryNameFqdn") });
+    }
     return null;
   };
 
@@ -105,7 +116,7 @@ export function BlackboxModuleModal({
           original as PrometheusBlackboxDNSModule | null,
           {
             ...base,
-            query_name: queryName || null,
+            query_name: queryName.trim(),
             query_type: queryType || null,
           }
         );
@@ -142,11 +153,15 @@ export function BlackboxModuleModal({
 
           <div className="space-y-2">
             <Label>{t("blackbox.preferredIpProtocol")}</Label>
-            <Select value={preferredIpProtocol} onValueChange={setPreferredIpProtocol}>
+            <Select
+              value={toNamedListValue(preferredIpProtocol)}
+              onValueChange={(v) => setPreferredIpProtocol(fromNamedListValue(v))}
+            >
               <SelectTrigger>
-                <SelectValue placeholder={tc("default")} />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                 {ipProtocolValues.map((v) => (
                   <SelectItem key={v} value={v}>{v}</SelectItem>
                 ))}
@@ -191,11 +206,15 @@ export function BlackboxModuleModal({
               </div>
               <div className="space-y-2">
                 <Label>{t("blackbox.queryType")}</Label>
-                <Select value={queryType} onValueChange={setQueryType}>
+                <Select
+                  value={toNamedListValue(queryType)}
+                  onValueChange={(v) => setQueryType(fromNamedListValue(v))}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder={tc("default")} />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                     {dnsQueryTypes.map((qt) => (
                       <SelectItem key={qt} value={qt}>{qt}</SelectItem>
                     ))}

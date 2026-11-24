@@ -139,6 +139,12 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
                 <p className="font-mono">{config.port}</p>
               </div>
             )}
+            {config.vrf && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">VRF</p>
+                <Badge variant="secondary" className="font-mono">{config.vrf}</Badge>
+              </div>
+            )}
             {config.timeout && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">{t("prometheus.timeout")}</p>

@@ -27,6 +27,11 @@ import {
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface NetworkEventModalProps {
   open: boolean;
@@ -91,11 +96,15 @@ export function NetworkEventModal({ open, onOpenChange, original, caps, onSucces
         <div className="space-y-5 py-1">
           <div className="space-y-2">
             <Label>{t("networkEvent.logLevel")}</Label>
-            <Select value={logLevel} onValueChange={setLogLevel}>
+            <Select
+              value={toNamedListValue(logLevel)}
+              onValueChange={(v) => setLogLevel(fromNamedListValue(v))}
+            >
               <SelectTrigger>
-                <SelectValue placeholder={tc("default")} />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                 {logLevelValues.map((l) => (
                   <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}

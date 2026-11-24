@@ -1,8 +1,9 @@
 """Service monitoring batch builder.
 
 Config tree: service monitoring. telegraf and zabbix-agent exist on both labs.
-prometheus, network-event and zabbix-agent authentication exist only on 1.5;
-those ops go through the mapper's version gate and raise ValueError elsewhere.
+prometheus, network-event, telegraf frr-metrics and global-tag, and zabbix-agent
+authentication and vrf exist only on 1.5; those ops go through the mapper's
+version gate and raise ValueError elsewhere.
 """
 
 from typing import Any, Dict, List, cast
@@ -13,7 +14,10 @@ from vyos_builders.base import BatchBuilder
 
 PROMETHEUS = "prometheus"
 NETWORK_EVENT = "network-event"
+FRR_METRICS = "telegraf frr-metrics"
+GLOBAL_TAG = "telegraf global-tag"
 ZABBIX_AUTH = "zabbix-agent authentication"
+ZABBIX_VRF = "zabbix-agent vrf"
 
 
 class ServiceMonitoringBatchBuilder(BatchBuilder):
@@ -59,11 +63,14 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
                     },
                     "source_values": self.m.source_values(),
                     "vrf": {"supported": True},
+                    "frr_metrics": {"supported": FRR_METRICS in nodes},
+                    "global_tag": {"supported": GLOBAL_TAG in nodes},
                 },
                 "zabbix_agent": {
                     "supported": True,
                     "default_port": 10050,
                     "auth_modes": self.m.zabbix_auth_modes(),
+                    "vrf": {"supported": ZABBIX_VRF in nodes},
                     "log_debug_levels": self.m.debug_level_values(),
                     "limits": {
                         "buffer_flush_interval": {"min": 1, "max": 3600, "default": 5},
@@ -75,7 +82,12 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
                     "supported": PROMETHEUS in nodes,
                     "exporters": {
                         "node_exporter": {"default_port": 9100},
-                        "frr_exporter": {"default_port": 9342},
+                        "frr_exporter": {
+                            "default_port": 9342,
+                            "collectors": self.m.frr_exporter_collectors(),
+                            "bgp_options": self.m.frr_exporter_bgp_options(),
+                            "peer_description_values": self.m.frr_exporter_peer_description_values(),
+                        },
                         "blackbox_exporter": {
                             "default_port": 9115,
                             "preferred_ip_protocol_values": self.m.preferred_ip_protocol_values(),
@@ -121,6 +133,22 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
 
     def delete_telegraf_vrf(self) -> "ServiceMonitoringBatchBuilder":
         return self.add_delete(self.m.get_telegraf_vrf_delete())
+
+    def set_telegraf_frr_metrics(self) -> "ServiceMonitoringBatchBuilder":
+        """Relay frr-exporter metrics; verify needs prometheus frr-exporter in the same VRF."""
+        return self.add_set(self._versioned_path(FRR_METRICS, "get_telegraf_frr_metrics"))
+
+    def delete_telegraf_frr_metrics(self) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(FRR_METRICS, "get_telegraf_frr_metrics"))
+
+    def set_telegraf_global_tag(self, tag: str, value: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_set(self._versioned_path(GLOBAL_TAG, "get_telegraf_global_tag", tag, value))
+
+    def delete_telegraf_global_tag(self, tag: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(GLOBAL_TAG, "get_telegraf_global_tag_delete", tag))
+
+    def delete_telegraf_all_global_tags(self) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(GLOBAL_TAG, "get_telegraf_all_global_tags_delete"))
 
     # -------------------------------------------------------------------------
     # Telegraf — InfluxDB
@@ -278,8 +306,12 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
     # Telegraf — Prometheus client
     # -------------------------------------------------------------------------
 
+    def set_telegraf_prometheus_client(self) -> "ServiceMonitoringBatchBuilder":
+        """Enable the prometheus-client output with its defaults (the node commits bare)."""
+        return self.add_set(self.m.get_telegraf_prometheus_client())
+
     def delete_telegraf_prometheus_client(self) -> "ServiceMonitoringBatchBuilder":
-        return self.add_delete(self.m.get_telegraf_prometheus_client_delete())
+        return self.add_delete(self.m.get_telegraf_prometheus_client())
 
     def set_telegraf_prometheus_client_port(self, port: str) -> "ServiceMonitoringBatchBuilder":
         return self.add_set(self.m.get_telegraf_prometheus_client_port(port))
@@ -384,6 +416,12 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
     def delete_zabbix_server_active_port(self, address: str) -> "ServiceMonitoringBatchBuilder":
         return self.add_delete(self.m.get_zabbix_server_active_port_delete(address))
 
+    def set_zabbix_vrf(self, vrf: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_set(self._versioned_path(ZABBIX_VRF, "get_zabbix_vrf", vrf))
+
+    def delete_zabbix_vrf(self) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(ZABBIX_VRF, "get_zabbix_vrf_delete"))
+
     def delete_zabbix_auth(self) -> "ServiceMonitoringBatchBuilder":
         """Clear zabbix-agent authentication (mode and PSK)."""
         return self.add_delete(self._versioned_path(ZABBIX_AUTH, "get_zabbix_auth_delete"))
@@ -444,8 +482,12 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
         return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_delete"))
 
     # Node exporter
+    def set_prometheus_node_exporter(self) -> "ServiceMonitoringBatchBuilder":
+        """Enable node-exporter with its defaults (the node commits bare)."""
+        return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_node_exporter"))
+
     def delete_prometheus_node_exporter(self) -> "ServiceMonitoringBatchBuilder":
-        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_node_exporter_delete"))
+        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_node_exporter"))
 
     def set_prometheus_node_exporter_port(self, port: str) -> "ServiceMonitoringBatchBuilder":
         return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_node_exporter_port", port))
@@ -475,8 +517,12 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
         return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_node_exporter_textfile_collector"))
 
     # FRR exporter
+    def set_prometheus_frr_exporter(self) -> "ServiceMonitoringBatchBuilder":
+        """Enable frr-exporter with its defaults (the node commits bare)."""
+        return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter"))
+
     def delete_prometheus_frr_exporter(self) -> "ServiceMonitoringBatchBuilder":
-        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_delete"))
+        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter"))
 
     def set_prometheus_frr_exporter_port(self, port: str) -> "ServiceMonitoringBatchBuilder":
         return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_port", port))
@@ -499,9 +545,47 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
     def delete_prometheus_frr_exporter_vrf(self) -> "ServiceMonitoringBatchBuilder":
         return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_vrf_delete"))
 
+    # FRR exporter — collectors
+    def set_prometheus_frr_exporter_collector(self, collector: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_collector", collector))
+
+    def delete_prometheus_frr_exporter_collector(self, collector: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_collector", collector))
+
+    def set_prometheus_frr_exporter_bgp_option(self, option: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_bgp_option", option))
+
+    def delete_prometheus_frr_exporter_bgp_option(self, option: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_bgp_option", option))
+
+    def set_prometheus_frr_exporter_bgp_peer_description(self, value: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_set(self._versioned_path(
+            PROMETHEUS, "get_prometheus_frr_exporter_bgp_peer_description", value,
+        ))
+
+    def delete_prometheus_frr_exporter_bgp_peer_description(self) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            PROMETHEUS, "get_prometheus_frr_exporter_bgp_peer_description_delete",
+        ))
+
+    def set_prometheus_frr_exporter_ospf_instance(self, instance: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_ospf_instance", instance))
+
+    def delete_prometheus_frr_exporter_ospf_instance(self, instance: str) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_frr_exporter_ospf_instance", instance))
+
+    def delete_prometheus_frr_exporter_all_ospf_instances(self) -> "ServiceMonitoringBatchBuilder":
+        return self.add_delete(self._versioned_path(
+            PROMETHEUS, "get_prometheus_frr_exporter_all_ospf_instances_delete",
+        ))
+
     # Blackbox exporter
+    def set_prometheus_blackbox_exporter(self) -> "ServiceMonitoringBatchBuilder":
+        """Enable blackbox-exporter with its defaults (the node commits bare)."""
+        return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_blackbox_exporter"))
+
     def delete_prometheus_blackbox_exporter(self) -> "ServiceMonitoringBatchBuilder":
-        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_blackbox_exporter_delete"))
+        return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_blackbox_exporter"))
 
     def set_prometheus_blackbox_exporter_port(self, port: str) -> "ServiceMonitoringBatchBuilder":
         return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_blackbox_exporter_port", port))
@@ -525,6 +609,10 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
         return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_blackbox_exporter_vrf_delete"))
 
     # Blackbox — ICMP module
+    def set_prometheus_blackbox_icmp_module(self, name: str) -> "ServiceMonitoringBatchBuilder":
+        """Create an ICMP module with its defaults (the tag commits bare)."""
+        return self.add_set(self._versioned_path(PROMETHEUS, "get_prometheus_blackbox_module", "icmp", name))
+
     def delete_prometheus_blackbox_icmp_module(self, name: str) -> "ServiceMonitoringBatchBuilder":
         return self.add_delete(self._versioned_path(PROMETHEUS, "get_prometheus_blackbox_module", "icmp", name))
 
@@ -616,8 +704,12 @@ class ServiceMonitoringBatchBuilder(BatchBuilder):
     # Network Event logger (1.5 only)
     # =========================================================================
 
+    def set_network_event(self) -> "ServiceMonitoringBatchBuilder":
+        """Enable the network event logger with its defaults (the node commits bare)."""
+        return self.add_set(self._versioned_path(NETWORK_EVENT, "get_network_event"))
+
     def delete_network_event(self) -> "ServiceMonitoringBatchBuilder":
-        return self.add_delete(self._versioned_path(NETWORK_EVENT, "get_network_event_delete"))
+        return self.add_delete(self._versioned_path(NETWORK_EVENT, "get_network_event"))
 
     def set_network_event_log_level(self, level: str) -> "ServiceMonitoringBatchBuilder":
         return self.add_set(self._versioned_path(NETWORK_EVENT, "get_network_event_log_level", level))

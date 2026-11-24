@@ -29,6 +29,7 @@ import {
   PrometheusBlackboxICMPModule,
   PrometheusBlackboxDNSModule,
   ServiceMonitoringCapabilities,
+  TelegrafConfig,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
@@ -37,6 +38,8 @@ import { BlackboxModuleModal } from "./BlackboxModuleModal";
 
 interface PrometheusTabProps {
   config: PrometheusConfig | null;
+  /** Telegraf, whose `frr-metrics` relay depends on the frr-exporter. */
+  telegraf: TelegrafConfig | null;
   caps: ServiceMonitoringCapabilities;
   hasWrite: boolean;
   onSuccess: () => void;
@@ -49,7 +52,7 @@ type DeleteSubject =
   | { kind: "blackbox" }
   | { kind: "module"; type: "icmp" | "dns"; name: string };
 
-export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusTabProps) {
+export function PrometheusTab({ config, telegraf, caps, hasWrite, onSuccess }: PrometheusTabProps) {
   const t = useTranslations("serviceMonitoring");
   const tc = useTranslations("common");
   const [nodeOpen, setNodeOpen] = useState(false);
@@ -80,10 +83,12 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
     setDeleting(true);
     setDeleteError(null);
     try {
+      // telegraf frr-metrics cannot outlive the frr-exporter it relays.
+      const frrMetrics = telegraf?.frr_metrics ?? false;
       switch (deleteSubject.kind) {
-        case "all": await serviceMonitoringService.deletePrometheus(); break;
+        case "all": await serviceMonitoringService.deletePrometheus(frrMetrics); break;
         case "node": await serviceMonitoringService.deletePrometheusNodeExporter(); break;
-        case "frr": await serviceMonitoringService.deletePrometheusFrrExporter(); break;
+        case "frr": await serviceMonitoringService.deletePrometheusFrrExporter(frrMetrics); break;
         case "blackbox": await serviceMonitoringService.deletePrometheusBlackboxExporter(); break;
         case "module":
           if (deleteSubject.type === "icmp") {
@@ -142,7 +147,6 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
         // eslint-disable-next-line vymanager/no-untranslated-text -- product name
         title="Node Exporter"
         description={t("prometheus.nodeExporterDescription")}
-        defaultPort={caps.features.prometheus.exporters.node_exporter.default_port}
         port={config?.node_exporter?.port}
         listenAddresses={config?.node_exporter?.listen_addresses ?? []}
         vrf={config?.node_exporter?.vrf}
@@ -158,10 +162,13 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
         // eslint-disable-next-line vymanager/no-untranslated-text -- product name
         title="FRR Exporter"
         description={t("prometheus.frrExporterDescription")}
-        defaultPort={caps.features.prometheus.exporters.frr_exporter.default_port}
         port={config?.frr_exporter?.port}
         listenAddresses={config?.frr_exporter?.listen_addresses ?? []}
         vrf={config?.frr_exporter?.vrf}
+        extraBadges={[
+          ...(config?.frr_exporter?.collectors ?? []),
+          ...(config?.frr_exporter?.bgp_options ?? []),
+        ]}
         hasWrite={hasWrite}
         onEdit={() => setFrrOpen(true)}
         onRemove={() => openDelete({ kind: "frr" })}
@@ -210,6 +217,16 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1">VRF</p>
                   <Badge variant="secondary" className="font-mono">{config.blackbox_exporter.vrf}</Badge>
+                </div>
+              )}
+              {config.blackbox_exporter.listen_addresses.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{t("common.listenAddresses")}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {config.blackbox_exporter.listen_addresses.map((a) => (
+                      <Badge key={a} variant="secondary" className="font-mono text-xs">{a}</Badge>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -328,6 +345,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
           onOpenChange={setFrrOpen}
           type="frr"
           original={config?.frr_exporter ?? null}
+          telegraf={telegraf}
           caps={caps}
           onSuccess={() => { setFrrOpen(false); onSuccess(); }}
         />
@@ -390,7 +408,6 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
 interface ExporterCardProps {
   title: string;
   description: string;
-  defaultPort: number;
   port?: number | null;
   listenAddresses: string[];
   vrf?: string | null;

@@ -1,15 +1,24 @@
 """VyOS 1.5 service monitoring mapper.
 
 1.5 adds ``prometheus`` (node-exporter, frr-exporter, blackbox-exporter),
-``network-event`` and ``zabbix-agent authentication``.
+``network-event``, ``telegraf frr-metrics`` and ``global-tag``, and
+``zabbix-agent authentication`` and ``vrf``.
 """
 
 from typing import List
 
-from ..service_monitoring import NETWORK_EVENT, PROMETHEUS, ZABBIX, ServiceMonitoringMapper
+from ..service_monitoring import (
+    NETWORK_EVENT,
+    PROMETHEUS,
+    TELEGRAF,
+    ZABBIX,
+    ServiceMonitoringMapper,
+)
 
 NODE_EXPORTER = PROMETHEUS + ["node-exporter"]
 FRR_EXPORTER = PROMETHEUS + ["frr-exporter"]
+FRR_COLLECTOR = FRR_EXPORTER + ["collector"]
+FRR_BGP = FRR_COLLECTOR + ["bgp"]
 BLACKBOX = PROMETHEUS + ["blackbox-exporter"]
 
 
@@ -31,6 +40,28 @@ class ServiceMonitoringMapperV1_5(ServiceMonitoringMapper):
     # network-event event child nodes.
     _EVENT_TYPES = ("addr", "link", "neigh", "route", "rule")
 
+    # frr-exporter collector valueless child nodes (bgp and ospf-instance have children/values).
+    _FRR_COLLECTORS = ("bgp-l2-vpn", "detailed-routes", "pim")
+
+    # frr-exporter collector bgp valueless child nodes.
+    _FRR_BGP_OPTIONS = (
+        "accept-filtered-prefixes",
+        "advertised-prefixes",
+        "peer-group",
+        "peer-hostname",
+        "peer-type",
+    )
+
+    # frr-exporter collector bgp peer-description: allowed "json plain-text".
+    _FRR_PEER_DESCRIPTIONS = ("json", "plain-text")
+
+    @staticmethod
+    def _member(value: str, allowed: List[str], what: str) -> str:
+        """value when it is one of the lab's allowed values, else ValueError (a 400)."""
+        if value not in allowed:
+            raise ValueError(f"Unknown {what}: {value}")
+        return value
+
     def zabbix_auth_modes(self) -> List[str]:
         return list(self._AUTH_MODES)
 
@@ -46,9 +77,40 @@ class ServiceMonitoringMapperV1_5(ServiceMonitoringMapper):
     def network_event_types(self) -> List[str]:
         return list(self._EVENT_TYPES)
 
+    def frr_exporter_collectors(self) -> List[str]:
+        return list(self._FRR_COLLECTORS)
+
+    def frr_exporter_bgp_options(self) -> List[str]:
+        return list(self._FRR_BGP_OPTIONS)
+
+    def frr_exporter_peer_description_values(self) -> List[str]:
+        return list(self._FRR_PEER_DESCRIPTIONS)
+
     # ========================================================================
-    # Zabbix agent authentication
+    # Telegraf
     # ========================================================================
+
+    def get_telegraf_frr_metrics(self) -> List[str]:
+        return TELEGRAF + ["frr-metrics"]
+
+    def get_telegraf_global_tag(self, tag: str, value: str) -> List[str]:
+        return TELEGRAF + ["global-tag", tag, "value", value]
+
+    def get_telegraf_global_tag_delete(self, tag: str) -> List[str]:
+        return TELEGRAF + ["global-tag", tag]
+
+    def get_telegraf_all_global_tags_delete(self) -> List[str]:
+        return TELEGRAF + ["global-tag"]
+
+    # ========================================================================
+    # Zabbix agent
+    # ========================================================================
+
+    def get_zabbix_vrf(self, vrf: str) -> List[str]:
+        return ZABBIX + ["vrf", vrf]
+
+    def get_zabbix_vrf_delete(self) -> List[str]:
+        return ZABBIX + ["vrf"]
 
     def get_zabbix_auth_delete(self) -> List[str]:
         return ZABBIX + ["authentication"]
@@ -79,7 +141,7 @@ class ServiceMonitoringMapperV1_5(ServiceMonitoringMapper):
         return PROMETHEUS
 
     # Node exporter
-    def get_prometheus_node_exporter_delete(self) -> List[str]:
+    def get_prometheus_node_exporter(self) -> List[str]:
         return NODE_EXPORTER
 
     def get_prometheus_node_exporter_port(self, port: str) -> List[str]:
@@ -104,7 +166,7 @@ class ServiceMonitoringMapperV1_5(ServiceMonitoringMapper):
         return NODE_EXPORTER + ["collectors", "textfile"]
 
     # FRR exporter
-    def get_prometheus_frr_exporter_delete(self) -> List[str]:
+    def get_prometheus_frr_exporter(self) -> List[str]:
         return FRR_EXPORTER
 
     def get_prometheus_frr_exporter_port(self, port: str) -> List[str]:
@@ -125,8 +187,29 @@ class ServiceMonitoringMapperV1_5(ServiceMonitoringMapper):
     def get_prometheus_frr_exporter_vrf_delete(self) -> List[str]:
         return FRR_EXPORTER + ["vrf"]
 
+    def get_prometheus_frr_exporter_collector(self, collector: str) -> List[str]:
+        return FRR_COLLECTOR + [self._member(collector, self.frr_exporter_collectors(), "frr-exporter collector")]
+
+    def get_prometheus_frr_exporter_bgp_option(self, option: str) -> List[str]:
+        return FRR_BGP + [self._member(option, self.frr_exporter_bgp_options(), "frr-exporter bgp option")]
+
+    def get_prometheus_frr_exporter_bgp_peer_description(self, value: str) -> List[str]:
+        return FRR_BGP + [
+            "peer-description",
+            self._member(value, self.frr_exporter_peer_description_values(), "frr-exporter peer-description"),
+        ]
+
+    def get_prometheus_frr_exporter_bgp_peer_description_delete(self) -> List[str]:
+        return FRR_BGP + ["peer-description"]
+
+    def get_prometheus_frr_exporter_ospf_instance(self, instance: str) -> List[str]:
+        return FRR_COLLECTOR + ["ospf-instance", instance]
+
+    def get_prometheus_frr_exporter_all_ospf_instances_delete(self) -> List[str]:
+        return FRR_COLLECTOR + ["ospf-instance"]
+
     # Blackbox exporter
-    def get_prometheus_blackbox_exporter_delete(self) -> List[str]:
+    def get_prometheus_blackbox_exporter(self) -> List[str]:
         return BLACKBOX
 
     def get_prometheus_blackbox_exporter_port(self, port: str) -> List[str]:
@@ -182,7 +265,7 @@ class ServiceMonitoringMapperV1_5(ServiceMonitoringMapper):
     # Network event logger
     # ========================================================================
 
-    def get_network_event_delete(self) -> List[str]:
+    def get_network_event(self) -> List[str]:
         return NETWORK_EVENT
 
     def get_network_event_log_level(self, level: str) -> List[str]:

@@ -14,25 +14,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { TelegrafLoki, serviceMonitoringService } from "@/lib/api/service-monitoring";
+import {
+  TelegrafLoki,
+  ServiceMonitoringCapabilities,
+  serviceMonitoringService,
+} from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafLokiModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   original: TelegrafLoki | null;
+  caps: ServiceMonitoringCapabilities;
   onSuccess: () => void;
 }
 
-export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: TelegrafLokiModalProps) {
+export function TelegrafLokiModal({ open, onOpenChange, original, caps, onSuccess }: TelegrafLokiModalProps) {
   const t = useTranslations("serviceMonitoring");
   const tc = useTranslations("common");
   const [url, setUrl] = useState(original?.url ?? "");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [metricNameLabel, setMetricNameLabel] = useState(original?.metric_name_label ?? "");
   const [username, setUsername] = useState(original?.authentication?.username ?? "");
-  // Loads as the mask when set: unchanged keeps it, cleared deletes it.
-  const [password, setPassword] = useState(original?.authentication?.password ?? "");
+  // Verify needs the password whenever a username is set, so it loads blank and blank keeps it.
+  const [password, setPassword] = useState("");
+  const passwordStored = !!original?.authentication?.password;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +47,13 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
   };
 
   const handleSubmit = async () => {
-    if (!username !== !password) {
+    const name = username.trim();
+    if (!url.trim()) {
+      setError(t("common.fieldRequired", { field: t("common.url") }));
+      return;
+    }
+    // Clearing the username clears the password with it, so a typed password needs a username.
+    if (name ? !password && !passwordStored : !!password) {
       setError(t("telegraf.loki.authPair"));
       return;
     }
@@ -49,11 +61,11 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
     setError(null);
     try {
       await serviceMonitoringService.saveTelegrafLoki(original, {
-        url: url || null,
+        url: url.trim(),
         port: port ? parseInt(port, 10) : null,
-        metric_name_label: metricNameLabel || null,
+        metric_name_label: metricNameLabel.trim() || null,
         authentication: {
-          username: username || null,
+          username: name || null,
           password: password || null,
         },
       });
@@ -75,7 +87,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-1">
             <div className="space-y-2">
-              <Label htmlFor="loki-url">URL</Label>
+              <Label htmlFor="loki-url">{t("common.url")}</Label>
               <Input
                 id="loki-url"
                 placeholder={t("telegraf.loki.urlPlaceholder")}
@@ -88,7 +100,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
               <Input
                 id="loki-port"
                 type="number"
-                placeholder="3100"
+                placeholder={String(caps.features.telegraf.outputs.loki.default_port)}
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
               />
@@ -116,6 +128,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
                 id="loki-password"
                 type="password"
                 autoComplete="new-password"
+                placeholder={passwordStored ? t("common.secretKeep") : undefined}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />

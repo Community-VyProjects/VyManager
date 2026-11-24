@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, Trash2, X } from "lucide-react";
 import {
+  MASKED_SECRET,
   ZabbixConfig,
   ZabbixServerActive,
   ServiceMonitoringCapabilities,
@@ -67,9 +69,9 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
   const [authMode, setAuthMode] = useState(original?.authentication?.mode ?? "");
   const [pskId, setPskId] = useState(original?.authentication?.psk_id ?? "");
-  // The lab requires the secret in PSK mode, so it loads blank and blank keeps it.
-  const [pskSecret, setPskSecret] = useState("");
-  const pskSecretStored = !!original?.authentication?.psk_secret;
+  // Loads as the mask when set: unchanged keeps it, cleared deletes it, new text sets it.
+  const [pskSecret, setPskSecret] = useState(original?.authentication?.psk_secret ?? "");
+  const [vrf, setVrf] = useState(original?.vrf ?? "");
 
   const [bufferFlushInterval, setBufferFlushInterval] = useState(
     original?.limits?.buffer_flush_interval ? String(original.limits.buffer_flush_interval) : ""
@@ -124,13 +126,23 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
   };
 
   const handleSubmit = async () => {
-    const psk = authMode === "pre-shared-secret";
-    if (psk && !pskId) {
+    // The lab's verify requires at least one server.
+    if (servers.length === 0) {
+      setError(t("common.fieldRequired", { field: t("zabbix.passiveServers") }));
+      return;
+    }
+    const id = pskId.trim();
+    if (authMode === "pre-shared-secret" && !id) {
       setError(t("common.fieldRequired", { field: t("zabbix.pskId") }));
       return;
     }
-    if (psk && !pskSecret && !pskSecretStored) {
+    if (authMode === "pre-shared-secret" && !pskSecret) {
       setError(t("common.fieldRequired", { field: t("zabbix.pskSecret") }));
+      return;
+    }
+    // The mask is never sent, so typing it with no stored secret would set nothing.
+    if (pskSecret === MASKED_SECRET && !original?.authentication?.psk_secret) {
+      setError(t("common.secretIsMask", { field: t("zabbix.pskSecret") }));
       return;
     }
     setSubmitting(true);
@@ -139,6 +151,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
       await serviceMonitoringService.saveZabbix(original, {
         host_name: hostName || null,
         port: port ? parseInt(port, 10) : null,
+        vrf: vrf || null,
         listen_addresses: listenAddresses,
         directory: directory || null,
         timeout: timeout ? parseInt(timeout, 10) : null,
@@ -146,8 +159,8 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
         servers_active: serversActive,
         authentication: {
           mode: authMode || null,
-          psk_id: psk ? pskId || null : null,
-          psk_secret: psk ? pskSecret || null : null,
+          psk_id: id || null,
+          psk_secret: pskSecret || null,
         },
         limits: {
           buffer_flush_interval: bufferFlushInterval ? parseInt(bufferFlushInterval, 10) : null,
@@ -190,13 +203,25 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="z-port">{t("common.port")}</Label>
-                  <Input id="z-port" type="number" placeholder="10050" value={port} onChange={(e) => setPort(e.target.value)} />
+                  <Input
+                    id="z-port"
+                    type="number"
+                    placeholder={String(caps.features.zabbix_agent.default_port)}
+                    value={port}
+                    onChange={(e) => setPort(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="z-dir">{t("zabbix.directory")}</Label>
                 <Input id="z-dir" placeholder="/etc/zabbix" value={directory} onChange={(e) => setDirectory(e.target.value)} />
               </div>
+              {caps.features.zabbix_agent.vrf.supported && (
+                <div className="space-y-2">
+                  <Label htmlFor="z-vrf">VRF</Label>
+                  <VrfSelect id="z-vrf" value={vrf} onValueChange={setVrf} />
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -207,14 +232,19 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
-                  placeholder="3"
+                  placeholder={String(caps.features.zabbix_agent.timeout.default)}
                   min={caps.features.zabbix_agent.timeout.min}
                   max={caps.features.zabbix_agent.timeout.max}
                   value={timeout}
                   onChange={(e) => setTimeout(e.target.value)}
                   className="max-w-[120px]"
                 />
-                <span className="text-sm text-muted-foreground">{t("zabbix.secondsRange")}</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("zabbix.secondsRange", {
+                    min: String(caps.features.zabbix_agent.timeout.min),
+                    max: String(caps.features.zabbix_agent.timeout.max),
+                  })}
+                </span>
               </div>
             </div>
 
@@ -339,25 +369,22 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
                       </SelectContent>
                     </Select>
                   </div>
-                  {authMode === "pre-shared-secret" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="z-psk-id">{t("zabbix.pskId")}</Label>
-                        <Input id="z-psk-id" value={pskId} onChange={(e) => setPskId(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="z-psk-secret">{t("zabbix.pskSecret")}</Label>
-                        <Input
-                          id="z-psk-secret"
-                          type="password"
-                          autoComplete="new-password"
-                          placeholder={pskSecretStored ? t("common.secretKeep") : undefined}
-                          value={pskSecret}
-                          onChange={(e) => setPskSecret(e.target.value)}
-                        />
-                      </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="z-psk-id">{t("zabbix.pskId")}</Label>
+                      <Input id="z-psk-id" value={pskId} onChange={(e) => setPskId(e.target.value)} />
                     </div>
-                  )}
+                    <div className="space-y-2">
+                      <Label htmlFor="z-psk-secret">{t("zabbix.pskSecret")}</Label>
+                      <Input
+                        id="z-psk-secret"
+                        type="password"
+                        autoComplete="new-password"
+                        value={pskSecret}
+                        onChange={(e) => setPskSecret(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />

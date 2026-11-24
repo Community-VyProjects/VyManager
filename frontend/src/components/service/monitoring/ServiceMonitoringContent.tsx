@@ -168,6 +168,7 @@ export function ServiceMonitoringContent() {
             {config && caps && (
               <TelegrafTab
                 config={config.telegraf ?? null}
+                frrExporter={config.prometheus?.frr_exporter ?? null}
                 caps={caps}
                 hasWrite={hasWrite}
                 onSuccess={() => loadData(true)}
@@ -191,6 +192,7 @@ export function ServiceMonitoringContent() {
               {config && caps && (
                 <PrometheusTab
                   config={config.prometheus ?? null}
+                  telegraf={config.telegraf ?? null}
                   caps={caps}
                   hasWrite={hasWrite}
                   onSuccess={() => loadData(true)}

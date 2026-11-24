@@ -12,8 +12,10 @@ def _tree():
         "service": {
             "monitoring": {
                 "telegraf": {
-                    "source": {"net": {}, "cpu": {}},
+                    "source": {"system": {}, "network": {}},
                     "vrf": "mgmt",
+                    "frr-metrics": {},
+                    "global-tag": {"site": {"value": "dc1,rack 4"}, "env": {"value": "prod"}},
                     "influxdb": {
                         "url": "https://influx.example",
                         "port": "8086",
@@ -34,7 +36,7 @@ def _tree():
                         "url": "https://azure.example",
                         "database": "metrics",
                         "table": "host",
-                        "group-metrics": "table",
+                        "group-metrics": "single-table",
                         "authentication": {
                             "client-id": "cid",
                             "client-secret": "csec",
@@ -52,6 +54,7 @@ def _tree():
                 "zabbix-agent": {
                     "host-name": "edge",
                     "port": "10050",
+                    "vrf": "mgmt",
                     "listen-address": {"10.1.1.1": {}, "10.1.1.2": {}},
                     "server": ["zbx-b", "zbx-a"],
                     "server-active": {
@@ -59,12 +62,12 @@ def _tree():
                         "10.2.2.1": {"port": "10051"},
                     },
                     "authentication": {
-                        "mode": "psk",
+                        "mode": "pre-shared-secret",
                         "psk": {"id": "psk-id", "secret": "psk-secret"},
                     },
                     "limits": {"buffer-flush-interval": "5", "buffer-size": "100"},
                     "log": {
-                        "debug-level": "3",
+                        "debug-level": "debug",
                         "size": "10",
                         "remote-commands": {},
                     },
@@ -76,7 +79,16 @@ def _tree():
                         "vrf": "default",
                         "collectors": {"textfile": {}},
                     },
-                    "frr-exporter": {"port": "9342", "vrf": "mgmt"},
+                    "frr-exporter": {
+                        "port": "9342",
+                        "vrf": "mgmt",
+                        "collector": {
+                            "bgp": {"peer-type": {}, "accept-filtered-prefixes": {}, "peer-description": "plain-text"},
+                            "pim": {},
+                            "bgp-l2-vpn": {},
+                            "ospf-instance": ["10", "2"],
+                        },
+                    },
                     "blackbox-exporter": {
                         "port": "9115",
                         "modules": {
@@ -163,17 +175,21 @@ def test_unset_secret_stays_none():
 def test_bare_nodes_parse_as_configured():
     """A node with no children still exists on the device; it is not absent."""
     tree = {"service": {"monitoring": {
-        "telegraf": {"loki": {}},
+        "telegraf": {"loki": {}, "prometheus-client": {}},
         "zabbix-agent": {},
-        "prometheus": {"node-exporter": {}, "blackbox-exporter": {}},
+        "prometheus": {"node-exporter": {}, "frr-exporter": {}, "blackbox-exporter": {}},
         "network-event": {},
     }}}
     parsed = get_service_monitoring_mapper("1.5").parse_config(tree)
     assert parsed["telegraf"]["loki"]["url"] is None
     assert parsed["telegraf"]["influxdb"] is None
+    assert parsed["telegraf"]["prometheus_client"]["allow_from"] == []
+    assert parsed["telegraf"]["frr_metrics"] is False
+    assert parsed["telegraf"]["global_tags"] == []
     assert parsed["zabbix_agent"]["servers"] == []
     assert parsed["prometheus"]["node_exporter"]["textfile_collector"] is False
-    assert parsed["prometheus"]["frr_exporter"] is None
+    assert parsed["prometheus"]["frr_exporter"]["collectors"] == []
+    assert parsed["prometheus"]["frr_exporter"]["ospf_instances"] == []
     assert parsed["prometheus"]["blackbox_exporter"]["icmp_modules"] == []
     assert parsed["network_event"]["events"] == []
 
@@ -182,8 +198,13 @@ def test_telegraf_zabbix_prometheus_and_events():
     parsed = get_service_monitoring_mapper("1.5").parse_config(_tree())
     assert type(parsed) is dict
     telegraf = parsed["telegraf"]
-    assert telegraf["sources"] == ["cpu", "net"]
+    assert telegraf["sources"] == ["network", "system"]
     assert telegraf["vrf"] == "mgmt"
+    assert telegraf["frr_metrics"] is True
+    assert telegraf["global_tags"] == [
+        {"name": "env", "value": "prod"},
+        {"name": "site", "value": "dc1,rack 4"},
+    ]
     assert telegraf["influxdb"]["port"] == 8086
     assert telegraf["influxdb"]["authentication"]["organization"] == "ops"
     assert telegraf["loki"]["authentication"]["username"] == "loki"
@@ -197,6 +218,7 @@ def test_telegraf_zabbix_prometheus_and_events():
     zabbix = parsed["zabbix_agent"]
     assert zabbix["host_name"] == "edge"
     assert zabbix["port"] == 10050
+    assert zabbix["vrf"] == "mgmt"
     assert zabbix["listen_addresses"] == ["10.1.1.1", "10.1.1.2"]
     assert zabbix["servers"] == ["zbx-a", "zbx-b"]
     assert zabbix["servers_active"] == [
@@ -212,6 +234,10 @@ def test_telegraf_zabbix_prometheus_and_events():
     assert prometheus["node_exporter"]["listen_addresses"] == ["0.0.0.0"]
     assert prometheus["frr_exporter"]["port"] == 9342
     assert prometheus["frr_exporter"]["vrf"] == "mgmt"
+    assert prometheus["frr_exporter"]["collectors"] == ["bgp-l2-vpn", "pim"]
+    assert prometheus["frr_exporter"]["bgp_options"] == ["accept-filtered-prefixes", "peer-type"]
+    assert prometheus["frr_exporter"]["bgp_peer_description"] == "plain-text"
+    assert prometheus["frr_exporter"]["ospf_instances"] == ["2", "10"]
     blackbox = prometheus["blackbox_exporter"]
     assert [item["name"] for item in blackbox["icmp_modules"]] == ["bare", "ping"]
     assert blackbox["icmp_modules"][1]["ip_protocol_fallback"] is True

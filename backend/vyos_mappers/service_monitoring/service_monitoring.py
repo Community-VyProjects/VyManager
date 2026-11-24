@@ -1,8 +1,8 @@
 """Service monitoring command mapper.
 
 Config tree: service monitoring. The shared class holds the commands both labs
-have (telegraf, zabbix-agent). The 1.5 subclass adds prometheus, network-event
-and zabbix-agent authentication.
+have (telegraf, zabbix-agent). The 1.5 subclass adds prometheus, network-event,
+telegraf frr-metrics and global-tag, and zabbix-agent authentication and vrf.
 """
 
 from typing import Any, Dict, FrozenSet, List
@@ -34,8 +34,11 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     # Nodes only 1.5 has, mapped to a path method the subclass defines.
     _VERSIONED_NODES = {
         "prometheus": "get_prometheus_delete",
-        "network-event": "get_network_event_delete",
+        "network-event": "get_network_event",
+        "telegraf frr-metrics": "get_telegraf_frr_metrics",
+        "telegraf global-tag": "get_telegraf_global_tag_delete",
         "zabbix-agent authentication": "get_zabbix_auth_delete",
+        "zabbix-agent vrf": "get_zabbix_vrf_delete",
     }
 
     # ========================================================================
@@ -88,6 +91,18 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
 
     def network_event_types(self) -> List[str]:
         """network-event event child nodes; network-event is 1.5-only."""
+        return []
+
+    def frr_exporter_collectors(self) -> List[str]:
+        """frr-exporter valueless collector nodes; prometheus is 1.5-only."""
+        return []
+
+    def frr_exporter_bgp_options(self) -> List[str]:
+        """frr-exporter collector bgp valueless options; prometheus is 1.5-only."""
+        return []
+
+    def frr_exporter_peer_description_values(self) -> List[str]:
+        """frr-exporter collector bgp peer-description values; prometheus is 1.5-only."""
         return []
 
     # ========================================================================
@@ -271,7 +286,7 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     # Telegraf — Prometheus client output
     # ------------------------------------------------------------------------
 
-    def get_telegraf_prometheus_client_delete(self) -> List[str]:
+    def get_telegraf_prometheus_client(self) -> List[str]:
         return TELEGRAF + ["prometheus-client"]
 
     def get_telegraf_prometheus_client_port(self, port: str) -> List[str]:

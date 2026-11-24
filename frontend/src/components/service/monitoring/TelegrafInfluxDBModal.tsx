@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import {
   TelegrafInfluxDB,
+  ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
@@ -24,6 +25,7 @@ interface TelegrafInfluxDBModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   original: TelegrafInfluxDB | null;
+  caps: ServiceMonitoringCapabilities;
   onSuccess: () => void;
 }
 
@@ -31,6 +33,7 @@ export function TelegrafInfluxDBModal({
   open,
   onOpenChange,
   original,
+  caps,
   onSuccess,
 }: TelegrafInfluxDBModalProps) {
   const t = useTranslations("serviceMonitoring");
@@ -49,20 +52,29 @@ export function TelegrafInfluxDBModal({
   };
 
   const handleSubmit = async () => {
+    // url, token and organization are required by the lab's verify.
+    if (!url.trim()) {
+      setError(t("common.fieldRequired", { field: t("common.url") }));
+      return;
+    }
     if (!token && !tokenStored) {
       setError(t("common.fieldRequired", { field: t("telegraf.token") }));
+      return;
+    }
+    if (!organization.trim()) {
+      setError(t("common.fieldRequired", { field: t("telegraf.influxdb.organization") }));
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
       await serviceMonitoringService.saveTelegrafInfluxDB(original, {
-        url: url || null,
+        url: url.trim(),
         port: port ? parseInt(port, 10) : null,
-        bucket: bucket || null,
+        bucket: bucket.trim() || null,
         authentication: {
           token: token || null,
-          organization: organization || null,
+          organization: organization.trim(),
         },
       });
       onSuccess();
@@ -83,7 +95,7 @@ export function TelegrafInfluxDBModal({
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-1">
             <div className="space-y-2">
-              <Label htmlFor="influxdb-url">URL</Label>
+              <Label htmlFor="influxdb-url">{t("common.url")}</Label>
               <Input
                 id="influxdb-url"
                 placeholder={t("telegraf.influxdb.urlPlaceholder")}
@@ -96,7 +108,7 @@ export function TelegrafInfluxDBModal({
               <Input
                 id="influxdb-port"
                 type="number"
-                placeholder="8086"
+                placeholder={String(caps.features.telegraf.outputs.influxdb.default_port)}
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
               />

@@ -22,7 +22,9 @@
     "configureTitle": "配置 {name}",
     "secondsValue": "{value} 秒",
     "fieldRequired": "{field} 为必填项",
-    "secretKeep": "留空以保留当前密钥"
+    "secretKeep": "留空以保留当前密钥",
+    "secretIsMask": "请输入新的{field}，掩码值无法保存",
+    "url": "URL"
   },
   "prometheus": {
     "nodeExporterDescription": "硬件和操作系统指标",
@@ -47,10 +49,16 @@
   },
   "exporter": {
     "listenPlaceholder": "例如 0.0.0.0",
-    "enableTextfileCollector": "启用 textfile 采集器"
+    "enableTextfileCollector": "启用 textfile 采集器",
+    "collectors": "采集器",
+    "bgpOptions": "BGP 采集器选项",
+    "peerDescription": "BGP 对等体描述标签",
+    "ospfInstances": "OSPF 实例",
+    "ospfInstanceRange": "OSPF 实例必须在 {min} 到 {max} 之间"
   },
   "blackbox": {
     "nameRequired": "模块名称不能为空",
+    "nameComma": "模块名称不能包含逗号",
     "nameExists": "已存在同名模块",
     "editTitle": "编辑 {type} 模块",
     "addTitle": "添加 {type} 模块",
@@ -99,6 +107,17 @@
     "sourcesLabel": "数据源",
     "noneConfigured": "未配置",
     "outputPlugins": "输出插件",
+    "frrMetrics": "转发 FRR 导出器指标",
+    "frrMetricsNeedsExporter": "转发 FRR 指标前请先配置 Prometheus FRR 导出器",
+    "frrMetricsVrfMismatch": "转发 FRR 指标时，Telegraf 与 FRR 导出器必须使用相同的 VRF",
+    "globalTags": {
+      "title": "全局标签",
+      "value": "值",
+      "nameRequired": "每个全局标签都需要名称",
+      "nameInvalid": "全局标签“{name}”只能包含字母、数字、连字符和下划线",
+      "nameDuplicate": "全局标签“{name}”重复",
+      "valueRequired": "全局标签“{name}”需要一个值"
+    },
     "summary": {
       "url": "URL：{value}",
       "port": "端口：{value}",
@@ -123,7 +142,6 @@
       "database": "数据库",
       "table": "表",
       "groupMetrics": "指标分组",
-      "groupMetricsPlaceholder": "选择分组策略",
       "clientId": "客户端 ID",
       "clientSecret": "客户端密钥",
       "tenantId": "租户 ID"
@@ -150,7 +168,6 @@
     "promClient": {
       "listenAddress": "监听地址",
       "metricVersion": "指标版本",
-      "selectVersion": "选择版本",
       "version": "版本 {version}",
       "allowFrom": "允许来源",
       "allowFromPlaceholder": "例如 192.168.0.0/24"
@@ -162,7 +179,7 @@
     "identity": "标识",
     "hostName": "主机名",
     "directory": "目录",
-    "secondsRange": "秒（1–30）",
+    "secondsRange": "秒（{min}–{max}）",
     "passiveServers": "被动服务器",
     "serverPlaceholder": "例如 192.168.1.10",
     "activeServers": "主动服务器",

@@ -22,7 +22,9 @@
     "configureTitle": "Configure {name}",
     "secondsValue": "{value}s",
     "fieldRequired": "{field} is required",
-    "secretKeep": "Leave blank to keep the current secret"
+    "secretKeep": "Leave blank to keep the current secret",
+    "secretIsMask": "Enter the new {field}; the masked value cannot be saved",
+    "url": "URL"
   },
   "prometheus": {
     "nodeExporterDescription": "Hardware and OS metrics",
@@ -47,10 +49,16 @@
   },
   "exporter": {
     "listenPlaceholder": "e.g. 0.0.0.0",
-    "enableTextfileCollector": "Enable textfile collector"
+    "enableTextfileCollector": "Enable textfile collector",
+    "collectors": "Collectors",
+    "bgpOptions": "BGP Collector Options",
+    "peerDescription": "BGP Peer Description Label",
+    "ospfInstances": "OSPF Instances",
+    "ospfInstanceRange": "OSPF instance must be between {min} and {max}"
   },
   "blackbox": {
     "nameRequired": "Module name is required",
+    "nameComma": "Module name cannot contain a comma",
     "nameExists": "A module with this name already exists",
     "editTitle": "Edit {type} Module",
     "addTitle": "Add {type} Module",
@@ -99,6 +107,17 @@
     "sourcesLabel": "Sources",
     "noneConfigured": "None configured",
     "outputPlugins": "Output Plugins",
+    "frrMetrics": "Relay FRR exporter metrics",
+    "frrMetricsNeedsExporter": "Configure the Prometheus FRR exporter before relaying its metrics",
+    "frrMetricsVrfMismatch": "Telegraf and the FRR exporter must use the same VRF while FRR metrics are relayed",
+    "globalTags": {
+      "title": "Global Tags",
+      "value": "Value",
+      "nameRequired": "Every global tag needs a name",
+      "nameInvalid": "Global tag \"{name}\" may only contain letters, digits, hyphens and underscores",
+      "nameDuplicate": "Global tag \"{name}\" is listed twice",
+      "valueRequired": "Global tag \"{name}\" needs a value"
+    },
     "summary": {
       "url": "URL: {value}",
       "port": "Port: {value}",
@@ -123,7 +142,6 @@
       "database": "Database",
       "table": "Table",
       "groupMetrics": "Group Metrics",
-      "groupMetricsPlaceholder": "Select grouping strategy",
       "clientId": "Client ID",
       "clientSecret": "Client Secret",
       "tenantId": "Tenant ID"
@@ -150,7 +168,6 @@
     "promClient": {
       "listenAddress": "Listen Address",
       "metricVersion": "Metric Version",
-      "selectVersion": "Select version",
       "version": "Version {version}",
       "allowFrom": "Allow From",
       "allowFromPlaceholder": "e.g. 192.168.0.0/24"
@@ -162,7 +179,7 @@
     "identity": "Identity",
     "hostName": "Host Name",
     "directory": "Directory",
-    "secondsRange": "seconds (1–30)",
+    "secondsRange": "seconds ({min}–{max})",
     "passiveServers": "Passive Servers",
     "serverPlaceholder": "e.g. 192.168.1.10",
     "activeServers": "Active Servers",

@@ -23,11 +23,17 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import {
+  MASKED_SECRET,
   TelegrafPrometheusClient,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface TelegrafPrometheusClientModalProps {
   open: boolean;
@@ -78,6 +84,11 @@ export function TelegrafPrometheusClientModal({
   };
 
   const handleSubmit = async () => {
+    // The mask is never sent, so typing it with no stored password would set nothing.
+    if (password === MASKED_SECRET && !original?.authentication?.password) {
+      setError(t("common.secretIsMask", { field: t("telegraf.password") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -113,7 +124,7 @@ export function TelegrafPrometheusClientModal({
               <Input
                 id="prom-port"
                 type="number"
-                placeholder="9273"
+                placeholder={String(caps.features.telegraf.outputs.prometheus_client.default_port)}
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
               />
@@ -129,11 +140,15 @@ export function TelegrafPrometheusClientModal({
             </div>
             <div className="space-y-2">
               <Label>{t("telegraf.promClient.metricVersion")}</Label>
-              <Select value={metricVersion} onValueChange={setMetricVersion}>
+              <Select
+                value={toNamedListValue(metricVersion)}
+                onValueChange={(v) => setMetricVersion(fromNamedListValue(v))}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={t("telegraf.promClient.selectVersion")} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                   {metricVersionValues.map((v) => (
                     <SelectItem key={v} value={String(v)}>{t("telegraf.promClient.version", { version: String(v) })}</SelectItem>
                   ))}

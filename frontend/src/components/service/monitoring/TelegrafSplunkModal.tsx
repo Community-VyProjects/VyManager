@@ -39,6 +39,11 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
   };
 
   const handleSubmit = async () => {
+    // url and token are required by the lab's verify.
+    if (!url.trim()) {
+      setError(t("common.fieldRequired", { field: t("common.url") }));
+      return;
+    }
     if (!token && !tokenStored) {
       setError(t("common.fieldRequired", { field: t("telegraf.token") }));
       return;
@@ -47,7 +52,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
     setError(null);
     try {
       await serviceMonitoringService.saveTelegrafSplunk(original, {
-        url: url || null,
+        url: url.trim(),
         authentication: {
           token: token || null,
           insecure,
@@ -70,7 +75,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
 
         <div className="space-y-4 py-1">
           <div className="space-y-2">
-            <Label htmlFor="splunk-url">URL</Label>
+            <Label htmlFor="splunk-url">{t("common.url")}</Label>
             <Input
               id="splunk-url"
               placeholder={t("telegraf.splunk.urlPlaceholder")}

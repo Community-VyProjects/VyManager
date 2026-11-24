@@ -27,6 +27,11 @@ import {
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface TelegrafAzureModalProps {
   open: boolean;
@@ -57,22 +62,39 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
   };
 
   const handleSubmit = async () => {
+    // url, database and the three authentication leaves are required by the
+    // lab's verify; single-table grouping also needs a table.
+    const required: [string, string][] = [
+      [url, t("telegraf.azure.endpointUrl")],
+      [database, t("telegraf.azure.database")],
+      [clientId, t("telegraf.azure.clientId")],
+      [tenantId, t("telegraf.azure.tenantId")],
+    ];
+    const missing = required.find(([value]) => !value.trim());
+    if (missing) {
+      setError(t("common.fieldRequired", { field: missing[1] }));
+      return;
+    }
     if (!clientSecret && !secretStored) {
       setError(t("common.fieldRequired", { field: t("telegraf.azure.clientSecret") }));
+      return;
+    }
+    if (groupMetrics === "single-table" && !table.trim()) {
+      setError(t("common.fieldRequired", { field: t("telegraf.azure.table") }));
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
       await serviceMonitoringService.saveTelegrafAzure(original, {
-        url: url || null,
-        database: database || null,
-        table: table || null,
+        url: url.trim(),
+        database: database.trim(),
+        table: table.trim() || null,
         group_metrics: groupMetrics || null,
         authentication: {
-          client_id: clientId || null,
+          client_id: clientId.trim(),
           client_secret: clientSecret || null,
-          tenant_id: tenantId || null,
+          tenant_id: tenantId.trim(),
         },
       });
       onSuccess();
@@ -119,11 +141,15 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
             </div>
             <div className="space-y-2">
               <Label>{t("telegraf.azure.groupMetrics")}</Label>
-              <Select value={groupMetrics} onValueChange={setGroupMetrics}>
+              <Select
+                value={toNamedListValue(groupMetrics)}
+                onValueChange={(v) => setGroupMetrics(fromNamedListValue(v))}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={t("telegraf.azure.groupMetricsPlaceholder")} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                   {groupMetricsValues.map((v) => (
                     <SelectItem key={v} value={v}>{v}</SelectItem>
                   ))}

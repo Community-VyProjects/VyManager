@@ -100,9 +100,16 @@ class TelegrafPrometheusClient(BaseModel):
     authentication: TelegrafPrometheusClientAuth = Field(default_factory=TelegrafPrometheusClientAuth)
 
 
+class TelegrafGlobalTag(BaseModel):
+    name: str
+    value: Optional[str] = None
+
+
 class TelegrafConfig(BaseModel):
     sources: List[str] = []
     vrf: Optional[str] = None
+    frr_metrics: bool = False
+    global_tags: List[TelegrafGlobalTag] = []
     influxdb: Optional[TelegrafInfluxDB] = None
     loki: Optional[TelegrafLoki] = None
     splunk: Optional[TelegrafSplunk] = None
@@ -135,6 +142,7 @@ class ZabbixServerActive(BaseModel):
 class ZabbixConfig(BaseModel):
     host_name: Optional[str] = None
     port: Optional[int] = None
+    vrf: Optional[str] = None
     listen_addresses: List[str] = []
     directory: Optional[str] = None
     timeout: Optional[int] = None
@@ -153,6 +161,13 @@ class PrometheusExporterBase(BaseModel):
 
 class PrometheusNodeExporter(PrometheusExporterBase):
     textfile_collector: bool = False
+
+
+class PrometheusFrrExporter(PrometheusExporterBase):
+    collectors: List[str] = []
+    bgp_options: List[str] = []
+    bgp_peer_description: Optional[str] = None
+    ospf_instances: List[str] = []
 
 
 class PrometheusBlackboxICMPModule(BaseModel):
@@ -178,7 +193,7 @@ class PrometheusBlackboxExporter(PrometheusExporterBase):
 
 class PrometheusConfig(BaseModel):
     node_exporter: Optional[PrometheusNodeExporter] = None
-    frr_exporter: Optional[PrometheusExporterBase] = None
+    frr_exporter: Optional[PrometheusFrrExporter] = None
     blackbox_exporter: Optional[PrometheusBlackboxExporter] = None
 
 

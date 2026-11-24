@@ -1,8 +1,8 @@
 """Read-model for service monitoring config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version keys come from the mapper (MergedMapper), not from
-hardcoded 1.4/1.5 branches here.
+the tree. Leaves one version lacks are simply absent from its tree, so the
+walk reads them the same way on both versions.
 
 Secrets (tokens, passwords, client and PSK secrets) are returned as
 MASKED_SECRET when set, never in plaintext.
@@ -137,9 +137,17 @@ def _parse_telegraf_prometheus_client(raw: Any) -> Optional[Dict[str, Any]]:
 def _parse_telegraf(raw: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(raw, dict):
         return None
+    tags_raw = raw.get("global-tag")
+    global_tags = []
+    if isinstance(tags_raw, dict):
+        for tag, tag_cfg in sorted(tags_raw.items()):
+            value = tag_cfg.get("value") if isinstance(tag_cfg, dict) else None
+            global_tags.append({"name": tag, "value": _str_val(value)})
     return {
         "sources": _multi_list(raw.get("source")),
         "vrf": _str_val(raw.get("vrf")),
+        "frr_metrics": "frr-metrics" in raw,
+        "global_tags": global_tags,
         "influxdb": _parse_telegraf_influxdb(raw.get("influxdb")),
         "loki": _parse_telegraf_loki(raw.get("loki")),
         "splunk": _parse_telegraf_splunk(raw.get("splunk")),
@@ -172,6 +180,7 @@ def _parse_zabbix(raw: Any) -> Optional[Dict[str, Any]]:
     return {
         "host_name": _str_val(raw.get("host-name")),
         "port": _int_val(raw.get("port")),
+        "vrf": _str_val(raw.get("vrf")),
         "listen_addresses": _multi_list(raw.get("listen-address")),
         "directory": _str_val(raw.get("directory")),
         "timeout": _int_val(raw.get("timeout")),
@@ -212,6 +221,21 @@ def _parse_prometheus_node_exporter(raw: Any) -> Optional[Dict[str, Any]]:
     if parsed is None:
         return None
     parsed["textfile_collector"] = "textfile" in collectors_raw
+    return parsed
+
+
+def _parse_prometheus_frr_exporter(raw: Any) -> Optional[Dict[str, Any]]:
+    parsed = _parse_prometheus_base_exporter(raw)
+    if parsed is None:
+        return None
+    collector_raw = raw.get("collector", {}) or {}
+    bgp_raw = collector_raw.get("bgp", {}) or {}
+    parsed["collectors"] = sorted(
+        name for name in collector_raw if name not in ("bgp", "ospf-instance")
+    )
+    parsed["bgp_options"] = sorted(name for name in bgp_raw if name != "peer-description")
+    parsed["bgp_peer_description"] = _str_val(bgp_raw.get("peer-description"))
+    parsed["ospf_instances"] = sorted(_multi_list(collector_raw.get("ospf-instance")), key=int)
     return parsed
 
 
@@ -264,7 +288,7 @@ def _parse_prometheus(raw: Any) -> Optional[Dict[str, Any]]:
         return None
     return {
         "node_exporter": _parse_prometheus_node_exporter(raw.get("node-exporter")),
-        "frr_exporter": _parse_prometheus_base_exporter(raw.get("frr-exporter")),
+        "frr_exporter": _parse_prometheus_frr_exporter(raw.get("frr-exporter")),
         "blackbox_exporter": _parse_prometheus_blackbox(raw.get("blackbox-exporter")),
     }
 

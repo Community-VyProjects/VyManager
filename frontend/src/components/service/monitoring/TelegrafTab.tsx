@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  PrometheusFrrExporter,
   TelegrafConfig,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
@@ -31,12 +32,14 @@ import { TelegrafPrometheusClientModal } from "./TelegrafPrometheusClientModal";
 
 interface TelegrafTabProps {
   config: TelegrafConfig | null;
+  /** The configured frr-exporter, which `frr-metrics` relays. */
+  frrExporter: PrometheusFrrExporter | null;
   caps: ServiceMonitoringCapabilities;
   hasWrite: boolean;
   onSuccess: () => void;
 }
 
-export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabProps) {
+export function TelegrafTab({ config, frrExporter, caps, hasWrite, onSuccess }: TelegrafTabProps) {
   const t = useTranslations("serviceMonitoring");
   const tc = useTranslations("common");
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -144,6 +147,23 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
               <Badge variant="secondary" className="font-mono">{config.vrf}</Badge>
             </div>
           )}
+          {config?.frr_metrics && (
+            <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              {t("telegraf.frrMetrics")}
+            </Badge>
+          )}
+          {config && config.global_tags.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t("telegraf.globalTags.title")}</p>
+              <div className="flex flex-wrap gap-1">
+                {config.global_tags.map((g) => (
+                  <Badge key={g.name} variant="secondary" className="font-mono text-xs">
+                    {g.name}={g.value ?? ""}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -232,6 +252,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
           open={sourcesOpen}
           onOpenChange={setSourcesOpen}
           config={config}
+          frrExporter={frrExporter}
           caps={caps}
           onSuccess={() => { setSourcesOpen(false); onSuccess(); }}
         />
@@ -241,6 +262,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
           open={influxdbOpen}
           onOpenChange={setInfluxdbOpen}
           original={config?.influxdb ?? null}
+          caps={caps}
           onSuccess={() => { setInfluxdbOpen(false); onSuccess(); }}
         />
       )}
@@ -249,6 +271,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
           open={lokiOpen}
           onOpenChange={setLokiOpen}
           original={config?.loki ?? null}
+          caps={caps}
           onSuccess={() => { setLokiOpen(false); onSuccess(); }}
         />
       )}
