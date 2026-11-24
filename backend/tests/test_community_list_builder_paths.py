@@ -33,6 +33,7 @@ def test_community_list_builder_paths(method, args, op, expected_path, version):
     operations = builder.get_operations()
     assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
 
+
 def test_every_builder_op_has_a_case():
     ops = {
         name
