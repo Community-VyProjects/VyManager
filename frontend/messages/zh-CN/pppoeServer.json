@@ -14,7 +14,8 @@
     "labelIncomplete": "标签 {label} 需要同时填写代码和显示名称",
     "labelUnnamed": "标签需要同时填写代码和显示名称",
     "labelDuplicateCode": "标签代码 {code} 重复使用",
-    "labelPriority": "标签 {label} 的优先级必须是 {min} 到 {max} 之间的整数"
+    "labelPriority": "标签 {label} 的优先级必须是 {min} 到 {max} 之间的整数",
+    "labelFactor": "标签 {label} 的比例系数必须是大于或等于 0 的数字"
   },
   "deleteServer": {
     "button": "删除 PPPoE 服务器",

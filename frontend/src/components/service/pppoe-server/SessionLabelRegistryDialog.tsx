@@ -276,8 +276,9 @@ export function SessionLabelRegistryDialog({
                         type="number"
                         step="0.01"
                         min="0"
-                        value={label.rules?.factor ?? 0.1}
-                        onChange={(e) => updateRuleAt(index, { factor: Number(e.target.value) })}
+                        value={Number.isNaN(label.rules?.factor) ? "" : (label.rules?.factor ?? 0.1)}
+                        // A cleared box is NaN, which the save check rejects (never a silent 0).
+                        onChange={(e) => updateRuleAt(index, { factor: e.target.value === "" ? NaN : Number(e.target.value) })}
                       />
                     </div>
                   </div>

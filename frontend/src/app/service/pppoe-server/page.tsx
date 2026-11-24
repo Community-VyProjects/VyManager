@@ -75,6 +75,7 @@ import {
   DeleteConfirmModal,
   GeneralSettingsModal,
   AuthSettingsModal,
+  authModeLabels,
   LocalUserModal,
   RadiusServerModal,
   RadiusSettingsModal,
@@ -465,6 +466,14 @@ function PPPoEPageInner() {
       setLabelError(t("errors.labelDuplicateCode", { code: duplicate }));
       return;
     }
+    const badFactor = labelDraft.find((label) => {
+      const factor = label.rules?.factor ?? 0.1;
+      return !Number.isFinite(factor) || factor < 0;
+    });
+    if (badFactor) {
+      setLabelError(t("errors.labelFactor", { label: badFactor.code.trim() }));
+      return;
+    }
     const badPriority = labelDraft.find((label) => !labelPriorityValid(label.priority));
     if (badPriority) {
       setLabelError(t("errors.labelPriority", {
@@ -566,13 +575,9 @@ function PPPoEPageInner() {
 
   // An unset authentication mode is the lab default, local.
   const isLocalAuth = (config?.authentication.mode || "local") === "local";
-  const authModeLabels: Record<string, string> = {
-    local: ts("auth.modeLocal"),
-    radius: ts("auth.modeRadius"),
-    noauth: ts("auth.modeNoauth"),
-  };
+  const modeLabels = authModeLabels(ts);
   const authModeLabel = (mode: string | null | undefined) =>
-    mode ? authModeLabels[mode] ?? mode : tc("default");
+    mode ? modeLabels[mode] ?? mode : tc("default");
   const vlanMonSupported = capabilities?.features.vlan_mon ?? false;
   const totals = config?.totals;
 

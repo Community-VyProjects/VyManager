@@ -1,6 +1,6 @@
 export { DeleteConfirmModal } from "./DeleteConfirmModal";
 export { GeneralSettingsModal } from "./GeneralSettingsModal";
-export { AuthSettingsModal } from "./AuthSettingsModal";
+export { AuthSettingsModal, authModeLabels } from "./AuthSettingsModal";
 export { LocalUserModal } from "./LocalUserModal";
 export { RadiusServerModal } from "./RadiusServerModal";
 export { RadiusSettingsModal } from "./RadiusSettingsModal";

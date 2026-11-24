@@ -326,7 +326,7 @@ async def _seed_default_labels(conn, instance_id: str) -> None:
             """,
             str(uuid.uuid4()), instance_id,
             label["code"], label["name"], label.get("description"),
-            label.get("severity") or "info", int(label.get("priority") or 10),
+            label.get("severity") or "info", label["priority"],
             bool(label.get("enabled", True)), json.dumps(label.get("rules") or {}),
         )
 

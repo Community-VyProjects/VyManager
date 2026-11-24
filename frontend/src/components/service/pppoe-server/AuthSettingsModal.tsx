@@ -27,6 +27,17 @@ interface AuthSettingsModalProps {
   capabilities: PPPoECapabilities | null;
 }
 
+/** Labels for the `authentication mode` values; the page badge reads the same map. */
+export function authModeLabels(
+  t: (key: "auth.modeLocal" | "auth.modeRadius" | "auth.modeNoauth") => string,
+): Record<string, string> {
+  return {
+    local: t("auth.modeLocal"),
+    radius: t("auth.modeRadius"),
+    noauth: t("auth.modeNoauth"),
+  };
+}
+
 export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, capabilities }: AuthSettingsModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
@@ -41,11 +52,7 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
   const [error, setError] = useState<string | null>(null);
 
   const showAnyLogin = capabilities?.features.auth_any_login ?? false;
-  const modeLabels: Record<string, string> = {
-    local: t("auth.modeLocal"),
-    radius: t("auth.modeRadius"),
-    noauth: t("auth.modeNoauth"),
-  };
+  const modeLabels = authModeLabels(t);
 
   const toggleProtocol = (protocol: string) => {
     setDraft((current) => ({
