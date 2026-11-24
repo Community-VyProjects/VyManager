@@ -168,6 +168,12 @@ export function PrometheusTab({ config, telegraf, caps, hasWrite, onSuccess }: P
         extraBadges={[
           ...(config?.frr_exporter?.collectors ?? []),
           ...(config?.frr_exporter?.bgp_options ?? []),
+          ...(config?.frr_exporter?.bgp_peer_description
+            ? [`${t("exporter.peerDescription")}: ${config.frr_exporter.bgp_peer_description}`]
+            : []),
+          ...(config?.frr_exporter?.ospf_instances?.length
+            ? [`${t("exporter.ospfInstances")}: ${config.frr_exporter.ospf_instances.join(", ")}`]
+            : []),
         ]}
         hasWrite={hasWrite}
         onEdit={() => setFrrOpen(true)}

@@ -131,7 +131,7 @@
     "removeDescription": "This will delete the output plugin configuration. This action cannot be undone.",
     "removeTelegraf": "Remove Telegraf",
     "removeTelegrafTitle": "Remove Telegraf?",
-    "removeTelegrafDescription": "This will delete the Telegraf sources, VRF and every output plugin. This action cannot be undone.",
+    "removeTelegrafDescription": "This will delete the whole Telegraf configuration, including every output plugin. This action cannot be undone.",
     "configureOutput": "Configure {name} Output",
     "token": "Token",
     "username": "Username",

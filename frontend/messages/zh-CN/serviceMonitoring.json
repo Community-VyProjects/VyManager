@@ -131,7 +131,7 @@
     "removeDescription": "这将删除该输出插件的配置。此操作无法撤销。",
     "removeTelegraf": "移除 Telegraf",
     "removeTelegrafTitle": "移除 Telegraf？",
-    "removeTelegrafDescription": "这将删除 Telegraf 的数据源、VRF 以及所有输出插件。此操作无法撤销。",
+    "removeTelegrafDescription": "这将删除整个 Telegraf 配置，包括所有输出插件。此操作无法撤销。",
     "configureOutput": "配置 {name} 输出",
     "token": "令牌",
     "username": "用户名",
