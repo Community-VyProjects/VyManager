@@ -1,29 +1,18 @@
-"""Factory for version-specific Container mappers."""
+"""Factory for container mappers.
+
+The shared class is returned directly on 1.4. The 1.5-only leaves live on the
+subclass. A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+"""
+
 from ..container import ContainerMapper
-from .v1_4 import ContainerMapperV1_4
 from .v1_5 import ContainerMapperV1_5
 
 
-def get_container_mapper(version: str):
-    """Return a version-merged Container mapper."""
-    base = ContainerMapper(version)
-
+def get_container_mapper(version: str) -> ContainerMapper:
+    """Return the container mapper for this device."""
     if "1.4" in version:
-        version_specific = ContainerMapperV1_4()
-    else:
-        version_specific = ContainerMapperV1_5()
+        return ContainerMapper(version)
+    return ContainerMapperV1_5(version)
 
-    class MergedMapper:
-        # parse_config must live here. A method on ContainerMapper is bound
-        # to `base`.
-        def parse_config(self, full_config):
-            from ..config_parse import parse_config as parse_container_config
 
-            return parse_container_config(self, full_config)
-
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+__all__ = ["ContainerMapperV1_5", "get_container_mapper"]

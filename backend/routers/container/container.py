@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 import asyncssh
 import httpx
 from packaging.version import InvalidVersion, Version
+from requests.exceptions import RequestException
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
@@ -38,7 +39,7 @@ from typing import List, Optional, Dict, Any, Union, cast
 import appliance_mode
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
-from vyos_mappers.container import ContainerMapper
+from vyos_mappers.container.container import ContainerMapper, GraphQLMutation
 from vyos_builders.container import ContainerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from org_scope import independent_org_conn, request_scoped_conn
@@ -77,6 +78,7 @@ class ContainerLabel(BaseModel):
 class ContainerNetworkAttachment(BaseModel):
     name: str
     addresses: List[str] = []
+    mac: Optional[str] = None
 
 
 class ContainerPort(BaseModel):
@@ -106,6 +108,13 @@ class ContainerVolume(BaseModel):
     propagation: Optional[str] = None
 
 
+class ContainerHealthCheck(BaseModel):
+    command: Optional[str] = None
+    interval: Optional[str] = None
+    retry: Optional[str] = None
+    timeout: Optional[str] = None
+
+
 class ContainerImageUpdateStatus(BaseModel):
     available: bool = False
     current_tag: Optional[str] = None
@@ -120,6 +129,7 @@ class ContainerInstance(BaseModel):
     description: Optional[str] = None
     disabled: bool = False
     allow_host_networks: bool = False
+    allow_host_cgroups: bool = False
     allow_host_pid: bool = False
     privileged: bool = False
     arguments: Optional[str] = None
@@ -133,6 +143,8 @@ class ContainerInstance(BaseModel):
     host_name: Optional[str] = None
     log_driver: Optional[str] = None
     restart: Optional[str] = None
+    stop_timeout: Optional[str] = None
+    health_check: Optional[ContainerHealthCheck] = None
     capabilities: List[str] = []
     name_servers: List[str] = []
     devices: List[ContainerDevice] = []
@@ -180,6 +192,7 @@ class ContainerRegistry(BaseModel):
 
 
 class ContainerConfig(BaseModel):
+    configured: bool = False
     containers: List[ContainerInstance] = []
     networks: List[ContainerNetworkConfig] = []
     registries: List[ContainerRegistry] = []
@@ -241,20 +254,6 @@ _SSH_KEY_NOT_CONFIGURED = "SSH key not configured."
 _SSH_KEY_MISSING = "SSH private key missing."
 _INVALID_CONTAINER_NAME = "Invalid container name. Must be alphanumeric and may contain hyphens."
 _INVALID_IMAGE_REF = "Invalid image reference."
-
-# ---------------------------------------------------------------------------
-# Strict operation allowlist — the ONLY GraphQL mutations this code will run.
-# Each entry maps an internal key to (mutation_name, timeout).
-# The router's op-mode `add container image` and `update container image` both
-# run `podman image pull`, so a re-pull ("update") uses add_image too.
-# The image reference / container name is passed as the mutation's `name`
-# argument (JSON-encoded, never interpolated into a command string).
-# ---------------------------------------------------------------------------
-_CONTAINER_GQL_ALLOWLIST: Dict[str, tuple] = {
-    "add_image":    ("AddImageContainer",    _GQL_IMAGE_TIMEOUT),
-    "delete_image": ("DeleteImageContainer", _GQL_QUICK_TIMEOUT),
-    "restart":      ("RestartContainer",     _GQL_QUICK_TIMEOUT),
-}
 
 # Validates registry names: hostname-style identifiers like "docker.io",
 # "quay.io", or "registry.example.com:5000". Allows alphanumerics, dots,
@@ -328,16 +327,22 @@ class ContainerMkdirRequest(BaseModel):
 
 
 # ============================================================================
-# GraphQL helper — operation key + validated name only, never a raw command
+# Mapper and GraphQL helpers — the mapper supplies the mutation documents
 # ============================================================================
 
-async def _configured_container_image(request: Request, container_name: str) -> str:
-    """Return the image ref set on ``container name <container_name> image``."""
-    if not _CONTAINER_NAME_RE.fullmatch(container_name):
+
+def _container_mapper(service: Any) -> ContainerMapper:
+    return cast(ContainerMapper, CommandMapperRegistry.get_mapper("container", service.get_version()))
+
+
+def _require_container_name(container_name: str) -> None:
+    if not container_name or not _CONTAINER_NAME_RE.fullmatch(container_name):
         raise HTTPException(status_code=400, detail=_INVALID_CONTAINER_NAME)
-    service = get_session_vyos_service(request)
+
+
+async def _configured_container_image(service: Any, mapper: ContainerMapper, container_name: str) -> str:
+    """Return the image ref set on ``container name <container_name> image``."""
     full_config = await run_in_threadpool(service.get_full_config, refresh=False)
-    mapper = cast(ContainerMapper, CommandMapperRegistry.get_mapper("container", service.get_version()))
     entry = next(
         (c for c in mapper.parse_config(full_config)["containers"] if c["name"] == container_name),
         None,
@@ -360,6 +365,12 @@ async def _configured_container_image(request: Request, container_name: str) -> 
             detail=f"Invalid image reference on container {container_name}",
         )
     return image
+
+
+def _refuse_stack_image(image: str) -> None:
+    """On the appliance the VyManager stack's own images cannot be removed."""
+    if appliance_mode.is_appliance() and appliance_mode.is_stack_image_ref(image):
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
 
 
 async def _require_ssh_key_configured(request: Request) -> None:
@@ -401,36 +412,24 @@ def _json_object(value: Any) -> Dict[str, Any]:
 
 async def _run_container_gql_command(
     request: Request,
-    operation: str,
+    service: Any,
+    mutation: GraphQLMutation,
     name: str,
+    timeout: int,
     name_re: re.Pattern = _CONTAINER_NAME_RE,
 ) -> ContainerSSHResponse:
     """
-    Execute one of the allowlisted container operations over the VyOS GraphQL API.
+    Run one container mutation from the container mapper over the VyOS GraphQL API.
 
-    The operation key is resolved against _CONTAINER_GQL_ALLOWLIST before
-    anything is sent. name is a container name (restart) or an image reference
-    (the image operations, with name_re=_IMAGE_REF_RE); it is validated against
-    name_re and passed to the mutation as a JSON-encoded argument — it never
-    enters a shell command.
+    name is a container name (restart) or an image reference (the image
+    operations, with name_re=_IMAGE_REF_RE); it is validated against name_re.
+    The API key and the name are sent as GraphQL variables, so neither is
+    written into the mutation text.
     """
-    # --- Allowlist check (must come before any other work) ---
-    if operation not in _CONTAINER_GQL_ALLOWLIST:
-        raise HTTPException(status_code=400, detail=f"Operation not permitted: {operation}")
-
-    mutation, timeout = _CONTAINER_GQL_ALLOWLIST[operation]
-
     # --- Name validation ---
     if not name or not name_re.fullmatch(name):
         detail = _INVALID_IMAGE_REF if name_re is _IMAGE_REF_RE else _INVALID_CONTAINER_NAME
         raise HTTPException(status_code=400, detail=detail)
-
-    if (
-        operation == "delete_image"
-        and appliance_mode.is_appliance()
-        and appliance_mode.is_stack_image_ref(name)
-    ):
-        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
 
     # --- Session / credential checks (SSH key still required) ---
     user = getattr(request.state, "user", None)
@@ -439,29 +438,24 @@ async def _run_container_gql_command(
 
     await _require_ssh_key_configured(request)
 
-    service = get_session_vyos_service(request)
     api_key = str(service.config.apikey)
     url = (
         f"{service.config.protocol}://{service.config.hostname}"
         f":{service.config.port}/graphql"
     )
-
-    # Build the mutation from the hardcoded name plus JSON-encoded arguments.
-    # json.dumps guarantees the key/name are valid GraphQL string literals and
-    # cannot break out of the argument (no interpolation into a command).
-    query = (
-        "mutation { %s(data: {key: %s, name: %s}) "
-        "{ success errors data { result } } }"
-        % (mutation, json.dumps(api_key), json.dumps(name))
-    )
+    field = mutation.field
 
     try:
         async with httpx.AsyncClient(verify=service.config.verify, timeout=float(timeout)) as client:
-            resp = await client.post(url, json={"query": query}, auth=("vyos", api_key))
+            resp = await client.post(
+                url,
+                json={"query": mutation.document, "variables": {"key": api_key, "name": name}},
+                auth=("vyos", api_key),
+            )
     except httpx.TimeoutException:
         return ContainerSSHResponse(success=False, error="Command timed out")
     except httpx.HTTPError as exc:
-        logger.warning("Container GraphQL %s request failed: %s", mutation, exc)
+        logger.warning("Container GraphQL %s request failed: %s", field, exc)
         raise HTTPException(status_code=502, detail="GraphQL request failed")
 
     if resp.status_code != 200:
@@ -472,7 +466,7 @@ async def _run_container_gql_command(
     except ValueError:
         body = None
     if not isinstance(body, dict):
-        logger.warning("Container GraphQL %s returned a body that is not a JSON object", mutation)
+        logger.warning("Container GraphQL %s returned a body that is not a JSON object", field)
         raise HTTPException(status_code=502, detail="GraphQL response is not a JSON object")
     if body.get("errors"):
         # Transport-level GraphQL errors (bad query, schema mismatch).
@@ -482,7 +476,7 @@ async def _run_container_gql_command(
         )
         return ContainerSSHResponse(success=False, error=message or "GraphQL error")
 
-    payload = _json_object(_json_object(body.get("data")).get(mutation))
+    payload = _json_object(_json_object(body.get("data")).get(field))
     success = bool(payload.get("success"))
     errors = payload.get("errors")
     result = _json_object(payload.get("data")).get("result")
@@ -504,7 +498,7 @@ async def _run_container_gql_command(
     return ContainerSSHResponse(
         success=False,
         output=output or None,
-        error=error_text or output or f"{mutation} failed",
+        error=error_text or output or f"{field} failed",
     )
 
 
@@ -640,8 +634,7 @@ async def get_container_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = cast(ContainerMapper, CommandMapperRegistry.get_mapper("container", service.get_version()))
-        parsed = mapper.parse_config(full_config)
+        parsed = _container_mapper(service).parse_config(full_config)
 
         # Image update status is not config-tree parsing. Keep it here.
         resolved = []
@@ -657,6 +650,7 @@ async def get_container_config(http_request: Request, refresh: bool = False):
             resolved.append(container.model_copy(update={"update_status": await task}))
 
         return ContainerConfig(
+            configured=parsed["configured"],
             containers=sorted(resolved, key=lambda c: c.name),
             networks=parsed["networks"],
             registries=parsed["registries"],
@@ -727,10 +721,10 @@ async def container_batch_configure(
 
 # ============================================================================
 # GraphQL Endpoints — container image / instance operations
-# These use the VyOS GraphQL API (AddImageContainer / DeleteImageContainer /
-# RestartContainer). All require CONTAINER WRITE permission and a configured
-# SSH key on the instance (the credential gate is unchanged from the old SSH
-# implementation).
+# These use the VyOS GraphQL mutations the container mapper returns
+# (AddImageContainer / DeleteImageContainer / RestartContainer). All require
+# CONTAINER WRITE permission and a configured SSH key on the instance (the
+# credential gate is unchanged from the old SSH implementation).
 # ============================================================================
 
 
@@ -872,7 +866,11 @@ async def container_image_pull_ref(request: Request, body: ContainerImageRefRequ
     """Pull, or re-pull, an image by reference (add/update container image <image-ref>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
     _validate_image_ref(body.image)
-    return await _run_container_gql_command(request, "add_image", body.image, name_re=_IMAGE_REF_RE)
+    service = get_session_vyos_service(request)
+    mapper = _container_mapper(service)
+    return await _run_container_gql_command(
+        request, service, mapper.add_image_mutation(), body.image, _GQL_IMAGE_TIMEOUT, name_re=_IMAGE_REF_RE
+    )
 
 
 @router.post("/image/delete-ref", response_model=ContainerSSHResponse)
@@ -880,7 +878,12 @@ async def container_image_delete_ref(request: Request, body: ContainerImageRefRe
     """Delete an image by reference (delete container image <image-ref>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
     _validate_image_ref(body.image)
-    return await _run_container_gql_command(request, "delete_image", body.image, name_re=_IMAGE_REF_RE)
+    _refuse_stack_image(body.image)
+    service = get_session_vyos_service(request)
+    mapper = _container_mapper(service)
+    return await _run_container_gql_command(
+        request, service, mapper.delete_image_mutation(), body.image, _GQL_QUICK_TIMEOUT, name_re=_IMAGE_REF_RE
+    )
 
 
 @router.post("/image/add", response_model=ContainerSSHResponse)
@@ -894,8 +897,13 @@ async def container_image_pull_configured(request: Request, body: ContainerImage
     pull that ref.
     """
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    image = await _configured_container_image(request, body.container_name)
-    return await _run_container_gql_command(request, "add_image", image, name_re=_IMAGE_REF_RE)
+    _require_container_name(body.container_name)
+    service = get_session_vyos_service(request)
+    mapper = _container_mapper(service)
+    image = await _configured_container_image(service, mapper, body.container_name)
+    return await _run_container_gql_command(
+        request, service, mapper.add_image_mutation(), image, _GQL_IMAGE_TIMEOUT, name_re=_IMAGE_REF_RE
+    )
 
 
 @router.post("/image/delete", response_model=ContainerSSHResponse)
@@ -906,22 +914,55 @@ async def container_image_delete(request: Request, body: ContainerImageRequest):
     image is resolved from the container's config first.
     """
     await require_write_permission(request, FeatureGroup.CONTAINER)
+    _require_container_name(body.container_name)
     if appliance_mode.is_appliance() and appliance_mode.is_stack_container(body.container_name):
         raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
-    image = await _configured_container_image(request, body.container_name)
-    return await _run_container_gql_command(request, "delete_image", image, name_re=_IMAGE_REF_RE)
+    service = get_session_vyos_service(request)
+    mapper = _container_mapper(service)
+    image = await _configured_container_image(service, mapper, body.container_name)
+    _refuse_stack_image(image)
+    return await _run_container_gql_command(
+        request, service, mapper.delete_image_mutation(), image, _GQL_QUICK_TIMEOUT, name_re=_IMAGE_REF_RE
+    )
 
 
 @router.post("/restart", response_model=ContainerSSHResponse)
 async def container_restart(request: Request, body: ContainerImageRequest):
     """Restart a running container (restart container name <name>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_gql_command(request, "restart", body.container_name)
+    _require_container_name(body.container_name)
+    service = get_session_vyos_service(request)
+    mapper = _container_mapper(service)
+    return await _run_container_gql_command(
+        request, service, mapper.restart_mutation(), body.container_name, _GQL_QUICK_TIMEOUT
+    )
 
 
 # ============================================================================
 # Show Endpoints — read-only device queries via pyvyos (no SSH required)
 # ============================================================================
+
+_IMAGES_SHOW_FAILED = "Failed to list container images"
+_LOG_SHOW_FAILED = "Failed to retrieve container log"
+
+
+async def _show_output(service: Any, path: List[str], detail: str) -> str:
+    """Op-mode show output; 502 when the device refuses or cannot be reached.
+
+    A failed show is not empty output: the caller would report no images or
+    an empty log for a device error.
+    """
+    try:
+        response = await run_in_threadpool(service.device.show, path=path)
+    except RequestException as e:
+        logger.warning("Container show %s request failed: %s", " ".join(path), e)
+        raise HTTPException(status_code=502, detail=detail)
+    if response.status != 200 or response.error:
+        logger.warning(
+            "Container show %s failed (status %s): %s", " ".join(path), response.status, response.error
+        )
+        raise HTTPException(status_code=502, detail=detail)
+    return response.result if isinstance(response.result, str) else ""
 
 
 @router.get("/images", response_model=ContainerImagesResponse)
@@ -930,16 +971,8 @@ async def get_container_images(http_request: Request):
     await require_read_permission(http_request, FeatureGroup.CONTAINER)
     try:
         service = get_session_vyos_service(http_request)
-        response = await run_in_threadpool(service.device.show, path=["container", "image"])
-        if response.status != 200:
-            return ContainerImagesResponse(images=[])
-
-        if isinstance(response.result, dict) and "data" in response.result:
-            output = response.result["data"]
-        elif isinstance(response.result, str):
-            output = response.result
-        else:
-            output = ""
+        mapper = _container_mapper(service)
+        output = await _show_output(service, mapper.get_image_show_path(), _IMAGES_SHOW_FAILED)
 
         images = []
         lines = output.splitlines()
@@ -965,31 +998,17 @@ async def get_container_images(http_request: Request):
 async def get_container_log(http_request: Request, body: ContainerImageRequest):
     """Return log output for a container."""
     await require_read_permission(http_request, FeatureGroup.CONTAINER)
-    if not body.container_name or not _CONTAINER_NAME_RE.fullmatch(body.container_name):
-        raise HTTPException(status_code=400, detail=_INVALID_CONTAINER_NAME)
+    _require_container_name(body.container_name)
     try:
         service = get_session_vyos_service(http_request)
-        response = await run_in_threadpool(
-            service.device.show, path=["container", "log", body.container_name]
-        )
-
-        if isinstance(response.result, dict) and "data" in response.result:
-            output = response.result["data"]
-        elif isinstance(response.result, str):
-            output = response.result
-        else:
-            output = ""
-
-        return ContainerSSHResponse(
-            success=response.status == 200,
-            output=output.strip() or None,
-            error=response.error if response.status != 200 else None,
-        )
+        mapper = _container_mapper(service)
+        output = await _show_output(service, mapper.get_log_show_path(body.container_name), _LOG_SHOW_FAILED)
+        return ContainerSSHResponse(success=True, output=output.strip() or None, error=None)
     except HTTPException:
         raise
     except Exception:
         logger.exception("Unhandled error in get_container_log")
-        return ContainerSSHResponse(success=False, error="Failed to retrieve container log.")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================

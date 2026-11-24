@@ -2,13 +2,13 @@
 
 These drive the router endpoints with a fake VyOS service and a fake httpx
 client so no real device or SSH connection is used. They assert:
-  - the correct GraphQL mutation is posted with a JSON-safe name argument,
+  - the container mapper's mutation document is posted, with the API key and
+    the name as GraphQL variables (never written into the query text),
   - the {success, errors, data{result}} envelope maps onto the response,
   - the SSH-key credential gate still applies (409 when not configured),
-  - the operation allowlist maps update -> AddImageContainer.
+  - a re-pull (update) runs AddImageContainer.
 """
 
-import json
 from contextlib import asynccontextmanager
 
 import pytest
@@ -16,6 +16,22 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import routers.container.container as container_mod
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.container.container import ContainerMapper, GraphQLMutation
+from vyos_mappers.container.container_versions import get_container_mapper
+
+
+def _doc(field):
+    return (
+        "mutation ($key: String!, $name: String!) { "
+        + field
+        + "(data: {key: $key, name: $name}) { success errors data { result } } }"
+    )
+
+
+ADD_DOC = _doc("AddImageContainer")
+DELETE_DOC = _doc("DeleteImageContainer")
+RESTART_DOC = _doc("RestartContainer")
 
 
 class _SecureStr:
@@ -61,10 +77,11 @@ class _FakeAsyncClient:
     last_url = None
     last_json = None
     last_auth = None
+    last_timeout = None
     scripted_body = {"data": {}}
 
     def __init__(self, *args, **kwargs):
-        pass
+        type(self).last_timeout = kwargs.get("timeout")
 
     async def __aenter__(self):
         return self
@@ -136,11 +153,13 @@ def test_restart_posts_restart_mutation(monkeypatch):
 
     assert _FakeAsyncClient.last_url == "https://10.0.0.1:443/graphql"
     assert _FakeAsyncClient.last_json is not None
-    query = _FakeAsyncClient.last_json["query"]
-    assert "RestartContainer" in query
-    assert json.dumps("web") in query
+    assert _FakeAsyncClient.last_json == {
+        "query": RESTART_DOC,
+        "variables": {"key": "test-api-key", "name": "web"},
+    }
     # API key auth, same as the dashboard GraphQL calls
     assert _FakeAsyncClient.last_auth == ("vyos", "test-api-key")
+    assert _FakeAsyncClient.last_timeout == 60.0
 
 
 def test_update_image_maps_to_add_image_container(monkeypatch):
@@ -152,9 +171,11 @@ def test_update_image_maps_to_add_image_container(monkeypatch):
     assert resp.json()["success"] is True
     assert resp.json()["output"] == "pulled"
     assert _FakeAsyncClient.last_json is not None
-    query = _FakeAsyncClient.last_json["query"]
-    assert "AddImageContainer" in query
-    assert "update container image" not in query
+    assert _FakeAsyncClient.last_json == {
+        "query": ADD_DOC,
+        "variables": {"key": "test-api-key", "name": "nginx:1.27"},
+    }
+    assert _FakeAsyncClient.last_timeout == 300.0
 
 
 def test_graphql_failure_surfaces_error(monkeypatch):
@@ -215,10 +236,10 @@ def test_update_image_resolves_container_name_to_image_ref(monkeypatch):
     assert resp.status_code == 200, resp.text
     assert resp.json()["success"] is True
     assert _FakeAsyncClient.last_json is not None
-    query = _FakeAsyncClient.last_json["query"]
-    assert "AddImageContainer" in query
-    assert json.dumps("nginx:1.27") in query
-    assert json.dumps("web") not in query
+    assert _FakeAsyncClient.last_json == {
+        "query": ADD_DOC,
+        "variables": {"key": "test-api-key", "name": "nginx:1.27"},
+    }
 
 
 def test_update_image_unknown_container(monkeypatch):
@@ -233,19 +254,76 @@ def test_update_image_unknown_container(monkeypatch):
 
 def test_add_and_delete_image_resolve_the_configured_image(monkeypatch):
     """Op-mode add/delete container image take an image ref, not the container name."""
-    for path, mutation in (
-        ("/vyos/container/image/add", "AddImageContainer"),
-        ("/vyos/container/image/delete", "DeleteImageContainer"),
+    for path, mutation, doc, timeout in (
+        ("/vyos/container/image/add", "AddImageContainer", ADD_DOC, 300.0),
+        ("/vyos/container/image/delete", "DeleteImageContainer", DELETE_DOC, 60.0),
     ):
         body = {"data": {mutation: {"success": True, "errors": None, "data": {"result": "ok"}}}}
         client = _build_client(monkeypatch, body)
         resp = client.post(path, json={"container_name": "web"})
         assert resp.status_code == 200, resp.text
-        assert _FakeAsyncClient.last_json is not None
-        query = _FakeAsyncClient.last_json["query"]
-        assert mutation in query
-        assert json.dumps("nginx:1.27") in query
-        assert json.dumps("web") not in query
+        assert resp.json()["output"] == "ok"
+        assert _FakeAsyncClient.last_json == {
+            "query": doc,
+            "variables": {"key": "test-api-key", "name": "nginx:1.27"},
+        }
+        assert _FakeAsyncClient.last_timeout == timeout
+
+
+def test_delete_ref_posts_the_delete_mutation(monkeypatch):
+    body = {"data": {"DeleteImageContainer": {"success": True, "errors": None, "data": {"result": None}}}}
+    client = _build_client(monkeypatch, body)
+    resp = client.post("/vyos/container/image/delete-ref", json={"image": "nginx:1.27"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": True, "output": None, "error": None}
+    assert _FakeAsyncClient.last_json == {
+        "query": DELETE_DOC,
+        "variables": {"key": "test-api-key", "name": "nginx:1.27"},
+    }
+
+
+def test_api_key_and_name_never_enter_the_query_text(monkeypatch):
+    body = {"data": {"RestartContainer": {"success": True, "errors": None, "data": {"result": None}}}}
+    client = _build_client(monkeypatch, body)
+    client.post("/vyos/container/restart", json={"container_name": "web"})
+    assert _FakeAsyncClient.last_json is not None
+    query = _FakeAsyncClient.last_json["query"]
+    assert "test-api-key" not in query
+    assert "web" not in query
+
+
+def test_mutations_come_from_the_registry_mapper(monkeypatch):
+    class Tagged(ContainerMapper):
+        def restart_mutation(self):
+            return GraphQLMutation("RestartContainer", "tagged-restart")
+
+    monkeypatch.setitem(CommandMapperRegistry._features, "container", Tagged)
+    body = {"data": {"RestartContainer": {"success": True, "errors": None, "data": {"result": None}}}}
+    client = _build_client(monkeypatch, body)
+    resp = client.post("/vyos/container/restart", json={"container_name": "web"})
+    assert resp.status_code == 200, resp.text
+    assert _FakeAsyncClient.last_json is not None
+    assert _FakeAsyncClient.last_json["query"] == "tagged-restart"
+
+
+def test_delete_ref_refuses_a_stack_image_on_the_appliance(monkeypatch):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    monkeypatch.setattr(container_mod.appliance_mode, "is_stack_image_ref", lambda ref: ref == "nginx:1.27")
+    client = _build_client(monkeypatch, {"data": {}})
+    resp = client.post("/vyos/container/image/delete-ref", json={"image": "nginx:1.27"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == container_mod.appliance_mode.STACK_GUARD_DETAIL
+    assert _FakeAsyncClient.last_url is None
+
+
+def test_delete_refuses_a_configured_stack_image_on_the_appliance(monkeypatch):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    monkeypatch.setattr(container_mod.appliance_mode, "is_stack_image_ref", lambda ref: ref == "nginx:1.27")
+    client = _build_client(monkeypatch, {"data": {}})
+    resp = client.post("/vyos/container/image/delete", json={"container_name": "web"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == container_mod.appliance_mode.STACK_GUARD_DETAIL
+    assert _FakeAsyncClient.last_url is None
 
 
 def test_delete_image_refuses_a_stack_container_on_the_appliance(monkeypatch):
@@ -316,12 +394,13 @@ def test_graphql_empty_errors_names_the_mutation(monkeypatch):
     assert "AddImageContainer failed" in resp.json()["error"]
 
 
-def test_allowlist_maps_each_mutation():
-    """A re-pull (update) runs add_image; there is no separate update key."""
-    assert container_mod._CONTAINER_GQL_ALLOWLIST["add_image"][0] == "AddImageContainer"
-    assert container_mod._CONTAINER_GQL_ALLOWLIST["delete_image"][0] == "DeleteImageContainer"
-    assert container_mod._CONTAINER_GQL_ALLOWLIST["restart"][0] == "RestartContainer"
-    assert set(container_mod._CONTAINER_GQL_ALLOWLIST) == {"add_image", "delete_image", "restart"}
+@pytest.mark.parametrize("version", ["1.4.3", "1.5", "2026.09.23-0027-rolling"])
+def test_mapper_mutation_documents(version):
+    """The exact documents the device receives; a re-pull uses AddImageContainer."""
+    mapper = get_container_mapper(version)
+    assert mapper.add_image_mutation() == GraphQLMutation("AddImageContainer", ADD_DOC)
+    assert mapper.delete_image_mutation() == GraphQLMutation("DeleteImageContainer", DELETE_DOC)
+    assert mapper.restart_mutation() == GraphQLMutation("RestartContainer", RESTART_DOC)
 
 
 def test_invalid_image_ref_detail_names_the_image(monkeypatch):

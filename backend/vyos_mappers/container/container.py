@@ -1,50 +1,187 @@
 """Container Command Mapper.
 
-Generates VyOS configuration path lists for the container subsystem.
+Shared ``container`` commands for VyOS 1.4 and 1.5:
 
-Configuration lives under: container
-  container name <name>   — container instances
-  container network <name> — user-defined networks
+  container name <name>     — container instances
+  container network <name>  — user-defined networks
   container registry <name> — image registries
+
+The 1.5-only leaves (allow-host-cgroups, health-check, log-driver,
+stop-timeout, tmpfs, network <net> mac, network gateway/mtu/type, registry
+insecure/mirror) live on the 1.5 subclass in ``container_versions``. The
+op-mode show paths and the GraphQL mutation documents the router sends are
+here too.
 """
 
-from typing import List
+from typing import Any, Dict, FrozenSet, List, NamedTuple
+
 from ..base import BaseFeatureMapper
 
 BASE = ["container"]
 
 
+class GraphQLMutation(NamedTuple):
+    """One GraphQL mutation: the result field and the document.
+
+    The document takes ``$key`` and ``$name`` as variables, so neither the API
+    key nor the client value is ever written into the query text.
+    """
+
+    field: str
+    document: str
+
+
+def _mutation(field: str) -> GraphQLMutation:
+    return GraphQLMutation(
+        field,
+        "mutation ($key: String!, $name: String!) { "
+        f"{field}(data: {{key: $key, name: $name}}) "
+        "{ success errors data { result } } }",
+    )
+
+
 class ContainerMapper(BaseFeatureMapper):
-    def __init__(self, version: str):
-        super().__init__(version)
+    """Shared container commands."""
 
-    def _is_14(self) -> bool:
-        return "1.4" in self.version
+    # node -> path methods that only the version subclass defines
+    _VERSIONED_NODES = {
+        "allow_host_cgroups": ("get_name_allow_host_cgroups",),
+        "health_check": (
+            "get_name_health_check",
+            "get_name_health_check_command",
+            "get_name_health_check_command_delete",
+            "get_name_health_check_interval",
+            "get_name_health_check_interval_delete",
+            "get_name_health_check_retry",
+            "get_name_health_check_retry_delete",
+            "get_name_health_check_timeout",
+            "get_name_health_check_timeout_delete",
+        ),
+        "log_driver": ("get_name_log_driver", "get_name_log_driver_delete"),
+        "stop_timeout": ("get_name_stop_timeout", "get_name_stop_timeout_delete"),
+        "network_mac": ("get_name_network_mac", "get_name_network_mac_delete"),
+        "tmpfs": (
+            "get_name_tmpfs",
+            "get_name_tmpfs_destination",
+            "get_name_tmpfs_destination_delete",
+            "get_name_tmpfs_size",
+            "get_name_tmpfs_size_delete",
+        ),
+        "network_gateway": ("get_network_gateway", "get_network_gateways_delete"),
+        "network_mtu": ("get_network_mtu", "get_network_mtu_delete"),
+        "network_type": (
+            "get_network_type_bridge",
+            "get_network_type_macvlan",
+            "get_network_type_macvlan_mode",
+            "get_network_type_macvlan_mode_delete",
+            "get_network_type_macvlan_parent",
+            "get_network_type_macvlan_parent_delete",
+            "get_network_type_delete",
+        ),
+        "registry_insecure": ("get_registry_insecure",),
+        "registry_mirror": (
+            "get_registry_mirror",
+            "get_registry_mirror_address",
+            "get_registry_mirror_address_delete",
+            "get_registry_mirror_host_name",
+            "get_registry_mirror_host_name_delete",
+            "get_registry_mirror_path",
+            "get_registry_mirror_path_delete",
+            "get_registry_mirror_port",
+            "get_registry_mirror_port_delete",
+        ),
+    }
 
-    def _require_15(self, node: str) -> None:
-        if self._is_14():
-            raise ValueError(f"{node} is not supported on this device")
+    # ========================================================================
+    # Version allowlist
+    # ========================================================================
 
-    def supports_log_driver(self) -> bool:
-        return not self._is_14()
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only leaves this device has.
 
-    def supports_tmpfs(self) -> bool:
-        return not self._is_14()
+        A node counts when every path method below it is on this mapper.
+        Capabilities and the builder read this set instead of the version
+        string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
 
-    def supports_registry_insecure(self) -> bool:
-        return not self._is_14()
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"container {node} is not supported on this device")
 
-    def supports_registry_mirror(self) -> bool:
-        return not self._is_14()
+    # ========================================================================
+    # Allowed values (lab ``allowed:`` lists)
+    # ========================================================================
 
-    def supports_network_gateway(self) -> bool:
-        return not self._is_14()
+    def capability_values(self) -> List[str]:
+        return [
+            "net-admin",
+            "net-bind-service",
+            "net-raw",
+            "mknod",
+            "setpcap",
+            "sys-admin",
+            "sys-module",
+            "sys-nice",
+            "sys-time",
+        ]
 
-    def supports_network_mtu(self) -> bool:
-        return not self._is_14()
+    def restart_values(self) -> List[str]:
+        return ["no", "on-failure", "always"]
 
-    def supports_network_type(self) -> bool:
-        return not self._is_14()
+    def log_driver_values(self) -> List[str]:
+        return []
+
+    def port_protocols(self) -> List[str]:
+        return ["tcp", "udp"]
+
+    def volume_modes(self) -> List[str]:
+        return ["ro", "rw"]
+
+    def volume_propagations(self) -> List[str]:
+        return ["shared", "slave", "private", "rshared", "rslave", "rprivate"]
+
+    def network_types(self) -> List[str]:
+        return []
+
+    def macvlan_modes(self) -> List[str]:
+        return []
+
+    def registry_password_max_length(self) -> int:
+        return 128
+
+    # ========================================================================
+    # Config parse
+    # ========================================================================
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_container_config
+
+        return parse_container_config(self, full_config)
+
+    # ========================================================================
+    # Op-mode show paths and GraphQL mutations
+    # ========================================================================
+
+    def get_image_show_path(self) -> List[str]:
+        return ["container", "image"]
+
+    def get_log_show_path(self, name: str) -> List[str]:
+        return ["container", "log", name]
+
+    def add_image_mutation(self) -> GraphQLMutation:
+        """``add container image <ref>``; a re-pull is the same mutation."""
+        return _mutation("AddImageContainer")
+
+    def delete_image_mutation(self) -> GraphQLMutation:
+        return _mutation("DeleteImageContainer")
+
+    def restart_mutation(self) -> GraphQLMutation:
+        return _mutation("RestartContainer")
 
     # ========================================================================
     # Top-level delete
@@ -141,24 +278,14 @@ class ContainerMapper(BaseFeatureMapper):
     def get_name_host_name_delete(self, name: str) -> List[str]:
         return self._name(name) + ["host-name"]
 
-    def get_name_log_driver(self, name: str, driver: str) -> List[str]:
-        self._require_15("log-driver")
-        return self._name(name) + ["log-driver", driver]
-
-    def get_name_log_driver_delete(self, name: str) -> List[str]:
-        return self._name(name) + ["log-driver"]
-
     def get_name_restart(self, name: str, policy: str) -> List[str]:
         return self._name(name) + ["restart", policy]
 
     def get_name_restart_delete(self, name: str) -> List[str]:
         return self._name(name) + ["restart"]
 
-    # Capability (multi-value)
+    # Capability (multi-value): one value, or the whole leaf
     def get_name_capability(self, name: str, capability: str) -> List[str]:
-        return self._name(name) + ["capability", capability]
-
-    def get_name_capability_delete(self, name: str, capability: str) -> List[str]:
         return self._name(name) + ["capability", capability]
 
     def get_name_capabilities_delete(self, name: str) -> List[str]:
@@ -166,9 +293,6 @@ class ContainerMapper(BaseFeatureMapper):
 
     # Name server (multi-value)
     def get_name_name_server(self, name: str, address: str) -> List[str]:
-        return self._name(name) + ["name-server", address]
-
-    def get_name_name_server_delete(self, name: str, address: str) -> List[str]:
         return self._name(name) + ["name-server", address]
 
     def get_name_name_servers_delete(self, name: str) -> List[str]:
@@ -223,9 +347,6 @@ class ContainerMapper(BaseFeatureMapper):
     def get_name_network_address(self, name: str, network: str, address: str) -> List[str]:
         return self._name(name) + ["network", network, "address", address]
 
-    def get_name_network_address_delete(self, name: str, network: str, address: str) -> List[str]:
-        return self._name(name) + ["network", network, "address", address]
-
     def get_name_network_addresses_delete(self, name: str, network: str) -> List[str]:
         return self._name(name) + ["network", network, "address"]
 
@@ -254,9 +375,6 @@ class ContainerMapper(BaseFeatureMapper):
     def get_name_port_listen_address(self, name: str, port_name: str, address: str) -> List[str]:
         return self._name(name) + ["port", port_name, "listen-address", address]
 
-    def get_name_port_listen_address_delete(self, name: str, port_name: str, address: str) -> List[str]:
-        return self._name(name) + ["port", port_name, "listen-address", address]
-
     def get_name_port_listen_addresses_delete(self, name: str, port_name: str) -> List[str]:
         return self._name(name) + ["port", port_name, "listen-address"]
 
@@ -272,28 +390,6 @@ class ContainerMapper(BaseFeatureMapper):
 
     def get_name_sysctl_delete(self, name: str) -> List[str]:
         return self._name(name) + ["sysctl"]
-
-    # Tmpfs
-    def get_name_tmpfs(self, name: str, tmpfs_name: str) -> List[str]:
-        self._require_15("tmpfs")
-        return self._name(name) + ["tmpfs", tmpfs_name]
-
-    def get_name_tmpfs_delete(self, name: str, tmpfs_name: str) -> List[str]:
-        return self._name(name) + ["tmpfs", tmpfs_name]
-
-    def get_name_tmpfs_destination(self, name: str, tmpfs_name: str, destination: str) -> List[str]:
-        self._require_15("tmpfs")
-        return self._name(name) + ["tmpfs", tmpfs_name, "destination", destination]
-
-    def get_name_tmpfs_destination_delete(self, name: str, tmpfs_name: str) -> List[str]:
-        return self._name(name) + ["tmpfs", tmpfs_name, "destination"]
-
-    def get_name_tmpfs_size(self, name: str, tmpfs_name: str, size: str) -> List[str]:
-        self._require_15("tmpfs")
-        return self._name(name) + ["tmpfs", tmpfs_name, "size", size]
-
-    def get_name_tmpfs_size_delete(self, name: str, tmpfs_name: str) -> List[str]:
-        return self._name(name) + ["tmpfs", tmpfs_name, "size"]
 
     # Volume
     def get_name_volume(self, name: str, volume_name: str) -> List[str]:
@@ -339,59 +435,14 @@ class ContainerMapper(BaseFeatureMapper):
     def get_network_description_delete(self, network: str) -> List[str]:
         return self._network(network) + ["description"]
 
-    def get_network_gateway(self, network: str, gateway: str) -> List[str]:
-        self._require_15("network gateway")
-        return self._network(network) + ["gateway", gateway]
-
-    def get_network_gateway_delete(self, network: str, gateway: str) -> List[str]:
-        return self._network(network) + ["gateway", gateway]
-
-    def get_network_gateways_delete(self, network: str) -> List[str]:
-        return self._network(network) + ["gateway"]
-
-    def get_network_mtu(self, network: str, mtu: str) -> List[str]:
-        self._require_15("network mtu")
-        return self._network(network) + ["mtu", mtu]
-
-    def get_network_mtu_delete(self, network: str) -> List[str]:
-        return self._network(network) + ["mtu"]
-
     def get_network_no_name_server(self, network: str) -> List[str]:
         return self._network(network) + ["no-name-server"]
 
     def get_network_prefix(self, network: str, prefix: str) -> List[str]:
         return self._network(network) + ["prefix", prefix]
 
-    def get_network_prefix_delete(self, network: str, prefix: str) -> List[str]:
-        return self._network(network) + ["prefix", prefix]
-
     def get_network_prefixes_delete(self, network: str) -> List[str]:
         return self._network(network) + ["prefix"]
-
-    def get_network_type_bridge(self, network: str) -> List[str]:
-        self._require_15("network type")
-        return self._network(network) + ["type", "bridge"]
-
-    def get_network_type_macvlan(self, network: str) -> List[str]:
-        self._require_15("network type")
-        return self._network(network) + ["type", "macvlan"]
-
-    def get_network_type_macvlan_mode(self, network: str, mode: str) -> List[str]:
-        self._require_15("network type")
-        return self._network(network) + ["type", "macvlan", "mode", mode]
-
-    def get_network_type_macvlan_mode_delete(self, network: str) -> List[str]:
-        return self._network(network) + ["type", "macvlan", "mode"]
-
-    def get_network_type_macvlan_parent(self, network: str, parent: str) -> List[str]:
-        self._require_15("network type")
-        return self._network(network) + ["type", "macvlan", "parent", parent]
-
-    def get_network_type_macvlan_parent_delete(self, network: str) -> List[str]:
-        return self._network(network) + ["type", "macvlan", "parent"]
-
-    def get_network_type_delete(self, network: str) -> List[str]:
-        return self._network(network) + ["type"]
 
     def get_network_vrf(self, network: str, vrf: str) -> List[str]:
         return self._network(network) + ["vrf", vrf]
@@ -412,13 +463,6 @@ class ContainerMapper(BaseFeatureMapper):
     def get_registry_disable(self, registry: str) -> List[str]:
         return self._registry(registry) + ["disable"]
 
-    def get_registry_insecure(self, registry: str) -> List[str]:
-        self._require_15("registry insecure")
-        return self._registry(registry) + ["insecure"]
-
-    def get_registry_insecure_delete(self, registry: str) -> List[str]:
-        return self._registry(registry) + ["insecure"]
-
     def get_registry_auth_username(self, registry: str, username: str) -> List[str]:
         return self._registry(registry) + ["authentication", "username", username]
 
@@ -433,38 +477,3 @@ class ContainerMapper(BaseFeatureMapper):
 
     def get_registry_auth_delete(self, registry: str) -> List[str]:
         return self._registry(registry) + ["authentication"]
-
-    def get_registry_mirror(self, registry: str) -> List[str]:
-        self._require_15("registry mirror")
-        return self._registry(registry) + ["mirror"]
-
-    def get_registry_mirror_delete(self, registry: str) -> List[str]:
-        return self._registry(registry) + ["mirror"]
-
-    def get_registry_mirror_address(self, registry: str, address: str) -> List[str]:
-        self._require_15("registry mirror")
-        return self._registry(registry) + ["mirror", "address", address]
-
-    def get_registry_mirror_address_delete(self, registry: str) -> List[str]:
-        return self._registry(registry) + ["mirror", "address"]
-
-    def get_registry_mirror_host_name(self, registry: str, hostname: str) -> List[str]:
-        self._require_15("registry mirror")
-        return self._registry(registry) + ["mirror", "host-name", hostname]
-
-    def get_registry_mirror_host_name_delete(self, registry: str) -> List[str]:
-        return self._registry(registry) + ["mirror", "host-name"]
-
-    def get_registry_mirror_path(self, registry: str, path: str) -> List[str]:
-        self._require_15("registry mirror")
-        return self._registry(registry) + ["mirror", "path", path]
-
-    def get_registry_mirror_path_delete(self, registry: str) -> List[str]:
-        return self._registry(registry) + ["mirror", "path"]
-
-    def get_registry_mirror_port(self, registry: str, port: str) -> List[str]:
-        self._require_15("registry mirror")
-        return self._registry(registry) + ["mirror", "port", port]
-
-    def get_registry_mirror_port_delete(self, registry: str) -> List[str]:
-        return self._registry(registry) + ["mirror", "port"]
