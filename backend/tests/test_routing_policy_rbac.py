@@ -81,6 +81,7 @@ DYNAMIC_DISPATCH_FILES = [
     "event_handler/event_handler.py",
     "container/container.py",
     "console_server/console_server.py",
+    "tftp_server/tftp_server.py",
     "firewall/zones.py",
 ]
 

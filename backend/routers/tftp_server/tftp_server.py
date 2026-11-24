@@ -6,7 +6,7 @@ Version differences:
   1.4 and 1.5 — identical TFTP server configuration paths; no version-specific behavior.
 
 Endpoints:
-  GET  /vyos/tftp-server/capabilities  — version-aware feature flags
+  GET  /vyos/tftp-server/capabilities  — feature flags
   GET  /vyos/tftp-server/config        — normalized TFTP server configuration
   POST /vyos/tftp-server/batch         — atomic set/delete operations
 """
@@ -20,9 +20,8 @@ from vyos_mappers import CommandMapperRegistry
 from vyos_builders.tftp_server import TFTPServerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +52,11 @@ class TFTPServerBatchOperation(BaseModel):
     value: Optional[str] = Field(
         None,
         description=(
-            "Argument(s) for the operation. Single-arg methods: plain string. "
-            "Multi-arg methods: comma-separated (e.g., '192.0.2.1,mgmt')."
+            "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated (e.g., '192.0.2.1,mgmt'); "
+            "the last argument keeps any commas."
         ),
     )
 
@@ -75,7 +77,7 @@ class VyOSResponse(BaseModel):
 
 @router.get("/capabilities")
 async def get_tftp_server_capabilities(request: Request):
-    """Return TFTP server feature capabilities based on the VyOS version."""
+    """Return TFTP server feature capabilities."""
     await require_read_permission(request, FeatureGroup.TFTP_SERVER)
     try:
         service = get_session_vyos_service(request)
@@ -85,6 +87,8 @@ async def get_tftp_server_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_tftp_server_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -105,6 +109,8 @@ async def get_tftp_server_config(http_request: Request, refresh: bool = False):
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
         mapper = CommandMapperRegistry.get_mapper("tftp_server", version)
         return TFTPServerConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_tftp_server_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -124,34 +130,16 @@ async def tftp_server_batch_configure(http_request: Request, body: TFTPServerBat
         builder = TFTPServerBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+            call_comma_batch_op(builder, operation.op, operation.value)
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
-                    method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
-
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "TFTP server configuration updated"},
+            data={"message": "TFTP server configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in tftp_server_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
