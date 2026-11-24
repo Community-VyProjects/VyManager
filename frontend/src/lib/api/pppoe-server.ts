@@ -225,6 +225,22 @@ export interface PPPoESessionLabelRule {
   factor?: number;
 }
 
+/** Column bounds of the session label table; the backend 400s past them. */
+export const PPPOE_LABEL_LIMITS = {
+  code: 80,
+  name: 120,
+  priorityMin: -2147483648,
+  priorityMax: 2147483647,
+} as const;
+
+/** A label priority the table accepts: an integer inside the column range. */
+export function labelPriorityValid(priority: number | undefined): boolean {
+  const value = priority ?? 10;
+  return Number.isInteger(value)
+    && value >= PPPOE_LABEL_LIMITS.priorityMin
+    && value <= PPPOE_LABEL_LIMITS.priorityMax;
+}
+
 export interface PPPoESessionLabelDefinition {
   id?: string;
   code: string;

@@ -63,6 +63,8 @@ import {
   type PPPoESession,
   type PPPoESessionLabelDefinition,
   type PPPoESessionsResponse,
+  labelPriorityValid,
+  PPPOE_LABEL_LIMITS,
   type VyOSResponse,
 } from "@/lib/api/pppoe-server";
 import type { ApiError } from "@/lib/types/api";
@@ -463,6 +465,15 @@ function PPPoEPageInner() {
       setLabelError(t("errors.labelDuplicateCode", { code: duplicate }));
       return;
     }
+    const badPriority = labelDraft.find((label) => !labelPriorityValid(label.priority));
+    if (badPriority) {
+      setLabelError(t("errors.labelPriority", {
+        label: badPriority.code.trim(),
+        min: String(PPPOE_LABEL_LIMITS.priorityMin),
+        max: String(PPPOE_LABEL_LIMITS.priorityMax),
+      }));
+      return;
+    }
     try {
       setLabelSaving(true);
       setLabelError(null);
@@ -555,6 +566,13 @@ function PPPoEPageInner() {
 
   // An unset authentication mode is the lab default, local.
   const isLocalAuth = (config?.authentication.mode || "local") === "local";
+  const authModeLabels: Record<string, string> = {
+    local: ts("auth.modeLocal"),
+    radius: ts("auth.modeRadius"),
+    noauth: ts("auth.modeNoauth"),
+  };
+  const authModeLabel = (mode: string | null | undefined) =>
+    mode ? authModeLabels[mode] ?? mode : tc("default");
   const vlanMonSupported = capabilities?.features.vlan_mon ?? false;
   const totals = config?.totals;
 
@@ -1051,7 +1069,7 @@ function PPPoEPageInner() {
                       <div className="flex items-center gap-3">
                         <Key className="h-4 w-4 text-muted-foreground" />
                         <Badge variant="outline" className="text-sm">
-                          {config?.authentication.mode || tc("default")}
+                          {authModeLabel(config?.authentication.mode)}
                         </Badge>
                         {(config?.authentication.protocols || []).length > 0 && (
                           <div className="flex gap-1">

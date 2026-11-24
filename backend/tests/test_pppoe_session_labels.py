@@ -187,6 +187,9 @@ def _label(code, name="Name", **extra):
     "rows,detail",
     [
         ([_label("ok"), _label("  ", "Named")], "Label 'Named' needs both a code and a name"),
+        ([_label(" ", " ")], "A label needs both a code and a name"),
+        ([_label("hot", priority=2**31)], "Label 'hot' priority is out of range"),
+        ([_label("hot", priority=-(2**31) - 1)], "Label 'hot' priority is out of range"),
         ([_label("hot", "  ")], "Label 'hot' needs both a code and a name"),
         ([_label("hot"), _label(" hot ", "Other")], "Duplicate label code 'hot'"),
         ([_label("x" * 81)], f"Label {'x' * 81!r} is too long"),
@@ -204,6 +207,15 @@ def test_save_rejects_a_bad_row_and_keeps_the_catalog(monkeypatch, rows, detail)
     assert resp.status_code == 400
     assert resp.json() == {"detail": detail}
     assert store.rows == before
+
+
+def test_save_keeps_priority_zero(monkeypatch):
+    client, _store = _build(monkeypatch, "i1")
+
+    resp = client.post("/vyos/pppoe-server/labels", json=[_label("hot", priority=0)])
+
+    assert resp.status_code == 200, resp.text
+    assert [row["priority"] for row in resp.json()] == [0]
 
 
 def test_save_trims_code_and_name(monkeypatch):

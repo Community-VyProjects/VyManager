@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PPPOE_LABEL_LIMITS } from "@/lib/api/pppoe-server";
 import type { PPPoESessionLabelDefinition, PPPoESessionLabelRule } from "@/lib/api/pppoe-server";
 
 const METRIC_OPTIONS: { value: NonNullable<PPPoESessionLabelRule["numerator"]>; label: "rxBytes" | "txBytes" | "rxRate" | "txRate" }[] = [
@@ -130,6 +131,7 @@ export function SessionLabelRegistryDialog({
                         id={`label-code-${index}`}
                         value={label.code ?? ""}
                         onChange={(e) => updateAt(index, { code: e.target.value })}
+                        maxLength={PPPOE_LABEL_LIMITS.code}
                         className="font-mono text-sm"
                       />
                     </div>
@@ -139,6 +141,7 @@ export function SessionLabelRegistryDialog({
                         id={`label-name-${index}`}
                         value={label.name ?? ""}
                         onChange={(e) => updateAt(index, { name: e.target.value })}
+                        maxLength={PPPOE_LABEL_LIMITS.name}
                       />
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
@@ -154,8 +157,12 @@ export function SessionLabelRegistryDialog({
                       <Input
                         id={`label-priority-${index}`}
                         type="number"
-                        value={label.priority ?? 10}
-                        onChange={(e) => updateAt(index, { priority: Number(e.target.value) })}
+                        step={1}
+                        min={PPPOE_LABEL_LIMITS.priorityMin}
+                        max={PPPOE_LABEL_LIMITS.priorityMax}
+                        value={Number.isNaN(label.priority) ? "" : (label.priority ?? 10)}
+                        // A cleared box is NaN, which the save check rejects (never a silent 0).
+                        onChange={(e) => updateAt(index, { priority: e.target.value === "" ? NaN : Number(e.target.value) })}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">

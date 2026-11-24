@@ -289,7 +289,7 @@ def _row_to_label_response(row) -> PPPoESessionLabelDefinitionResponse:
         name=row["name"],
         description=row["description"],
         severity=row["severity"] or "info",
-        priority=int(row["priority"] or 10),
+        priority=int(row["priority"]),
         enabled=row["enabled"] if row["enabled"] is not None else True,
         rules=rules if isinstance(rules, dict) else {},
     )
@@ -360,6 +360,9 @@ async def get_pppoe_session_labels(request: Request):
 _LABEL_CODE_MAX = 80
 _LABEL_NAME_MAX = 120
 _LABEL_SEVERITY_MAX = 40
+# priority is an INTEGER column.
+_LABEL_PRIORITY_MIN = -(2**31)
+_LABEL_PRIORITY_MAX = 2**31 - 1
 
 
 def _checked_labels(body: List[PPPoESessionLabelDefinitionResponse]) -> List[PPPoESessionLabelDefinitionResponse]:
@@ -373,10 +376,14 @@ def _checked_labels(body: List[PPPoESessionLabelDefinitionResponse]) -> List[PPP
         code = item.code.strip()
         name = item.name.strip()
         severity = (item.severity or "info").strip() or "info"
+        if not code and not name:
+            raise HTTPException(status_code=400, detail="A label needs both a code and a name")
         if not code or not name:
             raise HTTPException(status_code=400, detail=f"Label {code or name!r} needs both a code and a name")
         if len(code) > _LABEL_CODE_MAX or len(name) > _LABEL_NAME_MAX or len(severity) > _LABEL_SEVERITY_MAX:
             raise HTTPException(status_code=400, detail=f"Label {code!r} is too long")
+        if not _LABEL_PRIORITY_MIN <= item.priority <= _LABEL_PRIORITY_MAX:
+            raise HTTPException(status_code=400, detail=f"Label {code!r} priority is out of range")
         if code in seen:
             raise HTTPException(status_code=400, detail=f"Duplicate label code {code!r}")
         seen.add(code)
@@ -410,7 +417,7 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), NOW())
                         """,
                         str(uuid.uuid4()), instance_id, label.code, label.name, label.description,
-                        label.severity, int(label.priority or 10),
+                        label.severity, label.priority,
                         bool(label.enabled if label.enabled is not None else True), json.dumps(label.rules or {}),
                     )
 

@@ -13,7 +13,8 @@
     "loadLabels": "Failed to load session label definitions",
     "labelIncomplete": "Label {label} needs both a code and a display name",
     "labelUnnamed": "A label needs both a code and a display name",
-    "labelDuplicateCode": "Label code {code} is used more than once"
+    "labelDuplicateCode": "Label code {code} is used more than once",
+    "labelPriority": "Label {label} priority must be a whole number from {min} to {max}"
   },
   "deleteServer": {
     "button": "Delete PPPoE Server",
