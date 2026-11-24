@@ -44,6 +44,12 @@ class ContainerMapperV1_5(ContainerMapper):
     def macvlan_modes(self) -> List[str]:
         return ["bridge", "private", "vepa"]
 
+    def network_mac_keywords(self) -> List[str]:
+        return ["auto"]
+
+    def health_check_interval_keywords(self) -> List[str]:
+        return ["disable"]
+
     def registry_password_max_length(self) -> int:
         return 512
 

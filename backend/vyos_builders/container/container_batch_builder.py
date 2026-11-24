@@ -68,6 +68,8 @@ class ContainerBatchBuilder(BatchBuilder):
                 "volume_propagations": m.volume_propagations(),
                 "network_types": m.network_types(),
                 "macvlan_modes": m.macvlan_modes(),
+                "network_mac_keywords": m.network_mac_keywords(),
+                "health_check_interval_keywords": m.health_check_interval_keywords(),
                 "registry_password_max_length": m.registry_password_max_length(),
             },
         }

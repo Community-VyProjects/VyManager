@@ -151,6 +151,12 @@ class ContainerMapper(BaseFeatureMapper):
     def macvlan_modes(self) -> List[str]:
         return []
 
+    def network_mac_keywords(self) -> List[str]:
+        return []
+
+    def health_check_interval_keywords(self) -> List[str]:
+        return []
+
     def registry_password_max_length(self) -> int:
         return 128
 

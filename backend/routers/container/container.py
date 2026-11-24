@@ -707,10 +707,11 @@ async def container_batch_configure(
             raise HTTPException(status_code=400, detail=str(exc))
 
         response = await run_in_threadpool(service.execute_batch, builder)
+        ok = response.status == 200 and not response.error
         return VyOSResponse(
-            success=response.status == 200,
-            data={"message": "Container configuration updated"} if response.status == 200 else None,
-            error=response.error if response.error else None,
+            success=ok,
+            data={"message": "Container configuration updated"} if ok else None,
+            error=None if ok else response.error,
         )
     except HTTPException:
         raise

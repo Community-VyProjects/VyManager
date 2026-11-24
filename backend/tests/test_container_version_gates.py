@@ -89,6 +89,8 @@ def test_capabilities_on_14(version):
     assert values["log_drivers"] == []
     assert values["network_types"] == []
     assert values["macvlan_modes"] == []
+    assert values["network_mac_keywords"] == []
+    assert values["health_check_interval_keywords"] == []
     assert values["registry_password_max_length"] == 128
 
 
@@ -105,6 +107,8 @@ def test_capabilities_on_15(version):
     assert values["log_drivers"] == ["k8s-file", "journald", "none"]
     assert values["network_types"] == ["bridge", "macvlan"]
     assert values["macvlan_modes"] == ["bridge", "private", "vepa"]
+    assert values["network_mac_keywords"] == ["auto"]
+    assert values["health_check_interval_keywords"] == ["disable"]
     assert values["registry_password_max_length"] == 512
 
 

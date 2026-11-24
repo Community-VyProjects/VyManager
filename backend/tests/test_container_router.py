@@ -313,8 +313,10 @@ def test_batch_unknown_op_is_400(client, op, detail):
     assert client.executed == []
 
 
-def test_failed_commit_reports_the_error(client, commit):
-    commit.update(status=400, error="Commit failed: T-err")
+@pytest.mark.parametrize("status, error", [(400, "Commit failed: T-err"), (200, "Commit failed: T-err")])
+def test_failed_commit_reports_the_error(client, commit, status, error):
+    """A refused commit is a failure even when the device answers HTTP 200 with an error."""
+    commit.update(status=status, error=error)
     resp = _post(client, [{"op": "delete_name", "value": "web"}])
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": False, "data": None, "error": "Commit failed: T-err"}
