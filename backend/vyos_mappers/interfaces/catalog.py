@@ -1,4 +1,4 @@
-"""Op-mode show commands behind the interface pickers and counters.
+"""Op-mode show commands behind the interface pickers, counters and diagnostics.
 
 Commands both lab op trees have live on this class. A command only one
 version has lives on that version's subclass in ``catalog_versions``.

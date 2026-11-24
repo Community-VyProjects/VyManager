@@ -962,10 +962,7 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
         raw_config = full_config.get("interfaces", {}).get("ethernet", {})
 
         # Use mapper to parse config
-        mapper = cast(
-            EthernetInterfaceMapper,
-            CommandMapperRegistry.get_mapper("interface_ethernet", service.get_version() or ""),
-        )
+        mapper = EthernetInterfaceMapper(service.get_version())
         parsed_data = mapper.parse_interfaces_of_type(raw_config)
 
         # Return as Pydantic model

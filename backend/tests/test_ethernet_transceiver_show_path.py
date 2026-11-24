@@ -21,7 +21,6 @@ from vyos_mappers.interfaces.catalog_versions import (
     InterfaceCatalogMapperV1_5,
     get_interface_catalog_mapper,
 )
-from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
 
 ROLLING = "2026.09.23-0027-rolling"
 ROUTER = Path(ethernet.__file__)
@@ -154,19 +153,21 @@ def test_device_exception_is_500(client, stub):
     assert response.json()["detail"] == "Unable to read transceiver diagnostics"
 
 
-def test_config_parses_through_the_ethernet_factory(client, stub, monkeypatch):
-    calls = []
-
-    def factory(version):
-        calls.append(version)
-        return get_ethernet_mapper(version)
-
-    monkeypatch.setitem(CommandMapperRegistry._features, "interface_ethernet", factory)
-    stub["version"] = ROLLING
+def test_config_keeps_the_1_4_directed_broadcast_leaf(client, stub, monkeypatch):
+    # The 1.4 lab has ``ip enable-directed-broadcast``; the 1.4 factory class
+    # still nulls it in parse (#1619), so the config route keeps the shared
+    # parse until that override is gone.
+    monkeypatch.setattr(
+        StubService,
+        "get_full_config",
+        lambda self, refresh=False: {
+            "interfaces": {"ethernet": {"eth0": {"ip": {"enable-directed-broadcast": {}}}}}
+        },
+    )
     response = client.get("/vyos/ethernet/config")
     assert response.status_code == 200
-    assert calls == [ROLLING]
-    assert [i["name"] for i in response.json()["interfaces"]] == ["eth0"]
+    (eth0,) = response.json()["interfaces"]
+    assert eth0["ip"]["enable_directed_broadcast"] is True
 
 
 @pytest.mark.parametrize(
