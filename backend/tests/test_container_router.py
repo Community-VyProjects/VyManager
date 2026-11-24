@@ -1,16 +1,20 @@
-"""Container router: comma-split args, a value on a zero-arg op, missing values, failed commits.
+"""Container router: batch dispatch, config masks, show and SSH file handlers.
 
-A stub service records what the handler sends. Device calls must run off the
-event loop: the app middleware records the loop thread and the stub compares
-its own thread against it.
+A stub service records what the handler sends, and a stub SSH connection what
+the file handlers run. Device calls must run off the event loop: the app
+middleware records the loop thread and the stub compares its own thread
+against it.
 """
 
+import asyncio
 import threading
 from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
+
+import appliance_mode
 
 ROUTER = "routers.container.container"
 NAME = ["container", "name"]
@@ -23,7 +27,13 @@ def commit():
 
 
 @pytest.fixture
-def client(monkeypatch, commit):
+def shell():
+    """What the stub SSH connection returns, and the commands it ran."""
+    return {"stdout": "", "stderr": "", "exit_status": 0, "raise": None, "commands": []}
+
+
+@pytest.fixture
+def client(monkeypatch, commit, shell):
     executed = []
     loop_threads = set()
     device_threads = []
@@ -54,9 +64,17 @@ def client(monkeypatch, commit):
 
         def get_full_config(self, refresh=False):
             device_threads.append(threading.current_thread())
-            return {"container": {"registry": {"docker.io": {
-                "authentication": {"username": "T-user", "password": "T-secret"},
-            }}}}
+            return {"container": {
+                "registry": {"docker.io": {
+                    "authentication": {"username": "T-user", "password": "T-secret"},
+                }},
+                "name": {
+                    "vymanager-backend": {"image": "ghcr.io/x/vymanager-backend:beta", "environment": {
+                        "BETTER_AUTH_SECRET": {"value": "T-stack-secret"},
+                    }},
+                    "web": {"image": "nginx:1.27", "environment": {"TZ": {"value": "UTC"}}},
+                },
+            }}
 
         def execute_batch(self, batch):
             device_threads.append(threading.current_thread())
@@ -65,9 +83,25 @@ def client(monkeypatch, commit):
             executed.append(batch.get_operations())
             return SimpleNamespace(status=commit["status"], result="", error=commit["error"])
 
+    class Conn:
+        async def run(self, command, check=False, input=None):
+            shell["commands"].append(command)
+            if shell["raise"] is not None:
+                raise shell["raise"]
+            return SimpleNamespace(
+                stdout=shell["stdout"], stderr=shell["stderr"], exit_status=shell["exit_status"]
+            )
+
+        def close(self):
+            pass
+
+    async def ssh_connection(_req):
+        return Conn()
+
     monkeypatch.setattr(f"{ROUTER}.require_read_permission", read)
     monkeypatch.setattr(f"{ROUTER}.require_write_permission", write)
     monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: Service())
+    monkeypatch.setattr(f"{ROUTER}._get_ssh_connection", ssh_connection)
 
     from routers.container.container import router
 
@@ -253,3 +287,113 @@ def test_session_400_passes_through(client, monkeypatch, method, path, body):
     resp = getattr(client.http, method)(path, **({"json": body} if body is not None else {}))
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "No active session"
+
+
+@pytest.mark.parametrize("path", [
+    "/vyos/container/capabilities",
+    "/vyos/container/config",
+    "/vyos/container/images",
+])
+def test_unexpected_error_is_500(client, monkeypatch, path):
+    """A backend fault is a 500, not an empty images list that reads as nothing pulled."""
+    def boom(*_a, **_k):
+        raise RuntimeError("T-boom")
+
+    service = SimpleNamespace(get_version=boom, get_full_config=boom, device=SimpleNamespace(show=boom))
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: service)
+    resp = client.http.get(path)
+    assert resp.status_code == 500, resp.text
+    assert resp.json()["detail"] == "Internal server error"
+
+
+def test_log_unexpected_error_is_a_failed_reply(client, monkeypatch):
+    def boom(*_a, **_k):
+        raise RuntimeError("T-boom")
+
+    service = SimpleNamespace(device=SimpleNamespace(show=boom))
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: service)
+    resp = client.http.post("/vyos/container/log", json={"container_name": "web"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "output": None, "error": "Failed to retrieve container log."}
+
+
+@pytest.mark.parametrize("op, value", [
+    ("set_network", "my_net"),
+    ("set_network", "n-12345678x"),
+    ("set_network_mtu", "my_net,1500"),
+])
+def test_network_names_follow_the_lab(client, op, value):
+    """The lab allows [-_a-zA-Z0-9]{1,11} for a network name."""
+    assert _post(client, [{"op": op, "value": value}]).status_code == 200
+
+
+@pytest.mark.parametrize("value", ["n-123456789x", "_net", "my.net"])
+def test_network_name_outside_the_lab_is_400(client, value):
+    resp = _post(client, [{"op": "delete_network", "value": value}])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "Invalid name in operation 'delete_network'."
+
+
+def test_stack_env_values_are_masked_on_the_appliance(client, monkeypatch):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    body = client.http.get("/vyos/container/config").json()
+    envs = {c["name"]: c["environments"] for c in body["containers"]}
+    assert envs["vymanager-backend"] == [{"name": "BETTER_AUTH_SECRET", "value": "***"}]
+    assert envs["web"] == [{"name": "TZ", "value": "UTC"}]
+    monkeypatch.delenv("VYMANAGER_MODE")
+    body = client.http.get("/vyos/container/config").json()
+    envs = {c["name"]: c["environments"] for c in body["containers"]}
+    assert envs["vymanager-backend"] == [{"name": "BETTER_AUTH_SECRET", "value": "T-stack-secret"}]
+
+
+def test_base_dir_check_reports_a_failed_command(client, shell):
+    """A failed SSH check is a 502, not exists=false that offers to create the directory."""
+    shell["stdout"] = "exists\n"
+    assert client.http.get("/vyos/container/base-dir").json() == {"exists": True}
+    shell["stdout"] = "missing\n"
+    assert client.http.get("/vyos/container/base-dir").json() == {"exists": False}
+    shell["stdout"] = ""
+    shell["raise"] = asyncio.TimeoutError()
+    resp = client.http.get("/vyos/container/base-dir")
+    assert resp.status_code == 502, resp.text
+    assert resp.json()["detail"] == "Command timed out"
+
+
+def test_file_read_keeps_the_content_byte_for_byte(client, shell):
+    shell["stdout"] = "  indented: 1\n\n"
+    resp = client.http.get("/vyos/container/file", params={"path": "/config/containers/web/app.yml"})
+    assert resp.json() == {"success": True, "content": "  indented: 1\n\n", "error": None}
+    assert shell["commands"] == ["sudo cat /config/containers/web/app.yml"]
+
+
+def test_shell_output_bytes_are_decoded(client, shell):
+    shell.update(stdout=b"exists\n", stderr=b"", exit_status=0)
+    assert client.http.get("/vyos/container/base-dir").json() == {"exists": True}
+    shell.update(stdout=b"", stderr=b"T-denied\n", exit_status=1)
+    resp = client.http.post("/vyos/container/file", json={"path": "/config/containers/web/a", "content": "x"})
+    assert resp.json() == {"success": False, "output": None, "error": "T-denied"}
+
+
+@pytest.mark.parametrize("method,path,kwargs", [
+    ("get", "/vyos/container/file", {"params": {"path": "/config/containers/vymanager-postgres/pg_hba.conf"}}),
+    ("post", "/vyos/container/file", {"json": {"path": "/config/containers/vymanager-backend/x", "content": "x"}}),
+    ("post", "/vyos/container/mkdir", {"json": {"paths": ["/config/containers/web", "/config/containers/vymanager-x"]}}),
+    ("post", "/vyos/container/touch", {"json": {"paths": ["/config/containers/vymanager-backend/x"]}}),
+    ("post", "/vyos/container/rmdir", {"json": {"path": "/config/containers/vymanager-postgres"}}),
+])
+def test_stack_volumes_are_refused_on_the_appliance(client, monkeypatch, shell, method, path, kwargs):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    resp = getattr(client.http, method)(path, **kwargs)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == appliance_mode.STACK_GUARD_DETAIL
+    assert shell["commands"] == []
+    monkeypatch.delenv("VYMANAGER_MODE")
+    assert getattr(client.http, method)(path, **kwargs).status_code == 200
+    assert shell["commands"]
+
+
+@pytest.mark.parametrize("path", ["/config/containers/web\n", "/config/containers/../etc", "/etc/passwd"])
+def test_file_path_outside_the_base_is_400(client, shell, path):
+    resp = client.http.get("/vyos/container/file", params={"path": path})
+    assert resp.status_code == 400, resp.text
+    assert shell["commands"] == []

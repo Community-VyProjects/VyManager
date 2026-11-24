@@ -1,10 +1,13 @@
 """Read-model for container config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. A secret is returned as MASKED_SECRET, never in plaintext.
+the tree. The registry password, and the environment values of the appliance
+stack containers, are returned as MASKED_SECRET, never in plaintext.
 """
 
 from typing import Any, Dict, List
+
+import appliance_mode
 
 MASKED_SECRET = "***"
 
@@ -60,11 +63,18 @@ def _parse_container_instance(name: str, cfg: dict) -> Dict[str, Any]:
             }
         )
 
+    # On the appliance the stack containers carry the app's own secrets in
+    # their environment, and Containers refuses edits to them, so the values
+    # never come back as a save.
+    mask_env = appliance_mode.is_appliance() and appliance_mode.is_stack_container(name)
     environments = []
     for env_name, env_cfg in (cfg.get("environment") or {}).items():
         if env_cfg is None:
             env_cfg = {}
-        environments.append({"name": env_name, "value": env_cfg.get("value")})
+        value = env_cfg.get("value")
+        if mask_env and value:
+            value = MASKED_SECRET
+        environments.append({"name": env_name, "value": value})
 
     labels = []
     for label_name, label_cfg in (cfg.get("label") or {}).items():

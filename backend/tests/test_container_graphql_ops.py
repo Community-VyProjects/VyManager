@@ -11,6 +11,7 @@ client so no real device or SSH connection is used. They assert:
 import json
 from contextlib import asynccontextmanager
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -134,6 +135,7 @@ def test_restart_posts_restart_mutation(monkeypatch):
     assert resp.json()["success"] is True
 
     assert _FakeAsyncClient.last_url == "https://10.0.0.1:443/graphql"
+    assert _FakeAsyncClient.last_json is not None
     query = _FakeAsyncClient.last_json["query"]
     assert "RestartContainer" in query
     assert json.dumps("web") in query
@@ -149,6 +151,7 @@ def test_update_image_maps_to_add_image_container(monkeypatch):
     assert resp.status_code == 200, resp.text
     assert resp.json()["success"] is True
     assert resp.json()["output"] == "pulled"
+    assert _FakeAsyncClient.last_json is not None
     query = _FakeAsyncClient.last_json["query"]
     assert "AddImageContainer" in query
     assert "update container image" not in query
@@ -226,6 +229,69 @@ def test_update_image_unknown_container(monkeypatch):
     assert resp.status_code == 400, resp.text
     assert "not found" in resp.text
     assert _FakeAsyncClient.last_url is None
+
+
+def test_add_and_delete_image_resolve_the_configured_image(monkeypatch):
+    """Op-mode add/delete container image take an image ref, not the container name."""
+    for path, mutation in (
+        ("/vyos/container/image/add", "AddImageContainer"),
+        ("/vyos/container/image/delete", "DeleteImageContainer"),
+    ):
+        body = {"data": {mutation: {"success": True, "errors": None, "data": {"result": "ok"}}}}
+        client = _build_client(monkeypatch, body)
+        resp = client.post(path, json={"container_name": "web"})
+        assert resp.status_code == 200, resp.text
+        assert _FakeAsyncClient.last_json is not None
+        query = _FakeAsyncClient.last_json["query"]
+        assert mutation in query
+        assert json.dumps("nginx:1.27") in query
+        assert json.dumps("web") not in query
+
+
+def test_delete_image_refuses_a_stack_container_on_the_appliance(monkeypatch):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    client = _build_client(monkeypatch, {"data": {}})
+    resp = client.post("/vyos/container/image/delete", json={"container_name": "vymanager-backend"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == container_mod.appliance_mode.STACK_GUARD_DETAIL
+    assert _FakeAsyncClient.last_url is None
+
+
+@pytest.mark.parametrize("config, detail", [
+    ({"container": {"name": {"web": {"description": "x"}}}}, "No image configured for container web"),
+    ({"container": {"name": {"web": {"image": "bad image"}}}}, "Invalid image reference on container web"),
+])
+def test_configured_image_must_be_a_valid_ref(monkeypatch, config, detail):
+    client = _build_client(monkeypatch, {"data": {}})
+    monkeypatch.setattr(_FakeService, "get_full_config", lambda self, refresh=False: config)
+    for path in ("/vyos/container/image/add", "/vyos/container/image/update", "/vyos/container/image/delete"):
+        resp = client.post(path, json={"container_name": "web"})
+        assert resp.status_code == 400, resp.text
+        assert resp.json()["detail"] == detail
+    assert _FakeAsyncClient.last_url is None
+
+
+@pytest.mark.parametrize("path", ["/vyos/container/image/add", "/vyos/container/image/update", "/vyos/container/log"])
+def test_invalid_container_name_is_400_before_any_lookup(monkeypatch, path):
+    client = _build_client(monkeypatch, {"data": {}})
+    resp = client.post(path, json={"container_name": "web;id"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == container_mod._INVALID_CONTAINER_NAME
+    assert _FakeAsyncClient.last_url is None
+
+
+def test_graphql_body_that_is_not_an_object_is_502(monkeypatch):
+    client = _build_client(monkeypatch, ["not", "an", "object"])
+    resp = client.post("/vyos/container/image/pull", json={"image": "nginx:1.27"})
+    assert resp.status_code == 502, resp.text
+    assert resp.json()["detail"] == "GraphQL response is not a JSON object"
+
+
+def test_graphql_string_errors_are_joined(monkeypatch):
+    client = _build_client(monkeypatch, {"errors": ["T-one", {"message": "T-two"}]})
+    resp = client.post("/vyos/container/image/pull", json={"image": "nginx:1.27"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "output": None, "error": "T-one; T-two"}
 
 
 def test_graphql_empty_errors_names_the_mutation(monkeypatch):

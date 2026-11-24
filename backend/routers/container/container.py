@@ -235,6 +235,12 @@ _GQL_QUICK_TIMEOUT = 60    # delete / restart are fast
 _SSH_CONNECT_TIMEOUT = 15
 _SSH_QUICK_TIMEOUT = 60
 
+# One text per SSH-key gate. ContainerContent matches _SSH_KEY_NOT_CONFIGURED
+# to show its set-up screen, so both gates must send the same string.
+_SSH_KEY_NOT_CONFIGURED = "SSH key not configured."
+_SSH_KEY_MISSING = "SSH private key missing."
+_INVALID_CONTAINER_NAME = "Invalid container name. Must be alphanumeric and may contain hyphens."
+
 # ---------------------------------------------------------------------------
 # Strict operation allowlist — the ONLY GraphQL mutations this code will run.
 # Each entry maps an internal key to (mutation_name, timeout).
@@ -257,6 +263,10 @@ _CONTAINER_GQL_ALLOWLIST: Dict[str, tuple] = {
 # they do flow into VyOS config and we want a clean rejection of garbage.
 _REGISTRY_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]{0,252}(?::[0-9]{1,5})?$')
 
+# Validates container network names: the lab node.def allows
+# [-_a-zA-Z0-9]{1,11}; the first character stays alphanumeric, as for names.
+_NETWORK_NAME_RE = re.compile(r'^[a-zA-Z0-9][-_a-zA-Z0-9]{0,10}$')
+
 # Builder-method prefixes whose first positional argument is an entity name.
 # Each prefix maps to the regex its first arg must satisfy. The batch endpoint
 # enforces this so names with shell metacharacters or other illegal patterns
@@ -265,8 +275,8 @@ _REGISTRY_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]{0,252}(?::[0-9]{1,5}
 _NAME_PREFIXED_BUILDER_OPS: Dict[str, "re.Pattern"] = {
     "set_name":        _CONTAINER_NAME_RE,
     "delete_name":     _CONTAINER_NAME_RE,
-    "set_network":     _CONTAINER_NAME_RE,
-    "delete_network":  _CONTAINER_NAME_RE,
+    "set_network":     _NETWORK_NAME_RE,
+    "delete_network":  _NETWORK_NAME_RE,
     "set_registry":    _REGISTRY_NAME_RE,
     "delete_registry": _REGISTRY_NAME_RE,
 }
@@ -323,6 +333,8 @@ class ContainerMkdirRequest(BaseModel):
 
 async def _configured_container_image(request: Request, container_name: str) -> str:
     """Return the image ref set on ``container name <container_name> image``."""
+    if not _CONTAINER_NAME_RE.fullmatch(container_name):
+        raise HTTPException(status_code=400, detail=_INVALID_CONTAINER_NAME)
     service = get_session_vyos_service(request)
     full_config = await run_in_threadpool(service.get_full_config, refresh=False)
     mapper = cast(ContainerMapper, CommandMapperRegistry.get_mapper("container", service.get_version()))
@@ -377,15 +389,9 @@ async def _require_ssh_key_configured(request: Request) -> None:
     if not row:
         raise HTTPException(status_code=404, detail="Instance not found")
     if not row["sshKeyConfigured"]:
-        raise HTTPException(
-            status_code=409,
-            detail="SSH key not configured. Set it up in instance SSH settings.",
-        )
+        raise HTTPException(status_code=409, detail=_SSH_KEY_NOT_CONFIGURED)
     if not row["sshEncryptedPrivKey"] or not row["sshKeyNonce"]:
-        raise HTTPException(
-            status_code=409,
-            detail="SSH private key missing. Regenerate the SSH key in instance settings.",
-        )
+        raise HTTPException(status_code=409, detail=_SSH_KEY_MISSING)
 
 
 async def _run_container_gql_command(
@@ -410,10 +416,7 @@ async def _run_container_gql_command(
 
     # --- Name validation ---
     if not container_name or not name_re.fullmatch(container_name):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid container name. Must be alphanumeric and may contain hyphens.",
-        )
+        raise HTTPException(status_code=400, detail=_INVALID_CONTAINER_NAME)
 
     if (
         operation == "delete_image"
@@ -454,15 +457,25 @@ async def _run_container_gql_command(
     except httpx.TimeoutException:
         return ContainerSSHResponse(success=False, error="Command timed out")
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"GraphQL request failed: {exc}")
+        logger.warning("Container GraphQL %s request failed: %s", mutation, exc)
+        raise HTTPException(status_code=502, detail="GraphQL request failed")
 
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail=f"GraphQL HTTP error {resp.status_code}")
 
-    body = resp.json()
+    try:
+        body = resp.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        logger.warning("Container GraphQL %s returned a body that is not a JSON object", mutation)
+        raise HTTPException(status_code=502, detail="GraphQL response is not a JSON object")
     if body.get("errors"):
         # Transport-level GraphQL errors (bad query, schema mismatch).
-        message = "; ".join(str(e.get("message", e)) for e in body["errors"])
+        errors_list = body["errors"] if isinstance(body["errors"], list) else [body["errors"]]
+        message = "; ".join(
+            str(e.get("message", e)) if isinstance(e, dict) else str(e) for e in errors_list
+        )
         return ContainerSSHResponse(success=False, error=message or "GraphQL error")
 
     payload = (body.get("data") or {}).get(mutation) or {}
@@ -511,15 +524,16 @@ async def _get_ssh_connection(request: Request) -> asyncssh.SSHClientConnection:
     if not row:
         raise HTTPException(status_code=404, detail="Instance not found")
     if not row["sshKeyConfigured"]:
-        raise HTTPException(status_code=409, detail="SSH key not configured.")
+        raise HTTPException(status_code=409, detail=_SSH_KEY_NOT_CONFIGURED)
     if not row["sshEncryptedPrivKey"] or not row["sshKeyNonce"]:
-        raise HTTPException(status_code=409, detail="SSH private key missing.")
+        raise HTTPException(status_code=409, detail=_SSH_KEY_MISSING)
 
     try:
         private_key_pem = decrypt_private_key(row["sshEncryptedPrivKey"], row["sshKeyNonce"], instance["id"])
         private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to decrypt SSH key: {exc}")
+    except Exception:
+        logger.exception("Failed to decrypt the container SSH key")
+        raise HTTPException(status_code=500, detail="Failed to decrypt SSH key")
 
     try:
         ssh_conn = await asyncio.wait_for(
@@ -538,7 +552,8 @@ async def _get_ssh_connection(request: Request) -> asyncssh.SSHClientConnection:
     except SshHostKeyRejected as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except (OSError, asyncssh.Error) as exc:
-        raise HTTPException(status_code=502, detail=f"SSH connection failed: {exc}")
+        logger.warning("Container SSH connection failed: %s", exc)
+        raise HTTPException(status_code=502, detail="SSH connection failed")
 
     return ssh_conn
 
@@ -550,25 +565,37 @@ def _ssh_text(value: Union[bytes, str, None]) -> str:
     return value or ""
 
 
-async def _run_shell_command(request: Request, command: str, timeout: int = _SSH_QUICK_TIMEOUT) -> ContainerSSHResponse:
-    """Run a plain POSIX shell command (not vbash) via SSH. Caller must pre-validate command."""
+async def _run_shell_command(
+    request: Request,
+    command: str,
+    timeout: int = _SSH_QUICK_TIMEOUT,
+    strip_output: bool = True,
+) -> ContainerSSHResponse:
+    """Run a plain POSIX shell command (not vbash) via SSH. Caller must pre-validate command.
+
+    strip_output=False keeps stdout byte-for-byte, for a file read whose
+    content is written back.
+    """
     ssh_conn = await _get_ssh_connection(request)
     try:
         result = await asyncio.wait_for(
             ssh_conn.run(command, check=False),
             timeout=timeout,
         )
-        output = _ssh_text(result.stdout).strip()
+        output = _ssh_text(result.stdout)
+        if strip_output:
+            output = output.strip()
         success = result.exit_status == 0
         return ContainerSSHResponse(
             success=success,
             output=output or None,
-            error=None if success else (_ssh_text(result.stderr) or output or "Command failed"),
+            error=None if success else (_ssh_text(result.stderr).strip() or output.strip() or "Command failed"),
         )
     except asyncio.TimeoutError:
         return ContainerSSHResponse(success=False, error="Command timed out")
     except asyncssh.Error as exc:
-        return ContainerSSHResponse(success=False, error=f"SSH error: {exc}")
+        logger.warning("Container SSH command failed: %s", exc)
+        return ContainerSSHResponse(success=False, error="SSH command failed")
     finally:
         ssh_conn.close()
 
@@ -861,16 +888,28 @@ async def container_image_delete_ref(request: Request, body: ContainerImageRefRe
 
 @router.post("/image/add", response_model=ContainerSSHResponse)
 async def container_image_add(request: Request, body: ContainerImageRequest):
-    """Pull the image for a configured container (add container image <name>)."""
+    """Pull the image configured on a container.
+
+    Op-mode ``add container image`` takes an image reference, so the image is
+    resolved from the container's config first, as /image/update does.
+    """
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_gql_command(request, "add_image", body.container_name)
+    image = await _configured_container_image(request, body.container_name)
+    return await _run_container_gql_command(request, "add_image", image, name_re=_IMAGE_REF_RE)
 
 
 @router.post("/image/delete", response_model=ContainerSSHResponse)
 async def container_image_delete(request: Request, body: ContainerImageRequest):
-    """Remove the image for a configured container (delete container image <name>)."""
+    """Remove the image configured on a container.
+
+    Op-mode ``delete container image`` takes an image id or reference, so the
+    image is resolved from the container's config first.
+    """
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_gql_command(request, "delete_image", body.container_name)
+    if appliance_mode.is_appliance() and appliance_mode.is_stack_container(body.container_name):
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
+    image = await _configured_container_image(request, body.container_name)
+    return await _run_container_gql_command(request, "delete_image", image, name_re=_IMAGE_REF_RE)
 
 
 @router.post("/image/update", response_model=ContainerSSHResponse)
@@ -935,7 +974,7 @@ async def get_container_images(http_request: Request):
         raise
     except Exception:
         logger.exception("Unhandled error in get_container_images")
-        return ContainerImagesResponse(images=[])
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/log", response_model=ContainerSSHResponse)
@@ -943,7 +982,7 @@ async def get_container_log(http_request: Request, body: ContainerImageRequest):
     """Return log output for a container."""
     await require_read_permission(http_request, FeatureGroup.CONTAINER)
     if not body.container_name or not _CONTAINER_NAME_RE.fullmatch(body.container_name):
-        raise HTTPException(status_code=400, detail="Invalid container name.")
+        raise HTTPException(status_code=400, detail=_INVALID_CONTAINER_NAME)
     try:
         service = get_session_vyos_service(http_request)
         response = await run_in_threadpool(
@@ -974,6 +1013,18 @@ async def get_container_log(http_request: Request, body: ContainerImageRequest):
 # ============================================================================
 
 
+def _require_container_path(path: str) -> None:
+    """HTTP 400 unless path is a safe path under /config/containers/.
+
+    On the appliance the stack's volumes (its database among them) are refused
+    for every read and write, the same as rmdir.
+    """
+    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(path):
+        raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
+    if appliance_mode.is_appliance() and appliance_mode.is_stack_volume_path(path):
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
+
+
 @router.get("/base-dir", response_model=ContainerBaseDirResponse)
 async def check_base_dir(http_request: Request):
     """Check whether /config/containers exists on the device."""
@@ -982,6 +1033,9 @@ async def check_base_dir(http_request: Request):
         http_request,
         "test -d /config/containers && echo exists || echo missing",
     )
+    if not result.success:
+        # A failed check is not a missing directory: do not offer to create it.
+        raise HTTPException(status_code=502, detail=result.error or "Command failed")
     return ContainerBaseDirResponse(exists="exists" in (result.output or ""))
 
 
@@ -999,8 +1053,7 @@ async def create_container_dirs(http_request: Request, body: ContainerMkdirReque
     if not body.paths:
         return ContainerSSHResponse(success=True)
     for path in body.paths:
-        if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(path):
-            raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
+        _require_container_path(path)
     quoted = " ".join(shlex.quote(p) for p in body.paths)
     return await _run_shell_command(http_request, f"sudo mkdir -p {quoted}")
 
@@ -1027,8 +1080,7 @@ async def touch_container_files(http_request: Request, body: ContainerTouchReque
     if not body.paths:
         return ContainerSSHResponse(success=True)
     for path in body.paths:
-        if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(path):
-            raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
+        _require_container_path(path)
     quoted = " ".join(shlex.quote(p) for p in body.paths)
     return await _run_shell_command(http_request, f"sudo touch {quoted}")
 
@@ -1037,9 +1089,8 @@ async def touch_container_files(http_request: Request, body: ContainerTouchReque
 async def read_container_file(http_request: Request, path: str):
     """Read a file under /config/containers/."""
     await require_read_permission(http_request, FeatureGroup.CONTAINER)
-    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(path):
-        raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
-    result = await _run_shell_command(http_request, f"sudo cat {shlex.quote(path)}")
+    _require_container_path(path)
+    result = await _run_shell_command(http_request, f"sudo cat {shlex.quote(path)}", strip_output=False)
     if not result.success:
         return ContainerFileResponse(success=False, error=result.error)
     return ContainerFileResponse(success=True, content=result.output or "")
@@ -1049,8 +1100,7 @@ async def read_container_file(http_request: Request, path: str):
 async def write_container_file(http_request: Request, body: ContainerFileWriteRequest):
     """Back up then overwrite a file under /config/containers/."""
     await require_write_permission(http_request, FeatureGroup.CONTAINER)
-    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(body.path):
-        raise HTTPException(status_code=400, detail=f"Invalid path: {body.path}")
+    _require_container_path(body.path)
     bak = body.path + ".bak"
     if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(bak):
         raise HTTPException(status_code=400, detail="Backup path invalid")
@@ -1067,12 +1117,13 @@ async def write_container_file(http_request: Request, body: ContainerFileWriteRe
         success = result.exit_status == 0
         return ContainerSSHResponse(
             success=success,
-            error=None if success else (_ssh_text(result.stderr) or "Write failed"),
+            error=None if success else (_ssh_text(result.stderr).strip() or "Write failed"),
         )
     except asyncio.TimeoutError:
         return ContainerSSHResponse(success=False, error="Command timed out")
     except asyncssh.Error as exc:
-        return ContainerSSHResponse(success=False, error=f"SSH error: {exc}")
+        logger.warning("Container SSH file write failed: %s", exc)
+        return ContainerSSHResponse(success=False, error="SSH command failed")
     finally:
         ssh_conn.close()
 
@@ -1085,8 +1136,5 @@ class ContainerRmdirRequest(BaseModel):
 async def remove_container_dir(http_request: Request, body: ContainerRmdirRequest):
     """Recursively remove a directory under /config/containers/."""
     await require_write_permission(http_request, FeatureGroup.CONTAINER)
-    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(body.path):
-        raise HTTPException(status_code=400, detail=f"Invalid path: {body.path}")
-    if appliance_mode.is_appliance() and appliance_mode.is_stack_volume_path(body.path):
-        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
+    _require_container_path(body.path)
     return await _run_shell_command(http_request, f"sudo rm -rf {shlex.quote(body.path)}")
