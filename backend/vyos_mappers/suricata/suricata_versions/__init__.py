@@ -1,24 +1,19 @@
-"""Factory for version-specific Suricata mappers."""
-from typing import Any
+"""Factory for the Suricata mapper.
+
+The shared class is returned on 1.4, where ``service suricata`` does not
+exist. The 1.5 subclass holds the paths. A rolling string is 1.5. Only a
+string that contains ``1.4`` is 1.4.
+"""
 
 from ..suricata import SuricataMapper
-from .v1_4 import SuricataMapperV1_4
 from .v1_5 import SuricataMapperV1_5
 
 
-def get_suricata_mapper(version: str) -> Any:
-    """Return a version-merged Suricata mapper."""
-    base = SuricataMapper(version)
-
+def get_suricata_mapper(version: str) -> SuricataMapper:
+    """Return the shared mapper, or the 1.5 subclass."""
     if "1.4" in version:
-        version_specific = SuricataMapperV1_4()
-    else:
-        version_specific = SuricataMapperV1_5()
+        return SuricataMapper(version)
+    return SuricataMapperV1_5(version)
 
-    class MergedMapper:
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
 
-    return MergedMapper()
+__all__ = ["SuricataMapperV1_5", "get_suricata_mapper"]

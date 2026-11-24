@@ -1,11 +1,17 @@
 """Golden paths and version gates for Suricata."""
 
+import inspect
+import re
+from pathlib import Path
+
 import pytest
 
 from vyos_builders.suricata import SuricataBatchBuilder
 from routers.suricata.suricata import SuricataConfig
 from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.suricata import SuricataMapper
+from vyos_mappers.suricata import SuricataMapper, suricata_versions
+from vyos_mappers.suricata.suricata import SURICATA_NODE
+from vyos_mappers.suricata.suricata_versions import SuricataMapperV1_5
 
 
 BASE = ["service", "suricata"]
@@ -14,8 +20,10 @@ BASE = ["service", "suricata"]
 def parse_suricata_config(node):
     """Feed a ``service suricata`` node through the mapper into the router model."""
     mapper = CommandMapperRegistry.get_mapper("suricata", "1.5")
+    assert isinstance(mapper, SuricataMapper)
     full_config = {} if node is None else {"service": {"suricata": node}}
     return SuricataConfig(**mapper.parse_config(full_config))
+
 
 CASES = [
     ("delete_suricata", (), "delete", BASE),
@@ -73,6 +81,12 @@ CASES = [
         "set",
         BASE + ["port-group", "file-data-ports", "group", "http-ports"],
     ),
+    (
+        "delete_port_group_ref",
+        ("file-data-ports", "!http-ports"),
+        "delete",
+        BASE + ["port-group", "file-data-ports", "group", "!http-ports"],
+    ),
     ("delete_log", (), "delete", BASE + ["log"]),
     (
         "set_log_eve_filename",
@@ -123,33 +137,56 @@ def test_suricata_capabilities_follow_the_device():
 
 
 @pytest.mark.parametrize(
-    "method, args",
+    "method, args, detail",
     [
-        ("set_interface", ("tailscale0",)),
-        ("set_interface", ("eth0\n",)),
-        ("set_interface", ("eth0.\u0661\u0660",)),
-        ("set_address_group", ("home-net\n",)),
-        ("set_port_group", ("http-ports\n",)),
-        ("set_log_eve_filename", ("eve.json\n",)),
-        ("set_address_group", ("Home",)),
-        ("set_address", ("home-net", "192.168.1.1/24")),
-        ("set_address", ("home-net", "not-an-ip")),
-        ("set_port", ("http-ports", "0")),
-        ("set_port", ("http-ports", "65536")),
-        ("set_port", ("http-ports", "99999")),
-        ("set_port", ("http-ports", "١٠")),
-        ("set_port", ("http-ports", "1005-1001")),
-        ("set_address", ("home-net", "fe80::1%eth0")),
-        ("set_address", ("home-net", "2001:db8::1/32")),
-        ("set_log_eve_filetype", ("redis",)),
-        ("set_log_eve_type", ("geoip",)),
-        ("set_address_group_ref", ("external-net", "!")),
+        ("set_interface", ("tailscale0",), "Invalid interface name"),
+        ("set_interface", ("eth0\n",), "Invalid interface name"),
+        ("set_interface", ("eth0.\u0661\u0660",), "Invalid interface name"),
+        ("set_address_group", ("home-net\n",), "Group names must be"),
+        ("set_port_group", ("http-ports\n",), "Group names must be"),
+        ("set_log_eve_filename", ("eve.json\n",), "Invalid log file name"),
+        ("set_address_group", ("Home",), "Group names must be"),
+        ("set_address", ("home-net", "192.168.1.1/24"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "not-an-ip"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "10.0.0.1,10.0.0.2"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "!!10.0.0.1"), "Invalid address or prefix"),
+        ("set_port", ("http-ports", "0"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "00"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "65536"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "0065536"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "99999"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "١٠"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "80,443"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "+80"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "HTTP"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "1-100000"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "80-"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "1-2-3"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "000001-2"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "1005-1001"), "Port range start must not exceed the end"),
+        ("set_address", ("home-net", "fe80::1%eth0"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "2001:db8::1/32"), "Invalid address or prefix"),
+        ("set_log_eve_filetype", ("redis",), "Invalid log destination"),
+        ("set_log_eve_type", ("geoip",), "Invalid log type"),
+        ("set_address_group_ref", ("external-net", "!"), "Invalid group reference"),
     ],
 )
-def test_suricata_rejects_values_the_device_rejects(method, args):
+def test_suricata_rejects_values_the_device_rejects(method, args, detail):
     builder = SuricataBatchBuilder(version="1.5")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=f"^{re.escape(detail)}"):
         getattr(builder, method)(*args)
+
+
+@pytest.mark.parametrize(
+    "value",
+    # The lab port-range validator accepts leading zeros and /etc/services names.
+    ["080", "00080", "1-080", "!080", "065535", "http", "!http", "http-alt"],
+)
+def test_suricata_port_accepts_what_the_device_accepts(value):
+    builder = SuricataBatchBuilder(version="1.5")
+    builder.set_port("http-ports", value)
+    builder.delete_port("http-ports", value)
+    assert [item["path"][-1] for item in builder.get_operations()] == [value, value]
 
 
 def test_parse_suricata_config_splits_exclusions_and_implicit_log():
@@ -205,5 +242,76 @@ def test_registry_mapper_parses_on_both_versions():
     tree = {"service": {"suricata": {"interface": "eth0"}}}
     for version in ("1.4", "1.5"):
         mapper = CommandMapperRegistry.get_mapper("suricata", version)
+        assert isinstance(mapper, SuricataMapper)
         assert SuricataConfig(**mapper.parse_config(tree)).interfaces == ["eth0"]
     assert SuricataMapper("1.5").parse_config({}) == {"configured": False}
+
+
+@pytest.mark.parametrize(
+    "version, cls",
+    [
+        ("1.4", SuricataMapper),
+        ("1.4.3", SuricataMapper),
+        ("1.5", SuricataMapperV1_5),
+        ("2026.09.23-0027-rolling", SuricataMapperV1_5),
+    ],
+)
+def test_factory_returns_the_class_for_the_device(version, cls):
+    mapper = CommandMapperRegistry.get_mapper("suricata", version)
+    assert type(mapper) is cls
+
+
+def test_shared_class_has_no_suricata_paths():
+    shared = SuricataMapper("1.4")
+    assert shared.versioned_nodes() == frozenset()
+    assert shared.eve_filetype_values() == []
+    assert shared.eve_type_values() == []
+    for methods in SuricataMapper._VERSIONED_NODES.values():
+        for method in methods:
+            assert not hasattr(shared, method), method
+            assert callable(getattr(SuricataMapperV1_5, method)), method
+    assert SuricataMapperV1_5("1.5").versioned_nodes() == frozenset({SURICATA_NODE})
+
+
+def test_no_empty_1_4_version_file():
+    package = Path(suricata_versions.__file__).parent
+    assert not (package / "v1_4.py").exists()
+
+
+def test_capabilities_and_ops_follow_the_mapper_not_the_version(monkeypatch):
+    # A 1.5 mapper missing one path method under the node no longer reports it.
+    monkeypatch.delattr(SuricataMapperV1_5, "get_log_eve_type_delete")
+    builder = SuricataBatchBuilder(version="1.5")
+    caps = builder.get_capabilities()
+    assert caps["features"]["suricata"]["supported"] is False
+    assert caps["features"]["eve_log"]["supported"] is False
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_interface("eth0")
+    assert builder.get_operations() == []
+
+
+def test_capabilities_on_1_4_follow_a_mapper_with_the_paths(monkeypatch):
+    monkeypatch.setattr(
+        "vyos_mappers.suricata.suricata_versions.SuricataMapper", SuricataMapperV1_5
+    )
+    builder = SuricataBatchBuilder(version="1.4")
+    caps = builder.get_capabilities()
+    assert caps["features"]["suricata"]["supported"] is True
+    assert caps["features"]["eve_log"]["types"] == list(SuricataMapperV1_5("1.5").eve_type_values())
+    builder.set_interface("eth0")
+    assert builder.get_operations()[0]["path"] == BASE + ["interface", "eth0"]
+
+
+def test_every_builder_op_has_a_golden_row():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(SuricataBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    assert ops == {case[0] for case in CASES}
+
+
+def test_capabilities_on_1_4_list_no_eve_values():
+    caps = SuricataBatchBuilder(version="1.4").get_capabilities()
+    assert caps["features"]["eve_log"]["filetypes"] == []
+    assert caps["features"]["eve_log"]["types"] == []
