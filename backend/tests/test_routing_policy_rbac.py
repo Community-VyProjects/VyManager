@@ -82,6 +82,7 @@ DYNAMIC_DISPATCH_FILES = [
     "container/container.py",
     "console_server/console_server.py",
     "tftp_server/tftp_server.py",
+    "broadcast_relay/broadcast_relay.py",
     "nhrp/nhrp.py",
     "rpki/rpki.py",
     "service_monitoring/service_monitoring.py",
