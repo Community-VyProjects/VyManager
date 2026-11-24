@@ -289,8 +289,8 @@ def _row_to_label_response(row) -> PPPoESessionLabelDefinitionResponse:
         code=row["code"],
         name=row["name"],
         description=row["description"],
-        severity=row["severity"] or "info",
-        priority=int(row["priority"]),
+        severity=row["severity"],
+        priority=row["priority"],
         enabled=row["enabled"],
         rules=rules if isinstance(rules, dict) else {},
     )
@@ -364,6 +364,22 @@ _LABEL_SEVERITY_MAX = 40
 # priority is an INTEGER column.
 _LABEL_PRIORITY_MIN = -(2**31)
 _LABEL_PRIORITY_MAX = 2**31 - 1
+_LABEL_FACTOR_MIN = 0
+
+
+def _factor_valid(factor: Any) -> bool:
+    """A ratio factor is absent, or a finite number at or above the minimum.
+
+    An int too large for a float makes ``math.isfinite`` overflow, so ints are
+    compared directly.
+    """
+    if factor is None:
+        return True
+    if isinstance(factor, bool) or not isinstance(factor, (int, float)):
+        return False
+    if isinstance(factor, float) and not math.isfinite(factor):
+        return False
+    return factor >= _LABEL_FACTOR_MIN
 
 
 def _checked_labels(body: List[PPPoESessionLabelDefinitionResponse]) -> List[PPPoESessionLabelDefinitionResponse]:
@@ -376,7 +392,7 @@ def _checked_labels(body: List[PPPoESessionLabelDefinitionResponse]) -> List[PPP
     for item in body:
         code = item.code.strip()
         name = item.name.strip()
-        severity = (item.severity or "info").strip() or "info"
+        severity = item.severity.strip() or "info"
         if not code and not name:
             raise HTTPException(status_code=400, detail="A label needs both a code and a name")
         if not code or not name:
@@ -385,14 +401,11 @@ def _checked_labels(body: List[PPPoESessionLabelDefinitionResponse]) -> List[PPP
             raise HTTPException(status_code=400, detail=f"Label {code!r} is too long")
         if not _LABEL_PRIORITY_MIN <= item.priority <= _LABEL_PRIORITY_MAX:
             raise HTTPException(status_code=400, detail=f"Label {code!r} priority is out of range")
-        factor = item.rules.get("factor")
-        if factor is not None and (
-            isinstance(factor, bool)
-            or not isinstance(factor, (int, float))
-            or not math.isfinite(factor)
-            or factor < 0
-        ):
-            raise HTTPException(status_code=400, detail=f"Label {code!r} ratio factor must be a number of 0 or more")
+        if not _factor_valid(item.rules.get("factor")):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Label {code!r} ratio factor must be a number of {_LABEL_FACTOR_MIN} or more",
+            )
         if code in seen:
             raise HTTPException(status_code=400, detail=f"Duplicate label code {code!r}")
         seen.add(code)

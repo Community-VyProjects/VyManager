@@ -192,6 +192,7 @@ def _label(code, name="Name", **extra):
         ([_label("hot", rules={"factor": -0.5})], "Label 'hot' ratio factor must be a number of 0 or more"),
         ([_label("hot", rules={"factor": "x"})], "Label 'hot' ratio factor must be a number of 0 or more"),
         ([_label("hot", rules={"factor": True})], "Label 'hot' ratio factor must be a number of 0 or more"),
+        ([_label("hot", rules={"factor": -(10**400)})], "Label 'hot' ratio factor must be a number of 0 or more"),
         ([_label("hot", priority=-(2**31) - 1)], "Label 'hot' priority is out of range"),
         ([_label("hot", "  ")], "Label 'hot' needs both a code and a name"),
         ([_label("hot"), _label(" hot ", "Other")], "Duplicate label code 'hot'"),
@@ -210,6 +211,14 @@ def test_save_rejects_a_bad_row_and_keeps_the_catalog(monkeypatch, rows, detail)
     assert resp.status_code == 400
     assert resp.json() == {"detail": detail}
     assert store.rows == before
+
+
+def test_save_accepts_a_huge_integer_factor(monkeypatch):
+    client, _store = _build(monkeypatch, "i1")
+
+    resp = client.post("/vyos/pppoe-server/labels", json=[_label("hot", rules={"factor": 10**400})])
+
+    assert resp.status_code == 200, resp.text
 
 
 def test_save_keeps_priority_zero(monkeypatch):

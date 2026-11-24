@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DEFAULT_LABEL_FACTOR, PPPOE_LABEL_LIMITS } from "@/lib/api/pppoe-server";
+import { DEFAULT_LABEL_FACTOR, DEFAULT_LABEL_PRIORITY, PPPOE_LABEL_LIMITS } from "@/lib/api/pppoe-server";
 import type { PPPoESessionLabelDefinition, PPPoESessionLabelRule } from "@/lib/api/pppoe-server";
 
 const METRIC_OPTIONS: { value: NonNullable<PPPoESessionLabelRule["numerator"]>; label: "rxBytes" | "txBytes" | "rxRate" | "txRate" }[] = [
@@ -75,7 +75,7 @@ export function SessionLabelRegistryDialog({
         name: t("newLabel"),
         description: "",
         severity: "info",
-        priority: 10,
+        priority: DEFAULT_LABEL_PRIORITY,
         enabled: true,
         rules: {
           type: "ratio",
@@ -160,7 +160,7 @@ export function SessionLabelRegistryDialog({
                         step={1}
                         min={PPPOE_LABEL_LIMITS.priorityMin}
                         max={PPPOE_LABEL_LIMITS.priorityMax}
-                        value={Number.isNaN(label.priority) ? "" : (label.priority ?? 10)}
+                        value={Number.isNaN(label.priority) ? "" : (label.priority ?? DEFAULT_LABEL_PRIORITY)}
                         // A cleared box is NaN, which the save check rejects (never a silent 0).
                         onChange={(e) => updateAt(index, { priority: e.target.value === "" ? NaN : Number(e.target.value) })}
                       />

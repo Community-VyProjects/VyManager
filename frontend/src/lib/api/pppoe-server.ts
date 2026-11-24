@@ -234,6 +234,9 @@ export const PPPOE_LABEL_LIMITS = {
   factorMin: 0,
 } as const;
 
+/** Priority a new label starts with, and the one a label without a priority uses. */
+export const DEFAULT_LABEL_PRIORITY = 10;
+
 /** Ratio factor a new label starts with, and the one a rule without a factor uses. */
 export const DEFAULT_LABEL_FACTOR = 0.1;
 
@@ -245,7 +248,7 @@ export function labelFactorValid(factor: number | undefined): boolean {
 
 /** A label priority the table accepts: an integer inside the column range. */
 export function labelPriorityValid(priority: number | undefined): boolean {
-  const value = priority ?? 10;
+  const value = priority ?? DEFAULT_LABEL_PRIORITY;
   return Number.isInteger(value)
     && value >= PPPOE_LABEL_LIMITS.priorityMin
     && value <= PPPOE_LABEL_LIMITS.priorityMax;

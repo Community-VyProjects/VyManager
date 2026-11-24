@@ -63,6 +63,7 @@ import {
   type PPPoESessionLabelDefinition,
   type PPPoESessionsResponse,
   DEFAULT_LABEL_FACTOR,
+  DEFAULT_LABEL_PRIORITY,
   labelFactorValid,
   labelPriorityValid,
   PPPOE_LABEL_LIMITS,
@@ -104,8 +105,9 @@ function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabel
 
   const lhs = sessionMetricValue(session, rules.numerator);
   const rhs = sessionMetricValue(session, rules.denominator);
-  const factor = Number(rules.factor ?? DEFAULT_LABEL_FACTOR);
-  if (!Number.isFinite(factor)) return false;
+  // A stored factor the editor would reject (rows saved before the check) matches nothing.
+  if (!labelFactorValid(rules.factor)) return false;
+  const factor = rules.factor ?? DEFAULT_LABEL_FACTOR;
   if (rhs === 0) return false;
 
   const ratio = lhs / rhs;
@@ -492,7 +494,7 @@ function PPPoEPageInner() {
           name: label.name.trim(),
           description: label.description?.trim() ?? "",
           severity: label.severity || "info",
-          priority: Number(label.priority ?? 10),
+          priority: Number(label.priority ?? DEFAULT_LABEL_PRIORITY),
           enabled: label.enabled !== false,
           rules: label.rules ?? {},
         }));
