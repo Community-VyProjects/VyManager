@@ -20,6 +20,7 @@ OFFLOADED = [
     ("container_batch_configure", "routers/container/container.py", "execute_batch", 1),
     ("pim6_batch_configure", "routers/pim6/pim6.py", "execute_batch", 1),
     ("console_server_batch_configure", "routers/console_server/console_server.py", "execute_batch", 1),
+    ("tftp_server_batch_configure", "routers/tftp_server/tftp_server.py", "execute_batch", 1),
     ("event_handler_batch_configure", "routers/event_handler/event_handler.py", "execute_batch", 1),
     ("batch_configure_nat", "routers/nat/nat.py", "execute_batch", 1),
     ("reorder_nat_rules", "routers/nat/nat.py", "execute_batch", 1),
@@ -163,6 +164,10 @@ CONSOLE_SERVER_OFFLOADED = [
     ("get_console_server_config", "routers/console_server/console_server.py", "get_full_config", 1),
 ]
 
+TFTP_SERVER_OFFLOADED = [
+    ("get_tftp_server_config", "routers/tftp_server/tftp_server.py", "get_full_config", 1),
+]
+
 CONTAINER_OFFLOADED = [
     ("get_container_config", "routers/container/container.py", "get_full_config", 1),
     ("_configured_container_image", "routers/container/container.py", "get_full_config", 1),
@@ -253,8 +258,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED + TFTP_SERVER_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED + TFTP_SERVER_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
