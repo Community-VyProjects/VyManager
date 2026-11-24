@@ -13,9 +13,8 @@ from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.rpki import RpkiBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,15 @@ class RpkiConfig(BaseModel):
 
 class RpkiBatchOperation(BaseModel):
     op: str = Field(..., description="Builder method name")
-    value: Optional[str] = Field(None, description="Comma-separated arguments")
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class RpkiBatchRequest(BaseModel):
@@ -82,6 +89,8 @@ async def get_rpki_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_rpki_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -103,6 +112,8 @@ async def get_rpki_config(http_request: Request, refresh: bool = False):
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
         mapper = CommandMapperRegistry.get_mapper("rpki", version)
         return RpkiConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_rpki_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -122,43 +133,21 @@ async def rpki_batch_configure(http_request: Request, body: RpkiBatchRequest):
         service = get_session_vyos_service(http_request)
         builder = RpkiBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                call_comma_batch_op(builder, operation.op, operation.value)
+        except ValueError as e:
+            # The mapper rejects a cache leaf this device version does not have.
+            raise HTTPException(status_code=400, detail=str(e))
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-            elif len(params) == 2 and operation.value is not None:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value, "")
-    except HTTPException:
-        raise
-    except ValueError as e:
-        # The mapper rejects a node this device version does not have.
-        raise HTTPException(status_code=400, detail=str(e))
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except Exception:
-        logger.exception("Unhandled error in rpki_batch_configure")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-    try:
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "RPKI configuration updated"},
+            data={"message": "RPKI configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
-        # execute_batch raises 409 while a commit-confirm is pending.
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
         raise
     except Exception:
         logger.exception("Unhandled error in rpki_batch_configure")
