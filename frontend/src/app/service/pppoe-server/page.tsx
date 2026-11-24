@@ -200,6 +200,7 @@ function PPPoEPageInner() {
     fetchStartSeq: 0,
   });
   const previousSessionBytes = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
+  const fetchToken = useRef(0);
   const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
   const [selectedStatsKey, setSelectedStatsKey] = useState<string | null>(null);
   const [sessionPaused, setSessionPaused] = useState(false);
@@ -356,20 +357,25 @@ function PPPoEPageInner() {
   };
 
   const fetchSessions = async () => {
+    // Only the newest request applies its result: an older response that lands
+    // later (a refresh overlapping the reset dialog's re-read) is dropped.
+    const token = ++fetchToken.current;
     // Stamp the result with the sequence at request start (read from state, not
     // a closure that may be stale): a stream payload or error that arrives while
     // the request runs is newer than its result.
     setSessionFeed((feed) => ({ ...feed, fetchStartSeq: feed.seq }));
+    setSessionRefreshing(true);
     try {
-      setSessionRefreshing(true);
       const response = await pppoeServerService.getSessions(500);
+      if (token !== fetchToken.current) return;
       applySessions(response);
       setSessionFeed((feed) => ({ ...feed, fetchError: null, fetchedSeq: feed.fetchStartSeq }));
     } catch (err) {
+      if (token !== fetchToken.current) return;
       const message = (err as ApiError).message || t("errors.loadSessions");
       setSessionFeed((feed) => ({ ...feed, fetchError: message, fetchErrorSeq: feed.fetchStartSeq }));
     } finally {
-      setSessionRefreshing(false);
+      if (token === fetchToken.current) setSessionRefreshing(false);
     }
   };
 
