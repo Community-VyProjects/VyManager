@@ -1,9 +1,8 @@
-"""The Ethernet router reads its op path and mapper from the registry.
+"""The Ethernet transceiver route reads its op path from the catalog mapper.
 
 ``GET /vyos/ethernet/{interface}/transceiver`` sends the device the path
-``InterfaceCatalogMapper`` returns, and ``GET /vyos/ethernet/config`` parses
-through the ``interface_ethernet`` factory instead of building the mapper
-itself.
+``InterfaceCatalogMapper`` returns. The capabilities, config and transceiver
+routes pass the session lookup's 400 through.
 """
 
 import ast
@@ -26,7 +25,7 @@ ROLLING = "2026.09.23-0027-rolling"
 ROUTER = Path(ethernet.__file__)
 OLD_PATH = ["interfaces", "ethernet", "eth0", "transceiver"]
 MODULE = "Transceiver type: SFP+\nVendor name: Acme\nModule temperature: 31.2 C\n"
-CONFIG = {"interfaces": {"ethernet": {"eth0": {"description": "wan"}}}}
+CONFIG = {"interfaces": {"ethernet": {"eth0": {"ip": {"enable-directed-broadcast": {}}}}}}
 
 
 # ==================== Mapper ====================
@@ -153,17 +152,10 @@ def test_device_exception_is_500(client, stub):
     assert response.json()["detail"] == "Unable to read transceiver diagnostics"
 
 
-def test_config_keeps_the_1_4_directed_broadcast_leaf(client, stub, monkeypatch):
+def test_config_keeps_the_1_4_directed_broadcast_leaf(client, stub):
     # The 1.4 lab has ``ip enable-directed-broadcast``; the 1.4 factory class
     # still nulls it in parse (#1619), so the config route keeps the shared
     # parse until that override is gone.
-    monkeypatch.setattr(
-        StubService,
-        "get_full_config",
-        lambda self, refresh=False: {
-            "interfaces": {"ethernet": {"eth0": {"ip": {"enable-directed-broadcast": {}}}}}
-        },
-    )
     response = client.get("/vyos/ethernet/config")
     assert response.status_code == 200
     (eth0,) = response.json()["interfaces"]
