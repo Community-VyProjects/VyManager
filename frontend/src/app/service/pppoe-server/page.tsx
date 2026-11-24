@@ -50,7 +50,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
 import { ColumnToggleButton } from "@/components/column-toggle/ColumnToggleButton";
-import { SessionLabelRegistryDialog } from "@/components/service/pppoe-server/SessionLabelRegistryDialog";
 import {
   pppoeServerService,
   type PPPoEConfigResponse,
@@ -63,6 +62,8 @@ import {
   type PPPoESession,
   type PPPoESessionLabelDefinition,
   type PPPoESessionsResponse,
+  DEFAULT_LABEL_FACTOR,
+  labelFactorValid,
   labelPriorityValid,
   PPPOE_LABEL_LIMITS,
   type VyOSResponse,
@@ -85,6 +86,7 @@ import {
   PPPOptionsModal,
   AdvancedSettingsModal,
   PPPoEStatsChart,
+  SessionLabelRegistryDialog,
 } from "@/components/service/pppoe-server";
 import type { PPPoEStatsPoint } from "@/components/service/pppoe-server/PPPoEStatsChart";
 
@@ -102,7 +104,7 @@ function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabel
 
   const lhs = sessionMetricValue(session, rules.numerator);
   const rhs = sessionMetricValue(session, rules.denominator);
-  const factor = Number(rules.factor ?? 0.10);
+  const factor = Number(rules.factor ?? DEFAULT_LABEL_FACTOR);
   if (!Number.isFinite(factor)) return false;
   if (rhs === 0) return false;
 
@@ -466,10 +468,7 @@ function PPPoEPageInner() {
       setLabelError(t("errors.labelDuplicateCode", { code: duplicate }));
       return;
     }
-    const badFactor = labelDraft.find((label) => {
-      const factor = label.rules?.factor ?? 0.1;
-      return !Number.isFinite(factor) || factor < 0;
-    });
+    const badFactor = labelDraft.find((label) => !labelFactorValid(label.rules?.factor));
     if (badFactor) {
       setLabelError(t("errors.labelFactor", { label: badFactor.code.trim() }));
       return;

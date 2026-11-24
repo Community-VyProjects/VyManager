@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any, cast
 import json
+import math
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from vyos_mappers import CommandMapperRegistry
@@ -290,7 +291,7 @@ def _row_to_label_response(row) -> PPPoESessionLabelDefinitionResponse:
         description=row["description"],
         severity=row["severity"] or "info",
         priority=int(row["priority"]),
-        enabled=row["enabled"] if row["enabled"] is not None else True,
+        enabled=row["enabled"],
         rules=rules if isinstance(rules, dict) else {},
     )
 
@@ -325,9 +326,9 @@ async def _seed_default_labels(conn, instance_id: str) -> None:
             ON CONFLICT ("instanceId", code) DO NOTHING
             """,
             str(uuid.uuid4()), instance_id,
-            label["code"], label["name"], label.get("description"),
-            label.get("severity") or "info", label["priority"],
-            bool(label.get("enabled", True)), json.dumps(label.get("rules") or {}),
+            label["code"], label["name"], label["description"],
+            label["severity"], label["priority"],
+            label["enabled"], json.dumps(label["rules"]),
         )
 
 
@@ -384,6 +385,14 @@ def _checked_labels(body: List[PPPoESessionLabelDefinitionResponse]) -> List[PPP
             raise HTTPException(status_code=400, detail=f"Label {code!r} is too long")
         if not _LABEL_PRIORITY_MIN <= item.priority <= _LABEL_PRIORITY_MAX:
             raise HTTPException(status_code=400, detail=f"Label {code!r} priority is out of range")
+        factor = item.rules.get("factor")
+        if factor is not None and (
+            isinstance(factor, bool)
+            or not isinstance(factor, (int, float))
+            or not math.isfinite(factor)
+            or factor < 0
+        ):
+            raise HTTPException(status_code=400, detail=f"Label {code!r} ratio factor must be a number of 0 or more")
         if code in seen:
             raise HTTPException(status_code=400, detail=f"Duplicate label code {code!r}")
         seen.add(code)
@@ -418,7 +427,7 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
                         """,
                         str(uuid.uuid4()), instance_id, label.code, label.name, label.description,
                         label.severity, label.priority,
-                        bool(label.enabled if label.enabled is not None else True), json.dumps(label.rules or {}),
+                        label.enabled, json.dumps(label.rules),
                     )
 
                 return await _fetch_labels(conn, instance_id)

@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PPPOE_LABEL_LIMITS } from "@/lib/api/pppoe-server";
+import { DEFAULT_LABEL_FACTOR, PPPOE_LABEL_LIMITS } from "@/lib/api/pppoe-server";
 import type { PPPoESessionLabelDefinition, PPPoESessionLabelRule } from "@/lib/api/pppoe-server";
 
 const METRIC_OPTIONS: { value: NonNullable<PPPoESessionLabelRule["numerator"]>; label: "rxBytes" | "txBytes" | "rxRate" | "txRate" }[] = [
@@ -82,7 +82,7 @@ export function SessionLabelRegistryDialog({
           numerator: "rx_bytes",
           denominator: "tx_bytes",
           operator: ">",
-          factor: 0.1,
+          factor: DEFAULT_LABEL_FACTOR,
         },
       },
     ]);
@@ -216,7 +216,7 @@ export function SessionLabelRegistryDialog({
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
-                      <Label>{t("numerator")}</Label>
+                      <Label htmlFor={`label-numerator-${index}`}>{t("numerator")}</Label>
                       <Select
                         value={label.rules?.numerator ?? "rx_bytes"}
                         onValueChange={(value) =>
@@ -225,7 +225,7 @@ export function SessionLabelRegistryDialog({
                           })
                         }
                       >
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id={`label-numerator-${index}`} className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {METRIC_OPTIONS.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>{t(`metrics.${opt.label}`)}</SelectItem>
@@ -234,7 +234,7 @@ export function SessionLabelRegistryDialog({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>{t("denominator")}</Label>
+                      <Label htmlFor={`label-denominator-${index}`}>{t("denominator")}</Label>
                       <Select
                         value={label.rules?.denominator ?? "tx_bytes"}
                         onValueChange={(value) =>
@@ -243,7 +243,7 @@ export function SessionLabelRegistryDialog({
                           })
                         }
                       >
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id={`label-denominator-${index}`} className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {METRIC_OPTIONS.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>{t(`metrics.${opt.label}`)}</SelectItem>
@@ -252,7 +252,7 @@ export function SessionLabelRegistryDialog({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>{t("operator")}</Label>
+                      <Label htmlFor={`label-operator-${index}`}>{t("operator")}</Label>
                       <Select
                         value={label.rules?.operator ?? ">"}
                         onValueChange={(value) =>
@@ -261,7 +261,7 @@ export function SessionLabelRegistryDialog({
                           })
                         }
                       >
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id={`label-operator-${index}`} className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value=">">&gt;</SelectItem>
                           <SelectItem value=">=">&ge;</SelectItem>
@@ -271,12 +271,13 @@ export function SessionLabelRegistryDialog({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>{t("factor")}</Label>
+                      <Label htmlFor={`label-factor-${index}`}>{t("factor")}</Label>
                       <Input
+                        id={`label-factor-${index}`}
                         type="number"
                         step="0.01"
-                        min="0"
-                        value={Number.isNaN(label.rules?.factor) ? "" : (label.rules?.factor ?? 0.1)}
+                        min={PPPOE_LABEL_LIMITS.factorMin}
+                        value={Number.isNaN(label.rules?.factor) ? "" : (label.rules?.factor ?? DEFAULT_LABEL_FACTOR)}
                         // A cleared box is NaN, which the save check rejects (never a silent 0).
                         onChange={(e) => updateRuleAt(index, { factor: e.target.value === "" ? NaN : Number(e.target.value) })}
                       />

@@ -10,3 +10,4 @@ export { InterfaceModal } from "./InterfaceModal";
 export { PPPOptionsModal } from "./PPPOptionsModal";
 export { AdvancedSettingsModal } from "./AdvancedSettingsModal";
 export { PPPoEStatsChart } from "./PPPoEStatsChart";
+export { SessionLabelRegistryDialog } from "./SessionLabelRegistryDialog";
