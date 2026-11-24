@@ -1,13 +1,88 @@
-"""PPPoE Server Command Mapper."""
-from typing import List, Dict, Any
+"""PPPoE Server Command Mapper.
+
+Shared ``service pppoe-server`` commands for VyOS 1.4 and 1.5. The 1.5-only
+``authentication any-login``, ``interface <x> vlan-mon`` and ``ppp-options
+ipv6-peer-interface-id-secret`` leaves live on the 1.5 subclass in
+``pppoe_server_versions``.
+"""
+from typing import Any, Dict, FrozenSet, List
+
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "pppoe-server"]
 
 
 class PPPoEServerMapper(BaseFeatureMapper):
-    def __init__(self, version: str):
-        super().__init__(version)
+    """Shared PPPoE server commands."""
+
+    # node -> path methods that only the version subclass defines
+    _VERSIONED_NODES = {
+        "any_login": ("get_auth_any_login",),
+        "vlan_mon": ("get_interface_vlan_mon",),
+        "ipv6_peer_interface_id_secret": (
+            "get_ppp_ipv6_peer_interface_id_secret",
+            "get_ppp_ipv6_peer_interface_id_secret_delete",
+        ),
+    }
+
+    # ========================================================================
+    # Version allowlist
+    # ========================================================================
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only leaves this device has.
+
+        A node counts when every path method below it is on this mapper.
+        Capabilities and the builder read this set instead of the version
+        string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"pppoe-server {node} is not supported on this device")
+
+    # ========================================================================
+    # Allowed values (lab ``allowed:`` / ``val_help`` lists)
+    # ========================================================================
+
+    def auth_modes(self) -> List[str]:
+        return ["local", "radius", "noauth"]
+
+    def auth_protocols(self) -> List[str]:
+        return ["pap", "chap", "mschap", "mschap-v2"]
+
+    def called_sid_formats(self) -> List[str]:
+        return ["ifname", "ifname:mac"]
+
+    def ppp_negotiation_modes(self) -> List[str]:
+        """``ppp-options ipv4`` and ``ppp-options ipv6`` values."""
+        return ["deny", "allow", "prefer", "require"]
+
+    def mppe_modes(self) -> List[str]:
+        return ["require", "prefer", "deny"]
+
+    def ipv6_interface_id_keywords(self) -> List[str]:
+        """Keywords ``ppp-options ipv6-interface-id`` takes besides x:x:x:x."""
+        return ["random"]
+
+    def ipv6_peer_interface_id_keywords(self) -> List[str]:
+        """Keywords ``ppp-options ipv6-peer-interface-id`` takes besides x:x:x:x."""
+        return ["random", "calling-sid", "ipv4-addr"]
+
+    def session_control_modes(self) -> List[str]:
+        return ["deny", "disable", "replace"]
+
+    def thread_count_keywords(self) -> List[str]:
+        """Keywords ``thread-count`` takes besides a number."""
+        return ["all", "half"]
+
+    def log_levels(self) -> List[str]:
+        return ["0", "1", "2", "3", "4", "5"]
 
     # ========================================================================
     # Global settings
@@ -28,16 +103,13 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_service_name(self, value: str) -> List[str]:
         return BASE + ["service-name", value]
 
-    def get_service_name_delete(self) -> List[str]:
-        return BASE + ["service-name"]
+    def get_service_name_delete(self, value: str) -> List[str]:
+        return BASE + ["service-name", value]
 
     def get_gateway_address(self, address: str) -> List[str]:
         return BASE + ["gateway-address", address]
 
-    def get_gateway_address_delete(self, address: str) -> List[str]:
-        return BASE + ["gateway-address", address]
-
-    def get_gateway_address_all_delete(self) -> List[str]:
+    def get_gateway_address_delete(self) -> List[str]:
         return BASE + ["gateway-address"]
 
     def get_name_server(self, address: str) -> List[str]:
@@ -288,12 +360,6 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_auth_mode_delete(self) -> List[str]:
         return BASE + ["authentication", "mode"]
 
-    def get_auth_any_login(self) -> List[str]:
-        return BASE + ["authentication", "any-login"]
-
-    def get_auth_any_login_delete(self) -> List[str]:
-        return BASE + ["authentication", "any-login"]
-
     def get_auth_protocols(self, protocol: str) -> List[str]:
         return BASE + ["authentication", "protocols", protocol]
 
@@ -521,8 +587,14 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_ipv6_pool_delete(self, name: str) -> List[str]:
         return BASE + ["client-ipv6-pool", name]
 
+    def get_ipv6_pool_prefix(self, name: str, prefix: str) -> List[str]:
+        return BASE + ["client-ipv6-pool", name, "prefix", prefix]
+
     def get_ipv6_pool_prefix_mask(self, name: str, prefix: str, mask: str) -> List[str]:
         return BASE + ["client-ipv6-pool", name, "prefix", prefix, "mask", mask]
+
+    def get_ipv6_pool_prefix_mask_delete(self, name: str, prefix: str) -> List[str]:
+        return BASE + ["client-ipv6-pool", name, "prefix", prefix, "mask"]
 
     def get_ipv6_pool_prefix_delete(self, name: str, prefix: str) -> List[str]:
         return BASE + ["client-ipv6-pool", name, "prefix", prefix]
@@ -552,16 +624,7 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_interface_vlan_all_delete(self, iface: str) -> List[str]:
         return BASE + ["interface", iface, "vlan"]
 
-    def get_interface_vlan_mon(self, iface: str) -> List[str]:
-        return BASE + ["interface", iface, "vlan-mon"]
-
-    def get_interface_vpp_cp(self, iface: str) -> List[str]:
-        return BASE + ["interface", iface, "vpp-cp"]
-
-    def get_interface_combined(self, iface: str, value: str) -> List[str]:
-        return BASE + ["interface", iface, "combined", value]
-
-    def get_interface_combined_delete(self, iface: str) -> List[str]:
+    def get_interface_combined(self, iface: str) -> List[str]:
         return BASE + ["interface", iface, "combined"]
 
     # ========================================================================
@@ -572,245 +635,18 @@ class PPPoEServerMapper(BaseFeatureMapper):
         return BASE
 
     # ========================================================================
+    # Op mode
+    # ========================================================================
+
+    def session_reset_path(self, username: str) -> List[str]:
+        """``reset pppoe-server username <name>``: terminate a user's sessions."""
+        return ["pppoe-server", "username", username]
+
+    # ========================================================================
     # Config parsing
     # ========================================================================
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
-        cfg = full_config.get("service", {}).get("pppoe-server", {})
-        if not cfg:
-            return {
-                "configured": False,
-                "description": None,
-                "access_concentrator": None,
-                "service_name": None,
-                "gateway_addresses": [],
-                "name_servers": [],
-                "wins_servers": [],
-                "mtu": None,
-                "max_concurrent_sessions": None,
-                "thread_count": None,
-                "default_pool": None,
-                "default_ipv6_pool": None,
-                "session_control": None,
-                "accept_any_service": False,
-                "accept_blank_service": False,
-                "pado_delays": [],
-                "log": {},
-                "shaper": {},
-                "snmp": {},
-                "extended_scripts": {},
-                "limits": {},
-                "ppp_options": {},
-                "authentication": {},
-                "client_ip_pools": [],
-                "client_ipv6_pools": [],
-                "interfaces": [],
-            }
+        from .config_parse import parse_config as parse_pppoe_server_config
 
-        client_ip_pools = self._parse_client_ip_pools(cfg.get("client-ip-pool", {}))
-        client_ipv6_pools = self._parse_client_ipv6_pools(cfg.get("client-ipv6-pool", {}))
-        interfaces = self._parse_interfaces(cfg.get("interface", {}))
-        auth = self._parse_authentication(cfg.get("authentication", {}))
-
-        return {
-            "configured": True,
-            "description": cfg.get("description"),
-            "access_concentrator": cfg.get("access-concentrator"),
-            "service_name": cfg.get("service-name"),
-            "gateway_addresses": self._normalize_to_list(cfg.get("gateway-address")),
-            "name_servers": self._normalize_to_list(cfg.get("name-server")),
-            "wins_servers": self._normalize_to_list(cfg.get("wins-server")),
-            "mtu": cfg.get("mtu"),
-            "max_concurrent_sessions": cfg.get("max-concurrent-sessions"),
-            "thread_count": cfg.get("thread-count"),
-            "default_pool": cfg.get("default-pool"),
-            "default_ipv6_pool": cfg.get("default-ipv6-pool"),
-            "session_control": cfg.get("session-control"),
-            "accept_any_service": "accept-any-service" in cfg,
-            "accept_blank_service": "accept-blank-service" in cfg,
-            "pado_delays": self._parse_pado_delays(cfg.get("pado-delay", {})),
-            "log": self._parse_log(cfg.get("log", {})),
-            "shaper": self._parse_shaper(cfg.get("shaper", {})),
-            "snmp": self._parse_snmp(cfg.get("snmp", {})),
-            "extended_scripts": self._parse_extended_scripts(cfg.get("extended-scripts", {})),
-            "limits": self._parse_limits(cfg.get("limits", {})),
-            "ppp_options": self._parse_ppp_options(cfg.get("ppp-options", {})),
-            "authentication": auth,
-            "client_ip_pools": list(client_ip_pools.values()),
-            "client_ipv6_pools": list(client_ipv6_pools.values()),
-            "interfaces": list(interfaces.values()),
-            "totals": {
-                "local_users": len(auth.get("local_users", [])),
-                "radius_servers": len(auth.get("radius", {}).get("servers", [])),
-                "client_ip_pools": len(client_ip_pools),
-                "client_ipv6_pools": len(client_ipv6_pools),
-                "interfaces": len(interfaces),
-            },
-        }
-
-    def _normalize_to_list(self, value: Any) -> List[str]:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return value
-        return [value]
-
-    def _parse_pado_delays(self, cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
-        delays = []
-        for delay, delay_cfg in cfg.items():
-            delays.append({
-                "delay": delay,
-                "sessions": delay_cfg.get("sessions") if isinstance(delay_cfg, dict) else None,
-            })
-        return delays
-
-    def _parse_log(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        return {"level": cfg.get("level")}
-
-    def _parse_shaper(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        return {"fwmark": cfg.get("fwmark")}
-
-    def _parse_snmp(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        return {"master_agent": "master-agent" in cfg}
-
-    def _parse_extended_scripts(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "on_change": cfg.get("on-change"),
-            "on_down": cfg.get("on-down"),
-            "on_pre_up": cfg.get("on-pre-up"),
-            "on_up": cfg.get("on-up"),
-        }
-
-    def _parse_limits(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "burst": cfg.get("burst"),
-            "connection_limit": cfg.get("connection-limit"),
-            "timeout": cfg.get("timeout"),
-        }
-
-    def _parse_ppp_options(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "ipv4": cfg.get("ipv4"),
-            "ipv6": cfg.get("ipv6"),
-            "mppe": cfg.get("mppe"),
-            "disable_ccp": "disable-ccp" in cfg,
-            "interface_cache": cfg.get("interface-cache"),
-            "ipv6_interface_id": cfg.get("ipv6-interface-id"),
-            "ipv6_peer_interface_id": cfg.get("ipv6-peer-interface-id"),
-            "ipv6_accept_peer_interface_id": "ipv6-accept-peer-interface-id" in cfg,
-            "lcp_echo_failure": cfg.get("lcp-echo-failure"),
-            "lcp_echo_interval": cfg.get("lcp-echo-interval"),
-            "lcp_echo_timeout": cfg.get("lcp-echo-timeout"),
-            "min_mtu": cfg.get("min-mtu"),
-            "mru": cfg.get("mru"),
-        }
-
-    def _parse_authentication(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        local_users = []
-        for username, user_cfg in cfg.get("local-users", {}).get("username", {}).items():
-            rate_limit = user_cfg.get("rate-limit", {}) if isinstance(user_cfg, dict) else {}
-            local_users.append({
-                "username": username,
-                "password": "***" if user_cfg.get("password") else None,
-                "disabled": "disable" in user_cfg,
-                "static_ip": user_cfg.get("static-ip"),
-                "rate_limit": {
-                    "download": rate_limit.get("download"),
-                    "upload": rate_limit.get("upload"),
-                },
-            })
-
-        return {
-            "mode": cfg.get("mode"),
-            "protocols": self._normalize_to_list(cfg.get("protocols")),
-            "any_login": "any-login" in cfg,
-            "local_users": local_users,
-            "radius": self._parse_radius(cfg.get("radius", {})),
-        }
-
-    def _parse_radius(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        servers = []
-        for addr, srv_cfg in cfg.get("server", {}).items():
-            srv_cfg = srv_cfg if isinstance(srv_cfg, dict) else {}
-            servers.append({
-                "address": addr,
-                "key": "***" if srv_cfg.get("key") else None,
-                "port": srv_cfg.get("port"),
-                "acct_port": srv_cfg.get("acct-port"),
-                "priority": srv_cfg.get("priority"),
-                "fail_time": srv_cfg.get("fail-time"),
-                "disabled": "disable" in srv_cfg,
-                "backup": "backup" in srv_cfg,
-                "disable_accounting": "disable-accounting" in srv_cfg,
-            })
-
-        dae = cfg.get("dynamic-author", {}) if isinstance(cfg.get("dynamic-author"), dict) else {}
-        rate_limit = cfg.get("rate-limit", {}) if isinstance(cfg.get("rate-limit"), dict) else {}
-
-        return {
-            "servers": servers,
-            "source_address": cfg.get("source-address"),
-            "timeout": cfg.get("timeout"),
-            "max_try": cfg.get("max-try"),
-            "nas_identifier": cfg.get("nas-identifier"),
-            "nas_ip_address": cfg.get("nas-ip-address"),
-            "accounting_interim_interval": cfg.get("accounting-interim-interval"),
-            "acct_interim_jitter": cfg.get("acct-interim-jitter"),
-            "acct_timeout": cfg.get("acct-timeout"),
-            "preallocate_vif": "preallocate-vif" in cfg,
-            "called_sid_format": cfg.get("called-sid-format"),
-            "dynamic_author": {
-                "server": dae.get("server"),
-                "port": dae.get("port"),
-                "key": "***" if dae.get("key") else None,
-            },
-            "rate_limit": {
-                "enable": "enable" in rate_limit,
-                "attribute": rate_limit.get("attribute"),
-                "vendor": rate_limit.get("vendor"),
-                "multiplier": rate_limit.get("multiplier"),
-            },
-        }
-
-    def _parse_client_ip_pools(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        pools = {}
-        for name, pool_cfg in cfg.items():
-            pool_cfg = pool_cfg if isinstance(pool_cfg, dict) else {}
-            pools[name] = {
-                "name": name,
-                "ranges": self._normalize_to_list(pool_cfg.get("range")),
-                "next_pool": pool_cfg.get("next-pool"),
-            }
-        return pools
-
-    def _parse_client_ipv6_pools(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        pools = {}
-        for name, pool_cfg in cfg.items():
-            pool_cfg = pool_cfg if isinstance(pool_cfg, dict) else {}
-            prefixes = []
-            for prefix, pfx_cfg in pool_cfg.get("prefix", {}).items():
-                pfx_cfg = pfx_cfg if isinstance(pfx_cfg, dict) else {}
-                prefixes.append({"prefix": prefix, "mask": pfx_cfg.get("mask")})
-            delegates = []
-            for prefix, del_cfg in pool_cfg.get("delegate", {}).items():
-                del_cfg = del_cfg if isinstance(del_cfg, dict) else {}
-                delegates.append({"prefix": prefix, "delegation_prefix": del_cfg.get("delegation-prefix")})
-            pools[name] = {
-                "name": name,
-                "prefixes": prefixes,
-                "delegates": delegates,
-            }
-        return pools
-
-    def _parse_interfaces(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
-        interfaces = {}
-        for iface, iface_cfg in cfg.items():
-            iface_cfg = iface_cfg if isinstance(iface_cfg, dict) else {}
-            interfaces[iface] = {
-                "interface": iface,
-                "vlans": self._normalize_to_list(iface_cfg.get("vlan")),
-                "vlan_mon": "vlan-mon" in iface_cfg,
-                "vpp_cp": "vpp-cp" in iface_cfg,
-                "combined": iface_cfg.get("combined"),
-            }
-        return interfaces
+        return parse_pppoe_server_config(self, full_config)
