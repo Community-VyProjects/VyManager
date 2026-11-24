@@ -229,6 +229,7 @@
     "daeKey": "DAE 密钥",
     "daeKeyEnter": "输入 DAE 密钥",
     "daeKeyRequired": "DAE 服务器需要密钥",
+    "daeServerRequired": "DAE 密钥需要 DAE 服务器",
     "rateLimiting": "限速",
     "enableRateLimiting": "启用限速",
     "attribute": "属性",

@@ -229,6 +229,7 @@
     "daeKey": "DAE Key",
     "daeKeyEnter": "Enter DAE key",
     "daeKeyRequired": "A DAE server needs a key",
+    "daeServerRequired": "A DAE key needs a DAE server",
     "rateLimiting": "Rate Limiting",
     "enableRateLimiting": "Enable Rate Limiting",
     "attribute": "Attribute",

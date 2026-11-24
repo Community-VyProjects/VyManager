@@ -334,12 +334,23 @@ describe("radiusSettingsOps", () => {
     ]);
   });
 
-  it("keeps a stored DAE key that has no server on an untouched save", () => {
+  it("drops a stored DAE key that has no server, and rejects a typed key without one", () => {
     const untouched = { timeout: "", rate_limit_enable: false, rate_limit_attribute: "" };
     const keyOnly: IPoERadiusSettings = { servers: [], dynamic_author: { key: MASK } };
-    assert.deepEqual(radiusSettingsOps(keyOnly, draft({ ...untouched, dae_server: "", dae_port: "" })), []);
+    assert.deepEqual(radiusSettingsOps(keyOnly, draft({ ...untouched, dae_server: "", dae_port: "" })), [
+      { op: "delete_radius_dynamic_author" },
+    ]);
     const keyPort: IPoERadiusSettings = { servers: [], dynamic_author: { port: "1700", key: MASK } };
-    assert.deepEqual(radiusSettingsOps(keyPort, draft({ ...untouched, dae_server: "", dae_port: "1700" })), []);
+    assert.deepEqual(radiusSettingsOps(keyPort, draft({ ...untouched, dae_server: "", dae_port: "1700" })), [
+      { op: "delete_radius_dynamic_author_key" },
+    ]);
+    assert.deepEqual(radiusSettingsOps(keyPort, draft({ ...untouched, dae_server: "", dae_port: "" })), [
+      { op: "delete_radius_dynamic_author" },
+    ]);
+    assert.equal(radiusSettingsProblem(keyOnly, draft({ ...untouched, dae_server: "", dae_key: "k" })), "daeServerRequired");
+    assert.deepEqual(radiusSettingsOps(keyOnly, draft({ ...untouched, dae_server: "192.0.2.9", dae_port: "" })), [
+      { op: "set_radius_dynamic_author_server", value: "192.0.2.9" },
+    ]);
   });
 
   it("treats a blank DAE key as not typed", () => {

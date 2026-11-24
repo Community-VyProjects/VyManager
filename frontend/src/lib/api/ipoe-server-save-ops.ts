@@ -381,13 +381,15 @@ export interface IPoERadiusSettingsDraft {
   rate_limit_multiplier: string;
 }
 
-export type IPoERadiusSettingsProblem = "daeKeyRequired";
+export type IPoERadiusSettingsProblem = "daeKeyRequired" | "daeServerRequired";
 
 export function radiusSettingsProblem(
   current: IPoERadiusSettings,
   draft: IPoERadiusSettingsDraft,
 ): IPoERadiusSettingsProblem | null {
   if (text(draft.dae_server) && !current.dynamic_author?.key && !secret(draft.dae_key)) return "daeKeyRequired";
+  // The key only serves the DAE server; a save without a server drops it.
+  if (!text(draft.dae_server) && secret(draft.dae_key)) return "daeServerRequired";
   return null;
 }
 
@@ -407,11 +409,12 @@ export function radiusSettingsOps(current: IPoERadiusSettings, draft: IPoERadius
 
   const dae = current.dynamic_author;
   const daeKey = secret(draft.dae_key);
-  // The key only serves the DAE server: clearing the server drops it too.
-  const serverCleared = !!text(dae?.server) && !text(draft.dae_server);
-  const keyAfter = !!daeKey || (!!dae?.key && !serverCleared);
+  // The key only serves the DAE server: with no server in the draft (cleared
+  // now, or a stored key that never had one) the key is dropped too.
+  const serverAfter = !!text(draft.dae_server);
+  const keyAfter = serverAfter && (!!daeKey || !!dae?.key);
   const daeBefore = !!text(dae?.server) || !!text(dae?.port) || !!dae?.key;
-  const daeAfter = !!text(draft.dae_server) || !!text(draft.dae_port) || keyAfter;
+  const daeAfter = serverAfter || !!text(draft.dae_port) || keyAfter;
   if (daeBefore && !daeAfter) {
     // Everything cleared: drop the node instead of leaving it empty.
     ops.push({ op: "delete_radius_dynamic_author" });
@@ -419,7 +422,7 @@ export function radiusSettingsOps(current: IPoERadiusSettings, draft: IPoERadius
     leaf(ops, "set_radius_dynamic_author_server", "delete_radius_dynamic_author_server", dae?.server, draft.dae_server);
     leaf(ops, "set_radius_dynamic_author_port", "delete_radius_dynamic_author_port", dae?.port, draft.dae_port);
     if (daeKey) ops.push({ op: "set_radius_dynamic_author_key", value: daeKey });
-    else if (serverCleared && dae?.key) ops.push({ op: "delete_radius_dynamic_author_key" });
+    else if (!keyAfter && dae?.key) ops.push({ op: "delete_radius_dynamic_author_key" });
   }
 
   const rl = current.rate_limit;
