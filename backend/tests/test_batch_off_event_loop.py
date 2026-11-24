@@ -161,7 +161,6 @@ RIP_OFFLOADED = [
 
 CONSOLE_SERVER_OFFLOADED = [
     ("get_console_server_config", "routers/console_server/console_server.py", "get_full_config", 1),
-    ("console_server_batch_configure", "routers/console_server/console_server.py", "execute_batch", 1),
 ]
 
 # reboot_system and poweroff_system send through _run_power_action.

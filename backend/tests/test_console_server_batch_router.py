@@ -146,6 +146,13 @@ def test_config_returns_the_parse(client):
     assert client.permissions == [("read", "CONSOLE_SERVER")]
 
 
+def test_capabilities_require_read(client):
+    resp = client.http.get("/vyos/console-server/capabilities")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["features"]["console_server"]["supported"] is True
+    assert client.permissions == [("read", "CONSOLE_SERVER")]
+
+
 @pytest.mark.parametrize("operation", [
     {"op": "set_device"},
     {"op": "delete_device", "value": ""},

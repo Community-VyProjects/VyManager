@@ -81,7 +81,7 @@ class VyOSResponse(BaseModel):
 
 @router.get("/capabilities")
 async def get_console_server_capabilities(request: Request):
-    """Return console-server feature capabilities based on the VyOS version."""
+    """Return console-server feature capabilities."""
     await require_read_permission(request, FeatureGroup.CONSOLE_SERVER)
     try:
         service = get_session_vyos_service(request)
