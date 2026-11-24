@@ -7,9 +7,12 @@ All ethernet-specific endpoints for VyOS configuration.
 from fastapi import APIRouter, HTTPException, Request, Path
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, cast
 
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.interfaces import EthernetInterfaceMapper
+from vyos_mappers.interfaces.catalog import InterfaceCatalogMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from transceiver_status import TransceiverStatus, parse_transceiver_output
@@ -933,6 +936,8 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
 
         return capabilities
 
+    except HTTPException:
+        raise
     except KeyError as e:
         raise HTTPException(status_code=404, detail=f"Device not found: {str(e)}")
     except Exception as e:
@@ -950,8 +955,6 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
     # Check RBAC permission
     await require_read_permission(http_request, FeatureGroup.ETHERNET)
 
-    from vyos_mappers.interfaces import EthernetInterfaceMapper
-
     try:
         # Get service and retrieve raw config from cache
         service = get_session_vyos_service(http_request)
@@ -959,11 +962,16 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
         raw_config = full_config.get("interfaces", {}).get("ethernet", {})
 
         # Use mapper to parse config
-        mapper = EthernetInterfaceMapper(service.get_version())
+        mapper = cast(
+            EthernetInterfaceMapper,
+            CommandMapperRegistry.get_mapper("interface_ethernet", service.get_version() or ""),
+        )
         parsed_data = mapper.parse_interfaces_of_type(raw_config)
 
         # Return as Pydantic model
         return EthernetInterfacesConfigResponse(**parsed_data)
+    except HTTPException:
+        raise
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -985,14 +993,19 @@ async def get_ethernet_transceiver(
     await require_read_permission(http_request, FeatureGroup.ETHERNET)
     try:
         service = get_session_vyos_service(http_request)
+        catalog = cast(
+            InterfaceCatalogMapper,
+            CommandMapperRegistry.get_mapper("interface_catalog", service.get_version() or ""),
+        )
         response = await run_in_threadpool(
             service.device.show,
-            path=["interfaces", "ethernet", interface, "transceiver"],
+            path=catalog.get_ethernet_transceiver_show_path(interface),
         )
         if response.status != 200 or response.error:
             raise HTTPException(status_code=502, detail=response.error or "Unable to read transceiver diagnostics")
-        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
-        return parse_transceiver_output(interface, output or "")
+        # pyvyos unwraps the reply's ``data`` into ``result``, a str for op commands.
+        output = response.result if isinstance(response.result, str) else ""
+        return parse_transceiver_output(interface, output)
     except HTTPException:
         raise
     except Exception as e:

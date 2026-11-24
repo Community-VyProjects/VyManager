@@ -47,3 +47,7 @@ class InterfaceCatalogMapper(BaseFeatureMapper):
     def get_ethernet_show_path(self) -> List[str]:
         """Op path of ``show interfaces ethernet``."""
         return ["interfaces", "ethernet"]
+
+    def get_ethernet_transceiver_show_path(self, interface: str) -> List[str]:
+        """Op path of ``show interfaces ethernet <interface> transceiver``."""
+        return ["interfaces", "ethernet", interface, "transceiver"]
