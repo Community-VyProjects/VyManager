@@ -2,29 +2,41 @@
 WireGuard VPN Router
 
 API endpoints for managing VyOS WireGuard VPN configuration.
-Supports version-aware configuration for VyOS 1.4 and 1.5.
 
 Uses session-based architecture - VyOS instance comes from user's active session.
-Uses pyvyos generate method for key generation.
+Key generation and interface summaries are op-mode commands whose paths come
+from the WireGuard mapper.
 """
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional, cast
 from vyos_builders.wireguard import WireGuardBatchBuilder
+from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.wireguard import WireGuardMapper
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
+from wireguard_status import (
+    parse_wg_keypair,
+    parse_wg_preshared_key,
+    parse_wg_public_key,
+    parse_wg_summary,
+    wg_summary_names_interface,
+)
 import re
 import logging
 import requests as _requests
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vpn/wireguard", tags=["wireguard"])
+
+# Lab node.def for ``interfaces wireguard``: ``--regex 'wg[0-9]+'``.
+_INTERFACE_NAME = re.compile(r"wg[0-9]+", re.ASCII)
+
+_TIMEOUT_DETAIL = "VyOS API request timed out. Try increasing the timeout in instance settings."
 
 
 # ========================================================================
@@ -64,6 +76,62 @@ class VyOSResponse(BaseModel):
     error: Optional[str] = None
 
 
+class WireGuardPeerConfig(BaseModel):
+    """One configured peer. ``preshared_key`` is masked."""
+    name: str
+    public_key: Optional[str] = None
+    preshared_key: Optional[str] = None
+    allowed_ips: List[str]
+    address: Optional[str] = None
+    port: Optional[str] = None
+    persistent_keepalive: Optional[str] = None
+    description: Optional[str] = None
+    disabled: bool
+    host_name: Optional[str] = None
+
+
+class WireGuardInterfaceConfig(BaseModel):
+    """One configured interface. ``private_key`` is masked."""
+    name: str
+    description: Optional[str] = None
+    addresses: List[str]
+    port: Optional[str] = None
+    private_key: Optional[str] = None
+    mtu: Optional[str] = None
+    fwmark: Optional[str] = None
+    per_client_thread: bool
+    disabled: bool
+    mss_clamping: Optional[str] = None
+    peers: List[WireGuardPeerConfig]
+    peer_count: int
+
+
+class WireGuardConfigResponse(BaseModel):
+    interfaces: List[WireGuardInterfaceConfig]
+    total: int
+
+
+def _mapper(service: Any) -> WireGuardMapper:
+    return cast(WireGuardMapper, CommandMapperRegistry.get_mapper("wireguard", service.get_version() or ""))
+
+
+def _require_interface_name(interface_name: str) -> None:
+    if not _INTERFACE_NAME.fullmatch(interface_name):
+        raise HTTPException(status_code=400, detail="WireGuard interface must be named wgN")
+
+
+def _op_output(response: Any, action: str) -> str:
+    """Return op-mode text, or 502 when the device reports a failure.
+
+    pyvyos sets ``error`` on an HTTP 200 reply too, so both are checked.
+    """
+    if response.status != 200 or response.error:
+        logger.warning("WireGuard %s failed: %s", action, response.error)
+        raise HTTPException(status_code=502, detail=f"VyOS could not {action}")
+    result = response.result
+    return result if isinstance(result, str) else ""
+
+
 # ========================================================================
 # Endpoint 1: Capabilities
 # ========================================================================
@@ -86,7 +154,7 @@ async def get_wireguard_capabilities(request: Request):
         return capabilities
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -95,7 +163,7 @@ async def get_wireguard_capabilities(request: Request):
 # Endpoint 2: Config (Generalized Data)
 # ========================================================================
 
-@router.get("/config")
+@router.get("/config", response_model=WireGuardConfigResponse)
 async def get_wireguard_config(request: Request, refresh: bool = False):
     """
     Get all WireGuard configurations from VyOS.
@@ -105,60 +173,23 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
         refresh: If True, force refresh from VyOS
 
     Returns:
-        Generalized WireGuard configuration data
+        Interfaces with their peers; secrets are masked.
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-
-        # Fetch configuration from VyOS
+        mapper = _mapper(service)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        # Parse raw VyOS config into generalized structure
-        mapper = WireGuardMapper(version)
-        config = mapper.parse_config(full_config)
-
-        # Convert to list format for frontend
-        interfaces = []
-        for iface_name, iface_data in config.get("interfaces", {}).items():
-            peers = []
-            for peer_name, peer_data in iface_data.get("peers", {}).items():
-                peers.append({
-                    "name": peer_name,
-                    "public_key": peer_data.get("public_key"),
-                    "preshared_key": "***" if peer_data.get("preshared_key") else None,
-                    "allowed_ips": peer_data.get("allowed_ips", []),
-                    "address": peer_data.get("address"),
-                    "port": peer_data.get("port"),
-                    "persistent_keepalive": peer_data.get("persistent_keepalive"),
-                    "description": peer_data.get("description"),
-                    "disabled": peer_data.get("disabled", False),
-                    "host_name": peer_data.get("host_name"),
-                })
-
-            interfaces.append({
-                "name": iface_name,
-                "description": iface_data.get("description"),
-                "addresses": iface_data.get("address", []),
-                "port": iface_data.get("port"),
-                "private_key": "***" if iface_data.get("private_key") else None,
-                "mtu": iface_data.get("mtu"),
-                "fwmark": iface_data.get("fwmark"),
-                "per_client_thread": iface_data.get("per_client_thread", False),
-                "disabled": iface_data.get("disabled", False),
-                "mss_clamping": full_config.get("interfaces", {}).get("wireguard", {}).get(iface_name, {}).get("ip", {}).get("adjust-mss") or None,
-                "peers": peers,
-                "peer_count": len(peers),
-            })
-
-        return {
-            "interfaces": interfaces,
-            "total": len(interfaces),
-        }
+        return WireGuardConfigResponse(**mapper.parse_config(full_config))
     except HTTPException:
         raise
-    except Exception as e:
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out reading WireGuard config")
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed reading WireGuard config: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS API request failed")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -175,6 +206,7 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
+    _require_interface_name(body.interface)
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -183,57 +215,37 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
 
         try:
             for operation in body.operations:
-                method_name = operation.op
-                method = resolve_batch_method(builder, method_name)
+                call_item_batch_op(
+                    builder, operation.op, body.interface, operation.value,
+                    bound={"peer": None},
+                )
 
-                sig = inspect.signature(method)
-                params = list(sig.parameters.keys())
-
-                # Build arguments
-                args = []
-                if "interface" in params:
-                    args.append(body.interface)
-                if operation.value and len(params) > len(args):
-                    args.append(operation.value)
-
-                method(*args)
-
-            # Process optional peer operations (for atomic interface+peer creation on VyOS 1.4)
-            if body.peers:
-                for peer_group in body.peers:
-                    for operation in peer_group.operations:
-                        peer_method_name = operation.op
-                        peer_method = resolve_batch_method(builder, peer_method_name)
-
-                        sig = inspect.signature(peer_method)
-                        params = list(sig.parameters.keys())
-
-                        args = []
-                        if "interface" in params:
-                            args.append(body.interface)
-                        if "peer" in params:
-                            args.append(peer_group.peer)
-                        if operation.value and len(params) > len(args):
-                            args.append(operation.value)
-
-                        peer_method(*args)
+            # Optional peer operations, committed with the interface (a 1.4 interface needs a peer)
+            for peer_group in body.peers or []:
+                for operation in peer_group.operations:
+                    call_item_batch_op(
+                        builder, operation.op, body.interface, operation.value,
+                        bound={"peer": peer_group.peer},
+                    )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-        # Execute batch
         response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Interface configuration updated"},
+            data={"message": "Interface configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None
         )
     except HTTPException:
         raise
     except _requests.exceptions.Timeout:
         logger.warning("VyOS API timed out during interface batch operation")
-        raise HTTPException(status_code=504, detail="VyOS API request timed out. Try increasing the timeout in instance settings.")
-    except Exception as e:
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during interface batch operation: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS API request failed")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -250,6 +262,7 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
+    _require_interface_name(body.interface)
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -258,126 +271,92 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
 
         try:
             for operation in body.operations:
-                method_name = operation.op
-                method = resolve_batch_method(builder, method_name)
-
-                sig = inspect.signature(method)
-                params = list(sig.parameters.keys())
-
-                # Build arguments
-                args = []
-                if "interface" in params:
-                    args.append(body.interface)
-                if "peer" in params:
-                    args.append(body.peer)
-                if operation.value and len(params) > len(args):
-                    args.append(operation.value)
-
-                method(*args)
+                call_item_batch_op(
+                    builder, operation.op, body.interface, operation.value,
+                    bound={"peer": body.peer},
+                )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-        # Execute batch
         response = await run_in_threadpool(service.execute_batch, builder)
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Peer configuration updated"},
+            data={"message": "Peer configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None
         )
     except HTTPException:
         raise
     except _requests.exceptions.Timeout:
         logger.warning("VyOS API timed out during peer batch operation")
-        raise HTTPException(status_code=504, detail="VyOS API request timed out. Try increasing the timeout in instance settings.")
-    except Exception as e:
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during peer batch operation: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS API request failed")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
-# Endpoint 5: Generate Keypair (uses pyvyos generate)
+# Endpoint 5: Generate Keypair
 # ========================================================================
 
 @router.post("/generate-keypair")
 async def generate_keypair(request: Request):
     """
-    Generate a new WireGuard keypair using pyvyos generate method.
+    Generate a new WireGuard keypair (``generate pki wireguard key-pair``).
 
     Returns the private and public keys for manual use.
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = get_session_vyos_service(request)
-
-        # Use pyvyos generate method with wireguard key-pair path
-        response = service.device.generate(path=["pki", "wireguard", "key-pair"])
-
-        if response.status != 200:
-            return VyOSResponse(
-                success=False,
-                error=response.error or "Failed to generate keypair"
-            )
-
-        # Parse the response to extract keys
-        output = response.result if hasattr(response, 'result') else str(response)
-
-        # Try to extract private and public keys from output
-        private_key = None
-        public_key = None
-
-        if isinstance(output, str):
-            lines = output.strip().split('\n')
-            for line in lines:
-                line_lower = line.lower()
-                if 'private' in line_lower and ':' in line:
-                    private_key = line.split(':', 1)[1].strip()
-                elif 'public' in line_lower and ':' in line:
-                    public_key = line.split(':', 1)[1].strip()
+        mapper = _mapper(service)
+        response = await run_in_threadpool(service.device.generate, path=mapper.get_keypair_generate_path())
+        private_key, public_key = parse_wg_keypair(_op_output(response, "generate a keypair"))
+        if not private_key or not public_key:
+            raise HTTPException(status_code=502, detail="VyOS returned no keypair")
 
         return VyOSResponse(
             success=True,
             data={
                 "private_key": private_key,
                 "public_key": public_key,
-                "raw_output": output,
             }
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out during keypair generation")
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during keypair generation: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS could not generate a keypair")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
-# Endpoint 6: Generate Preshared Key (uses pyvyos generate)
+# Endpoint 6: Generate Preshared Key
 # ========================================================================
 
 @router.post("/generate-psk")
 async def generate_psk(request: Request):
     """
-    Generate a WireGuard preshared key using pyvyos generate method.
+    Generate a WireGuard preshared key (``generate pki wireguard preshared-key``).
 
     Returns the PSK for manual use.
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = get_session_vyos_service(request)
-
-        # Use pyvyos generate method with preshared-key path
-        response = service.device.generate(path=["pki", "wireguard", "preshared-key"])
-
-        if response.status != 200:
-            return VyOSResponse(
-                success=False,
-                error=response.error or "Failed to generate preshared key"
-            )
-
-        output = response.result if hasattr(response, 'result') else str(response)
-
-        # The output should be the key directly or in a format we can parse
-        preshared_key = output.strip() if isinstance(output, str) else output
+        mapper = _mapper(service)
+        response = await run_in_threadpool(service.device.generate, path=mapper.get_preshared_key_generate_path())
+        preshared_key = parse_wg_preshared_key(_op_output(response, "generate a preshared key"))
+        if not preshared_key:
+            raise HTTPException(status_code=502, detail="VyOS returned no preshared key")
 
         return VyOSResponse(
             success=True,
@@ -387,13 +366,19 @@ async def generate_psk(request: Request):
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out during preshared key generation")
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during preshared key generation: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS could not generate a preshared key")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
-# Endpoint 7: Get Interface Public Key
+# Endpoint 7: Interface Status
 # ========================================================================
 
 @router.get("/interface/{interface_name}/status")
@@ -401,236 +386,62 @@ async def get_interface_status(request: Request, interface_name: str):
     """
     Get runtime status for a WireGuard interface including peer handshake times and transfer stats.
 
-    Uses VyOS show command: show interfaces wireguard <interface> summary
-    Returns connection status for each peer based on latest handshake time.
+    Reads ``show interfaces wireguard <interface> summary``; peers are keyed by public key.
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
+    _require_interface_name(interface_name)
     try:
         service = get_session_vyos_service(request)
-
-        # Use VyOS show command to get WireGuard interface summary
-        # Command: show interfaces wireguard <interface> summary
-        response = service.device.show(
-            path=["interfaces", "wireguard", interface_name, "summary"]
+        mapper = _mapper(service)
+        response = await run_in_threadpool(
+            service.device.show, path=mapper.get_interface_summary_show_path(interface_name)
         )
-
-        if response.status != 200:
-            return VyOSResponse(
-                success=False,
-                error=response.error or f"Failed to get interface {interface_name} status"
-            )
-
-        output = response.result if hasattr(response, 'result') else str(response)
-
-        # Parse the output to extract peer status information
-        # Handles two formats:
-        # - Stream release: "peer: <public_key>" (public key directly on peer line)
-        # - Rolling release: "peer: <name>" then "public key: <key>" on separate line
-        peers_status = {}
-        current_peer_data = None
-
-        def is_wireguard_public_key(value: str) -> bool:
-            """Check if a string looks like a WireGuard public key (base64, ~44 chars)."""
-            return bool(re.match(r'^[A-Za-z0-9+/=]{43,44}$', value))
-
-        if isinstance(output, str):
-            lines = output.strip().split('\n')
-            for line in lines:
-                line_stripped = line.strip()
-
-                # Detect peer section
-                if line_stripped.startswith('peer:'):
-                    # Save previous peer if we have one with a public key
-                    if current_peer_data and current_peer_data.get("public_key"):
-                        peers_status[current_peer_data["public_key"]] = current_peer_data
-
-                    peer_value = line_stripped.split(':', 1)[1].strip()
-                    current_peer_data = {
-                        "peer_name": None,
-                        "public_key": None,
-                        "latest_handshake": None,
-                        "latest_handshake_seconds": None,
-                        "transfer_rx": None,
-                        "transfer_tx": None,
-                        "endpoint": None,
-                    }
-
-                    # Check if this is stream format (public key directly) or rolling (peer name)
-                    if is_wireguard_public_key(peer_value):
-                        # Stream format: peer line contains the public key
-                        current_peer_data["public_key"] = peer_value
-                    else:
-                        # Rolling format: peer line contains the peer name
-                        current_peer_data["peer_name"] = peer_value
-
-                elif current_peer_data:
-                    # Parse peer details
-                    line_lower = line_stripped.lower()
-
-                    if line_lower.startswith('public key:'):
-                        # Rolling release format - public key on separate line
-                        public_key = line_stripped.split(':', 1)[1].strip()
-                        current_peer_data["public_key"] = public_key
-
-                    elif 'latest handshake:' in line_lower:
-                        handshake_str = line_stripped.split(':', 1)[1].strip()
-                        current_peer_data["latest_handshake"] = handshake_str
-                        # Convert to seconds for comparison
-                        seconds = _parse_handshake_time(handshake_str)
-                        current_peer_data["latest_handshake_seconds"] = seconds
-
-                    elif line_lower.startswith('transfer:'):
-                        transfer_str = line_stripped.split(':', 1)[1].strip()
-                        current_peer_data["transfer"] = transfer_str
-                        # Parse rx/tx
-                        if 'received' in transfer_str and 'sent' in transfer_str:
-                            parts = transfer_str.split(',')
-                            for part in parts:
-                                part = part.strip()
-                                if 'received' in part:
-                                    current_peer_data["transfer_rx"] = part.replace('received', '').strip()
-                                elif 'sent' in part:
-                                    current_peer_data["transfer_tx"] = part.replace('sent', '').strip()
-
-                    elif line_lower.startswith('endpoint:'):
-                        endpoint_str = line_stripped.split(':', 1)[1].strip()
-                        current_peer_data["endpoint"] = endpoint_str
-
-            # Don't forget to save the last peer
-            if current_peer_data and current_peer_data.get("public_key"):
-                peers_status[current_peer_data["public_key"]] = current_peer_data
+        output = _op_output(response, f"read interface {interface_name} status")
+        if not wg_summary_names_interface(output):
+            raise HTTPException(status_code=404, detail=f"WireGuard interface {interface_name} is not up on the device")
 
         return VyOSResponse(
             success=True,
             data={
                 "interface": interface_name,
-                "peers": peers_status,
-                "raw_output": output,
+                "peers": parse_wg_summary(output),
             }
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out reading WireGuard interface status")
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed reading WireGuard interface status: %s", e)
+        raise HTTPException(status_code=502, detail=f"VyOS could not read interface {interface_name} status")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-def _parse_handshake_time(handshake_str: str) -> int | None:
-    """
-    Parse WireGuard handshake time string to seconds.
-
-    Handles two formats:
-    - Stream release: "1 minute, 32 seconds ago", "45 seconds ago"
-    - Rolling release: "0:00:48", "1:23:45" (H:MM:SS or M:SS format)
-
-    Examples:
-        "1 minute, 32 seconds ago" -> 92
-        "2 hours, 15 minutes, 30 seconds ago" -> 8130
-        "45 seconds ago" -> 45
-        "0:00:48" -> 48
-        "1:23:45" -> 5025
-        "(none)" -> None
-    """
-    if not handshake_str or handshake_str.lower() in ['(none)', 'none', '-']:
-        return None
-
-    handshake_str = handshake_str.strip()
-
-    # Check for time format (H:MM:SS or M:SS) - rolling release format
-    time_match = re.match(r'^(\d+):(\d{2}):(\d{2})$', handshake_str)
-    if time_match:
-        hours = int(time_match.group(1))
-        minutes = int(time_match.group(2))
-        seconds = int(time_match.group(3))
-        return hours * 3600 + minutes * 60 + seconds
-
-    # Check for M:SS format (minutes:seconds)
-    time_match_short = re.match(r'^(\d+):(\d{2})$', handshake_str)
-    if time_match_short:
-        minutes = int(time_match_short.group(1))
-        seconds = int(time_match_short.group(2))
-        return minutes * 60 + seconds
-
-    # Fall back to stream release format: "X minutes, Y seconds ago"
-    total_seconds = 0
-    handshake_lower = handshake_str.lower().replace(' ago', '').strip()
-
-    # Parse hours
-    if 'hour' in handshake_lower:
-        match = re.search(r'(\d+)\s*hour', handshake_lower)
-        if match:
-            total_seconds += int(match.group(1)) * 3600
-
-    # Parse minutes
-    if 'minute' in handshake_lower:
-        match = re.search(r'(\d+)\s*minute', handshake_lower)
-        if match:
-            total_seconds += int(match.group(1)) * 60
-
-    # Parse seconds
-    if 'second' in handshake_lower:
-        match = re.search(r'(\d+)\s*second', handshake_lower)
-        if match:
-            total_seconds += int(match.group(1))
-
-    return total_seconds if total_seconds > 0 else None
-
+# ========================================================================
+# Endpoint 8: Interface Public Key
+# ========================================================================
 
 @router.get("/interface/{interface_name}/public-key")
 async def get_interface_public_key(request: Request, interface_name: str):
     """
     Get the public key for a WireGuard interface.
 
-    Uses VyOS show command to get interface summary which includes the public key.
-    Command: show interfaces wireguard <interface> summary
+    Reads ``show interfaces wireguard <interface> public-key`` (``wg show <if> public-key``).
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
+    _require_interface_name(interface_name)
     try:
         service = get_session_vyos_service(request)
-
-        # Use VyOS show command to get WireGuard interface summary
-        # This returns the public key along with other interface info
-        response = service.device.show(
-            path=["interfaces", "wireguard", interface_name, "summary"]
+        mapper = _mapper(service)
+        response = await run_in_threadpool(
+            service.device.show, path=mapper.get_interface_public_key_show_path(interface_name)
         )
-
-        if response.status != 200:
-            return VyOSResponse(
-                success=False,
-                error=response.error or f"Failed to get interface {interface_name} summary"
-            )
-
-        output = response.result if hasattr(response, 'result') else str(response)
-
-        # Parse the output to extract public key
-        # The output format is like:
-        # interface: wg0
-        #   public key: QjGgy1nhsb1oA5CMHyhPOtGyXp9Sa24Yn2xBcrF+aQY=
-        #   private key: (hidden)
-        #   listening port: 51820
-        public_key = None
-
-        if isinstance(output, str):
-            lines = output.strip().split('\n')
-            for line in lines:
-                line_stripped = line.strip()
-                line_lower = line_stripped.lower()
-                if 'public key' in line_lower and ':' in line_stripped:
-                    # Extract the key after the colon
-                    parts = line_stripped.split(':', 1)
-                    if len(parts) >= 2:
-                        key_candidate = parts[1].strip()
-                        # Validate it looks like a WireGuard key (base64, 44 chars)
-                        if re.match(r'^[A-Za-z0-9+/=]{43,44}$', key_candidate):
-                            public_key = key_candidate
-                            break
-
+        public_key = parse_wg_public_key(_op_output(response, f"read interface {interface_name} public key"))
         if not public_key:
-            return VyOSResponse(
-                success=False,
-                error="Could not extract public key from interface summary",
-                data={"raw_output": output}
-            )
+            raise HTTPException(status_code=404, detail=f"WireGuard interface {interface_name} has no public key")
 
         return VyOSResponse(
             success=True,
@@ -641,6 +452,12 @@ async def get_interface_public_key(request: Request, interface_name: str):
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out reading WireGuard interface public key")
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed reading WireGuard interface public key: %s", e)
+        raise HTTPException(status_code=502, detail=f"VyOS could not read interface {interface_name} public key")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

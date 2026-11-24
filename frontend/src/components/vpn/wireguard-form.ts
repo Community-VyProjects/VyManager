@@ -9,6 +9,7 @@
  */
 
 import type { WireGuardInterface, WireGuardPeer } from "@/lib/api/wireguard";
+import { inRange, type NumberRange } from "@/lib/api/rip-ranges";
 
 /** Placeholder the API returns instead of a stored secret. */
 export const MASKED_SECRET = "***";
@@ -30,6 +31,7 @@ export interface InterfaceDraft {
   port: string;
   privateKey: string;
   mtu: string;
+  fwmark: string;
   perClientThread: boolean;
   /** "off" | "auto" | "custom" */
   mssClamping: string;
@@ -44,6 +46,7 @@ export interface InterfaceCreateConfig {
   port?: string;
   private_key?: string;
   mtu?: string;
+  fwmark?: string;
   per_client_thread?: boolean;
   mss_clamping?: string | null;
 }
@@ -54,10 +57,14 @@ export interface InterfaceUpdateConfig {
   port?: string | null;
   private_key?: string | null;
   mtu?: string | null;
+  fwmark?: string | null;
   per_client_thread?: boolean;
   mss_clamping?: string | null;
   disabled?: boolean;
 }
+
+/** Lab node.def range of ``interfaces wireguard <if> fwmark`` on 1.4 and 1.5. */
+export const FWMARK_RANGE: NumberRange = { min: 0, max: 4294967295 };
 
 const mssValue = (draft: InterfaceDraft): string | null => {
   if (draft.mssClamping === "auto") return "clamp-mss-to-pmtu";
@@ -66,20 +73,28 @@ const mssValue = (draft: InterfaceDraft): string | null => {
 };
 
 /**
- * Create-only checks. The name is the interface identity and cannot change
- * after create, so the pattern and uniqueness rules never run on an edit.
- */
-/**
  * Validation failures are message keys. interfaceNameRequired is shared chrome
- * (common.interfaceNameRequired). The other keys live under wireguard.validation
- * and the modal passes the draft name for the "already exists" message.
+ * (common.interfaceNameRequired). The other keys live under wireguard.validation;
+ * the modal passes the draft name (the "already exists" message) and
+ * FWMARK_RANGE (fwmarkRange's {min}/{max}).
  */
 export type InterfaceValidationError =
   | "interfaceNameRequired"
   | "interfaceNameFormat"
   | "interfaceExists"
-  | "privateKeyRequired";
+  | "privateKeyRequired"
+  | "fwmarkRange";
 
+/** Field checks that apply on create and on edit. */
+export function validateInterfaceFields(draft: InterfaceDraft): "fwmarkRange" | null {
+  return inRange(draft.fwmark, FWMARK_RANGE) ? null : "fwmarkRange";
+}
+
+/**
+ * Create checks. The name is the interface identity and cannot change after
+ * create, so the pattern and uniqueness rules never run on an edit; the field
+ * checks run last.
+ */
 export function validateInterfaceCreate(
   draft: InterfaceDraft,
   existingInterfaces: string[],
@@ -97,7 +112,7 @@ export function validateInterfaceCreate(
   if (!draft.privateKey.trim()) {
     return "privateKeyRequired";
   }
-  return null;
+  return validateInterfaceFields(draft);
 }
 
 export function buildInterfaceCreateConfig(
@@ -113,6 +128,7 @@ export function buildInterfaceCreateConfig(
   if (draft.addresses.trim()) config.addresses = splitList(draft.addresses);
   if (draft.port.trim()) config.port = draft.port.trim();
   if (draft.mtu.trim()) config.mtu = draft.mtu.trim();
+  if (draft.fwmark.trim()) config.fwmark = draft.fwmark.trim();
   if (draft.perClientThread && perClientThreadSupported) config.per_client_thread = true;
 
   const mss = mssValue(draft);
@@ -153,6 +169,10 @@ export function buildInterfaceUpdateConfig(
     updated.mtu = draft.mtu.trim() || null;
   }
 
+  if (draft.fwmark.trim() !== (current.fwmark || "")) {
+    updated.fwmark = draft.fwmark.trim() || null;
+  }
+
   if (draft.perClientThread !== current.per_client_thread) {
     updated.per_client_thread = draft.perClientThread;
   }
@@ -180,6 +200,7 @@ export function interfaceDraftFrom(current: WireGuardInterface): InterfaceDraft 
     port: current.port || "",
     privateKey: current.private_key || "",
     mtu: current.mtu || "",
+    fwmark: current.fwmark || "",
     perClientThread: current.per_client_thread,
     mssClamping: isPreset ? (mss ? "auto" : "off") : "custom",
     mssCustomValue: isPreset ? "" : mss,

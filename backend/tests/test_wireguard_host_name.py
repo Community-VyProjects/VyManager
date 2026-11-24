@@ -12,7 +12,6 @@ import pytest
 from vyos_builders.wireguard.wireguard import WireGuardBatchBuilder
 from vyos_mappers.wireguard.wireguard import WireGuardMapper
 from vyos_mappers.wireguard.wireguard_versions import get_wireguard_mapper
-from vyos_mappers.wireguard.wireguard_versions.v1_4 import WireGuardMapperV1_4
 from vyos_mappers.wireguard.wireguard_versions.v1_5 import WireGuardMapperV1_5
 
 REPO = Path(__file__).resolve().parents[2]
@@ -34,9 +33,9 @@ def _ops(builder):
     return [(item["op"], item["path"]) for item in builder.get_operations()]
 
 
-def test_factory_returns_subclasses():
-    assert isinstance(get_wireguard_mapper("1.4"), WireGuardMapperV1_4)
-    assert isinstance(get_wireguard_mapper("1.4.3"), WireGuardMapperV1_4)
+def test_factory_returns_shared_class_on_14_and_subclass_on_15():
+    assert type(get_wireguard_mapper("1.4")) is WireGuardMapper
+    assert type(get_wireguard_mapper("1.4.3")) is WireGuardMapper
     assert isinstance(get_wireguard_mapper("1.5"), WireGuardMapperV1_5)
     assert isinstance(get_wireguard_mapper("2026.09.23-rolling"), WireGuardMapperV1_5)
     assert "__getattr__" not in FACTORY.read_text()

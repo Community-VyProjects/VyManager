@@ -30,6 +30,7 @@
     "serverPublicKey": "Server Public Key",
     "retrieved": "Retrieved",
     "notAvailable": "Not available",
+    "serverKeyLoadFailed": "Failed to load the server public key",
     "scanQr": "Scan this QR code with the WireGuard app.",
     "readyTitle": "Ready to Use",
     "readyDescription": "This configuration is complete and ready to import into the WireGuard app. The server public key has been automatically included.",

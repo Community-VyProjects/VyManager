@@ -3,6 +3,7 @@
     "interfaceNameFormat": "Interface name must be in format ''wg0'', ''wg1'', etc.",
     "interfaceExists": "Interface {name} already exists",
     "privateKeyRequired": "Private key is required. Use ''Generate Key'' to create one.",
+    "fwmarkRange": "Firewall mark must be a number from {min} to {max}",
     "peerNameRequired": "Peer name is required",
     "peerNameSpaces": "Peer name cannot contain spaces",
     "publicKeyRequired": "Public key is required",
@@ -40,6 +41,7 @@
     "publicKeyShare": "Public Key (share with peers)",
     "copyPublicKey": "Copy public key",
     "unableToRetrievePublicKey": "Unable to retrieve public key",
+    "statusLoadFailed": "Failed to load peer status",
     "searchPeers": "Search peers...",
     "refreshPeerStatus": "Refresh peer status",
     "addPeer": "Add Peer",
@@ -68,7 +70,6 @@
     }
   },
   "interfaceModal": {
-    "keyParseFailed": "Key generated but couldn't parse. Raw output: {output}",
     "generateKeypairFailed": "Failed to generate keypair",
     "updateFailed": "Failed to update interface",
     "createFailed": "Failed to create interface",
@@ -103,6 +104,7 @@
     "listenPortHint": "UDP port for incoming connections. Default: {port}",
     "mtuOptional": "MTU (optional)",
     "mtuHint": "Maximum transmission unit. Leave empty for automatic.",
+    "fwmarkOptional": "Firewall mark (optional)",
     "perClientThread": "Per-Client Thread",
     "mssClamping": "TCP MSS Clamping",
     "mssAuto": "Auto (clamp-mss-to-pmtu)",

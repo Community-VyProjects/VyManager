@@ -30,6 +30,7 @@
     "serverPublicKey": "服务器公钥",
     "retrieved": "已获取",
     "notAvailable": "不可用",
+    "serverKeyLoadFailed": "加载服务器公钥失败",
     "scanQr": "使用 WireGuard 应用扫描此二维码。",
     "readyTitle": "可以使用",
     "readyDescription": "此配置已完整，可直接导入 WireGuard 应用。服务器公钥已自动包含在内。",

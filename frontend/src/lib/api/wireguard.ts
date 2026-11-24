@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import type { ApiError } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -68,13 +69,12 @@ export interface PeerBatchGroup {
 }
 
 export interface KeypairResult {
-  private_key?: string | null;
-  public_key?: string | null;
-  raw_output?: string;
+  private_key: string;
+  public_key: string;
 }
 
 export interface PSKResult {
-  preshared_key?: string;
+  preshared_key: string;
 }
 
 export interface PeerStatus {
@@ -83,14 +83,12 @@ export interface PeerStatus {
   latest_handshake_seconds: number | null;
   transfer_rx: string | null;
   transfer_tx: string | null;
-  transfer?: string;
   endpoint: string | null;
 }
 
 export interface InterfaceStatusResponse {
   interface: string;
   peers: Record<string, PeerStatus>;
-  raw_output?: string;
 }
 
 // Connection status based on handshake time
@@ -170,6 +168,7 @@ class WireGuardService {
     port?: string;
     private_key?: string;
     mtu?: string;
+    fwmark?: string;
     per_client_thread?: boolean;
     mss_clamping?: string | null;
     initial_peers?: Array<{
@@ -205,6 +204,9 @@ class WireGuardService {
     }
     if (config.mtu) {
       operations.push({ op: "set_interface_mtu", value: config.mtu });
+    }
+    if (config.fwmark) {
+      operations.push({ op: "set_interface_fwmark", value: config.fwmark });
     }
     if (config.per_client_thread) {
       operations.push({ op: "set_interface_per_client_thread" });
@@ -258,6 +260,7 @@ class WireGuardService {
       port?: string | null;
       private_key?: string | null;
       mtu?: string | null;
+      fwmark?: string | null;
       per_client_thread?: boolean;
       mss_clamping?: string | null;
       disabled?: boolean;
@@ -310,6 +313,15 @@ class WireGuardService {
         operations.push({ op: "set_interface_mtu", value: newConfig.mtu });
       } else if (currentConfig.mtu) {
         operations.push({ op: "delete_interface_mtu" });
+      }
+    }
+
+    // Handle fwmark
+    if (newConfig.fwmark !== undefined) {
+      if (newConfig.fwmark) {
+        operations.push({ op: "set_interface_fwmark", value: newConfig.fwmark });
+      } else if (currentConfig.fwmark) {
+        operations.push({ op: "delete_interface_fwmark" });
       }
     }
 
@@ -556,7 +568,7 @@ class WireGuardService {
    */
   async generateKeypair(): Promise<KeypairResult> {
     const response = await apiClient.post<VyOSResponse>("/vyos/vpn/wireguard/generate-keypair", {});
-    return response.data as KeypairResult;
+    return response.data as unknown as KeypairResult;
   }
 
   /**
@@ -564,40 +576,38 @@ class WireGuardService {
    */
   async generatePSK(): Promise<PSKResult> {
     const response = await apiClient.post<VyOSResponse>("/vyos/vpn/wireguard/generate-psk", {});
-    return response.data as PSKResult;
+    return response.data as unknown as PSKResult;
   }
 
   /**
-   * Get the public key for a WireGuard interface
+   * Get the public key for a WireGuard interface.
+   * Null when the device has no key for it (404); other failures throw the ApiError.
    */
   async getInterfacePublicKey(interfaceName: string): Promise<{ interface: string; public_key: string } | null> {
     try {
       const response = await apiClient.get<VyOSResponse>(
         `/vyos/vpn/wireguard/interface/${encodeURIComponent(interfaceName)}/public-key`
       );
-      if (response.success && response.data) {
-        return response.data as { interface: string; public_key: string };
-      }
-      return null;
-    } catch {
-      return null;
+      return response.data as { interface: string; public_key: string };
+    } catch (err) {
+      if ((err as ApiError).status === 404) return null;
+      throw err;
     }
   }
 
   /**
-   * Get runtime status for a WireGuard interface (handshake times, transfer stats)
+   * Get runtime status for a WireGuard interface (handshake times, transfer stats).
+   * Null when the interface is not up on the device (404); other failures throw the ApiError.
    */
   async getInterfaceStatus(interfaceName: string): Promise<InterfaceStatusResponse | null> {
     try {
       const response = await apiClient.get<VyOSResponse>(
         `/vyos/vpn/wireguard/interface/${encodeURIComponent(interfaceName)}/status`
       );
-      if (response.success && response.data) {
-        return response.data as unknown as InterfaceStatusResponse;
-      }
-      return null;
-    } catch {
-      return null;
+      return response.data as unknown as InterfaceStatusResponse;
+    } catch (err) {
+      if ((err as ApiError).status === 404) return null;
+      throw err;
     }
   }
 }

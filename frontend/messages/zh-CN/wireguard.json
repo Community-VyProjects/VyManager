@@ -3,6 +3,7 @@
     "interfaceNameFormat": "接口名称格式必须为 ''wg0''、''wg1'' 等",
     "interfaceExists": "接口 {name} 已存在",
     "privateKeyRequired": "私钥为必填项。请使用“生成密钥”创建。",
+    "fwmarkRange": "防火墙标记必须是 {min} 到 {max} 之间的数字",
     "peerNameRequired": "对等体名称为必填项",
     "peerNameSpaces": "对等体名称不能包含空格",
     "publicKeyRequired": "公钥为必填项",
@@ -40,6 +41,7 @@
     "publicKeyShare": "公钥（分享给对等体）",
     "copyPublicKey": "复制公钥",
     "unableToRetrievePublicKey": "无法获取公钥",
+    "statusLoadFailed": "加载对等体状态失败",
     "searchPeers": "搜索对等体...",
     "refreshPeerStatus": "刷新对等体状态",
     "addPeer": "添加对等体",
@@ -68,7 +70,6 @@
     }
   },
   "interfaceModal": {
-    "keyParseFailed": "已生成密钥，但无法解析。原始输出：{output}",
     "generateKeypairFailed": "生成密钥对失败",
     "updateFailed": "更新接口失败",
     "createFailed": "创建接口失败",
@@ -103,6 +104,7 @@
     "listenPortHint": "用于接收入站连接的 UDP 端口。默认：{port}",
     "mtuOptional": "MTU（可选）",
     "mtuHint": "最大传输单元。留空则自动设置。",
+    "fwmarkOptional": "防火墙标记（可选）",
     "perClientThread": "每客户端线程",
     "mssClamping": "TCP MSS 钳制",
     "mssAuto": "自动（clamp-mss-to-pmtu）",
