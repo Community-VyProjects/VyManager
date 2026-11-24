@@ -38,6 +38,9 @@ class _FakeService:
     def __init__(self):
         self.config = _FakeConfig()
 
+    def get_version(self):
+        return "1.5"
+
     def get_full_config(self, refresh=False):
         return {"container": {"name": {"web": {"image": "nginx:1.27"}}}}
 

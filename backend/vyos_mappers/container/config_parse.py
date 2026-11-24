@@ -1,10 +1,12 @@
 """Read-model for container config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. The container template is the same on 1.4 and 1.5.
+the tree. A secret is returned as MASKED_SECRET, never in plaintext.
 """
 
 from typing import Any, Dict, List
+
+MASKED_SECRET = "***"
 
 
 def _parse_multi(raw) -> List[str]:
@@ -210,7 +212,7 @@ def _parse_container_registries(registries_raw: dict) -> List[Dict[str, Any]]:
         if auth_raw and isinstance(auth_raw, dict):
             auth = {
                 "username": auth_raw.get("username"),
-                "password": auth_raw.get("password"),
+                "password": MASKED_SECRET if auth_raw.get("password") else None,
             }
 
         mirror = None

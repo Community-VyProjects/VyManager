@@ -1,16 +1,24 @@
 """Container Router.
 
 API endpoints for managing VyOS container configuration.
-The template structure is identical between VyOS 1.4 and 1.5.
 
 Endpoints:
   GET  /vyos/container/capabilities     — version-aware feature flags
   GET  /vyos/container/config           — normalized container configuration
   POST /vyos/container/batch            — atomic set/delete operations
-  POST /vyos/container/image/add        — pull container image via GraphQL
-  POST /vyos/container/image/delete     — remove container image via GraphQL
-  POST /vyos/container/image/update     — update container image via GraphQL
+  POST /vyos/container/image/pull       — pull an image reference via GraphQL
+  POST /vyos/container/image/update-ref — re-pull an image reference via GraphQL
+  POST /vyos/container/image/delete-ref — remove an image reference via GraphQL
+  POST /vyos/container/image/add        — pull a container's image via GraphQL
+  POST /vyos/container/image/delete     — remove a container's image via GraphQL
+  POST /vyos/container/image/update     — re-pull a container's configured image via GraphQL
   POST /vyos/container/restart          — restart container via GraphQL
+  GET  /vyos/container/images           — images pulled on the device
+  POST /vyos/container/log              — container log output
+  GET/POST /vyos/container/base-dir     — check or create /config/containers (SSH)
+  POST /vyos/container/mkdir, /touch    — create directories or files under it (SSH)
+  GET/POST /vyos/container/file         — read or back up and write a file under it (SSH)
+  POST /vyos/container/rmdir            — remove a directory under it (SSH)
 """
 
 import asyncio
@@ -26,19 +34,19 @@ from packaging.version import InvalidVersion, Version
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union, cast
 import appliance_mode
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.container import ContainerMapper
 from vyos_builders.container import ContainerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from org_scope import independent_org_conn, request_scoped_conn
 from rbac_permissions import FeatureGroup
 from ssh_key_manager import decrypt_private_key
 from utils.ssh import SshHostKeyRejected, connect as connect_ssh
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -183,8 +191,10 @@ class ContainerBatchOperation(BaseModel):
         None,
         description=(
             "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
             "Single-arg methods: plain string. "
-            "Multi-arg methods: comma-separated (e.g., 'mycontainer,eth0')."
+            "Multi-arg methods: comma-separated (e.g., 'mycontainer,eth0'); "
+            "the last argument keeps any commas."
         ),
     )
 
@@ -197,6 +207,8 @@ class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+
+
 # Validates container names: alphanumeric + hyphens only (matches VyOS node.def syntax).
 # Must start with an alphanumeric character (no leading hyphen — a name like
 # "-rm" would otherwise be parsable as a flag by upstream tooling) and be at
@@ -313,9 +325,12 @@ async def _configured_container_image(request: Request, container_name: str) -> 
     """Return the image ref set on ``container name <container_name> image``."""
     service = get_session_vyos_service(request)
     full_config = await run_in_threadpool(service.get_full_config, refresh=False)
-    names = (full_config.get("container") or {}).get("name") or {}
-    entry = names.get(container_name)
-    if not isinstance(entry, dict):
+    mapper = cast(ContainerMapper, CommandMapperRegistry.get_mapper("container", service.get_version()))
+    entry = next(
+        (c for c in mapper.parse_config(full_config)["containers"] if c["name"] == container_name),
+        None,
+    )
+    if entry is None:
         raise HTTPException(
             status_code=400,
             detail=f"Container {container_name} not found",
@@ -327,7 +342,7 @@ async def _configured_container_image(request: Request, container_name: str) -> 
             detail=f"No image configured for container {container_name}",
         )
     image = image.strip()
-    if not _IMAGE_REF_RE.match(image):
+    if not _IMAGE_REF_RE.fullmatch(image):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid image reference on container {container_name}",
@@ -394,7 +409,7 @@ async def _run_container_gql_command(
     mutation, timeout = _CONTAINER_GQL_ALLOWLIST[operation]
 
     # --- Name validation ---
-    if not container_name or not name_re.match(container_name):
+    if not container_name or not name_re.fullmatch(container_name):
         raise HTTPException(
             status_code=400,
             detail="Invalid container name. Must be alphanumeric and may contain hyphens.",
@@ -476,8 +491,8 @@ async def _run_container_gql_command(
     )
 
 
-async def _get_ssh_connection(request: Request) -> tuple:
-    """Return (ssh_conn, row) for the current session's instance, raising HTTPException on failure."""
+async def _get_ssh_connection(request: Request) -> asyncssh.SSHClientConnection:
+    """Return an SSH connection to the current session's instance, raising HTTPException on failure."""
     user = getattr(request.state, "user", None)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -528,6 +543,13 @@ async def _get_ssh_connection(request: Request) -> tuple:
     return ssh_conn
 
 
+def _ssh_text(value: Union[bytes, str, None]) -> str:
+    """SSH output as text. run() decodes UTF-8 by default; bytes only appear without it."""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value or ""
+
+
 async def _run_shell_command(request: Request, command: str, timeout: int = _SSH_QUICK_TIMEOUT) -> ContainerSSHResponse:
     """Run a plain POSIX shell command (not vbash) via SSH. Caller must pre-validate command."""
     ssh_conn = await _get_ssh_connection(request)
@@ -536,12 +558,12 @@ async def _run_shell_command(request: Request, command: str, timeout: int = _SSH
             ssh_conn.run(command, check=False),
             timeout=timeout,
         )
-        output = (result.stdout or "").strip()
+        output = _ssh_text(result.stdout).strip()
         success = result.exit_status == 0
         return ContainerSSHResponse(
             success=success,
             output=output or None,
-            error=None if success else (result.stderr or output or "Command failed"),
+            error=None if success else (_ssh_text(result.stderr) or output or "Command failed"),
         )
     except asyncio.TimeoutError:
         return ContainerSSHResponse(success=False, error="Command timed out")
@@ -568,6 +590,8 @@ async def get_container_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_container_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -585,7 +609,7 @@ async def get_container_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("container", service.get_version())
+        mapper = cast(ContainerMapper, CommandMapperRegistry.get_mapper("container", service.get_version()))
         parsed = mapper.parse_config(full_config)
 
         # Image update status is not config-tree parsing. Keep it here.
@@ -606,6 +630,8 @@ async def get_container_config(http_request: Request, refresh: bool = False):
             networks=parsed["networks"],
             registries=parsed["registries"],
         )
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_container_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -626,50 +652,43 @@ async def container_batch_configure(
         service = get_session_vyos_service(http_request)
         builder = ContainerBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            _refuse_appliance_stack_batch(operation.op, operation.value)
-            # For ops whose first arg is a container/network/registry name,
-            # enforce the appropriate regex. Prevents seeding the VyOS config
-            # with names containing shell metacharacters or leading hyphens
-            # that downstream SSH ops would later reject.
-            for prefix, pattern in _NAME_PREFIXED_BUILDER_OPS.items():
-                if operation.op.startswith(prefix):
-                    first_arg = (operation.value or "").split(",", 1)[0].strip()
-                    if not first_arg or not pattern.match(first_arg):
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Invalid name in operation '{operation.op}'.",
-                        )
-                    break
-
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
-                    method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
+        # The mapper raises ValueError for a 1.5-only leaf on 1.4. Catch it
+        # only around this loop: execute_batch raises ValueError for an empty
+        # batch, and that stays a 500.
+        try:
+            for operation in body.operations:
+                _refuse_appliance_stack_batch(operation.op, operation.value)
+                # Ops whose first arg is a container/network/registry name
+                # must match that name's regex. Prevents seeding the VyOS config
+                # with names containing shell metacharacters or leading hyphens
+                # that downstream SSH ops would later reject.
+                name_pattern = next(
+                    (
+                        pattern
+                        for prefix, pattern in _NAME_PREFIXED_BUILDER_OPS.items()
+                        if operation.op.startswith(prefix)
+                    ),
+                    None,
+                )
+                # Environment and sysctl values commit empty on both labs.
+                call_comma_batch_op(
+                    builder,
+                    operation.op,
+                    operation.value,
+                    may_be_empty=("value",),
+                    name_pattern=name_pattern,
+                )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
         response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Container configuration updated"},
+            data={"message": "Container configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in container_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -689,7 +708,7 @@ class ContainerImageRefRequest(BaseModel):
 
 
 def _validate_image_ref(image: str):
-    if not image or not _IMAGE_REF_RE.match(image):
+    if not image or not _IMAGE_REF_RE.fullmatch(image):
         raise HTTPException(status_code=400, detail="Invalid image reference.")
 
 
@@ -912,7 +931,10 @@ async def get_container_images(http_request: Request):
                 images.append(f"{repo}:{tag}")
 
         return ContainerImagesResponse(images=sorted(set(images)))
+    except HTTPException:
+        raise
     except Exception:
+        logger.exception("Unhandled error in get_container_images")
         return ContainerImagesResponse(images=[])
 
 
@@ -920,7 +942,7 @@ async def get_container_images(http_request: Request):
 async def get_container_log(http_request: Request, body: ContainerImageRequest):
     """Return log output for a container."""
     await require_read_permission(http_request, FeatureGroup.CONTAINER)
-    if not body.container_name or not _CONTAINER_NAME_RE.match(body.container_name):
+    if not body.container_name or not _CONTAINER_NAME_RE.fullmatch(body.container_name):
         raise HTTPException(status_code=400, detail="Invalid container name.")
     try:
         service = get_session_vyos_service(http_request)
@@ -940,6 +962,8 @@ async def get_container_log(http_request: Request, body: ContainerImageRequest):
             output=output.strip() or None,
             error=response.error if response.status != 200 else None,
         )
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_container_log")
         return ContainerSSHResponse(success=False, error="Failed to retrieve container log.")
@@ -975,7 +999,7 @@ async def create_container_dirs(http_request: Request, body: ContainerMkdirReque
     if not body.paths:
         return ContainerSSHResponse(success=True)
     for path in body.paths:
-        if not _SAFE_CONTAINER_SUBPATH_RE.match(path):
+        if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(path):
             raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
     quoted = " ".join(shlex.quote(p) for p in body.paths)
     return await _run_shell_command(http_request, f"sudo mkdir -p {quoted}")
@@ -1003,7 +1027,7 @@ async def touch_container_files(http_request: Request, body: ContainerTouchReque
     if not body.paths:
         return ContainerSSHResponse(success=True)
     for path in body.paths:
-        if not _SAFE_CONTAINER_SUBPATH_RE.match(path):
+        if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(path):
             raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
     quoted = " ".join(shlex.quote(p) for p in body.paths)
     return await _run_shell_command(http_request, f"sudo touch {quoted}")
@@ -1013,7 +1037,7 @@ async def touch_container_files(http_request: Request, body: ContainerTouchReque
 async def read_container_file(http_request: Request, path: str):
     """Read a file under /config/containers/."""
     await require_read_permission(http_request, FeatureGroup.CONTAINER)
-    if not _SAFE_CONTAINER_SUBPATH_RE.match(path):
+    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(path):
         raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
     result = await _run_shell_command(http_request, f"sudo cat {shlex.quote(path)}")
     if not result.success:
@@ -1025,10 +1049,10 @@ async def read_container_file(http_request: Request, path: str):
 async def write_container_file(http_request: Request, body: ContainerFileWriteRequest):
     """Back up then overwrite a file under /config/containers/."""
     await require_write_permission(http_request, FeatureGroup.CONTAINER)
-    if not _SAFE_CONTAINER_SUBPATH_RE.match(body.path):
+    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(body.path):
         raise HTTPException(status_code=400, detail=f"Invalid path: {body.path}")
     bak = body.path + ".bak"
-    if not _SAFE_CONTAINER_SUBPATH_RE.match(bak):
+    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(bak):
         raise HTTPException(status_code=400, detail="Backup path invalid")
     ssh_conn = await _get_ssh_connection(http_request)
     try:
@@ -1043,7 +1067,7 @@ async def write_container_file(http_request: Request, body: ContainerFileWriteRe
         success = result.exit_status == 0
         return ContainerSSHResponse(
             success=success,
-            error=None if success else (result.stderr or "Write failed"),
+            error=None if success else (_ssh_text(result.stderr) or "Write failed"),
         )
     except asyncio.TimeoutError:
         return ContainerSSHResponse(success=False, error="Command timed out")
@@ -1061,7 +1085,7 @@ class ContainerRmdirRequest(BaseModel):
 async def remove_container_dir(http_request: Request, body: ContainerRmdirRequest):
     """Recursively remove a directory under /config/containers/."""
     await require_write_permission(http_request, FeatureGroup.CONTAINER)
-    if not _SAFE_CONTAINER_SUBPATH_RE.match(body.path):
+    if not _SAFE_CONTAINER_SUBPATH_RE.fullmatch(body.path):
         raise HTTPException(status_code=400, detail=f"Invalid path: {body.path}")
     if appliance_mode.is_appliance() and appliance_mode.is_stack_volume_path(body.path):
         raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)

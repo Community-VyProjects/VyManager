@@ -128,5 +128,18 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     assert [c["name"] for c in body["containers"]] == ["alpha", "zeta"]
     assert body["containers"][0]["devices"][0]["source"] == expected["containers"][0]["devices"][0]["source"]
     assert body["networks"][0]["macvlan_parent"] == "eth0"
-    assert body["registries"][0]["authentication"]["password"] == "secret"
+    assert body["registries"][0]["authentication"] == {"username": "user", "password": "***"}
+    assert "secret" not in response.text
     assert body["containers"][0]["update_status"] is None
+
+
+def test_registry_password_is_masked():
+    """The registry credential never leaves the backend; an unset one stays None."""
+    tree = _tree()
+    tree["container"]["registry"]["quay.io"] = {"authentication": {"username": "bot"}}
+    for version in ("1.4", "1.5"):
+        regs = get_container_mapper(version).parse_config(tree)["registries"]
+        assert [r["authentication"] for r in regs] == [
+            {"username": "user", "password": "***"},
+            {"username": "bot", "password": None},
+        ]
