@@ -14,9 +14,8 @@ Endpoints:
   POST /vyos/service-monitoring/batch         — atomic set/delete operations
 """
 
-import inspect
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -26,8 +25,9 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.service_monitoring import ServiceMonitoringMapper
 from vyos_builders.service_monitoring import ServiceMonitoringBatchBuilder
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +189,7 @@ class NetworkEventConfig(BaseModel):
 
 
 class ServiceMonitoringConfig(BaseModel):
+    configured: bool = False
     telegraf: Optional[TelegrafConfig] = None
     zabbix_agent: Optional[ZabbixConfig] = None
     prometheus: Optional[PrometheusConfig] = None
@@ -201,8 +202,9 @@ class ServiceMonitoringBatchOperation(BaseModel):
         None,
         description=(
             "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
             "Single-arg methods: plain string. "
-            "Multi-arg methods: comma-separated (e.g., 'module_name,ipv4')."
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
         ),
     )
 
@@ -233,6 +235,8 @@ async def get_service_monitoring_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_service_monitoring_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -251,8 +255,13 @@ async def get_service_monitoring_config(http_request: Request, refresh: bool = F
         service = get_session_vyos_service(http_request)
         version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("service_monitoring", version)
+        mapper = cast(
+            ServiceMonitoringMapper,
+            CommandMapperRegistry.get_mapper("service_monitoring", version),
+        )
         return ServiceMonitoringConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_service_monitoring_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -273,36 +282,22 @@ async def service_monitoring_batch_configure(
         service = get_session_vyos_service(http_request)
         builder = ServiceMonitoringBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
+        try:
+            for operation in body.operations:
+                call_comma_batch_op(builder, operation.op, operation.value)
+        except ValueError as e:
+            # The mapper rejects a node this device version does not have.
+            raise HTTPException(status_code=400, detail=str(e))
 
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
-                    method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
-
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Service monitoring configuration updated"},
+            data={"message": "Service monitoring configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in service_monitoring_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

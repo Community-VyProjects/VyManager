@@ -1,5 +1,7 @@
 """Service monitoring GET /config parse lives on the mapper (issue #966)."""
 
+from vyos_mappers.service_monitoring import ServiceMonitoringMapper
+from vyos_mappers.service_monitoring.config_parse import MASKED_SECRET
 from vyos_mappers.service_monitoring.service_monitoring_versions import (
     get_service_monitoring_mapper,
 )
@@ -79,19 +81,23 @@ def _tree():
                         "port": "9115",
                         "modules": {
                             "icmp": {
-                                "ping": {
-                                    "preferred-ip-protocol": "ip4",
-                                    "ip-protocol-fallback": {},
-                                    "timeout": "2",
+                                "name": {
+                                    "ping": {
+                                        "preferred-ip-protocol": "ipv4",
+                                        "ip-protocol-fallback": {},
+                                        "timeout": "2",
+                                    },
+                                    "bare": {},
                                 },
-                                "bare": None,
                             },
                             "dns": {
-                                "resolve": {
-                                    "query-name": "example.com",
-                                    "query-type": "A",
-                                    "timeout": "1",
-                                }
+                                "name": {
+                                    "resolve": {
+                                        "query-name": "example.com",
+                                        "query-type": "A",
+                                        "timeout": "1",
+                                    }
+                                },
                             },
                         },
                     },
@@ -108,6 +114,7 @@ def _tree():
 
 def _empty():
     return {
+        "configured": False,
         "telegraf": None,
         "zabbix_agent": None,
         "prometheus": None,
@@ -115,11 +122,60 @@ def _empty():
     }
 
 
-def test_parse_config_is_explicit_and_version_falls_through():
-    mapper = get_service_monitoring_mapper("1.4")
-    assert "parse_config" in type(mapper).__dict__
-    assert mapper.version == "1.4"
-    assert get_service_monitoring_mapper("1.5").version == "1.5"
+def test_parse_config_lives_on_the_shared_class():
+    assert "parse_config" in ServiceMonitoringMapper.__dict__
+    assert isinstance(get_service_monitoring_mapper("1.4"), ServiceMonitoringMapper)
+    assert isinstance(get_service_monitoring_mapper("1.5"), ServiceMonitoringMapper)
+
+
+def test_secrets_are_masked():
+    parsed = get_service_monitoring_mapper("1.5").parse_config(_tree())
+    telegraf = parsed["telegraf"]
+    assert telegraf["influxdb"]["authentication"]["token"] == MASKED_SECRET
+    assert telegraf["loki"]["authentication"]["password"] == MASKED_SECRET
+    assert telegraf["splunk"]["authentication"]["token"] == MASKED_SECRET
+    assert telegraf["azure_data_explorer"]["authentication"]["client_secret"] == MASKED_SECRET
+    assert telegraf["prometheus_client"]["authentication"]["password"] == MASKED_SECRET
+    assert parsed["zabbix_agent"]["authentication"]["psk_secret"] == MASKED_SECRET
+    values = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            for item in node.values():
+                walk(item)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+        else:
+            values.append(node)
+
+    walk(parsed)
+    for secret in ("tok", "secret", "splunk-tok", "csec", "pw", "psk-secret"):
+        assert secret not in values
+
+
+def test_unset_secret_stays_none():
+    tree = {"service": {"monitoring": {"telegraf": {"loki": {"url": "https://loki.example"}}}}}
+    loki = get_service_monitoring_mapper("1.5").parse_config(tree)["telegraf"]["loki"]
+    assert loki["authentication"] == {"username": None, "password": None}
+
+
+def test_bare_nodes_parse_as_configured():
+    """A node with no children still exists on the device; it is not absent."""
+    tree = {"service": {"monitoring": {
+        "telegraf": {"loki": {}},
+        "zabbix-agent": {},
+        "prometheus": {"node-exporter": {}, "blackbox-exporter": {}},
+        "network-event": {},
+    }}}
+    parsed = get_service_monitoring_mapper("1.5").parse_config(tree)
+    assert parsed["telegraf"]["loki"]["url"] is None
+    assert parsed["telegraf"]["influxdb"] is None
+    assert parsed["zabbix_agent"]["servers"] == []
+    assert parsed["prometheus"]["node_exporter"]["textfile_collector"] is False
+    assert parsed["prometheus"]["frr_exporter"] is None
+    assert parsed["prometheus"]["blackbox_exporter"]["icmp_modules"] == []
+    assert parsed["network_event"]["events"] == []
 
 
 def test_telegraf_zabbix_prometheus_and_events():
@@ -130,7 +186,7 @@ def test_telegraf_zabbix_prometheus_and_events():
     assert telegraf["vrf"] == "mgmt"
     assert telegraf["influxdb"]["port"] == 8086
     assert telegraf["influxdb"]["authentication"]["organization"] == "ops"
-    assert telegraf["loki"]["authentication"]["password"] == "secret"
+    assert telegraf["loki"]["authentication"]["username"] == "loki"
     assert telegraf["splunk"]["authentication"]["insecure"] is True
     assert telegraf["azure_data_explorer"]["authentication"]["tenant_id"] == "tid"
     client = telegraf["prometheus_client"]
@@ -148,7 +204,6 @@ def test_telegraf_zabbix_prometheus_and_events():
         {"address": "10.2.2.2", "port": None},
     ]
     assert zabbix["authentication"]["psk_id"] == "psk-id"
-    assert zabbix["authentication"]["psk_secret"] == "psk-secret"
     assert zabbix["limits"]["buffer_size"] == 100
     assert zabbix["log"]["remote_commands"] is True
 
@@ -174,10 +229,12 @@ def test_telegraf_zabbix_prometheus_and_events():
 def test_empty_tree():
     assert get_service_monitoring_mapper("1.4").parse_config({}) == _empty()
     assert get_service_monitoring_mapper("1.5").parse_config({"service": {}}) == _empty()
-    assert (
-        get_service_monitoring_mapper("1.5").parse_config({"service": {"monitoring": {}}})
-        == _empty()
-    )
+
+
+def test_bare_root_is_configured():
+    """Deleting the last child leaves `service monitoring {}`; it still exists."""
+    parsed = get_service_monitoring_mapper("1.5").parse_config({"service": {"monitoring": {}}})
+    assert parsed == {**_empty(), "configured": True}
 
 
 
@@ -218,3 +275,6 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     assert body["zabbix_agent"]["servers_active"][1]["port"] is None
     assert body["prometheus"]["blackbox_exporter"]["dns_modules"][0]["query_name"] == "example.com"
     assert body["network_event"]["events"] == expected["network_event"]["events"]
+    assert body["telegraf"]["influxdb"]["authentication"]["token"] == MASKED_SECRET
+    assert body["zabbix_agent"]["authentication"]["psk_secret"] == MASKED_SECRET
+    assert body == expected

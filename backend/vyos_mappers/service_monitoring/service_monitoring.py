@@ -1,13 +1,12 @@
-"""Service Monitoring Command Mapper.
+"""Service monitoring command mapper.
 
-Config tree: service monitoring
-Sub-trees:
-  telegraf          — both 1.4 and 1.5
-  zabbix-agent      — both 1.4 and 1.5
-  prometheus        — 1.5 only
-  network-event     — 1.5 only
+Config tree: service monitoring. The shared class holds the commands both labs
+have (telegraf, zabbix-agent). The 1.5 subclass adds prometheus, network-event
+and zabbix-agent authentication.
 """
-from typing import List
+
+from typing import Any, Dict, FrozenSet, List
+
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "monitoring"]
@@ -18,19 +17,89 @@ NETWORK_EVENT = BASE + ["network-event"]
 
 
 class ServiceMonitoringMapper(BaseFeatureMapper):
-    def __init__(self, version: str):
-        super().__init__(version)
+    """Shared service monitoring commands. 1.5-only path methods live on the subclass."""
 
-    # =========================================================================
+    # telegraf source allowed values (both labs).
+    _SOURCES = ("all", "hardware-utilization", "logs", "network", "system", "telegraf")
+
+    # telegraf azure-data-explorer group-metrics allowed values (both labs).
+    _GROUP_METRICS = ("single-table", "table-per-metric")
+
+    # telegraf prometheus-client metric-version: numeric --range 1-2 (both labs).
+    _METRIC_VERSIONS = (1, 2)
+
+    # zabbix-agent log debug-level allowed values (both labs).
+    _DEBUG_LEVELS = ("basic", "critical", "error", "warning", "debug", "extended-debug")
+
+    # Nodes only 1.5 has, mapped to a path method the subclass defines.
+    _VERSIONED_NODES = {
+        "prometheus": "get_prometheus_delete",
+        "network-event": "get_network_event_delete",
+        "zabbix-agent authentication": "get_zabbix_auth_delete",
+    }
+
+    # ========================================================================
+    # Core
+    # ========================================================================
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"service monitoring {node} is not supported on this device")
+
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_service_monitoring_config
+
+        return parse_service_monitoring_config(self, full_config)
+
+    def source_values(self) -> List[str]:
+        return list(self._SOURCES)
+
+    def group_metrics_values(self) -> List[str]:
+        return list(self._GROUP_METRICS)
+
+    def metric_version_values(self) -> List[int]:
+        return list(self._METRIC_VERSIONS)
+
+    def debug_level_values(self) -> List[str]:
+        return list(self._DEBUG_LEVELS)
+
+    def zabbix_auth_modes(self) -> List[str]:
+        """zabbix-agent authentication mode values; the node is 1.5-only."""
+        return []
+
+    def preferred_ip_protocol_values(self) -> List[str]:
+        """blackbox-exporter preferred-ip-protocol values; prometheus is 1.5-only."""
+        return []
+
+    def dns_query_types(self) -> List[str]:
+        """blackbox-exporter dns query-type values; prometheus is 1.5-only."""
+        return []
+
+    def network_event_log_levels(self) -> List[str]:
+        """network-event log-level values; network-event is 1.5-only."""
+        return []
+
+    def network_event_types(self) -> List[str]:
+        """network-event event child nodes; network-event is 1.5-only."""
+        return []
+
+    # ========================================================================
     # Global
-    # =========================================================================
+    # ========================================================================
 
     def get_delete(self) -> List[str]:
         return BASE
 
-    # =========================================================================
+    # ========================================================================
     # Telegraf — top-level
-    # =========================================================================
+    # ========================================================================
 
     def get_telegraf_delete(self) -> List[str]:
         return TELEGRAF
@@ -50,9 +119,9 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_vrf_delete(self) -> List[str]:
         return TELEGRAF + ["vrf"]
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Telegraf — InfluxDB output
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
 
     def get_telegraf_influxdb_delete(self) -> List[str]:
         return TELEGRAF + ["influxdb"]
@@ -87,9 +156,9 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_influxdb_auth_organization_delete(self) -> List[str]:
         return TELEGRAF + ["influxdb", "authentication", "organization"]
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Telegraf — Loki output
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
 
     def get_telegraf_loki_delete(self) -> List[str]:
         return TELEGRAF + ["loki"]
@@ -112,6 +181,9 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_loki_metric_name_label_delete(self) -> List[str]:
         return TELEGRAF + ["loki", "metric-name-label"]
 
+    def get_telegraf_loki_auth_delete(self) -> List[str]:
+        return TELEGRAF + ["loki", "authentication"]
+
     def get_telegraf_loki_auth_username(self, username: str) -> List[str]:
         return TELEGRAF + ["loki", "authentication", "username", username]
 
@@ -124,9 +196,9 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_loki_auth_password_delete(self) -> List[str]:
         return TELEGRAF + ["loki", "authentication", "password"]
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Telegraf — Splunk output
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
 
     def get_telegraf_splunk_delete(self) -> List[str]:
         return TELEGRAF + ["splunk"]
@@ -146,9 +218,9 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_splunk_auth_insecure(self) -> List[str]:
         return TELEGRAF + ["splunk", "authentication", "insecure"]
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Telegraf — Azure Data Explorer output
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
 
     def get_telegraf_azure_delete(self) -> List[str]:
         return TELEGRAF + ["azure-data-explorer"]
@@ -195,9 +267,9 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_azure_auth_tenant_id_delete(self) -> List[str]:
         return TELEGRAF + ["azure-data-explorer", "authentication", "tenant-id"]
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Telegraf — Prometheus client output
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
 
     def get_telegraf_prometheus_client_delete(self) -> List[str]:
         return TELEGRAF + ["prometheus-client"]
@@ -211,10 +283,7 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_prometheus_client_listen_address(self, address: str) -> List[str]:
         return TELEGRAF + ["prometheus-client", "listen-address", address]
 
-    def get_telegraf_prometheus_client_listen_address_delete(self, address: str) -> List[str]:
-        return TELEGRAF + ["prometheus-client", "listen-address", address]
-
-    def get_telegraf_prometheus_client_all_listen_addresses_delete(self) -> List[str]:
+    def get_telegraf_prometheus_client_listen_address_delete(self) -> List[str]:
         return TELEGRAF + ["prometheus-client", "listen-address"]
 
     def get_telegraf_prometheus_client_metric_version(self, version: str) -> List[str]:
@@ -244,9 +313,9 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_telegraf_prometheus_client_auth_password_delete(self) -> List[str]:
         return TELEGRAF + ["prometheus-client", "authentication", "password"]
 
-    # =========================================================================
+    # ========================================================================
     # Zabbix Agent
-    # =========================================================================
+    # ========================================================================
 
     def get_zabbix_delete(self) -> List[str]:
         return ZABBIX
@@ -309,25 +378,6 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
     def get_zabbix_server_active_port_delete(self, address: str) -> List[str]:
         return ZABBIX + ["server-active", address, "port"]
 
-    # Zabbix authentication
-    def get_zabbix_auth_mode(self, mode: str) -> List[str]:
-        return ZABBIX + ["authentication", "mode", mode]
-
-    def get_zabbix_auth_mode_delete(self) -> List[str]:
-        return ZABBIX + ["authentication", "mode"]
-
-    def get_zabbix_auth_psk_id(self, psk_id: str) -> List[str]:
-        return ZABBIX + ["authentication", "psk", "id", psk_id]
-
-    def get_zabbix_auth_psk_id_delete(self) -> List[str]:
-        return ZABBIX + ["authentication", "psk", "id"]
-
-    def get_zabbix_auth_psk_secret(self, secret: str) -> List[str]:
-        return ZABBIX + ["authentication", "psk", "secret", secret]
-
-    def get_zabbix_auth_psk_secret_delete(self) -> List[str]:
-        return ZABBIX + ["authentication", "psk", "secret"]
-
     # Zabbix limits
     def get_zabbix_limits_buffer_flush_interval(self, seconds: str) -> List[str]:
         return ZABBIX + ["limits", "buffer-flush-interval", seconds]
@@ -356,163 +406,3 @@ class ServiceMonitoringMapper(BaseFeatureMapper):
 
     def get_zabbix_log_remote_commands(self) -> List[str]:
         return ZABBIX + ["log", "remote-commands"]
-
-    # =========================================================================
-    # Prometheus exporters (1.5 only)
-    # =========================================================================
-
-    def get_prometheus_delete(self) -> List[str]:
-        return PROMETHEUS
-
-    # Node exporter
-    def get_prometheus_node_exporter_delete(self) -> List[str]:
-        return PROMETHEUS + ["node-exporter"]
-
-    def get_prometheus_node_exporter_port(self, port: str) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "port", port]
-
-    def get_prometheus_node_exporter_port_delete(self) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "port"]
-
-    def get_prometheus_node_exporter_listen_address(self, address: str) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "listen-address", address]
-
-    def get_prometheus_node_exporter_listen_address_delete(self, address: str) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "listen-address", address]
-
-    def get_prometheus_node_exporter_all_listen_addresses_delete(self) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "listen-address"]
-
-    def get_prometheus_node_exporter_vrf(self, vrf: str) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "vrf", vrf]
-
-    def get_prometheus_node_exporter_vrf_delete(self) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "vrf"]
-
-    def get_prometheus_node_exporter_textfile_collector(self) -> List[str]:
-        return PROMETHEUS + ["node-exporter", "collectors", "textfile"]
-
-    # FRR exporter
-    def get_prometheus_frr_exporter_delete(self) -> List[str]:
-        return PROMETHEUS + ["frr-exporter"]
-
-    def get_prometheus_frr_exporter_port(self, port: str) -> List[str]:
-        return PROMETHEUS + ["frr-exporter", "port", port]
-
-    def get_prometheus_frr_exporter_port_delete(self) -> List[str]:
-        return PROMETHEUS + ["frr-exporter", "port"]
-
-    def get_prometheus_frr_exporter_listen_address(self, address: str) -> List[str]:
-        return PROMETHEUS + ["frr-exporter", "listen-address", address]
-
-    def get_prometheus_frr_exporter_listen_address_delete(self, address: str) -> List[str]:
-        return PROMETHEUS + ["frr-exporter", "listen-address", address]
-
-    def get_prometheus_frr_exporter_all_listen_addresses_delete(self) -> List[str]:
-        return PROMETHEUS + ["frr-exporter", "listen-address"]
-
-    def get_prometheus_frr_exporter_vrf(self, vrf: str) -> List[str]:
-        return PROMETHEUS + ["frr-exporter", "vrf", vrf]
-
-    def get_prometheus_frr_exporter_vrf_delete(self) -> List[str]:
-        return PROMETHEUS + ["frr-exporter", "vrf"]
-
-    # Blackbox exporter — top-level
-    def get_prometheus_blackbox_exporter_delete(self) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter"]
-
-    def get_prometheus_blackbox_exporter_port(self, port: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "port", port]
-
-    def get_prometheus_blackbox_exporter_port_delete(self) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "port"]
-
-    def get_prometheus_blackbox_exporter_listen_address(self, address: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "listen-address", address]
-
-    def get_prometheus_blackbox_exporter_listen_address_delete(self, address: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "listen-address", address]
-
-    def get_prometheus_blackbox_exporter_all_listen_addresses_delete(self) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "listen-address"]
-
-    def get_prometheus_blackbox_exporter_vrf(self, vrf: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "vrf", vrf]
-
-    def get_prometheus_blackbox_exporter_vrf_delete(self) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "vrf"]
-
-    # Blackbox exporter — ICMP module (tagged node)
-    def get_prometheus_blackbox_icmp_module_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "icmp", name]
-
-    def get_prometheus_blackbox_icmp_preferred_ip_protocol(self, name: str, protocol: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "icmp", name, "preferred-ip-protocol", protocol]
-
-    def get_prometheus_blackbox_icmp_preferred_ip_protocol_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "icmp", name, "preferred-ip-protocol"]
-
-    def get_prometheus_blackbox_icmp_ip_protocol_fallback(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "icmp", name, "ip-protocol-fallback"]
-
-    def get_prometheus_blackbox_icmp_timeout(self, name: str, timeout: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "icmp", name, "timeout", timeout]
-
-    def get_prometheus_blackbox_icmp_timeout_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "icmp", name, "timeout"]
-
-    # Blackbox exporter — DNS module (tagged node)
-    def get_prometheus_blackbox_dns_module_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name]
-
-    def get_prometheus_blackbox_dns_preferred_ip_protocol(self, name: str, protocol: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "preferred-ip-protocol", protocol]
-
-    def get_prometheus_blackbox_dns_preferred_ip_protocol_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "preferred-ip-protocol"]
-
-    def get_prometheus_blackbox_dns_ip_protocol_fallback(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "ip-protocol-fallback"]
-
-    def get_prometheus_blackbox_dns_timeout(self, name: str, timeout: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "timeout", timeout]
-
-    def get_prometheus_blackbox_dns_timeout_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "timeout"]
-
-    def get_prometheus_blackbox_dns_query_name(self, name: str, query_name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "query-name", query_name]
-
-    def get_prometheus_blackbox_dns_query_name_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "query-name"]
-
-    def get_prometheus_blackbox_dns_query_type(self, name: str, query_type: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "query-type", query_type]
-
-    def get_prometheus_blackbox_dns_query_type_delete(self, name: str) -> List[str]:
-        return PROMETHEUS + ["blackbox-exporter", "modules", "dns", name, "query-type"]
-
-    # =========================================================================
-    # Network Event logger (1.5 only)
-    # =========================================================================
-
-    def get_network_event_delete(self) -> List[str]:
-        return NETWORK_EVENT
-
-    def get_network_event_log_level(self, level: str) -> List[str]:
-        return NETWORK_EVENT + ["log-level", level]
-
-    def get_network_event_log_level_delete(self) -> List[str]:
-        return NETWORK_EVENT + ["log-level"]
-
-    def get_network_event_queue_size(self, size: str) -> List[str]:
-        return NETWORK_EVENT + ["queue-size", size]
-
-    def get_network_event_queue_size_delete(self) -> List[str]:
-        return NETWORK_EVENT + ["queue-size"]
-
-    def get_network_event_event(self, event_type: str) -> List[str]:
-        return NETWORK_EVENT + ["event", event_type]
-
-    def get_network_event_all_events_delete(self) -> List[str]:
-        return NETWORK_EVENT + ["event"]

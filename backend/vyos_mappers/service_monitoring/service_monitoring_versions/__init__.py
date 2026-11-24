@@ -1,29 +1,18 @@
-"""Factory for version-specific Service Monitoring mappers."""
+"""Factory for service monitoring mappers.
+
+The shared class is returned directly on 1.4. 1.5 paths live on the
+subclass. A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+"""
+
 from ..service_monitoring import ServiceMonitoringMapper
-from .v1_4 import ServiceMonitoringMapperV1_4
 from .v1_5 import ServiceMonitoringMapperV1_5
 
 
-def get_service_monitoring_mapper(version: str):
-    """Return a version-merged Service Monitoring mapper."""
-    base = ServiceMonitoringMapper(version)
-
+def get_service_monitoring_mapper(version: str) -> ServiceMonitoringMapper:
+    """Return the service monitoring mapper for this device."""
     if "1.4" in version:
-        version_specific = ServiceMonitoringMapperV1_4()
-    else:
-        version_specific = ServiceMonitoringMapperV1_5()
+        return ServiceMonitoringMapper(version)
+    return ServiceMonitoringMapperV1_5(version)
 
-    class MergedMapper:
-        # parse_config must live here. A method on ServiceMonitoringMapper is
-        # bound to `base`, so mapper.version would not fall through on the call.
-        def parse_config(self, full_config):
-            from ..config_parse import parse_config as parse_service_monitoring_config
 
-            return parse_service_monitoring_config(self, full_config)
-
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+__all__ = ["ServiceMonitoringMapperV1_5", "get_service_monitoring_mapper"]
