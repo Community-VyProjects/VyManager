@@ -79,6 +79,7 @@ DYNAMIC_DISPATCH_FILES = [
     "nat66/nat66.py",
     "nat64/nat64.py",
     "event_handler/event_handler.py",
+    "console_server/console_server.py",
     "firewall/zones.py",
 ]
 
