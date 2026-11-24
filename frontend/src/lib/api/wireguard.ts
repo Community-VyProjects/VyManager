@@ -83,7 +83,6 @@ export interface PeerStatus {
   latest_handshake_seconds: number | null;
   transfer_rx: string | null;
   transfer_tx: string | null;
-  transfer?: string;
   endpoint: string | null;
 }
 

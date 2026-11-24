@@ -7,13 +7,11 @@ Version-specific logic is in version-specific files.
 
 from typing import Any, Dict, FrozenSet, List
 
+from ..base import BaseFeatureMapper
 
-class WireGuardMapper:
+
+class WireGuardMapper(BaseFeatureMapper):
     """Base mapper with common WireGuard operations"""
-
-    def __init__(self, version: str):
-        """Initialize with VyOS version."""
-        self.version = version
 
     def versioned_nodes(self) -> FrozenSet[str]:
         """1.5-only WireGuard leaves this device has.
@@ -111,68 +109,26 @@ class WireGuardMapper:
         return ["interfaces", "wireguard", interface, "peer", peer, "disable"]
 
     # ========================================================================
+    # Operational Commands
+    # ========================================================================
+
+    def get_keypair_generate_path(self) -> List[str]:
+        """Op-mode path of ``generate pki wireguard key-pair``."""
+        return ["pki", "wireguard", "key-pair"]
+
+    def get_preshared_key_generate_path(self) -> List[str]:
+        """Op-mode path of ``generate pki wireguard preshared-key``."""
+        return ["pki", "wireguard", "preshared-key"]
+
+    def get_interface_summary_show_path(self, interface: str) -> List[str]:
+        """Op-mode path of ``show interfaces wireguard <interface> summary``."""
+        return ["interfaces", "wireguard", interface, "summary"]
+
+    # ========================================================================
     # Config Parsing
     # ========================================================================
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Parse WireGuard configuration from VyOS full config.
+        from .config_parse import parse_config as parse_wireguard_config
 
-        Returns:
-            Dictionary with 'interfaces' key containing all WireGuard interfaces
-        """
-        result = {"interfaces": {}}
-
-        try:
-            # Navigate to interfaces -> wireguard
-            interfaces = full_config.get("interfaces", {})
-            wireguard_interfaces = interfaces.get("wireguard", {})
-
-            if not wireguard_interfaces:
-                return result
-
-            for iface_name, iface_config in wireguard_interfaces.items():
-                interface_data = {
-                    "name": iface_name,
-                    "description": iface_config.get("description"),
-                    "address": self._normalize_to_list(iface_config.get("address")),
-                    "port": iface_config.get("port"),
-                    "private_key": iface_config.get("private-key"),
-                    "mtu": iface_config.get("mtu"),
-                    "fwmark": iface_config.get("fwmark"),
-                    "per_client_thread": "per-client-thread" in iface_config,
-                    "disabled": "disable" in iface_config,
-                    "peers": {}
-                }
-
-                # Parse peers
-                peers = iface_config.get("peer", {})
-                if peers:
-                    for peer_name, peer_config in peers.items():
-                        interface_data["peers"][peer_name] = {
-                            "name": peer_name,
-                            "public_key": peer_config.get("public-key"),
-                            "preshared_key": peer_config.get("preshared-key"),
-                            "allowed_ips": self._normalize_to_list(peer_config.get("allowed-ips")),
-                            "address": peer_config.get("address"),
-                            "port": peer_config.get("port"),
-                            "persistent_keepalive": peer_config.get("persistent-keepalive"),
-                            "description": peer_config.get("description"),
-                            "disabled": "disable" in peer_config,
-                            "host_name": peer_config.get("host-name"),
-                        }
-
-                result["interfaces"][iface_name] = interface_data
-
-        except Exception as e:
-            print(f"Error parsing WireGuard config: {e}")
-
-        return result
-
-    def _normalize_to_list(self, value: Any) -> List[str]:
-        """Convert value to list (handles single values and lists)."""
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return value
-        return [value]
+        return parse_wireguard_config(self, full_config)

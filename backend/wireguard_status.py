@@ -6,7 +6,10 @@ folds the parsed peers into the SSE payload and does not own this syntax.
 """
 
 import re
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
+
+# A WireGuard key in base64 (32 bytes: 43 characters and one ``=``).
+_WG_KEY = re.compile(r"[A-Za-z0-9+/=]{43,44}", re.ASCII)
 
 
 def _wg_alias(iface_name: str) -> str:
@@ -221,9 +224,6 @@ def _parse_wg_summary(output: str) -> dict:
     peers: dict = {}
     current: dict | None = None
 
-    def _is_pubkey(v: str) -> bool:
-        return bool(re.match(r"^[A-Za-z0-9+/=]{43,44}$", v))
-
     def _save() -> None:
         if current and current.get("public_key"):
             peers[current["public_key"]] = current
@@ -237,7 +237,7 @@ def _parse_wg_summary(output: str) -> dict:
             _save()
             val = line.split(":", 1)[1].strip()
             current = {
-                "public_key": val if _is_pubkey(val) else None,
+                "public_key": val if _WG_KEY.fullmatch(val) else None,
                 "latest_handshake": None,
                 "latest_handshake_seconds": None,
                 "transfer_rx": None,
@@ -262,3 +262,42 @@ def _parse_wg_summary(output: str) -> dict:
 
     _save()
     return peers
+
+
+# ========================================================================
+# Helper: Parse WireGuard op-mode key output
+# ========================================================================
+
+
+def _labelled_keys(output: str) -> dict:
+    """Map each ``<label>: <key>`` line to its key, label lowercased."""
+    keys: dict = {}
+    for raw_line in (output or "").splitlines():
+        label, sep, value = raw_line.strip().partition(":")
+        value = value.strip()
+        if sep and _WG_KEY.fullmatch(value):
+            keys.setdefault(label.strip().lower(), value)
+    return keys
+
+
+def _parse_wg_keypair(output: str) -> Tuple[Optional[str], Optional[str]]:
+    """Parse ``generate pki wireguard key-pair``.
+
+    Both labs print ``Private key: <key>`` then ``Public key: <key>``.
+    """
+    keys = _labelled_keys(output)
+    return keys.get("private key"), keys.get("public key")
+
+
+def _parse_wg_preshared_key(output: str) -> Optional[str]:
+    """Parse ``generate pki wireguard preshared-key`` (``Pre-shared key: <key>``)."""
+    return _labelled_keys(output).get("pre-shared key")
+
+
+def _parse_wg_interface_public_key(output: str) -> Optional[str]:
+    """Return the interface's own key from ``show interfaces wireguard <if> summary``.
+
+    The interface block lists ``public key:`` before any peer block, so the
+    first one is the interface's; a 1.5 peer block repeats the label.
+    """
+    return _labelled_keys(output).get("public key")
