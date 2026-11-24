@@ -86,6 +86,7 @@ DYNAMIC_DISPATCH_FILES = [
     "nhrp/nhrp.py",
     "rpki/rpki.py",
     "service_monitoring/service_monitoring.py",
+    "ntp/ntp.py",
     "firewall/zones.py",
 ]
 
