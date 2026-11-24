@@ -316,8 +316,18 @@ def test_graphql_empty_errors_names_the_mutation(monkeypatch):
     assert "AddImageContainer failed" in resp.json()["error"]
 
 
-def test_allowlist_maps_update_to_add_image_container():
-    assert container_mod._CONTAINER_GQL_ALLOWLIST["update_image"][0] == "AddImageContainer"
+def test_allowlist_maps_each_mutation():
+    """A re-pull (update) runs add_image; there is no separate update key."""
     assert container_mod._CONTAINER_GQL_ALLOWLIST["add_image"][0] == "AddImageContainer"
     assert container_mod._CONTAINER_GQL_ALLOWLIST["delete_image"][0] == "DeleteImageContainer"
     assert container_mod._CONTAINER_GQL_ALLOWLIST["restart"][0] == "RestartContainer"
+    assert set(container_mod._CONTAINER_GQL_ALLOWLIST) == {"add_image", "delete_image", "restart"}
+
+
+def test_invalid_image_ref_detail_names_the_image(monkeypatch):
+    client = _build_client(monkeypatch, {"data": {}})
+    for path in ("/vyos/container/image/pull", "/vyos/container/image/update-ref", "/vyos/container/image/delete-ref"):
+        resp = client.post(path, json={"image": "bad image"})
+        assert resp.status_code == 400, resp.text
+        assert resp.json()["detail"] == container_mod._INVALID_IMAGE_REF
+    assert _FakeAsyncClient.last_url is None

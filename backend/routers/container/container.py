@@ -212,8 +212,8 @@ class VyOSResponse(BaseModel):
 # Validates container names: alphanumeric + hyphens only (matches VyOS node.def syntax).
 # Must start with an alphanumeric character (no leading hyphen — a name like
 # "-rm" would otherwise be parsable as a flag by upstream tooling) and be at
-# most 63 characters long. This is the only user-supplied value that ever
-# reaches the shell, so it is validated before anything else.
+# most 63 characters long. Container names reach GraphQL mutations, op-mode
+# show paths and the VyOS config, so they are validated before anything else.
 _CONTAINER_NAME_RE = re.compile(r'^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$')
 
 # Validates image references: registry/namespace/name:tag or name:tag etc.
@@ -240,19 +240,19 @@ _SSH_QUICK_TIMEOUT = 60
 _SSH_KEY_NOT_CONFIGURED = "SSH key not configured."
 _SSH_KEY_MISSING = "SSH private key missing."
 _INVALID_CONTAINER_NAME = "Invalid container name. Must be alphanumeric and may contain hyphens."
+_INVALID_IMAGE_REF = "Invalid image reference."
 
 # ---------------------------------------------------------------------------
 # Strict operation allowlist — the ONLY GraphQL mutations this code will run.
 # Each entry maps an internal key to (mutation_name, timeout).
 # The router's op-mode `add container image` and `update container image` both
-# run `podman image pull`, so a re-pull ("update") uses AddImageContainer too.
+# run `podman image pull`, so a re-pull ("update") uses add_image too.
 # The image reference / container name is passed as the mutation's `name`
 # argument (JSON-encoded, never interpolated into a command string).
 # ---------------------------------------------------------------------------
 _CONTAINER_GQL_ALLOWLIST: Dict[str, tuple] = {
     "add_image":    ("AddImageContainer",    _GQL_IMAGE_TIMEOUT),
     "delete_image": ("DeleteImageContainer", _GQL_QUICK_TIMEOUT),
-    "update_image": ("AddImageContainer",    _GQL_IMAGE_TIMEOUT),
     "restart":      ("RestartContainer",     _GQL_QUICK_TIMEOUT),
 }
 
@@ -402,16 +402,17 @@ def _json_object(value: Any) -> Dict[str, Any]:
 async def _run_container_gql_command(
     request: Request,
     operation: str,
-    container_name: str,
+    name: str,
     name_re: re.Pattern = _CONTAINER_NAME_RE,
 ) -> ContainerSSHResponse:
     """
     Execute one of the allowlisted container operations over the VyOS GraphQL API.
 
     The operation key is resolved against _CONTAINER_GQL_ALLOWLIST before
-    anything is sent. The container_name / image reference is validated against
-    name_re (defaults to _CONTAINER_NAME_RE) and passed to the mutation as a
-    JSON-encoded argument — it never enters a shell command.
+    anything is sent. name is a container name (restart) or an image reference
+    (the image operations, with name_re=_IMAGE_REF_RE); it is validated against
+    name_re and passed to the mutation as a JSON-encoded argument — it never
+    enters a shell command.
     """
     # --- Allowlist check (must come before any other work) ---
     if operation not in _CONTAINER_GQL_ALLOWLIST:
@@ -420,16 +421,14 @@ async def _run_container_gql_command(
     mutation, timeout = _CONTAINER_GQL_ALLOWLIST[operation]
 
     # --- Name validation ---
-    if not container_name or not name_re.fullmatch(container_name):
-        raise HTTPException(status_code=400, detail=_INVALID_CONTAINER_NAME)
+    if not name or not name_re.fullmatch(name):
+        detail = _INVALID_IMAGE_REF if name_re is _IMAGE_REF_RE else _INVALID_CONTAINER_NAME
+        raise HTTPException(status_code=400, detail=detail)
 
     if (
         operation == "delete_image"
         and appliance_mode.is_appliance()
-        and (
-            appliance_mode.is_stack_container(container_name)
-            or appliance_mode.is_stack_image_ref(container_name)
-        )
+        and appliance_mode.is_stack_image_ref(name)
     ):
         raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
 
@@ -453,7 +452,7 @@ async def _run_container_gql_command(
     query = (
         "mutation { %s(data: {key: %s, name: %s}) "
         "{ success errors data { result } } }"
-        % (mutation, json.dumps(api_key), json.dumps(container_name))
+        % (mutation, json.dumps(api_key), json.dumps(name))
     )
 
     try:
@@ -741,7 +740,7 @@ class ContainerImageRefRequest(BaseModel):
 
 def _validate_image_ref(image: str):
     if not image or not _IMAGE_REF_RE.fullmatch(image):
-        raise HTTPException(status_code=400, detail="Invalid image reference.")
+        raise HTTPException(status_code=400, detail=_INVALID_IMAGE_REF)
 
 
 def _normalize_image_ref(image: str) -> str:
@@ -868,19 +867,12 @@ async def _check_container_image_update_status(request: Request, image: str) -> 
 
 
 @router.post("/image/pull", response_model=ContainerSSHResponse)
-async def container_image_pull(request: Request, body: ContainerImageRefRequest):
-    """Pull an image by reference directly (add container image <image-ref>)."""
+@router.post("/image/update-ref", response_model=ContainerSSHResponse)
+async def container_image_pull_ref(request: Request, body: ContainerImageRefRequest):
+    """Pull, or re-pull, an image by reference (add/update container image <image-ref>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
     _validate_image_ref(body.image)
     return await _run_container_gql_command(request, "add_image", body.image, name_re=_IMAGE_REF_RE)
-
-
-@router.post("/image/update-ref", response_model=ContainerSSHResponse)
-async def container_image_update_ref(request: Request, body: ContainerImageRefRequest):
-    """Update (re-pull) an image by reference (update container image <image-ref>)."""
-    await require_write_permission(request, FeatureGroup.CONTAINER)
-    _validate_image_ref(body.image)
-    return await _run_container_gql_command(request, "update_image", body.image, name_re=_IMAGE_REF_RE)
 
 
 @router.post("/image/delete-ref", response_model=ContainerSSHResponse)
@@ -892,11 +884,14 @@ async def container_image_delete_ref(request: Request, body: ContainerImageRefRe
 
 
 @router.post("/image/add", response_model=ContainerSSHResponse)
-async def container_image_add(request: Request, body: ContainerImageRequest):
-    """Pull the image configured on a container.
+@router.post("/image/update", response_model=ContainerSSHResponse)
+async def container_image_pull_configured(request: Request, body: ContainerImageRequest):
+    """Pull, or re-pull, the image configured on a container.
 
-    Op-mode ``add container image`` takes an image reference, so the image is
-    resolved from the container's config first, as /image/update does.
+    VyOS op-mode ``update container image <name>`` takes a container name, but
+    GraphQL only exposes AddImageContainer, which takes an image reference (as
+    op-mode ``add container image`` does). Resolve the image from config, then
+    pull that ref.
     """
     await require_write_permission(request, FeatureGroup.CONTAINER)
     image = await _configured_container_image(request, body.container_name)
@@ -915,22 +910,6 @@ async def container_image_delete(request: Request, body: ContainerImageRequest):
         raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
     image = await _configured_container_image(request, body.container_name)
     return await _run_container_gql_command(request, "delete_image", image, name_re=_IMAGE_REF_RE)
-
-
-@router.post("/image/update", response_model=ContainerSSHResponse)
-async def container_image_update(request: Request, body: ContainerImageRequest):
-    """Re-pull the image configured on a container.
-
-    VyOS op-mode ``update container image <name>`` takes a *container* name and
-    pulls that container's configured image. GraphQL only exposes
-    AddImageContainer, which takes an *image reference*. Resolve the image
-    from config, then pull that ref.
-    """
-    await require_write_permission(request, FeatureGroup.CONTAINER)
-    image = await _configured_container_image(request, body.container_name)
-    return await _run_container_gql_command(
-        request, "update_image", image, name_re=_IMAGE_REF_RE
-    )
 
 
 @router.post("/restart", response_model=ContainerSSHResponse)
