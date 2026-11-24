@@ -84,6 +84,7 @@ DYNAMIC_DISPATCH_FILES = [
     "tftp_server/tftp_server.py",
     "nhrp/nhrp.py",
     "rpki/rpki.py",
+    "service_monitoring/service_monitoring.py",
     "firewall/zones.py",
 ]
 

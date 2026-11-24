@@ -23,12 +23,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Monitor, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Monitor, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   ZabbixConfig,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 import { ZabbixModal } from "./ZabbixModal";
 
 interface ZabbixTabProps {
@@ -44,15 +45,24 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleDelete = async () => {
+  const openDelete = () => {
+    setDeleteError(null);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    // AlertDialogAction closes on click; stay open until the commit succeeds.
+    e.preventDefault();
     setDeleting(true);
+    setDeleteError(null);
     try {
       await serviceMonitoringService.deleteZabbix();
       setDeleteOpen(false);
       onSuccess();
-    } catch {
-      // ignore
+    } catch (err) {
+      setDeleteError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setDeleting(false);
     }
@@ -106,7 +116,7 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
                   size="sm"
                   variant="outline"
                   className="text-destructive hover:text-destructive"
-                  onClick={() => setDeleteOpen(true)}
+                  onClick={openDelete}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   {t("common.remove")}
@@ -127,6 +137,12 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">{t("common.port")}</p>
                 <p className="font-mono">{config.port}</p>
+              </div>
+            )}
+            {config.vrf && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">VRF</p>
+                <Badge variant="secondary" className="font-mono">{config.vrf}</Badge>
               </div>
             )}
             {config.timeout && (
@@ -212,7 +228,7 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
                 <p className="font-mono">{config.limits.buffer_size}</p>
               </div>
             )}
-            {config.log.size && (
+            {config.log.size != null && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.logSize")}</p>
                 <p className="font-mono">{config.log.size} MB</p>
@@ -238,7 +254,10 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
         />
       )}
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => { if (!open && !deleting) setDeleteOpen(false); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("zabbix.removeTitle")}</AlertDialogTitle>
@@ -246,6 +265,12 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
               {t("zabbix.removeDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span className="whitespace-pre-wrap">{deleteError}</span>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction

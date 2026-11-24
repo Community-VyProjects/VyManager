@@ -1,11 +1,16 @@
 """Read-model for service monitoring config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version keys come from the mapper (MergedMapper), not from
-hardcoded 1.4/1.5 branches here.
+the tree. Leaves one version lacks are simply absent from its tree, so the
+walk reads them the same way on both versions.
+
+Secrets (tokens, passwords, client and PSK secrets) are returned as
+MASKED_SECRET when set, never in plaintext.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+MASKED_SECRET = "***"
 
 
 def _str_val(raw: Any) -> Optional[str]:
@@ -27,6 +32,11 @@ def _int_val(raw: Any) -> Optional[int]:
         return None
 
 
+def _secret_val(raw: Any) -> Optional[str]:
+    """MASKED_SECRET when the secret leaf is set, else None."""
+    return MASKED_SECRET if _str_val(raw) else None
+
+
 def _multi_list(raw: Any) -> List[str]:
     """Parse a VyOS multi-value node into a sorted list."""
     if raw is None:
@@ -40,6 +50,7 @@ def _multi_list(raw: Any) -> List[str]:
 
 def _empty() -> Dict[str, Any]:
     return {
+        "configured": False,
         "telegraf": None,
         "zabbix_agent": None,
         "prometheus": None,
@@ -48,7 +59,7 @@ def _empty() -> Dict[str, Any]:
 
 
 def _parse_telegraf_influxdb(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     auth_raw = raw.get("authentication", {}) or {}
     return {
@@ -56,14 +67,14 @@ def _parse_telegraf_influxdb(raw: Any) -> Optional[Dict[str, Any]]:
         "port": _int_val(raw.get("port")),
         "bucket": _str_val(raw.get("bucket")),
         "authentication": {
-            "token": _str_val(auth_raw.get("token")),
+            "token": _secret_val(auth_raw.get("token")),
             "organization": _str_val(auth_raw.get("organization")),
         },
     }
 
 
 def _parse_telegraf_loki(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     auth_raw = raw.get("authentication", {}) or {}
     return {
@@ -72,26 +83,26 @@ def _parse_telegraf_loki(raw: Any) -> Optional[Dict[str, Any]]:
         "metric_name_label": _str_val(raw.get("metric-name-label")),
         "authentication": {
             "username": _str_val(auth_raw.get("username")),
-            "password": _str_val(auth_raw.get("password")),
+            "password": _secret_val(auth_raw.get("password")),
         },
     }
 
 
 def _parse_telegraf_splunk(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     auth_raw = raw.get("authentication", {}) or {}
     return {
         "url": _str_val(raw.get("url")),
         "authentication": {
-            "token": _str_val(auth_raw.get("token")),
+            "token": _secret_val(auth_raw.get("token")),
             "insecure": "insecure" in auth_raw,
         },
     }
 
 
 def _parse_telegraf_azure(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     auth_raw = raw.get("authentication", {}) or {}
     return {
@@ -101,14 +112,14 @@ def _parse_telegraf_azure(raw: Any) -> Optional[Dict[str, Any]]:
         "group_metrics": _str_val(raw.get("group-metrics")),
         "authentication": {
             "client_id": _str_val(auth_raw.get("client-id")),
-            "client_secret": _str_val(auth_raw.get("client-secret")),
+            "client_secret": _secret_val(auth_raw.get("client-secret")),
             "tenant_id": _str_val(auth_raw.get("tenant-id")),
         },
     }
 
 
 def _parse_telegraf_prometheus_client(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     auth_raw = raw.get("authentication", {}) or {}
     return {
@@ -118,17 +129,25 @@ def _parse_telegraf_prometheus_client(raw: Any) -> Optional[Dict[str, Any]]:
         "allow_from": _multi_list(raw.get("allow-from")),
         "authentication": {
             "username": _str_val(auth_raw.get("username")),
-            "password": _str_val(auth_raw.get("password")),
+            "password": _secret_val(auth_raw.get("password")),
         },
     }
 
 
 def _parse_telegraf(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
+    tags_raw = raw.get("global-tag")
+    global_tags = []
+    if isinstance(tags_raw, dict):
+        for tag, tag_cfg in sorted(tags_raw.items()):
+            value = tag_cfg.get("value") if isinstance(tag_cfg, dict) else None
+            global_tags.append({"name": tag, "value": _str_val(value)})
     return {
         "sources": _multi_list(raw.get("source")),
         "vrf": _str_val(raw.get("vrf")),
+        "frr_metrics": "frr-metrics" in raw,
+        "global_tags": global_tags,
         "influxdb": _parse_telegraf_influxdb(raw.get("influxdb")),
         "loki": _parse_telegraf_loki(raw.get("loki")),
         "splunk": _parse_telegraf_splunk(raw.get("splunk")),
@@ -140,7 +159,7 @@ def _parse_telegraf(raw: Any) -> Optional[Dict[str, Any]]:
 
 
 def _parse_zabbix(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
 
     auth_raw = raw.get("authentication", {}) or {}
@@ -161,6 +180,7 @@ def _parse_zabbix(raw: Any) -> Optional[Dict[str, Any]]:
     return {
         "host_name": _str_val(raw.get("host-name")),
         "port": _int_val(raw.get("port")),
+        "vrf": _str_val(raw.get("vrf")),
         "listen_addresses": _multi_list(raw.get("listen-address")),
         "directory": _str_val(raw.get("directory")),
         "timeout": _int_val(raw.get("timeout")),
@@ -169,7 +189,7 @@ def _parse_zabbix(raw: Any) -> Optional[Dict[str, Any]]:
         "authentication": {
             "mode": _str_val(auth_raw.get("mode")),
             "psk_id": _str_val(psk_raw.get("id")),
-            "psk_secret": _str_val(psk_raw.get("secret")),
+            "psk_secret": _secret_val(psk_raw.get("secret")),
         },
         "limits": {
             "buffer_flush_interval": _int_val(limits_raw.get("buffer-flush-interval")),
@@ -184,7 +204,7 @@ def _parse_zabbix(raw: Any) -> Optional[Dict[str, Any]]:
 
 
 def _parse_prometheus_base_exporter(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     return {
         "port": _int_val(raw.get("port")),
@@ -194,7 +214,7 @@ def _parse_prometheus_base_exporter(raw: Any) -> Optional[Dict[str, Any]]:
 
 
 def _parse_prometheus_node_exporter(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     collectors_raw = raw.get("collectors", {}) or {}
     parsed = _parse_prometheus_base_exporter(raw)
@@ -204,43 +224,56 @@ def _parse_prometheus_node_exporter(raw: Any) -> Optional[Dict[str, Any]]:
     return parsed
 
 
+def _parse_prometheus_frr_exporter(raw: Any) -> Optional[Dict[str, Any]]:
+    parsed = _parse_prometheus_base_exporter(raw)
+    if parsed is None:
+        return None
+    collector_raw = raw.get("collector", {}) or {}
+    bgp_raw = collector_raw.get("bgp", {}) or {}
+    parsed["collectors"] = sorted(
+        name for name in collector_raw if name not in ("bgp", "ospf-instance")
+    )
+    parsed["bgp_options"] = sorted(name for name in bgp_raw if name != "peer-description")
+    parsed["bgp_peer_description"] = _str_val(bgp_raw.get("peer-description"))
+    parsed["ospf_instances"] = sorted(_multi_list(collector_raw.get("ospf-instance")), key=int)
+    return parsed
+
+
+def _parse_blackbox_modules(raw: Any) -> List[Tuple[str, Dict[str, Any]]]:
+    """(name, cfg) pairs under a module type's `name` tag node, sorted by name."""
+    names_raw = raw.get("name") if isinstance(raw, dict) else None
+    if not isinstance(names_raw, dict):
+        return []
+    return sorted((name, cfg or {}) for name, cfg in names_raw.items())
+
+
 def _parse_prometheus_blackbox(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
 
     modules_raw = raw.get("modules", {}) or {}
 
-    icmp_modules = []
-    icmp_raw = modules_raw.get("icmp", {})
-    if icmp_raw and isinstance(icmp_raw, dict):
-        for name, cfg in icmp_raw.items():
-            cfg = cfg or {}
-            icmp_modules.append(
-                {
-                    "name": name,
-                    "preferred_ip_protocol": _str_val(cfg.get("preferred-ip-protocol")),
-                    "ip_protocol_fallback": "ip-protocol-fallback" in cfg,
-                    "timeout": _int_val(cfg.get("timeout")),
-                }
-            )
-    icmp_modules.sort(key=lambda item: item["name"])
+    icmp_modules = [
+        {
+            "name": name,
+            "preferred_ip_protocol": _str_val(cfg.get("preferred-ip-protocol")),
+            "ip_protocol_fallback": "ip-protocol-fallback" in cfg,
+            "timeout": _int_val(cfg.get("timeout")),
+        }
+        for name, cfg in _parse_blackbox_modules(modules_raw.get("icmp"))
+    ]
 
-    dns_modules = []
-    dns_raw = modules_raw.get("dns", {})
-    if dns_raw and isinstance(dns_raw, dict):
-        for name, cfg in dns_raw.items():
-            cfg = cfg or {}
-            dns_modules.append(
-                {
-                    "name": name,
-                    "preferred_ip_protocol": _str_val(cfg.get("preferred-ip-protocol")),
-                    "ip_protocol_fallback": "ip-protocol-fallback" in cfg,
-                    "timeout": _int_val(cfg.get("timeout")),
-                    "query_name": _str_val(cfg.get("query-name")),
-                    "query_type": _str_val(cfg.get("query-type")),
-                }
-            )
-    dns_modules.sort(key=lambda item: item["name"])
+    dns_modules = [
+        {
+            "name": name,
+            "preferred_ip_protocol": _str_val(cfg.get("preferred-ip-protocol")),
+            "ip_protocol_fallback": "ip-protocol-fallback" in cfg,
+            "timeout": _int_val(cfg.get("timeout")),
+            "query_name": _str_val(cfg.get("query-name")),
+            "query_type": _str_val(cfg.get("query-type")),
+        }
+        for name, cfg in _parse_blackbox_modules(modules_raw.get("dns"))
+    ]
 
     parsed = _parse_prometheus_base_exporter(raw)
     if parsed is None:
@@ -251,17 +284,17 @@ def _parse_prometheus_blackbox(raw: Any) -> Optional[Dict[str, Any]]:
 
 
 def _parse_prometheus(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
     return {
         "node_exporter": _parse_prometheus_node_exporter(raw.get("node-exporter")),
-        "frr_exporter": _parse_prometheus_base_exporter(raw.get("frr-exporter")),
+        "frr_exporter": _parse_prometheus_frr_exporter(raw.get("frr-exporter")),
         "blackbox_exporter": _parse_prometheus_blackbox(raw.get("blackbox-exporter")),
     }
 
 
 def _parse_network_event(raw: Any) -> Optional[Dict[str, Any]]:
-    if not raw or not isinstance(raw, dict):
+    if not isinstance(raw, dict):
         return None
 
     events_raw = raw.get("event", {})
@@ -280,10 +313,12 @@ def _parse_network_event(raw: Any) -> Optional[Dict[str, Any]]:
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/service-monitoring/config payload."""
     monitoring_raw = (full_config.get("service") or {}).get("monitoring")
-    if not monitoring_raw or not isinstance(monitoring_raw, dict):
+    if not isinstance(monitoring_raw, dict):
         return _empty()
 
     return {
+        # Key membership: a bare `service monitoring {}` is still on the device.
+        "configured": True,
         "telegraf": _parse_telegraf(monitoring_raw.get("telegraf")),
         "zabbix_agent": _parse_zabbix(monitoring_raw.get("zabbix-agent")),
         "prometheus": _parse_prometheus(monitoring_raw.get("prometheus")),

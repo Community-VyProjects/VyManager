@@ -15,14 +15,18 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import {
+  MASKED_SECRET,
   TelegrafInfluxDB,
+  ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafInfluxDBModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   original: TelegrafInfluxDB | null;
+  caps: ServiceMonitoringCapabilities;
   onSuccess: () => void;
 }
 
@@ -30,6 +34,7 @@ export function TelegrafInfluxDBModal({
   open,
   onOpenChange,
   original,
+  caps,
   onSuccess,
 }: TelegrafInfluxDBModalProps) {
   const t = useTranslations("serviceMonitoring");
@@ -37,34 +42,57 @@ export function TelegrafInfluxDBModal({
   const [url, setUrl] = useState(original?.url ?? "");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [bucket, setBucket] = useState(original?.bucket ?? "");
-  const [token, setToken] = useState(original?.authentication?.token ?? "");
+  const [token, setToken] = useState("");
   const [organization, setOrganization] = useState(original?.authentication?.organization ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tokenStored = !!original?.authentication?.token;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
 
   const handleSubmit = async () => {
+    // url, token and organization are required by the lab's verify.
+    if (!url.trim()) {
+      setError(t("common.fieldRequired", { field: t("common.url") }));
+      return;
+    }
+    if (!token && !tokenStored) {
+      setError(t("common.fieldRequired", { field: t("telegraf.token") }));
+      return;
+    }
+    // The mask is never sent, so a typed mask would set nothing.
+    if (token === MASKED_SECRET) {
+      setError(t("common.secretIsMask", { field: t("telegraf.token") }));
+      return;
+    }
+    if (!organization.trim()) {
+      setError(t("common.fieldRequired", { field: t("telegraf.influxdb.organization") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       await serviceMonitoringService.saveTelegrafInfluxDB(original, {
-        url: url || null,
+        url: url.trim(),
         port: port ? parseInt(port, 10) : null,
-        bucket: bucket || null,
+        bucket: bucket.trim() || null,
         authentication: {
           token: token || null,
-          organization: organization || null,
+          organization: organization.trim(),
         },
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.configureOutput", { name: "InfluxDB" })}</DialogTitle>
@@ -73,7 +101,7 @@ export function TelegrafInfluxDBModal({
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-1">
             <div className="space-y-2">
-              <Label htmlFor="influxdb-url">URL</Label>
+              <Label htmlFor="influxdb-url">{t("common.url")}</Label>
               <Input
                 id="influxdb-url"
                 placeholder={t("telegraf.influxdb.urlPlaceholder")}
@@ -86,7 +114,7 @@ export function TelegrafInfluxDBModal({
               <Input
                 id="influxdb-port"
                 type="number"
-                placeholder="8086"
+                placeholder={String(caps.features.telegraf.outputs.influxdb.default_port)}
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
               />
@@ -105,7 +133,8 @@ export function TelegrafInfluxDBModal({
               <Input
                 id="influxdb-token"
                 type="password"
-                placeholder={t("telegraf.influxdb.tokenPlaceholder")}
+                autoComplete="new-password"
+                placeholder={tokenStored ? t("common.secretKeep") : t("telegraf.influxdb.tokenPlaceholder")}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
@@ -130,7 +159,7 @@ export function TelegrafInfluxDBModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

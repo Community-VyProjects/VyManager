@@ -23,94 +23,137 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   PrometheusConfig,
   PrometheusBlackboxICMPModule,
   PrometheusBlackboxDNSModule,
   ServiceMonitoringCapabilities,
+  TelegrafConfig,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 import { PrometheusExporterModal } from "./PrometheusExporterModal";
 import { BlackboxModuleModal } from "./BlackboxModuleModal";
 
 interface PrometheusTabProps {
   config: PrometheusConfig | null;
+  /** Telegraf, whose `frr-metrics` relay depends on the frr-exporter. */
+  telegraf: TelegrafConfig | null;
   caps: ServiceMonitoringCapabilities;
   hasWrite: boolean;
   onSuccess: () => void;
 }
 
-export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusTabProps) {
+type DeleteSubject =
+  | { kind: "all" }
+  | { kind: "node" }
+  | { kind: "frr" }
+  | { kind: "blackbox" }
+  | { kind: "module"; type: "icmp" | "dns"; name: string };
+
+export function PrometheusTab({ config, telegraf, caps, hasWrite, onSuccess }: PrometheusTabProps) {
   const t = useTranslations("serviceMonitoring");
   const tc = useTranslations("common");
   const [nodeOpen, setNodeOpen] = useState(false);
   const [frrOpen, setFrrOpen] = useState(false);
   const [blackboxOpen, setBlackboxOpen] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState<"node" | "frr" | "blackbox" | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
   const [moduleModal, setModuleModal] = useState<{
     type: "icmp" | "dns";
     original: PrometheusBlackboxICMPModule | PrometheusBlackboxDNSModule | null;
   } | null>(null);
-  const [deleteModule, setDeleteModule] = useState<{
-    type: "icmp" | "dns";
-    name: string;
-  } | null>(null);
 
-  const handleDeleteExporter = async () => {
-    if (!deleteTarget) return;
+  // The subject stays set while the dialog closes, so its text does not flip.
+  const [deleteSubject, setDeleteSubject] = useState<DeleteSubject | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const openDelete = (subject: DeleteSubject) => {
+    setDeleteError(null);
+    setDeleteSubject(subject);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    // AlertDialogAction closes on click; stay open until the commit succeeds.
+    e.preventDefault();
+    if (!deleteSubject) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
-      switch (deleteTarget) {
+      // telegraf frr-metrics cannot outlive the frr-exporter it relays.
+      const frrMetrics = telegraf?.frr_metrics ?? false;
+      switch (deleteSubject.kind) {
+        case "all": await serviceMonitoringService.deletePrometheus(frrMetrics); break;
         case "node": await serviceMonitoringService.deletePrometheusNodeExporter(); break;
-        case "frr": await serviceMonitoringService.deletePrometheusFrrExporter(); break;
+        case "frr": await serviceMonitoringService.deletePrometheusFrrExporter(frrMetrics); break;
         case "blackbox": await serviceMonitoringService.deletePrometheusBlackboxExporter(); break;
+        case "module":
+          if (deleteSubject.type === "icmp") {
+            await serviceMonitoringService.deleteBlackboxICMPModule(deleteSubject.name);
+          } else {
+            await serviceMonitoringService.deleteBlackboxDNSModule(deleteSubject.name);
+          }
+          break;
       }
-      setDeleteTarget(null);
+      setDeleteOpen(false);
       onSuccess();
-    } catch {
-      // ignore
+    } catch (err) {
+      setDeleteError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleDeleteModule = async () => {
-    if (!deleteModule) return;
-    setDeleting(true);
-    try {
-      if (deleteModule.type === "icmp") {
-        await serviceMonitoringService.deleteBlackboxICMPModule(deleteModule.name);
-      } else {
-        await serviceMonitoringService.deleteBlackboxDNSModule(deleteModule.name);
-      }
-      setDeleteModule(null);
-      onSuccess();
-    } catch {
-      // ignore
-    } finally {
-      setDeleting(false);
+  const deleteTitle = (() => {
+    switch (deleteSubject?.kind) {
+      case "all": return t("prometheus.removeAllTitle");
+      case "module": return t("prometheus.removeModuleTitle");
+      default: return t("prometheus.removeExporterTitle");
     }
-  };
+  })();
+  const deleteDescription = (() => {
+    switch (deleteSubject?.kind) {
+      case "all": return t("prometheus.removeAllDescription");
+      case "module":
+        return t("prometheus.removeModuleDescription", {
+          type: deleteSubject.type.toUpperCase(),
+          name: deleteSubject.name,
+        });
+      default: return t("prometheus.removeExporterDescription");
+    }
+  })();
 
   return (
     <div className="space-y-6">
+      {hasWrite && config && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            onClick={() => openDelete({ kind: "all" })}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            {t("prometheus.removeAll")}
+          </Button>
+        </div>
+      )}
+
       {/* Node Exporter */}
       <ExporterCard
         // eslint-disable-next-line vymanager/no-untranslated-text -- product name
         title="Node Exporter"
         description={t("prometheus.nodeExporterDescription")}
-        defaultPort={caps.features.prometheus.exporters.node_exporter.default_port}
         port={config?.node_exporter?.port}
         listenAddresses={config?.node_exporter?.listen_addresses ?? []}
         vrf={config?.node_exporter?.vrf}
         extraBadges={config?.node_exporter?.textfile_collector ? [t("prometheus.textfileCollector")] : []}
         hasWrite={hasWrite}
         onEdit={() => setNodeOpen(true)}
-        onRemove={() => setDeleteTarget("node")}
+        onRemove={() => openDelete({ kind: "node" })}
         configured={!!config?.node_exporter}
       />
 
@@ -119,13 +162,22 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
         // eslint-disable-next-line vymanager/no-untranslated-text -- product name
         title="FRR Exporter"
         description={t("prometheus.frrExporterDescription")}
-        defaultPort={caps.features.prometheus.exporters.frr_exporter.default_port}
         port={config?.frr_exporter?.port}
         listenAddresses={config?.frr_exporter?.listen_addresses ?? []}
         vrf={config?.frr_exporter?.vrf}
+        extraBadges={[
+          ...(config?.frr_exporter?.collectors ?? []),
+          ...(config?.frr_exporter?.bgp_options ?? []),
+          ...(config?.frr_exporter?.bgp_peer_description
+            ? [`${t("exporter.peerDescription")}: ${config.frr_exporter.bgp_peer_description}`]
+            : []),
+          ...(config?.frr_exporter?.ospf_instances?.length
+            ? [`${t("exporter.ospfInstances")}: ${config.frr_exporter.ospf_instances.join(", ")}`]
+            : []),
+        ]}
         hasWrite={hasWrite}
         onEdit={() => setFrrOpen(true)}
-        onRemove={() => setDeleteTarget("frr")}
+        onRemove={() => openDelete({ kind: "frr" })}
         configured={!!config?.frr_exporter}
       />
 
@@ -150,7 +202,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                   {config?.blackbox_exporter ? <><Pencil className="h-3.5 w-3.5 mr-1" />{tc("edit")}</> : <><Plus className="h-3.5 w-3.5 mr-1" />{t("common.configure")}</>}
                 </Button>
                 {config?.blackbox_exporter && (
-                  <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget("blackbox")}>
+                  <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => openDelete({ kind: "blackbox" })}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -171,6 +223,16 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1">VRF</p>
                   <Badge variant="secondary" className="font-mono">{config.blackbox_exporter.vrf}</Badge>
+                </div>
+              )}
+              {config.blackbox_exporter.listen_addresses.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{t("common.listenAddresses")}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {config.blackbox_exporter.listen_addresses.map((a) => (
+                      <Badge key={a} variant="secondary" className="font-mono text-xs">{a}</Badge>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -207,7 +269,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setModuleModal({ type: "icmp", original: m })}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteModule({ type: "icmp", name: m.name })}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => openDelete({ kind: "module", type: "icmp", name: m.name })}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -254,7 +316,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setModuleModal({ type: "dns", original: m })}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteModule({ type: "dns", name: m.name })}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => openDelete({ kind: "module", type: "dns", name: m.name })}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -289,6 +351,7 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
           onOpenChange={setFrrOpen}
           type="frr"
           original={config?.frr_exporter ?? null}
+          telegraf={telegraf}
           caps={caps}
           onSuccess={() => { setFrrOpen(false); onSuccess(); }}
         />
@@ -321,36 +384,24 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
         />
       )}
 
-      {/* Delete Exporter Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => { if (!open && !deleting) setDeleteOpen(false); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("prometheus.removeExporterTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("prometheus.removeExporterDescription")}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{deleteDescription}</AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span className="whitespace-pre-wrap">{deleteError}</span>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteExporter} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {t("common.remove")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Module Dialog */}
-      <AlertDialog open={!!deleteModule} onOpenChange={(open) => { if (!open) setDeleteModule(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("prometheus.removeModuleTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("prometheus.removeModuleDescription", { type: deleteModule?.type.toUpperCase() ?? "", name: deleteModule?.name ?? "" })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteModule} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -363,7 +414,6 @@ export function PrometheusTab({ config, caps, hasWrite, onSuccess }: PrometheusT
 interface ExporterCardProps {
   title: string;
   description: string;
-  defaultPort: number;
   port?: number | null;
   listenAddresses: string[];
   vrf?: string | null;

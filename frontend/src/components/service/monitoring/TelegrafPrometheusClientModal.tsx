@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -23,10 +23,17 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import {
+  MASKED_SECRET,
   TelegrafPrometheusClient,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface TelegrafPrometheusClientModalProps {
   open: boolean;
@@ -53,12 +60,16 @@ export function TelegrafPrometheusClientModal({
   const [allowFrom, setAllowFrom] = useState<string[]>(original?.allow_from ?? []);
   const [allowInput, setAllowInput] = useState("");
   const [username, setUsername] = useState(original?.authentication?.username ?? "");
+  // Loads as the mask when set: unchanged keeps it, cleared deletes it.
   const [password, setPassword] = useState(original?.authentication?.password ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const metricVersionValues = caps.features.telegraf.outputs.prometheus_client.metric_version_values;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
 
   const addAllowFrom = () => {
     const val = allowInput.trim();
@@ -72,6 +83,11 @@ export function TelegrafPrometheusClientModal({
   };
 
   const handleSubmit = async () => {
+    // The mask is never sent, so typing it with no stored password would set nothing.
+    if (password === MASKED_SECRET && !original?.authentication?.password) {
+      setError(t("common.secretIsMask", { field: t("telegraf.password") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -87,14 +103,14 @@ export function TelegrafPrometheusClientModal({
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.configureOutput", { name: "Prometheus Client" })}</DialogTitle>
@@ -107,7 +123,7 @@ export function TelegrafPrometheusClientModal({
               <Input
                 id="prom-port"
                 type="number"
-                placeholder="9273"
+                placeholder={String(caps.features.telegraf.outputs.prometheus_client.default_port)}
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
               />
@@ -123,11 +139,15 @@ export function TelegrafPrometheusClientModal({
             </div>
             <div className="space-y-2">
               <Label>{t("telegraf.promClient.metricVersion")}</Label>
-              <Select value={metricVersion} onValueChange={setMetricVersion}>
+              <Select
+                value={toNamedListValue(metricVersion)}
+                onValueChange={(v) => setMetricVersion(fromNamedListValue(v))}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={t("telegraf.promClient.selectVersion")} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                   {metricVersionValues.map((v) => (
                     <SelectItem key={v} value={String(v)}>{t("telegraf.promClient.version", { version: String(v) })}</SelectItem>
                   ))}
@@ -138,7 +158,6 @@ export function TelegrafPrometheusClientModal({
               <Label>{t("telegraf.promClient.allowFrom")}</Label>
               <div className="flex gap-2">
                 <Input
-                  ref={inputRef}
                   placeholder={t("telegraf.promClient.allowFromPlaceholder")}
                   value={allowInput}
                   onChange={(e) => setAllowInput(e.target.value)}
@@ -178,6 +197,7 @@ export function TelegrafPrometheusClientModal({
               <Input
                 id="prom-password"
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -193,7 +213,7 @@ export function TelegrafPrometheusClientModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

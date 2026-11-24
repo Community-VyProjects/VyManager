@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { TelegrafSplunk, serviceMonitoringService } from "@/lib/api/service-monitoring";
+import { MASKED_SECRET, TelegrafSplunk, serviceMonitoringService } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafSplunkModalProps {
   open: boolean;
@@ -27,17 +28,36 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
   const t = useTranslations("serviceMonitoring");
   const tc = useTranslations("common");
   const [url, setUrl] = useState(original?.url ?? "");
-  const [token, setToken] = useState(original?.authentication?.token ?? "");
+  const [token, setToken] = useState("");
   const [insecure, setInsecure] = useState(original?.authentication?.insecure ?? false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tokenStored = !!original?.authentication?.token;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
 
   const handleSubmit = async () => {
+    // url and token are required by the lab's verify.
+    if (!url.trim()) {
+      setError(t("common.fieldRequired", { field: t("common.url") }));
+      return;
+    }
+    if (!token && !tokenStored) {
+      setError(t("common.fieldRequired", { field: t("telegraf.token") }));
+      return;
+    }
+    // The mask is never sent, so a typed mask would set nothing.
+    if (token === MASKED_SECRET) {
+      setError(t("common.secretIsMask", { field: t("telegraf.token") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       await serviceMonitoringService.saveTelegrafSplunk(original, {
-        url: url || null,
+        url: url.trim(),
         authentication: {
           token: token || null,
           insecure,
@@ -45,14 +65,14 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.configureOutput", { name: "Splunk" })}</DialogTitle>
@@ -60,7 +80,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
 
         <div className="space-y-4 py-1">
           <div className="space-y-2">
-            <Label htmlFor="splunk-url">URL</Label>
+            <Label htmlFor="splunk-url">{t("common.url")}</Label>
             <Input
               id="splunk-url"
               placeholder={t("telegraf.splunk.urlPlaceholder")}
@@ -73,7 +93,8 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
             <Input
               id="splunk-token"
               type="password"
-              placeholder={t("telegraf.splunk.tokenPlaceholder")}
+              autoComplete="new-password"
+              placeholder={tokenStored ? t("common.secretKeep") : t("telegraf.splunk.tokenPlaceholder")}
               value={token}
               onChange={(e) => setToken(e.target.value)}
             />
@@ -98,7 +119,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

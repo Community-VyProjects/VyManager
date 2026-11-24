@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,11 +26,18 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, Trash2, X } from "lucide-react";
 import {
+  MASKED_SECRET,
   ZabbixConfig,
   ZabbixServerActive,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface ZabbixModalProps {
   open: boolean;
@@ -61,7 +69,9 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
   const [authMode, setAuthMode] = useState(original?.authentication?.mode ?? "");
   const [pskId, setPskId] = useState(original?.authentication?.psk_id ?? "");
+  // Loads as the mask when set: unchanged keeps it, cleared deletes it, new text sets it.
   const [pskSecret, setPskSecret] = useState(original?.authentication?.psk_secret ?? "");
+  const [vrf, setVrf] = useState(original?.vrf ?? "");
 
   const [bufferFlushInterval, setBufferFlushInterval] = useState(
     original?.limits?.buffer_flush_interval ? String(original.limits.buffer_flush_interval) : ""
@@ -72,7 +82,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
   const [debugLevel, setDebugLevel] = useState(original?.log?.debug_level ?? "");
   const [logSize, setLogSize] = useState(
-    original?.log?.size ? String(original.log.size) : ""
+    original?.log?.size != null ? String(original.log.size) : ""
   );
   const [remoteCommands, setRemoteCommands] = useState(original?.log?.remote_commands ?? false);
 
@@ -111,13 +121,37 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
     setServersActive((prev) => prev.filter((s) => s.address !== addr));
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
+
   const handleSubmit = async () => {
+    // The lab's verify requires at least one server.
+    if (servers.length === 0) {
+      setError(t("common.fieldRequired", { field: t("zabbix.passiveServers") }));
+      return;
+    }
+    const id = pskId.trim();
+    if (authMode === "pre-shared-secret" && !id) {
+      setError(t("common.fieldRequired", { field: t("zabbix.pskId") }));
+      return;
+    }
+    if (authMode === "pre-shared-secret" && !pskSecret) {
+      setError(t("common.fieldRequired", { field: t("zabbix.pskSecret") }));
+      return;
+    }
+    // The mask is never sent, so typing it with no stored secret would set nothing.
+    if (pskSecret === MASKED_SECRET && !original?.authentication?.psk_secret) {
+      setError(t("common.secretIsMask", { field: t("zabbix.pskSecret") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       await serviceMonitoringService.saveZabbix(original, {
         host_name: hostName || null,
         port: port ? parseInt(port, 10) : null,
+        vrf: vrf || null,
         listen_addresses: listenAddresses,
         directory: directory || null,
         timeout: timeout ? parseInt(timeout, 10) : null,
@@ -125,7 +159,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
         servers_active: serversActive,
         authentication: {
           mode: authMode || null,
-          psk_id: pskId || null,
+          psk_id: id || null,
           psk_secret: pskSecret || null,
         },
         limits: {
@@ -140,7 +174,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +185,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{original ? t("zabbix.editTitle") : t("zabbix.configureTitle")}</DialogTitle>
@@ -169,13 +203,25 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="z-port">{t("common.port")}</Label>
-                  <Input id="z-port" type="number" placeholder="10050" value={port} onChange={(e) => setPort(e.target.value)} />
+                  <Input
+                    id="z-port"
+                    type="number"
+                    placeholder={String(caps.features.zabbix_agent.default_port)}
+                    value={port}
+                    onChange={(e) => setPort(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="z-dir">{t("zabbix.directory")}</Label>
                 <Input id="z-dir" placeholder="/etc/zabbix" value={directory} onChange={(e) => setDirectory(e.target.value)} />
               </div>
+              {caps.features.zabbix_agent.vrf.supported && (
+                <div className="space-y-2">
+                  <Label htmlFor="z-vrf">VRF</Label>
+                  <VrfSelect id="z-vrf" value={vrf} onValueChange={setVrf} />
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -186,14 +232,19 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
-                  placeholder="3"
+                  placeholder={String(caps.features.zabbix_agent.timeout.default)}
                   min={caps.features.zabbix_agent.timeout.min}
                   max={caps.features.zabbix_agent.timeout.max}
                   value={timeout}
                   onChange={(e) => setTimeout(e.target.value)}
                   className="max-w-[120px]"
                 />
-                <span className="text-sm text-muted-foreground">{t("zabbix.secondsRange")}</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("zabbix.secondsRange", {
+                    min: String(caps.features.zabbix_agent.timeout.min),
+                    max: String(caps.features.zabbix_agent.timeout.max),
+                  })}
+                </span>
               </div>
             </div>
 
@@ -296,37 +347,49 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             <Separator />
 
-            {/* Authentication */}
-            <div className="space-y-3">
-              <p className="text-sm font-semibold">{t("zabbix.authentication")}</p>
-              <div className="space-y-2">
-                <Label>{t("zabbix.mode")}</Label>
-                <Select value={authMode} onValueChange={setAuthMode}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {authModes.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {authMode === "pre-shared-secret" && (
-                <div className="grid grid-cols-2 gap-3">
+            {/* Authentication: only on versions with a zabbix-agent authentication node */}
+            {authModes.length > 0 && (
+              <>
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold">{t("zabbix.authentication")}</p>
                   <div className="space-y-2">
-                    <Label htmlFor="z-psk-id">{t("zabbix.pskId")}</Label>
-                    <Input id="z-psk-id" value={pskId} onChange={(e) => setPskId(e.target.value)} />
+                    <Label>{t("zabbix.mode")}</Label>
+                    <Select
+                      value={toNamedListValue(authMode)}
+                      onValueChange={(v) => setAuthMode(fromNamedListValue(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
+                        {authModes.map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="z-psk-secret">{t("zabbix.pskSecret")}</Label>
-                    <Input id="z-psk-secret" type="password" value={pskSecret} onChange={(e) => setPskSecret(e.target.value)} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="z-psk-id">{t("zabbix.pskId")}</Label>
+                      <Input id="z-psk-id" value={pskId} onChange={(e) => setPskId(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="z-psk-secret">{t("zabbix.pskSecret")}</Label>
+                      <Input
+                        id="z-psk-secret"
+                        type="password"
+                        autoComplete="new-password"
+                        value={pskSecret}
+                        onChange={(e) => setPskSecret(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            <Separator />
+                <Separator />
+              </>
+            )}
 
             {/* Buffer Limits */}
             <div className="space-y-3">
@@ -363,11 +426,15 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>{t("zabbix.debugLevel")}</Label>
-                  <Select value={debugLevel} onValueChange={setDebugLevel}>
+                  <Select
+                    value={toNamedListValue(debugLevel)}
+                    onValueChange={(v) => setDebugLevel(fromNamedListValue(v))}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder={tc("default")} />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                       {debugLevels.map((l) => (
                         <SelectItem key={l} value={l}>{l}</SelectItem>
                       ))}
@@ -406,7 +473,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

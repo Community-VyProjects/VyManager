@@ -15,12 +15,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Network, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Network, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   NetworkEventConfig,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 import { NetworkEventModal } from "./NetworkEventModal";
 
 interface NetworkEventTabProps {
@@ -44,15 +45,24 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleDelete = async () => {
+  const openDelete = () => {
+    setDeleteError(null);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    // AlertDialogAction closes on click; stay open until the commit succeeds.
+    e.preventDefault();
     setDeleting(true);
+    setDeleteError(null);
     try {
       await serviceMonitoringService.deleteNetworkEvent();
       setDeleteOpen(false);
       onSuccess();
-    } catch {
-      // ignore
+    } catch (err) {
+      setDeleteError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setDeleting(false);
     }
@@ -106,7 +116,7 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
                   size="sm"
                   variant="outline"
                   className="text-destructive hover:text-destructive"
-                  onClick={() => setDeleteOpen(true)}
+                  onClick={openDelete}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   {t("common.remove")}
@@ -156,7 +166,10 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
         />
       )}
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => { if (!open && !deleting) setDeleteOpen(false); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("networkEvent.removeTitle")}</AlertDialogTitle>
@@ -164,6 +177,12 @@ export function NetworkEventTab({ config, caps, hasWrite, onSuccess }: NetworkEv
               {t("networkEvent.removeDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span className="whitespace-pre-wrap">{deleteError}</span>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
