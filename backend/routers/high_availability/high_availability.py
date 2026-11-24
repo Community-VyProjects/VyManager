@@ -32,6 +32,113 @@ class VyOSResponse(BaseModel):
     error: Optional[str] = None
 
 
+class VrrpAddress(BaseModel):
+    address: str
+    interface: Optional[str] = None
+
+
+class VrrpAuthentication(BaseModel):
+    type: Optional[str] = None
+    password: Optional[str] = None  # "***" when stored; never the secret
+
+
+class HealthCheck(BaseModel):
+    failure_count: Optional[str] = None
+    interval: Optional[str] = None
+    ping: Optional[str] = None
+    script: Optional[str] = None
+    timeout: Optional[str] = None
+
+
+class TransitionScript(BaseModel):
+    backup: Optional[str] = None
+    fault: Optional[str] = None
+    master: Optional[str] = None
+    stop: Optional[str] = None
+
+
+class Garp(BaseModel):
+    interval: Optional[str] = None
+    master_delay: Optional[str] = None
+    master_refresh: Optional[str] = None
+    master_refresh_repeat: Optional[str] = None
+    master_repeat: Optional[str] = None
+
+
+class VrrpTrack(BaseModel):
+    interfaces: List[str]
+    exclude_vrrp_interface: bool
+
+
+class VrrpGroup(BaseModel):
+    name: str
+    vrid: Optional[str] = None
+    interface: Optional[str] = None
+    addresses: List[VrrpAddress]
+    excluded_addresses: List[VrrpAddress]
+    priority: Optional[str] = None
+    advertise_interval: Optional[str] = None
+    authentication: Optional[VrrpAuthentication] = None
+    preempt_delay: Optional[str] = None
+    no_preempt: bool
+    peer_addresses: List[str]
+    hello_source_address: Optional[str] = None
+    rfc3768_compatibility: bool
+    disabled: bool
+    description: Optional[str] = None
+    garp: Garp
+    health_check: HealthCheck
+    track: VrrpTrack
+    transition_script: TransitionScript
+
+
+class VrrpSyncGroup(BaseModel):
+    name: str
+    members: List[str]
+    health_check: HealthCheck
+    transition_script: TransitionScript
+
+
+class VrrpGlobalParameters(BaseModel):
+    startup_delay: Optional[str] = None
+    version: Optional[str] = None
+    garp: Garp
+
+
+class VrrpConfig(BaseModel):
+    global_parameters: VrrpGlobalParameters
+    snmp: bool
+    snmp_trap: bool
+    groups: List[VrrpGroup]
+    sync_groups: List[VrrpSyncGroup]
+
+
+class RealServer(BaseModel):
+    address: str
+    port: Optional[str] = None
+    connection_timeout: Optional[str] = None
+    health_check_script: Optional[str] = None
+
+
+class VirtualServer(BaseModel):
+    name: str
+    address: Optional[str] = None
+    algorithm: Optional[str] = None
+    delay_loop: Optional[str] = None
+    forward_method: Optional[str] = None
+    fwmark: Optional[str] = None
+    persistence_timeout: Optional[str] = None
+    port: Optional[str] = None
+    protocol: Optional[str] = None
+    real_servers: List[RealServer]
+
+
+class HAConfig(BaseModel):
+    disabled: bool
+    vrrp: VrrpConfig
+    virtual_servers: List[VirtualServer]
+
+
 @router.get("/capabilities")
 async def get_capabilities(request: Request):
     await require_read_permission(request, FeatureGroup.HIGH_AVAILABILITY)
@@ -40,7 +147,7 @@ async def get_capabilities(request: Request):
     return builder.get_capabilities()
 
 
-@router.get("/config")
+@router.get("/config", response_model=HAConfig)
 async def get_config(request: Request, refresh: bool = False):
     await require_read_permission(request, FeatureGroup.HIGH_AVAILABILITY)
     service = get_session_vyos_service(request)
@@ -49,7 +156,7 @@ async def get_config(request: Request, refresh: bool = False):
         HighAvailabilityMapper,
         CommandMapperRegistry.get_mapper("high_availability", service.get_version()),
     )
-    return mapper.parse_config(full_config)
+    return HAConfig(**mapper.parse_config(full_config))
 
 
 @router.post("/batch", response_model=VyOSResponse)
