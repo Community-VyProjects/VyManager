@@ -530,7 +530,7 @@ function IPoEPageInner() {
                         <InfoRow label={t("radius.timeout")} value={config?.authentication.radius?.timeout} />
                         <InfoRow label={t("radius.maxTry")} value={config?.authentication.radius?.max_try} />
                         <InfoRow label={t("radius.nasIdentifier")} value={config?.authentication.radius?.nas_identifier} />
-                        <InfoRow label="NAS IP" value={config?.authentication.radius?.nas_ip_address} />
+                        <InfoRow label={t("radiusSettingsModal.nasIpAddress")} value={config?.authentication.radius?.nas_ip_address} />
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">{t("radius.preallocateVif")}</span>
                           <Badge variant={config?.authentication.radius?.preallocate_vif ? "default" : "secondary"}>
