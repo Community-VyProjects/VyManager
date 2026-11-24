@@ -83,7 +83,8 @@ def _rp(key):
             "ssl": {"ca-certificate": "ca1", "no-verify": {}},
             "timeout": {"check": "5", "connect": "6", "server": "7"},
             "server": {"s1": {"address": "192.0.2.10", "port": "80", "backup": {},
-                              "check": {"port": "8080"}, "send-proxy": {}}},
+                              "check": {"port": "8080"} if key == "haproxy" else {},
+                              "send-proxy": {}}},
             "rule": {"10": {"domain-name": "a.example", "ssl": "req-ssl-sni",
                             "url-path": {"begin": ["/a", "/b"]},
                             "set": {"server": "s1"}}},
@@ -101,8 +102,9 @@ def _rp(key):
             "http-response-headers": {"X-B": {"value": "2"}},
             "logging": {"facility": {"local2": {"level": "debug"}}},
             "tcp-request": {"inspect-delay": "100"},
-            "rule": {"20": {"domain-name": ["b.example", "c.example"], "wildcard-domain": {},
-                            "set": {"backend": "bk", "redirect-location": "/x"}}},
+            "rule": {"20": {"domain-name": ["b.example", "c.example"],
+                            "set": {"backend": "bk", "redirect-location": "/x"},
+                            **({"wildcard-domain": {}} if key == "haproxy" else {})}},
             **({"http-compression": {"algorithm": "gzip", "mime-type": "text/html"},
                 "timeout": {"client": "30"}} if key == "haproxy" else {}),
         }},
@@ -250,12 +252,25 @@ def test_batch_emits_item_and_value_ops(monkeypatch):
     ]
 
 
-@pytest.mark.parametrize("value", [None, ""])
-def test_missing_value_is_400(monkeypatch, value):
+@pytest.mark.parametrize("op", ["set_rp_backend_mode", "set_wan_hook"])
+@pytest.mark.parametrize("value", [None, "", "   "])
+def test_missing_value_is_400(monkeypatch, op, value):
     service = Service()
-    resp = _post(_app(monkeypatch, service), "bk", [{"op": "set_rp_backend_mode", "value": value}])
+    resp = _post(_app(monkeypatch, service), "bk", [{"op": op, "value": value}])
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Operation set_rp_backend_mode requires a value"
+    assert resp.json()["detail"] == f"Operation {op} requires a value"
+    assert service.executed == []
+
+
+@pytest.mark.parametrize(
+    "op,item",
+    [("delete_rp_backend", "bk"), ("delete_rp_global_ssl_bind_ciphers", "")],
+)
+def test_value_on_an_item_only_op_is_400(monkeypatch, op, item):
+    service = Service()
+    resp = _post(_app(monkeypatch, service), item, [{"op": op, "value": "s1"}])
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == f"Operation {op} takes no value"
     assert service.executed == []
 
 

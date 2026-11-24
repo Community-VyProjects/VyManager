@@ -10,7 +10,7 @@ from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.load_balancing import LoadBalancingMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op, resolve_batch_method
 
 router = APIRouter(prefix="/vyos/load-balancing", tags=["load-balancing"])
 
@@ -306,30 +306,17 @@ async def batch_configure(http_request: Request, request: BatchRequest):
 
     try:
         for op in request.operations:
-            method = resolve_batch_method(batch, op.op)
-            params = list(inspect.signature(method).parameters)
-
+            params = list(inspect.signature(resolve_batch_method(batch, op.op)).parameters)
             # Per-operation item_name overrides the request-level item_name.
-            # Global ops take a placeholder first parameter (``_name``); every
-            # other op names the object it edits.
+            # Global ops name their first parameter ``_name`` and ignore it;
+            # every other op names the object it edits.
             effective_name = op.item_name if op.item_name is not None else request.item_name
-            if params[0] != "_name" and not effective_name.strip():
+            if params and params[0] != "_name" and not effective_name.strip():
                 raise HTTPException(
                     status_code=400,
                     detail=f"Operation {op.op} requires an item name",
                 )
-
-            if len(params) == 1:
-                method(effective_name)
-            elif not op.value:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation {op.op} requires a value",
-                )
-            else:
-                method(effective_name, op.value)
-    except HTTPException:
-        raise
+            call_item_batch_op(batch, op.op, effective_name, op.value)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
