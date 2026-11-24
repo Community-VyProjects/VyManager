@@ -82,6 +82,7 @@ DYNAMIC_DISPATCH_FILES = [
     "container/container.py",
     "console_server/console_server.py",
     "tftp_server/tftp_server.py",
+    "nhrp/nhrp.py",
     "firewall/zones.py",
 ]
 
