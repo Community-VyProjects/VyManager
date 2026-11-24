@@ -1,9 +1,10 @@
-"""VyOS 1.5 Segment Routing mapper — no version-specific overrides.
+"""Segment Routing behavior that differs on VyOS 1.5."""
 
-The protocols segment-routing tree (interface srv6 hmac, srv6 locators)
-is identical between VyOS 1.4 and 1.5; the base mapper holds all paths.
-"""
+from ..segment_routing import SegmentRoutingMapper
 
 
-class SegmentRoutingMapperV1_5:
-    pass
+class SegmentRoutingMapperV1_5(SegmentRoutingMapper):
+    """VyOS 1.5 Segment Routing mapper."""
+
+    def modify_requires_recreate(self) -> bool:
+        return False

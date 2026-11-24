@@ -4,8 +4,9 @@ Provides all batch operations for Segment Routing (SRv6) configuration.
 Covers: SRv6 locator management and per-interface SRv6 HMAC policy.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.segment_routing import SegmentRoutingMapper
 from vyos_builders.base import BatchBuilder
 
 
@@ -18,26 +19,19 @@ class SegmentRoutingBatchBuilder(BatchBuilder):
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     @property
-    def m(self):
-        return self.mappers[self.mapper_key]
+    def m(self) -> SegmentRoutingMapper:
+        return cast(SegmentRoutingMapper, self.mappers[self.mapper_key])
 
     # ========================================================================
     # Capabilities
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_v14 = "1.4" in self.version
-        is_v15 = "1.5" in self.version or "latest" in self.version
         return {
             "version": self.version,
-            "version_info": {
-                "is_1_4": is_v14,
-                "is_1_5": is_v15,
-                # VyOS 1.4 FRR reload rejects any modification of an existing
-                # segment-routing tree; editing requires delete + recreate in
-                # separate commits. Create-from-empty and delete-to-empty work.
-                "modify_requires_recreate": is_v14,
-            },
+            # On 1.4 an edit of a committed tree is a delete commit followed
+            # by a create commit; see SegmentRoutingMapper.modify_requires_recreate.
+            "modify_requires_recreate": self.m.modify_requires_recreate(),
             "features": {
                 "locators": {
                     "supported": True,

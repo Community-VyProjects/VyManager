@@ -6,7 +6,13 @@ mirror the config-dict shape returned by ``get_full_config`` for the
 ``protocols segment-routing`` subtree. No VyOS service or router needed.
 """
 
-from vyos_mappers.segment_routing.segment_routing_versions import get_segment_routing_mapper
+from pathlib import Path
+
+from vyos_mappers.segment_routing import SegmentRoutingMapper, segment_routing_versions
+from vyos_mappers.segment_routing.segment_routing_versions import (
+    SegmentRoutingMapperV1_5,
+    get_segment_routing_mapper,
+)
 from vyos_builders.segment_routing import SegmentRoutingBatchBuilder
 
 
@@ -83,8 +89,30 @@ def test_delete_srv6_subtree():
 
 
 def test_modify_requires_recreate_flag():
-    assert make_builder("1.4").get_capabilities()["version_info"]["modify_requires_recreate"] is True
-    assert make_builder("1.5").get_capabilities()["version_info"]["modify_requires_recreate"] is False
+    # Lab: 1.4 rejects any change to a committed segment-routing tree,
+    # 1.5 commits it in place.
+    assert make_builder("1.4").get_capabilities()["modify_requires_recreate"] is True
+    assert make_builder("1.5").get_capabilities()["modify_requires_recreate"] is False
+    assert make_builder("2026.09.23-0027-rolling").get_capabilities()["modify_requires_recreate"] is False
+
+
+def test_capabilities_read_the_mapper(monkeypatch):
+    # A handwritten version check in get_capabilities would ignore this.
+    monkeypatch.setattr(SegmentRoutingMapper, "modify_requires_recreate", lambda self: False)
+    assert make_builder("1.4").get_capabilities()["modify_requires_recreate"] is False
+    monkeypatch.setattr(SegmentRoutingMapperV1_5, "modify_requires_recreate", lambda self: True)
+    assert make_builder("1.5").get_capabilities()["modify_requires_recreate"] is True
+
+
+def test_factory_returns_shared_class_on_1_4():
+    assert type(get_segment_routing_mapper("1.4")) is SegmentRoutingMapper
+    assert type(get_segment_routing_mapper("1.5")) is SegmentRoutingMapperV1_5
+    assert type(get_segment_routing_mapper("2026.09.23-0027-rolling")) is SegmentRoutingMapperV1_5
+
+
+def test_no_empty_version_files():
+    versions = Path(segment_routing_versions.__file__).parent
+    assert not (versions / "v1_4.py").exists()
 
 
 def test_paths_identical_on_both_versions():
@@ -98,9 +126,9 @@ def test_paths_identical_on_both_versions():
 
 
 def test_capabilities_supported_on_both_versions():
-    for version, key in (("1.4", "is_1_4"), ("1.5", "is_1_5")):
+    for version in ("1.4", "1.5"):
         caps = make_builder(version).get_capabilities()
-        assert caps["version_info"][key] is True
+        assert "version_info" not in caps
         assert all(f["supported"] for f in caps["features"].values())
 
 
