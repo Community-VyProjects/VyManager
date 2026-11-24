@@ -679,9 +679,11 @@ class ServiceMonitoringService {
       if (data.log.debug_level) ops.push({ op: "set_zabbix_log_debug_level", value: data.log.debug_level });
       else if (orig?.log?.debug_level) ops.push({ op: "delete_zabbix_log_debug_level" });
     }
-    if (data.log.size !== (orig?.log?.size ?? null)) {
-      if (data.log.size) ops.push({ op: "set_zabbix_log_size", value: String(data.log.size) });
-      else if (orig?.log?.size) ops.push({ op: "delete_zabbix_log_size" });
+    // The lab range is 0-1024, so 0 is a real size, not "unset".
+    const logSize = data.log.size ?? null;
+    if (logSize !== (orig?.log?.size ?? null)) {
+      if (logSize !== null) ops.push({ op: "set_zabbix_log_size", value: String(logSize) });
+      else ops.push({ op: "delete_zabbix_log_size" });
     }
     if (data.log.remote_commands !== (orig?.log?.remote_commands ?? false)) {
       if (data.log.remote_commands) ops.push({ op: "set_zabbix_log_remote_commands" });

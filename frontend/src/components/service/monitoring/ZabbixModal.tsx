@@ -82,7 +82,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
   const [debugLevel, setDebugLevel] = useState(original?.log?.debug_level ?? "");
   const [logSize, setLogSize] = useState(
-    original?.log?.size ? String(original.log.size) : ""
+    original?.log?.size != null ? String(original.log.size) : ""
   );
   const [remoteCommands, setRemoteCommands] = useState(original?.log?.remote_commands ?? false);
 

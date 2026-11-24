@@ -243,6 +243,24 @@ describe("zabbix", () => {
     await service.saveZabbix(psk, { ...psk, servers_active: [] });
     assert.deepEqual(sent, [[{ op: "delete_zabbix_all_server_active" }]]);
   });
+
+  it("treats a log size of 0 as a value, not as unset", async () => {
+    const { service, sent } = stubbed();
+    const base = zabbix();
+    const zero = zabbix({ log: { debug_level: null, size: 0, remote_commands: false } });
+    await service.saveZabbix(null, zero);
+    await service.saveZabbix(zabbix({ log: { debug_level: null, size: 5, remote_commands: false } }), zero);
+    await service.saveZabbix(zero, zero);
+    await service.saveZabbix(zero, base);
+    assert.deepEqual(
+      sent.map((ops) => ops.filter((o) => o.op.includes("log_size"))),
+      [
+        [{ op: "set_zabbix_log_size", value: "0" }],
+        [{ op: "set_zabbix_log_size", value: "0" }],
+        [{ op: "delete_zabbix_log_size" }],
+      ],
+    );
+  });
 });
 
 describe("presence on create", () => {

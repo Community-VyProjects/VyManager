@@ -228,7 +228,7 @@ export function ZabbixTab({ config, caps, hasWrite, onSuccess }: ZabbixTabProps)
                 <p className="font-mono">{config.limits.buffer_size}</p>
               </div>
             )}
-            {config.log.size && (
+            {config.log.size != null && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">{t("zabbix.logSize")}</p>
                 <p className="font-mono">{config.log.size} MB</p>
