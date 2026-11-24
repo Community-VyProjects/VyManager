@@ -30,6 +30,12 @@ import {
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
+import {
+  NONE_SENTINEL,
+  fromNamedListValue,
+  toNamedListValue,
+} from "@/lib/named-list-select-options";
 
 interface ZabbixModalProps {
   open: boolean;
@@ -61,7 +67,9 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
   const [authMode, setAuthMode] = useState(original?.authentication?.mode ?? "");
   const [pskId, setPskId] = useState(original?.authentication?.psk_id ?? "");
-  const [pskSecret, setPskSecret] = useState(original?.authentication?.psk_secret ?? "");
+  // The lab requires the secret in PSK mode, so it loads blank and blank keeps it.
+  const [pskSecret, setPskSecret] = useState("");
+  const pskSecretStored = !!original?.authentication?.psk_secret;
 
   const [bufferFlushInterval, setBufferFlushInterval] = useState(
     original?.limits?.buffer_flush_interval ? String(original.limits.buffer_flush_interval) : ""
@@ -111,7 +119,20 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
     setServersActive((prev) => prev.filter((s) => s.address !== addr));
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
+
   const handleSubmit = async () => {
+    const psk = authMode === "pre-shared-secret";
+    if (psk && !pskId) {
+      setError(t("common.fieldRequired", { field: t("zabbix.pskId") }));
+      return;
+    }
+    if (psk && !pskSecret && !pskSecretStored) {
+      setError(t("common.fieldRequired", { field: t("zabbix.pskSecret") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -125,8 +146,8 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
         servers_active: serversActive,
         authentication: {
           mode: authMode || null,
-          psk_id: pskId || null,
-          psk_secret: pskSecret || null,
+          psk_id: psk ? pskId || null : null,
+          psk_secret: psk ? pskSecret || null : null,
         },
         limits: {
           buffer_flush_interval: bufferFlushInterval ? parseInt(bufferFlushInterval, 10) : null,
@@ -140,7 +161,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +172,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{original ? t("zabbix.editTitle") : t("zabbix.configureTitle")}</DialogTitle>
@@ -296,37 +317,52 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
 
             <Separator />
 
-            {/* Authentication */}
-            <div className="space-y-3">
-              <p className="text-sm font-semibold">{t("zabbix.authentication")}</p>
-              <div className="space-y-2">
-                <Label>{t("zabbix.mode")}</Label>
-                <Select value={authMode} onValueChange={setAuthMode}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {authModes.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {authMode === "pre-shared-secret" && (
-                <div className="grid grid-cols-2 gap-3">
+            {/* Authentication: only on versions with a zabbix-agent authentication node */}
+            {authModes.length > 0 && (
+              <>
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold">{t("zabbix.authentication")}</p>
                   <div className="space-y-2">
-                    <Label htmlFor="z-psk-id">{t("zabbix.pskId")}</Label>
-                    <Input id="z-psk-id" value={pskId} onChange={(e) => setPskId(e.target.value)} />
+                    <Label>{t("zabbix.mode")}</Label>
+                    <Select
+                      value={toNamedListValue(authMode)}
+                      onValueChange={(v) => setAuthMode(fromNamedListValue(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE_SENTINEL}>{tc("none")}</SelectItem>
+                        {authModes.map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="z-psk-secret">{t("zabbix.pskSecret")}</Label>
-                    <Input id="z-psk-secret" type="password" value={pskSecret} onChange={(e) => setPskSecret(e.target.value)} />
-                  </div>
+                  {authMode === "pre-shared-secret" && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="z-psk-id">{t("zabbix.pskId")}</Label>
+                        <Input id="z-psk-id" value={pskId} onChange={(e) => setPskId(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="z-psk-secret">{t("zabbix.pskSecret")}</Label>
+                        <Input
+                          id="z-psk-secret"
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder={pskSecretStored ? t("common.secretKeep") : undefined}
+                          value={pskSecret}
+                          onChange={(e) => setPskSecret(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <Separator />
+                <Separator />
+              </>
+            )}
 
             {/* Buffer Limits */}
             <div className="space-y-3">
@@ -363,11 +399,15 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>{t("zabbix.debugLevel")}</Label>
-                  <Select value={debugLevel} onValueChange={setDebugLevel}>
+                  <Select
+                    value={toNamedListValue(debugLevel)}
+                    onValueChange={(v) => setDebugLevel(fromNamedListValue(v))}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder={tc("default")} />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                       {debugLevels.map((l) => (
                         <SelectItem key={l} value={l}>{l}</SelectItem>
                       ))}
@@ -406,7 +446,7 @@ export function ZabbixModal({ open, onOpenChange, original, caps, onSuccess }: Z
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

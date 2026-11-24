@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Plus, Settings, Database, FileText, Cloud, BarChart3 } from "lucide-react";
+import { AlertCircle, Pencil, Trash2, Plus, Settings, Database, FileText, Cloud, BarChart3 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +21,7 @@ import {
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 import { TelegrafSourcesModal } from "./TelegrafSourcesModal";
 import { TelegrafInfluxDBModal } from "./TelegrafInfluxDBModal";
 import { TelegrafLokiModal } from "./TelegrafLokiModal";
@@ -46,25 +47,37 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
   const [promClientOpen, setPromClientOpen] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<
-    "influxdb" | "loki" | "splunk" | "azure" | "prom_client" | null
+    "telegraf" | "influxdb" | "loki" | "splunk" | "azure" | "prom_client" | null
   >(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleDelete = async () => {
+  const openDelete = (target: NonNullable<typeof deleteTarget>) => {
+    setDeleteError(null);
+    setDeleteTarget(target);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    // AlertDialogAction closes on click; stay open until the commit succeeds.
+    e.preventDefault();
     if (!deleteTarget) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
       switch (deleteTarget) {
+        case "telegraf": await serviceMonitoringService.deleteTelegraf(); break;
         case "influxdb": await serviceMonitoringService.deleteTelegrafInfluxDB(); break;
         case "loki": await serviceMonitoringService.deleteTelegrafLoki(); break;
         case "splunk": await serviceMonitoringService.deleteTelegrafSplunk(); break;
         case "azure": await serviceMonitoringService.deleteTelegrafAzure(); break;
         case "prom_client": await serviceMonitoringService.deleteTelegrafPrometheusClient(); break;
       }
-      setDeleteTarget(null);
+      setDeleteOpen(false);
       onSuccess();
-    } catch {
-      // ignore — toast not available here; error visible on next load
+    } catch (err) {
+      setDeleteError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setDeleting(false);
     }
@@ -90,10 +103,23 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
               {t("telegraf.generalSettings")}
             </CardTitle>
             {hasWrite && (
-              <Button size="sm" variant="outline" onClick={() => setSourcesOpen(true)}>
-                <Pencil className="h-4 w-4 mr-1" />
-                {tc("edit")}
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setSourcesOpen(true)}>
+                  <Pencil className="h-4 w-4 mr-1" />
+                  {tc("edit")}
+                </Button>
+                {config && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => openDelete("telegraf")}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {t("telegraf.removeTelegraf")}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </CardHeader>
@@ -137,7 +163,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setInfluxdbOpen(true)}
-            onRemove={() => setDeleteTarget("influxdb")}
+            onRemove={() => openDelete("influxdb")}
           />
 
           {/* Loki */}
@@ -151,7 +177,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setLokiOpen(true)}
-            onRemove={() => setDeleteTarget("loki")}
+            onRemove={() => openDelete("loki")}
           />
 
           {/* Splunk */}
@@ -165,7 +191,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setSplunkOpen(true)}
-            onRemove={() => setDeleteTarget("splunk")}
+            onRemove={() => openDelete("splunk")}
           />
 
           {/* Azure Data Explorer */}
@@ -180,7 +206,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setAzureOpen(true)}
-            onRemove={() => setDeleteTarget("azure")}
+            onRemove={() => openDelete("azure")}
           />
 
           {/* Prometheus Client */}
@@ -195,7 +221,7 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
             ].filter(Boolean) as string[] : []}
             hasWrite={hasWrite}
             onEdit={() => setPromClientOpen(true)}
-            onRemove={() => setDeleteTarget("prom_client")}
+            onRemove={() => openDelete("prom_client")}
           />
         </div>
       </div>
@@ -253,14 +279,25 @@ export function TelegrafTab({ config, caps, hasWrite, onSuccess }: TelegrafTabPr
         />
       )}
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => { if (!open && !deleting) setDeleteOpen(false); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("telegraf.removeTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTarget === "telegraf" ? t("telegraf.removeTelegrafTitle") : t("telegraf.removeTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("telegraf.removeDescription")}
+              {deleteTarget === "telegraf" ? t("telegraf.removeTelegrafDescription") : t("telegraf.removeDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span className="whitespace-pre-wrap">{deleteError}</span>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">

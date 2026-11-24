@@ -19,6 +19,7 @@ import {
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafSourcesModalProps {
   open: boolean;
@@ -64,7 +65,7 @@ export function TelegrafSourcesModal({
       await serviceMonitoringService.saveTelegrafSources(config, sources, vrf);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -73,7 +74,7 @@ export function TelegrafSourcesModal({
   const sourceValues = caps.features.telegraf.source_values;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!submitting) onOpenChange(next); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.generalSettingsTitle")}</DialogTitle>

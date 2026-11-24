@@ -89,3 +89,7 @@ jobs:
       - name: Run flowtables save op tests
         working-directory: frontend
         run: npm run test:flowtables-save
+
+      - name: Run service monitoring save op tests
+        working-directory: frontend
+        run: npm run test:service-monitoring-save

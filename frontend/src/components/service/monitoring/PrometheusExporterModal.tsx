@@ -23,6 +23,7 @@ import {
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 type ExporterType = "node" | "frr" | "blackbox";
 
@@ -100,7 +101,7 @@ export function PrometheusExporterModal({
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -113,7 +114,7 @@ export function PrometheusExporterModal({
     : caps.features.prometheus.exporters.blackbox_exporter.default_port;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!submitting) onOpenChange(next); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{original ? t("common.editTitle", { name: TITLES[type] }) : t("common.configureTitle", { name: TITLES[type] })}</DialogTitle>

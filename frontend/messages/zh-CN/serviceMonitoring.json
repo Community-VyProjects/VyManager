@@ -6,7 +6,10 @@
     "tabs": {
       "zabbixAgent": "Zabbix 代理",
       "networkEvents": "网络事件"
-    }
+    },
+    "removeAll": "移除监控服务",
+    "removeAllTitle": "移除监控服务？",
+    "removeAllDescription": "这将删除 Telegraf、Zabbix 代理、Prometheus 以及网络事件的配置。此操作无法撤销。"
   },
   "common": {
     "active": "已启用",
@@ -17,7 +20,9 @@
     "listenAddresses": "监听地址",
     "editTitle": "编辑 {name}",
     "configureTitle": "配置 {name}",
-    "secondsValue": "{value} 秒"
+    "secondsValue": "{value} 秒",
+    "fieldRequired": "{field} 为必填项",
+    "secretKeep": "留空以保留当前密钥"
   },
   "prometheus": {
     "nodeExporterDescription": "硬件和操作系统指标",
@@ -35,7 +40,10 @@
     "removeExporterTitle": "移除导出器？",
     "removeExporterDescription": "这将删除该导出器的配置。此操作无法撤销。",
     "removeModuleTitle": "移除模块？",
-    "removeModuleDescription": "这将删除 {type} 模块“{name}”。"
+    "removeModuleDescription": "这将删除 {type} 模块“{name}”。",
+    "removeAll": "移除 Prometheus",
+    "removeAllTitle": "移除 Prometheus 导出器？",
+    "removeAllDescription": "这将删除所有 Prometheus 导出器。此操作无法撤销。"
   },
   "exporter": {
     "listenPlaceholder": "例如 0.0.0.0",
@@ -102,6 +110,9 @@
     },
     "removeTitle": "移除输出插件？",
     "removeDescription": "这将删除该输出插件的配置。此操作无法撤销。",
+    "removeTelegraf": "移除 Telegraf",
+    "removeTelegrafTitle": "移除 Telegraf？",
+    "removeTelegrafDescription": "这将删除 Telegraf 的数据源、VRF 以及所有输出插件。此操作无法撤销。",
     "configureOutput": "配置 {name} 输出",
     "token": "令牌",
     "username": "用户名",
@@ -128,7 +139,8 @@
     "loki": {
       "urlPlaceholder": "例如 https://loki.example.com",
       "metricNameLabel": "指标名称标签",
-      "metricNameLabelPlaceholder": "例如 __name__"
+      "metricNameLabelPlaceholder": "例如 __name__",
+      "authPair": "请同时设置用户名和密码，或同时清空"
     },
     "splunk": {
       "urlPlaceholder": "例如 https://splunk.example.com:8088",

@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { TelegrafSplunk, serviceMonitoringService } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafSplunkModalProps {
   open: boolean;
@@ -27,12 +28,21 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
   const t = useTranslations("serviceMonitoring");
   const tc = useTranslations("common");
   const [url, setUrl] = useState(original?.url ?? "");
-  const [token, setToken] = useState(original?.authentication?.token ?? "");
+  const [token, setToken] = useState("");
   const [insecure, setInsecure] = useState(original?.authentication?.insecure ?? false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tokenStored = !!original?.authentication?.token;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
 
   const handleSubmit = async () => {
+    if (!token && !tokenStored) {
+      setError(t("common.fieldRequired", { field: t("telegraf.token") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -45,14 +55,14 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.configureOutput", { name: "Splunk" })}</DialogTitle>
@@ -73,7 +83,8 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
             <Input
               id="splunk-token"
               type="password"
-              placeholder={t("telegraf.splunk.tokenPlaceholder")}
+              autoComplete="new-password"
+              placeholder={tokenStored ? t("common.secretKeep") : t("telegraf.splunk.tokenPlaceholder")}
               value={token}
               onChange={(e) => setToken(e.target.value)}
             />
@@ -98,7 +109,7 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

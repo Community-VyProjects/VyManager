@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { TelegrafLoki, serviceMonitoringService } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafLokiModalProps {
   open: boolean;
@@ -30,11 +31,20 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [metricNameLabel, setMetricNameLabel] = useState(original?.metric_name_label ?? "");
   const [username, setUsername] = useState(original?.authentication?.username ?? "");
+  // Loads as the mask when set: unchanged keeps it, cleared deletes it.
   const [password, setPassword] = useState(original?.authentication?.password ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
+
   const handleSubmit = async () => {
+    if (!username !== !password) {
+      setError(t("telegraf.loki.authPair"));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -49,14 +59,14 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.configureOutput", { name: "Loki" })}</DialogTitle>
@@ -105,6 +115,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
               <Input
                 id="loki-password"
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -120,7 +131,7 @@ export function TelegrafLokiModal({ open, onOpenChange, original, onSuccess }: T
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

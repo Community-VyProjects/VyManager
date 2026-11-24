@@ -18,6 +18,7 @@ import {
   TelegrafInfluxDB,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafInfluxDBModalProps {
   open: boolean;
@@ -37,12 +38,21 @@ export function TelegrafInfluxDBModal({
   const [url, setUrl] = useState(original?.url ?? "");
   const [port, setPort] = useState(original?.port ? String(original.port) : "");
   const [bucket, setBucket] = useState(original?.bucket ?? "");
-  const [token, setToken] = useState(original?.authentication?.token ?? "");
+  const [token, setToken] = useState("");
   const [organization, setOrganization] = useState(original?.authentication?.organization ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tokenStored = !!original?.authentication?.token;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
 
   const handleSubmit = async () => {
+    if (!token && !tokenStored) {
+      setError(t("common.fieldRequired", { field: t("telegraf.token") }));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -57,14 +67,14 @@ export function TelegrafInfluxDBModal({
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.configureOutput", { name: "InfluxDB" })}</DialogTitle>
@@ -105,7 +115,8 @@ export function TelegrafInfluxDBModal({
               <Input
                 id="influxdb-token"
                 type="password"
-                placeholder={t("telegraf.influxdb.tokenPlaceholder")}
+                autoComplete="new-password"
+                placeholder={tokenStored ? t("common.secretKeep") : t("telegraf.influxdb.tokenPlaceholder")}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
@@ -130,7 +141,7 @@ export function TelegrafInfluxDBModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

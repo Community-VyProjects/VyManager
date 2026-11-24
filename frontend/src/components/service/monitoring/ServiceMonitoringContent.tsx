@@ -5,13 +5,24 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, RefreshCw, AlertTriangle } from "lucide-react";
+import { Activity, AlertCircle, RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   serviceMonitoringService,
   ServiceMonitoringConfig,
   ServiceMonitoringCapabilities,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { TelegrafTab } from "./TelegrafTab";
@@ -29,6 +40,9 @@ export function ServiceMonitoringContent() {
   const [caps, setCaps] = useState<ServiceMonitoringCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [removeAllOpen, setRemoveAllOpen] = useState(false);
+  const [removingAll, setRemovingAll] = useState(false);
+  const [removeAllError, setRemoveAllError] = useState<string | null>(null);
 
   const loadData = useCallback(async (refresh = false) => {
     try {
@@ -41,13 +55,32 @@ export function ServiceMonitoringContent() {
       setConfig(cfg);
       setCaps(c);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("content.loadFailed")
-      );
+      setError((err as ApiError).message || t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
   }, [t]);
+
+  const openRemoveAll = () => {
+    setRemoveAllError(null);
+    setRemoveAllOpen(true);
+  };
+
+  const handleRemoveAll = async (e: React.MouseEvent) => {
+    // AlertDialogAction closes on click; stay open until the commit succeeds.
+    e.preventDefault();
+    setRemovingAll(true);
+    setRemoveAllError(null);
+    try {
+      await serviceMonitoringService.deleteServiceMonitoring();
+      setRemoveAllOpen(false);
+      loadData(true);
+    } catch (err) {
+      setRemoveAllError((err as ApiError).message || tc("operationFailed"));
+    } finally {
+      setRemovingAll(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -94,10 +127,23 @@ export function ServiceMonitoringContent() {
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {tc("refresh")}
-          </Button>
+          <div className="flex gap-2">
+            {hasWrite && config?.configured && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={openRemoveAll}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {t("content.removeAll")}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => loadData(true)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {tc("refresh")}
+            </Button>
+          </div>
         </div>
 
         {error && config && (
@@ -167,6 +213,34 @@ export function ServiceMonitoringContent() {
           )}
         </Tabs>
       </div>
+
+      <AlertDialog
+        open={removeAllOpen}
+        onOpenChange={(open) => { if (!open && !removingAll) setRemoveAllOpen(false); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("content.removeAllTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("content.removeAllDescription")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {removeAllError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span className="whitespace-pre-wrap">{removeAllError}</span>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removingAll}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveAll}
+              disabled={removingAll}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t("common.remove")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

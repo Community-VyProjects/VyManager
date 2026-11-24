@@ -27,6 +27,7 @@ import {
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
 } from "@/lib/api/service-monitoring";
+import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafPrometheusClientModalProps {
   open: boolean;
@@ -53,12 +54,17 @@ export function TelegrafPrometheusClientModal({
   const [allowFrom, setAllowFrom] = useState<string[]>(original?.allow_from ?? []);
   const [allowInput, setAllowInput] = useState("");
   const [username, setUsername] = useState(original?.authentication?.username ?? "");
+  // Loads as the mask when set: unchanged keeps it, cleared deletes it.
   const [password, setPassword] = useState(original?.authentication?.password ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const metricVersionValues = caps.features.telegraf.outputs.prometheus_client.metric_version_values;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!submitting) onOpenChange(next);
+  };
 
   const addAllowFrom = () => {
     const val = allowInput.trim();
@@ -87,14 +93,14 @@ export function TelegrafPrometheusClientModal({
       });
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("telegraf.configureOutput", { name: "Prometheus Client" })}</DialogTitle>
@@ -178,6 +184,7 @@ export function TelegrafPrometheusClientModal({
               <Input
                 id="prom-password"
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -193,7 +200,7 @@ export function TelegrafPrometheusClientModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>

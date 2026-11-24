@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import type { ApiError } from "../types/api";
 
 // ============================================================================
 // Interfaces
@@ -154,6 +155,8 @@ export interface NetworkEventConfig {
 }
 
 export interface ServiceMonitoringConfig {
+  /** `service monitoring` is on the device, even with no children left. */
+  configured: boolean;
   telegraf?: TelegrafConfig | null;
   zabbix_agent?: ZabbixConfig | null;
   prometheus?: PrometheusConfig | null;
@@ -161,25 +164,23 @@ export interface ServiceMonitoringConfig {
 }
 
 export interface ServiceMonitoringCapabilities {
-  version: string;
   features: {
     telegraf: {
       supported: boolean;
-      description: string;
       outputs: {
-        influxdb: { supported: boolean; description: string; default_port: number };
-        loki: { supported: boolean; description: string; default_port: number };
-        splunk: { supported: boolean; description: string };
-        azure_data_explorer: { supported: boolean; description: string; group_metrics_values: string[] };
-        prometheus_client: { supported: boolean; description: string; default_port: number; metric_version_values: number[] };
+        influxdb: { supported: boolean; default_port: number };
+        loki: { supported: boolean; default_port: number };
+        splunk: { supported: boolean };
+        azure_data_explorer: { supported: boolean; group_metrics_values: string[] };
+        prometheus_client: { supported: boolean; default_port: number; metric_version_values: number[] };
       };
       source_values: string[];
       vrf: { supported: boolean };
     };
     zabbix_agent: {
       supported: boolean;
-      description: string;
       default_port: number;
+      /** Empty when this version has no `zabbix-agent authentication` node. */
       auth_modes: string[];
       log_debug_levels: string[];
       limits: {
@@ -190,14 +191,11 @@ export interface ServiceMonitoringCapabilities {
     };
     prometheus: {
       supported: boolean;
-      description: string;
       exporters: {
-        node_exporter: { description: string; default_port: number };
-        frr_exporter: { description: string; default_port: number };
+        node_exporter: { default_port: number };
+        frr_exporter: { default_port: number };
         blackbox_exporter: {
-          description: string;
           default_port: number;
-          module_types: string[];
           preferred_ip_protocol_values: string[];
           dns_query_types: string[];
         };
@@ -205,14 +203,15 @@ export interface ServiceMonitoringCapabilities {
     };
     network_event: {
       supported: boolean;
-      description: string;
       log_level_values: string[];
       event_types: string[];
       queue_size: { min: number; max: number };
     };
   };
-  version_info: { is_1_4: boolean; is_1_5: boolean };
 }
+
+/** A configured secret comes back as this mask; it is never sent back. */
+export const MASKED_SECRET = "***";
 
 export interface BatchOperation {
   op: string;
@@ -240,17 +239,34 @@ class ServiceMonitoringService {
     });
   }
 
-  private async batch(operations: BatchOperation[]): Promise<VyOSResponse> {
+  /** Commit one batch. A rejected commit throws an ApiError carrying the device error. */
+  async batchConfigure(operations: BatchOperation[]): Promise<VyOSResponse> {
     const result = await apiClient.post<VyOSResponse>("/vyos/service-monitoring/batch", {
       operations,
     });
-    if (!result.success) throw new Error(result.error || "Operation failed");
+    if (!result.success) {
+      const error: ApiError = { message: result.error || "" };
+      throw error;
+    }
     return result;
+  }
+
+  private async batch(operations: BatchOperation[]): Promise<VyOSResponse> {
+    if (operations.length === 0) return { success: true };
+    return this.batchConfigure(operations);
+  }
+
+  async deleteServiceMonitoring(): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_service_monitoring" }]);
   }
 
   // --------------------------------------------------------------------------
   // Telegraf general
   // --------------------------------------------------------------------------
+
+  async deleteTelegraf(): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_telegraf" }]);
+  }
 
   async saveTelegrafSources(
     original: TelegrafConfig | null | undefined,
@@ -278,7 +294,6 @@ class ServiceMonitoringService {
       }
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -305,16 +320,15 @@ class ServiceMonitoringService {
       if (data.bucket) ops.push({ op: "set_telegraf_influxdb_bucket", value: data.bucket });
       else if (orig?.bucket) ops.push({ op: "delete_telegraf_influxdb_bucket" });
     }
-    if (data.authentication.token !== (orig?.authentication?.token ?? null)) {
-      if (data.authentication.token) ops.push({ op: "set_telegraf_influxdb_auth_token", value: data.authentication.token });
-      else if (orig?.authentication?.token) ops.push({ op: "delete_telegraf_influxdb_auth_token" });
+    if (data.authentication.token && data.authentication.token !== MASKED_SECRET) {
+      // The lab requires the token, so a blank field keeps the stored one.
+      ops.push({ op: "set_telegraf_influxdb_auth_token", value: data.authentication.token });
     }
     if (data.authentication.organization !== (orig?.authentication?.organization ?? null)) {
       if (data.authentication.organization) ops.push({ op: "set_telegraf_influxdb_auth_organization", value: data.authentication.organization });
       else if (orig?.authentication?.organization) ops.push({ op: "delete_telegraf_influxdb_auth_organization" });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -345,16 +359,23 @@ class ServiceMonitoringService {
       if (data.metric_name_label) ops.push({ op: "set_telegraf_loki_metric_name_label", value: data.metric_name_label });
       else if (orig?.metric_name_label) ops.push({ op: "delete_telegraf_loki_metric_name_label" });
     }
-    if (data.authentication.username !== (orig?.authentication?.username ?? null)) {
-      if (data.authentication.username) ops.push({ op: "set_telegraf_loki_auth_username", value: data.authentication.username });
-      else if (orig?.authentication?.username) ops.push({ op: "delete_telegraf_loki_auth_username" });
-    }
-    if (data.authentication.password !== (orig?.authentication?.password ?? null)) {
-      if (data.authentication.password) ops.push({ op: "set_telegraf_loki_auth_password", value: data.authentication.password });
-      else if (orig?.authentication?.password) ops.push({ op: "delete_telegraf_loki_auth_password" });
+    const username = data.authentication.username ?? null;
+    const password = data.authentication.password ?? null;
+    if (!username && !password) {
+      // Verify needs username and password together, so clearing both removes
+      // the authentication node rather than leaving it empty.
+      if (orig?.authentication?.username || orig?.authentication?.password) {
+        ops.push({ op: "delete_telegraf_loki_auth" });
+      }
+    } else {
+      if (username && username !== (orig?.authentication?.username ?? null)) {
+        ops.push({ op: "set_telegraf_loki_auth_username", value: username });
+      }
+      if (password && password !== MASKED_SECRET) {
+        ops.push({ op: "set_telegraf_loki_auth_password", value: password });
+      }
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -377,16 +398,15 @@ class ServiceMonitoringService {
       if (data.url) ops.push({ op: "set_telegraf_splunk_url", value: data.url });
       else if (orig?.url) ops.push({ op: "delete_telegraf_splunk_url" });
     }
-    if (data.authentication.token !== (orig?.authentication?.token ?? null)) {
-      if (data.authentication.token) ops.push({ op: "set_telegraf_splunk_auth_token", value: data.authentication.token });
-      else if (orig?.authentication?.token) ops.push({ op: "delete_telegraf_splunk_auth_token" });
+    if (data.authentication.token && data.authentication.token !== MASKED_SECRET) {
+      // The lab requires the token, so a blank field keeps the stored one.
+      ops.push({ op: "set_telegraf_splunk_auth_token", value: data.authentication.token });
     }
     if (data.authentication.insecure !== (orig?.authentication?.insecure ?? false)) {
       if (data.authentication.insecure) ops.push({ op: "set_telegraf_splunk_auth_insecure" });
       else ops.push({ op: "delete_telegraf_splunk_auth_insecure" });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -425,16 +445,15 @@ class ServiceMonitoringService {
       if (data.authentication.client_id) ops.push({ op: "set_telegraf_azure_auth_client_id", value: data.authentication.client_id });
       else if (orig?.authentication?.client_id) ops.push({ op: "delete_telegraf_azure_auth_client_id" });
     }
-    if (data.authentication.client_secret !== (orig?.authentication?.client_secret ?? null)) {
-      if (data.authentication.client_secret) ops.push({ op: "set_telegraf_azure_auth_client_secret", value: data.authentication.client_secret });
-      else if (orig?.authentication?.client_secret) ops.push({ op: "delete_telegraf_azure_auth_client_secret" });
+    if (data.authentication.client_secret && data.authentication.client_secret !== MASKED_SECRET) {
+      // The lab requires the client secret, so a blank field keeps the stored one.
+      ops.push({ op: "set_telegraf_azure_auth_client_secret", value: data.authentication.client_secret });
     }
     if (data.authentication.tenant_id !== (orig?.authentication?.tenant_id ?? null)) {
       if (data.authentication.tenant_id) ops.push({ op: "set_telegraf_azure_auth_tenant_id", value: data.authentication.tenant_id });
       else if (orig?.authentication?.tenant_id) ops.push({ op: "delete_telegraf_azure_auth_tenant_id" });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -457,6 +476,10 @@ class ServiceMonitoringService {
       if (data.port) ops.push({ op: "set_telegraf_prometheus_client_port", value: String(data.port) });
       else if (orig?.port) ops.push({ op: "delete_telegraf_prometheus_client_port" });
     }
+    if (data.listen_address !== (orig?.listen_address ?? null)) {
+      if (data.listen_address) ops.push({ op: "set_telegraf_prometheus_client_listen_address", value: data.listen_address });
+      else if (orig?.listen_address) ops.push({ op: "delete_telegraf_prometheus_client_listen_address" });
+    }
     if (data.metric_version !== (orig?.metric_version ?? null)) {
       if (data.metric_version) ops.push({ op: "set_telegraf_prometheus_client_metric_version", value: String(data.metric_version) });
       else if (orig?.metric_version) ops.push({ op: "delete_telegraf_prometheus_client_metric_version" });
@@ -465,8 +488,10 @@ class ServiceMonitoringService {
       if (data.authentication.username) ops.push({ op: "set_telegraf_prometheus_client_auth_username", value: data.authentication.username });
       else if (orig?.authentication?.username) ops.push({ op: "delete_telegraf_prometheus_client_auth_username" });
     }
-    if (data.authentication.password !== (orig?.authentication?.password ?? null)) {
-      if (data.authentication.password) ops.push({ op: "set_telegraf_prometheus_client_auth_password", value: data.authentication.password });
+    // The password loads as the mask: unchanged skips, cleared deletes, new text sets.
+    const password = data.authentication.password ?? null;
+    if (password !== MASKED_SECRET && password !== (orig?.authentication?.password ?? null)) {
+      if (password) ops.push({ op: "set_telegraf_prometheus_client_auth_password", value: password });
       else if (orig?.authentication?.password) ops.push({ op: "delete_telegraf_prometheus_client_auth_password" });
     }
 
@@ -480,7 +505,6 @@ class ServiceMonitoringService {
       for (const a of addedAllowFrom) ops.push({ op: "set_telegraf_prometheus_client_allow_from", value: a });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -538,9 +562,13 @@ class ServiceMonitoringService {
 
     const origActiveMap = new Map((orig?.servers_active ?? []).map((s) => [s.address, s]));
     const newActiveMap = new Map(data.servers_active.map((s) => [s.address, s]));
-    for (const addr of origActiveMap.keys()) {
-      if (!newActiveMap.has(addr)) {
-        ops.push({ op: "delete_zabbix_server_active", value: addr });
+    if (origActiveMap.size > 0 && newActiveMap.size === 0) {
+      ops.push({ op: "delete_zabbix_all_server_active" });
+    } else {
+      for (const addr of origActiveMap.keys()) {
+        if (!newActiveMap.has(addr)) {
+          ops.push({ op: "delete_zabbix_server_active", value: addr });
+        }
       }
     }
     for (const [addr, newEntry] of newActiveMap) {
@@ -556,17 +584,24 @@ class ServiceMonitoringService {
       }
     }
 
-    if (data.authentication.mode !== (orig?.authentication?.mode ?? null)) {
-      if (data.authentication.mode) ops.push({ op: "set_zabbix_auth_mode", value: data.authentication.mode });
-      else if (orig?.authentication?.mode) ops.push({ op: "delete_zabbix_auth_mode" });
-    }
-    if (data.authentication.psk_id !== (orig?.authentication?.psk_id ?? null)) {
-      if (data.authentication.psk_id) ops.push({ op: "set_zabbix_auth_psk_id", value: data.authentication.psk_id });
-      else if (orig?.authentication?.psk_id) ops.push({ op: "delete_zabbix_auth_psk_id" });
-    }
-    if (data.authentication.psk_secret !== (orig?.authentication?.psk_secret ?? null)) {
-      if (data.authentication.psk_secret) ops.push({ op: "set_zabbix_auth_psk_secret", value: data.authentication.psk_secret });
-      else if (orig?.authentication?.psk_secret) ops.push({ op: "delete_zabbix_auth_psk_secret" });
+    const origAuth = orig?.authentication;
+    const mode = data.authentication.mode ?? null;
+    if (!mode) {
+      // Leaving the mode clears the PSK too; the masked secret cannot be kept alone.
+      if (origAuth?.mode || origAuth?.psk_id || origAuth?.psk_secret) {
+        ops.push({ op: "delete_zabbix_auth" });
+      }
+    } else {
+      if (mode !== (origAuth?.mode ?? null)) ops.push({ op: "set_zabbix_auth_mode", value: mode });
+      const pskId = data.authentication.psk_id ?? null;
+      if (pskId && pskId !== (origAuth?.psk_id ?? null)) {
+        ops.push({ op: "set_zabbix_auth_psk_id", value: pskId });
+      }
+      const pskSecret = data.authentication.psk_secret ?? null;
+      if (pskSecret && pskSecret !== MASKED_SECRET) {
+        // The lab requires the secret in this mode, so a blank field keeps the stored one.
+        ops.push({ op: "set_zabbix_auth_psk_secret", value: pskSecret });
+      }
     }
 
     if (data.limits.buffer_flush_interval !== (orig?.limits?.buffer_flush_interval ?? null)) {
@@ -591,12 +626,19 @@ class ServiceMonitoringService {
       else ops.push({ op: "delete_zabbix_log_remote_commands" });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
   async deleteZabbix(): Promise<VyOSResponse> {
     return this.batch([{ op: "delete_zabbix" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Prometheus
+  // --------------------------------------------------------------------------
+
+  async deletePrometheus(): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_prometheus" }]);
   }
 
   // --------------------------------------------------------------------------
@@ -614,7 +656,6 @@ class ServiceMonitoringService {
       else ops.push({ op: "delete_prometheus_node_exporter_textfile_collector" });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -631,7 +672,6 @@ class ServiceMonitoringService {
     data: PrometheusExporterBase
   ): Promise<VyOSResponse> {
     const ops = this._exporterBaseOps("frr_exporter", original, data);
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -648,7 +688,6 @@ class ServiceMonitoringService {
     data: PrometheusBlackboxExporter
   ): Promise<VyOSResponse> {
     const ops = this._exporterBaseOps("blackbox_exporter", original, data);
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -681,7 +720,6 @@ class ServiceMonitoringService {
       else if (orig?.timeout) ops.push({ op: "delete_prometheus_blackbox_icmp_timeout", value: name });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -722,7 +760,6 @@ class ServiceMonitoringService {
       else if (orig?.query_type) ops.push({ op: "delete_prometheus_blackbox_dns_query_type", value: name });
     }
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 
@@ -753,10 +790,13 @@ class ServiceMonitoringService {
     const origEvents = orig?.events ?? [];
     const removedEvents = origEvents.filter((e) => !data.events.includes(e));
     const addedEvents = data.events.filter((e) => !origEvents.includes(e));
-    for (const e of removedEvents) ops.push({ op: "delete_network_event_event", value: e });
+    if (removedEvents.length > 0 && data.events.length === 0) {
+      ops.push({ op: "delete_network_event_all_events" });
+    } else {
+      for (const e of removedEvents) ops.push({ op: "delete_network_event_event", value: e });
+    }
     for (const e of addedEvents) ops.push({ op: "set_network_event_event", value: e });
 
-    if (ops.length === 0) return { success: true };
     return this.batch(ops);
   }
 

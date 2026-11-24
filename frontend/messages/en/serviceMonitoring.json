@@ -6,7 +6,10 @@
     "tabs": {
       "zabbixAgent": "Zabbix Agent",
       "networkEvents": "Network Events"
-    }
+    },
+    "removeAll": "Remove Service Monitoring",
+    "removeAllTitle": "Remove service monitoring?",
+    "removeAllDescription": "This will delete the Telegraf, Zabbix agent, Prometheus and network event configuration. This action cannot be undone."
   },
   "common": {
     "active": "Active",
@@ -17,7 +20,9 @@
     "listenAddresses": "Listen Addresses",
     "editTitle": "Edit {name}",
     "configureTitle": "Configure {name}",
-    "secondsValue": "{value}s"
+    "secondsValue": "{value}s",
+    "fieldRequired": "{field} is required",
+    "secretKeep": "Leave blank to keep the current secret"
   },
   "prometheus": {
     "nodeExporterDescription": "Hardware and OS metrics",
@@ -35,7 +40,10 @@
     "removeExporterTitle": "Remove exporter?",
     "removeExporterDescription": "This will delete the exporter configuration. This action cannot be undone.",
     "removeModuleTitle": "Remove module?",
-    "removeModuleDescription": "This will delete the {type} module \"{name}\"."
+    "removeModuleDescription": "This will delete the {type} module \"{name}\".",
+    "removeAll": "Remove Prometheus",
+    "removeAllTitle": "Remove Prometheus exporters?",
+    "removeAllDescription": "This will delete every Prometheus exporter. This action cannot be undone."
   },
   "exporter": {
     "listenPlaceholder": "e.g. 0.0.0.0",
@@ -102,6 +110,9 @@
     },
     "removeTitle": "Remove output plugin?",
     "removeDescription": "This will delete the output plugin configuration. This action cannot be undone.",
+    "removeTelegraf": "Remove Telegraf",
+    "removeTelegrafTitle": "Remove Telegraf?",
+    "removeTelegrafDescription": "This will delete the Telegraf sources, VRF and every output plugin. This action cannot be undone.",
     "configureOutput": "Configure {name} Output",
     "token": "Token",
     "username": "Username",
@@ -128,7 +139,8 @@
     "loki": {
       "urlPlaceholder": "e.g. https://loki.example.com",
       "metricNameLabel": "Metric Name Label",
-      "metricNameLabelPlaceholder": "e.g. __name__"
+      "metricNameLabelPlaceholder": "e.g. __name__",
+      "authPair": "Set both username and password, or clear both"
     },
     "splunk": {
       "urlPlaceholder": "e.g. https://splunk.example.com:8088",
