@@ -1,7 +1,8 @@
 """WireGuard op-mode text parsers.
 
-VyOS returns WireGuard config, ``show interfaces wireguard <name> summary`` and
-``generate pki wireguard ...`` as text. Typed GraphQL ops do not cover the peer
+VyOS returns WireGuard config, ``show interfaces wireguard <name> summary``,
+``show interfaces wireguard <name> public-key`` and ``generate pki wireguard ...``
+as text. Typed GraphQL ops do not cover the peer
 table. The live broadcaster folds the parsed peers into the SSE payload, and the
 WireGuard router reads the same summary and key output; neither owns this syntax.
 """
@@ -265,6 +266,15 @@ def parse_wg_summary(output: str) -> dict:
     return peers
 
 
+def wg_summary_names_interface(output: str) -> bool:
+    """True when a summary describes a live interface (an ``interface:`` line).
+
+    For an absent interface both labs answer with one error line instead
+    (1.4 "Unable to access interface: No such device", 1.5 "... is not configured!").
+    """
+    return any(line.strip().startswith("interface:") for line in (output or "").splitlines())
+
+
 # ========================================================================
 # Helper: Parse WireGuard op-mode key output
 # ========================================================================
@@ -299,12 +309,3 @@ def parse_wg_public_key(output: str) -> Optional[str]:
     """Parse ``show interfaces wireguard <if> public-key``: the bare key, or None."""
     text = (output or "").strip()
     return text if _WG_KEY.fullmatch(text) else None
-
-
-def wg_summary_names_interface(output: str) -> bool:
-    """True when a summary describes a live interface (an ``interface:`` line).
-
-    For an absent interface both labs answer with one error line instead
-    (1.4 "Unable to access interface: No such device", 1.5 "... is not configured!").
-    """
-    return any(line.strip().startswith("interface:") for line in (output or "").splitlines())

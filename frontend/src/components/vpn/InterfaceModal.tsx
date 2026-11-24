@@ -229,9 +229,12 @@ export function InterfaceModal({
       }
     } else if (!existing) {
       return;
-    } else if (validateInterfaceFields(draft())) {
-      setError(t("validation.fwmarkRange", FWMARK_RANGE));
-      return;
+    } else {
+      const fieldError = validateInterfaceFields(draft());
+      if (fieldError) {
+        setError(t(`validation.${fieldError}`, { ...FWMARK_RANGE }));
+        return;
+      }
     }
 
     setLoading(true);

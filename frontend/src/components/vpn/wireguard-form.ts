@@ -9,6 +9,7 @@
  */
 
 import type { WireGuardInterface, WireGuardPeer } from "@/lib/api/wireguard";
+import { inRange, type NumberRange } from "@/lib/api/rip-ranges";
 
 /** Placeholder the API returns instead of a stored secret. */
 export const MASKED_SECRET = "***";
@@ -63,7 +64,7 @@ export interface InterfaceUpdateConfig {
 }
 
 /** Lab node.def range of ``interfaces wireguard <if> fwmark`` on 1.4 and 1.5. */
-export const FWMARK_RANGE = { min: 0, max: 4294967295 } as const;
+export const FWMARK_RANGE: NumberRange = { min: 0, max: 4294967295 };
 
 const mssValue = (draft: InterfaceDraft): string | null => {
   if (draft.mssClamping === "auto") return "clamp-mss-to-pmtu";
@@ -72,13 +73,10 @@ const mssValue = (draft: InterfaceDraft): string | null => {
 };
 
 /**
- * Create-only checks. The name is the interface identity and cannot change
- * after create, so the pattern and uniqueness rules never run on an edit.
- */
-/**
  * Validation failures are message keys. interfaceNameRequired is shared chrome
- * (common.interfaceNameRequired). The other keys live under wireguard.validation
- * and the modal passes the draft name for the "already exists" message.
+ * (common.interfaceNameRequired). The other keys live under wireguard.validation;
+ * the modal passes the draft name (the "already exists" message) and
+ * FWMARK_RANGE (fwmarkRange's {min}/{max}).
  */
 export type InterfaceValidationError =
   | "interfaceNameRequired"
@@ -89,16 +87,14 @@ export type InterfaceValidationError =
 
 /** Field checks that apply on create and on edit. */
 export function validateInterfaceFields(draft: InterfaceDraft): "fwmarkRange" | null {
-  const fwmark = draft.fwmark.trim();
-  if (fwmark) {
-    const value = /^\d{1,10}$/.test(fwmark) ? Number(fwmark) : NaN;
-    if (!(value >= FWMARK_RANGE.min && value <= FWMARK_RANGE.max)) {
-      return "fwmarkRange";
-    }
-  }
-  return null;
+  return inRange(draft.fwmark, FWMARK_RANGE) ? null : "fwmarkRange";
 }
 
+/**
+ * Create checks. The name is the interface identity and cannot change after
+ * create, so the pattern and uniqueness rules never run on an edit; the field
+ * checks run last.
+ */
 export function validateInterfaceCreate(
   draft: InterfaceDraft,
   existingInterfaces: string[],
