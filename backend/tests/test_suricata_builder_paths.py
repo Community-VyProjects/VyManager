@@ -1,11 +1,16 @@
 """Golden paths and version gates for Suricata."""
 
+import inspect
+from pathlib import Path
+
 import pytest
 
 from vyos_builders.suricata import SuricataBatchBuilder
 from routers.suricata.suricata import SuricataConfig
 from vyos_mappers import CommandMapperRegistry
-from vyos_mappers.suricata import SuricataMapper
+from vyos_mappers.suricata import SuricataMapper, suricata_versions
+from vyos_mappers.suricata.suricata import SURICATA_NODE
+from vyos_mappers.suricata.suricata_versions import SuricataMapperV1_5
 
 
 BASE = ["service", "suricata"]
@@ -14,8 +19,10 @@ BASE = ["service", "suricata"]
 def parse_suricata_config(node):
     """Feed a ``service suricata`` node through the mapper into the router model."""
     mapper = CommandMapperRegistry.get_mapper("suricata", "1.5")
+    assert isinstance(mapper, SuricataMapper)
     full_config = {} if node is None else {"service": {"suricata": node}}
     return SuricataConfig(**mapper.parse_config(full_config))
+
 
 CASES = [
     ("delete_suricata", (), "delete", BASE),
@@ -72,6 +79,12 @@ CASES = [
         ("file-data-ports", "http-ports"),
         "set",
         BASE + ["port-group", "file-data-ports", "group", "http-ports"],
+    ),
+    (
+        "delete_port_group_ref",
+        ("file-data-ports", "!http-ports"),
+        "delete",
+        BASE + ["port-group", "file-data-ports", "group", "!http-ports"],
     ),
     ("delete_log", (), "delete", BASE + ["log"]),
     (
@@ -205,5 +218,76 @@ def test_registry_mapper_parses_on_both_versions():
     tree = {"service": {"suricata": {"interface": "eth0"}}}
     for version in ("1.4", "1.5"):
         mapper = CommandMapperRegistry.get_mapper("suricata", version)
+        assert isinstance(mapper, SuricataMapper)
         assert SuricataConfig(**mapper.parse_config(tree)).interfaces == ["eth0"]
     assert SuricataMapper("1.5").parse_config({}) == {"configured": False}
+
+
+@pytest.mark.parametrize(
+    "version, cls",
+    [
+        ("1.4", SuricataMapper),
+        ("1.4.3", SuricataMapper),
+        ("1.5", SuricataMapperV1_5),
+        ("2026.09.23-0027-rolling", SuricataMapperV1_5),
+    ],
+)
+def test_factory_returns_the_class_for_the_device(version, cls):
+    mapper = CommandMapperRegistry.get_mapper("suricata", version)
+    assert type(mapper) is cls
+
+
+def test_shared_class_has_no_suricata_paths():
+    shared = SuricataMapper("1.4")
+    assert shared.versioned_nodes() == frozenset()
+    assert shared.eve_filetype_values() == []
+    assert shared.eve_type_values() == []
+    for methods in SuricataMapper._VERSIONED_NODES.values():
+        for method in methods:
+            assert not hasattr(shared, method), method
+            assert callable(getattr(SuricataMapperV1_5, method)), method
+    assert SuricataMapperV1_5("1.5").versioned_nodes() == frozenset({SURICATA_NODE})
+
+
+def test_no_empty_1_4_version_file():
+    package = Path(suricata_versions.__file__).parent
+    assert not (package / "v1_4.py").exists()
+
+
+def test_capabilities_and_ops_follow_the_mapper_not_the_version(monkeypatch):
+    # A 1.5 mapper missing one path method under the node no longer reports it.
+    monkeypatch.delattr(SuricataMapperV1_5, "get_log_eve_type_delete")
+    builder = SuricataBatchBuilder(version="1.5")
+    caps = builder.get_capabilities()
+    assert caps["features"]["suricata"]["supported"] is False
+    assert caps["features"]["eve_log"]["supported"] is False
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_interface("eth0")
+    assert builder.get_operations() == []
+
+
+def test_capabilities_on_1_4_follow_a_mapper_with_the_paths(monkeypatch):
+    monkeypatch.setattr(
+        "vyos_mappers.suricata.suricata_versions.SuricataMapper", SuricataMapperV1_5
+    )
+    builder = SuricataBatchBuilder(version="1.4")
+    caps = builder.get_capabilities()
+    assert caps["features"]["suricata"]["supported"] is True
+    assert caps["features"]["eve_log"]["types"] == list(SuricataMapperV1_5("1.5").eve_type_values())
+    builder.set_interface("eth0")
+    assert builder.get_operations()[0]["path"] == BASE + ["interface", "eth0"]
+
+
+def test_every_builder_op_has_a_golden_row():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(SuricataBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    assert ops == {case[0] for case in CASES}
+
+
+def test_capabilities_on_1_4_list_no_eve_values():
+    caps = SuricataBatchBuilder(version="1.4").get_capabilities()
+    assert caps["features"]["eve_log"]["filetypes"] == []
+    assert caps["features"]["eve_log"]["types"] == []
