@@ -255,14 +255,16 @@ def test_get_config_unconfigured_returns_totals(monkeypatch):
 
 def test_device_calls_run_off_the_event_loop(monkeypatch):
     service = Service(config=FULL_TREE)
-    client = _app(monkeypatch, service)
 
-    client.get("/vyos/pppoe-server/config")
-    _post(client, "pppoe", [{"op": "set_description", "value": "x"}])
-    client.post("/vyos/pppoe-server/sessions/alice/reset")
+    # One portal for all three requests: the loop thread stays alive, so its
+    # ident cannot be reused by a worker thread between requests.
+    with _app(monkeypatch, service) as client:
+        client.get("/vyos/pppoe-server/config")
+        _post(client, "pppoe", [{"op": "set_description", "value": "x"}])
+        client.post("/vyos/pppoe-server/sessions/alice/reset")
 
     assert len(service.threads) == 3
-    assert service.loop_threads
+    assert len(set(service.loop_threads)) == 1
     assert not set(service.loop_threads) & set(service.threads)
 
 
