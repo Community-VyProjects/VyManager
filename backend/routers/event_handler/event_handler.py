@@ -17,9 +17,8 @@ from vyos_mappers.base import CommandMapperRegistry
 from vyos_builders.event_handler import EventHandlerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +62,9 @@ class EventHandlerBatchOperation(BaseModel):
         None,
         description=(
             "Argument(s) for the operation. "
+            "Zero-arg methods: omit (a value is rejected). "
             "Single-arg methods: plain string. "
-            "Multi-arg methods: comma-separated."
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
         ),
     )
 
@@ -95,6 +95,8 @@ async def get_event_handler_capabilities(request: Request):
             caps["instance_name"] = request.state.instance.get("name")
             caps["instance_id"] = request.state.instance.get("id")
         return caps
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_event_handler_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -116,6 +118,8 @@ async def get_event_handler_config(http_request: Request, refresh: bool = False)
             "event_handler", service.get_version()
         )
         return EventHandlerConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_event_handler_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -137,34 +141,22 @@ async def event_handler_batch_configure(
         builder = EventHandlerBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-                else:
-                    method()
-            elif len(params) >= 2:
-                if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", len(params) - 1)
-                    method(*parts)
-                elif operation.value:
-                    method(operation.value)
+            call_comma_batch_op(
+                builder,
+                operation.op,
+                operation.value,
+                # The device commits an environment variable with an empty value.
+                may_be_empty=("value",),
+            )
 
         response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Event handler configuration updated"},
+            data={"message": "Event handler configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
         raise
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in event_handler_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

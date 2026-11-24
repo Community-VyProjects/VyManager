@@ -78,6 +78,7 @@ DYNAMIC_DISPATCH_FILES = [
     "l2tp/l2tp.py",
     "nat66/nat66.py",
     "nat64/nat64.py",
+    "event_handler/event_handler.py",
     "firewall/zones.py",
 ]
 

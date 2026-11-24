@@ -223,6 +223,27 @@ def test_comma_op_splits_into_the_parameter_count():
     ]
 
 
+def test_comma_op_allows_an_empty_part_only_for_named_params():
+    """may_be_empty lets the named part be blank; the other parts and the whole value stay required."""
+    builder = _CommaBuilder()
+    call_comma_batch_op(builder, "set_pair", "eth0,", may_be_empty=("value",))
+    assert builder.calls == [("set_pair", "eth0", "")]
+    for value, detail in (
+        (",x", "Operation set_pair requires 2 values"),
+        ("eth0", "Operation set_pair requires 2 values"),
+        ("", "Operation set_pair requires a value"),
+        (None, "Operation set_pair requires a value"),
+    ):
+        with pytest.raises(HTTPException) as ei:
+            call_comma_batch_op(builder, "set_pair", value, may_be_empty=("value",))
+        assert ei.value.status_code == 400
+        assert ei.value.detail == detail
+    with pytest.raises(HTTPException) as ei:
+        call_comma_batch_op(builder, "delete_one", "", may_be_empty=("name",))
+    assert ei.value.detail == "Operation delete_one requires a value"
+    assert builder.calls == [("set_pair", "eth0", "")]
+
+
 def test_comma_op_zero_arg_with_a_value_is_400():
     """A value on a zero-arg op must not run the wider op."""
     builder = _CommaBuilder()

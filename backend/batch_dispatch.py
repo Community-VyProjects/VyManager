@@ -5,7 +5,7 @@ lived in each file and drifted; one helper is the only allowed dispatch.
 """
 
 import inspect
-from typing import Any, Callable, FrozenSet, List, Mapping, Optional, Union
+from typing import Any, Callable, Collection, FrozenSet, List, Mapping, Optional, Union
 
 from fastapi import HTTPException
 
@@ -42,16 +42,27 @@ def resolve_batch_method(builder: Any, op: str) -> Callable[..., Any]:
     return method
 
 
-def call_comma_batch_op(builder: Any, op: str, value: Optional[str]) -> None:
+def call_comma_batch_op(
+    builder: Any,
+    op: str,
+    value: Optional[str],
+    *,
+    may_be_empty: Collection[str] = (),
+) -> None:
     """Resolve op and call it with value split on commas, else HTTP 400.
 
     The value is split into as many parts as the method has parameters, so a
     comma inside the last argument is kept. A zero-arg op rejects a value:
     calling it anyway drops the value and runs the wider op (delete_interfaces
     for a delete_interface that lost its name).
+
+    may_be_empty names parameters of a multi-arg op whose part may be an empty
+    string, for a leaf the device commits with an empty value (an event-handler
+    environment variable). Every other part, and the whole value, must be set.
     """
     method = resolve_batch_method(builder, op)
-    count = len(inspect.signature(method).parameters)
+    params = list(inspect.signature(method).parameters)
+    count = len(params)
     if count == 0:
         if value:
             raise HTTPException(status_code=400, detail=f"Operation {op} takes no value")
@@ -60,7 +71,9 @@ def call_comma_batch_op(builder: Any, op: str, value: Optional[str]) -> None:
     if not value:
         raise HTTPException(status_code=400, detail=f"Operation {op} requires a value")
     parts = value.split(",", count - 1)
-    if len(parts) != count or not all(parts):
+    if len(parts) != count or not all(
+        part or name in may_be_empty for name, part in zip(params, parts)
+    ):
         raise HTTPException(status_code=400, detail=f"Operation {op} requires {count} values")
     method(*parts)
 
