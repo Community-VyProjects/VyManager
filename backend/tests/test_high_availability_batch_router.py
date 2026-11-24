@@ -283,6 +283,75 @@ def test_config_route_masks_the_password(monkeypatch):
     assert "s3cret" not in resp.text
 
 
+FULL_TREE = {"high-availability": {
+    "disable": {},
+    "vrrp": {
+        "global-parameters": {"startup-delay": "5", "version": "3", "garp": {"interval": "1"}},
+        "snmp": {"trap": {}},
+        "group": {"G0": {
+            "vrid": "10",
+            "interface": "eth1",
+            "address": {"192.0.2.1/24": {"interface": "eth1"}, "192.0.2.2/24": {}},
+            "excluded-address": {"192.0.2.9/24": {"interface": "eth2"}},
+            "priority": "200",
+            "advertise-interval": "2",
+            "authentication": {"type": "ah", "password": "s3cret"},
+            "preempt-delay": "5",
+            "no-preempt": {},
+            "peer-address": ["192.0.2.20", "192.0.2.21"],
+            "hello-source-address": "192.0.2.3",
+            "rfc3768-compatibility": {},
+            "disable": {},
+            "description": "lab",
+            "garp": {"interval": "1", "master-delay": "2", "master-refresh": "3",
+                     "master-refresh-repeat": "4", "master-repeat": "5"},
+            "health-check": {"failure-count": "3", "interval": "10", "ping": "192.0.2.7",
+                             "script": "/hc", "timeout": "5"},
+            "track": {"interface": ["eth2", "eth3"], "exclude-vrrp-interface": {}},
+            "transition-script": {"backup": "/b", "fault": "/f", "master": "/m", "stop": "/s"},
+        }},
+        "sync-group": {"S0": {"member": "G0", "health-check": {"ping": "192.0.2.1"},
+                              "transition-script": {"master": "/m"}}},
+    },
+    "virtual-server": {"V0": {
+        "address": "192.0.2.50", "algorithm": "round-robin", "delay-loop": "10",
+        "forward-method": "nat", "fwmark": "7", "persistence-timeout": "300", "port": "80",
+        "protocol": "tcp",
+        "real-server": {"192.0.2.60": {"port": "8080", "connection-timeout": "5",
+                                       "health-check": {"script": "/hc"}}},
+    }},
+}}
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+@pytest.mark.parametrize("tree", [{}, FULL_TREE], ids=["unconfigured", "full"])
+def test_config_route_returns_every_parsed_field(monkeypatch, version, tree):
+    from typing import cast
+
+    from vyos_mappers import CommandMapperRegistry
+    from vyos_mappers.high_availability import HighAvailabilityMapper
+
+    mapper = cast(HighAvailabilityMapper, CommandMapperRegistry.get_mapper("high_availability", version))
+    resp = _app(monkeypatch, Service(version=version, config=tree)).get("/vyos/high-availability/config")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == mapper.parse_config(tree)
+
+
+def test_config_route_declares_the_response_model(monkeypatch):
+    schema = _app(monkeypatch, Service()).get("/openapi.json").json()
+    ok = schema["paths"]["/vyos/high-availability/config"]["get"]["responses"]["200"]
+    assert ok["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/HAConfig"}
+
+
+def test_config_model_rejects_a_parse_shape_change():
+    from pydantic import ValidationError
+
+    from routers.high_availability.high_availability import HAConfig
+
+    with pytest.raises(ValidationError):
+        HAConfig(**{"disabled": False, "vrrp": {}, "virtual_servers": []})
+
+
 @pytest.mark.parametrize("version,supported", [("1.4", False), ("1.5", True)])
 def test_capabilities_route(monkeypatch, version, supported):
     test_client = _app(monkeypatch, Service(version=version))
