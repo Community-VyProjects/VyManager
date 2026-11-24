@@ -83,6 +83,7 @@ DYNAMIC_DISPATCH_FILES = [
     "console_server/console_server.py",
     "tftp_server/tftp_server.py",
     "nhrp/nhrp.py",
+    "rpki/rpki.py",
     "firewall/zones.py",
 ]
 
