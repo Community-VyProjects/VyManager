@@ -35,6 +35,10 @@ _INTERFACE = re.compile(
 )
 _GROUP_NAME = re.compile(r"^[a-z0-9-]+\Z")
 _FILENAME = re.compile(r"^[^\x00-\x1f,]+\Z")
+# Lab port-range validator: a range is ^[0-9]{1,5}-[0-9]{1,5}$; any other
+# non-numeric value is an /etc/services name (all of them match this shape).
+_PORT_RANGE = re.compile(r"^[0-9]{1,5}-[0-9]{1,5}\Z", re.ASCII)
+_SERVICE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*\Z")
 
 # Lab `allowed:` lines for log eve filetype and log eve type.
 EVE_FILETYPES = ("regular", "syslog")
@@ -95,7 +99,7 @@ class SuricataMapperV1_5(SuricataMapper):
 
     def get_interface(self, name: str) -> List[str]:
         if not _INTERFACE.match(name):
-            raise ValueError(f"Invalid interface name: {name}")
+            raise ValueError("Invalid interface name")
         return BASE + ["interface", name]
 
     def get_interface_delete(self, name: str) -> List[str]:
@@ -164,7 +168,7 @@ class SuricataMapperV1_5(SuricataMapper):
 
     def get_log_eve_type(self, event_type: str) -> List[str]:
         if event_type not in self.eve_type_values():
-            raise ValueError(f"Invalid log type: {event_type}")
+            raise ValueError("Invalid log type")
         return BASE + ["log", "eve", "type", event_type]
 
     def get_log_eve_type_delete(self, event_type: str) -> List[str]:
@@ -192,11 +196,9 @@ class SuricataMapperV1_5(SuricataMapper):
 
     @staticmethod
     def _address(value: str) -> str:
-        _reject_comma(value, "address")
-        if "%" in value:
-            raise ValueError(f"Invalid address or prefix: {value}")
+        _reject_comma(value, "address or prefix")
         body = value[1:] if value.startswith("!") else value
-        if not body or body.startswith("!"):
+        if not body or body.startswith("!") or "%" in body:
             raise ValueError("Invalid address or prefix")
         try:
             if "/" in body:
@@ -204,12 +206,13 @@ class SuricataMapperV1_5(SuricataMapper):
             else:
                 ipaddress.ip_address(body)
         except ValueError as exc:
-            raise ValueError(f"Invalid address or prefix: {value}") from exc
+            raise ValueError("Invalid address or prefix") from exc
         return value
 
     @staticmethod
     def _port_number(text: str) -> int:
-        if not text.isascii() or not text.isdigit() or (len(text) > 1 and text.startswith("0")):
+        # The lab port-range validator takes leading zeros (080 is port 80).
+        if not text.isascii() or not text.isdigit():
             raise ValueError("Invalid port or port range")
         number = int(text)
         if not 1 <= number <= 65535:
@@ -218,14 +221,22 @@ class SuricataMapperV1_5(SuricataMapper):
 
     @staticmethod
     def _port(value: str) -> str:
-        _reject_comma(value, "port")
+        """Port, start-end range, or /etc/services name, optionally prefixed by !.
+
+        Mirrors the lab port-range validator: a range is 1-5 digits on each
+        side, a bare number is any digit string, and anything else must be a
+        service name (the device checks it against /etc/services on commit).
+        """
+        _reject_comma(value, "port or port range")
         body = value[1:] if value.startswith("!") else value
         if not body or body.startswith("!"):
             raise ValueError("Invalid port or port range")
-        if "-" in body:
+        if _PORT_RANGE.match(body):
             start_s, end_s = body.split("-", 1)
             if SuricataMapperV1_5._port_number(start_s) > SuricataMapperV1_5._port_number(end_s):
                 raise ValueError("Port range start must not exceed the end")
-        else:
+        elif body.isascii() and body.isdigit():
             SuricataMapperV1_5._port_number(body)
+        elif not _SERVICE_NAME.match(body):
+            raise ValueError("Invalid port or port range")
         return value

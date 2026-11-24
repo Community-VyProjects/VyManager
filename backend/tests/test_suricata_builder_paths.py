@@ -1,6 +1,7 @@
 """Golden paths and version gates for Suricata."""
 
 import inspect
+import re
 from pathlib import Path
 
 import pytest
@@ -136,33 +137,52 @@ def test_suricata_capabilities_follow_the_device():
 
 
 @pytest.mark.parametrize(
-    "method, args",
+    "method, args, detail",
     [
-        ("set_interface", ("tailscale0",)),
-        ("set_interface", ("eth0\n",)),
-        ("set_interface", ("eth0.\u0661\u0660",)),
-        ("set_address_group", ("home-net\n",)),
-        ("set_port_group", ("http-ports\n",)),
-        ("set_log_eve_filename", ("eve.json\n",)),
-        ("set_address_group", ("Home",)),
-        ("set_address", ("home-net", "192.168.1.1/24")),
-        ("set_address", ("home-net", "not-an-ip")),
-        ("set_port", ("http-ports", "0")),
-        ("set_port", ("http-ports", "65536")),
-        ("set_port", ("http-ports", "99999")),
-        ("set_port", ("http-ports", "١٠")),
-        ("set_port", ("http-ports", "1005-1001")),
-        ("set_address", ("home-net", "fe80::1%eth0")),
-        ("set_address", ("home-net", "2001:db8::1/32")),
-        ("set_log_eve_filetype", ("redis",)),
-        ("set_log_eve_type", ("geoip",)),
-        ("set_address_group_ref", ("external-net", "!")),
+        ("set_interface", ("tailscale0",), "Invalid interface name"),
+        ("set_interface", ("eth0\n",), "Invalid interface name"),
+        ("set_interface", ("eth0.\u0661\u0660",), "Invalid interface name"),
+        ("set_address_group", ("home-net\n",), "Group names must be"),
+        ("set_port_group", ("http-ports\n",), "Group names must be"),
+        ("set_log_eve_filename", ("eve.json\n",), "Invalid log file name"),
+        ("set_address_group", ("Home",), "Group names must be"),
+        ("set_address", ("home-net", "192.168.1.1/24"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "not-an-ip"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "10.0.0.1,10.0.0.2"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "!!10.0.0.1"), "Invalid address or prefix"),
+        ("set_port", ("http-ports", "0"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "00"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "65536"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "0065536"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "99999"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "١٠"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "80,443"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "+80"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "HTTP"), "Invalid port or port range"),
+        ("set_port", ("http-ports", "1005-1001"), "Port range start must not exceed the end"),
+        ("set_address", ("home-net", "fe80::1%eth0"), "Invalid address or prefix"),
+        ("set_address", ("home-net", "2001:db8::1/32"), "Invalid address or prefix"),
+        ("set_log_eve_filetype", ("redis",), "Invalid log destination"),
+        ("set_log_eve_type", ("geoip",), "Invalid log type"),
+        ("set_address_group_ref", ("external-net", "!"), "Invalid group reference"),
     ],
 )
-def test_suricata_rejects_values_the_device_rejects(method, args):
+def test_suricata_rejects_values_the_device_rejects(method, args, detail):
     builder = SuricataBatchBuilder(version="1.5")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=f"^{re.escape(detail)}"):
         getattr(builder, method)(*args)
+
+
+@pytest.mark.parametrize(
+    "value",
+    # The lab port-range validator accepts leading zeros and /etc/services names.
+    ["080", "00080", "1-080", "!080", "065535", "http", "!http", "http-alt"],
+)
+def test_suricata_port_accepts_what_the_device_accepts(value):
+    builder = SuricataBatchBuilder(version="1.5")
+    builder.set_port("http-ports", value)
+    builder.delete_port("http-ports", value)
+    assert [item["path"][-1] for item in builder.get_operations()] == [value, value]
 
 
 def test_parse_suricata_config_splits_exclusions_and_implicit_log():
