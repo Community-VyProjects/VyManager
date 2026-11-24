@@ -6,6 +6,7 @@ end with a stub service so the config response model, the emitted ops and the
 400 paths are checked.
 """
 
+import asyncio
 import inspect
 import re
 import threading
@@ -16,7 +17,7 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
-from routers.pppoe_server.pppoe_server import PPPoEConfig
+from routers.pppoe_server.pppoe_server import PPPoEConfig, reset_pppoe_session
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.pppoe_server import PPPoEServerMapper
@@ -285,14 +286,10 @@ def test_reset_decodes_the_username_once(monkeypatch):
     Starlette's TestClient decodes the path a second time itself, so this calls
     the handler with the value uvicorn would pass (``bob%41`` for ``bob%2541``).
     """
-    import asyncio
-
-    import routers.pppoe_server.pppoe_server as pppoe_mod
-
     service = Service()
     _app(monkeypatch, service)
 
-    response = asyncio.run(pppoe_mod.reset_pppoe_session(cast(Request, None), "bob%41"))
+    response = asyncio.run(reset_pppoe_session(cast(Request, None), "bob%41"))
 
     assert response.success is True
     assert service.reset_paths == [["pppoe-server", "username", "bob%41"]]
