@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ipoeServerService, type IPoEConfigResponse, type IPoECapabilities, type IPoEInterface, type IPoEAuthMac, type IPoERadiusServer, type IPoEClientIPPool, type IPoEClientIPv6Pool } from "@/lib/api/ipoe-server";
+import { luaUsernameInUse } from "@/lib/api/ipoe-server-save-ops";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import type { ApiError } from "@/lib/types/api";
@@ -779,6 +780,7 @@ function IPoEPageInner() {
                       <InfoRow label={t("advanced.limitsBurst")} value={config?.limits?.burst} />
                       <InfoRow label={t("advanced.connLimit")} value={config?.limits?.connection_limit} />
                       <InfoRow label={t("advanced.limitsTimeout")} value={config?.limits?.timeout} />
+                      <YesNoRow label={t("advancedModal.extendedScripts")} value={config?.extended_scripts?.enabled} yes={t("yes")} no={t("no")} />
                       <InfoRow label={t("advanced.scriptOnChange")} value={config?.extended_scripts?.on_change} />
                       <InfoRow label={t("advanced.scriptOnDown")} value={config?.extended_scripts?.on_down} />
                       <InfoRow label={t("advanced.scriptOnPreUp")} value={config?.extended_scripts?.on_pre_up} />
@@ -809,6 +811,7 @@ function IPoEPageInner() {
             onSuccess={onSuccess}
             currentMode={config.authentication.mode}
             capabilities={capabilities}
+            luaUsernameInUse={luaUsernameInUse(config.interfaces)}
           />
           <RadiusSettingsModal
             open={showRadiusSettingsModal}

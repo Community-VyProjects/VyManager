@@ -1,6 +1,7 @@
 """Golden (method, args, op, expected_path) cases for IPoEServerBatchBuilder.
 
-Paths checked against the 1.4 and 1.5 lab templates. idle-timeout and
+Paths checked against the 1.4 and 1.5 lab templates; file-name values are
+samples (the lab only accepts a file that exists). idle-timeout and
 vlan-mon exist only on 1.5.
 """
 
@@ -82,6 +83,7 @@ COMMON_CASES = [
     ('delete_radius_source_address', ('G0',), 'delete', ['service', 'ipoe-server', 'authentication', 'radius', 'source-address']),
     ('delete_radius_timeout', ('G0',), 'delete', ['service', 'ipoe-server', 'authentication', 'radius', 'timeout']),
     ('delete_extended_scripts', ('G0',), 'delete', ['service', 'ipoe-server', 'extended-scripts']),
+    ('set_extended_scripts', ('G0',), 'set', ['service', 'ipoe-server', 'extended-scripts']),
     ('delete_script_on_change', ('G0',), 'delete', ['service', 'ipoe-server', 'extended-scripts', 'on-change']),
     ('delete_script_on_down', ('G0',), 'delete', ['service', 'ipoe-server', 'extended-scripts', 'on-down']),
     ('delete_script_on_pre_up', ('G0',), 'delete', ['service', 'ipoe-server', 'extended-scripts', 'on-pre-up']),

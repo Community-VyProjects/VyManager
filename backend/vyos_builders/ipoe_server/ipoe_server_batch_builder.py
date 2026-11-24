@@ -178,6 +178,10 @@ class IPoEServerBatchBuilder(BatchBuilder):
     # Extended scripts
     # ========================================================================
 
+    def set_extended_scripts(self, _unused: str) -> "IPoEServerBatchBuilder":
+        """Turn extended scripts on without a script (a bare node commits)."""
+        return self.add_set(self._m().get_extended_scripts())
+
     def delete_extended_scripts(self, _unused: str) -> "IPoEServerBatchBuilder":
         """Drop the node; an empty ``extended-scripts`` still loads pppd_compat."""
         return self.add_delete(self._m().get_extended_scripts())

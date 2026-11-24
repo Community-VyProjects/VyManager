@@ -133,6 +133,7 @@
     "title": "常规设置",
     "description": "配置 IPoE 服务器常规设置。",
     "updateFailed": "更新设置失败",
+    "luaFileInUse": "有接口使用 Lua 用户名函数，无法清除 Lua 文件",
     "descriptionPlaceholder": "IPoE 宽带服务器",
     "defaultPool": "默认地址池",
     "defaultIpv6Pool": "默认 IPv6 地址池",
@@ -167,6 +168,7 @@
     "title": "认证设置",
     "description": "配置 IPoE 认证模式。",
     "updateFailed": "更新认证模式失败",
+    "luaUsernameNeedsRadius": "有接口使用 Lua 用户名函数，需要 RADIUS 认证",
     "mode": "认证模式"
   },
   "authMacModal": {

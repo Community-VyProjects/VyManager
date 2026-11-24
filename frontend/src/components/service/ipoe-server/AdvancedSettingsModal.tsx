@@ -41,6 +41,7 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config, c
   const [limitsBurst, setLimitsBurst] = useState("");
   const [limitsConnLimit, setLimitsConnLimit] = useState("");
   const [limitsTimeout, setLimitsTimeout] = useState("");
+  const [scriptsEnabled, setScriptsEnabled] = useState(false);
   const [scriptsOnChange, setScriptsOnChange] = useState("");
   const [scriptsOnDown, setScriptsOnDown] = useState("");
   const [scriptsOnPreUp, setScriptsOnPreUp] = useState("");
@@ -60,6 +61,7 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config, c
       setLimitsBurst(config.limits?.burst || "");
       setLimitsConnLimit(config.limits?.connection_limit || "");
       setLimitsTimeout(config.limits?.timeout || "");
+      setScriptsEnabled(config.extended_scripts?.enabled || false);
       setScriptsOnChange(config.extended_scripts?.on_change || "");
       setScriptsOnDown(config.extended_scripts?.on_down || "");
       setScriptsOnPreUp(config.extended_scripts?.on_pre_up || "");
@@ -86,6 +88,7 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config, c
         limits_burst: limitsBurst,
         limits_connection_limit: limitsConnLimit,
         limits_timeout: limitsTimeout,
+        scripts_enabled: scriptsEnabled,
         scripts_on_change: scriptsOnChange,
         scripts_on_down: scriptsOnDown,
         scripts_on_pre_up: scriptsOnPreUp,
@@ -177,25 +180,28 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config, c
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">{t("advancedModal.extendedScripts")}</h4>
+          <div className="flex items-center gap-2">
+            <Checkbox id="scripts-enabled" checked={scriptsEnabled} onCheckedChange={(v) => setScriptsEnabled(!!v)} />
+            <Label htmlFor="scripts-enabled" className="cursor-pointer">{t("advancedModal.extendedScripts")}</Label>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("advancedModal.onChange")}</Label>
-              <Input value={scriptsOnChange} onChange={(e) => setScriptsOnChange(e.target.value)} placeholder="/config/scripts/on-change.sh" />
+              <Input value={scriptsOnChange} onChange={(e) => setScriptsOnChange(e.target.value)} placeholder="/config/scripts/on-change.sh" disabled={!scriptsEnabled} />
             </div>
             <div className="space-y-2">
               <Label>{t("advancedModal.onDown")}</Label>
-              <Input value={scriptsOnDown} onChange={(e) => setScriptsOnDown(e.target.value)} placeholder="/config/scripts/on-down.sh" />
+              <Input value={scriptsOnDown} onChange={(e) => setScriptsOnDown(e.target.value)} placeholder="/config/scripts/on-down.sh" disabled={!scriptsEnabled} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("advancedModal.onPreUp")}</Label>
-              <Input value={scriptsOnPreUp} onChange={(e) => setScriptsOnPreUp(e.target.value)} placeholder="/config/scripts/on-pre-up.sh" />
+              <Input value={scriptsOnPreUp} onChange={(e) => setScriptsOnPreUp(e.target.value)} placeholder="/config/scripts/on-pre-up.sh" disabled={!scriptsEnabled} />
             </div>
             <div className="space-y-2">
               <Label>{t("advancedModal.onUp")}</Label>
-              <Input value={scriptsOnUp} onChange={(e) => setScriptsOnUp(e.target.value)} placeholder="/config/scripts/on-up.sh" />
+              <Input value={scriptsOnUp} onChange={(e) => setScriptsOnUp(e.target.value)} placeholder="/config/scripts/on-up.sh" disabled={!scriptsEnabled} />
             </div>
           </div>
         </div>

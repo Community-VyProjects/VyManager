@@ -133,6 +133,7 @@
     "title": "General Settings",
     "description": "Configure IPoE server general settings.",
     "updateFailed": "Failed to update settings",
+    "luaFileInUse": "An interface uses a Lua username function, so the Lua file cannot be cleared",
     "descriptionPlaceholder": "IPoE broadband server",
     "defaultPool": "Default Pool",
     "defaultIpv6Pool": "Default IPv6 Pool",
@@ -167,6 +168,7 @@
     "title": "Authentication Settings",
     "description": "Configure the IPoE authentication mode.",
     "updateFailed": "Failed to update authentication mode",
+    "luaUsernameNeedsRadius": "An interface uses a Lua username function, which needs RADIUS authentication",
     "mode": "Authentication Mode"
   },
   "authMacModal": {

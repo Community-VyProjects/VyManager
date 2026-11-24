@@ -165,6 +165,21 @@ export function authModeOps(current: string | null | undefined, draft: string): 
   return ops;
 }
 
+/** Some interface names a lua-username function (verify needs lua-file and radius mode). */
+export function luaUsernameInUse(interfaces: IPoEInterface[] | null | undefined): boolean {
+  return (interfaces ?? []).some((iface) => !!text(iface.lua_username));
+}
+
+/** Lab verify: lua-file cannot be cleared while an interface uses lua-username. */
+export function generalProblem(current: IPoEConfigResponse, draft: { lua_file: string }): "luaFileInUse" | null {
+  return !text(draft.lua_file) && luaUsernameInUse(current.interfaces) ? "luaFileInUse" : null;
+}
+
+/** Lab verify: lua-username works only with radius mode (the unset mode is local). */
+export function authModeProblem(draft: string, luaInUse: boolean): "luaUsernameNeedsRadius" | null {
+  return luaInUse && text(draft) !== "radius" ? "luaUsernameNeedsRadius" : null;
+}
+
 // ============================================================================
 // Server interfaces
 // ============================================================================
@@ -580,6 +595,7 @@ export interface IPoEAdvancedDraft {
   limits_burst: string;
   limits_connection_limit: string;
   limits_timeout: string;
+  scripts_enabled: boolean;
   scripts_on_change: string;
   scripts_on_down: string;
   scripts_on_pre_up: string;
@@ -615,16 +631,14 @@ export function advancedOps(current: IPoEConfigResponse, draft: IPoEAdvancedDraf
   });
 
   const scripts = current.extended_scripts;
-  const scriptsCleared = ![draft.scripts_on_change, draft.scripts_on_down, draft.scripts_on_pre_up, draft.scripts_on_up]
-    .some((value) => text(value));
-  if (scriptsCleared) {
-    // Every script cleared: drop the node, which alone still loads pppd_compat.
-    if (scripts?.enabled) ops.push({ op: "delete_extended_scripts" });
-  } else {
-    leaf(ops, "set_script_on_change", "delete_script_on_change", scripts?.on_change, draft.scripts_on_change);
-    leaf(ops, "set_script_on_down", "delete_script_on_down", scripts?.on_down, draft.scripts_on_down);
-    leaf(ops, "set_script_on_pre_up", "delete_script_on_pre_up", scripts?.on_pre_up, draft.scripts_on_pre_up);
-    leaf(ops, "set_script_on_up", "delete_script_on_up", scripts?.on_up, draft.scripts_on_up);
-  }
+  // A bare extended-scripts node still loads pppd_compat, so it is a section.
+  section(ops, "set_extended_scripts", "delete_extended_scripts", !!scripts?.enabled, draft.scripts_enabled, () => {
+    const children: BatchOperation[] = [];
+    leaf(children, "set_script_on_change", "delete_script_on_change", scripts?.on_change, draft.scripts_on_change);
+    leaf(children, "set_script_on_down", "delete_script_on_down", scripts?.on_down, draft.scripts_on_down);
+    leaf(children, "set_script_on_pre_up", "delete_script_on_pre_up", scripts?.on_pre_up, draft.scripts_on_pre_up);
+    leaf(children, "set_script_on_up", "delete_script_on_up", scripts?.on_up, draft.scripts_on_up);
+    return children;
+  });
   return ops;
 }

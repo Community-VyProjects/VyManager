@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Settings, X } from "lucide-react";
 import { ipoeServerService, IPoECapabilities, IPoEConfigResponse } from "@/lib/api/ipoe-server";
+import { generalProblem } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface GeneralSettingsModalProps {
@@ -87,8 +88,12 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, ca
   };
 
   const handleSubmit = async () => {
-    setLoading(true);
     setError(null);
+    if (generalProblem(config, { lua_file: luaFile })) {
+      setError(t("generalModal.luaFileInUse"));
+      return;
+    }
+    setLoading(true);
     try {
       const result = await ipoeServerService.updateGeneralSettings(config, {
         description,

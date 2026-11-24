@@ -5,6 +5,9 @@ import {
   authMacOps,
   authMacProblem,
   authModeOps,
+  authModeProblem,
+  generalProblem,
+  luaUsernameInUse,
   generalOps,
   interfaceOps,
   interfaceProblem,
@@ -432,6 +435,7 @@ describe("advancedOps", () => {
     limits_burst: current.limits.burst || "",
     limits_connection_limit: current.limits.connection_limit || "",
     limits_timeout: current.limits.timeout || "",
+    scripts_enabled: !!current.extended_scripts.enabled,
     scripts_on_change: "",
     scripts_on_down: "",
     scripts_on_pre_up: "",
@@ -478,16 +482,34 @@ describe("advancedOps", () => {
     ]);
   });
 
-  it("drops the extended-scripts node when every script is cleared", () => {
+  it("turns extended scripts on and off as a section", () => {
     const on = config({ extended_scripts: { enabled: true, on_up: "/config/up.sh", on_down: "/config/down.sh" } });
     const kept = draft(on, { scripts_on_up: "/config/up.sh", scripts_on_down: "/config/down.sh" });
     assert.deepEqual(advancedOps(on, kept), []);
     assert.deepEqual(advancedOps(on, { ...kept, scripts_on_down: "" }), [{ op: "delete_script_on_down" }]);
-    assert.deepEqual(advancedOps(on, draft(on)), [{ op: "delete_extended_scripts" }]);
+    assert.deepEqual(advancedOps(on, { ...kept, scripts_enabled: false }), [{ op: "delete_extended_scripts" }]);
     const bare = config({ extended_scripts: { enabled: true } });
-    assert.deepEqual(advancedOps(bare, draft(bare)), [{ op: "delete_extended_scripts" }]);
+    assert.deepEqual(advancedOps(bare, draft(bare)), []);
     const none = config();
     assert.deepEqual(advancedOps(none, draft(none)), []);
+    assert.deepEqual(advancedOps(none, draft(none, { scripts_enabled: true })), [{ op: "set_extended_scripts" }]);
+    assert.deepEqual(advancedOps(none, draft(none, { scripts_enabled: true, scripts_on_up: "/config/up.sh" })), [
+      { op: "set_script_on_up", value: "/config/up.sh" },
+    ]);
+  });
+});
+
+describe("lua-username checks from the global side", () => {
+  it("blocks clearing lua-file or leaving radius while an interface uses lua-username", () => {
+    const used = config({ lua_file: "/config/scripts/ipoe.lua", interfaces: [{ interface: "eth1", lua_username: "user" }] });
+    assert.equal(luaUsernameInUse(used.interfaces), true);
+    assert.equal(generalProblem(used, { lua_file: " " }), "luaFileInUse");
+    assert.equal(generalProblem(used, { lua_file: "/config/scripts/ipoe.lua" }), null);
+    assert.equal(generalProblem(config(), { lua_file: "" }), null);
+    assert.equal(authModeProblem("", true), "luaUsernameNeedsRadius");
+    assert.equal(authModeProblem("local", true), "luaUsernameNeedsRadius");
+    assert.equal(authModeProblem("radius", true), null);
+    assert.equal(authModeProblem("local", false), null);
   });
 });
 
