@@ -260,6 +260,17 @@ describe("generalOps", () => {
     assert.equal(generalProblem({ ...base, wins_servers: ["192.0.2.1", "192.0.2.2", "192.0.2.3"] }, THREAD_KEYWORDS)?.problem,
       "tooManyWinsServers");
   });
+
+  it("bounds the MTU to the lab range", () => {
+    const base = generalDraft(current);
+    assert.deepEqual(generalProblem({ ...base, mtu: "127" }, THREAD_KEYWORDS),
+      { problem: "mtuRange", params: { min: 128, max: 16384 } });
+    assert.equal(generalProblem({ ...base, mtu: "16385" }, THREAD_KEYWORDS)?.problem, "mtuRange");
+    assert.equal(generalProblem({ ...base, mtu: "1492.5" }, THREAD_KEYWORDS)?.problem, "mtuRange");
+    assert.equal(generalProblem({ ...base, mtu: "128" }, THREAD_KEYWORDS), null);
+    assert.equal(generalProblem({ ...base, mtu: "16384" }, THREAD_KEYWORDS), null);
+    assert.equal(generalProblem({ ...base, mtu: "" }, THREAD_KEYWORDS), null);
+  });
 });
 
 describe("authOps", () => {
@@ -599,6 +610,20 @@ describe("pppOptionsOps", () => {
     ]);
   });
 
+  it("bounds min-mtu and mru, and requires positive LCP echo values", () => {
+    const empty = pppOptions();
+    const check = (overrides: Partial<PPPoEPppOptionsDraft>) => pppOptionsProblem(empty, pppDraft(empty, overrides), true);
+    assert.deepEqual(check({ min_mtu: "67" }), { problem: "minMtuRange", params: { min: 68, max: 65535 } });
+    assert.equal(check({ min_mtu: "68" }), null);
+    assert.deepEqual(check({ mru: "65536" }), { problem: "mruRange", params: { min: 68, max: 65535 } });
+    assert.equal(check({ mru: "65535" }), null);
+    assert.deepEqual(check({ lcp_echo_failure: "0" }), { problem: "lcpEchoFailureMin", params: { min: 1 } });
+    assert.deepEqual(check({ lcp_echo_interval: "-5" }), { problem: "lcpEchoIntervalMin", params: { min: 1 } });
+    assert.deepEqual(check({ lcp_echo_timeout: "1.5" }), { problem: "lcpEchoTimeoutMin", params: { min: 1 } });
+    // Positive has no upper bound.
+    assert.equal(check({ lcp_echo_failure: "1", lcp_echo_interval: "30", lcp_echo_timeout: "999999999" }), null);
+  });
+
   it("checks the 1.5 secret and sets a typed one", () => {
     const empty = pppOptions();
     const draft = pppDraft(empty, { ipv6_peer_interface_id: "calling-sid" });
@@ -685,6 +710,21 @@ describe("advancedOps", () => {
     assert.equal(advancedProblem(draft([{ delay: "0", sessions: "1" }]))?.problem, "padoDelayInvalid");
     assert.equal(advancedProblem(draft([{ delay: "", sessions: "1" }]))?.problem, "padoDelayRequired");
     assert.equal(advancedProblem(draft([{ delay: "disable", sessions: "300" }, { delay: "5", sessions: "200" }])), null);
+  });
+
+  it("requires the connection-limit rate format; burst and timeout stay free-form", () => {
+    const limits = (overrides: Partial<PPPoEAdvancedDraft>) =>
+      advancedProblem(advancedDraft(config(), { limits_enabled: true, ...overrides }));
+    assert.equal(limits({ limits_connection_limit: "60/sec" }), null);
+    assert.equal(limits({ limits_connection_limit: "10/min" }), null);
+    assert.deepEqual(limits({ limits_connection_limit: "60" }),
+      { problem: "connectionLimitFormat", params: { value: "60" } });
+    assert.equal(limits({ limits_connection_limit: "60/hour" })?.problem, "connectionLimitFormat");
+    assert.equal(limits({ limits_connection_limit: "x60/sec" })?.problem, "connectionLimitFormat");
+    assert.equal(limits({ limits_connection_limit: "60/secs" })?.problem, "connectionLimitFormat");
+    assert.equal(limits({ limits_burst: "anything", limits_timeout: "anything" }), null);
+    // Disabled limits are deleted, so their leftovers are not checked.
+    assert.equal(advancedProblem(advancedDraft(config(), { limits_enabled: false, limits_connection_limit: "60" })), null);
   });
 
   it("turns a bare section on with its node and off with one delete", () => {

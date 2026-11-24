@@ -20,6 +20,7 @@ import { NamedListSelect } from "@/components/ui/named-list-select";
 import { pppoeServerService, PPPoECapabilities, PPPoEPppOptions } from "@/lib/api/pppoe-server";
 import {
   CALLING_SID,
+  PPPOE_MINIMUMS,
   PPPOE_RANGES,
   pppOptionsProblem,
   type PPPoEPppOptionsDraft,
@@ -151,11 +152,27 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, current, capabi
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pppoe-ppp-min-mtu">{t("pppOptions.minMtu")}</Label>
-              <Input id="pppoe-ppp-min-mtu" value={draft.min_mtu} onChange={(e) => update({ min_mtu: e.target.value })} placeholder="1280" />
+              <Input
+                id="pppoe-ppp-min-mtu"
+                type="number"
+                min={PPPOE_RANGES.pppMinMtu.min}
+                max={PPPOE_RANGES.pppMinMtu.max}
+                value={draft.min_mtu}
+                onChange={(e) => update({ min_mtu: e.target.value })}
+                placeholder={`${PPPOE_RANGES.pppMinMtu.min}-${PPPOE_RANGES.pppMinMtu.max}`}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pppoe-ppp-mru">MRU</Label>
-              <Input id="pppoe-ppp-mru" value={draft.mru} onChange={(e) => update({ mru: e.target.value })} placeholder="1492" />
+              <Input
+                id="pppoe-ppp-mru"
+                type="number"
+                min={PPPOE_RANGES.pppMru.min}
+                max={PPPOE_RANGES.pppMru.max}
+                value={draft.mru}
+                onChange={(e) => update({ mru: e.target.value })}
+                placeholder={`${PPPOE_RANGES.pppMru.min}-${PPPOE_RANGES.pppMru.max}`}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pppoe-ppp-cache">{t("pppOptions.interfaceCache")}</Label>
@@ -176,15 +193,36 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, current, capabi
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pppoe-lcp-failure">{t("pppOptions.failure")}</Label>
-              <Input id="pppoe-lcp-failure" value={draft.lcp_echo_failure} onChange={(e) => update({ lcp_echo_failure: e.target.value })} placeholder="3" />
+              <Input
+                id="pppoe-lcp-failure"
+                type="number"
+                min={PPPOE_MINIMUMS.lcpEcho}
+                value={draft.lcp_echo_failure}
+                onChange={(e) => update({ lcp_echo_failure: e.target.value })}
+                placeholder="3"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pppoe-lcp-interval">{t("pppOptions.interval")}</Label>
-              <Input id="pppoe-lcp-interval" value={draft.lcp_echo_interval} onChange={(e) => update({ lcp_echo_interval: e.target.value })} placeholder="30" />
+              <Input
+                id="pppoe-lcp-interval"
+                type="number"
+                min={PPPOE_MINIMUMS.lcpEcho}
+                value={draft.lcp_echo_interval}
+                onChange={(e) => update({ lcp_echo_interval: e.target.value })}
+                placeholder="30"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pppoe-lcp-timeout">{t("pppOptions.timeout")}</Label>
-              <Input id="pppoe-lcp-timeout" value={draft.lcp_echo_timeout} onChange={(e) => update({ lcp_echo_timeout: e.target.value })} placeholder="0" />
+              <Input
+                id="pppoe-lcp-timeout"
+                type="number"
+                min={PPPOE_MINIMUMS.lcpEcho}
+                value={draft.lcp_echo_timeout}
+                onChange={(e) => update({ lcp_echo_timeout: e.target.value })}
+                placeholder="10"
+              />
             </div>
           </div>
 

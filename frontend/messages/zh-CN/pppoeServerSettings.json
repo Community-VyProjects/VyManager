@@ -30,6 +30,7 @@
     "acceptAnyService": "接受任意服务",
     "acceptBlankService": "接受空服务名",
     "maxSessionsRange": "最大会话数必须介于 {min} 和 {max} 之间",
+    "mtuRange": "MTU 必须介于 {min} 和 {max} 之间",
     "threadCountInvalid": "线程数必须介于 {min} 和 {max} 之间，或为列出的关键字之一",
     "tooManyIpv4NameServers": "最多可配置 {max} 个 IPv4 DNS 服务器",
     "tooManyIpv6NameServers": "最多可配置 {max} 个 IPv6 DNS 服务器",
@@ -71,6 +72,7 @@
     "padoDisableNeedsSessions": "PADO 延迟 disable 需要会话数",
     "padoOneWithoutSessions": "只能有一个 PADO 延迟不设置会话数",
     "padoAfterDisable": "PADO 延迟 {delay} 的会话数大于 disable",
+    "connectionLimitFormat": "连接限制 {value} 必须是数字后跟 /min 或 /sec（例如 60/sec）",
     "fwmarkRange": "FWMark 必须介于 {min} 和 {max} 之间"
   },
   "auth": {
@@ -107,7 +109,12 @@
     "peerInterfaceId": "对端接口 ID",
     "acceptPeerInterfaceId": "接受对端接口 ID",
     "peerInterfaceIdSecret": "对端接口 ID 密钥",
+    "minMtuRange": "最小 MTU 必须介于 {min} 和 {max} 之间",
+    "mruRange": "MRU 必须介于 {min} 和 {max} 之间",
     "interfaceCacheRange": "接口缓存必须介于 {min} 和 {max} 之间",
+    "lcpEchoFailureMin": "LCP Echo 失败次数必须是不小于 {min} 的整数",
+    "lcpEchoIntervalMin": "LCP Echo 间隔必须是不小于 {min} 的整数",
+    "lcpEchoTimeoutMin": "LCP Echo 超时必须是不小于 {min} 的整数",
     "peerSecretRequired": "Calling SID 需要对端接口 ID 密钥",
     "peerSecretIsMask": "请输入实际密钥，而不是掩码",
     "peerSecretInvalid": "密钥必须为 {min} 到 {max} 个不含空格的可打印字符"

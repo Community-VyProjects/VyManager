@@ -354,14 +354,17 @@ function PPPoEPageInner() {
   };
 
   const fetchSessions = async () => {
+    // Stamp the result with the sequence at request start: a stream payload or
+    // error that arrives while the request runs is newer than its result.
+    const startSeq = sessionFeed.seq;
     try {
       setSessionRefreshing(true);
       const response = await pppoeServerService.getSessions(500);
       applySessions(response);
-      setSessionFeed((feed) => ({ ...feed, fetchError: null, fetchedSeq: feed.seq }));
+      setSessionFeed((feed) => ({ ...feed, fetchError: null, fetchedSeq: startSeq }));
     } catch (err) {
       const message = (err as ApiError).message || t("errors.loadSessions");
-      setSessionFeed((feed) => ({ ...feed, fetchError: message, fetchErrorSeq: feed.seq }));
+      setSessionFeed((feed) => ({ ...feed, fetchError: message, fetchErrorSeq: startSeq }));
     } finally {
       setSessionRefreshing(false);
     }
@@ -380,7 +383,7 @@ function PPPoEPageInner() {
       setLabelsLoad({ state: "loaded", error: null });
     } catch (err) {
       setSessionLabels([]);
-      setLabelsLoad({ state: "failed", error: (err as ApiError).message || t("errors.loadLabels") });
+      setLabelsLoad({ state: "failed", error: (err as ApiError).message || null });
     }
   };
 
@@ -437,15 +440,17 @@ function PPPoEPageInner() {
   const saveLabelEditor = async () => {
     // Saving replaces the whole catalog: never from a draft seeded by a failed load.
     if (!labelsReady) return;
-    const incomplete = labelDraft.findIndex((label) => !label.code.trim() || !label.name.trim());
-    if (incomplete >= 0) {
-      setLabelError(t("errors.labelRowIncomplete", { row: incomplete + 1 }));
+    // A row the user added and never filled is dropped; a half-filled row is an error.
+    const filled = labelDraft.filter((label) => label.code.trim() || label.name.trim());
+    const incomplete = filled.find((label) => !label.code.trim() || !label.name.trim());
+    if (incomplete) {
+      setLabelError(t("errors.labelIncomplete", { label: incomplete.code.trim() || incomplete.name.trim() }));
       return;
     }
     try {
       setLabelSaving(true);
       setLabelError(null);
-      const sanitized = labelDraft
+      const sanitized = filled
         .map((label) => ({
           ...label,
           code: label.code.trim(),
@@ -812,7 +817,7 @@ function PPPoEPageInner() {
                       <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                       <div className="flex-1">
                         <p className="font-medium">{t("errors.loadLabels")}</p>
-                        <p className="whitespace-pre-wrap">{labelsLoad.error}</p>
+                        {labelsLoad.error && <p className="whitespace-pre-wrap">{labelsLoad.error}</p>}
                       </div>
                       <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={retryLabels}>
                         {tc("retry")}

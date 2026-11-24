@@ -43,11 +43,14 @@ export interface NumberRange {
 }
 
 export const PPPOE_RANGES = {
+  mtu: { min: 128, max: 16384 },
   maxConcurrentSessions: { min: 0, max: 65535 },
   threadCount: { min: 1, max: 512 },
   padoDelay: { min: 1, max: 999999 },
   padoSessions: { min: 1, max: 999999 },
   interfaceCache: { min: 1, max: 256000 },
+  pppMinMtu: { min: 68, max: 65535 },
+  pppMru: { min: 68, max: 65535 },
   shaperFwmark: { min: 1, max: 2147483647 },
   vlan: { min: 1, max: 4094 },
   ipv6PrefixMask: { min: 48, max: 128 },
@@ -64,6 +67,17 @@ export const PPPOE_RANGES = {
   /** ppp-options ipv6-peer-interface-id-secret length (1.5). */
   peerInterfaceIdSecret: { min: 16, max: 128 },
 } as const satisfies Record<string, NumberRange>;
+
+/**
+ * Lower bounds of leaves the lab validates as `numeric --positive` (no upper
+ * bound): ppp-options lcp-echo-failure, lcp-echo-interval, lcp-echo-timeout.
+ */
+export const PPPOE_MINIMUMS = {
+  lcpEcho: 1,
+} as const satisfies Record<string, number>;
+
+/** limits connection-limit: lab regex `[0-9]+/(min|sec)`, matched whole. */
+export const CONNECTION_LIMIT_PATTERN = /^[0-9]+\/(min|sec)$/;
 
 /** The pado-delay keyword that stops answering PADI. */
 export const PADO_DISABLE = "disable";
@@ -123,6 +137,13 @@ function rangeIssue<K extends string>(
   const v = text(value);
   if (!v || wholeInRange(v, range)) return null;
   return issue(problem, { min: range.min, max: range.max, ...extra });
+}
+
+/** A filled value that is not a whole number of at least `min`, as a keyed issue. */
+function minimumIssue<K extends string>(problem: K, value: string | null | undefined, min: number): SaveIssue<K> | null {
+  const v = text(value);
+  if (!v || (/^\d+$/.test(v) && Number(v) >= min)) return null;
+  return issue(problem, { min });
 }
 
 /** Single-value leaf: set when changed, delete when cleared. */
@@ -243,6 +264,7 @@ export interface PPPoEGeneralDraft {
 }
 
 export type PPPoEGeneralProblem =
+  | "mtuRange"
   | "maxSessionsRange"
   | "threadCountInvalid"
   | "tooManyIpv4NameServers"
@@ -256,8 +278,9 @@ export function generalProblem(
   draft: PPPoEGeneralDraft,
   threadCountKeywords: string[],
 ): SaveIssue<PPPoEGeneralProblem> | null {
-  const sessions = rangeIssue("maxSessionsRange", draft.max_concurrent_sessions, PPPOE_RANGES.maxConcurrentSessions);
-  if (sessions) return sessions;
+  const ranged = rangeIssue("mtuRange", draft.mtu, PPPOE_RANGES.mtu)
+    ?? rangeIssue("maxSessionsRange", draft.max_concurrent_sessions, PPPOE_RANGES.maxConcurrentSessions);
+  if (ranged) return ranged;
   const threads = text(draft.thread_count);
   if (threads && !threadCountKeywords.includes(threads) && !wholeInRange(threads, PPPOE_RANGES.threadCount)) {
     return issue("threadCountInvalid", { ...PPPOE_RANGES.threadCount });
@@ -777,7 +800,12 @@ export interface PPPoEPppOptionsDraft {
 }
 
 export type PPPoEPppOptionsProblem =
+  | "minMtuRange"
+  | "mruRange"
   | "interfaceCacheRange"
+  | "lcpEchoFailureMin"
+  | "lcpEchoIntervalMin"
+  | "lcpEchoTimeoutMin"
   | "peerSecretRequired"
   | "peerSecretIsMask"
   | "peerSecretInvalid";
@@ -793,8 +821,13 @@ export function pppOptionsProblem(
   draft: PPPoEPppOptionsDraft,
   secretSupported: boolean,
 ): SaveIssue<PPPoEPppOptionsProblem> | null {
-  const cache = rangeIssue("interfaceCacheRange", draft.interface_cache, PPPOE_RANGES.interfaceCache);
-  if (cache) return cache;
+  const bounded = rangeIssue("minMtuRange", draft.min_mtu, PPPOE_RANGES.pppMinMtu)
+    ?? rangeIssue("mruRange", draft.mru, PPPOE_RANGES.pppMru)
+    ?? rangeIssue("interfaceCacheRange", draft.interface_cache, PPPOE_RANGES.interfaceCache)
+    ?? minimumIssue("lcpEchoFailureMin", draft.lcp_echo_failure, PPPOE_MINIMUMS.lcpEcho)
+    ?? minimumIssue("lcpEchoIntervalMin", draft.lcp_echo_interval, PPPOE_MINIMUMS.lcpEcho)
+    ?? minimumIssue("lcpEchoTimeoutMin", draft.lcp_echo_timeout, PPPOE_MINIMUMS.lcpEcho);
+  if (bounded) return bounded;
   if (!secretSupported || text(draft.ipv6_peer_interface_id) !== CALLING_SID) return null;
   const stored = current.ipv6_peer_interface_id_secret;
   const value = draft.ipv6_peer_interface_id_secret;
@@ -894,6 +927,7 @@ export type PPPoEAdvancedProblem =
   | "padoDisableNeedsSessions"
   | "padoOneWithoutSessions"
   | "padoAfterDisable"
+  | "connectionLimitFormat"
   | "fwmarkRange";
 
 function validPadoDelay(delay: string): boolean {
@@ -920,6 +954,11 @@ export function advancedProblem(draft: PPPoEAdvancedDraft): SaveIssue<PPPoEAdvan
     const limit = Number(text(disable.sessions));
     const after = rows.find((row) => text(row.sessions) && Number(text(row.sessions)) > limit);
     if (after) return issue("padoAfterDisable", { delay: text(after.delay) });
+  }
+  // Burst and timeout have no lab validator; the connection limit is a rate.
+  const connectionLimit = text(draft.limits_connection_limit);
+  if (draft.limits_enabled && connectionLimit && !CONNECTION_LIMIT_PATTERN.test(connectionLimit)) {
+    return issue("connectionLimitFormat", { value: connectionLimit });
   }
   if (draft.shaper_enabled) {
     const fwmark = rangeIssue("fwmarkRange", draft.shaper_fwmark, PPPOE_RANGES.shaperFwmark);

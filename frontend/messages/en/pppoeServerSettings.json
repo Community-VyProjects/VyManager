@@ -30,6 +30,7 @@
     "acceptAnyService": "Accept Any Service",
     "acceptBlankService": "Accept Blank Service",
     "maxSessionsRange": "Max sessions must be between {min} and {max}",
+    "mtuRange": "MTU must be between {min} and {max}",
     "threadCountInvalid": "Thread count must be between {min} and {max}, or one of the listed keywords",
     "tooManyIpv4NameServers": "At most {max} IPv4 name servers can be configured",
     "tooManyIpv6NameServers": "At most {max} IPv6 name servers can be configured",
@@ -71,6 +72,7 @@
     "padoDisableNeedsSessions": "PADO delay disable needs a session count",
     "padoOneWithoutSessions": "Only one PADO delay can be set without a session count",
     "padoAfterDisable": "PADO delay {delay} has more sessions than disable",
+    "connectionLimitFormat": "Connection limit {value} must be a number followed by /min or /sec (e.g. 60/sec)",
     "fwmarkRange": "FWMark must be between {min} and {max}"
   },
   "auth": {
@@ -107,7 +109,12 @@
     "peerInterfaceId": "Peer Interface ID",
     "acceptPeerInterfaceId": "Accept Peer Interface ID",
     "peerInterfaceIdSecret": "Peer Interface ID Secret",
+    "minMtuRange": "Min MTU must be between {min} and {max}",
+    "mruRange": "MRU must be between {min} and {max}",
     "interfaceCacheRange": "Interface cache must be between {min} and {max}",
+    "lcpEchoFailureMin": "LCP echo failure must be a whole number of at least {min}",
+    "lcpEchoIntervalMin": "LCP echo interval must be a whole number of at least {min}",
+    "lcpEchoTimeoutMin": "LCP echo timeout must be a whole number of at least {min}",
     "peerSecretRequired": "Calling SID needs a peer interface ID secret",
     "peerSecretIsMask": "Enter the actual secret, not the mask",
     "peerSecretInvalid": "The secret must be {min} to {max} printable characters without spaces"

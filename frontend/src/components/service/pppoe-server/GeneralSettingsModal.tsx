@@ -182,7 +182,15 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, ca
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pppoe-mtu">MTU</Label>
-              <Input id="pppoe-mtu" value={draft.mtu} onChange={(e) => update({ mtu: e.target.value })} placeholder="1492" />
+              <Input
+                id="pppoe-mtu"
+                type="number"
+                min={PPPOE_RANGES.mtu.min}
+                max={PPPOE_RANGES.mtu.max}
+                value={draft.mtu}
+                onChange={(e) => update({ mtu: e.target.value })}
+                placeholder={`${PPPOE_RANGES.mtu.min}-${PPPOE_RANGES.mtu.max}`}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pppoe-max-sessions">{t("general.maxSessions")}</Label>

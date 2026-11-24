@@ -240,6 +240,11 @@ export function useDashboardSSE(options?: {
     const es = new EventSource(qs ? `/api/vyos/show/stream?${qs}` : "/api/vyos/show/stream");
     esRef.current = es;
 
+    // A newer payload on a channel resolves that channel's last error, so a
+    // repeat of the same error text is reported again instead of being lost.
+    const clearChannelError = (channel: string) =>
+      setError((prev) => (prev?.startsWith(`${channel}: `) ? null : prev));
+
     es.addEventListener("connected", () => {
       setStatus("connected");
       setError(null);
@@ -249,6 +254,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as InterfaceCountersData;
         setData((prev) => ({ ...prev, interfaceCounters: payload }));
+        clearChannelError("interface-counters");
       } catch {
         // Ignore malformed payloads
       }
@@ -258,6 +264,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as SystemInfoData;
         setData((prev) => ({ ...prev, systemInfo: payload }));
+        clearChannelError("system-info");
       } catch {
         // Ignore malformed payloads
       }
@@ -267,6 +274,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as WireGuardPeersData;
         setData((prev) => ({ ...prev, wireguardPeers: payload }));
+        clearChannelError("wireguard-peers");
       } catch {
         // Ignore malformed payloads
       }
@@ -276,6 +284,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as QoSStatsResponse;
         setData((prev) => ({ ...prev, qosStats: payload }));
+        clearChannelError("qos-stats");
       } catch {
         // Ignore malformed payloads
       }
@@ -285,6 +294,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as OpenVpnStatus;
         setData((prev) => ({ ...prev, openvpnStatus: payload }));
+        clearChannelError("openvpn-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -294,6 +304,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as VrrpStatusData;
         setData((prev) => ({ ...prev, vrrpStatus: payload }));
+        clearChannelError("vrrp-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -303,6 +314,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as BgpStatusData;
         setData((prev) => ({ ...prev, bgpStatus: payload }));
+        clearChannelError("bgp-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -312,6 +324,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as IPSecStatus;
         setData((prev) => ({ ...prev, ipsecStatus: payload }));
+        clearChannelError("ipsec-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -321,6 +334,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as PPPoESessionsResponse;
         setData((prev) => ({ ...prev, pppoeSessions: payload }));
+        clearChannelError("pppoe-sessions");
       } catch {
         // Ignore malformed payloads
       }
@@ -330,6 +344,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as HardwareSensorsResponse;
         setData((prev) => ({ ...prev, hardwareSensors: payload }));
+        clearChannelError("hardware-sensors");
       } catch {
         // Ignore malformed payloads
       }
@@ -339,6 +354,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as TransceiverHealthData;
         setData((prev) => ({ ...prev, transceiverHealth: payload }));
+        clearChannelError("transceiver-health");
       } catch {
         // Ignore malformed payloads
       }
@@ -348,6 +364,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as FirewallHitsData;
         setData((prev) => ({ ...prev, firewallHits: payload }));
+        clearChannelError("firewall-statistics");
       } catch {
         // Ignore malformed payloads
       }
