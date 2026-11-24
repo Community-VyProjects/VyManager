@@ -187,6 +187,7 @@ function PPPoEPageInner() {
     fetchedSeq: number;
     fetchError: string | null;
     fetchErrorSeq: number;
+    fetchStartSeq: number;
   }>({
     streamError: null,
     streamPayload: null,
@@ -196,6 +197,7 @@ function PPPoEPageInner() {
     fetchedSeq: -1,
     fetchError: null,
     fetchErrorSeq: 0,
+    fetchStartSeq: 0,
   });
   const previousSessionBytes = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
@@ -292,7 +294,7 @@ function PPPoEPageInner() {
       setCapabilities(capsData);
       setError(null);
     } catch (err) {
-      setError((err as ApiError).message || t("errors.loadPppoeConfig"));
+      setError((err as ApiError).message || "");
     } finally {
       setLoading(false);
     }
@@ -354,27 +356,29 @@ function PPPoEPageInner() {
   };
 
   const fetchSessions = async () => {
-    // Stamp the result with the sequence at request start: a stream payload or
-    // error that arrives while the request runs is newer than its result.
-    const startSeq = sessionFeed.seq;
+    // Stamp the result with the sequence at request start (read from state, not
+    // a closure that may be stale): a stream payload or error that arrives while
+    // the request runs is newer than its result.
+    setSessionFeed((feed) => ({ ...feed, fetchStartSeq: feed.seq }));
     try {
       setSessionRefreshing(true);
       const response = await pppoeServerService.getSessions(500);
       applySessions(response);
-      setSessionFeed((feed) => ({ ...feed, fetchError: null, fetchedSeq: startSeq }));
+      setSessionFeed((feed) => ({ ...feed, fetchError: null, fetchedSeq: feed.fetchStartSeq }));
     } catch (err) {
       const message = (err as ApiError).message || t("errors.loadSessions");
-      setSessionFeed((feed) => ({ ...feed, fetchError: message, fetchErrorSeq: startSeq }));
+      setSessionFeed((feed) => ({ ...feed, fetchError: message, fetchErrorSeq: feed.fetchStartSeq }));
     } finally {
       setSessionRefreshing(false);
     }
   };
 
   const liveSessions = hasRead && !sessionPaused;
-  const { data: sessionStream, error: sessionStreamError, status: sessionStreamStatus } = useDashboardSSE({
+  const { data: sessionStream, channelErrors, status: sessionStreamStatus } = useDashboardSSE({
     interests: ["pppoe-sessions"],
     enabled: liveSessions,
   });
+  const sessionStreamError = channelErrors["pppoe-sessions"] ?? null;
 
   const loadSessionLabels = async () => {
     try {
@@ -396,7 +400,6 @@ function PPPoEPageInner() {
     if (!hasRead) return;
     void loadData();
     void loadSessionLabels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when read access is known; a language switch re-renders via router.refresh()
   }, [hasRead]);
 
   useEffect(() => {
@@ -420,8 +423,8 @@ function PPPoEPageInner() {
     });
   }
   const newestData = Math.max(sessionFeed.payloadSeq, sessionFeed.fetchedSeq);
-  const streamError = sessionStreamError?.startsWith("pppoe-sessions:") && sessionFeed.streamErrorSeq > newestData
-    ? sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || t("errors.loadSessions")
+  const streamError = sessionStreamError !== null && sessionFeed.streamErrorSeq > newestData
+    ? sessionStreamError || t("errors.loadSessions")
     : null;
   const fetchError = sessionFeed.fetchError && sessionFeed.fetchErrorSeq >= sessionFeed.payloadSeq
     ? sessionFeed.fetchError
@@ -440,17 +443,18 @@ function PPPoEPageInner() {
   const saveLabelEditor = async () => {
     // Saving replaces the whole catalog: never from a draft seeded by a failed load.
     if (!labelsReady) return;
-    // A row the user added and never filled is dropped; a half-filled row is an error.
-    const filled = labelDraft.filter((label) => label.code.trim() || label.name.trim());
-    const incomplete = filled.find((label) => !label.code.trim() || !label.name.trim());
+    // A row with a cleared code or name is an error, never dropped: removing a
+    // label goes through its remove action.
+    const incomplete = labelDraft.find((label) => !label.code.trim() || !label.name.trim());
     if (incomplete) {
-      setLabelError(t("errors.labelIncomplete", { label: incomplete.code.trim() || incomplete.name.trim() }));
+      const named = incomplete.code.trim() || incomplete.name.trim();
+      setLabelError(named ? t("errors.labelIncomplete", { label: named }) : t("errors.labelUnnamed"));
       return;
     }
     try {
       setLabelSaving(true);
       setLabelError(null);
-      const sanitized = filled
+      const sanitized = labelDraft
         .map((label) => ({
           ...label,
           code: label.code.trim(),
@@ -555,14 +559,14 @@ function PPPoEPageInner() {
     );
   }
 
-  if (error && !config) {
+  if (error !== null && !config) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <p className="text-destructive font-medium">{t("errors.loadConfig")}</p>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{error}</p>
+            {error && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{error}</p>}
             <Button onClick={retry}>
               <RefreshCw className="h-4 w-4 mr-2" /> {tc("retry")}
             </Button>
@@ -619,12 +623,12 @@ function PPPoEPageInner() {
             </div>
           </div>
 
-          {error && (
+          {error !== null && (
             <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
                 <p className="font-medium">{t("errors.loadConfig")}</p>
-                <p className="whitespace-pre-wrap">{error}</p>
+                {error && <p className="whitespace-pre-wrap">{error}</p>}
               </div>
             </div>
           )}

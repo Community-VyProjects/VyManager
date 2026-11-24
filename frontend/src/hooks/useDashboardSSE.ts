@@ -194,7 +194,10 @@ export interface DashboardSSEData {
 export interface DashboardSSEState {
   status: SSEStatus;
   data: DashboardSSEData;
+  /** Last error event of any channel, as `<channel>: <message>`. */
   error: string | null;
+  /** Current error message per channel, cleared by that channel's next payload. */
+  channelErrors: Record<string, string>;
 }
 
 // ============================================================================
@@ -224,6 +227,7 @@ export function useDashboardSSE(options?: {
     firewallHits: null,
   });
   const [error, setError] = useState<string | null>(null);
+  const [channelErrors, setChannelErrors] = useState<Record<string, string>>({});
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -242,12 +246,20 @@ export function useDashboardSSE(options?: {
 
     // A newer payload on a channel resolves that channel's last error, so a
     // repeat of the same error text is reported again instead of being lost.
-    const clearChannelError = (channel: string) =>
+    const clearChannelError = (channel: string) => {
       setError((prev) => (prev?.startsWith(`${channel}: `) ? null : prev));
+      setChannelErrors((prev) => {
+        if (!(channel in prev)) return prev;
+        const next = { ...prev };
+        delete next[channel];
+        return next;
+      });
+    };
 
     es.addEventListener("connected", () => {
       setStatus("connected");
       setError(null);
+      setChannelErrors({});
     });
 
     es.addEventListener("interface-counters", (event: MessageEvent) => {
@@ -374,6 +386,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as { channel: string; message: string };
         setError(`${payload.channel}: ${payload.message}`);
+        setChannelErrors((prev) => ({ ...prev, [payload.channel]: payload.message }));
       } catch {
         // Ignore malformed payloads
       }
@@ -393,5 +406,5 @@ export function useDashboardSSE(options?: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- interestsKey is the stable serialization of interests
   }, [enabled, interestsKey]);
 
-  return { status, data, error };
+  return { status, data, error, channelErrors };
 }
