@@ -94,7 +94,7 @@ function multi(
 }
 
 /**
- * A plain section whose bare node turns a module on (shaper, limits, snmp).
+ * A plain section whose bare node turns a module on (shaper, limits, snmp, extended-scripts).
  * `leaves` emits the child diffs; the section set is sent only when it turns
  * on with no child set in the same batch, and turning it off deletes the
  * section alone.
