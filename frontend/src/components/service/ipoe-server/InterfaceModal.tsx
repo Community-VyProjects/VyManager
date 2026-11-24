@@ -17,15 +17,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Network, X } from "lucide-react";
-import { ipoeServerService, IPoEInterface, IPoECapabilities } from "@/lib/api/ipoe-server";
+import { ipoeServerService, IPoECapabilities, IPoEInterface } from "@/lib/api/ipoe-server";
+import { interfaceProblem, type IPoEInterfaceContext, type IPoEInterfaceDraft } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface InterfaceModalProps {
@@ -34,17 +29,30 @@ interface InterfaceModalProps {
   onSuccess: () => void;
   existingInterface: IPoEInterface | null;
   capabilities: IPoECapabilities | null;
+  /** Interfaces already under the server; the Add picker leaves them out. */
+  configuredInterfaces: string[];
+  /** Global lua-file and effective auth mode, which lua-username needs. */
+  context: IPoEInterfaceContext;
 }
 
-export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterface, capabilities }: InterfaceModalProps) {
+export function InterfaceModal({
+  open,
+  onOpenChange,
+  onSuccess,
+  existingInterface,
+  capabilities,
+  configuredInterfaces,
+  context,
+}: InterfaceModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
   const isEdit = !!existingInterface;
 
   const [ifaceName, setIfaceName] = useState("");
-  const [mode, setMode] = useState("l2");
-  const [network, setNetwork] = useState("shared");
-  const [startSession, setStartSession] = useState("dhcp");
+  // Empty mode, network and start-session leave the leaf unset (lab default).
+  const [mode, setMode] = useState("");
+  const [network, setNetwork] = useState("");
+  const [startSession, setStartSession] = useState("");
   const [clientSubnet, setClientSubnet] = useState("");
   const [vlans, setVlans] = useState<string[]>([]);
   const [vlanInput, setVlanInput] = useState("");
@@ -56,37 +64,29 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const showVlanMon = capabilities?.features.vlan_mon ?? false;
+  const vlanMonSupported = capabilities?.features.vlan_mon ?? false;
+  const values = capabilities?.values;
 
   useEffect(() => {
     if (open) {
-      if (existingInterface) {
-        setIfaceName(existingInterface.interface);
-        setMode(existingInterface.mode || "l2");
-        setNetwork(existingInterface.network || "shared");
-        setStartSession(existingInterface.start_session || "dhcp");
-        setClientSubnet(existingInterface.client_subnet || "");
-        setVlans(existingInterface.vlans || []);
-        setVlanMon(existingInterface.vlan_mon || false);
-        setLuaUsername(existingInterface.lua_username || "");
-        setDhcpRelay(existingInterface.external_dhcp?.dhcp_relay || "");
-        setGiaddr(existingInterface.external_dhcp?.giaddr || "");
-      } else {
-        setIfaceName("");
-        setMode("l2");
-        setNetwork("shared");
-        setStartSession("dhcp");
-        setClientSubnet("");
-        setVlans([]);
-        setVlanMon(false);
-        setLuaUsername("");
-        setDhcpRelay("");
-        setGiaddr("");
-      }
+      setIfaceName(existingInterface?.interface || "");
+      setMode(existingInterface?.mode || "");
+      setNetwork(existingInterface?.network || "");
+      setStartSession(existingInterface?.start_session || "");
+      setClientSubnet(existingInterface?.client_subnet || "");
+      setVlans(existingInterface?.vlans || []);
+      setVlanMon(existingInterface?.vlan_mon || false);
+      setLuaUsername(existingInterface?.lua_username || "");
+      setDhcpRelay(existingInterface?.external_dhcp?.dhcp_relay || "");
+      setGiaddr(existingInterface?.external_dhcp?.giaddr || "");
       setVlanInput("");
       setError(null);
     }
   }, [open, existingInterface]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
 
   const addVlan = () => {
     const val = vlanInput.trim();
@@ -97,31 +97,32 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
   };
 
   const handleSubmit = async () => {
-    if (!ifaceName.trim()) { setError(tc("interfaceNameRequired")); return; }
-
-    setLoading(true);
-    setError(null);
-
-    const opts = {
+    const draft: IPoEInterfaceDraft = {
+      interface: ifaceName,
       mode,
       network,
       start_session: startSession,
-      client_subnet: clientSubnet || undefined,
+      client_subnet: clientSubnet,
       vlans,
-      vlan_mon: vlanMon,
-      lua_username: luaUsername || undefined,
-      dhcp_relay: dhcpRelay || undefined,
-      giaddr: giaddr || undefined,
+      vlan_mon: vlanMonSupported && vlanMon,
+      lua_username: luaUsername,
+      dhcp_relay: dhcpRelay,
+      giaddr,
     };
+    const problem = interfaceProblem(existingInterface, draft, configuredInterfaces, context);
+    if (problem === "interfaceRequired") {
+      setError(tc("interfaceNameRequired"));
+      return;
+    }
+    if (problem) {
+      setError(t(`interfaceModal.${problem}`));
+      return;
+    }
 
+    setLoading(true);
+    setError(null);
     try {
-      let result;
-      if (isEdit) {
-        result = await ipoeServerService.updateInterface(existingInterface!.interface, existingInterface!, opts);
-      } else {
-        result = await ipoeServerService.createInterface(ifaceName.trim(), opts);
-      }
-
+      const result = await ipoeServerService.saveInterface(existingInterface, draft, vlanMonSupported);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -136,7 +137,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -149,42 +150,43 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>{t("interfaceModal.interfaceName")}</Label>
-            <InterfaceSelect value={ifaceName} onValueChange={setIfaceName} disabled={isEdit} />
+            <InterfaceSelect
+              value={ifaceName}
+              onValueChange={setIfaceName}
+              disabled={isEdit}
+              filter={isEdit ? undefined : (iface) => !configuredInterfaces.includes(iface.name)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("interfaceModal.mode")}</Label>
-              <Select value={mode} onValueChange={setMode}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="l2">L2</SelectItem>
-                  <SelectItem value="l3">L3</SelectItem>
-                </SelectContent>
-              </Select>
+              <NamedListSelect
+                value={mode}
+                names={values?.interface_modes || []}
+                onValueChange={setMode}
+                noneLabel={tc("default")}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("interfaceModal.network")}</Label>
-              <Select value={network} onValueChange={setNetwork}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="shared">{t("interfaceModal.networkShared")}</SelectItem>
-                  <SelectItem value="vlan">VLAN</SelectItem>
-                </SelectContent>
-              </Select>
+              <NamedListSelect
+                value={network}
+                names={values?.interface_networks || []}
+                onValueChange={setNetwork}
+                noneLabel={tc("default")}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>{t("interfaceModal.startSession")}</Label>
-            <Select value={startSession} onValueChange={setStartSession}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dhcp">DHCP</SelectItem>
-                <SelectItem value="auto">{t("interfaceModal.startAuto")}</SelectItem>
-                <SelectItem value="unclassified-packet">{t("interfaceModal.startUnclassified")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <NamedListSelect
+              value={startSession}
+              names={values?.start_session || []}
+              onValueChange={setStartSession}
+              noneLabel={tc("default")}
+            />
           </div>
 
           <div className="space-y-2">
@@ -208,7 +210,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
               {vlans.map((vlan) => (
                 <Badge key={vlan} variant="secondary" className="gap-1 font-mono text-xs">
                   {vlan}
-                  <button onClick={() => setVlans(vlans.filter((v) => v !== vlan))}>
+                  <button type="button" onClick={() => setVlans(vlans.filter((v) => v !== vlan))}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -216,7 +218,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
             </div>
           </div>
 
-          {showVlanMon && (
+          {vlanMonSupported && (
             <div className="flex items-center gap-2">
               <Checkbox id="vlan-mon" checked={vlanMon} onCheckedChange={(v) => setVlanMon(!!v)} />
               <Label htmlFor="vlan-mon" className="cursor-pointer">{t("interfaceModal.vlanMonitoring")}</Label>

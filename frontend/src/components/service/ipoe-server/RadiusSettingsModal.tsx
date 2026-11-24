@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
 import { ipoeServerService, IPoERadiusSettings } from "@/lib/api/ipoe-server";
+import { radiusSettingsProblem, type IPoERadiusSettingsDraft } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface RadiusSettingsModalProps {
@@ -29,6 +30,7 @@ interface RadiusSettingsModalProps {
 export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSettings }: RadiusSettingsModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
+
   const [sourceAddress, setSourceAddress] = useState("");
   const [timeout, setTimeout] = useState("");
   const [maxTry, setMaxTry] = useState("");
@@ -40,6 +42,7 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
   const [acctTimeout, setAcctTimeout] = useState("");
   const [daeServer, setDaeServer] = useState("");
   const [daePort, setDaePort] = useState("");
+  // Blank keeps the stored key; the loaded mask is never put in the field.
   const [daeKey, setDaeKey] = useState("");
   const [rateLimitEnable, setRateLimitEnable] = useState(false);
   const [rateLimitAttribute, setRateLimitAttribute] = useState("");
@@ -71,28 +74,39 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
     }
   }, [open, currentSettings]);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
+
   const handleSubmit = async () => {
+    const draft: IPoERadiusSettingsDraft = {
+      source_address: sourceAddress,
+      timeout,
+      max_try: maxTry,
+      nas_identifier: nasIdentifier,
+      nas_ip_address: nasIpAddress,
+      preallocate_vif: preallocateVif,
+      accounting_interim_interval: acctInterval,
+      acct_interim_jitter: acctJitter,
+      acct_timeout: acctTimeout,
+      dae_server: daeServer,
+      dae_port: daePort,
+      dae_key: daeKey,
+      rate_limit_enable: rateLimitEnable,
+      rate_limit_attribute: rateLimitAttribute,
+      rate_limit_vendor: rateLimitVendor,
+      rate_limit_multiplier: rateLimitMultiplier,
+    };
+    const problem = radiusSettingsProblem(currentSettings, draft);
+    if (problem) {
+      setError(t(`radiusSettingsModal.${problem}`));
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const result = await ipoeServerService.updateRadiusSettings(currentSettings, {
-        source_address: sourceAddress,
-        timeout,
-        max_try: maxTry,
-        nas_identifier: nasIdentifier,
-        nas_ip_address: nasIpAddress,
-        preallocate_vif: preallocateVif,
-        accounting_interim_interval: acctInterval,
-        acct_interim_jitter: acctJitter,
-        acct_timeout: acctTimeout,
-        dae_server: daeServer,
-        dae_port: daePort,
-        dae_key: daeKey || undefined,
-        rate_limit_enable: rateLimitEnable,
-        rate_limit_attribute: rateLimitAttribute,
-        rate_limit_vendor: rateLimitVendor,
-        rate_limit_multiplier: rateLimitMultiplier,
-      });
+      const result = await ipoeServerService.updateRadiusSettings(currentSettings, draft);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -107,7 +121,7 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -125,13 +139,13 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
             </div>
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.timeout")}</Label>
-              <Input value={timeout} onChange={(e) => setTimeout(e.target.value)} placeholder="3" />
+              <Input value={timeout} onChange={(e) => setTimeout(e.target.value)} placeholder="1-60" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.maxTry")}</Label>
-              <Input value={maxTry} onChange={(e) => setMaxTry(e.target.value)} placeholder="3" />
+              <Input value={maxTry} onChange={(e) => setMaxTry(e.target.value)} placeholder="1-20" />
             </div>
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.nasIdentifier")}</Label>
@@ -152,15 +166,15 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.interimInterval")}</Label>
-              <Input value={acctInterval} onChange={(e) => setAcctInterval(e.target.value)} placeholder="60" />
+              <Input value={acctInterval} onChange={(e) => setAcctInterval(e.target.value)} placeholder="1-3600" />
             </div>
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.interimJitter")}</Label>
-              <Input value={acctJitter} onChange={(e) => setAcctJitter(e.target.value)} placeholder="10" />
+              <Input value={acctJitter} onChange={(e) => setAcctJitter(e.target.value)} placeholder="1-60" />
             </div>
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.acctTimeout")}</Label>
-              <Input value={acctTimeout} onChange={(e) => setAcctTimeout(e.target.value)} placeholder="3" />
+              <Input value={acctTimeout} onChange={(e) => setAcctTimeout(e.target.value)} placeholder="0-60" />
             </div>
           </div>
 
@@ -173,12 +187,18 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
             </div>
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.daePort")}</Label>
-              <Input value={daePort} onChange={(e) => setDaePort(e.target.value)} placeholder="3799" />
+              <Input value={daePort} onChange={(e) => setDaePort(e.target.value)} placeholder="1700" />
             </div>
           </div>
           <div className="space-y-2">
             <Label>{t("radiusSettingsModal.daeKey")}</Label>
-            <Input type="password" value={daeKey} onChange={(e) => setDaeKey(e.target.value)} placeholder={currentSettings.dynamic_author?.key ? t("radiusSettingsModal.daeKeyKeep") : t("radiusSettingsModal.daeKeyEnter")} />
+            <Input
+              type="password"
+              autoComplete="new-password"
+              value={daeKey}
+              onChange={(e) => setDaeKey(e.target.value)}
+              placeholder={currentSettings.dynamic_author?.key && daeServer.trim() ? t("leaveBlankToKeep") : t("radiusSettingsModal.daeKeyEnter")}
+            />
           </div>
 
           <Separator />
@@ -187,23 +207,21 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
             <Checkbox id="rate-limit-enable" checked={rateLimitEnable} onCheckedChange={(v) => setRateLimitEnable(!!v)} />
             <Label htmlFor="rate-limit-enable" className="cursor-pointer">{t("radiusSettingsModal.enableRateLimiting")}</Label>
           </div>
-          {rateLimitEnable && (
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>{t("radiusSettingsModal.attribute")}</Label>
-                {/* eslint-disable-next-line vymanager/no-untranslated-text -- RADIUS attribute name */}
-                <Input value={rateLimitAttribute} onChange={(e) => setRateLimitAttribute(e.target.value)} placeholder="Filter-Id" />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("radiusSettingsModal.vendor")}</Label>
-                <Input value={rateLimitVendor} onChange={(e) => setRateLimitVendor(e.target.value)} placeholder={t("radiusSettingsModal.vendor")} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("radiusSettingsModal.multiplier")}</Label>
-                <Input value={rateLimitMultiplier} onChange={(e) => setRateLimitMultiplier(e.target.value)} placeholder="1" />
-              </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>{t("radiusSettingsModal.attribute")}</Label>
+              {/* eslint-disable-next-line vymanager/no-untranslated-text -- RADIUS attribute name */}
+              <Input value={rateLimitAttribute} onChange={(e) => setRateLimitAttribute(e.target.value)} placeholder="Filter-Id" />
             </div>
-          )}
+            <div className="space-y-2">
+              <Label>{t("radiusSettingsModal.vendor")}</Label>
+              <Input value={rateLimitVendor} onChange={(e) => setRateLimitVendor(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("radiusSettingsModal.multiplier")}</Label>
+              <Input value={rateLimitMultiplier} onChange={(e) => setRateLimitMultiplier(e.target.value)} placeholder="0.001-1000" />
+            </div>
+          </div>
         </div>
 
         {error && (

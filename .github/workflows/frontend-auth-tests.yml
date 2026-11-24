@@ -93,3 +93,7 @@ jobs:
       - name: Run service monitoring save op tests
         working-directory: frontend
         run: npm run test:service-monitoring-save
+
+      - name: Run IPoE server save op tests
+        working-directory: frontend
+        run: npm run test:ipoe-server-save

@@ -164,16 +164,25 @@ def parse_config(_mapper: Any, full_config: Dict[str, Any]) -> Dict[str, Any]:
         "max_concurrent_sessions": cfg.get("max-concurrent-sessions"),
         "thread_count": cfg.get("thread-count"),
         "lua_file": cfg.get("lua-file"),
+        "idle_timeout": cfg.get("idle-timeout"),
         "log": {"level": log.get("level")},
-        "shaper": {"fwmark": shaper.get("fwmark")},
-        "snmp": {"master_agent": "master-agent" in _node(cfg.get("snmp"))},
+        # A bare shaper, limits or snmp node commits and turns the module on,
+        # so each section reports presence by key membership.
+        "shaper": {"enabled": "shaper" in cfg, "fwmark": shaper.get("fwmark")},
+        "snmp": {
+            "enabled": "snmp" in cfg,
+            "master_agent": "master-agent" in _node(cfg.get("snmp")),
+        },
         "extended_scripts": {
+            # A bare node still loads the pppd_compat module.
+            "enabled": "extended-scripts" in cfg,
             "on_change": scripts.get("on-change"),
             "on_down": scripts.get("on-down"),
             "on_pre_up": scripts.get("on-pre-up"),
             "on_up": scripts.get("on-up"),
         },
         "limits": {
+            "enabled": "limits" in cfg,
             "burst": limits.get("burst"),
             "connection_limit": limits.get("connection-limit"),
             "timeout": limits.get("timeout"),

@@ -16,6 +16,7 @@ import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Shield } from "lucide-react";
 import { ipoeServerService, IPoEAuthMac, IPoEAuthInterface } from "@/lib/api/ipoe-server";
+import { authMacProblem, type IPoEAuthMacDraft } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface AuthMacModalProps {
@@ -23,7 +24,7 @@ interface AuthMacModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingMac: IPoEAuthMac | null;
-  preselectedInterface?: string;
+  preselectedInterface: string;
   authInterfaces: IPoEAuthInterface[];
 }
 
@@ -45,45 +46,40 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
   useEffect(() => {
     if (open) {
       setSelectedIface(preselectedInterface || authInterfaces[0]?.interface || "");
-      if (existingMac) {
-        setMac(existingMac.mac);
-        setIpAddress(existingMac.ip_address || "");
-        setVlan(existingMac.vlan || "");
-        setRateDown(existingMac.rate_limit?.download || "");
-        setRateUp(existingMac.rate_limit?.upload || "");
-      } else {
-        setMac("");
-        setIpAddress("");
-        setVlan("");
-        setRateDown("");
-        setRateUp("");
-      }
+      setMac(existingMac?.mac || "");
+      setIpAddress(existingMac?.ip_address || "");
+      setVlan(existingMac?.vlan || "");
+      setRateDown(existingMac?.rate_limit?.download || "");
+      setRateUp(existingMac?.rate_limit?.upload || "");
       setError(null);
     }
   }, [open, existingMac, preselectedInterface, authInterfaces]);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
+
   const handleSubmit = async () => {
-    if (!selectedIface.trim()) { setError(t("authMacModal.interfaceRequired")); return; }
-    if (!mac.trim()) { setError(t("authMacModal.macRequired")); return; }
+    const draft: IPoEAuthMacDraft = {
+      interface: selectedIface,
+      mac,
+      ip_address: ipAddress,
+      vlan,
+      rate_download: rateDown,
+      rate_upload: rateUp,
+    };
+    const configuredMacs = (authInterfaces.find((ai) => ai.interface === selectedIface.trim())?.macs ?? [])
+      .map((entry) => entry.mac);
+    const problem = authMacProblem(existingMac, draft, configuredMacs);
+    if (problem) {
+      setError(t(`authMacModal.${problem}`));
+      return;
+    }
 
     setLoading(true);
     setError(null);
-
-    const opts = {
-      ip_address: ipAddress || undefined,
-      vlan: vlan || undefined,
-      rate_download: rateDown || undefined,
-      rate_upload: rateUp || undefined,
-    };
-
     try {
-      let result;
-      if (isEdit) {
-        result = await ipoeServerService.updateAuthMac(selectedIface, mac, existingMac!, opts);
-      } else {
-        result = await ipoeServerService.createAuthMac(selectedIface, mac.trim(), opts);
-      }
-
+      const result = await ipoeServerService.saveAuthMac(existingMac, draft);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -98,7 +94,7 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -111,28 +107,20 @@ export function AuthMacModal({ open, onOpenChange, onSuccess, existingMac, prese
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>{t("authMacModal.interface")}</Label>
-            {isEdit ? (
-              <Input value={selectedIface} disabled />
-            ) : (
-              <InterfaceSelect value={selectedIface} onValueChange={setSelectedIface} />
-            )}
+            <InterfaceSelect value={selectedIface} onValueChange={setSelectedIface} disabled={isEdit} />
           </div>
-
           <div className="space-y-2">
             <Label>{t("authMacModal.macAddress")}</Label>
             <Input value={mac} onChange={(e) => setMac(e.target.value)} placeholder="00:11:22:33:44:55" disabled={isEdit} />
           </div>
-
           <div className="space-y-2">
             <Label>{t("authMacModal.staticIp")}</Label>
             <Input value={ipAddress} onChange={(e) => setIpAddress(e.target.value)} placeholder="192.168.1.100" />
           </div>
-
           <div className="space-y-2">
             <Label>{t("authMacModal.vlan")}</Label>
-            <Input value={vlan} onChange={(e) => setVlan(e.target.value)} placeholder="100" />
+            <Input value={vlan} onChange={(e) => setVlan(e.target.value)} placeholder="1-4094" />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("authMacModal.rateDownload")}</Label>

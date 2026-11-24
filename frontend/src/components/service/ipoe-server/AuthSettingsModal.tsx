@@ -12,15 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Key, Loader2 } from "lucide-react";
-import { ipoeServerService } from "@/lib/api/ipoe-server";
+import { ipoeServerService, IPoECapabilities } from "@/lib/api/ipoe-server";
+import { authModeProblem } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface AuthSettingsModalProps {
@@ -28,27 +23,46 @@ interface AuthSettingsModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   currentMode?: string | null;
+  capabilities: IPoECapabilities | null;
+  /** An interface uses lua-username, which the lab only accepts in radius mode. */
+  luaUsernameInUse: boolean;
 }
 
-export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentMode }: AuthSettingsModalProps) {
+export function AuthSettingsModal({
+  open,
+  onOpenChange,
+  onSuccess,
+  currentMode,
+  capabilities,
+  luaUsernameInUse,
+}: AuthSettingsModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
-  const [mode, setMode] = useState("local");
+  // Empty is the unset leaf (the lab default); choosing it deletes the mode.
+  const [mode, setMode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setMode(currentMode || "local");
+      setMode(currentMode || "");
       setError(null);
     }
   }, [open, currentMode]);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
+
   const handleSubmit = async () => {
-    setLoading(true);
     setError(null);
+    if (authModeProblem(mode, luaUsernameInUse)) {
+      setError(t("authModal.luaUsernameNeedsRadius"));
+      return;
+    }
+    setLoading(true);
     try {
-      const result = await ipoeServerService.updateAuthMode(mode);
+      const result = await ipoeServerService.updateAuthMode(currentMode, mode);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -63,7 +77,7 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentMode }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -76,16 +90,12 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentMode }
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>{t("authModal.mode")}</Label>
-            <Select value={mode} onValueChange={setMode}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="local">{t("authModal.modeLocal")}</SelectItem>
-                <SelectItem value="radius">RADIUS</SelectItem>
-                <SelectItem value="noauth">{t("authModal.modeNoauth")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <NamedListSelect
+              value={mode}
+              names={capabilities?.values.auth_modes || []}
+              onValueChange={setMode}
+              noneLabel={tc("default")}
+            />
           </div>
         </div>
 
