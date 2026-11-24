@@ -294,6 +294,18 @@ def test_graphql_string_errors_are_joined(monkeypatch):
     assert resp.json() == {"success": False, "output": None, "error": "T-one; T-two"}
 
 
+@pytest.mark.parametrize("body", [
+    {"data": ["x"]},
+    {"data": {"AddImageContainer": "x"}},
+    {"data": {"AddImageContainer": {"success": False, "errors": None, "data": ["x"]}}},
+])
+def test_graphql_parts_that_are_not_objects_are_a_failed_reply(monkeypatch, body):
+    client = _build_client(monkeypatch, body)
+    resp = client.post("/vyos/container/image/pull", json={"image": "nginx:1.27"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "output": None, "error": "AddImageContainer failed"}
+
+
 def test_graphql_empty_errors_names_the_mutation(monkeypatch):
     body = {"data": {"AddImageContainer": {"success": False, "errors": None, "data": None}}}
     client = _build_client(monkeypatch, body)

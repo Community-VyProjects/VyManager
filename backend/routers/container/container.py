@@ -263,9 +263,9 @@ _CONTAINER_GQL_ALLOWLIST: Dict[str, tuple] = {
 # they do flow into VyOS config and we want a clean rejection of garbage.
 _REGISTRY_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]{0,252}(?::[0-9]{1,5})?$')
 
-# Validates container network names: the lab node.def allows
-# [-_a-zA-Z0-9]{1,11}; the first character stays alphanumeric, as for names.
-_NETWORK_NAME_RE = re.compile(r'^[a-zA-Z0-9][-_a-zA-Z0-9]{0,10}$')
+# Validates container network names exactly as the lab node.def does on 1.4
+# and 1.5. Network names never reach a shell.
+_NETWORK_NAME_RE = re.compile(r'^[-_a-zA-Z0-9]{1,11}$')
 
 # Builder-method prefixes whose first positional argument is an entity name.
 # Each prefix maps to the regex its first arg must satisfy. The batch endpoint
@@ -394,6 +394,11 @@ async def _require_ssh_key_configured(request: Request) -> None:
         raise HTTPException(status_code=409, detail=_SSH_KEY_MISSING)
 
 
+def _json_object(value: Any) -> Dict[str, Any]:
+    """value when it is a JSON object, else {} (a GraphQL reply part may be null or a list)."""
+    return value if isinstance(value, dict) else {}
+
+
 async def _run_container_gql_command(
     request: Request,
     operation: str,
@@ -478,10 +483,10 @@ async def _run_container_gql_command(
         )
         return ContainerSSHResponse(success=False, error=message or "GraphQL error")
 
-    payload = (body.get("data") or {}).get(mutation) or {}
+    payload = _json_object(_json_object(body.get("data")).get(mutation))
     success = bool(payload.get("success"))
     errors = payload.get("errors")
-    result = (payload.get("data") or {}).get("result")
+    result = _json_object(payload.get("data")).get("result")
 
     if isinstance(result, (dict, list)):
         output = json.dumps(result)

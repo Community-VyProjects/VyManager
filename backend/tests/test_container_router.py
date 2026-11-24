@@ -319,6 +319,7 @@ def test_log_unexpected_error_is_a_failed_reply(client, monkeypatch):
 
 @pytest.mark.parametrize("op, value", [
     ("set_network", "my_net"),
+    ("set_network", "_net"),
     ("set_network", "n-12345678x"),
     ("set_network_mtu", "my_net,1500"),
 ])
@@ -327,7 +328,7 @@ def test_network_names_follow_the_lab(client, op, value):
     assert _post(client, [{"op": op, "value": value}]).status_code == 200
 
 
-@pytest.mark.parametrize("value", ["n-123456789x", "_net", "my.net"])
+@pytest.mark.parametrize("value", ["n-123456789x", "my.net", "net\n"])
 def test_network_name_outside_the_lab_is_400(client, value):
     resp = _post(client, [{"op": "delete_network", "value": value}])
     assert resp.status_code == 400, resp.text
