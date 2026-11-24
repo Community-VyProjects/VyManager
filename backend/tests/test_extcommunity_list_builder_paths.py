@@ -1,12 +1,14 @@
 """Golden (method, args, expected_path) cases for ExtCommunityListBatchBuilder.
 
-Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+Paths checked with validateTmplPath on 1.4 (100.64.64.4) and 1.5 (100.64.64.5).
 Every valueless set_* leaf has a matching delete_*.
 """
 
+import inspect
+
 import pytest
 
-from vyos_builders.extcommunity_list.extcommunity_list import (
+from vyos_builders.extcommunity_list.extcommunity_list_batch_builder import (
     ExtCommunityListBatchBuilder,
 )
 
@@ -38,3 +40,12 @@ def test_extcommunity_list_builder_paths(method, args, op, expected_path, versio
     getattr(builder, method)(*args)
     operations = builder.get_operations()
     assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
+
+
+def test_every_builder_op_has_a_case():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(ExtCommunityListBatchBuilder("1.5"), inspect.ismethod)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    assert ops == {case[0] for case in CASES}

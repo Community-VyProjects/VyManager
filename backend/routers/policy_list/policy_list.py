@@ -10,9 +10,9 @@ from batch_dispatch import resolve_batch_method
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
-from vyos_builders.community_list.community_list import CommunityListBatchBuilder
-from vyos_builders.extcommunity_list.extcommunity_list import ExtCommunityListBatchBuilder
-from vyos_builders.large_community_list.large_community_list import LargeCommunityListBatchBuilder
+from vyos_builders.community_list.community_list_batch_builder import CommunityListBatchBuilder
+from vyos_builders.extcommunity_list.extcommunity_list_batch_builder import ExtCommunityListBatchBuilder
+from vyos_builders.large_community_list.large_community_list_batch_builder import LargeCommunityListBatchBuilder
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.policy_list import KIND_SPEC, POLICY_LIST_KINDS, PolicyListMapper
 import inspect
@@ -90,6 +90,10 @@ def _unique_rule_numbers(rules: List[ReorderRuleItem]) -> List[ReorderRuleItem]:
 ReorderRules = Annotated[List[ReorderRuleItem], AfterValidator(_unique_rule_numbers)]
 
 
+class PolicyListReorderRequest(BaseModel):
+    rules: ReorderRules = Field(..., min_length=1, description="List of rules with new order")
+
+
 class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
@@ -110,12 +114,11 @@ def build_router(kind: str) -> APIRouter:
         f"{ident}_Config",
         **{lists_field: (List[PolicyList], []), "total": (int, 0)},
     )
+    name_fields: Dict[str, Any] = {name_field: (str, Field(..., min_length=1, description=f"{label} name"))}
     ReorderModel = create_model(
         f"{ident}_ReorderRequest",
-        **{
-            name_field: (str, Field(..., min_length=1, description=f"{label} name")),
-            "rules": (ReorderRules, Field(..., min_length=1, description="List of rules with new order")),
-        },
+        __base__=PolicyListReorderRequest,
+        **name_fields,
     )
 
     router = APIRouter(prefix=f"/vyos/{kind}", tags=[kind])
@@ -167,14 +170,16 @@ def build_router(kind: str) -> APIRouter:
                         raise HTTPException(status_code=400, detail=f"Operation {operation.op} requires rule_number")
                     args.append(str(body.rule_number))
                 if len(params) > len(args):
-                    if not operation.value:
+                    if not operation.value or not operation.value.strip():
                         raise HTTPException(status_code=400, detail=f"Operation {operation.op} requires a value")
                     args.append(operation.value)
+                elif operation.value:
+                    raise HTTPException(status_code=400, detail=f"Operation {operation.op} takes no value")
                 method(*args)
             response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
-                data={"message": "Configuration updated"},
+                data={"message": "Configuration updated"} if response.status == 200 else None,
                 error=response.error if response.error else None,
             )
         except HTTPException:
@@ -183,8 +188,7 @@ def build_router(kind: str) -> APIRouter:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    @router.post("/reorder", operation_id=f"reorder_{ident}_rules")
-    async def reorder_rules(http_request: Request, body: ReorderModel):
+    async def reorder_rules(http_request: Request, body: PolicyListReorderRequest):
         await require_write_permission(http_request, feature)
         try:
             service = get_session_vyos_service(http_request)
@@ -207,7 +211,7 @@ def build_router(kind: str) -> APIRouter:
             response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
-                data={"message": f"Successfully reordered {len(body.rules)} rules in {label} {list_name}"},
+                data={"message": f"Successfully reordered {len(body.rules)} rules in {label} {list_name}"} if response.status == 200 else None,
                 error=response.error if response.error else None,
             )
         except HTTPException:
@@ -215,5 +219,10 @@ def build_router(kind: str) -> APIRouter:
         except Exception:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+    # The request model carries the per-kind name field, so it is built at
+    # runtime; FastAPI reads the annotation when the route is registered.
+    reorder_rules.__annotations__["body"] = ReorderModel
+    router.post("/reorder", operation_id=f"reorder_{ident}_rules")(reorder_rules)
 
     return router

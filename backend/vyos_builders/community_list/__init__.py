@@ -1,4 +1,4 @@
 """Community List builders."""
-from .community_list import CommunityListBatchBuilder
+from .community_list_batch_builder import CommunityListBatchBuilder
 
 __all__ = ["CommunityListBatchBuilder"]
