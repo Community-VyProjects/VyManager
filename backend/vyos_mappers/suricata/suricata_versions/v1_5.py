@@ -36,9 +36,10 @@ _INTERFACE = re.compile(
 _GROUP_NAME = re.compile(r"^[a-z0-9-]+\Z")
 _FILENAME = re.compile(r"^[^\x00-\x1f,]+\Z")
 # Lab port-range validator: a range is ^[0-9]{1,5}-[0-9]{1,5}$; any other
-# non-numeric value is an /etc/services name (all of them match this shape).
+# non-numeric value is an /etc/services name (all of them match this shape
+# and hold a letter, so a malformed digit-and-hyphen range is rejected).
 _PORT_RANGE = re.compile(r"^[0-9]{1,5}-[0-9]{1,5}\Z", re.ASCII)
-_SERVICE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*\Z")
+_SERVICE_NAME = re.compile(r"^(?=[a-z0-9-]*[a-z])[a-z0-9][a-z0-9-]*\Z")
 
 # Lab `allowed:` lines for log eve filetype and log eve type.
 EVE_FILETYPES = ("regular", "syslog")
