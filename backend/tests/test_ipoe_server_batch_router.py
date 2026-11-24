@@ -165,7 +165,7 @@ MULTI_VALUE_OPS = {
     "set_auth_mac_vlan": ("00:11:22:33:44:55", "10"),
     "set_auth_mac_rate_limit_download": ("00:11:22:33:44:55", "100"),
     "set_auth_mac_rate_limit_upload": ("00:11:22:33:44:55", "50"),
-    "set_ipv6_pool_prefix": ("2001:db8::/48", "64"),
+    "set_ipv6_pool_prefix_mask": ("2001:db8::/48", "64"),
     "set_ipv6_pool_delegate": ("2001:db8:1::/48", "56"),
 }
 

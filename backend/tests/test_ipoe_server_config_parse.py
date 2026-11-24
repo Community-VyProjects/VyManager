@@ -39,6 +39,9 @@ def test_bare_root_node_is_configured():
     assert result["configured"] is True
     assert result["snmp"] == {"enabled": False, "master_agent": False}
     assert result["shaper"] == {"enabled": False, "fwmark": None}
+    assert result["extended_scripts"] == {
+        "enabled": False, "on_change": None, "on_down": None, "on_pre_up": None, "on_up": None,
+    }
     assert result["idle_timeout"] is None
     assert result["authentication"]["radius"]["preallocate_vif"] is False
     assert result["totals"] == EMPTY_TOTALS
@@ -189,3 +192,10 @@ def test_mapper_parse_config_delegates_to_config_parse(monkeypatch):
     mapper = IPoEServerMapper("1.5")
     assert mapper.parse_config({"service": {}}) == {"configured": False}
     assert calls == [(mapper, {"service": {}})]
+
+
+def test_bare_extended_scripts_node_reports_enabled():
+    """An empty extended-scripts node still loads pppd_compat, so the screen must see it."""
+    result = _parse({"service": {"ipoe-server": {"extended-scripts": {}}}})
+    assert result["extended_scripts"]["enabled"] is True
+    assert result["extended_scripts"]["on_up"] is None

@@ -23,9 +23,13 @@ export function text(value: string | null | undefined): string {
   return (value ?? "").trim();
 }
 
-/** Secret as both the save checks and the emit read it; never trimmed. */
+/**
+ * Secret as both the save checks and the emit read it: never trimmed, and a
+ * blank one counts as not typed (the router rejects a blank value).
+ */
 function secret(value: string | null | undefined): string {
-  return value ?? "";
+  const v = value ?? "";
+  return v.trim() ? v : "";
 }
 
 /** Trimmed, non-empty, de-duplicated list in input order. */
@@ -183,13 +187,23 @@ export type IPoEInterfaceProblem =
   | "interfaceExists"
   | "subnetWithVlan"
   | "vlanMonWithoutVlan"
-  | "relayWithoutGiaddr";
+  | "relayWithoutGiaddr"
+  | "luaUsernameWithoutLuaFile"
+  | "luaUsernameWithoutRadius";
+
+/** Global settings the lab verify reads for an interface's lua-username. */
+export interface IPoEInterfaceContext {
+  luaFile: string | null | undefined;
+  /** Effective authentication mode (the lab default is local). */
+  authMode: string;
+}
 
 /** Combinations the lab commit rejects (service_ipoe-server.py verify). */
 export function interfaceProblem(
   current: IPoEInterface | null,
   draft: IPoEInterfaceDraft,
   configured: string[],
+  context: IPoEInterfaceContext,
 ): IPoEInterfaceProblem | null {
   const name = text(draft.interface);
   if (!name) return "interfaceRequired";
@@ -198,6 +212,10 @@ export function interfaceProblem(
   if (text(draft.client_subnet) && vlans.length > 0) return "subnetWithVlan";
   if (draft.vlan_mon && vlans.length === 0) return "vlanMonWithoutVlan";
   if (text(draft.dhcp_relay) && !text(draft.giaddr)) return "relayWithoutGiaddr";
+  if (text(draft.lua_username)) {
+    if (!text(context.luaFile)) return "luaUsernameWithoutLuaFile";
+    if (context.authMode !== "radius") return "luaUsernameWithoutRadius";
+  }
   return null;
 }
 
@@ -374,8 +392,11 @@ export function radiusSettingsOps(current: IPoERadiusSettings, draft: IPoERadius
 
   const dae = current.dynamic_author;
   const daeKey = secret(draft.dae_key);
+  // The key only serves the DAE server: clearing the server drops it too.
+  const serverCleared = !!text(dae?.server) && !text(draft.dae_server);
+  const keyAfter = !!daeKey || (!!dae?.key && !serverCleared);
   const daeBefore = !!text(dae?.server) || !!text(dae?.port) || !!dae?.key;
-  const daeAfter = !!text(draft.dae_server) || !!text(draft.dae_port) || !!daeKey;
+  const daeAfter = !!text(draft.dae_server) || !!text(draft.dae_port) || keyAfter;
   if (daeBefore && !daeAfter) {
     // Everything cleared: drop the node instead of leaving it empty.
     ops.push({ op: "delete_radius_dynamic_author" });
@@ -383,8 +404,7 @@ export function radiusSettingsOps(current: IPoERadiusSettings, draft: IPoERadius
     leaf(ops, "set_radius_dynamic_author_server", "delete_radius_dynamic_author_server", dae?.server, draft.dae_server);
     leaf(ops, "set_radius_dynamic_author_port", "delete_radius_dynamic_author_port", dae?.port, draft.dae_port);
     if (daeKey) ops.push({ op: "set_radius_dynamic_author_key", value: daeKey });
-    // The key only serves the DAE server: clearing the server drops it too.
-    else if (!text(draft.dae_server) && dae?.key) ops.push({ op: "delete_radius_dynamic_author_key" });
+    else if (serverCleared && dae?.key) ops.push({ op: "delete_radius_dynamic_author_key" });
   }
 
   const rl = current.rate_limit;
@@ -412,7 +432,7 @@ export interface IPoEIPPoolDraft {
   next_pool: string;
 }
 
-export type IPoEIPPoolProblem = "poolNameRequired" | "poolExists" | "nextPoolSelf";
+export type IPoEIPPoolProblem = "poolNameRequired" | "poolExists" | "nextPoolSelf" | "nextPoolWithoutRange";
 
 export function ipPoolProblem(
   current: IPoEClientIPPool | null,
@@ -423,6 +443,8 @@ export function ipPoolProblem(
   if (!name) return "poolNameRequired";
   if (!current && configured.includes(name)) return "poolExists";
   if (text(draft.next_pool) === name) return "nextPoolSelf";
+  // Lab verify: a pool with next-pool must contain a range.
+  if (text(draft.next_pool) && list(draft.ranges).length === 0) return "nextPoolWithoutRange";
   return null;
 }
 
@@ -459,7 +481,6 @@ export type IPoEIPv6PoolProblem =
   | "poolNameRequired"
   | "poolExists"
   | "prefixRequired"
-  | "maskRequired"
   | "duplicatePrefix"
   | "delegateWithoutPrefix"
   | "delegatePrefixRequired"
@@ -492,8 +513,6 @@ export function ipv6PoolProblem(
   if (!current && configured.includes(name)) return { problem: "poolExists", prefix: "" };
   const prefixes = draft.prefixes.filter((row) => filled(row.prefix, row.mask));
   if (prefixes.some((row) => !text(row.prefix))) return { problem: "prefixRequired", prefix: "" };
-  const noMask = prefixes.find((row) => !text(row.mask));
-  if (noMask) return { problem: "maskRequired", prefix: text(noMask.prefix) };
   const duplicatePrefix = firstDuplicate(prefixes.map((row) => text(row.prefix)));
   if (duplicatePrefix) return { problem: "duplicatePrefix", prefix: duplicatePrefix };
   const delegates = draft.delegates.filter((row) => filled(row.prefix, row.delegation_prefix));
@@ -510,7 +529,8 @@ export function ipv6PoolProblem(
 /**
  * Ops for one IPv6 pool; `current` null creates it. A prefix or delegate is
  * keyed by its trimmed prefix: a removed one is deleted, a new or changed one
- * is set (the set replaces its single mask or delegation length).
+ * is set (the set replaces its single mask or delegation length). A prefix's
+ * mask is optional (the lab default is 64): a cleared mask is deleted.
  */
 export function ipv6PoolOps(current: IPoEClientIPv6Pool | null, draft: IPoEIPv6PoolDraft): BatchOperation[] {
   const ops: BatchOperation[] = [];
@@ -524,7 +544,11 @@ export function ipv6PoolOps(current: IPoEClientIPv6Pool | null, draft: IPoEIPv6P
     if (!prefixesAfter.has(prefix)) ops.push({ op: "delete_ipv6_pool_prefix", value: prefix });
   }
   for (const [prefix, mask] of prefixesAfter) {
-    if (prefixesBefore.get(prefix) !== mask) ops.push({ op: "set_ipv6_pool_prefix", value: `${prefix}|${mask}` });
+    const before = prefixesBefore.get(prefix);
+    if (before === mask) continue;
+    if (mask) ops.push({ op: "set_ipv6_pool_prefix_mask", value: `${prefix}|${mask}` });
+    else if (before === undefined) ops.push({ op: "set_ipv6_pool_prefix", value: prefix });
+    else ops.push({ op: "delete_ipv6_pool_prefix_mask", value: prefix });
   }
 
   const delegatesBefore = new Map((current?.delegates ?? []).map((d) => [text(d.prefix), text(d.delegation_prefix)]));
@@ -591,9 +615,16 @@ export function advancedOps(current: IPoEConfigResponse, draft: IPoEAdvancedDraf
   });
 
   const scripts = current.extended_scripts;
-  leaf(ops, "set_script_on_change", "delete_script_on_change", scripts?.on_change, draft.scripts_on_change);
-  leaf(ops, "set_script_on_down", "delete_script_on_down", scripts?.on_down, draft.scripts_on_down);
-  leaf(ops, "set_script_on_pre_up", "delete_script_on_pre_up", scripts?.on_pre_up, draft.scripts_on_pre_up);
-  leaf(ops, "set_script_on_up", "delete_script_on_up", scripts?.on_up, draft.scripts_on_up);
+  const scriptsCleared = ![draft.scripts_on_change, draft.scripts_on_down, draft.scripts_on_pre_up, draft.scripts_on_up]
+    .some((value) => text(value));
+  if (scriptsCleared) {
+    // Every script cleared: drop the node, which alone still loads pppd_compat.
+    if (scripts?.enabled) ops.push({ op: "delete_extended_scripts" });
+  } else {
+    leaf(ops, "set_script_on_change", "delete_script_on_change", scripts?.on_change, draft.scripts_on_change);
+    leaf(ops, "set_script_on_down", "delete_script_on_down", scripts?.on_down, draft.scripts_on_down);
+    leaf(ops, "set_script_on_pre_up", "delete_script_on_pre_up", scripts?.on_pre_up, draft.scripts_on_pre_up);
+    leaf(ops, "set_script_on_up", "delete_script_on_up", scripts?.on_up, draft.scripts_on_up);
+  }
   return ops;
 }

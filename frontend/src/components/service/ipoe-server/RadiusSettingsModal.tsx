@@ -187,7 +187,7 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
             </div>
             <div className="space-y-2">
               <Label>{t("radiusSettingsModal.daePort")}</Label>
-              <Input value={daePort} onChange={(e) => setDaePort(e.target.value)} placeholder="3799" />
+              <Input value={daePort} onChange={(e) => setDaePort(e.target.value)} placeholder="1700" />
             </div>
           </div>
           <div className="space-y-2">
@@ -197,7 +197,7 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
               autoComplete="new-password"
               value={daeKey}
               onChange={(e) => setDaeKey(e.target.value)}
-              placeholder={currentSettings.dynamic_author?.key ? t("radiusSettingsModal.daeKeyKeep") : t("radiusSettingsModal.daeKeyEnter")}
+              placeholder={currentSettings.dynamic_author?.key ? t("leaveBlankToKeep") : t("radiusSettingsModal.daeKeyEnter")}
             />
           </div>
 

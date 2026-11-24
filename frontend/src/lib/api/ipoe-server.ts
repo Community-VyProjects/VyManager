@@ -138,6 +138,8 @@ export interface IPoEConfigResponse {
   shaper: { enabled?: boolean; fwmark?: string | null };
   snmp: { enabled?: boolean; master_agent?: boolean };
   extended_scripts: {
+    /** The node is present; alone it still turns the pppd_compat module on. */
+    enabled?: boolean;
     on_change?: string | null;
     on_down?: string | null;
     on_pre_up?: string | null;
@@ -262,7 +264,12 @@ class IPoEServerService {
     return this.send(text(draft.interface), authMacOps(current, draft));
   }
 
-  async deleteAuthMac(iface: string, mac: string): Promise<VyOSResponse> {
+  /**
+   * The auth interface only holds MACs, and local mode rejects one with none,
+   * so removing its last MAC deletes the interface node instead.
+   */
+  async deleteAuthMac(iface: string, mac: string, last: boolean): Promise<VyOSResponse> {
+    if (last) return this.deleteAuthInterface(iface);
     return this.batchConfigure(iface, [{ op: "delete_auth_interface_mac", value: mac }]);
   }
 

@@ -122,8 +122,8 @@ class IPoEServerMapper(BaseFeatureMapper):
     def get_log_level(self, level: str) -> List[str]:
         return BASE + ["log", "level", level]
 
-    def get_log_level_delete(self) -> List[str]:
-        return BASE + ["log", "level"]
+    def get_log_delete(self) -> List[str]:
+        return BASE + ["log"]
 
     # ========================================================================
     # Shaper
@@ -151,6 +151,9 @@ class IPoEServerMapper(BaseFeatureMapper):
     # ========================================================================
     # Extended scripts
     # ========================================================================
+
+    def get_extended_scripts(self) -> List[str]:
+        return BASE + ["extended-scripts"]
 
     def get_extended_scripts_on_change(self, script: str) -> List[str]:
         return BASE + ["extended-scripts", "on-change", script]

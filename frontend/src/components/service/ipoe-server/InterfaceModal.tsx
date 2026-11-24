@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Network, X } from "lucide-react";
 import { ipoeServerService, IPoECapabilities, IPoEInterface } from "@/lib/api/ipoe-server";
-import { interfaceProblem, type IPoEInterfaceDraft } from "@/lib/api/ipoe-server-save-ops";
+import { interfaceProblem, type IPoEInterfaceContext, type IPoEInterfaceDraft } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface InterfaceModalProps {
@@ -31,6 +31,8 @@ interface InterfaceModalProps {
   capabilities: IPoECapabilities | null;
   /** Interfaces already under the server; the Add picker leaves them out. */
   configuredInterfaces: string[];
+  /** Global lua-file and effective auth mode, which lua-username needs. */
+  context: IPoEInterfaceContext;
 }
 
 export function InterfaceModal({
@@ -40,6 +42,7 @@ export function InterfaceModal({
   existingInterface,
   capabilities,
   configuredInterfaces,
+  context,
 }: InterfaceModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
@@ -106,13 +109,13 @@ export function InterfaceModal({
       dhcp_relay: dhcpRelay,
       giaddr,
     };
-    const problem = interfaceProblem(existingInterface, draft, configuredInterfaces);
+    const problem = interfaceProblem(existingInterface, draft, configuredInterfaces, context);
     if (problem === "interfaceRequired") {
       setError(tc("interfaceNameRequired"));
       return;
     }
     if (problem) {
-      setError(t(`interfaceModal.errors.${problem}`));
+      setError(t(`interfaceModal.${problem}`));
       return;
     }
 

@@ -137,7 +137,8 @@ class IPoEServerBatchBuilder(BatchBuilder):
         return self.add_set(self._m().get_log_level(level))
 
     def delete_log_level(self, _unused: str) -> "IPoEServerBatchBuilder":
-        return self.add_delete(self._m().get_log_level_delete())
+        """Delete ``log``: level is its only child, and a leaf delete leaves ``log {}``."""
+        return self.add_delete(self._m().get_log_delete())
 
     # ========================================================================
     # Shaper
@@ -176,6 +177,10 @@ class IPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
     # Extended scripts
     # ========================================================================
+
+    def delete_extended_scripts(self, _unused: str) -> "IPoEServerBatchBuilder":
+        """Drop the node; an empty ``extended-scripts`` still loads pppd_compat."""
+        return self.add_delete(self._m().get_extended_scripts())
 
     def set_script_on_change(self, _unused: str, script: str) -> "IPoEServerBatchBuilder":
         return self.add_set(self._m().get_extended_scripts_on_change(script))
@@ -478,8 +483,15 @@ class IPoEServerBatchBuilder(BatchBuilder):
     def delete_ipv6_pool(self, name: str) -> "IPoEServerBatchBuilder":
         return self.add_delete(self._m().get_ipv6_pool_delete(name))
 
-    def set_ipv6_pool_prefix(self, name: str, prefix: str, mask: str) -> "IPoEServerBatchBuilder":
+    def set_ipv6_pool_prefix(self, name: str, prefix: str) -> "IPoEServerBatchBuilder":
+        """Prefix on the default mask (64)."""
+        return self.add_set(self._m().get_ipv6_pool_prefix(name, prefix))
+
+    def set_ipv6_pool_prefix_mask(self, name: str, prefix: str, mask: str) -> "IPoEServerBatchBuilder":
         return self.add_set(self._m().get_ipv6_pool_prefix_mask(name, prefix, mask))
+
+    def delete_ipv6_pool_prefix_mask(self, name: str, prefix: str) -> "IPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_ipv6_pool_prefix_mask_delete(name, prefix))
 
     def delete_ipv6_pool_prefix(self, name: str, prefix: str) -> "IPoEServerBatchBuilder":
         return self.add_delete(self._m().get_ipv6_pool_prefix_delete(name, prefix))

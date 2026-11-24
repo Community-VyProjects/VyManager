@@ -224,6 +224,16 @@ function IPoEPageInner() {
             </div>
           </div>
 
+          {error && (
+            <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium">{t("errors.loadConfig")}</p>
+                <p className="whitespace-pre-wrap">{error}</p>
+              </div>
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-5 gap-3 mt-4">
             <Card className="p-3">
@@ -496,7 +506,9 @@ function IPoEPageInner() {
                                       <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
                                         type: t("deleteTypes.macEntry"),
                                         name: mac.mac,
-                                        onDelete: () => ipoeServerService.deleteAuthMac(selectedAuthIface, mac.mac),
+                                        onDelete: () => ipoeServerService.deleteAuthMac(
+                                          selectedAuthIface, mac.mac, (selectedAuthIfaceData?.macs?.length ?? 0) <= 1,
+                                        ),
                                       })}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                       </Button>
@@ -759,11 +771,11 @@ function IPoEPageInner() {
                     </div>
                     <div className="space-y-2 text-sm">
                       <InfoRow label={t("advanced.logLevel")} value={config?.log?.level} />
-                      <YesNoRow label={t("advanced.shaper")} value={config?.shaper?.enabled} yes={t("yes")} no={t("no")} />
+                      <YesNoRow label={t("advancedModal.shaper")} value={config?.shaper?.enabled} yes={t("yes")} no={t("no")} />
                       <InfoRow label={t("advanced.shaperFwmark")} value={config?.shaper?.fwmark} />
-                      <YesNoRow label={t("advanced.snmp")} value={config?.snmp?.enabled} yes={t("yes")} no={t("no")} />
+                      <YesNoRow label={t("advancedModal.snmp")} value={config?.snmp?.enabled} yes={t("yes")} no={t("no")} />
                       <YesNoRow label={t("advanced.snmpMasterAgent")} value={config?.snmp?.master_agent} yes={t("yes")} no={t("no")} />
-                      <YesNoRow label={t("advanced.limits")} value={config?.limits?.enabled} yes={t("yes")} no={t("no")} />
+                      <YesNoRow label={t("advancedModal.connectionLimits")} value={config?.limits?.enabled} yes={t("yes")} no={t("no")} />
                       <InfoRow label={t("advanced.limitsBurst")} value={config?.limits?.burst} />
                       <InfoRow label={t("advanced.connLimit")} value={config?.limits?.connection_limit} />
                       <InfoRow label={t("advanced.limitsTimeout")} value={config?.limits?.timeout} />
@@ -821,6 +833,7 @@ function IPoEPageInner() {
         existingInterface={editingInterface}
         capabilities={capabilities}
         configuredInterfaces={(config?.interfaces ?? []).map((iface) => iface.interface)}
+        context={{ luaFile: config?.lua_file, authMode }}
       />
       <AuthMacModal
         open={showMacModal}

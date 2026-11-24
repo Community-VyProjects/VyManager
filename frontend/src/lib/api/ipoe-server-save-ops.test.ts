@@ -200,13 +200,19 @@ describe("interfaceOps", () => {
   });
 
   it("rejects the combinations the lab verify refuses", () => {
-    const check = (draft: Partial<IPoEInterfaceDraft>, existing: IPoEInterface | null = null) =>
-      interfaceProblem(existing, interfaceDraft(existing, { interface: "eth2", ...draft }), ["eth1"]);
+    const check = (
+      draft: Partial<IPoEInterfaceDraft>,
+      existing: IPoEInterface | null = null,
+      context = { luaFile: "ipoe.lua", authMode: "radius" },
+    ) => interfaceProblem(existing, interfaceDraft(existing, { interface: "eth2", ...draft }), ["eth1"], context);
     assert.equal(check({ interface: " " }), "interfaceRequired");
     assert.equal(check({ interface: "eth1" }), "interfaceExists");
     assert.equal(check({ client_subnet: "10.0.0.0/24", vlans: ["5"] }), "subnetWithVlan");
     assert.equal(check({ vlan_mon: true }), "vlanMonWithoutVlan");
     assert.equal(check({ dhcp_relay: "192.0.2.4" }), "relayWithoutGiaddr");
+    assert.equal(check({ lua_username: "user" }, null, { luaFile: " ", authMode: "radius" }), "luaUsernameWithoutLuaFile");
+    assert.equal(check({ lua_username: "user" }, null, { luaFile: "ipoe.lua", authMode: "local" }), "luaUsernameWithoutRadius");
+    assert.equal(check({ lua_username: "user" }), null);
     assert.equal(check({}, current), null);
   });
 });
@@ -325,6 +331,19 @@ describe("radiusSettingsOps", () => {
     ]);
   });
 
+  it("keeps a stored DAE key that has no server on an untouched save", () => {
+    const untouched = { timeout: "", rate_limit_enable: false, rate_limit_attribute: "" };
+    const keyOnly: IPoERadiusSettings = { servers: [], dynamic_author: { key: MASK } };
+    assert.deepEqual(radiusSettingsOps(keyOnly, draft({ ...untouched, dae_server: "", dae_port: "" })), []);
+    const keyPort: IPoERadiusSettings = { servers: [], dynamic_author: { port: "1700", key: MASK } };
+    assert.deepEqual(radiusSettingsOps(keyPort, draft({ ...untouched, dae_server: "", dae_port: "1700" })), []);
+  });
+
+  it("treats a blank DAE key as not typed", () => {
+    const empty: IPoERadiusSettings = { servers: [] };
+    assert.equal(radiusSettingsProblem(empty, draft({ dae_key: "   " })), "daeKeyRequired");
+  });
+
   it("requires a key for a new DAE server", () => {
     const empty: IPoERadiusSettings = { servers: [] };
     assert.equal(radiusSettingsProblem(empty, draft({ dae_key: "" })), "daeKeyRequired");
@@ -351,6 +370,8 @@ describe("pools", () => {
     ]);
     assert.equal(ipPoolProblem(null, { name: "p1", ranges: [], next_pool: "" }, ["p1"]), "poolExists");
     assert.equal(ipPoolProblem(null, { name: "p3", ranges: [], next_pool: "p3" }, []), "nextPoolSelf");
+    assert.equal(ipPoolProblem(null, { name: "p3", ranges: [" "], next_pool: "p1" }, []), "nextPoolWithoutRange");
+    assert.equal(ipPoolProblem(null, { name: "p3", ranges: ["10.0.3.0/24"], next_pool: "p1" }, []), null);
   });
 
   it("edits an IPv6 pool in place keyed by prefix", () => {
@@ -366,14 +387,27 @@ describe("pools", () => {
     });
     assert.deepEqual(ops, [
       { op: "delete_ipv6_pool_prefix", value: "2001:db8:2::/48" },
-      { op: "set_ipv6_pool_prefix", value: "2001:db8::/48|60" },
+      { op: "set_ipv6_pool_prefix_mask", value: "2001:db8::/48|60" },
     ]);
+  });
+
+  it("leaves an unset mask on the lab default and deletes a cleared one", () => {
+    const current = { name: "v6", prefixes: [{ prefix: "2001:db8::/48", mask: "64" }], delegates: [] };
+    assert.deepEqual(ipv6PoolOps(current, {
+      name: "v6",
+      prefixes: [{ prefix: "2001:db8::/48", mask: "" }, { prefix: "2001:db8:3::/48", mask: "" }],
+      delegates: [],
+    }), [
+      { op: "delete_ipv6_pool_prefix_mask", value: "2001:db8::/48" },
+      { op: "set_ipv6_pool_prefix", value: "2001:db8:3::/48" },
+    ]);
+    const unset = { name: "v6", prefixes: [{ prefix: "2001:db8::/48" }], delegates: [] };
+    assert.deepEqual(ipv6PoolOps(unset, { name: "v6", prefixes: [{ prefix: "2001:db8::/48", mask: "" }], delegates: [] }), []);
   });
 
   it("names the row a check fails on", () => {
     const draft = (prefixes: Array<{ prefix: string; mask: string }>) => ({ name: "v6", prefixes, delegates: [] });
-    assert.deepEqual(ipv6PoolProblem(null, draft([{ prefix: "2001:db8::/48", mask: "" }]), []),
-      { problem: "maskRequired", prefix: "2001:db8::/48" });
+    assert.equal(ipv6PoolProblem(null, draft([{ prefix: "2001:db8::/48", mask: "" }]), []), null);
     assert.deepEqual(ipv6PoolProblem(null, draft([{ prefix: "", mask: "64" }]), []),
       { problem: "prefixRequired", prefix: "" });
     assert.deepEqual(ipv6PoolProblem(null, draft([
@@ -443,6 +477,18 @@ describe("advancedOps", () => {
       { op: "delete_limits_burst" },
     ]);
   });
+
+  it("drops the extended-scripts node when every script is cleared", () => {
+    const on = config({ extended_scripts: { enabled: true, on_up: "/config/up.sh", on_down: "/config/down.sh" } });
+    const kept = draft(on, { scripts_on_up: "/config/up.sh", scripts_on_down: "/config/down.sh" });
+    assert.deepEqual(advancedOps(on, kept), []);
+    assert.deepEqual(advancedOps(on, { ...kept, scripts_on_down: "" }), [{ op: "delete_script_on_down" }]);
+    assert.deepEqual(advancedOps(on, draft(on)), [{ op: "delete_extended_scripts" }]);
+    const bare = config({ extended_scripts: { enabled: true } });
+    assert.deepEqual(advancedOps(bare, draft(bare)), [{ op: "delete_extended_scripts" }]);
+    const none = config();
+    assert.deepEqual(advancedOps(none, draft(none)), []);
+  });
 });
 
 describe("service saves", () => {
@@ -461,6 +507,16 @@ describe("service saves", () => {
     assert.deepEqual(sent, [
       ["eth1", [{ op: "set_interface_mode", value: "l3" }]],
       ["p9", [{ op: "create_pool" }, { op: "set_pool_range", value: "10.9.0.0/24" }]],
+    ]);
+  });
+
+  it("deletes the auth interface with its last MAC", async () => {
+    const { service, sent } = stubbed();
+    await service.deleteAuthMac("eth1", "00:11:22:33:44:55", false);
+    await service.deleteAuthMac("eth1", "00:11:22:33:44:66", true);
+    assert.deepEqual(sent, [
+      ["eth1", [{ op: "delete_auth_interface_mac", value: "00:11:22:33:44:55" }]],
+      ["eth1", [{ op: "delete_auth_interface" }]],
     ]);
   });
 });

@@ -119,11 +119,8 @@
   "advanced": {
     "title": "Advanced Settings",
     "logLevel": "Log Level",
-    "shaper": "Shaper",
     "shaperFwmark": "Shaper FWMark",
-    "snmp": "SNMP",
     "snmpMasterAgent": "SNMP Master Agent",
-    "limits": "Connection Limits",
     "limitsBurst": "Limits Burst",
     "connLimit": "Conn. Limit",
     "limitsTimeout": "Limits Timeout",
@@ -203,12 +200,12 @@
     "externalDhcp": "External DHCP",
     "dhcpRelay": "DHCP Relay",
     "giaddr": "Gateway Address (giaddr)",
-    "errors": {
-      "interfaceExists": "This interface is already configured",
-      "subnetWithVlan": "Client subnet and VLANs cannot be used together",
-      "vlanMonWithoutVlan": "VLAN monitoring needs at least one VLAN",
-      "relayWithoutGiaddr": "DHCP relay needs a gateway address (giaddr)"
-    }
+    "interfaceExists": "This interface is already configured",
+    "subnetWithVlan": "Client subnet and VLANs cannot be used together",
+    "vlanMonWithoutVlan": "VLAN monitoring needs at least one VLAN",
+    "relayWithoutGiaddr": "DHCP relay needs a gateway address (giaddr)",
+    "luaUsernameWithoutLuaFile": "A Lua username function needs a Lua file in General Settings",
+    "luaUsernameWithoutRadius": "A Lua username function needs RADIUS authentication"
   },
   "radiusSettingsModal": {
     "title": "RADIUS Global Settings",
@@ -228,7 +225,6 @@
     "daeServer": "DAE Server",
     "daePort": "DAE Port",
     "daeKey": "DAE Key",
-    "daeKeyKeep": "Leave blank to keep",
     "daeKeyEnter": "Enter DAE key",
     "daeKeyRequired": "A DAE server needs a key",
     "rateLimiting": "Rate Limiting",
@@ -262,6 +258,7 @@
     "description": "Configure an IPv4 client address pool.",
     "saveFailed": "Failed to save pool",
     "nextPoolSelf": "A pool cannot be its own next pool",
+    "nextPoolWithoutRange": "A pool with a next pool needs at least one range",
     "ranges": "Ranges",
     "rangePlaceholder": "192.168.100.0/24 or 192.168.1.1-192.168.1.254",
     "nextPool": "Next Pool (optional)"
@@ -272,14 +269,13 @@
     "description": "Configure an IPv6 client address pool.",
     "saveFailed": "Failed to save IPv6 pool",
     "prefixRequired": "Every prefix row needs a prefix",
-    "maskRequired": "Prefix {prefix} needs a mask",
     "duplicatePrefix": "Prefix {prefix} is listed twice",
     "delegateWithoutPrefix": "Delegate prefixes need at least one prefix",
     "delegatePrefixRequired": "Every delegate row needs a prefix",
     "delegationPrefixRequired": "Delegate {prefix} needs a delegation length",
     "duplicateDelegate": "Delegate {prefix} is listed twice",
     "prefixes": "Prefixes",
-    "maskPlaceholder": "mask (48-128)",
+    "maskPlaceholder": "mask, default 64",
     "delegatePrefixes": "Delegate Prefixes",
     "delegationPlaceholder": "delegation (32-64)"
   },

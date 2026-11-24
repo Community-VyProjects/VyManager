@@ -160,6 +160,7 @@ class IPoESnmp(BaseModel):
 
 
 class IPoEExtendedScripts(BaseModel):
+    enabled: bool = False
     on_change: Optional[str] = None
     on_down: Optional[str] = None
     on_pre_up: Optional[str] = None

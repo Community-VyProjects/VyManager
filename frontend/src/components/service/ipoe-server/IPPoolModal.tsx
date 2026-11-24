@@ -68,7 +68,7 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool, poolN
     const draft: IPoEIPPoolDraft = { name, ranges, next_pool: nextPool };
     const problem = ipPoolProblem(existingPool, draft, poolNames);
     if (problem) {
-      setError(problem === "nextPoolSelf" ? t("ipPoolModal.nextPoolSelf") : t(problem));
+      setError(problem === "nextPoolSelf" || problem === "nextPoolWithoutRange" ? t(`ipPoolModal.${problem}`) : t(problem));
       return;
     }
 
