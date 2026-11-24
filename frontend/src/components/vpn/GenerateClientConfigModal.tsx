@@ -55,6 +55,7 @@ export function GenerateClientConfigModal({
   // Server public key (fetched automatically)
   const [serverPublicKey, setServerPublicKey] = useState<string | null>(null);
   const [loadingServerKey, setLoadingServerKey] = useState(false);
+  const [serverKeyError, setServerKeyError] = useState<string | null>(null);
 
   // Result state
   const [config, setConfig] = useState<string | null>(null);
@@ -91,18 +92,20 @@ export function GenerateClientConfigModal({
       if (!interfaceData || !open) return;
 
       setLoadingServerKey(true);
+      setServerKeyError(null);
       try {
         const result = await wireguardService.getInterfacePublicKey(interfaceData.name);
         setServerPublicKey(result?.public_key || null);
-      } catch {
+      } catch (err) {
         setServerPublicKey(null);
+        setServerKeyError((err as ApiError).message || t("generateClient.serverKeyLoadFailed"));
       } finally {
         setLoadingServerKey(false);
       }
     };
 
     fetchServerPublicKey();
-  }, [interfaceData, open]);
+  }, [interfaceData, open, t]);
 
   // Generate client keypair
   const handleGenerateClientKey = async () => {
@@ -110,12 +113,8 @@ export function GenerateClientConfigModal({
     setError(null);
     try {
       const result = await wireguardService.generateKeypair();
-      if (result.private_key && result.public_key) {
-        setClientPrivateKey(result.private_key);
-        setClientPublicKey(result.public_key);
-      } else {
-        setError(t("generateClient.generateKeypairFailed"));
-      }
+      setClientPrivateKey(result.private_key);
+      setClientPublicKey(result.public_key);
     } catch (err) {
       setError((err as ApiError).message || t("generateClient.generateKeypairFailed"));
     } finally {
@@ -423,6 +422,9 @@ PersistentKeepalive = 25`;
                 <p className="text-xs font-mono text-muted-foreground mt-2 truncate">
                   {serverPublicKey}
                 </p>
+              )}
+              {!loadingServerKey && serverKeyError && (
+                <p className="text-xs text-destructive mt-2 whitespace-pre-wrap">{serverKeyError}</p>
               )}
             </div>
           </div>

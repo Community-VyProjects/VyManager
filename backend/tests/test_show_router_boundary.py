@@ -23,7 +23,7 @@ from interface_show import (
     parse_interface_counters,
     parse_show_ethernet_names,
 )
-from wireguard_status import _parse_wg_handshake, _parse_wg_summary
+from wireguard_status import _parse_wg_handshake, parse_wg_summary
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -144,7 +144,7 @@ def test_wireguard_summary_text_records_handshake_seconds():
         "  latest handshake: 1 minute, 30 seconds ago\n"
         "  transfer: 1.00 KiB received, 2.00 KiB sent\n"
     )
-    peers = _parse_wg_summary(output)
+    peers = parse_wg_summary(output)
     assert pubkey in peers
     assert peers[pubkey]["endpoint"] == "192.0.2.1:51820"
     assert peers[pubkey]["latest_handshake_seconds"] == 90

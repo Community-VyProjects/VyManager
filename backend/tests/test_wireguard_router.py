@@ -57,6 +57,10 @@ SUMMARY_15 = f"""interface: wg97
 
 KEYPAIR_TEXT = f"Private key: {KEY_A}\nPublic key: {KEY_B}\n\n"
 PSK_TEXT = f"Pre-shared key: {KEY_A}\n\n"
+PUBLIC_KEY_TEXT = f"{KEY_A}\n\n"
+# Both labs, for an interface that does not exist.
+ABSENT_14 = "Unable to access interface: No such device\n"
+ABSENT_15 = "WireGuard interface wg97 is not configured!\n"
 
 
 def _reply(result="", status=200, error=None):
@@ -411,6 +415,7 @@ def test_op_mode_paths(version):
     assert mapper.get_keypair_generate_path() == ["pki", "wireguard", "key-pair"]
     assert mapper.get_preshared_key_generate_path() == ["pki", "wireguard", "preshared-key"]
     assert mapper.get_interface_summary_show_path("wg97") == WG + ["wg97", "summary"]
+    assert mapper.get_interface_public_key_show_path("wg97") == WG + ["wg97", "public-key"]
 
 
 def test_op_routes_read_the_registered_mapper(client, monkeypatch):
@@ -427,6 +432,9 @@ def test_op_routes_read_the_registered_mapper(client, monkeypatch):
         def get_interface_summary_show_path(self, interface):
             return ["tagged", interface]
 
+        def get_interface_public_key_show_path(self, interface):
+            return ["tagged", interface, "pk"]
+
     monkeypatch.setitem(CommandMapperRegistry._features, "wireguard", Tagged)
     service.device.reply = _reply(KEYPAIR_TEXT)
     test_client.post("/vyos/vpn/wireguard/generate-keypair")
@@ -434,12 +442,13 @@ def test_op_routes_read_the_registered_mapper(client, monkeypatch):
     test_client.post("/vyos/vpn/wireguard/generate-psk")
     service.device.reply = _reply(SUMMARY_14)
     test_client.get("/vyos/vpn/wireguard/interface/wg97/status")
+    service.device.reply = _reply(PUBLIC_KEY_TEXT)
     test_client.get("/vyos/vpn/wireguard/interface/wg97/public-key")
     assert service.device.calls == [
         ("generate", ["tagged", "key-pair"]),
         ("generate", ["tagged", "psk"]),
         ("show", ["tagged", "wg97"]),
-        ("show", ["tagged", "wg97"]),
+        ("show", ["tagged", "wg97", "pk"]),
     ]
 
 
@@ -450,10 +459,26 @@ def test_generate_keypair(client):
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
         "success": True,
-        "data": {"private_key": KEY_A, "public_key": KEY_B, "raw_output": KEYPAIR_TEXT},
+        "data": {"private_key": KEY_A, "public_key": KEY_B},
         "error": None,
     }
     assert service.device.calls == [("generate", ["pki", "wireguard", "key-pair"])]
+
+
+@pytest.mark.parametrize("text", ["", "something else\n", f"Private key: {KEY_A}\n", f"Public key: {KEY_B}\n"])
+def test_generate_keypair_without_both_keys_is_502(client, text):
+    test_client, service, _app_ = client
+    service.device.reply = _reply(text)
+    resp = test_client.post("/vyos/vpn/wireguard/generate-keypair")
+    assert resp.status_code == 502, resp.text
+    assert resp.json()["detail"] == "VyOS returned no keypair"
+
+
+def test_generate_keypair_with_a_non_text_result_is_502(client):
+    test_client, service, _app_ = client
+    service.device.reply = _reply({"unexpected": True})
+    resp = test_client.post("/vyos/vpn/wireguard/generate-keypair")
+    assert resp.status_code == 502, resp.text
 
 
 def test_generate_psk_returns_only_the_key(client):
@@ -485,6 +510,7 @@ def test_status_parses_both_lab_formats(client, text, handshake, seconds):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["success"] is True
+    assert set(body["data"]) == {"interface", "peers"}
     assert body["data"]["interface"] == "wg97"
     assert body["data"]["peers"] == {
         KEY_B: {
@@ -499,10 +525,18 @@ def test_status_parses_both_lab_formats(client, text, handshake, seconds):
     assert service.device.calls == [("show", WG + ["wg97", "summary"])]
 
 
-@pytest.mark.parametrize("text", [SUMMARY_14, SUMMARY_15])
-def test_public_key_is_the_interface_key_not_a_peer_key(client, text):
+@pytest.mark.parametrize("text", [ABSENT_14, ABSENT_15])
+def test_status_of_an_absent_interface_is_404(client, text):
     test_client, service, _app_ = client
     service.device.reply = _reply(text)
+    resp = test_client.get("/vyos/vpn/wireguard/interface/wg97/status")
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"] == "WireGuard interface wg97 is not up on the device"
+
+
+def test_public_key_reads_the_public_key_op(client):
+    test_client, service, _app_ = client
+    service.device.reply = _reply(PUBLIC_KEY_TEXT)
     resp = test_client.get("/vyos/vpn/wireguard/interface/wg97/public-key")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
@@ -510,30 +544,24 @@ def test_public_key_is_the_interface_key_not_a_peer_key(client, text):
         "data": {"interface": "wg97", "public_key": KEY_A},
         "error": None,
     }
+    assert service.device.calls == [("show", WG + ["wg97", "public-key"])]
 
 
-@pytest.mark.parametrize("text", [
-    "Unable to access interface: No such device\n",
-    "WireGuard interface wg97 is not configured!\n",
-])
-def test_public_key_of_an_unconfigured_interface(client, text):
-    """Both labs answer HTTP 200 with this text for an absent interface."""
+@pytest.mark.parametrize("text", [ABSENT_14, "", SUMMARY_15])
+def test_public_key_of_an_absent_interface_is_404(client, text):
+    """Both labs answer HTTP 200 "Unable to access interface: No such device"."""
     test_client, service, _app_ = client
     service.device.reply = _reply(text)
     resp = test_client.get("/vyos/vpn/wireguard/interface/wg97/public-key")
-    assert resp.status_code == 200, resp.text
-    assert resp.json() == {
-        "success": False,
-        "data": {"raw_output": text},
-        "error": "Could not extract public key from interface summary",
-    }
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"] == "WireGuard interface wg97 has no public key"
 
 
 OP_ROUTES = [
     ("post", "/vyos/vpn/wireguard/generate-keypair", "VyOS could not generate a keypair"),
     ("post", "/vyos/vpn/wireguard/generate-psk", "VyOS could not generate a preshared key"),
     ("get", "/vyos/vpn/wireguard/interface/wg97/status", "VyOS could not read interface wg97 status"),
-    ("get", "/vyos/vpn/wireguard/interface/wg97/public-key", "VyOS could not read interface wg97 summary"),
+    ("get", "/vyos/vpn/wireguard/interface/wg97/public-key", "VyOS could not read interface wg97 public key"),
 ]
 
 
@@ -575,10 +603,56 @@ def test_bad_interface_name_is_400(client, suffix, name):
     assert service.device.calls == []
 
 
+@pytest.mark.parametrize("send", ["iface", "peer"])
+@pytest.mark.parametrize("name", ["eth0", "wg", "wg0 "])
+def test_batch_with_a_bad_interface_name_is_400(client, send, name):
+    test_client, service, _app_ = client
+    path = "/vyos/vpn/wireguard/interface/batch" if send == "iface" else "/vyos/vpn/wireguard/peer/batch"
+    body = {"interface": name, "peer": "phone", "operations": [{"op": "delete_peer_port"}]}
+    if send == "iface":
+        body = {"interface": name, "operations": [{"op": "delete_interface"}]}
+    resp = test_client.post(path, json=body)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "WireGuard interface must be named wgN"
+    assert service.executed == []
+
+
+class _RaisingService(Service):
+    def __init__(self, exc):
+        super().__init__()
+        self.exc = exc
+
+    def get_full_config(self, refresh=False):
+        raise self.exc
+
+    def execute_batch(self, batch):
+        raise self.exc
+
+
+@pytest.mark.parametrize("exc,status", [
+    (requests.exceptions.Timeout("slow"), 504),
+    (requests.exceptions.ConnectionError("refused"), 502),
+])
+@pytest.mark.parametrize("method,path", [
+    ("get", "/vyos/vpn/wireguard/config"),
+    ("post", "/vyos/vpn/wireguard/interface/batch"),
+    ("post", "/vyos/vpn/wireguard/peer/batch"),
+])
+def test_config_and_batch_device_failures(monkeypatch, exc, status, method, path):
+    service = _RaisingService(exc)
+    test_client = TestClient(_app(monkeypatch, lambda _req: service), raise_server_exceptions=False)
+    kwargs = {"json": BODIES[path]} if path in BODIES else {}
+    resp = getattr(test_client, method)(path, **kwargs)
+    assert resp.status_code == status, resp.text
+    if status == 502:
+        assert resp.json()["detail"] == "VyOS API request failed"
+
+
 @pytest.mark.parametrize("method,path,_detail", OP_ROUTES)
 def test_device_call_runs_off_the_event_loop(client, method, path, _detail):
     test_client, service, app = client
-    service.device.reply = _reply(PSK_TEXT if "psk" in path else KEYPAIR_TEXT if "keypair" in path else SUMMARY_14)
+    replies = {"psk": PSK_TEXT, "keypair": KEYPAIR_TEXT, "status": SUMMARY_14, "public-key": PUBLIC_KEY_TEXT}
+    service.device.reply = _reply(next(text for key, text in replies.items() if path.endswith(key)))
     resp = getattr(test_client, method)(path)
     assert resp.status_code == 200, resp.text
     assert len(service.device.threads) == 1

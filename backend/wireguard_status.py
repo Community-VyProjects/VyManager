@@ -1,14 +1,15 @@
-"""WireGuard show-text parsers for the dashboard stream.
+"""WireGuard op-mode text parsers.
 
-VyOS returns WireGuard config and ``show interfaces wireguard <name> summary``
-as text. Typed GraphQL ops do not cover the peer table. The live broadcaster
-folds the parsed peers into the SSE payload and does not own this syntax.
+VyOS returns WireGuard config, ``show interfaces wireguard <name> summary`` and
+``generate pki wireguard ...`` as text. Typed GraphQL ops do not cover the peer
+table. The live broadcaster folds the parsed peers into the SSE payload, and the
+WireGuard router reads the same summary and key output; neither owns this syntax.
 """
 
 import re
 from typing import Any, Optional, Tuple
 
-# A WireGuard key in base64 (32 bytes: 43 characters and one ``=``).
+# Shape check for a base64 WireGuard key (a real key is 43 characters and ``=``).
 _WG_KEY = re.compile(r"[A-Za-z0-9+/=]{43,44}", re.ASCII)
 
 
@@ -119,7 +120,7 @@ def _collect_wg_from_gql(gql: dict, parsed_config: Optional[dict] = None) -> dic
     for iface_name in wg_ifaces:
         status_text = _gql_result(gql, _wg_alias(iface_name)) or ""
         if status_text:
-            all_peer_status.update(_parse_wg_summary(status_text))
+            all_peer_status.update(parse_wg_summary(status_text))
 
     interfaces = []
     for iface_name, iface_cfg in wg_ifaces.items():
@@ -216,7 +217,7 @@ def _parse_wg_handshake(s: str) -> int | None:
     return total if total > 0 else None
 
 
-def _parse_wg_summary(output: str) -> dict:
+def parse_wg_summary(output: str) -> dict:
     """Parse 'show interfaces wireguard <iface> summary' output.
 
     Returns a dict keyed by public key with handshake/transfer/endpoint data.
@@ -280,7 +281,7 @@ def _labelled_keys(output: str) -> dict:
     return keys
 
 
-def _parse_wg_keypair(output: str) -> Tuple[Optional[str], Optional[str]]:
+def parse_wg_keypair(output: str) -> Tuple[Optional[str], Optional[str]]:
     """Parse ``generate pki wireguard key-pair``.
 
     Both labs print ``Private key: <key>`` then ``Public key: <key>``.
@@ -289,15 +290,21 @@ def _parse_wg_keypair(output: str) -> Tuple[Optional[str], Optional[str]]:
     return keys.get("private key"), keys.get("public key")
 
 
-def _parse_wg_preshared_key(output: str) -> Optional[str]:
+def parse_wg_preshared_key(output: str) -> Optional[str]:
     """Parse ``generate pki wireguard preshared-key`` (``Pre-shared key: <key>``)."""
     return _labelled_keys(output).get("pre-shared key")
 
 
-def _parse_wg_interface_public_key(output: str) -> Optional[str]:
-    """Return the interface's own key from ``show interfaces wireguard <if> summary``.
+def parse_wg_public_key(output: str) -> Optional[str]:
+    """Parse ``show interfaces wireguard <if> public-key``: the bare key, or None."""
+    text = (output or "").strip()
+    return text if _WG_KEY.fullmatch(text) else None
 
-    The interface block lists ``public key:`` before any peer block, so the
-    first one is the interface's; a 1.5 peer block repeats the label.
+
+def wg_summary_names_interface(output: str) -> bool:
+    """True when a summary describes a live interface (an ``interface:`` line).
+
+    For an absent interface both labs answer with one error line instead
+    (1.4 "Unable to access interface: No such device", 1.5 "... is not configured!").
     """
-    return _labelled_keys(output).get("public key")
+    return any(line.strip().startswith("interface:") for line in (output or "").splitlines())

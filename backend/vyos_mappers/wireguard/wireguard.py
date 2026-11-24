@@ -124,6 +124,10 @@ class WireGuardMapper(BaseFeatureMapper):
         """Op-mode path of ``show interfaces wireguard <interface> summary``."""
         return ["interfaces", "wireguard", interface, "summary"]
 
+    def get_interface_public_key_show_path(self, interface: str) -> List[str]:
+        """Op-mode path of ``show interfaces wireguard <interface> public-key``."""
+        return ["interfaces", "wireguard", interface, "public-key"]
+
     # ========================================================================
     # Config Parsing
     # ========================================================================

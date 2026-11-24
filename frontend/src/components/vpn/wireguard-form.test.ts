@@ -9,6 +9,7 @@ import {
   interfaceDraftFrom,
   peerDraftFrom,
   validateInterfaceCreate,
+  validateInterfaceFields,
   validatePeer,
   type InterfaceDraft,
   type PeerDraft,
@@ -48,6 +49,7 @@ const emptyInterfaceDraft: InterfaceDraft = {
   port: "",
   privateKey: "",
   mtu: "",
+  fwmark: "",
   perClientThread: false,
   mssClamping: "off",
   mssCustomValue: "",
@@ -95,6 +97,49 @@ describe("validateInterfaceCreate", () => {
   it("accepts a fresh name with a key", () => {
     const draft = { ...emptyInterfaceDraft, name: "wg1", privateKey: "KEY" };
     assert.equal(validateInterfaceCreate(draft, ["wg0"]), null);
+  });
+});
+
+describe("validateInterfaceFields", () => {
+  it("accepts an empty fwmark and the lab range ends", () => {
+    for (const fwmark of ["", "0", "7", "4294967295"]) {
+      assert.equal(validateInterfaceFields({ ...emptyInterfaceDraft, fwmark }), null, fwmark);
+    }
+  });
+
+  it("rejects a fwmark outside 0-4294967295 or not a number", () => {
+    for (const fwmark of ["4294967296", "-1", "1.5", "0x10", "abc", "12345678901"]) {
+      assert.equal(
+        validateInterfaceFields({ ...emptyInterfaceDraft, fwmark }),
+        "fwmarkRange",
+        fwmark,
+      );
+    }
+  });
+
+  it("runs on create after the identity checks", () => {
+    const draft = { ...emptyInterfaceDraft, name: "wg1", privateKey: "KEY", fwmark: "x" };
+    assert.equal(validateInterfaceCreate(draft, []), "fwmarkRange");
+  });
+});
+
+describe("fwmark", () => {
+  it("create sends a set fwmark and omits an empty one", () => {
+    const draft = { ...emptyInterfaceDraft, name: "wg1", privateKey: "KEY", fwmark: " 7 " };
+    assert.equal(buildInterfaceCreateConfig(draft, true).fwmark, "7");
+    assert.equal(
+      "fwmark" in buildInterfaceCreateConfig({ ...draft, fwmark: "" }, true),
+      false,
+    );
+  });
+
+  it("update sets a changed fwmark, deletes a cleared one, and skips an unchanged one", () => {
+    const stored = { ...storedInterface, fwmark: "7" };
+    const draft = interfaceDraftFrom(stored);
+    assert.equal(draft.fwmark, "7");
+    assert.equal(buildInterfaceUpdateConfig(draft, stored), null);
+    assert.deepEqual(buildInterfaceUpdateConfig({ ...draft, fwmark: "8" }, stored), { fwmark: "8" });
+    assert.deepEqual(buildInterfaceUpdateConfig({ ...draft, fwmark: "" }, stored), { fwmark: null });
   });
 });
 

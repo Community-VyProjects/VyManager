@@ -39,6 +39,8 @@ import {
   buildInterfaceUpdateConfig,
   interfaceDraftFrom,
   validateInterfaceCreate,
+  validateInterfaceFields,
+  FWMARK_RANGE,
   type InterfaceDraft,
 } from "./wireguard-form";
 
@@ -70,6 +72,7 @@ export function InterfaceModal({
   const [port, setPort] = useState("51820");
   const [privateKey, setPrivateKey] = useState("");
   const [mtu, setMtu] = useState("");
+  const [fwmark, setFwmark] = useState("");
   const [perClientThread, setPerClientThread] = useState(false);
   const [mssClamping, setMssClamping] = useState<string>("off");
   const [mssCustomValue, setMssCustomValue] = useState("");
@@ -100,6 +103,7 @@ export function InterfaceModal({
     setPort("51820");
     setPrivateKey("");
     setMtu("");
+    setFwmark("");
     setPerClientThread(false);
     setMssClamping("off");
     setMssCustomValue("");
@@ -118,6 +122,7 @@ export function InterfaceModal({
     setPort(draft.port);
     setPrivateKey(draft.privateKey);
     setMtu(draft.mtu);
+    setFwmark(draft.fwmark);
     setPerClientThread(draft.perClientThread);
     setMssClamping(draft.mssClamping);
     setMssCustomValue(draft.mssCustomValue);
@@ -145,13 +150,8 @@ export function InterfaceModal({
     setError(null);
     try {
       const result = await wireguardService.generateKeypair();
-      if (result.private_key) {
-        setPrivateKey(result.private_key);
-        setGeneratedPublicKey(result.public_key || null);
-      } else if (result.raw_output) {
-        // Try to parse from raw output
-        setError(t("interfaceModal.keyParseFailed", { output: result.raw_output }));
-      }
+      setPrivateKey(result.private_key);
+      setGeneratedPublicKey(result.public_key);
     } catch (err) {
       setError((err as ApiError).message || t("interfaceModal.generateKeypairFailed"));
     } finally {
@@ -181,6 +181,7 @@ export function InterfaceModal({
     port,
     privateKey,
     mtu,
+    fwmark,
     perClientThread,
     mssClamping,
     mssCustomValue,
@@ -192,7 +193,7 @@ export function InterfaceModal({
     const error = validateInterfaceCreate(draft(), existingInterfaces);
     if (!error) return null;
     if (error === "interfaceNameRequired") return tc("interfaceNameRequired");
-    return t(`validation.${error}`, { name: draft().name });
+    return t(`validation.${error}`, { name: draft().name, ...FWMARK_RANGE });
   };
 
   const submitCreate = async () => {
@@ -227,6 +228,9 @@ export function InterfaceModal({
         return;
       }
     } else if (!existing) {
+      return;
+    } else if (validateInterfaceFields(draft())) {
+      setError(t("validation.fwmarkRange", FWMARK_RANGE));
       return;
     }
 
@@ -474,6 +478,20 @@ export function InterfaceModal({
               <p className="text-xs text-muted-foreground">
                 {t("interfaceModal.mtuHint")}
               </p>
+            </div>
+
+            {/* Firewall mark */}
+            <div className="space-y-2">
+              <Label htmlFor="wg-fwmark">{t("interfaceModal.fwmarkOptional")}</Label>
+              <Input
+                id="wg-fwmark"
+                type="number"
+                min={FWMARK_RANGE.min}
+                max={FWMARK_RANGE.max}
+                value={fwmark}
+                onChange={(e) => setFwmark(e.target.value)}
+                placeholder="0"
+              />
             </div>
 
             {/* Per-Client Thread */}

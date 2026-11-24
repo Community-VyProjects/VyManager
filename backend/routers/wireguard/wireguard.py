@@ -19,10 +19,11 @@ from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from wireguard_status import (
-    _parse_wg_interface_public_key,
-    _parse_wg_keypair,
-    _parse_wg_preshared_key,
-    _parse_wg_summary,
+    parse_wg_keypair,
+    parse_wg_preshared_key,
+    parse_wg_public_key,
+    parse_wg_summary,
+    wg_summary_names_interface,
 )
 import re
 import logging
@@ -182,6 +183,12 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
         return WireGuardConfigResponse(**mapper.parse_config(full_config))
     except HTTPException:
         raise
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out reading WireGuard config")
+        raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed reading WireGuard config: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS API request failed")
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -199,6 +206,7 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
+    _require_interface_name(body.interface)
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -234,6 +242,9 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
     except _requests.exceptions.Timeout:
         logger.warning("VyOS API timed out during interface batch operation")
         raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during interface batch operation: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS API request failed")
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -251,6 +262,7 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
+    _require_interface_name(body.interface)
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -278,6 +290,9 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
     except _requests.exceptions.Timeout:
         logger.warning("VyOS API timed out during peer batch operation")
         raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during peer batch operation: %s", e)
+        raise HTTPException(status_code=502, detail="VyOS API request failed")
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -299,15 +314,15 @@ async def generate_keypair(request: Request):
         service = get_session_vyos_service(request)
         mapper = _mapper(service)
         response = await run_in_threadpool(service.device.generate, path=mapper.get_keypair_generate_path())
-        output = _op_output(response, "generate a keypair")
-        private_key, public_key = _parse_wg_keypair(output)
+        private_key, public_key = parse_wg_keypair(_op_output(response, "generate a keypair"))
+        if not private_key or not public_key:
+            raise HTTPException(status_code=502, detail="VyOS returned no keypair")
 
         return VyOSResponse(
             success=True,
             data={
                 "private_key": private_key,
                 "public_key": public_key,
-                "raw_output": output,
             }
         )
     except HTTPException:
@@ -315,8 +330,8 @@ async def generate_keypair(request: Request):
     except _requests.exceptions.Timeout:
         logger.warning("VyOS API timed out during keypair generation")
         raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
-    except _requests.exceptions.RequestException:
-        logger.warning("VyOS API request failed during keypair generation")
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during keypair generation: %s", e)
         raise HTTPException(status_code=502, detail="VyOS could not generate a keypair")
     except Exception:
         logger.exception("Unhandled error")
@@ -339,7 +354,7 @@ async def generate_psk(request: Request):
         service = get_session_vyos_service(request)
         mapper = _mapper(service)
         response = await run_in_threadpool(service.device.generate, path=mapper.get_preshared_key_generate_path())
-        preshared_key = _parse_wg_preshared_key(_op_output(response, "generate a preshared key"))
+        preshared_key = parse_wg_preshared_key(_op_output(response, "generate a preshared key"))
         if not preshared_key:
             raise HTTPException(status_code=502, detail="VyOS returned no preshared key")
 
@@ -354,8 +369,8 @@ async def generate_psk(request: Request):
     except _requests.exceptions.Timeout:
         logger.warning("VyOS API timed out during preshared key generation")
         raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
-    except _requests.exceptions.RequestException:
-        logger.warning("VyOS API request failed during preshared key generation")
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed during preshared key generation: %s", e)
         raise HTTPException(status_code=502, detail="VyOS could not generate a preshared key")
     except Exception:
         logger.exception("Unhandled error")
@@ -382,13 +397,14 @@ async def get_interface_status(request: Request, interface_name: str):
             service.device.show, path=mapper.get_interface_summary_show_path(interface_name)
         )
         output = _op_output(response, f"read interface {interface_name} status")
+        if not wg_summary_names_interface(output):
+            raise HTTPException(status_code=404, detail=f"WireGuard interface {interface_name} is not up on the device")
 
         return VyOSResponse(
             success=True,
             data={
                 "interface": interface_name,
-                "peers": _parse_wg_summary(output),
-                "raw_output": output,
+                "peers": parse_wg_summary(output),
             }
         )
     except HTTPException:
@@ -396,8 +412,8 @@ async def get_interface_status(request: Request, interface_name: str):
     except _requests.exceptions.Timeout:
         logger.warning("VyOS API timed out reading WireGuard interface status")
         raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
-    except _requests.exceptions.RequestException:
-        logger.warning("VyOS API request failed reading WireGuard interface status")
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed reading WireGuard interface status: %s", e)
         raise HTTPException(status_code=502, detail=f"VyOS could not read interface {interface_name} status")
     except Exception:
         logger.exception("Unhandled error")
@@ -413,8 +429,7 @@ async def get_interface_public_key(request: Request, interface_name: str):
     """
     Get the public key for a WireGuard interface.
 
-    Reads ``show interfaces wireguard <interface> summary``; the interface key is
-    the first ``public key:`` line, before any peer block.
+    Reads ``show interfaces wireguard <interface> public-key`` (``wg show <if> public-key``).
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
     _require_interface_name(interface_name)
@@ -422,17 +437,11 @@ async def get_interface_public_key(request: Request, interface_name: str):
         service = get_session_vyos_service(request)
         mapper = _mapper(service)
         response = await run_in_threadpool(
-            service.device.show, path=mapper.get_interface_summary_show_path(interface_name)
+            service.device.show, path=mapper.get_interface_public_key_show_path(interface_name)
         )
-        output = _op_output(response, f"read interface {interface_name} summary")
-        public_key = _parse_wg_interface_public_key(output)
-
+        public_key = parse_wg_public_key(_op_output(response, f"read interface {interface_name} public key"))
         if not public_key:
-            return VyOSResponse(
-                success=False,
-                error="Could not extract public key from interface summary",
-                data={"raw_output": output}
-            )
+            raise HTTPException(status_code=404, detail=f"WireGuard interface {interface_name} has no public key")
 
         return VyOSResponse(
             success=True,
@@ -444,11 +453,11 @@ async def get_interface_public_key(request: Request, interface_name: str):
     except HTTPException:
         raise
     except _requests.exceptions.Timeout:
-        logger.warning("VyOS API timed out reading WireGuard interface summary")
+        logger.warning("VyOS API timed out reading WireGuard interface public key")
         raise HTTPException(status_code=504, detail=_TIMEOUT_DETAIL)
-    except _requests.exceptions.RequestException:
-        logger.warning("VyOS API request failed reading WireGuard interface summary")
-        raise HTTPException(status_code=502, detail=f"VyOS could not read interface {interface_name} summary")
+    except _requests.exceptions.RequestException as e:
+        logger.warning("VyOS API request failed reading WireGuard interface public key: %s", e)
+        raise HTTPException(status_code=502, detail=f"VyOS could not read interface {interface_name} public key")
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -74,6 +74,7 @@ function formatHandshakeTime(
 }
 
 // Import modals
+import type { ApiError } from "@/lib/types/api";
 import { InterfaceModal } from "@/components/vpn/InterfaceModal";
 import { DeleteInterfaceModal } from "@/components/vpn/DeleteInterfaceModal";
 import { PeerModal } from "@/components/vpn/PeerModal";
@@ -98,10 +99,12 @@ export default function WireGuardPage() {
   // Public key cache
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [loadingPublicKey, setLoadingPublicKey] = useState(false);
+  const [publicKeyError, setPublicKeyError] = useState<string | null>(null);
 
   // Interface status (runtime data)
   const [interfaceStatus, setInterfaceStatus] = useState<InterfaceStatusResponse | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // Modal states
   const [showCreateInterface, setShowCreateInterface] = useState(false);
@@ -135,7 +138,7 @@ export default function WireGuardPage() {
         setSelectedInterface((prev) => prev ?? configData.interfaces[0].name);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.loadFailed"));
+      setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -150,41 +153,47 @@ export default function WireGuardPage() {
     const fetchPublicKey = async () => {
       if (!selectedInterface) {
         setPublicKey(null);
+        setPublicKeyError(null);
         return;
       }
 
       setLoadingPublicKey(true);
+      setPublicKeyError(null);
       try {
         const result = await wireguardService.getInterfacePublicKey(selectedInterface);
         setPublicKey(result?.public_key || null);
-      } catch {
+      } catch (err) {
         setPublicKey(null);
+        setPublicKeyError((err as ApiError).message || t("page.unableToRetrievePublicKey"));
       } finally {
         setLoadingPublicKey(false);
       }
     };
 
     fetchPublicKey();
-  }, [selectedInterface]);
+  }, [selectedInterface, t]);
 
   // Fetch interface status (handshake times, transfer) when selected interface changes
 
   const fetchStatus = useCallback(async () => {
     if (!selectedInterface) {
       setInterfaceStatus(null);
+      setStatusError(null);
       return;
     }
 
     setLoadingStatus(true);
+    setStatusError(null);
     try {
       const result = await wireguardService.getInterfaceStatus(selectedInterface);
       setInterfaceStatus(result);
-    } catch {
+    } catch (err) {
       setInterfaceStatus(null);
+      setStatusError((err as ApiError).message || t("page.statusLoadFailed"));
     } finally {
       setLoadingStatus(false);
     }
-  }, [selectedInterface]);
+  }, [selectedInterface, t]);
 
   useEffect(() => {
     fetchStatus();
@@ -591,6 +600,8 @@ export default function WireGuardPage() {
                                 )}
                               </button>
                             </div>
+                          ) : publicKeyError ? (
+                            <span className="text-sm text-destructive whitespace-pre-wrap">{publicKeyError}</span>
                           ) : (
                             <span className="text-sm text-muted-foreground">{t("page.unableToRetrievePublicKey")}</span>
                           )}
@@ -630,6 +641,12 @@ export default function WireGuardPage() {
 
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="p-4">
+                    {statusError && (
+                      <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span className="whitespace-pre-wrap">{statusError}</span>
+                      </div>
+                    )}
                     {filteredPeers.length === 0 ? (
                       <div className="text-center py-12">
                         <Users className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
