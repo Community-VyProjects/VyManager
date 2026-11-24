@@ -122,7 +122,7 @@ def _parse_maps_v1_4(raw: dict) -> List[Dict[str, Any]]:
                 "tunnel_ip": tunnel_ip,
                 "nbma_address": map_cfg.get("nbma-address") if isinstance(map_cfg, dict) else None,
                 "cisco": "cisco" in map_cfg if isinstance(map_cfg, dict) else False,
-                "register_flag": "register" in map_cfg if isinstance(map_cfg, dict) else False,
+                "register": "register" in map_cfg if isinstance(map_cfg, dict) else False,
             }
         )
     return sorted(maps, key=lambda m: m["tunnel_ip"])
@@ -144,7 +144,7 @@ def _parse_maps_v1_5(raw: dict) -> List[Dict[str, Any]]:
                 "tunnel_ip": tunnel_ip,
                 "nbma_address": map_cfg.get("nbma") if isinstance(map_cfg, dict) else None,
                 "cisco": False,
-                "register_flag": False,
+                "register": False,
             }
         )
     return sorted(maps, key=lambda m: m["tunnel_ip"])

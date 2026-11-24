@@ -86,7 +86,7 @@ def test_1_4_uses_cisco_authentication_and_flat_maps():
     assert tun1["maps"][0]["tunnel_ip"] == "10.0.0.1"
     assert tun1["maps"][0]["nbma_address"] == "192.0.2.1"
     assert tun1["maps"][0]["cisco"] is True
-    assert tun1["maps"][0]["register_flag"] is True
+    assert tun1["maps"][0]["register"] is True
     assert tun1["dynamic_maps"][0]["nbma_domain_name"] == "example.com"
     assert tun1["nhs_entries"] == []
     assert tun1["mtu"] is None

@@ -26,6 +26,9 @@ CONFIG = {"protocols": {"nhrp": {"tunnel": {
         "multicast": "dynamic",
         "shortcut": {},
     },
+    "tun1": {
+        "map": {"10.0.0.1": {"nbma-address": "192.0.2.1", "cisco": {}, "register": {}}},
+    },
 }}}}
 
 
@@ -186,7 +189,7 @@ def test_config_masks_the_pass_phrase(client, commit, version, holding_time):
     assert "s3cr" not in resp.text
     body = resp.json()
     assert body["enabled"] is True
-    (tunnel,) = body["tunnels"]
+    tunnel, _tun1 = body["tunnels"]
     assert tunnel["name"] == "tun0"
     assert tunnel["authentication"] == "***"
     assert tunnel["holding_time"] == holding_time
@@ -194,13 +197,25 @@ def test_config_masks_the_pass_phrase(client, commit, version, holding_time):
 
 
 def test_config_1_5_returns_the_parse(client):
-    (tunnel,) = client.http.get("/vyos/nhrp/config").json()["tunnels"]
+    tunnel, tun1 = client.http.get("/vyos/nhrp/config").json()["tunnels"]
     assert tunnel["maps"] == [
         {"tunnel_ip": "10.0.0.2", "nbma_address": "192.0.2.2", "cisco": False, "register": False},
     ]
     assert tunnel["nhs_entries"] == [{"tunnel_ip": "10.0.0.3", "nbma_addresses": ["192.0.2.3"]}]
     assert tunnel["multicast"] == ["dynamic"]
     assert tunnel["shortcut"] is True
+    assert tun1["authentication"] is None
+    assert tun1["maps"] == []
+
+
+def test_config_1_4_returns_the_flat_map_flags(client, commit):
+    """The 1.4 cisco and register flags survive the response model (alias `register`)."""
+    commit["version"] = "1.4.3"
+    tun0, tun1 = client.http.get("/vyos/nhrp/config").json()["tunnels"]
+    assert tun0["nhs_entries"] == []
+    assert tun1["maps"] == [
+        {"tunnel_ip": "10.0.0.1", "nbma_address": "192.0.2.1", "cisco": True, "register": True},
+    ]
 
 
 def test_capabilities_require_read(client):
