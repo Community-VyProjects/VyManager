@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import {
+  MASKED_SECRET,
   TelegrafAzure,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
@@ -77,6 +78,11 @@ export function TelegrafAzureModal({ open, onOpenChange, original, caps, onSucce
     }
     if (!clientSecret && !secretStored) {
       setError(t("common.fieldRequired", { field: t("telegraf.azure.clientSecret") }));
+      return;
+    }
+    // The mask is never sent, so a typed mask would set nothing.
+    if (clientSecret === MASKED_SECRET) {
+      setError(t("common.secretIsMask", { field: t("telegraf.azure.clientSecret") }));
       return;
     }
     if (groupMetrics === "single-table" && !table.trim()) {

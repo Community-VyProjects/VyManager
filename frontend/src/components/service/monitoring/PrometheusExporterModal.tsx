@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -90,7 +90,6 @@ export function PrometheusExporterModal({
   const [ospfInput, setOspfInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const frrCaps = caps.features.prometheus.exporters.frr_exporter;
 
@@ -194,7 +193,6 @@ export function PrometheusExporterModal({
             <Label>{t("common.listenAddresses")}</Label>
             <div className="flex gap-2">
               <Input
-                ref={inputRef}
                 placeholder={t("exporter.listenPlaceholder")}
                 value={listenInput}
                 onChange={(e) => setListenInput(e.target.value)}

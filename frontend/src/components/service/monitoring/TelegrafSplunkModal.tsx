@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { TelegrafSplunk, serviceMonitoringService } from "@/lib/api/service-monitoring";
+import { MASKED_SECRET, TelegrafSplunk, serviceMonitoringService } from "@/lib/api/service-monitoring";
 import type { ApiError } from "@/lib/types/api";
 
 interface TelegrafSplunkModalProps {
@@ -46,6 +46,11 @@ export function TelegrafSplunkModal({ open, onOpenChange, original, onSuccess }:
     }
     if (!token && !tokenStored) {
       setError(t("common.fieldRequired", { field: t("telegraf.token") }));
+      return;
+    }
+    // The mask is never sent, so a typed mask would set nothing.
+    if (token === MASKED_SECRET) {
+      setError(t("common.secretIsMask", { field: t("telegraf.token") }));
       return;
     }
     setSubmitting(true);

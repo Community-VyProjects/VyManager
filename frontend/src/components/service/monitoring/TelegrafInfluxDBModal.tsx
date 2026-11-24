@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import {
+  MASKED_SECRET,
   TelegrafInfluxDB,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
@@ -59,6 +60,11 @@ export function TelegrafInfluxDBModal({
     }
     if (!token && !tokenStored) {
       setError(t("common.fieldRequired", { field: t("telegraf.token") }));
+      return;
+    }
+    // The mask is never sent, so a typed mask would set nothing.
+    if (token === MASKED_SECRET) {
+      setError(t("common.secretIsMask", { field: t("telegraf.token") }));
       return;
     }
     if (!organization.trim()) {

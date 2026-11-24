@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import {
+  MASKED_SECRET,
   TelegrafLoki,
   ServiceMonitoringCapabilities,
   serviceMonitoringService,
@@ -55,6 +56,11 @@ export function TelegrafLokiModal({ open, onOpenChange, original, caps, onSucces
     // Clearing the username clears the password with it, so a typed password needs a username.
     if (name ? !password && !passwordStored : !!password) {
       setError(t("telegraf.loki.authPair"));
+      return;
+    }
+    // The mask is never sent, so a typed mask would set nothing.
+    if (password === MASKED_SECRET) {
+      setError(t("common.secretIsMask", { field: t("telegraf.password") }));
       return;
     }
     setSubmitting(true);

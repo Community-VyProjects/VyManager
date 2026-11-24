@@ -43,6 +43,8 @@ export function ServiceMonitoringContent() {
   const [removeAllOpen, setRemoveAllOpen] = useState(false);
   const [removingAll, setRemovingAll] = useState(false);
   const [removeAllError, setRemoveAllError] = useState<string | null>(null);
+  // Held here so the reload after a save, which swaps the page for the spinner, keeps the tab.
+  const [activeTab, setActiveTab] = useState("telegraf");
 
   const loadData = useCallback(async (refresh = false) => {
     try {
@@ -156,7 +158,7 @@ export function ServiceMonitoringContent() {
 
       {/* Body */}
       <div className="flex-1 p-6 pt-4 overflow-auto">
-        <Tabs defaultValue="telegraf">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="telegraf">Telegraf</TabsTrigger>
             <TabsTrigger value="zabbix">{t("content.tabs.zabbixAgent")}</TabsTrigger>

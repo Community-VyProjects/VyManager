@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -64,7 +64,6 @@ export function TelegrafPrometheusClientModal({
   const [password, setPassword] = useState(original?.authentication?.password ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const metricVersionValues = caps.features.telegraf.outputs.prometheus_client.metric_version_values;
 
@@ -159,7 +158,6 @@ export function TelegrafPrometheusClientModal({
               <Label>{t("telegraf.promClient.allowFrom")}</Label>
               <div className="flex gap-2">
                 <Input
-                  ref={inputRef}
                   placeholder={t("telegraf.promClient.allowFromPlaceholder")}
                   value={allowInput}
                   onChange={(e) => setAllowInput(e.target.value)}
