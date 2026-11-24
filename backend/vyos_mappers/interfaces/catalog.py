@@ -1,4 +1,4 @@
-"""Op-mode show commands behind the interface pickers and counters.
+"""Op-mode show commands behind the interface pickers, counters and diagnostics.
 
 Commands both lab op trees have live on this class. A command only one
 version has lives on that version's subclass in ``catalog_versions``.
@@ -47,3 +47,7 @@ class InterfaceCatalogMapper(BaseFeatureMapper):
     def get_ethernet_show_path(self) -> List[str]:
         """Op path of ``show interfaces ethernet``."""
         return ["interfaces", "ethernet"]
+
+    def get_ethernet_transceiver_show_path(self, interface: str) -> List[str]:
+        """Op path of ``show interfaces ethernet <interface> transceiver``."""
+        return ["interfaces", "ethernet", interface, "transceiver"]
