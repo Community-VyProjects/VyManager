@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any, cast
 import json
 import math
+import sys
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from vyos_mappers import CommandMapperRegistry
@@ -368,16 +369,19 @@ _LABEL_FACTOR_MIN = 0
 
 
 def _factor_valid(factor: Any) -> bool:
-    """A ratio factor is absent, or a finite number at or above the minimum.
+    """A ratio factor is absent, or a finite float-sized number at or above the minimum.
 
-    An int too large for a float makes ``math.isfinite`` overflow, so ints are
-    compared directly.
+    The browser reads the factor back as a JS number, so an int beyond the
+    float range (Infinity there) is rejected too. Ints are compared without
+    ``math.isfinite``, which overflows on them.
     """
     if factor is None:
         return True
     if isinstance(factor, bool) or not isinstance(factor, (int, float)):
         return False
     if isinstance(factor, float) and not math.isfinite(factor):
+        return False
+    if isinstance(factor, int) and factor > sys.float_info.max:
         return False
     return factor >= _LABEL_FACTOR_MIN
 

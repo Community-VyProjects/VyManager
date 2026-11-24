@@ -87,8 +87,8 @@ import {
   PPPOptionsModal,
   AdvancedSettingsModal,
   PPPoEStatsChart,
-  SessionLabelRegistryDialog,
 } from "@/components/service/pppoe-server";
+import { SessionLabelRegistryDialog } from "@/components/service/pppoe-server/SessionLabelRegistryDialog";
 import type { PPPoEStatsPoint } from "@/components/service/pppoe-server/PPPoEStatsChart";
 
 function sessionMetricValue(session: SessionWithRates, field?: string): number {
@@ -105,7 +105,7 @@ function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabel
 
   const lhs = sessionMetricValue(session, rules.numerator);
   const rhs = sessionMetricValue(session, rules.denominator);
-  // A stored factor the editor would reject (rows saved before the check) matches nothing.
+  // A stored factor the editor would reject (a row saved before the backend check) matches nothing.
   if (!labelFactorValid(rules.factor)) return false;
   const factor = rules.factor ?? DEFAULT_LABEL_FACTOR;
   if (rhs === 0) return false;
