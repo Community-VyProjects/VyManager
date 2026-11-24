@@ -5,7 +5,7 @@ lived in each file and drifted; one helper is the only allowed dispatch.
 """
 
 import inspect
-from typing import Any, Callable, FrozenSet, Optional, Union
+from typing import Any, Callable, FrozenSet, List, Mapping, Optional, Union
 
 from fastapi import HTTPException
 
@@ -73,6 +73,7 @@ def call_item_batch_op(
     *,
     blank_is_missing: bool = True,
     separator: str = "|",
+    bound: Optional[Mapping[str, Optional[Union[str, int]]]] = None,
 ) -> None:
     """Resolve op and call it with item_name plus value split on separator, else HTTP 400.
 
@@ -83,24 +84,35 @@ def call_item_batch_op(
     (delete_interface for a delete that lost its leaf). A whitespace-only value
     or part counts as missing unless blank_is_missing is False, for a feature
     whose leaves (passwords, secrets) accept spaces.
+
+    bound maps a later parameter name to a request-level id (a pool number
+    under a rule). An op with that parameter requires the id; an op without
+    it rejects one, for the same reason an item-only op rejects a value.
     """
     method = resolve_batch_method(builder, op)
-    count = len(inspect.signature(method).parameters)
-    if count == 0:
+    params = list(inspect.signature(method).parameters)
+    if not params:
         # Not an item op: there is no parameter to bind item_name to.
         raise HTTPException(status_code=400, detail=f"Invalid operation: {op}")
-    if count == 1:
+    bound = bound or {}
+    for name, bound_value in bound.items():
+        if name in params[1:] and bound_value is None:
+            raise HTTPException(status_code=400, detail=f"Operation {op} requires {name}")
+        if name not in params[1:] and bound_value is not None:
+            raise HTTPException(status_code=400, detail=f"Operation {op} takes no {name}")
+    count = len([name for name in params[1:] if name not in bound])
+    if count == 0:
         if value:
             raise HTTPException(status_code=400, detail=f"Operation {op} takes no value")
-        method(item_name)
-        return
+        parts: List[str] = []
+    else:
+        def present(text: str) -> bool:
+            return bool(text.strip()) if blank_is_missing else bool(text)
 
-    def present(text: str) -> bool:
-        return bool(text.strip()) if blank_is_missing else bool(text)
-
-    if value is None or not present(value):
-        raise HTTPException(status_code=400, detail=f"Operation {op} requires a value")
-    parts = value.split(separator, count - 2)
-    if len(parts) != count - 1 or not all(present(part) for part in parts):
-        raise HTTPException(status_code=400, detail=f"Operation {op} requires {count - 1} values")
-    method(item_name, *parts)
+        if value is None or not present(value):
+            raise HTTPException(status_code=400, detail=f"Operation {op} requires a value")
+        parts = value.split(separator, count - 1)
+        if len(parts) != count or not all(present(part) for part in parts):
+            raise HTTPException(status_code=400, detail=f"Operation {op} requires {count} values")
+    values = iter(parts)
+    method(item_name, *(bound[name] if name in bound else next(values) for name in params[1:]))

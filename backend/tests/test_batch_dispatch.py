@@ -167,6 +167,48 @@ def test_item_op_splits_on_the_given_separator():
     assert ei.value.detail == "Operation delete_item takes no value"
 
 
+class _BoundBuilder(_ItemBuilder):
+    """Item ops plus ops under a request-level sub-id (a pool of a rule)."""
+
+    def delete_pool(self, item, pool):
+        self.calls.append(("delete_pool", item, pool))
+
+    def set_pool_leaf(self, item, pool, value):
+        self.calls.append(("set_pool_leaf", item, pool, value))
+
+
+def test_item_op_binds_a_named_request_id():
+    builder = _BoundBuilder()
+    call_item_batch_op(builder, "delete_pool", 100, None, bound={"pool": 2})
+    call_item_batch_op(builder, "set_pool_leaf", 100, "1-65535|x", bound={"pool": 2})
+    call_item_batch_op(builder, "delete_item", 100, None, bound={"pool": None})
+    call_item_batch_op(builder, "set_leaf", 100, "v", bound={"pool": None})
+    assert builder.calls == [
+        ("delete_pool", 100, 2),
+        ("set_pool_leaf", 100, 2, "1-65535|x"),
+        ("delete_item", 100),
+        ("set_leaf", 100, "v"),
+    ]
+
+
+@pytest.mark.parametrize("op, pool, value, detail", [
+    ("delete_pool", None, None, "Operation delete_pool requires pool"),
+    ("set_pool_leaf", None, "v", "Operation set_pool_leaf requires pool"),
+    ("delete_item", 1, None, "Operation delete_item takes no pool"),
+    ("set_leaf", 1, "v", "Operation set_leaf takes no pool"),
+    ("delete_pool", 1, "address", "Operation delete_pool takes no value"),
+    ("set_pool_leaf", 1, None, "Operation set_pool_leaf requires a value"),
+    ("set_pool_leaf", 1, " ", "Operation set_pool_leaf requires a value"),
+])
+def test_item_op_bound_id_bad_input_is_400(op, pool, value, detail):
+    builder = _BoundBuilder()
+    with pytest.raises(HTTPException) as ei:
+        call_item_batch_op(builder, op, 100, value, bound={"pool": pool})
+    assert ei.value.status_code == 400
+    assert ei.value.detail == detail
+    assert builder.calls == []
+
+
 def test_comma_op_splits_into_the_parameter_count():
     builder = _CommaBuilder()
     call_comma_batch_op(builder, "delete_all", None)
