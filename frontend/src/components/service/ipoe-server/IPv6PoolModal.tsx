@@ -15,6 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Network, Plus, Trash2 } from "lucide-react";
 import { ipoeServerService, IPoEClientIPv6Pool } from "@/lib/api/ipoe-server";
+import {
+  ipv6PoolProblem,
+  type IPoEIPv6DelegateRow,
+  type IPoEIPv6PrefixRow,
+} from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface IPv6PoolModalProps {
@@ -22,16 +27,18 @@ interface IPv6PoolModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingPool: IPoEClientIPv6Pool | null;
+  /** Configured IPv6 pool names; Add rejects them. */
+  poolNames: string[];
 }
 
-export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: IPv6PoolModalProps) {
+export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool, poolNames }: IPv6PoolModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
   const isEdit = !!existingPool;
 
   const [name, setName] = useState("");
-  const [prefixes, setPrefixes] = useState<Array<{ prefix: string; mask: string }>>([]);
-  const [delegates, setDelegates] = useState<Array<{ prefix: string; delegation_prefix: string }>>([]);
+  const [prefixes, setPrefixes] = useState<IPoEIPv6PrefixRow[]>([]);
+  const [delegates, setDelegates] = useState<IPoEIPv6DelegateRow[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,21 +58,33 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
     }
   }, [open, existingPool]);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
+
+  const updatePrefix = (index: number, patch: Partial<IPoEIPv6PrefixRow>) => {
+    setPrefixes(prefixes.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+
+  const updateDelegate = (index: number, patch: Partial<IPoEIPv6DelegateRow>) => {
+    setDelegates(delegates.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+
   const handleSubmit = async () => {
-    if (!name.trim()) { setError(t("poolNameRequired")); return; }
+    const draft = { name, prefixes, delegates };
+    const issue = ipv6PoolProblem(existingPool, draft, poolNames);
+    if (issue) {
+      const { problem, prefix } = issue;
+      setError(problem === "poolNameRequired" || problem === "poolExists"
+        ? t(problem)
+        : t(`ipv6PoolModal.${problem}`, { prefix }));
+      return;
+    }
 
     setLoading(true);
     setError(null);
-
-    const validPrefixes = prefixes.filter((p) => p.prefix && p.mask);
-    const validDelegates = delegates.filter((d) => d.prefix && d.delegation_prefix);
-
     try {
-      if (isEdit) {
-        await ipoeServerService.deleteIPv6Pool(existingPool!.name);
-      }
-      const result = await ipoeServerService.createIPv6Pool(name.trim(), validPrefixes, validDelegates);
-
+      const result = await ipoeServerService.saveIPv6Pool(existingPool, draft);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -80,7 +99,7 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -107,13 +126,13 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
               <div key={i} className="flex gap-2">
                 <Input
                   value={p.prefix}
-                  onChange={(e) => { const np = [...prefixes]; np[i].prefix = e.target.value; setPrefixes(np); }}
+                  onChange={(e) => updatePrefix(i, { prefix: e.target.value })}
                   placeholder="2001:db8::/48"
                   className="flex-1"
                 />
                 <Input
                   value={p.mask}
-                  onChange={(e) => { const np = [...prefixes]; np[i].mask = e.target.value; setPrefixes(np); }}
+                  onChange={(e) => updatePrefix(i, { mask: e.target.value })}
                   placeholder={t("ipv6PoolModal.maskPlaceholder")}
                   className="w-32"
                 />
@@ -135,13 +154,13 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
               <div key={i} className="flex gap-2">
                 <Input
                   value={d.prefix}
-                  onChange={(e) => { const nd = [...delegates]; nd[i].prefix = e.target.value; setDelegates(nd); }}
+                  onChange={(e) => updateDelegate(i, { prefix: e.target.value })}
                   placeholder="2001:db8:1::/48"
                   className="flex-1"
                 />
                 <Input
                   value={d.delegation_prefix}
-                  onChange={(e) => { const nd = [...delegates]; nd[i].delegation_prefix = e.target.value; setDelegates(nd); }}
+                  onChange={(e) => updateDelegate(i, { delegation_prefix: e.target.value })}
                   placeholder={t("ipv6PoolModal.delegationPlaceholder")}
                   className="w-36"
                 />

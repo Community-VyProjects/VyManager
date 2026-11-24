@@ -14,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Network, X } from "lucide-react";
 import { ipoeServerService, IPoEClientIPPool } from "@/lib/api/ipoe-server";
+import { ipPoolProblem, type IPoEIPPoolDraft } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface IPPoolModalProps {
@@ -23,9 +25,11 @@ interface IPPoolModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingPool: IPoEClientIPPool | null;
+  /** Every configured IPv4 pool name: next-pool picks one, Add rejects them. */
+  poolNames: string[];
 }
 
-export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPPoolModalProps) {
+export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool, poolNames }: IPPoolModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
   const isEdit = !!existingPool;
@@ -40,19 +44,17 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
 
   useEffect(() => {
     if (open) {
-      if (existingPool) {
-        setName(existingPool.name);
-        setRanges(existingPool.ranges || []);
-        setNextPool(existingPool.next_pool || "");
-      } else {
-        setName("");
-        setRanges([]);
-        setNextPool("");
-      }
+      setName(existingPool?.name || "");
+      setRanges(existingPool?.ranges || []);
+      setNextPool(existingPool?.next_pool || "");
       setRangeInput("");
       setError(null);
     }
   }, [open, existingPool]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
 
   const addRange = () => {
     const val = rangeInput.trim();
@@ -63,19 +65,17 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError(t("poolNameRequired")); return; }
+    const draft: IPoEIPPoolDraft = { name, ranges, next_pool: nextPool };
+    const problem = ipPoolProblem(existingPool, draft, poolNames);
+    if (problem) {
+      setError(problem === "nextPoolSelf" ? t("ipPoolModal.nextPoolSelf") : t(problem));
+      return;
+    }
 
     setLoading(true);
     setError(null);
-
     try {
-      let result;
-      if (isEdit) {
-        result = await ipoeServerService.updateIPPool(existingPool!.name, existingPool!, ranges, nextPool || undefined);
-      } else {
-        result = await ipoeServerService.createIPPool(name.trim(), ranges, nextPool || undefined);
-      }
-
+      const result = await ipoeServerService.saveIPPool(existingPool, draft);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -90,7 +90,7 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -122,7 +122,7 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
               {ranges.map((r) => (
                 <Badge key={r} variant="secondary" className="gap-1 font-mono text-xs">
                   {r}
-                  <button onClick={() => setRanges(ranges.filter((x) => x !== r))}>
+                  <button type="button" onClick={() => setRanges(ranges.filter((x) => x !== r))}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -132,8 +132,11 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
 
           <div className="space-y-2">
             <Label>{t("ipPoolModal.nextPool")}</Label>
-            <Input value={nextPool} onChange={(e) => setNextPool(e.target.value)} placeholder="pool2" />
-            <p className="text-xs text-muted-foreground">{t("ipPoolModal.nextPoolHelp")}</p>
+            <NamedListSelect
+              value={nextPool}
+              names={poolNames.filter((pool) => pool !== (existingPool?.name ?? name.trim()))}
+              onValueChange={setNextPool}
+            />
           </div>
         </div>
 

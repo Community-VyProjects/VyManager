@@ -1,22 +1,18 @@
-"""Factory for version-specific IPoE Server mappers."""
+"""Factory for IPoE server mappers.
+
+The shared class is returned directly on 1.4. The 1.5-only leaves live on the
+subclass. A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+"""
 
 from ..ipoe_server import IPoEServerMapper
-from .v1_4 import IPoEServerMapperV1_4
 from .v1_5 import IPoEServerMapperV1_5
 
 
 def get_ipoe_server_mapper(version: str) -> IPoEServerMapper:
-    base = IPoEServerMapper(version)
-
+    """Return the IPoE server mapper for this device."""
     if "1.4" in version:
-        version_specific = IPoEServerMapperV1_4()
-    else:
-        version_specific = IPoEServerMapperV1_5()
+        return IPoEServerMapper(version)
+    return IPoEServerMapperV1_5(version)
 
-    class MergedMapper:
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
 
-    return MergedMapper()
+__all__ = ["IPoEServerMapperV1_5", "get_ipoe_server_mapper"]

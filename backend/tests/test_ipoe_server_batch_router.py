@@ -67,7 +67,7 @@ def _post(test_client, item_name, operations):
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
-def test_every_builder_op_takes_the_item_and_at_most_one_value(version):
+def test_every_builder_op_takes_the_item_and_at_most_two_values(version):
     from vyos_builders.ipoe_server import IPoEServerBatchBuilder
 
     builder = IPoEServerBatchBuilder(version)
@@ -77,7 +77,21 @@ def test_every_builder_op_takes_the_item_and_at_most_one_value(version):
         if name.startswith(("set_", "delete_", "create_"))
     }
     assert arities
-    assert {name: n for name, n in arities.items() if n not in (1, 2)} == {}
+    assert {name: n for name, n in arities.items() if n not in (1, 2, 3)} == {}
+    assert {name for name, n in arities.items() if n == 3} == set(MULTI_VALUE_OPS)
+
+
+def test_no_builder_op_splits_its_value_itself():
+    """Each part is its own parameter, so the router's "|" split can 400."""
+    from vyos_builders.ipoe_server import IPoEServerBatchBuilder
+
+    splitting = {
+        name
+        for name, method in inspect.getmembers(IPoEServerBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+        and ".split(" in inspect.getsource(method)
+    }
+    assert splitting == set()
 
 
 def test_batch_binds_item_name_and_value_onto_builder_args(client):
@@ -146,19 +160,20 @@ def test_batch_item_only_op_with_a_value_is_400(client, item_name, op, value):
     assert service.executed == []
 
 
-COMPOSITE_OPS_CASES = [
-    ("set_auth_mac_ip_address", "00:11:22:33:44:55", "192.0.2.10"),
-    ("set_auth_mac_vlan", "00:11:22:33:44:55", "10"),
-    ("set_auth_mac_rate_limit_download", "00:11:22:33:44:55", "100"),
-    ("set_auth_mac_rate_limit_upload", "00:11:22:33:44:55", "50"),
-    ("set_ipv6_pool_prefix", "2001:db8::/48", "64"),
-    ("set_ipv6_pool_delegate", "2001:db8:1::/48", "56"),
-]
+MULTI_VALUE_OPS = {
+    "set_auth_mac_ip_address": ("00:11:22:33:44:55", "192.0.2.10"),
+    "set_auth_mac_vlan": ("00:11:22:33:44:55", "10"),
+    "set_auth_mac_rate_limit_download": ("00:11:22:33:44:55", "100"),
+    "set_auth_mac_rate_limit_upload": ("00:11:22:33:44:55", "50"),
+    "set_ipv6_pool_prefix": ("2001:db8::/48", "64"),
+    "set_ipv6_pool_delegate": ("2001:db8:1::/48", "56"),
+}
 
 
-@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS_CASES)
+@pytest.mark.parametrize("op", sorted(MULTI_VALUE_OPS))
 @pytest.mark.parametrize("shape", ["no_separator", "empty_second", "empty_first", "blank_second", "bare"])
-def test_batch_short_composite_value_is_400(client, op, first, second, shape):
+def test_batch_short_multi_value_is_400(client, op, shape):
+    first, second = MULTI_VALUE_OPS[op]
     value = {
         "no_separator": first,
         "empty_second": f"{first}|",
@@ -169,32 +184,19 @@ def test_batch_short_composite_value_is_400(client, op, first, second, shape):
     test_client, service = client
     resp = _post(test_client, "eth1", [{"op": op, "value": value}])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == f"Operation {op} has an invalid value"
+    assert resp.json()["detail"] == f"Operation {op} requires 2 values"
     assert service.executed == []
 
 
-@pytest.mark.parametrize("op,first,second", COMPOSITE_OPS_CASES)
-def test_batch_full_composite_value_is_accepted(client, op, first, second):
+@pytest.mark.parametrize("op", sorted(MULTI_VALUE_OPS))
+def test_batch_full_multi_value_is_accepted(client, op):
+    first, second = MULTI_VALUE_OPS[op]
     test_client, service = client
     resp = _post(test_client, "p1", [{"op": op, "value": f"{first}|{second}"}])
     assert resp.status_code == 200, resp.text
     path = service.executed[0][0]["path"]
     assert path[-1] == second
     assert first in path
-
-
-def test_composite_op_list_matches_the_builder_ops_that_split_on_pipe():
-    from routers.ipoe_server.ipoe_server import COMPOSITE_OPS
-    from vyos_builders.ipoe_server import IPoEServerBatchBuilder
-
-    splitting = {
-        name
-        for name, method in inspect.getmembers(IPoEServerBatchBuilder, inspect.isfunction)
-        if name.startswith(("set_", "delete_", "create_"))
-        and 'split("|"' in inspect.getsource(method)
-    }
-    assert set(COMPOSITE_OPS) == splitting
-    assert {op for op, _first, _second in COMPOSITE_OPS_CASES} == splitting
 
 
 @pytest.mark.parametrize("item_name,op,value,path_tail", [
@@ -306,3 +308,122 @@ def test_config_route_model_keeps_every_parsed_key():
         "client-ipv6-pool": {"v6": {"prefix": {"2001:db8::/48": {}}}},
     }}})
     assert IPoEConfig(**parsed).model_dump() == parsed
+
+
+@pytest.mark.parametrize("op,item_name,value,node", [
+    ("set_idle_timeout", "ipoe", "300", "idle_timeout"),
+    ("delete_idle_timeout", "ipoe", None, "idle_timeout"),
+    ("set_interface_vlan_mon", "eth1", None, "vlan_mon"),
+    ("delete_interface_vlan_mon", "eth1", None, "vlan_mon"),
+])
+def test_batch_1_5_only_op_on_1_4_is_400_before_the_device(monkeypatch, op, item_name, value, node):
+    service = Service(version="1.4.3")
+    test_client = _app(monkeypatch, service)
+    operation = {"op": op} if value is None else {"op": op, "value": value}
+    resp = _post(test_client, item_name, [
+        {"op": "set_description", "value": "lab"},
+        operation,
+    ])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"ipoe-server {node} is not supported on this device"
+    assert service.executed == []
+
+
+@pytest.mark.parametrize("version", ["1.5", "2026.09.23-0027-rolling"])
+def test_batch_1_5_only_ops_reach_the_device_on_1_5(monkeypatch, version):
+    service = Service(version=version)
+    test_client = _app(monkeypatch, service)
+    resp = _post(test_client, "ipoe", [
+        {"op": "set_idle_timeout", "value": "300"},
+        {"op": "delete_idle_timeout"},
+    ])
+    assert resp.status_code == 200, resp.text
+    resp = _post(test_client, "eth1", [{"op": "set_interface_vlan_mon"}])
+    assert resp.status_code == 200, resp.text
+    assert service.executed == [
+        [
+            {"op": "set", "path": BASE + ["idle-timeout", "300"]},
+            {"op": "delete", "path": BASE + ["idle-timeout"]},
+        ],
+        [{"op": "set", "path": BASE + ["interface", "eth1", "vlan-mon"]}],
+    ]
+
+
+@pytest.mark.parametrize("version,expected", [
+    ("1.4.3", False),
+    ("1.5", True),
+    ("2026.09.23-0027-rolling", True),
+])
+def test_capabilities_read_the_mapper_allowlist(monkeypatch, version, expected):
+    test_client = _app(monkeypatch, Service(version=version))
+    resp = test_client.get("/vyos/ipoe-server/capabilities")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["features"]["vlan_mon"] is expected
+    assert body["features"]["idle_timeout"] is expected
+    assert "version_info" not in body
+    assert body["values"] == {
+        "auth_modes": ["local", "radius", "noauth"],
+        "interface_modes": ["l2", "l3"],
+        "interface_networks": ["shared", "vlan"],
+        "start_session": ["auto", "dhcp", "unclassified-packet"],
+        "log_levels": ["0", "1", "2", "3", "4", "5"],
+    }
+
+
+def test_capabilities_do_not_read_the_version_string(monkeypatch):
+    """A 1.4 string with the 1.5 mapper still reports the 1.5 leaves."""
+    from vyos_mappers.ipoe_server.ipoe_server_versions import IPoEServerMapperV1_5
+
+    monkeypatch.setattr(
+        "vyos_builders.ipoe_server.ipoe_server_batch_builder.CommandMapperRegistry.get_mapper",
+        lambda _feature, version: IPoEServerMapperV1_5(version),
+    )
+    from vyos_builders.ipoe_server import IPoEServerBatchBuilder
+
+    features = IPoEServerBatchBuilder("1.4.3").get_capabilities()["features"]
+    assert features["vlan_mon"] is True
+    assert features["idle_timeout"] is True
+
+
+@pytest.mark.parametrize("method,path", [
+    ("get", "/vyos/ipoe-server/capabilities"),
+    ("get", "/vyos/ipoe-server/config"),
+    ("post", "/vyos/ipoe-server/batch"),
+])
+def test_routes_pass_a_session_400_through(monkeypatch, method, path):
+    from fastapi import HTTPException
+
+    def no_session(_req):
+        raise HTTPException(status_code=400, detail="No active VyOS session")
+
+    test_client = _app(monkeypatch, Service())
+    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", no_session)
+    if method == "post":
+        resp = _post(test_client, "ipoe", [{"op": "set_description", "value": "lab"}])
+    else:
+        resp = test_client.get(path)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "No active VyOS session"
+
+
+def test_config_route_reports_bare_sections_and_idle_timeout(monkeypatch):
+    service = Service(config={"service": {"ipoe-server": {
+        "idle-timeout": "300",
+        "shaper": {},
+        "limits": {},
+        "snmp": {},
+    }}})
+    test_client = _app(monkeypatch, service)
+    body = test_client.get("/vyos/ipoe-server/config").json()
+    assert body["idle_timeout"] == "300"
+    assert body["shaper"] == {"enabled": True, "fwmark": None}
+    assert body["limits"] == {"enabled": True, "burst": None, "connection_limit": None, "timeout": None}
+    assert body["snmp"] == {"enabled": True, "master_agent": False}
+
+    service.config = {"service": {"ipoe-server": {"interface": {"eth1": {}}}}}
+    body = test_client.get("/vyos/ipoe-server/config").json()
+    assert body["idle_timeout"] is None
+    assert body["shaper"]["enabled"] is False
+    assert body["limits"]["enabled"] is False
+    assert body["snmp"]["enabled"] is False

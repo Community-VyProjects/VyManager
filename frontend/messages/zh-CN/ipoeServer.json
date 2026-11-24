@@ -10,6 +10,7 @@
   "createPool": "创建地址池",
   "poolName": "地址池名称",
   "poolNameRequired": "地址池名称为必填项",
+  "poolExists": "已存在同名地址池",
   "leaveBlankToKeep": "留空则保持当前值",
   "errors": {
     "loadConfig": "加载配置失败",
@@ -23,6 +24,7 @@
   "deleteTypes": {
     "ipoeServer": "IPoE 服务器",
     "interface": "接口",
+    "authInterface": "认证接口",
     "macEntry": "MAC 条目",
     "radiusServer": "RADIUS 服务器",
     "ipPool": "IP 池",
@@ -52,6 +54,7 @@
     "maxSessions": "最大会话数",
     "threads": "线程数",
     "luaFile": "Lua 文件",
+    "idleTimeout": "空闲超时",
     "authSettings": "认证设置"
   },
   "interfaces": {
@@ -67,7 +70,6 @@
     "inactive": "本地认证未启用",
     "inactiveHelp": "仅当认证模式设置为 'local' 时，本地认证才会生效。",
     "currentMode": "当前模式：",
-    "notSet": "未设置",
     "title": "本地 MAC 认证",
     "addMac": "添加 MAC",
     "noInterfaces": "未配置本地认证接口",
@@ -117,8 +119,11 @@
   "advanced": {
     "title": "高级设置",
     "logLevel": "日志级别",
+    "shaper": "限速器",
     "shaperFwmark": "限速 FWMark",
+    "snmp": "SNMP",
     "snmpMasterAgent": "SNMP 主代理",
+    "limits": "连接限制",
     "limitsBurst": "突发限制",
     "connLimit": "连接限制",
     "limitsTimeout": "限制超时",
@@ -138,15 +143,18 @@
     "nameServers": "DNS 服务器",
     "maxConcurrentSessions": "最大并发会话数",
     "threadCount": "线程数",
-    "threadCountPlaceholder": "自动",
-    "luaFile": "Lua 文件"
+    "threadCountPlaceholder": "all、half 或 1-512",
+    "luaFile": "Lua 文件",
+    "idleTimeout": "空闲超时（秒）"
   },
   "advancedModal": {
     "title": "高级设置",
     "description": "配置日志、限速、SNMP、限制和脚本。",
     "updateFailed": "更新高级设置失败",
     "logLevel": "日志级别",
+    "shaper": "限速器",
     "shaperFwmark": "限速 FWMark",
+    "snmp": "SNMP",
     "snmpMasterAgent": "SNMP 主代理",
     "connectionLimits": "连接限制",
     "burst": "突发",
@@ -162,9 +170,7 @@
     "title": "认证设置",
     "description": "配置 IPoE 认证模式。",
     "updateFailed": "更新认证模式失败",
-    "mode": "认证模式",
-    "modeLocal": "本地",
-    "modeNoauth": "无认证"
+    "mode": "认证模式"
   },
   "authMacModal": {
     "addTitle": "添加 MAC 认证条目",
@@ -172,6 +178,7 @@
     "description": "配置基于 MAC 的本地认证条目。",
     "interfaceRequired": "接口为必填项",
     "macRequired": "MAC 地址为必填项",
+    "macExists": "此接口上已配置该 MAC 地址",
     "saveFailed": "保存 MAC 条目失败",
     "interface": "接口",
     "macAddress": "MAC 地址",
@@ -188,17 +195,20 @@
     "interfaceName": "接口名称",
     "mode": "模式",
     "network": "网络",
-    "networkShared": "共享",
     "startSession": "会话触发方式",
-    "startAuto": "自动",
-    "startUnclassified": "未分类数据包",
     "clientSubnet": "客户端子网",
     "vlanPlaceholder": "100 或 100-200",
     "vlanMonitoring": "VLAN 监控",
     "luaUsername": "Lua 用户名函数",
     "externalDhcp": "外部 DHCP",
     "dhcpRelay": "DHCP 中继",
-    "giaddr": "网关地址 (giaddr)"
+    "giaddr": "网关地址 (giaddr)",
+    "errors": {
+      "interfaceExists": "该接口已配置",
+      "subnetWithVlan": "客户端子网与 VLAN 不能同时使用",
+      "vlanMonWithoutVlan": "VLAN 监控至少需要一个 VLAN",
+      "relayWithoutGiaddr": "DHCP 中继需要网关地址 (giaddr)"
+    }
   },
   "radiusSettingsModal": {
     "title": "RADIUS 全局设置",
@@ -220,6 +230,7 @@
     "daeKey": "DAE 密钥",
     "daeKeyKeep": "留空则保持不变",
     "daeKeyEnter": "输入 DAE 密钥",
+    "daeKeyRequired": "DAE 服务器需要密钥",
     "rateLimiting": "限速",
     "enableRateLimiting": "启用限速",
     "attribute": "属性",
@@ -231,6 +242,8 @@
     "editTitle": "编辑 RADIUS 服务器",
     "description": "配置 RADIUS 认证服务器。",
     "addressRequired": "服务器地址为必填项",
+    "addressExists": "该 RADIUS 服务器已配置",
+    "keyRequired": "共享密钥为必填项",
     "saveFailed": "保存 RADIUS 服务器失败",
     "address": "服务器地址",
     "sharedKey": "共享密钥",
@@ -248,16 +261,23 @@
     "editTitle": "编辑 IP 池",
     "description": "配置 IPv4 客户端地址池。",
     "saveFailed": "保存地址池失败",
+    "nextPoolSelf": "地址池不能把自己设为下一个地址池",
     "ranges": "范围",
     "rangePlaceholder": "192.168.100.0/24 或 192.168.1.1-192.168.1.254",
-    "nextPool": "下一个地址池（可选）",
-    "nextPoolHelp": "当前地址池耗尽时使用的地址池"
+    "nextPool": "下一个地址池（可选）"
   },
   "ipv6PoolModal": {
     "createTitle": "创建 IPv6 池",
     "editTitle": "编辑 IPv6 池",
     "description": "配置 IPv6 客户端地址池。",
     "saveFailed": "保存 IPv6 地址池失败",
+    "prefixRequired": "每个前缀行都需要填写前缀",
+    "maskRequired": "前缀 {prefix} 需要掩码",
+    "duplicatePrefix": "前缀 {prefix} 重复",
+    "delegateWithoutPrefix": "委派前缀至少需要一个前缀",
+    "delegatePrefixRequired": "每个委派行都需要填写前缀",
+    "delegationPrefixRequired": "委派前缀 {prefix} 需要委派长度",
+    "duplicateDelegate": "委派前缀 {prefix} 重复",
     "prefixes": "前缀",
     "maskPlaceholder": "掩码 (48-128)",
     "delegatePrefixes": "委派前缀",

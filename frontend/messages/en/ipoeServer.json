@@ -10,6 +10,7 @@
   "createPool": "Create Pool",
   "poolName": "Pool Name",
   "poolNameRequired": "Pool name is required",
+  "poolExists": "A pool with this name already exists",
   "leaveBlankToKeep": "Leave blank to keep current",
   "errors": {
     "loadConfig": "Failed to load configuration",
@@ -23,6 +24,7 @@
   "deleteTypes": {
     "ipoeServer": "IPoE Server",
     "interface": "Interface",
+    "authInterface": "Auth Interface",
     "macEntry": "MAC Entry",
     "radiusServer": "RADIUS Server",
     "ipPool": "IP Pool",
@@ -52,6 +54,7 @@
     "maxSessions": "Max Sessions",
     "threads": "Threads",
     "luaFile": "Lua File",
+    "idleTimeout": "Idle Timeout",
     "authSettings": "Auth Settings"
   },
   "interfaces": {
@@ -67,7 +70,6 @@
     "inactive": "Local authentication not active",
     "inactiveHelp": "Local authentication is only active when auth mode is set to 'local'.",
     "currentMode": "Current mode:",
-    "notSet": "not set",
     "title": "Local MAC Authentication",
     "addMac": "Add MAC",
     "noInterfaces": "No local authentication interfaces configured",
@@ -117,8 +119,11 @@
   "advanced": {
     "title": "Advanced Settings",
     "logLevel": "Log Level",
+    "shaper": "Shaper",
     "shaperFwmark": "Shaper FWMark",
+    "snmp": "SNMP",
     "snmpMasterAgent": "SNMP Master Agent",
+    "limits": "Connection Limits",
     "limitsBurst": "Limits Burst",
     "connLimit": "Conn. Limit",
     "limitsTimeout": "Limits Timeout",
@@ -138,15 +143,18 @@
     "nameServers": "Name Servers",
     "maxConcurrentSessions": "Max Concurrent Sessions",
     "threadCount": "Thread Count",
-    "threadCountPlaceholder": "auto",
-    "luaFile": "Lua File"
+    "threadCountPlaceholder": "all, half or 1-512",
+    "luaFile": "Lua File",
+    "idleTimeout": "Idle Timeout (seconds)"
   },
   "advancedModal": {
     "title": "Advanced Settings",
     "description": "Configure logging, shaper, SNMP, limits, and scripts.",
     "updateFailed": "Failed to update advanced settings",
     "logLevel": "Log Level",
+    "shaper": "Shaper",
     "shaperFwmark": "Shaper FWMark",
+    "snmp": "SNMP",
     "snmpMasterAgent": "SNMP Master Agent",
     "connectionLimits": "Connection Limits",
     "burst": "Burst",
@@ -162,9 +170,7 @@
     "title": "Authentication Settings",
     "description": "Configure the IPoE authentication mode.",
     "updateFailed": "Failed to update authentication mode",
-    "mode": "Authentication Mode",
-    "modeLocal": "Local",
-    "modeNoauth": "No Authentication"
+    "mode": "Authentication Mode"
   },
   "authMacModal": {
     "addTitle": "Add MAC Auth Entry",
@@ -172,6 +178,7 @@
     "description": "Configure a local MAC-based authentication entry.",
     "interfaceRequired": "Interface is required",
     "macRequired": "MAC address is required",
+    "macExists": "This MAC address is already configured on the interface",
     "saveFailed": "Failed to save MAC entry",
     "interface": "Interface",
     "macAddress": "MAC Address",
@@ -188,17 +195,20 @@
     "interfaceName": "Interface Name",
     "mode": "Mode",
     "network": "Network",
-    "networkShared": "Shared",
     "startSession": "Start Session",
-    "startAuto": "Auto",
-    "startUnclassified": "Unclassified Packet",
     "clientSubnet": "Client Subnet",
     "vlanPlaceholder": "100 or 100-200",
     "vlanMonitoring": "VLAN Monitoring",
     "luaUsername": "Lua Username Function",
     "externalDhcp": "External DHCP",
     "dhcpRelay": "DHCP Relay",
-    "giaddr": "Gateway Address (giaddr)"
+    "giaddr": "Gateway Address (giaddr)",
+    "errors": {
+      "interfaceExists": "This interface is already configured",
+      "subnetWithVlan": "Client subnet and VLANs cannot be used together",
+      "vlanMonWithoutVlan": "VLAN monitoring needs at least one VLAN",
+      "relayWithoutGiaddr": "DHCP relay needs a gateway address (giaddr)"
+    }
   },
   "radiusSettingsModal": {
     "title": "RADIUS Global Settings",
@@ -220,6 +230,7 @@
     "daeKey": "DAE Key",
     "daeKeyKeep": "Leave blank to keep",
     "daeKeyEnter": "Enter DAE key",
+    "daeKeyRequired": "A DAE server needs a key",
     "rateLimiting": "Rate Limiting",
     "enableRateLimiting": "Enable Rate Limiting",
     "attribute": "Attribute",
@@ -231,6 +242,8 @@
     "editTitle": "Edit RADIUS Server",
     "description": "Configure a RADIUS authentication server.",
     "addressRequired": "Server address is required",
+    "addressExists": "This RADIUS server is already configured",
+    "keyRequired": "Shared key is required",
     "saveFailed": "Failed to save RADIUS server",
     "address": "Server Address",
     "sharedKey": "Shared Key",
@@ -248,16 +261,23 @@
     "editTitle": "Edit IP Pool",
     "description": "Configure an IPv4 client address pool.",
     "saveFailed": "Failed to save pool",
+    "nextPoolSelf": "A pool cannot be its own next pool",
     "ranges": "Ranges",
     "rangePlaceholder": "192.168.100.0/24 or 192.168.1.1-192.168.1.254",
-    "nextPool": "Next Pool (optional)",
-    "nextPoolHelp": "Pool to use when this one is exhausted"
+    "nextPool": "Next Pool (optional)"
   },
   "ipv6PoolModal": {
     "createTitle": "Create IPv6 Pool",
     "editTitle": "Edit IPv6 Pool",
     "description": "Configure an IPv6 client address pool.",
     "saveFailed": "Failed to save IPv6 pool",
+    "prefixRequired": "Every prefix row needs a prefix",
+    "maskRequired": "Prefix {prefix} needs a mask",
+    "duplicatePrefix": "Prefix {prefix} is listed twice",
+    "delegateWithoutPrefix": "Delegate prefixes need at least one prefix",
+    "delegatePrefixRequired": "Every delegate row needs a prefix",
+    "delegationPrefixRequired": "Delegate {prefix} needs a delegation length",
+    "duplicateDelegate": "Delegate {prefix} is listed twice",
     "prefixes": "Prefixes",
     "maskPlaceholder": "mask (48-128)",
     "delegatePrefixes": "Delegate Prefixes",

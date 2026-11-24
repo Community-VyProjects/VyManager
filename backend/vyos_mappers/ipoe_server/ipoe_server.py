@@ -1,11 +1,65 @@
-"""IPoE Server Command Mapper."""
-from typing import List, Dict, Any
+"""IPoE Server Command Mapper.
+
+Shared ``service ipoe-server`` commands for VyOS 1.4 and 1.5. The 1.5-only
+``idle-timeout`` and ``interface <x> vlan-mon`` leaves live on the 1.5
+subclass in ``ipoe_server_versions``.
+"""
+from typing import Any, Dict, FrozenSet, List
+
 from ..base import BaseFeatureMapper
 
 BASE = ["service", "ipoe-server"]
 
 
 class IPoEServerMapper(BaseFeatureMapper):
+    """Shared IPoE server commands."""
+
+    # node -> path methods that only the version subclass defines
+    _VERSIONED_NODES = {
+        "idle_timeout": ("get_idle_timeout", "get_idle_timeout_delete"),
+        "vlan_mon": ("get_interface_vlan_mon",),
+    }
+
+    # ========================================================================
+    # Version allowlist
+    # ========================================================================
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only leaves this device has.
+
+        A node counts when every path method below it is on this mapper.
+        Capabilities and the builder read this set instead of the version
+        string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"ipoe-server {node} is not supported on this device")
+
+    # ========================================================================
+    # Allowed values (lab ``allowed:`` / ``val_help`` lists)
+    # ========================================================================
+
+    def auth_modes(self) -> List[str]:
+        return ["local", "radius", "noauth"]
+
+    def interface_modes(self) -> List[str]:
+        return ["l2", "l3"]
+
+    def interface_networks(self) -> List[str]:
+        return ["shared", "vlan"]
+
+    def start_session_values(self) -> List[str]:
+        return ["auto", "dhcp", "unclassified-packet"]
+
+    def log_levels(self) -> List[str]:
+        return ["0", "1", "2", "3", "4", "5"]
+
     # ========================================================================
     # Global settings
     # ========================================================================
@@ -75,24 +129,24 @@ class IPoEServerMapper(BaseFeatureMapper):
     # Shaper
     # ========================================================================
 
+    def get_shaper(self) -> List[str]:
+        return BASE + ["shaper"]
+
     def get_shaper_fwmark(self, value: str) -> List[str]:
         return BASE + ["shaper", "fwmark", value]
 
     def get_shaper_fwmark_delete(self) -> List[str]:
         return BASE + ["shaper", "fwmark"]
 
-    def get_shaper_delete(self) -> List[str]:
-        return BASE + ["shaper"]
-
     # ========================================================================
     # SNMP
     # ========================================================================
 
+    def get_snmp(self) -> List[str]:
+        return BASE + ["snmp"]
+
     def get_snmp_master_agent(self) -> List[str]:
         return BASE + ["snmp", "master-agent"]
-
-    def get_snmp_delete(self) -> List[str]:
-        return BASE + ["snmp"]
 
     # ========================================================================
     # Extended scripts
@@ -126,6 +180,9 @@ class IPoEServerMapper(BaseFeatureMapper):
     # Limits
     # ========================================================================
 
+    def get_limits(self) -> List[str]:
+        return BASE + ["limits"]
+
     def get_limits_burst(self, value: str) -> List[str]:
         return BASE + ["limits", "burst", value]
 
@@ -143,9 +200,6 @@ class IPoEServerMapper(BaseFeatureMapper):
 
     def get_limits_timeout_delete(self) -> List[str]:
         return BASE + ["limits", "timeout"]
-
-    def get_limits_delete(self) -> List[str]:
-        return BASE + ["limits"]
 
     # ========================================================================
     # Authentication - mode
@@ -193,6 +247,9 @@ class IPoEServerMapper(BaseFeatureMapper):
 
     def get_auth_mac_rate_limit_upload_delete(self, iface: str, mac: str) -> List[str]:
         return BASE + ["authentication", "interface", iface, "mac", mac, "rate-limit", "upload"]
+
+    def get_auth_mac_rate_limit_delete(self, iface: str, mac: str) -> List[str]:
+        return BASE + ["authentication", "interface", iface, "mac", mac, "rate-limit"]
 
     # ========================================================================
     # Authentication - RADIUS servers
@@ -308,6 +365,9 @@ class IPoEServerMapper(BaseFeatureMapper):
 
     def get_radius_dynamic_author_key_delete(self) -> List[str]:
         return BASE + ["authentication", "radius", "dynamic-author", "key"]
+
+    def get_radius_dynamic_author_delete(self) -> List[str]:
+        return BASE + ["authentication", "radius", "dynamic-author"]
 
     def get_radius_rate_limit_enable(self) -> List[str]:
         return BASE + ["authentication", "radius", "rate-limit", "enable"]
@@ -431,9 +491,6 @@ class IPoEServerMapper(BaseFeatureMapper):
 
     def get_interface_vlan_all_delete(self, iface: str) -> List[str]:
         return BASE + ["interface", iface, "vlan"]
-
-    def get_interface_vlan_mon(self, iface: str) -> List[str]:
-        return BASE + ["interface", iface, "vlan-mon"]
 
     def get_interface_lua_username(self, iface: str, func: str) -> List[str]:
         return BASE + ["interface", iface, "lua-username", func]

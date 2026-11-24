@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Settings, X } from "lucide-react";
-import { ipoeServerService, IPoEConfigResponse } from "@/lib/api/ipoe-server";
+import { ipoeServerService, IPoECapabilities, IPoEConfigResponse } from "@/lib/api/ipoe-server";
 import { ApiError } from "@/lib/types/api";
 
 interface GeneralSettingsModalProps {
@@ -23,9 +24,10 @@ interface GeneralSettingsModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   config: IPoEConfigResponse;
+  capabilities: IPoECapabilities | null;
 }
 
-export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: GeneralSettingsModalProps) {
+export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, capabilities }: GeneralSettingsModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
   const [description, setDescription] = useState("");
@@ -38,9 +40,14 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
   const [maxSessions, setMaxSessions] = useState("");
   const [threadCount, setThreadCount] = useState("");
   const [luaFile, setLuaFile] = useState("");
+  const [idleTimeout, setIdleTimeout] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const idleTimeoutSupported = capabilities?.features.idle_timeout ?? false;
+  const poolNames = config.client_ip_pools.map((pool) => pool.name);
+  const ipv6PoolNames = config.client_ipv6_pools.map((pool) => pool.name);
 
   useEffect(() => {
     if (open) {
@@ -54,9 +61,14 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
       setMaxSessions(config.max_concurrent_sessions || "");
       setThreadCount(config.thread_count || "");
       setLuaFile(config.lua_file || "");
+      setIdleTimeout(config.idle_timeout || "");
       setError(null);
     }
   }, [open, config]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
 
   const addGateway = () => {
     const val = gatewayInput.trim();
@@ -87,7 +99,8 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         max_concurrent_sessions: maxSessions,
         thread_count: threadCount,
         lua_file: luaFile,
-      });
+        idle_timeout: idleTimeout,
+      }, idleTimeoutSupported);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -102,7 +115,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -121,11 +134,11 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("generalModal.defaultPool")}</Label>
-              <Input value={defaultPool} onChange={(e) => setDefaultPool(e.target.value)} placeholder="pool1" />
+              <NamedListSelect value={defaultPool} names={poolNames} onValueChange={setDefaultPool} />
             </div>
             <div className="space-y-2">
               <Label>{t("generalModal.defaultIpv6Pool")}</Label>
-              <Input value={defaultIpv6Pool} onChange={(e) => setDefaultIpv6Pool(e.target.value)} placeholder="ipv6-pool1" />
+              <NamedListSelect value={defaultIpv6Pool} names={ipv6PoolNames} onValueChange={setDefaultIpv6Pool} />
             </div>
           </div>
 
@@ -135,7 +148,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
               <Input
                 value={gatewayInput}
                 onChange={(e) => setGatewayInput(e.target.value)}
-                placeholder="10.0.0.1"
+                placeholder="10.0.0.1/24"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGateway(); } }}
                 className="flex-1"
               />
@@ -145,7 +158,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
               {gatewayAddresses.map((addr) => (
                 <Badge key={addr} variant="secondary" className="gap-1 font-mono text-xs">
                   {addr}
-                  <button onClick={() => setGatewayAddresses(gatewayAddresses.filter((a) => a !== addr))}>
+                  <button type="button" onClick={() => setGatewayAddresses(gatewayAddresses.filter((a) => a !== addr))}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -169,7 +182,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
               {nameServers.map((ns) => (
                 <Badge key={ns} variant="secondary" className="gap-1 font-mono text-xs">
                   {ns}
-                  <button onClick={() => setNameServers(nameServers.filter((n) => n !== ns))}>
+                  <button type="button" onClick={() => setNameServers(nameServers.filter((n) => n !== ns))}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -188,9 +201,17 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t("generalModal.luaFile")}</Label>
-            <Input value={luaFile} onChange={(e) => setLuaFile(e.target.value)} placeholder="/config/scripts/ipoe.lua" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>{t("generalModal.luaFile")}</Label>
+              <Input value={luaFile} onChange={(e) => setLuaFile(e.target.value)} placeholder="/config/scripts/ipoe.lua" />
+            </div>
+            {idleTimeoutSupported && (
+              <div className="space-y-2">
+                <Label>{t("generalModal.idleTimeout")}</Label>
+                <Input value={idleTimeout} onChange={(e) => setIdleTimeout(e.target.value)} placeholder="0-86400" />
+              </div>
+            )}
           </div>
         </div>
 

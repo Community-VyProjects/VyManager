@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Server } from "lucide-react";
 import { ipoeServerService, IPoERadiusServer } from "@/lib/api/ipoe-server";
+import { radiusServerProblem, type IPoERadiusServerDraft } from "@/lib/api/ipoe-server-save-ops";
 import { ApiError } from "@/lib/types/api";
 
 interface RadiusServerModalProps {
@@ -23,14 +24,17 @@ interface RadiusServerModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingServer: IPoERadiusServer | null;
+  /** Server addresses already configured; Add rejects them. */
+  configuredServers: string[];
 }
 
-export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServer }: RadiusServerModalProps) {
+export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServer, configuredServers }: RadiusServerModalProps) {
   const t = useTranslations("ipoeServer");
   const tc = useTranslations("common");
   const isEdit = !!existingServer;
 
   const [address, setAddress] = useState("");
+  // Blank keeps the stored key; the loaded mask is never put in the field.
   const [key, setKey] = useState("");
   const [port, setPort] = useState("");
   const [acctPort, setAcctPort] = useState("");
@@ -45,51 +49,45 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
 
   useEffect(() => {
     if (open) {
-      if (existingServer) {
-        setAddress(existingServer.address);
-        setKey("");
-        setPort(existingServer.port || "");
-        setAcctPort(existingServer.acct_port || "");
-        setPriority(existingServer.priority || "");
-        setFailTime(existingServer.fail_time || "");
-        setDisabled(existingServer.disabled || false);
-        setBackup(existingServer.backup || false);
-        setDisableAccounting(existingServer.disable_accounting || false);
-      } else {
-        setAddress("");
-        setKey("");
-        setPort("");
-        setAcctPort("");
-        setPriority("");
-        setFailTime("");
-        setDisabled(false);
-        setBackup(false);
-        setDisableAccounting(false);
-      }
+      setAddress(existingServer?.address || "");
+      setKey("");
+      setPort(existingServer?.port || "");
+      setAcctPort(existingServer?.acct_port || "");
+      setPriority(existingServer?.priority || "");
+      setFailTime(existingServer?.fail_time || "");
+      setDisabled(existingServer?.disabled || false);
+      setBackup(existingServer?.backup || false);
+      setDisableAccounting(existingServer?.disable_accounting || false);
       setError(null);
     }
   }, [open, existingServer]);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
+
   const handleSubmit = async () => {
-    if (!address.trim()) { setError(t("radiusServerModal.addressRequired")); return; }
+    const draft: IPoERadiusServerDraft = {
+      address,
+      key,
+      port,
+      acct_port: acctPort,
+      priority,
+      fail_time: failTime,
+      disabled,
+      backup,
+      disable_accounting: disableAccounting,
+    };
+    const problem = radiusServerProblem(existingServer, draft, configuredServers);
+    if (problem) {
+      setError(t(`radiusServerModal.${problem}`));
+      return;
+    }
 
     setLoading(true);
     setError(null);
-
     try {
-      if (isEdit) await ipoeServerService.deleteRadiusServer(existingServer!.address);
-
-      const result = await ipoeServerService.createRadiusServer(address.trim(), {
-        key: key || undefined,
-        port: port || undefined,
-        acct_port: acctPort || undefined,
-        priority: priority || undefined,
-        fail_time: failTime || undefined,
-        disabled,
-        backup,
-        disable_accounting: disableAccounting,
-      });
-
+      const result = await ipoeServerService.saveRadiusServer(existingServer, draft);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
@@ -104,7 +102,7 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -121,7 +119,13 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
           </div>
           <div className="space-y-2">
             <Label>{t("radiusServerModal.sharedKey")}</Label>
-            <Input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={isEdit ? t("leaveBlankToKeep") : t("radiusServerModal.enterSharedKey")} />
+            <Input
+              type="password"
+              autoComplete="new-password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder={existingServer?.key ? t("leaveBlankToKeep") : t("radiusServerModal.enterSharedKey")}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -136,11 +140,11 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("radiusServerModal.priority")}</Label>
-              <Input value={priority} onChange={(e) => setPriority(e.target.value)} placeholder="1" />
+              <Input value={priority} onChange={(e) => setPriority(e.target.value)} placeholder="1-255" />
             </div>
             <div className="space-y-2">
               <Label>{t("radiusServerModal.failTime")}</Label>
-              <Input value={failTime} onChange={(e) => setFailTime(e.target.value)} placeholder="60" />
+              <Input value={failTime} onChange={(e) => setFailTime(e.target.value)} placeholder="0-600" />
             </div>
           </div>
           <div className="space-y-2">

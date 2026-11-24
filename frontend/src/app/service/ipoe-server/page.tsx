@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { ipoeServerService, type IPoEConfigResponse, type IPoECapabilities, type IPoEInterface, type IPoEAuthMac, type IPoERadiusServer, type IPoEClientIPPool, type IPoEClientIPv6Pool } from "@/lib/api/ipoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import type { ApiError } from "@/lib/types/api";
 import {
   DeleteConfirmModal,
   GeneralSettingsModal,
@@ -112,7 +113,7 @@ function IPoEPageInner() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadIpoeConfig"));
+      setError((err as ApiError).message || t("errors.loadIpoeConfig"));
     } finally {
       setLoading(false);
     }
@@ -140,9 +141,10 @@ function IPoEPageInner() {
 
   const onSuccess = () => fetchConfig(true);
 
-  const selectedAuthIfaceData = config?.authentication.interfaces?.find(
-    (ai) => ai.interface === selectedAuthIface
-  );
+  // An unset mode is the lab default, local.
+  const authMode = config?.authentication.mode || "local";
+  const authInterfaces = config?.authentication.interfaces ?? [];
+  const selectedAuthIfaceData = authInterfaces.find((ai) => ai.interface === selectedAuthIface);
 
   if (loading && !config) {
     return (
@@ -311,6 +313,9 @@ function IPoEPageInner() {
                         <InfoRow label={t("overview.maxSessions")} value={config?.max_concurrent_sessions} />
                         <InfoRow label={t("overview.threads")} value={config?.thread_count} />
                         <InfoRow label={t("overview.luaFile")} value={config?.lua_file} />
+                        {capabilities?.features.idle_timeout && (
+                          <InfoRow label={t("overview.idleTimeout")} value={config?.idle_timeout} />
+                        )}
                       </div>
                     </Card>
 
@@ -326,7 +331,7 @@ function IPoEPageInner() {
                       <div className="flex items-center gap-2 mt-2">
                         <Key className="h-4 w-4 text-muted-foreground" />
                         <Badge variant="outline" className="text-sm">
-                          {config?.authentication.mode || tc("notSet")}
+                          {config?.authentication.mode || tc("default")}
                         </Badge>
                       </div>
                     </Card>
@@ -406,13 +411,13 @@ function IPoEPageInner() {
 
                 {/* Local Auth Tab */}
                 <TabsContent value="local-auth" className="mt-0">
-                  {config?.authentication.mode !== "local" ? (
+                  {authMode !== "local" ? (
                     <Card className="p-6 text-center">
                       <Shield className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
                       <p className="font-medium">{t("localAuth.inactive")}</p>
                       <p className="text-sm text-muted-foreground mt-1">
                         {t("localAuth.inactiveHelp")}{" "}
-                        {t("localAuth.currentMode")} <Badge variant="outline">{config?.authentication.mode || t("localAuth.notSet")}</Badge>
+                        {t("localAuth.currentMode")} <Badge variant="outline">{authMode}</Badge>
                       </p>
                     </Card>
                   ) : (
@@ -420,17 +425,31 @@ function IPoEPageInner() {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <h3 className="font-semibold">{t("localAuth.title")}</h3>
-                          {(config.authentication.interfaces?.length ?? 0) > 0 && (
+                          {authInterfaces.length > 0 && (
                             <Select value={selectedAuthIface} onValueChange={setSelectedAuthIface}>
                               <SelectTrigger className="w-36 h-8 text-sm">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {(config.authentication.interfaces ?? []).map((ai) => (
+                                {authInterfaces.map((ai) => (
                                   <SelectItem key={ai.interface} value={ai.interface}>{ai.interface}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                          )}
+                          {hasWrite && selectedAuthIfaceData && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteTarget({
+                                type: t("deleteTypes.authInterface"),
+                                name: selectedAuthIfaceData.interface,
+                                onDelete: () => ipoeServerService.deleteAuthInterface(selectedAuthIfaceData.interface),
+                              })}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" /> {tc("delete")}
+                            </Button>
                           )}
                         </div>
                         {hasWrite && (
@@ -440,7 +459,7 @@ function IPoEPageInner() {
                         )}
                       </div>
 
-                      {(config.authentication.interfaces?.length ?? 0) === 0 ? (
+                      {authInterfaces.length === 0 ? (
                         <EmptyState icon={Shield} label={t("localAuth.noInterfaces")} />
                       ) : !selectedAuthIfaceData || selectedAuthIfaceData.macs.length === 0 ? (
                         <EmptyState icon={Shield} label={t("localAuth.noMacs")} />
@@ -740,13 +759,11 @@ function IPoEPageInner() {
                     </div>
                     <div className="space-y-2 text-sm">
                       <InfoRow label={t("advanced.logLevel")} value={config?.log?.level} />
+                      <YesNoRow label={t("advanced.shaper")} value={config?.shaper?.enabled} yes={t("yes")} no={t("no")} />
                       <InfoRow label={t("advanced.shaperFwmark")} value={config?.shaper?.fwmark} />
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t("advanced.snmpMasterAgent")}</span>
-                        <Badge variant={config?.snmp?.master_agent ? "default" : "secondary"}>
-                          {config?.snmp?.master_agent ? t("yes") : t("no")}
-                        </Badge>
-                      </div>
+                      <YesNoRow label={t("advanced.snmp")} value={config?.snmp?.enabled} yes={t("yes")} no={t("no")} />
+                      <YesNoRow label={t("advanced.snmpMasterAgent")} value={config?.snmp?.master_agent} yes={t("yes")} no={t("no")} />
+                      <YesNoRow label={t("advanced.limits")} value={config?.limits?.enabled} yes={t("yes")} no={t("no")} />
                       <InfoRow label={t("advanced.limitsBurst")} value={config?.limits?.burst} />
                       <InfoRow label={t("advanced.connLimit")} value={config?.limits?.connection_limit} />
                       <InfoRow label={t("advanced.limitsTimeout")} value={config?.limits?.timeout} />
@@ -772,12 +789,14 @@ function IPoEPageInner() {
             onOpenChange={setShowGeneralModal}
             onSuccess={onSuccess}
             config={config}
+            capabilities={capabilities}
           />
           <AuthSettingsModal
             open={showAuthModal}
             onOpenChange={setShowAuthModal}
             onSuccess={onSuccess}
             currentMode={config.authentication.mode}
+            capabilities={capabilities}
           />
           <RadiusSettingsModal
             open={showRadiusSettingsModal}
@@ -790,6 +809,7 @@ function IPoEPageInner() {
             onOpenChange={setShowAdvancedModal}
             onSuccess={onSuccess}
             config={config}
+            capabilities={capabilities}
           />
         </>
       )}
@@ -800,6 +820,7 @@ function IPoEPageInner() {
         onSuccess={onSuccess}
         existingInterface={editingInterface}
         capabilities={capabilities}
+        configuredInterfaces={(config?.interfaces ?? []).map((iface) => iface.interface)}
       />
       <AuthMacModal
         open={showMacModal}
@@ -807,25 +828,28 @@ function IPoEPageInner() {
         onSuccess={onSuccess}
         existingMac={editingMac}
         preselectedInterface={selectedAuthIface}
-        authInterfaces={config?.authentication.interfaces ?? []}
+        authInterfaces={authInterfaces}
       />
       <RadiusServerModal
         open={showRadiusServerModal}
         onOpenChange={(open) => { setShowRadiusServerModal(open); if (!open) setEditingRadiusServer(null); }}
         onSuccess={onSuccess}
         existingServer={editingRadiusServer}
+        configuredServers={(config?.authentication.radius?.servers ?? []).map((srv) => srv.address)}
       />
       <IPPoolModal
         open={showIPPoolModal}
         onOpenChange={(open) => { setShowIPPoolModal(open); if (!open) setEditingIPPool(null); }}
         onSuccess={onSuccess}
         existingPool={editingIPPool}
+        poolNames={(config?.client_ip_pools ?? []).map((pool) => pool.name)}
       />
       <IPv6PoolModal
         open={showIPv6PoolModal}
         onOpenChange={(open) => { setShowIPv6PoolModal(open); if (!open) setEditingIPv6Pool(null); }}
         onSuccess={onSuccess}
         existingPool={editingIPv6Pool}
+        poolNames={(config?.client_ipv6_pools ?? []).map((pool) => pool.name)}
       />
       {deleteTarget && (
         <DeleteConfirmModal
@@ -847,6 +871,15 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
       <span>{value || "-"}</span>
+    </div>
+  );
+}
+
+function YesNoRow({ label, value, yes, no }: { label: string; value?: boolean; yes: string; no: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <Badge variant={value ? "default" : "secondary"}>{value ? yes : no}</Badge>
     </div>
   );
 }

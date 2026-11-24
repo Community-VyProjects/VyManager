@@ -1,8 +1,10 @@
 """Golden (method, args, op, expected_path) cases for IPoEServerBatchBuilder.
 
-Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
-Generated for issue #720; edit the tables directly if the mapper changes.
+Paths checked against the 1.4 and 1.5 lab templates. idle-timeout and
+vlan-mon exist only on 1.5.
 """
+
+import inspect
 
 import pytest
 
@@ -85,12 +87,22 @@ COMMON_CASES = [
     ('delete_shaper', ('G0',), 'delete', ['service', 'ipoe-server', 'shaper']),
     ('delete_shaper_fwmark', ('G0',), 'delete', ['service', 'ipoe-server', 'shaper', 'fwmark']),
     ('delete_snmp', ('G0',), 'delete', ['service', 'ipoe-server', 'snmp']),
+    ('delete_snmp_master_agent', ('G0',), 'delete', ['service', 'ipoe-server', 'snmp', 'master-agent']),
+    ('delete_radius_rate_limit_enable', ('G0',), 'delete', ['service', 'ipoe-server', 'authentication', 'radius', 'rate-limit', 'enable']),
+    ('delete_radius_dynamic_author', ('G0',), 'delete', ['service', 'ipoe-server', 'authentication', 'radius', 'dynamic-author']),
+    ('delete_auth_mac_rate_limit', ('eth0', '00:11:22:33:44:55'), 'delete', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'rate-limit']),
+    ('set_shaper', ('G0',), 'set', ['service', 'ipoe-server', 'shaper']),
+    ('set_limits', ('G0',), 'set', ['service', 'ipoe-server', 'limits']),
+    ('set_snmp', ('G0',), 'set', ['service', 'ipoe-server', 'snmp']),
+    ('create_interface', ('eth0',), 'set', ['service', 'ipoe-server', 'interface', 'eth0']),
+    ('create_pool', ('G0',), 'set', ['service', 'ipoe-server', 'client-ip-pool', 'G0']),
+    ('create_ipv6_pool', ('G0',), 'set', ['service', 'ipoe-server', 'client-ipv6-pool', 'G0']),
     ('delete_thread_count', ('G0',), 'delete', ['service', 'ipoe-server', 'thread-count']),
     ('set_auth_interface_mac', ('eth0', '00:11:22:33:44:55'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55']),
-    ('set_auth_mac_ip_address', ('eth0', '00:11:22:33:44:55|192.0.2.10'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'ip-address', '192.0.2.10']),
-    ('set_auth_mac_rate_limit_download', ('eth0', '00:11:22:33:44:55|5'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'rate-limit', 'download', '5']),
-    ('set_auth_mac_rate_limit_upload', ('eth0', '00:11:22:33:44:55|5'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'rate-limit', 'upload', '5']),
-    ('set_auth_mac_vlan', ('eth0', '00:11:22:33:44:55|10'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'vlan', '10']),
+    ('set_auth_mac_ip_address', ('eth0', '00:11:22:33:44:55', '192.0.2.10'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'ip-address', '192.0.2.10']),
+    ('set_auth_mac_rate_limit_download', ('eth0', '00:11:22:33:44:55', '5'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'rate-limit', 'download', '5']),
+    ('set_auth_mac_rate_limit_upload', ('eth0', '00:11:22:33:44:55', '5'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'rate-limit', 'upload', '5']),
+    ('set_auth_mac_vlan', ('eth0', '00:11:22:33:44:55', '10'), 'set', ['service', 'ipoe-server', 'authentication', 'interface', 'eth0', 'mac', '00:11:22:33:44:55', 'vlan', '10']),
     ('set_auth_mode', ('G0', 'nat'), 'set', ['service', 'ipoe-server', 'authentication', 'mode', 'nat']),
     ('set_default_ipv6_pool', ('G0', 'G0'), 'set', ['service', 'ipoe-server', 'default-ipv6-pool', 'G0']),
     ('set_default_pool', ('G0', 'G0'), 'set', ['service', 'ipoe-server', 'default-pool', 'G0']),
@@ -104,8 +116,8 @@ COMMON_CASES = [
     ('set_interface_network', ('eth0', '10.0.0.0/8'), 'set', ['service', 'ipoe-server', 'interface', 'eth0', 'network', '10.0.0.0/8']),
     ('set_interface_start_session', ('eth0', '5'), 'set', ['service', 'ipoe-server', 'interface', 'eth0', 'start-session', '5']),
     ('set_interface_vlan', ('eth0', '10'), 'set', ['service', 'ipoe-server', 'interface', 'eth0', 'vlan', '10']),
-    ('set_ipv6_pool_delegate', ('G0', '2001:db8::/32|64'), 'set', ['service', 'ipoe-server', 'client-ipv6-pool', 'G0', 'delegate', '2001:db8::/32', 'delegation-prefix', '64']),
-    ('set_ipv6_pool_prefix', ('G0', '2001:db8::/32|64'), 'set', ['service', 'ipoe-server', 'client-ipv6-pool', 'G0', 'prefix', '2001:db8::/32', 'mask', '64']),
+    ('set_ipv6_pool_delegate', ('G0', '2001:db8::/32', '64'), 'set', ['service', 'ipoe-server', 'client-ipv6-pool', 'G0', 'delegate', '2001:db8::/32', 'delegation-prefix', '64']),
+    ('set_ipv6_pool_prefix', ('G0', '2001:db8::/32', '64'), 'set', ['service', 'ipoe-server', 'client-ipv6-pool', 'G0', 'prefix', '2001:db8::/32', 'mask', '64']),
     ('set_limits_burst', ('G0', '5'), 'set', ['service', 'ipoe-server', 'limits', 'burst', '5']),
     ('set_limits_connection_limit', ('G0', '5'), 'set', ['service', 'ipoe-server', 'limits', 'connection-limit', '5']),
     ('set_limits_timeout', ('G0', '5'), 'set', ['service', 'ipoe-server', 'limits', 'timeout', '5']),
@@ -156,11 +168,57 @@ def test_ipoe_server_common_paths(method, args, op, expected_path, version):
     _run(version, method, args, op, expected_path)
 
 V15_ONLY_CASES = [
+    ('delete_idle_timeout', ('G0',), 'delete', ['service', 'ipoe-server', 'idle-timeout']),
     ('delete_interface_vlan_mon', ('eth0',), 'delete', ['service', 'ipoe-server', 'interface', 'eth0', 'vlan-mon']),
+    ('set_idle_timeout', ('G0', '300'), 'set', ['service', 'ipoe-server', 'idle-timeout', '300']),
     ('set_interface_vlan_mon', ('eth0',), 'set', ['service', 'ipoe-server', 'interface', 'eth0', 'vlan-mon']),
 ]
 
 
 @pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
-def test_ipoe_server_v1_5_only_paths(method, args, op, expected_path):
-    _run("1.5", method, args, op, expected_path)
+@pytest.mark.parametrize("version", ["1.5", "2026.09.23-0027-rolling"])
+def test_ipoe_server_v1_5_only_paths(method, args, op, expected_path, version):
+    _run(version, method, args, op, expected_path)
+
+
+@pytest.mark.parametrize("method, args, _op, _expected_path", V15_ONLY_CASES)
+def test_ipoe_server_v1_5_only_ops_raise_on_1_4(method, args, _op, _expected_path):
+    builder = IPoEServerBatchBuilder(version="1.4.3")
+    with pytest.raises(ValueError, match="is not supported on this device"):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []
+
+
+def test_every_builder_op_has_a_golden_row():
+    names = {
+        name
+        for name, _ in inspect.getmembers(IPoEServerBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    covered = {row[0] for row in COMMON_CASES + V15_ONLY_CASES}
+    assert names - covered == set()
+    assert covered - names == set()
+
+
+def test_1_4_mapper_has_no_1_5_paths():
+    from vyos_mappers.ipoe_server.ipoe_server import IPoEServerMapper
+    from vyos_mappers.ipoe_server.ipoe_server_versions import (
+        IPoEServerMapperV1_5,
+        get_ipoe_server_mapper,
+    )
+
+    assert type(get_ipoe_server_mapper("1.4.3")) is IPoEServerMapper
+    assert type(get_ipoe_server_mapper("2026.09.23-0027-rolling")) is IPoEServerMapperV1_5
+    assert IPoEServerMapper("1.4").versioned_nodes() == frozenset()
+    assert IPoEServerMapperV1_5("1.5").versioned_nodes() == {"idle_timeout", "vlan_mon"}
+    for method in ("get_idle_timeout", "get_idle_timeout_delete", "get_interface_vlan_mon"):
+        assert not hasattr(IPoEServerMapper, method)
+
+
+def test_versions_package_has_no_1_4_file():
+    from pathlib import Path
+
+    from vyos_mappers.ipoe_server.ipoe_server_versions import get_ipoe_server_mapper
+
+    files = {p.name for p in Path(inspect.getfile(get_ipoe_server_mapper)).parent.glob("*.py")}
+    assert files == {"__init__.py", "v1_5.py"}
