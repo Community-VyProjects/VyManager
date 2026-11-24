@@ -197,7 +197,7 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
               autoComplete="new-password"
               value={daeKey}
               onChange={(e) => setDaeKey(e.target.value)}
-              placeholder={currentSettings.dynamic_author?.key ? t("leaveBlankToKeep") : t("radiusSettingsModal.daeKeyEnter")}
+              placeholder={currentSettings.dynamic_author?.key && daeServer.trim() ? t("leaveBlankToKeep") : t("radiusSettingsModal.daeKeyEnter")}
             />
           </div>
 
