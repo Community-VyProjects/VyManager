@@ -42,7 +42,7 @@ class VrrpAuthentication(BaseModel):
     password: Optional[str] = None  # "***" when stored; never the secret
 
 
-class HealthCheck(BaseModel):
+class VrrpHealthCheck(BaseModel):
     failure_count: Optional[str] = None
     interval: Optional[str] = None
     ping: Optional[str] = None
@@ -50,14 +50,14 @@ class HealthCheck(BaseModel):
     timeout: Optional[str] = None
 
 
-class TransitionScript(BaseModel):
+class VrrpTransitionScript(BaseModel):
     backup: Optional[str] = None
     fault: Optional[str] = None
     master: Optional[str] = None
     stop: Optional[str] = None
 
 
-class Garp(BaseModel):
+class VrrpGarp(BaseModel):
     interval: Optional[str] = None
     master_delay: Optional[str] = None
     master_refresh: Optional[str] = None
@@ -86,23 +86,23 @@ class VrrpGroup(BaseModel):
     rfc3768_compatibility: bool
     disabled: bool
     description: Optional[str] = None
-    garp: Garp
-    health_check: HealthCheck
+    garp: VrrpGarp
+    health_check: VrrpHealthCheck
     track: VrrpTrack
-    transition_script: TransitionScript
+    transition_script: VrrpTransitionScript
 
 
 class VrrpSyncGroup(BaseModel):
     name: str
     members: List[str]
-    health_check: HealthCheck
-    transition_script: TransitionScript
+    health_check: VrrpHealthCheck
+    transition_script: VrrpTransitionScript
 
 
 class VrrpGlobalParameters(BaseModel):
     startup_delay: Optional[str] = None
     version: Optional[str] = None
-    garp: Garp
+    garp: VrrpGarp
 
 
 class VrrpConfig(BaseModel):
@@ -113,14 +113,14 @@ class VrrpConfig(BaseModel):
     sync_groups: List[VrrpSyncGroup]
 
 
-class RealServer(BaseModel):
+class HARealServer(BaseModel):
     address: str
     port: Optional[str] = None
     connection_timeout: Optional[str] = None
     health_check_script: Optional[str] = None
 
 
-class VirtualServer(BaseModel):
+class HAVirtualServer(BaseModel):
     name: str
     address: Optional[str] = None
     algorithm: Optional[str] = None
@@ -130,13 +130,13 @@ class VirtualServer(BaseModel):
     persistence_timeout: Optional[str] = None
     port: Optional[str] = None
     protocol: Optional[str] = None
-    real_servers: List[RealServer]
+    real_servers: List[HARealServer]
 
 
 class HAConfig(BaseModel):
     disabled: bool
     vrrp: VrrpConfig
-    virtual_servers: List[VirtualServer]
+    virtual_servers: List[HAVirtualServer]
 
 
 @router.get("/capabilities")
