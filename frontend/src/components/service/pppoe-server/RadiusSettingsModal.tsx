@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
-import { CapabilitySelect } from "./CapabilitySelect";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { pppoeServerService, PPPoECapabilities, PPPoERadiusSettings } from "@/lib/api/pppoe-server";
 import {
   PPPOE_RANGES,
@@ -90,7 +90,14 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
     }
   };
 
-  const numberField = (id: string, label: string, field: TextField, range: NumberRange, step?: number) => (
+  const numberField = (
+    id: string,
+    label: string,
+    field: TextField,
+    range: NumberRange,
+    step?: number,
+    disabled = false,
+  ) => (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
@@ -102,9 +109,13 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
         value={draft[field]}
         onChange={(e) => update({ [field]: e.target.value })}
         placeholder={`${range.min}-${range.max}`}
+        disabled={disabled}
       />
     </div>
   );
+
+  // The DAE port and key only serve a DAE server; without one the save deletes them.
+  const daeOff = !draft.dae_server.trim();
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -176,11 +187,12 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
           <h4 className="text-sm font-medium">{t("radiusSettings.calledStation")}</h4>
           <div className="space-y-2">
             <Label htmlFor="pppoe-radius-called-sid">{t("radiusSettings.calledSidFormat")}</Label>
-            <CapabilitySelect
+            <NamedListSelect
               id="pppoe-radius-called-sid"
               value={draft.called_sid_format}
-              values={capabilities?.values.called_sid_formats || []}
-              onChange={(called_sid_format) => update({ called_sid_format })}
+              names={capabilities?.values.called_sid_formats || []}
+              onValueChange={(called_sid_format) => update({ called_sid_format })}
+              noneLabel={tc("default")}
             />
           </div>
 
@@ -196,7 +208,7 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
                 placeholder="10.0.0.100"
               />
             </div>
-            {numberField("pppoe-dae-port", t("radiusSettings.daePort"), "dae_port", PPPOE_RANGES.port)}
+            {numberField("pppoe-dae-port", t("radiusSettings.daePort"), "dae_port", PPPOE_RANGES.port, undefined, daeOff)}
           </div>
           <div className="space-y-2">
             <Label htmlFor="pppoe-dae-key">{t("radiusSettings.daeKey")}</Label>
@@ -207,6 +219,7 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
               value={draft.dae_key}
               onChange={(e) => update({ dae_key: e.target.value })}
               placeholder={t("radiusSettings.daeKeyEnter")}
+              disabled={daeOff}
             />
           </div>
 
@@ -232,7 +245,6 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
                 id="pppoe-rate-vendor"
                 value={draft.rate_limit_vendor}
                 onChange={(e) => update({ rate_limit_vendor: e.target.value })}
-                placeholder={t("radiusSettings.vendor")}
               />
             </div>
             {numberField("pppoe-rate-multiplier", t("radiusSettings.multiplier"), "rate_limit_multiplier",

@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
-import { CapabilitySelect } from "./CapabilitySelect";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { pppoeServerService, PPPoECapabilities, PPPoEPppOptions } from "@/lib/api/pppoe-server";
 import {
   CALLING_SID,
@@ -108,20 +108,22 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, current, capabi
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pppoe-ppp-ipv4">IPv4</Label>
-              <CapabilitySelect
+              <NamedListSelect
                 id="pppoe-ppp-ipv4"
                 value={draft.ipv4}
-                values={values?.ppp_negotiation_modes || []}
-                onChange={(ipv4) => update({ ipv4 })}
+                names={values?.ppp_negotiation_modes || []}
+                onValueChange={(ipv4) => update({ ipv4 })}
+                noneLabel={tc("default")}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pppoe-ppp-ipv6">IPv6</Label>
-              <CapabilitySelect
+              <NamedListSelect
                 id="pppoe-ppp-ipv6"
                 value={draft.ipv6}
-                values={values?.ppp_negotiation_modes || []}
-                onChange={(ipv6) => update({ ipv6 })}
+                names={values?.ppp_negotiation_modes || []}
+                onValueChange={(ipv6) => update({ ipv6 })}
+                noneLabel={tc("default")}
               />
             </div>
           </div>
@@ -130,12 +132,13 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, current, capabi
           <h4 className="text-sm font-medium">{t("pppOptions.encryption")}</h4>
           <div className="space-y-2">
             <Label htmlFor="pppoe-ppp-mppe">MPPE</Label>
-            <CapabilitySelect
+            <NamedListSelect
               id="pppoe-ppp-mppe"
               value={draft.mppe}
-              values={values?.mppe_modes || []}
+              names={values?.mppe_modes || []}
               labels={mppeLabels}
-              onChange={(mppe) => update({ mppe })}
+              onValueChange={(mppe) => update({ mppe })}
+              noneLabel={tc("default")}
             />
           </div>
           <div className="flex items-center gap-2">

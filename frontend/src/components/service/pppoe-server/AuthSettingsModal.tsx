@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Key, Loader2 } from "lucide-react";
-import { CapabilitySelect } from "./CapabilitySelect";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { pppoeServerService, PPPoEAuthentication, PPPoECapabilities } from "@/lib/api/pppoe-server";
 import { authProblem, type PPPoEAuthDraft } from "@/lib/api/pppoe-server-save-ops";
 import type { ApiError } from "@/lib/types/api";
@@ -92,12 +92,13 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="pppoe-auth-mode">{t("auth.mode")}</Label>
-            <CapabilitySelect
+            <NamedListSelect
               id="pppoe-auth-mode"
               value={draft.mode}
-              values={capabilities?.values.auth_modes || []}
+              names={capabilities?.values.auth_modes || []}
               labels={modeLabels}
-              onChange={(mode) => setDraft((current) => ({ ...current, mode }))}
+              onValueChange={(mode) => setDraft((current) => ({ ...current, mode }))}
+              noneLabel={tc("default")}
             />
           </div>
 

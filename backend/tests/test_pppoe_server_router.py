@@ -279,6 +279,25 @@ def test_reset_uses_the_mapper_op_path(monkeypatch):
     assert [kind for kind, _ in checks] == ["write"]
 
 
+def test_reset_decodes_the_username_once(monkeypatch):
+    """The server already decoded the path once; the handler must not unquote again.
+
+    Starlette's TestClient decodes the path a second time itself, so this calls
+    the handler with the value uvicorn would pass (``bob%41`` for ``bob%2541``).
+    """
+    import asyncio
+
+    import routers.pppoe_server.pppoe_server as pppoe_mod
+
+    service = Service()
+    _app(monkeypatch, service)
+
+    response = asyncio.run(pppoe_mod.reset_pppoe_session(cast(Request, None), "bob%41"))
+
+    assert response.success is True
+    assert service.reset_paths == [["pppoe-server", "username", "bob%41"]]
+
+
 def test_reset_rejects_a_bad_username(monkeypatch):
     service = Service()
     client = _app(monkeypatch, service)

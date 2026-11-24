@@ -342,7 +342,7 @@ class PPPoEServerService {
 
   /**
    * Commit one batch; a rejected commit throws its error as an ApiError. A
-   * draft that changed nothing posts nothing (the router 500s on an empty batch).
+   * draft that changed nothing has nothing to send, so no POST is made.
    */
   async batchConfigure(itemName: string, operations: BatchOperation[]): Promise<VyOSResponse> {
     if (operations.length === 0) return { success: true };
@@ -350,8 +350,14 @@ class PPPoEServerService {
       item_name: itemName,
       operations,
     });
-    await this.refreshConfig();
     if (!result.success) throw { message: result.error || "" } as ApiError;
+    // The commit landed; a failed cache refresh must not report it as failed.
+    // The page reloads the config after every save anyway.
+    try {
+      await this.refreshConfig();
+    } catch {
+      // ignored on purpose
+    }
     return result;
   }
 

@@ -10,7 +10,9 @@
     "loadConfig": "加载配置失败",
     "loadPppoeConfig": "加载 PPPoE 配置失败",
     "loadSessions": "加载在线会话失败",
-    "saveLabels": "保存标签定义失败"
+    "saveLabels": "保存标签定义失败",
+    "loadLabels": "加载会话标签定义失败",
+    "labelRowIncomplete": "标签第 {row} 行需要同时填写代码和显示名称"
   },
   "deleteServer": {
     "button": "删除 PPPoE 服务器",

@@ -309,9 +309,13 @@ export interface PPPoEAuthDraft {
 
 export type PPPoEAuthProblem = "localModeNeedsUser" | "radiusModeNeedsServer";
 
-/** Lab verify: local mode needs a local user, radius mode a server. */
+/**
+ * Lab verify: local mode needs a local user, radius mode a server. An unset
+ * mode is the lab default, local, and fails verify the same way; any-login
+ * does not exempt it.
+ */
 export function authProblem(current: PPPoEAuthentication, draft: PPPoEAuthDraft): SaveIssue<PPPoEAuthProblem> | null {
-  const mode = text(draft.mode);
+  const mode = text(draft.mode) || "local";
   if (mode === "local" && current.local_users.length === 0) return issue("localModeNeedsUser");
   if (mode === "radius" && current.radius.servers.length === 0) return issue("radiusModeNeedsServer");
   return null;
@@ -478,7 +482,6 @@ export type PPPoERadiusSettingsProblem =
   | "daePortRange"
   | "daeKeyIsMask"
   | "daeKeyRequired"
-  | "daeServerRequired"
   | "multiplierRange";
 
 export function radiusSettingsProblem(
@@ -489,15 +492,17 @@ export function radiusSettingsProblem(
     ?? rangeIssue("maxTryRange", draft.max_try, PPPOE_RANGES.radiusMaxTry)
     ?? rangeIssue("interimIntervalRange", draft.accounting_interim_interval, PPPOE_RANGES.radiusAcctInterimInterval)
     ?? rangeIssue("interimJitterRange", draft.acct_interim_jitter, PPPOE_RANGES.radiusAcctInterimJitter)
-    ?? rangeIssue("acctTimeoutRange", draft.acct_timeout, PPPOE_RANGES.radiusAcctTimeout)
-    ?? rangeIssue("daePortRange", draft.dae_port, PPPOE_RANGES.port);
+    ?? rangeIssue("acctTimeoutRange", draft.acct_timeout, PPPOE_RANGES.radiusAcctTimeout);
   if (ranged) return ranged;
-  const storedKey = current.dynamic_author.key;
-  if (typedMask(storedKey, draft.dae_key)) return issue("daeKeyIsMask");
-  const keyAfter = !!secret(draft.dae_key);
-  // Lab verify: a DAE server needs a key; the key only serves that server.
-  if (text(draft.dae_server) && !keyAfter) return issue("daeKeyRequired");
-  if (!text(draft.dae_server) && keyAfter && draft.dae_key !== MASKED_SECRET) return issue("daeServerRequired");
+  // Without a server the port and key are deleted (see radiusSettingsOps), so
+  // only a DAE server's port and key are checked.
+  if (text(draft.dae_server)) {
+    const port = rangeIssue("daePortRange", draft.dae_port, PPPOE_RANGES.port);
+    if (port) return port;
+    if (typedMask(current.dynamic_author.key, draft.dae_key)) return issue("daeKeyIsMask");
+    // Lab verify: a DAE server needs a key.
+    if (!secret(draft.dae_key)) return issue("daeKeyRequired");
+  }
   const multiplier = text(draft.rate_limit_multiplier);
   if (multiplier && !decimalInRange(multiplier, PPPOE_RANGES.radiusRateLimitMultiplier)) {
     return issue("multiplierRange", { ...PPPOE_RANGES.radiusRateLimitMultiplier });
@@ -522,9 +527,17 @@ export function radiusSettingsOps(current: PPPoERadiusSettings, draft: PPPoERadi
     current.called_sid_format, draft.called_sid_format);
 
   const dae = current.dynamic_author;
-  leaf(ops, "set_radius_dynamic_author_server", "delete_radius_dynamic_author_server", dae.server, draft.dae_server);
-  leaf(ops, "set_radius_dynamic_author_port", "delete_radius_dynamic_author_port", dae.port, draft.dae_port);
-  optionalSecret(ops, "set_radius_dynamic_author_key", "delete_radius_dynamic_author_key", dae.key, draft.dae_key);
+  if (text(draft.dae_server)) {
+    leaf(ops, "set_radius_dynamic_author_server", "delete_radius_dynamic_author_server", dae.server, draft.dae_server);
+    leaf(ops, "set_radius_dynamic_author_port", "delete_radius_dynamic_author_port", dae.port, draft.dae_port);
+    optionalSecret(ops, "set_radius_dynamic_author_key", "delete_radius_dynamic_author_key", dae.key, draft.dae_key);
+  } else {
+    // Lab: deleting the server alone commits but leaves port and key behind,
+    // so a cleared server deletes whichever of the three is stored.
+    if (text(dae.server)) ops.push({ op: "delete_radius_dynamic_author_server" });
+    if (text(dae.port)) ops.push({ op: "delete_radius_dynamic_author_port" });
+    if (dae.key) ops.push({ op: "delete_radius_dynamic_author_key" });
+  }
 
   const rl = current.rate_limit;
   const rlBefore = rl.enable || !!text(rl.attribute) || !!text(rl.vendor) || !!text(rl.multiplier);
@@ -601,10 +614,12 @@ export type PPPoEIPv6PoolProblem =
   | "poolNameRequired"
   | "poolExists"
   | "prefixRequired"
+  | "prefixHasPipe"
   | "duplicatePrefix"
   | "maskRange"
   | "delegateWithoutPrefix"
   | "delegatePrefixRequired"
+  | "delegatePrefixHasPipe"
   | "delegationPrefixRequired"
   | "delegationPrefixRange"
   | "duplicateDelegate";
@@ -624,6 +639,9 @@ export function ipv6PoolProblem(
   if (!current && configured.includes(name)) return issue("poolExists", { name });
   const prefixes = draft.prefixes.filter((row) => filled(row.prefix, row.mask));
   if (prefixes.some((row) => !text(row.prefix))) return issue("prefixRequired");
+  // `|` separates the op's value parameters, so a prefix may not carry one.
+  const pipedPrefix = prefixes.find((row) => text(row.prefix).includes("|"));
+  if (pipedPrefix) return issue("prefixHasPipe", { prefix: text(pipedPrefix.prefix) });
   const duplicatePrefix = firstDuplicate(prefixes.map((row) => text(row.prefix)));
   if (duplicatePrefix) return issue("duplicatePrefix", { prefix: duplicatePrefix });
   for (const row of prefixes) {
@@ -634,6 +652,8 @@ export function ipv6PoolProblem(
   // Lab verify: a delegate needs at least one prefix in the same pool.
   if (delegates.length > 0 && prefixes.length === 0) return issue("delegateWithoutPrefix");
   if (delegates.some((row) => !text(row.prefix))) return issue("delegatePrefixRequired");
+  const pipedDelegate = delegates.find((row) => text(row.prefix).includes("|"));
+  if (pipedDelegate) return issue("delegatePrefixHasPipe", { prefix: text(pipedDelegate.prefix) });
   for (const row of delegates) {
     const prefix = text(row.prefix);
     if (!text(row.delegation_prefix)) return issue("delegationPrefixRequired", { prefix });

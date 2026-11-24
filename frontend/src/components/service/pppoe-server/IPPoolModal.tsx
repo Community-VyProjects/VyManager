@@ -13,9 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { NamedListSelect } from "@/components/ui/named-list-select";
-import { AlertCircle, Loader2, Network, X } from "lucide-react";
+import { AlertCircle, Loader2, Network } from "lucide-react";
+import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { pppoeServerService, PPPoEIPv4Pool } from "@/lib/api/pppoe-server";
 import { ipPoolProblem, type PPPoEIPPoolDraft } from "@/lib/api/pppoe-server-save-ops";
 import type { ApiError } from "@/lib/types/api";
@@ -39,17 +39,10 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool, poolN
     ranges: existingPool?.ranges || [],
     next_pool: existingPool?.next_pool || "",
   }));
-  const [rangeInput, setRangeInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const update = (patch: Partial<PPPoEIPPoolDraft>) => setDraft((current) => ({ ...current, ...patch }));
-
-  const addRange = () => {
-    const value = rangeInput.trim();
-    if (value && !draft.ranges.includes(value)) update({ ranges: [...draft.ranges, value] });
-    if (value) setRangeInput("");
-  };
 
   const handleOpenChange = (next: boolean) => {
     if (!loading) onOpenChange(next);
@@ -100,30 +93,12 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool, poolN
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="pppoe-pool-range">{t("ipPool.ranges")}</Label>
-            <div className="flex gap-2">
-              <Input
-                id="pppoe-pool-range"
-                value={rangeInput}
-                onChange={(e) => setRangeInput(e.target.value)}
-                placeholder={t("ipPool.rangePlaceholder")}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addRange(); } }}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addRange}>{tc("add")}</Button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {draft.ranges.map((range) => (
-                <Badge key={range} variant="secondary" className="gap-1 font-mono text-xs">
-                  {range}
-                  <button type="button" onClick={() => update({ ranges: draft.ranges.filter((r) => r !== range) })}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <MultiValueInput
+            label={t("ipPool.ranges")}
+            values={draft.ranges}
+            placeholder={t("ipPool.rangePlaceholder")}
+            onChange={(ranges) => update({ ranges })}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="pppoe-pool-next">{t("ipPool.nextPool")}</Label>

@@ -34,12 +34,6 @@ class PPPoEServerBatchBuilder(BatchBuilder):
         mapper.require_node(node)
         return getattr(mapper, method)(*args)
 
-    def clear(self) -> None:
-        self._operations = []
-
-    def operation_count(self) -> int:
-        return len(self._operations)
-
     def get_capabilities(self) -> Dict[str, Any]:
         """Feature flags and value lists, read from the mapper allowlist."""
         m = self._m()
@@ -202,7 +196,8 @@ class PPPoEServerBatchBuilder(BatchBuilder):
         return self.add_set(self._m().get_log_level(level))
 
     def delete_log_level(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self._m().get_log_level_delete())
+        """Delete ``log``: level is its only child, and a leaf delete leaves ``log {}``."""
+        return self.add_delete(self._m().get_log_delete())
 
     # ========================================================================
     # Shaper

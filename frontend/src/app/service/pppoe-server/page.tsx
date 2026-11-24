@@ -62,6 +62,7 @@ import {
   type PPPoEIPv6Pool,
   type PPPoESession,
   type PPPoESessionLabelDefinition,
+  type PPPoESessionsResponse,
   type VyOSResponse,
 } from "@/lib/api/pppoe-server";
 import type { ApiError } from "@/lib/types/api";
@@ -165,9 +166,37 @@ function PPPoEPageInner() {
   const [labelDraft, setLabelDraft] = useState<PPPoESessionLabelDefinition[]>([]);
   const [labelError, setLabelError] = useState<string | null>(null);
   const [labelSaving, setLabelSaving] = useState(false);
+  // The registry editor saves the whole catalog, so it opens only after a successful load.
+  const [labelsLoad, setLabelsLoad] = useState<{ state: "loading" | "loaded" | "failed"; error: string | null }>({
+    state: "loading",
+    error: null,
+  });
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionRefreshing, setSessionRefreshing] = useState(false);
-  const [sessionError, setSessionError] = useState<string | null>(null);
+  /**
+   * Session feed bookkeeping. Every change of the stream error or payload gets
+   * the next sequence number, so an error is shown only while nothing newer
+   * (a stream payload or a successful manual fetch) has arrived since.
+   */
+  const [sessionFeed, setSessionFeed] = useState<{
+    streamError: string | null;
+    streamPayload: PPPoESessionsResponse | null;
+    seq: number;
+    streamErrorSeq: number;
+    payloadSeq: number;
+    fetchedSeq: number;
+    fetchError: string | null;
+    fetchErrorSeq: number;
+  }>({
+    streamError: null,
+    streamPayload: null,
+    seq: 0,
+    streamErrorSeq: 0,
+    payloadSeq: 0,
+    fetchedSeq: -1,
+    fetchError: null,
+    fetchErrorSeq: 0,
+  });
   const previousSessionBytes = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
   const [selectedStatsKey, setSelectedStatsKey] = useState<string | null>(null);
@@ -327,11 +356,12 @@ function PPPoEPageInner() {
   const fetchSessions = async () => {
     try {
       setSessionRefreshing(true);
-      setSessionError(null);
       const response = await pppoeServerService.getSessions(500);
       applySessions(response);
+      setSessionFeed((feed) => ({ ...feed, fetchError: null, fetchedSeq: feed.seq }));
     } catch (err) {
-      setSessionError((err as ApiError).message || t("errors.loadSessions"));
+      const message = (err as ApiError).message || t("errors.loadSessions");
+      setSessionFeed((feed) => ({ ...feed, fetchError: message, fetchErrorSeq: feed.seq }));
     } finally {
       setSessionRefreshing(false);
     }
@@ -343,44 +373,79 @@ function PPPoEPageInner() {
     enabled: liveSessions,
   });
 
+  const loadSessionLabels = async () => {
+    try {
+      const labels = await pppoeServerService.getSessionLabelDefinitions();
+      setSessionLabels(labels ?? []);
+      setLabelsLoad({ state: "loaded", error: null });
+    } catch (err) {
+      setSessionLabels([]);
+      setLabelsLoad({ state: "failed", error: (err as ApiError).message || t("errors.loadLabels") });
+    }
+  };
+
+  const retryLabels = () => {
+    setLabelsLoad({ state: "loading", error: null });
+    void loadSessionLabels();
+  };
+
   useEffect(() => {
     if (!hasRead) return;
     void loadData();
-    void pppoeServerService.getSessionLabelDefinitions()
-      .then((labels) => {
-        setSessionLabels(labels ?? []);
-      })
-      .catch(() => {
-        setSessionLabels([]);
-      });
+    void loadSessionLabels();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when read access is known; a language switch re-renders via router.refresh()
   }, [hasRead]);
 
   useEffect(() => {
     if (!sessionStream.pppoeSessions) return;
-    setSessionError(null);
     applySessions(sessionStream.pppoeSessions);
   }, [sessionStream.pppoeSessions]);
 
-  // Stream state is derived during render instead of copied in an effect.
-  const streamError = sessionStreamError?.startsWith("pppoe-sessions:")
+  // Number each stream change while rendering (no effect): a payload or error
+  // that differs from the last one seen takes the next sequence number.
+  const streamErrorChanged = sessionFeed.streamError !== sessionStreamError;
+  const streamPayloadChanged = sessionFeed.streamPayload !== sessionStream.pppoeSessions;
+  if (streamErrorChanged || streamPayloadChanged) {
+    const seq = sessionFeed.seq + 1;
+    setSessionFeed({
+      ...sessionFeed,
+      streamError: sessionStreamError,
+      streamPayload: sessionStream.pppoeSessions,
+      seq,
+      streamErrorSeq: streamErrorChanged ? seq : sessionFeed.streamErrorSeq,
+      payloadSeq: streamPayloadChanged && sessionStream.pppoeSessions ? seq : sessionFeed.payloadSeq,
+    });
+  }
+  const newestData = Math.max(sessionFeed.payloadSeq, sessionFeed.fetchedSeq);
+  const streamError = sessionStreamError?.startsWith("pppoe-sessions:") && sessionFeed.streamErrorSeq > newestData
     ? sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || t("errors.loadSessions")
     : null;
-  const shownSessionError = sessionError ?? streamError;
+  const fetchError = sessionFeed.fetchError && sessionFeed.fetchErrorSeq >= sessionFeed.payloadSeq
+    ? sessionFeed.fetchError
+    : null;
+  const shownSessionError = fetchError ?? streamError;
   const sessionLoading = liveSessions && sessionStreamStatus !== "error" && !sessionStream.pppoeSessions && !shownSessionError;
+  const labelsReady = labelsLoad.state === "loaded";
 
   const openLabelEditor = () => {
+    if (!labelsReady) return;
     setLabelDraft(sessionLabels.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
     setLabelError(null);
     setShowLabelEditor(true);
   };
 
   const saveLabelEditor = async () => {
+    // Saving replaces the whole catalog: never from a draft seeded by a failed load.
+    if (!labelsReady) return;
+    const incomplete = labelDraft.findIndex((label) => !label.code.trim() || !label.name.trim());
+    if (incomplete >= 0) {
+      setLabelError(t("errors.labelRowIncomplete", { row: incomplete + 1 }));
+      return;
+    }
     try {
       setLabelSaving(true);
       setLabelError(null);
       const sanitized = labelDraft
-        .filter((label) => label.code.trim() && label.name.trim())
         .map((label) => ({
           ...label,
           code: label.code.trim(),
@@ -391,8 +456,8 @@ function PPPoEPageInner() {
           enabled: label.enabled !== false,
           rules: label.rules ?? {},
         }));
-      const saved = await pppoeServerService.saveSessionLabelDefinitions(sanitized);
-      setSessionLabels(saved ?? []);
+      const saved = (await pppoeServerService.saveSessionLabelDefinitions(sanitized)) ?? [];
+      setSessionLabels(saved);
       setLabelDraft(saved.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
       setShowLabelEditor(false);
     } catch (err) {
@@ -469,6 +534,7 @@ function PPPoEPageInner() {
 
   // An unset authentication mode is the lab default, local.
   const isLocalAuth = (config?.authentication.mode || "local") === "local";
+  const vlanMonSupported = capabilities?.features.vlan_mon ?? false;
   const totals = config?.totals;
 
   if (loading && !config) {
@@ -491,7 +557,7 @@ function PPPoEPageInner() {
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <p className="text-destructive font-medium">{t("errors.loadConfig")}</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{error}</p>
             <Button onClick={retry}>
               <RefreshCw className="h-4 w-4 mr-2" /> {tc("retry")}
             </Button>
@@ -713,7 +779,7 @@ function PPPoEPageInner() {
                       <Input value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} placeholder={t("sessions.searchPlaceholder")} className="h-8 w-52 pl-8 text-xs" />
                     </div>
                     {hasWrite && (
-                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={openLabelEditor}>
+                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={openLabelEditor} disabled={!labelsReady}>
                         <Pencil className="h-3.5 w-3.5 mr-1" /> {t("sessions.labels")}
                       </Button>
                     )}
@@ -741,6 +807,18 @@ function PPPoEPageInner() {
                     )}
                     <span className="ml-auto text-xs text-muted-foreground">{t("sessions.matching", { count: String(filteredSessions.length) })}</span>
                   </div>
+                  {labelsLoad.state === "failed" && (
+                    <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-medium">{t("errors.loadLabels")}</p>
+                        <p className="whitespace-pre-wrap">{labelsLoad.error}</p>
+                      </div>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={retryLabels}>
+                        {tc("retry")}
+                      </Button>
+                    </div>
+                  )}
                   {shownSessionError ? (
                     <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive whitespace-pre-wrap">
                       {shownSessionError}
@@ -882,7 +960,7 @@ function PPPoEPageInner() {
                         <TableRow>
                           <TableHead>{t("interfaces.interface")}</TableHead>
                           <TableHead>{tc("shown.vlans")}</TableHead>
-                          <TableHead>{t("interfaces.vlanMon")}</TableHead>
+                          {vlanMonSupported && <TableHead>{t("interfaces.vlanMon")}</TableHead>}
                           <TableHead>{t("interfaces.combined")}</TableHead>
                           {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
@@ -902,11 +980,13 @@ function PPPoEPageInner() {
                                 {iface.vlans.length === 0 && "-"}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              {iface.vlan_mon ? (
-                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
-                              ) : "-"}
-                            </TableCell>
+                            {vlanMonSupported && (
+                              <TableCell>
+                                {iface.vlan_mon ? (
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
+                                ) : "-"}
+                              </TableCell>
+                            )}
                             <TableCell>
                               {iface.combined ? (
                                 <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
@@ -1397,6 +1477,7 @@ function PPPoEPageInner() {
         draft={labelDraft}
         onDraftChange={setLabelDraft}
         onSave={() => void saveLabelEditor()}
+        canSave={labelsReady}
         saving={labelSaving}
         error={labelError}
       />

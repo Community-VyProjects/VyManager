@@ -147,7 +147,6 @@
     "daePortRange": "DAE port must be between {min} and {max}",
     "daeKeyIsMask": "Enter the actual DAE key, not the mask",
     "daeKeyRequired": "A DAE server needs a DAE key",
-    "daeServerRequired": "A DAE key needs a DAE server",
     "multiplierRange": "Multiplier must be between {min} and {max}"
   },
   "radiusServer": {
@@ -212,10 +211,12 @@
     "delegatePrefixes": "Delegate Prefixes",
     "delegationPlaceholder": "delegation ({min}-{max})",
     "prefixRequired": "Every prefix row needs a prefix",
+    "prefixHasPipe": "Prefix {prefix} must not contain |",
     "duplicatePrefix": "Prefix {prefix} is listed twice",
     "maskRange": "Prefix {prefix}: mask must be between {min} and {max}",
     "delegateWithoutPrefix": "A delegate prefix needs at least one prefix in the pool",
     "delegatePrefixRequired": "Every delegate row needs a prefix",
+    "delegatePrefixHasPipe": "Delegate prefix {prefix} must not contain |",
     "delegationPrefixRequired": "Delegate {prefix} needs a delegation length",
     "delegationPrefixRange": "Delegate {prefix}: delegation length must be between {min} and {max}",
     "duplicateDelegate": "Delegate {prefix} is listed twice"

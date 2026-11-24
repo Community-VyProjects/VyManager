@@ -300,6 +300,14 @@ describe("authOps", () => {
     assert.equal(authProblem(auth, { mode: "radius", protocols: [], any_login: false })?.problem, "radiusModeNeedsServer");
     assert.equal(authProblem(auth, { mode: "noauth", protocols: [], any_login: false }), null);
   });
+
+  it("treats an unset mode as local, any-login included", () => {
+    const auth = config().authentication;
+    assert.equal(authProblem(auth, { mode: "", protocols: [], any_login: false })?.problem, "localModeNeedsUser");
+    assert.equal(authProblem(auth, { mode: "  ", protocols: [], any_login: true })?.problem, "localModeNeedsUser");
+    const withUser = { ...auth, local_users: [{ username: "u" } as PPPoELocalUser] };
+    assert.equal(authProblem(withUser, { mode: "", protocols: [], any_login: false }), null);
+  });
 });
 
 describe("localUserOps", () => {
@@ -410,12 +418,40 @@ describe("radiusSettingsOps", () => {
     ]);
   });
 
+  it("clearing the DAE server alone deletes the stored port and mask key too", () => {
+    // The port and key inputs are disabled without a server, so they keep their loaded values.
+    const draft = radiusDraft(current, { dae_server: "" });
+    assert.equal(draft.dae_key, MASKED_SECRET);
+    assert.equal(radiusSettingsProblem(current, draft), null);
+    assert.deepEqual(radiusSettingsOps(current, draft), [
+      { op: "delete_radius_dynamic_author_server" },
+      { op: "delete_radius_dynamic_author_port" },
+      { op: "delete_radius_dynamic_author_key" },
+    ]);
+    // Leftovers of a server-only delete are cleaned with no server stored.
+    const leftover = radius({ dynamic_author: { server: "", port: "3799", key: MASKED_SECRET } });
+    assert.deepEqual(radiusSettingsOps(leftover, radiusDraft(leftover)), [
+      { op: "delete_radius_dynamic_author_port" },
+      { op: "delete_radius_dynamic_author_key" },
+    ]);
+    // Only what is stored is deleted, and port/key typed without a server are discarded.
+    const serverOnly = radius({ dynamic_author: { server: "192.0.2.2", port: "", key: "" } });
+    const typed = radiusDraft(serverOnly, { dae_server: "", dae_port: "99999", dae_key: "k" });
+    assert.equal(radiusSettingsProblem(serverOnly, typed), null);
+    assert.deepEqual(radiusSettingsOps(serverOnly, typed), [{ op: "delete_radius_dynamic_author_server" }]);
+  });
+
   it("requires a DAE key for a server and rejects the typed mask", () => {
     assert.equal(radiusSettingsProblem(current, radiusDraft(current, { dae_key: "" }))?.problem, "daeKeyRequired");
     const empty = radius();
     assert.equal(radiusSettingsProblem(empty, radiusDraft(empty, { dae_server: "192.0.2.2", dae_key: MASKED_SECRET }))?.problem,
       "daeKeyIsMask");
-    assert.equal(radiusSettingsProblem(empty, radiusDraft(empty, { dae_key: "k" }))?.problem, "daeServerRequired");
+    assert.equal(radiusSettingsProblem(empty, radiusDraft(empty, { dae_server: "192.0.2.2", dae_key: "k", dae_port: "0" }))?.problem,
+      "daePortRange");
+    assert.deepEqual(radiusSettingsOps(empty, radiusDraft(empty, { dae_server: "192.0.2.2", dae_key: "k" })), [
+      { op: "set_radius_dynamic_author_server", value: "192.0.2.2" },
+      { op: "set_radius_dynamic_author_key", value: "k" },
+    ]);
   });
 
   it("turns rate-limit enable off alone and deletes the section once it is empty", () => {
@@ -490,6 +526,17 @@ describe("pools", () => {
     assert.equal(ipv6PoolProblem(null, {
       name: "v6", prefixes: [], delegates: [{ prefix: "2001:db8:f::/48", delegation_prefix: "56" }],
     }, [])?.problem, "delegateWithoutPrefix");
+  });
+
+  it("rejects a | in a prefix or a delegate prefix, naming it", () => {
+    assert.deepEqual(ipv6PoolProblem(null, {
+      name: "v6", prefixes: [{ prefix: "2001:db8::/48|64", mask: "" }], delegates: [],
+    }, []), { problem: "prefixHasPipe", params: { prefix: "2001:db8::/48|64" } });
+    assert.deepEqual(ipv6PoolProblem(null, {
+      name: "v6",
+      prefixes: [{ prefix: "2001:db8::/48", mask: "" }],
+      delegates: [{ prefix: "2001:db8:f::/48|56", delegation_prefix: "56" }],
+    }, []), { problem: "delegatePrefixHasPipe", params: { prefix: "2001:db8:f::/48|56" } });
   });
 });
 
@@ -699,7 +746,7 @@ describe("service saves", () => {
     assert.deepEqual(sent[0][1], [{ op: "create_local_user" }, { op: "set_local_user_password", value: "pw" }]);
   });
 
-  it("throws the commit error of a rejected batch and skips an empty one", async () => {
+  it("throws the commit error of a rejected batch without refreshing, and skips an empty one", async () => {
     const posts: string[] = [];
     const original = apiClient.post;
     apiClient.post = (async (url: string) => {
@@ -708,12 +755,29 @@ describe("service saves", () => {
     }) as typeof apiClient.post;
     try {
       await assert.rejects(pppoeServerService.deleteInterface("eth1"), { message: "Commit failed" });
-      assert.deepEqual(posts, ["/vyos/pppoe-server/batch", "/vyos/config/refresh"]);
+      assert.deepEqual(posts, ["/vyos/pppoe-server/batch"]);
       // An untouched save posts nothing.
       const current = config();
       await pppoeServerService.updateGeneralSettings(current, generalDraft(current));
       await pppoeServerService.updateAdvancedSettings(current, advancedDraft(current));
-      assert.equal(posts.length, 2);
+      assert.equal(posts.length, 1);
+    } finally {
+      apiClient.post = original;
+    }
+  });
+
+  it("keeps a landed commit successful when the cache refresh fails", async () => {
+    const posts: string[] = [];
+    const original = apiClient.post;
+    apiClient.post = (async (url: string) => {
+      posts.push(url);
+      if (url.endsWith("/refresh")) throw { message: "refresh down" };
+      return { success: true };
+    }) as typeof apiClient.post;
+    try {
+      const result = await pppoeServerService.deleteInterface("eth1");
+      assert.equal(result.success, true);
+      assert.deepEqual(posts, ["/vyos/pppoe-server/batch", "/vyos/config/refresh"]);
     } finally {
       apiClient.post = original;
     }

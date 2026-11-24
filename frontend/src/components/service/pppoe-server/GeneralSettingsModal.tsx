@@ -13,11 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NamedListSelect } from "@/components/ui/named-list-select";
-import { AlertCircle, Loader2, Settings, X } from "lucide-react";
-import { CapabilitySelect } from "./CapabilitySelect";
+import { AlertCircle, Loader2, Settings } from "lucide-react";
+import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { pppoeServerService, PPPoECapabilities, PPPoEConfigResponse } from "@/lib/api/pppoe-server";
 import { generalProblem, PPPOE_RANGES, type PPPoEGeneralDraft } from "@/lib/api/pppoe-server-save-ops";
 import type { ApiError } from "@/lib/types/api";
@@ -28,55 +27,6 @@ interface GeneralSettingsModalProps {
   onSuccess: () => void;
   config: PPPoEConfigResponse;
   capabilities: PPPoECapabilities | null;
-}
-
-/** One editable `multi:` list: an input, an Add button and removable badges. */
-function ListField({
-  id,
-  label,
-  values,
-  placeholder,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  values: string[];
-  placeholder: string;
-  onChange: (values: string[]) => void;
-}) {
-  const tc = useTranslations("common");
-  const [input, setInput] = useState("");
-  const add = () => {
-    const value = input.trim();
-    if (value && !values.includes(value)) onChange([...values, value]);
-    if (value) setInput("");
-  };
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="flex gap-2">
-        <Input
-          id={id}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={placeholder}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          className="flex-1"
-        />
-        <Button type="button" variant="outline" size="sm" onClick={add}>{tc("add")}</Button>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {values.map((value) => (
-          <Badge key={value} variant="secondary" className="gap-1 font-mono text-xs">
-            {value}
-            <button type="button" onClick={() => onChange(values.filter((v) => v !== value))}>
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, capabilities }: GeneralSettingsModalProps) {
@@ -167,8 +117,7 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, ca
               placeholder="vyos-ac"
             />
           </div>
-          <ListField
-            id="pppoe-service-name"
+          <MultiValueInput
             label={t("general.serviceNames")}
             values={draft.service_names}
             placeholder="internet"
@@ -185,15 +134,13 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, ca
               placeholder="10.0.0.1"
             />
           </div>
-          <ListField
-            id="pppoe-name-server"
+          <MultiValueInput
             label={t("general.nameServers")}
             values={draft.name_servers}
             placeholder="8.8.8.8"
             onChange={(name_servers) => update({ name_servers })}
           />
-          <ListField
-            id="pppoe-wins-server"
+          <MultiValueInput
             label={t("general.winsServers")}
             values={draft.wins_servers}
             placeholder="192.168.1.10"
@@ -223,12 +170,13 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, ca
           </div>
           <div className="space-y-2">
             <Label htmlFor="pppoe-session-control">{t("general.sessionControl")}</Label>
-            <CapabilitySelect
+            <NamedListSelect
               id="pppoe-session-control"
               value={draft.session_control}
-              values={values?.session_control_modes || []}
+              names={values?.session_control_modes || []}
               labels={sessionLabels}
-              onChange={(session_control) => update({ session_control })}
+              onValueChange={(session_control) => update({ session_control })}
+              noneLabel={tc("default")}
             />
           </div>
           <div className="grid grid-cols-3 gap-4">

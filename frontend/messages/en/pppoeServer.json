@@ -10,7 +10,9 @@
     "loadConfig": "Failed to load configuration",
     "loadPppoeConfig": "Failed to load PPPoE configuration",
     "loadSessions": "Failed to load active sessions",
-    "saveLabels": "Failed to save label definitions"
+    "saveLabels": "Failed to save label definitions",
+    "loadLabels": "Failed to load session label definitions",
+    "labelRowIncomplete": "Label row {row} needs both a code and a display name"
   },
   "deleteServer": {
     "button": "Delete PPPoE Server",

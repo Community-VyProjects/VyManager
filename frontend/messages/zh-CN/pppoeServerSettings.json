@@ -31,8 +31,8 @@
     "acceptBlankService": "接受空服务名",
     "maxSessionsRange": "最大会话数必须介于 {min} 和 {max} 之间",
     "threadCountInvalid": "线程数必须介于 {min} 和 {max} 之间，或为列出的关键字之一",
-    "tooManyIpv4NameServers": "最多可配置 {max} 个 IPv4 名称服务器",
-    "tooManyIpv6NameServers": "最多可配置 {max} 个 IPv6 名称服务器",
+    "tooManyIpv4NameServers": "最多可配置 {max} 个 IPv4 DNS 服务器",
+    "tooManyIpv6NameServers": "最多可配置 {max} 个 IPv6 DNS 服务器",
     "tooManyWinsServers": "最多可配置 {max} 个 WINS 服务器"
   },
   "advanced": {
@@ -140,15 +140,14 @@
     "vendor": "厂商",
     "multiplier": "倍数",
     "timeoutRange": "超时必须介于 {min} 和 {max} 之间",
-    "maxTryRange": "最大重试次数必须介于 {min} 和 {max} 之间",
-    "interimIntervalRange": "中间间隔必须介于 {min} 和 {max} 之间",
-    "interimJitterRange": "中间抖动必须介于 {min} 和 {max} 之间",
+    "maxTryRange": "最大尝试次数必须介于 {min} 和 {max} 之间",
+    "interimIntervalRange": "中间计费间隔必须介于 {min} 和 {max} 之间",
+    "interimJitterRange": "中间计费抖动必须介于 {min} 和 {max} 之间",
     "acctTimeoutRange": "计费超时必须介于 {min} 和 {max} 之间",
     "daePortRange": "DAE 端口必须介于 {min} 和 {max} 之间",
     "daeKeyIsMask": "请输入实际 DAE 密钥，而不是掩码",
     "daeKeyRequired": "DAE 服务器需要 DAE 密钥",
-    "daeServerRequired": "DAE 密钥需要 DAE 服务器",
-    "multiplierRange": "乘数必须介于 {min} 和 {max} 之间"
+    "multiplierRange": "倍数必须介于 {min} 和 {max} 之间"
   },
   "radiusServer": {
     "addTitle": "添加 RADIUS 服务器",
@@ -172,7 +171,7 @@
     "portRange": "认证端口必须介于 {min} 和 {max} 之间",
     "acctPortRange": "计费端口必须介于 {min} 和 {max} 之间",
     "priorityRange": "优先级必须介于 {min} 和 {max} 之间",
-    "failTimeRange": "失败时间必须介于 {min} 和 {max} 之间"
+    "failTimeRange": "失效时间必须介于 {min} 和 {max} 之间"
   },
   "localUser": {
     "addTitle": "添加本地用户",
@@ -210,12 +209,14 @@
     "prefixes": "前缀",
     "maskPlaceholder": "掩码 ({min}-{max})",
     "delegatePrefixes": "委派前缀",
-    "delegationPlaceholder": "委派 ({min}-{max})",
+    "delegationPlaceholder": "委派长度 ({min}-{max})",
     "prefixRequired": "每个前缀行都需要填写前缀",
+    "prefixHasPipe": "前缀 {prefix} 不能包含 |",
     "duplicatePrefix": "前缀 {prefix} 重复",
     "maskRange": "前缀 {prefix}：掩码必须介于 {min} 和 {max} 之间",
     "delegateWithoutPrefix": "委派前缀要求地址池中至少有一个前缀",
     "delegatePrefixRequired": "每个委派行都需要填写前缀",
+    "delegatePrefixHasPipe": "委派前缀 {prefix} 不能包含 |",
     "delegationPrefixRequired": "委派 {prefix} 需要委派长度",
     "delegationPrefixRange": "委派 {prefix}：委派长度必须介于 {min} 和 {max} 之间",
     "duplicateDelegate": "委派 {prefix} 重复"

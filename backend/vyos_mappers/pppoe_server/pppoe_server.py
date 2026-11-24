@@ -192,8 +192,8 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_log_level(self, level: str) -> List[str]:
         return BASE + ["log", "level", level]
 
-    def get_log_level_delete(self) -> List[str]:
-        return BASE + ["log", "level"]
+    def get_log_delete(self) -> List[str]:
+        return BASE + ["log"]
 
     # ========================================================================
     # Shaper
@@ -384,9 +384,6 @@ class PPPoEServerMapper(BaseFeatureMapper):
 
     def get_local_user_password(self, username: str, password: str) -> List[str]:
         return BASE + ["authentication", "local-users", "username", username, "password", password]
-
-    def get_local_user_password_delete(self, username: str) -> List[str]:
-        return BASE + ["authentication", "local-users", "username", username, "password"]
 
     def get_local_user_disable(self, username: str) -> List[str]:
         return BASE + ["authentication", "local-users", "username", username, "disable"]

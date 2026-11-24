@@ -35,6 +35,8 @@ interface SessionLabelRegistryDialogProps {
   onDraftChange: (next: PPPoESessionLabelDefinition[]) => void;
   onSave: () => void;
   saving: boolean;
+  /** False until the stored catalog loaded: saving replaces it whole. */
+  canSave: boolean;
   error: string | null;
 }
 
@@ -45,6 +47,7 @@ export function SessionLabelRegistryDialog({
   onDraftChange,
   onSave,
   saving,
+  canSave,
   error,
 }: SessionLabelRegistryDialogProps) {
   const t = useTranslations("pppoeServer.labelRegistry");
@@ -285,7 +288,7 @@ export function SessionLabelRegistryDialog({
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={saving}>
               <X className="h-4 w-4 mr-2" /> {tc("cancel")}
             </Button>
-            <Button size="sm" onClick={onSave} disabled={saving}>
+            <Button size="sm" onClick={onSave} disabled={saving || !canSave}>
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (

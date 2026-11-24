@@ -11,12 +11,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InterfaceSelect } from "@/components/ui/interface-select";
-import { AlertCircle, Loader2, Network, X } from "lucide-react";
+import { AlertCircle, Loader2, Network } from "lucide-react";
+import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { pppoeServerService, PPPoECapabilities, PPPoEInterface } from "@/lib/api/pppoe-server";
 import { interfaceProblem, type PPPoEInterfaceDraft } from "@/lib/api/pppoe-server-save-ops";
 import type { ApiError } from "@/lib/types/api";
@@ -49,18 +48,11 @@ export function InterfaceModal({
     vlan_mon: existingInterface?.vlan_mon || false,
     combined: existingInterface?.combined || false,
   }));
-  const [vlanInput, setVlanInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const vlanMonSupported = capabilities?.features.vlan_mon ?? false;
   const update = (patch: Partial<PPPoEInterfaceDraft>) => setDraft((current) => ({ ...current, ...patch }));
-
-  const addVlan = () => {
-    const value = vlanInput.trim();
-    if (value && !draft.vlans.includes(value)) update({ vlans: [...draft.vlans, value] });
-    if (value) setVlanInput("");
-  };
 
   const handleOpenChange = (next: boolean) => {
     if (!loading) onOpenChange(next);
@@ -111,30 +103,12 @@ export function InterfaceModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="pppoe-iface-vlan">{tc("shown.vlans")}</Label>
-            <div className="flex gap-2">
-              <Input
-                id="pppoe-iface-vlan"
-                value={vlanInput}
-                onChange={(e) => setVlanInput(e.target.value)}
-                placeholder={t("interfaceModal.vlanPlaceholder")}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVlan(); } }}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addVlan}>{tc("add")}</Button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {draft.vlans.map((vlan) => (
-                <Badge key={vlan} variant="secondary" className="gap-1 font-mono text-xs">
-                  {vlan}
-                  <button type="button" onClick={() => update({ vlans: draft.vlans.filter((v) => v !== vlan) })}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <MultiValueInput
+            label={tc("shown.vlans")}
+            values={draft.vlans}
+            placeholder={t("interfaceModal.vlanPlaceholder")}
+            onChange={(vlans) => update({ vlans })}
+          />
 
           {vlanMonSupported && (
             <div className="flex items-center gap-2">

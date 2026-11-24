@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any, cast
 import json
-from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from vyos_mappers import CommandMapperRegistry
@@ -522,7 +521,7 @@ async def get_pppoe_sessions(
 async def reset_pppoe_session(http_request: Request, username: str):
     """Terminate all active PPPoE sessions belonging to a username."""
     await require_write_permission(http_request, FeatureGroup.PPPOE)
-    username = unquote(username).strip()
+    username = username.strip()
     if not username or username in {".", ".."} or any(char in username for char in "\r\n"):
         raise HTTPException(status_code=400, detail="Invalid PPPoE username")
 

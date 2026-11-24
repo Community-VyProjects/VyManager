@@ -26,6 +26,8 @@ export interface NamedListSelectProps {
   disabled?: boolean;
   /** Label of the empty item (default: common.none). */
   noneLabel?: string;
+  /** Display labels by name; a name without one shows itself. */
+  labels?: Record<string, string>;
 }
 
 /**
@@ -41,6 +43,7 @@ export function NamedListSelect({
   onValueChange,
   disabled = false,
   noneLabel,
+  labels,
 }: NamedListSelectProps) {
   const tc = useTranslations("common");
   const none = noneLabel ?? tc("none");
@@ -48,7 +51,7 @@ export function NamedListSelect({
     return (
       <Input
         id={id}
-        value={value}
+        value={labels?.[value] ?? value}
         disabled
         placeholder={none}
         className="font-mono"
@@ -67,7 +70,7 @@ export function NamedListSelect({
         <SelectItem value={NONE_SENTINEL}>{none}</SelectItem>
         {listedNames(names, value).map((name) => (
           <SelectItem key={name} value={name} className="font-mono">
-            {name}
+            {labels?.[name] ?? name}
           </SelectItem>
         ))}
       </SelectContent>

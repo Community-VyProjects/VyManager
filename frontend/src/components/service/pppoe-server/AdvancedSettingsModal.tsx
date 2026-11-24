@@ -25,7 +25,7 @@ import {
   type PPPoEPadoDelayRow,
 } from "@/lib/api/pppoe-server-save-ops";
 import type { ApiError } from "@/lib/types/api";
-import { CapabilitySelect } from "./CapabilitySelect";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 
 interface AdvancedSettingsModalProps {
   open: boolean;
@@ -111,13 +111,13 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config, c
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="pppoe-log-level">{t("advanced.logLevel")}</Label>
-            <CapabilitySelect
+            <NamedListSelect
               id="pppoe-log-level"
               value={draft.log_level}
-              values={capabilities?.values.log_levels || []}
+              names={capabilities?.values.log_levels || []}
               labels={logLabels}
               noneLabel={t("advanced.defaultUnset")}
-              onChange={(log_level) => update({ log_level })}
+              onValueChange={(log_level) => update({ log_level })}
             />
           </div>
 
