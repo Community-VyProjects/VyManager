@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, FolderOpen, Loader2 } from "lucide-react";
 import { containerService } from "@/lib/api/container";
+import type { ApiError } from "@/lib/types/api";
 
 interface Props {
   open: boolean;
@@ -36,7 +37,7 @@ export function SetupDirectoryModal({ open, onCreated }: Props) {
         setError(result.error || t("setupDir.failed"));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("setupDir.failed"));
+      setError((err as ApiError).message || t("setupDir.failed"));
     } finally {
       setLoading(false);
     }
@@ -44,7 +45,7 @@ export function SetupDirectoryModal({ open, onCreated }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md" onInteractOutside={e => e.preventDefault()}>
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5 text-primary" />

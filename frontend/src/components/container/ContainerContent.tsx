@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { containerTabFromSearch, type ContainerTab } from "@/lib/query-tabs";
@@ -8,9 +8,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Box, RefreshCw, Network, Database } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertCircle, Box, Database, Loader2, Network, RefreshCw, Trash2 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { containerService, type ContainerConfig, type ContainerCapabilities } from "@/lib/api/container";
+import { containerService, type ContainerCapabilities, type ContainerConfig } from "@/lib/api/container";
+import type { ApiError } from "@/lib/types/api";
 import { ContainersTab } from "./ContainersTab";
 import { NetworksTab } from "./NetworksTab";
 import { RegistriesTab } from "./RegistriesTab";
@@ -20,25 +31,33 @@ import { SetupDirectoryModal } from "./SetupDirectoryModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { SSHNotConfigured } from "@/components/console/SSHNotConfigured";
+import { useSessionStore } from "@/store/session-store";
+
+/** The router's text when the instance has no SSH key; it opens the set-up screen. */
+const SSH_KEY_NOT_CONFIGURED = "SSH key not configured.";
 
 export function ContainerContent() {
   const t = useTranslations("containers");
   const tc = useTranslations("common");
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.CONTAINER);
+  const appliance = useSessionStore((s) => s.appliance);
   const searchParams = useSearchParams();
 
   const [config, setConfig] = useState<ContainerConfig | null>(null);
   const [capabilities, setCapabilities] = useState<ContainerCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [baseDirExists, setBaseDirExists] = useState<boolean | null>(null);
-  const [selectedTab, setSelectedTab] = useState<ContainerTab>("containers");
+  const [pickedTab, setPickedTab] = useState<{ search: string; tab: ContainerTab } | null>(null);
+  const [rootOpen, setRootOpen] = useState(false);
+  const [rootSaving, setRootSaving] = useState(false);
+  const [rootError, setRootError] = useState<string | null>(null);
 
-  const loadData = useCallback(async (refresh = false) => {
+  // State is set only after the requests return, so the mount effect sets none synchronously.
+  const load = useCallback(async (refresh: boolean) => {
     try {
-      setLoading(true);
-      setError(null);
       const [configData, capsData, baseDirData] = await Promise.all([
         containerService.getConfig(refresh),
         containerService.getCapabilities(),
@@ -47,27 +66,55 @@ export function ContainerContent() {
       setConfig(configData);
       setCapabilities(capsData);
       setBaseDirExists(baseDirData.exists);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
+      setError(null);
+    } catch (err: unknown) {
+      setError((err as ApiError).message || t("content.loadFailed"));
     } finally {
       setLoading(false);
     }
   }, [t]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void load(false);
+  }, [load]);
 
-  const showNetworks = capabilities?.features.container_networks?.supported !== false;
-  const showRegistries = capabilities?.features.container_registries?.supported !== false;
+  /** Re-read the device config after a save without swapping the page for the spinner. */
+  const reload = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
+  }, [load]);
 
-  useEffect(() => {
-    const tab = containerTabFromSearch((key) => searchParams.get(key));
-    if (!tab) return;
-    if (tab === "networks" && !showNetworks) return;
-    if (tab === "registries" && !showRegistries) return;
-    setSelectedTab(tab);
-  }, [searchParams, showNetworks, showRegistries]);
+  const retry = () => {
+    setLoading(true);
+    void load(true);
+  };
+
+  // A tab from the URL applies until the user picks one for that URL.
+  const searchKey = searchParams.toString();
+  const searchTab = containerTabFromSearch((key) => searchParams.get(key));
+  const selectedTab = pickedTab && pickedTab.search === searchKey ? pickedTab.tab : searchTab ?? "containers";
+
+  const handleRootOpenChange = (next: boolean) => {
+    if (!next && rootSaving) return;
+    if (!next) setRootError(null);
+    setRootOpen(next);
+  };
+
+  const deleteRoot = async (event: MouseEvent) => {
+    event.preventDefault();
+    setRootSaving(true);
+    setRootError(null);
+    try {
+      await containerService.deleteContainerRoot();
+      setRootOpen(false);
+      void reload();
+    } catch (err: unknown) {
+      setRootError((err as ApiError).message || t("content.deleteAllFailed"));
+    } finally {
+      setRootSaving(false);
+    }
+  };
 
   const totalContainers = config?.containers.length ?? 0;
   const totalNetworks = config?.networks.length ?? 0;
@@ -81,14 +128,16 @@ export function ContainerContent() {
     );
   }
 
-  if (error && !config) {
+  if (error && (!config || !capabilities)) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        {error === "SSH key not configured." ? <SSHNotConfigured /> : <p className="text-destructive">{error}</p>}
-        {error !== "SSH key not configured." && <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>}
+        {error === SSH_KEY_NOT_CONFIGURED ? <SSHNotConfigured /> : <p className="text-destructive whitespace-pre-wrap">{error}</p>}
+        {error !== SSH_KEY_NOT_CONFIGURED && <Button variant="outline" onClick={retry}>{tc("retry")}</Button>}
       </div>
     );
   }
+
+  if (!config || !capabilities) return null;
 
   return (
     <div className="flex flex-col h-full">
@@ -104,14 +153,25 @@ export function ContainerContent() {
                 <h1 className="text-2xl font-bold text-foreground">{t("content.title")}</h1>
                 {!hasWritePermission && <Badge variant="secondary">{tc("readOnly")}</Badge>}
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {t("content.subtitle")}
-              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">{t("content.subtitle")}</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-            <RefreshCw className="h-4 w-4 mr-2" />{tc("refresh")}
-          </Button>
+          <div className="flex items-center gap-2">
+            {config.configured && hasWritePermission && !appliance && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                disabled={refreshing}
+                onClick={() => setRootOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />{t("content.deleteAll")}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => void reload()} disabled={refreshing}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />{tc("refresh")}
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -166,70 +226,57 @@ export function ContainerContent() {
 
       {/* Tabs */}
       <div className="flex-1 p-6 pt-4 overflow-auto">
-        <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ContainerTab)}>
+        <Tabs value={selectedTab} onValueChange={(value) => setPickedTab({ search: searchKey, tab: value as ContainerTab })}>
           <TabsList>
             <TabsTrigger value="containers">{t("content.containers")}</TabsTrigger>
-            {showNetworks && <TabsTrigger value="networks">{t("content.networks")}</TabsTrigger>}
-            {showRegistries && <TabsTrigger value="registries">{t("content.registries")}</TabsTrigger>}
+            <TabsTrigger value="networks">{t("content.networks")}</TabsTrigger>
+            <TabsTrigger value="registries">{t("content.registries")}</TabsTrigger>
             <TabsTrigger value="images">{t("content.images")}</TabsTrigger>
             <TabsTrigger value="apps">{t("content.apps")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="containers" className="mt-4">
-            {config && (
-              <ContainersTab
-                config={config}
-                capabilities={capabilities}
-                hasWritePermission={hasWritePermission}
-                onReload={() => loadData(true)}
-              />
-            )}
+            <ContainersTab
+              config={config}
+              capabilities={capabilities}
+              hasWritePermission={hasWritePermission}
+              refreshing={refreshing}
+              onReload={reload}
+            />
           </TabsContent>
 
-          {showNetworks && (
-            <TabsContent value="networks" className="mt-4">
-              {config && (
-                <NetworksTab
-                  config={config}
-                  capabilities={capabilities}
-                  hasWritePermission={hasWritePermission}
-                  onReload={() => loadData(true)}
-                />
-              )}
-            </TabsContent>
-          )}
+          <TabsContent value="networks" className="mt-4">
+            <NetworksTab
+              config={config}
+              capabilities={capabilities}
+              hasWritePermission={hasWritePermission}
+              refreshing={refreshing}
+              onReload={reload}
+            />
+          </TabsContent>
 
-          {showRegistries && (
-            <TabsContent value="registries" className="mt-4">
-              {config && (
-                <RegistriesTab
-                  config={config}
-                  capabilities={capabilities}
-                  hasWritePermission={hasWritePermission}
-                  onReload={() => loadData(true)}
-                />
-              )}
-            </TabsContent>
-          )}
+          <TabsContent value="registries" className="mt-4">
+            <RegistriesTab
+              config={config}
+              capabilities={capabilities}
+              hasWritePermission={hasWritePermission}
+              refreshing={refreshing}
+              onReload={reload}
+            />
+          </TabsContent>
 
           <TabsContent value="images" className="mt-4">
-            {config && (
-              <ImagesTab
-                config={config}
-                hasWritePermission={hasWritePermission}
-              />
-            )}
+            <ImagesTab config={config} hasWritePermission={hasWritePermission} />
           </TabsContent>
 
           <TabsContent value="apps" className="mt-4">
-            {config && (
-              <AppsTab
-                config={config}
-                capabilities={capabilities}
-                hasWritePermission={hasWritePermission}
-                onReload={() => loadData(true)}
-              />
-            )}
+            <AppsTab
+              config={config}
+              capabilities={capabilities}
+              hasWritePermission={hasWritePermission}
+              refreshing={refreshing}
+              onReload={reload}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -238,6 +285,35 @@ export function ContainerContent() {
         open={baseDirExists === false && hasWritePermission}
         onCreated={() => setBaseDirExists(true)}
       />
+
+      <AlertDialog open={rootOpen} onOpenChange={handleRootOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("content.deleteAll")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("content.deleteAllConfirm")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {rootError && (
+            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive whitespace-pre-wrap">{rootError}</p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rootSaving}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteRoot}
+              disabled={rootSaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {rootSaving ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{tc("deleting")}</>
+              ) : (
+                t("tab.apply")
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -10,15 +10,30 @@ import {
 } from "@/components/ui/dialog";
 import { systemSettingsService } from "@/lib/api/system-settings";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Check, CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { containerService, type ContainerNetworkConfig } from "@/lib/api/container";
+import {
+  containerService,
+  type ContainerInstance,
+  type ContainerNetworkConfig,
+} from "@/lib/api/container";
+import {
+  containerNameProblem,
+  containerProblem,
+  emptyContainer,
+  networkNameProblem,
+  networkProblem,
+} from "@/lib/api/container-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import type { WizardProps } from "@/lib/apps-catalog";
 import { useAppsCatalogText, useLocalizedInstallConfig } from "@/lib/apps-catalog-i18n";
 import { cn } from "@/lib/utils";
+import { SECTION_LABEL_KEYS } from "./container-form";
 
 type NetworkMode = "host" | "existing" | "new";
 type TaskStatus = "pending" | "running" | "done" | "error";
@@ -75,11 +90,13 @@ function TaskRow({ task }: { task: DeployTask }) {
 
 export function GenericAppWizard({ open, onOpenChange, config, capabilities, onComplete, app }: WizardProps) {
   const t = useTranslations("containerResources");
+  const tm = useTranslations("containers");
   const tc = useTranslations("common");
   const ic = useLocalizedInstallConfig(app);
   const appName = useAppsCatalogText().appName(app);
   const netCfg = ic.network;
   const hasNetwork = !!netCfg;
+  const features = capabilities?.features;
 
   const availableModes = useMemo((): NetworkMode[] => {
     if (!netCfg) return [];
@@ -143,7 +160,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   const [networkMode, setNetworkMode] = useState<NetworkMode>(initialMode);
   const [existingNetwork, setExistingNetwork] = useState("");
   const [netAddress, setNetAddress] = useState("");
-  const [newNetName, setNewNetName] = useState(app.defaultContainerName);
+  const [netMac, setNetMac] = useState("");
+  const [newNetName, setNewNetName] = useState(app.defaultContainerName.slice(0, 11));
   const [newNetPrefix, setNewNetPrefix] = useState("172.20.0.0/24");
 
   const [tasks, setTasks] = useState<DeployTask[]>([]);
@@ -153,14 +171,13 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
   const existingContainerNames = config.containers.map(c => c.name);
   const existingNetNames = config.networks.map(n => n.name);
+  const showMac = !!netCfg?.allowMac && !!features?.network_mac;
 
   // ── Validation ─────────────────────────────────────────────────────────────
 
   const step1Error = (): string | null => {
-    const n = containerName.trim();
-    if (!n) return t("wizard.containerNameRequired");
-    if (!/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(n)) return t("wizard.nameInvalid");
-    if (existingContainerNames.includes(n)) return t("wizard.containerExists", { name: n });
+    const nameIssue = containerNameProblem(containerName, existingContainerNames);
+    if (nameIssue) return tm(`problems.${nameIssue.key}`, nameIssue.values);
     for (const f of ic.fields ?? []) {
       if (f.required && !fieldValues[f.name]?.trim()) return t("wizard.fieldRequired", { label: f.label });
       if (f.type === "number" && fieldValues[f.name] && isNaN(Number(fieldValues[f.name])))
@@ -172,9 +189,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   const step2Error = (): string | null => {
     if (networkMode === "existing" && !existingNetwork) return t("wizard.selectNetwork");
     if (networkMode === "new") {
-      if (!newNetName.trim()) return t("wizard.networkNameRequired");
-      if (!/^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$/.test(newNetName.trim())) return t("wizard.networkNameInvalid");
-      if (existingNetNames.includes(newNetName.trim())) return t("wizard.networkExists", { name: newNetName.trim() });
+      const nameIssue = networkNameProblem(newNetName, existingNetNames);
+      if (nameIssue) return t(`networkProblems.${nameIssue.key}`, nameIssue.values);
       if (!newNetPrefix.trim()) return t("wizard.subnetRequired");
     }
     return null;
@@ -190,6 +206,86 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
   const name = containerName.trim();
   const resolvedValues: Record<string, string> = { ...fieldValues, containerName: name };
+  const basePath = `/config/containers/${name}`;
+
+  const buildNetwork = (): ContainerNetworkConfig => ({
+    name: newNetName.trim(),
+    description: `Created by ${app.name} wizard`,
+    gateways: [],
+    mtu: null,
+    no_name_server: false,
+    prefixes: [newNetPrefix.trim()],
+    network_type: null,
+    macvlan_mode: null,
+    macvlan_parent: null,
+    vrf: null,
+  });
+
+  const buildContainer = (): ContainerInstance => {
+    const supports = features ?? null;
+    const networks: ContainerInstance["networks"] = [];
+    if (hasNetwork && networkMode !== "host") {
+      networks.push({
+        name: networkMode === "existing" ? existingNetwork : newNetName.trim(),
+        addresses: netAddress.trim() ? [netAddress.trim()] : [],
+        mac: showMac ? netMac.trim() : "",
+      });
+    }
+    const ports = (hasNetwork && networkMode === "host") ? [] : (ic.ports ?? []).map(p => ({
+      name: p.name,
+      source: resolve(String(p.source), resolvedValues),
+      destination: resolve(String(p.destination), resolvedValues),
+      protocol: p.protocol ?? "tcp",
+      listen_addresses: p.listenAddresses ?? [],
+    }));
+    const supportedCapabilities = capabilities?.values.capabilities || [];
+    const health = ic.healthCheck;
+    return {
+      ...emptyContainer(name),
+      image: app.dockerImage,
+      description: ic.description ? resolve(ic.description, resolvedValues) : null,
+      allow_host_networks: hasNetwork && networkMode === "host",
+      allow_host_pid: ic.allowHostPid ?? false,
+      privileged: ic.privileged ?? false,
+      restart: ic.restart ?? null,
+      memory: ic.memory ? resolve(ic.memory, resolvedValues) : null,
+      arguments: ic.arguments ? resolve(ic.arguments, resolvedValues) : null,
+      command: ic.command ? resolve(ic.command, resolvedValues) : null,
+      entrypoint: ic.entrypoint ? resolve(ic.entrypoint, resolvedValues) : null,
+      cpu_quota: ic.cpuQuota ? resolve(ic.cpuQuota, resolvedValues) : null,
+      shared_memory: ic.sharedMemory ?? null,
+      uid: ic.uid ? resolve(ic.uid, resolvedValues) : null,
+      gid: ic.gid ? resolve(ic.gid, resolvedValues) : null,
+      host_name: ic.hostname ? resolve(ic.hostname, resolvedValues) : null,
+      log_driver: ic.logDriver && supports?.log_driver ? ic.logDriver : null,
+      health_check: health && supports?.health_check
+        ? {
+            command: health.command ?? null,
+            interval: health.interval ?? null,
+            retry: health.retry != null ? String(health.retry) : null,
+            timeout: health.timeout ?? null,
+          }
+        : null,
+      capabilities: (ic.capabilities ?? []).filter((cap) => supportedCapabilities.includes(cap)),
+      name_servers: ic.nameServers ?? [],
+      devices: (ic.devices ?? []).map(d => ({ name: d.name, source: d.source, destination: d.destination })),
+      labels: (ic.labels ?? []).map(l => ({ name: l.name, value: resolve(l.value, resolvedValues) })),
+      sysctl_params: (ic.sysctl ?? []).map(s => ({ name: s.name, value: s.value })),
+      tmpfs_mounts: supports?.tmpfs && ic.tmpfs
+        ? ic.tmpfs.map(m => ({ name: m.name, destination: m.destination, size: m.size ?? null }))
+        : [],
+      environments: (ic.environment ?? []).map(e => ({ name: e.name, value: resolve(e.value, resolvedValues) })),
+      networks,
+      ports,
+      volumes: (ic.volumes ?? []).map(v => ({
+        name: v.name,
+        source: `${basePath}/${v.name}`,
+        destination: v.destination,
+        mode: v.mode ?? null,
+        propagation: v.propagation ?? null,
+      })),
+    };
+  };
 
   const buildTasks = (): DeployTask[] => {
     const list: DeployTask[] = [];
@@ -201,6 +297,33 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   };
 
   const deploy = async () => {
+    if (!capabilities) return;
+    const creatingNetwork = hasNetwork && networkMode === "new";
+    const net = buildNetwork();
+    const draft = buildContainer();
+
+    // Check both objects before anything changes on the router.
+    if (creatingNetwork) {
+      const netIssue = networkProblem(null, net, { features: capabilities.features, existingNames: existingNetNames });
+      if (netIssue) {
+        setDeployError(t(`networkProblems.${netIssue.key}`, netIssue.values));
+        return;
+      }
+    }
+    const issue = containerProblem(null, draft, {
+      features: capabilities.features,
+      existingNames: existingContainerNames,
+      networks: creatingNetwork ? [...config.networks, net] : config.networks,
+      values: capabilities.values,
+    });
+    if (issue) {
+      setDeployError(tm(`problems.${issue.key}`, {
+        ...issue.values,
+        section: issue.section ? tm(SECTION_LABEL_KEYS[issue.section]) : "",
+      }));
+      return;
+    }
+
     const initial = buildTasks();
     setTasks(initial);
     setDeploying(true);
@@ -213,26 +336,13 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
     const fail    = (i: number, err: string) => { cur = cur.map((t, j) => j === i ? { ...t, status: "error"   as TaskStatus, error: err } : t); setTasks([...cur]); };
 
     try {
-      if (hasNetwork && networkMode === "new") {
+      if (creatingNetwork) {
         running(idx);
-        const net: ContainerNetworkConfig = {
-          name: newNetName.trim(),
-          description: `Created by ${app.name} wizard`,
-          gateways: [],
-          mtu: null,
-          no_name_server: false,
-          prefixes: [newNetPrefix.trim()],
-          network_type: null,
-          macvlan_mode: null,
-          macvlan_parent: null,
-          vrf: null,
-        };
-        await containerService.createNetwork(net);
+        await containerService.saveNetwork(null, net, capabilities.features);
         done(idx++);
       }
 
       running(idx);
-      const basePath = `/config/containers/${name}`;
       const resolvedInitFiles = (ic.initFiles ?? []).map(f => resolve(f, resolvedValues));
       const initFileDirs = resolvedInitFiles.map(f => f.substring(0, f.lastIndexOf("/")));
       const allDirs = [...new Set([
@@ -266,83 +376,11 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       done(idx++);
 
       running(idx);
-
-      let networks: Array<{ name: string; addresses: string[] }> = [];
-      if (hasNetwork && networkMode !== "host") {
-        const netName = networkMode === "existing" ? existingNetwork : newNetName.trim();
-        networks = [{ name: netName, addresses: netAddress ? [netAddress] : [] }];
-      }
-
-      const ports = (hasNetwork && networkMode === "host") ? [] : (ic.ports ?? []).map(p => ({
-        name: p.name,
-        source: resolve(String(p.source), resolvedValues),
-        destination: resolve(String(p.destination), resolvedValues),
-        protocol: p.protocol ?? "tcp",
-        listen_addresses: p.listenAddresses ?? [],
-      }));
-
-      const environments = (ic.environment ?? []).map(e => ({
-        name: e.name,
-        value: resolve(e.value, resolvedValues),
-      }));
-
-      const volumes = (ic.volumes ?? []).map(v => ({
-        name: v.name,
-        source: `${basePath}/${v.name}`,
-        destination: v.destination,
-        mode: v.mode ?? null,
-        propagation: v.propagation ?? null,
-      }));
-
-      const memoryStr = ic.memory ? resolve(ic.memory, resolvedValues) : null;
-
-      const supportsLogDriver = capabilities?.features?.log_driver?.supported !== false;
-      const logDriver = (ic.logDriver && supportsLogDriver) ? ic.logDriver : null;
-
-      const supportsTmpfs = capabilities?.features?.tmpfs?.supported !== false;
-      const tmpfsMounts = (supportsTmpfs && ic.tmpfs) ? ic.tmpfs.map(t => ({
-        name: t.name,
-        destination: t.destination,
-        size: t.size ?? null,
-      })) : [];
-
-      const supportedCapabilities = capabilities?.features?.capabilities?.values ?? [];
-      const requestedCapabilities = (ic.capabilities ?? []).filter((cap) => supportedCapabilities.includes(cap));
-
-      await containerService.createContainer({
-        name,
-        image: app.dockerImage,
-        description: ic.description ? resolve(ic.description, resolvedValues) : null,
-        disabled: false,
-        allow_host_networks: hasNetwork && networkMode === "host",
-        allow_host_pid: ic.allowHostPid ?? false,
-        privileged: ic.privileged ?? false,
-        restart: ic.restart ?? null,
-        memory: memoryStr,
-        arguments: ic.arguments ? resolve(ic.arguments, resolvedValues) : null,
-        command: ic.command ? resolve(ic.command, resolvedValues) : null,
-        entrypoint: ic.entrypoint ? resolve(ic.entrypoint, resolvedValues) : null,
-        cpu_quota: ic.cpuQuota ? resolve(ic.cpuQuota, resolvedValues) : null,
-        shared_memory: ic.sharedMemory ?? null,
-        uid: ic.uid ? resolve(ic.uid, resolvedValues) : null,
-        gid: ic.gid ? resolve(ic.gid, resolvedValues) : null,
-        host_name: ic.hostname ? resolve(ic.hostname, resolvedValues) : null,
-        log_driver: logDriver,
-        capabilities: requestedCapabilities,
-        name_servers: ic.nameServers ?? [],
-        devices: (ic.devices ?? []).map(d => ({ name: d.name, source: d.source, destination: d.destination })),
-        labels: (ic.labels ?? []).map(l => ({ name: l.name, value: resolve(l.value, resolvedValues) })),
-        sysctl_params: (ic.sysctl ?? []).map(s => ({ name: s.name, value: s.value })),
-        tmpfs_mounts: tmpfsMounts,
-        environments,
-        networks,
-        ports,
-        volumes,
-      });
+      await containerService.saveContainer(null, draft, capabilities.features);
       done(idx++);
       setDeployed(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("wizard.unexpectedError");
+      const msg = (err as ApiError).message || t("wizard.unexpectedError");
       if (idx < cur.length) fail(idx, msg);
       setDeployError(msg);
     } finally {
@@ -350,19 +388,9 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
     }
   };
 
-  // ── Reset on close ─────────────────────────────────────────────────────────
-
+  // The parent unmounts the wizard on close, so the next install starts fresh.
   const handleOpenChange = (o: boolean) => {
     if (deploying) return;
-    if (!o) {
-      setStep(0);
-      setContainerName(app.defaultContainerName);
-      setFieldValues(Object.fromEntries((ic.fields ?? []).map(f => [f.name, String(f.default ?? "")])));
-      setNetworkMode(initialMode);
-      setExistingNetwork(""); setNetAddress("");
-      setNewNetName(app.defaultContainerName); setNewNetPrefix("172.20.0.0/24");
-      setTasks([]); setDeploying(false); setDeployed(false); setDeployError(null);
-    }
     onOpenChange(o);
   };
 
@@ -396,8 +424,9 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         {step === 0 && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>{t("wizard.containerName")}</Label>
+              <Label htmlFor="wiz-name">{t("wizard.containerName")}</Label>
               <Input
+                id="wiz-name"
                 value={containerName}
                 onChange={e => setContainerName(e.target.value)}
                 className="font-mono"
@@ -412,31 +441,28 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
             {(ic.fields ?? []).map(f => (
               <div key={f.name} className="space-y-1.5">
-                <Label>
+                <Label htmlFor={`wiz-field-${f.name}`}>
                   {f.label}
                   {f.required && <span className="text-destructive ml-1">*</span>}
                 </Label>
 
                 {f.type === "select" && (
-                  <select
+                  <NamedListSelect
+                    id={`wiz-field-${f.name}`}
                     value={fieldValues[f.name] ?? ""}
-                    onChange={e => setFieldValues(prev => ({ ...prev, [f.name]: e.target.value }))}
-                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">{t("wizard.selectOption")}</option>
-                    {(f.options ?? []).map(opt => (
-                      <option key={opt} value={opt}>{f.optionLabels?.[opt] ?? opt}</option>
-                    ))}
-                  </select>
+                    names={f.options ?? []}
+                    labels={f.optionLabels}
+                    onValueChange={v => setFieldValues(prev => ({ ...prev, [f.name]: v }))}
+                    noneLabel={t("wizard.selectOption")}
+                  />
                 )}
 
                 {f.type === "checkbox" && (
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
+                      id={`wiz-field-${f.name}`}
                       checked={fieldValues[f.name] === "true"}
-                      onChange={e => setFieldValues(prev => ({ ...prev, [f.name]: String(e.target.checked) }))}
-                      className="h-4 w-4"
+                      onCheckedChange={v => setFieldValues(prev => ({ ...prev, [f.name]: String(v === true) }))}
                     />
                     {f.description && (
                       <span className="text-sm text-muted-foreground">{f.description}</span>
@@ -446,6 +472,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
                 {f.type === "interface" && (
                   <InterfaceSelect
+                    id={`wiz-field-${f.name}`}
                     value={fieldValues[f.name] ?? ""}
                     onValueChange={v => setFieldValues(prev => ({ ...prev, [f.name]: v }))}
                   />
@@ -453,6 +480,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
                 {(f.type === "text" || f.type === "number") && (
                   <Input
+                    id={`wiz-field-${f.name}`}
                     type={f.type}
                     value={fieldValues[f.name] ?? ""}
                     onChange={e => setFieldValues(prev => ({ ...prev, [f.name]: e.target.value }))}
@@ -521,38 +549,40 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             {networkMode === "existing" && (
               <div className="space-y-3 pt-1">
                 <div className="space-y-1.5">
-                  <Label>{t("wizard.network")}</Label>
-                  <select
+                  <Label htmlFor="wiz-network">{t("wizard.network")}</Label>
+                  <NamedListSelect
+                    id="wiz-network"
                     value={existingNetwork}
-                    onChange={e => setExistingNetwork(e.target.value)}
-                    className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
-                  >
-                    <option value="">{t("wizard.chooseNetwork")}</option>
-                    {config.networks.map(n => <option key={n.name} value={n.name}>{n.name}</option>)}
-                  </select>
+                    names={existingNetNames}
+                    onValueChange={setExistingNetwork}
+                    noneLabel={t("wizard.chooseNetwork")}
+                  />
                   {config.networks.length === 0 && (
                     <p className="text-xs text-muted-foreground">{t("wizard.noNetworksYet")}</p>
                   )}
                 </div>
-                {netCfg?.allowStaticIp && (
-                  <IpMacFields
-                    allowStaticIp={netCfg?.allowStaticIp}
-                    netAddress={netAddress}
-                    setNetAddress={setNetAddress}
-                  />
-                )}
+                <IpMacFields
+                  allowStaticIp={netCfg?.allowStaticIp}
+                  showMac={showMac}
+                  netAddress={netAddress}
+                  setNetAddress={setNetAddress}
+                  netMac={netMac}
+                  setNetMac={setNetMac}
+                />
               </div>
             )}
 
             {networkMode === "new" && (
               <div className="space-y-3 pt-1">
                 <div className="space-y-1.5">
-                  <Label>{t("wizard.networkName")}</Label>
+                  <Label htmlFor="wiz-new-net">{t("wizard.networkName")}</Label>
                   <Input
+                    id="wiz-new-net"
                     value={newNetName}
                     onChange={e => setNewNetName(e.target.value)}
+                    maxLength={11}
                     className="font-mono"
-                    placeholder={app.defaultContainerName}
+                    placeholder={app.defaultContainerName.slice(0, 11)}
                   />
                   {newNetName && existingNetNames.includes(newNetName.trim()) && (
                     <p className="text-xs text-destructive flex items-center gap-1">
@@ -561,21 +591,23 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>{t("wizard.subnetPrefix")}</Label>
+                  <Label htmlFor="wiz-new-prefix">{t("wizard.subnetPrefix")}</Label>
                   <Input
+                    id="wiz-new-prefix"
                     value={newNetPrefix}
                     onChange={e => setNewNetPrefix(e.target.value)}
                     className="font-mono"
                     placeholder="172.20.0.0/24"
                   />
                 </div>
-                {netCfg?.allowStaticIp && (
-                  <IpMacFields
-                    allowStaticIp={netCfg?.allowStaticIp}
-                    netAddress={netAddress}
-                    setNetAddress={setNetAddress}
-                  />
-                )}
+                <IpMacFields
+                  allowStaticIp={netCfg?.allowStaticIp}
+                  showMac={showMac}
+                  netAddress={netAddress}
+                  setNetAddress={setNetAddress}
+                  netMac={netMac}
+                  setNetMac={setNetMac}
+                />
               </div>
             )}
           </div>
@@ -638,7 +670,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             {deployError && !deployed && (
               <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
                 <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">{deployError}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">{deployError}</p>
               </div>
             )}
           </div>
@@ -666,7 +698,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                 {t("wizard.next")}
               </Button>
             ) : (
-              <Button onClick={deploy} disabled={deploying}>
+              <Button onClick={deploy} disabled={deploying || !capabilities}>
                 {deploying
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("wizard.deploying")}</>
                   : t("wizard.deploy")}
@@ -681,27 +713,41 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
 interface IpMacFieldsProps {
   allowStaticIp?: boolean;
+  showMac: boolean;
   netAddress: string;
   setNetAddress: (v: string) => void;
+  netMac: string;
+  setNetMac: (v: string) => void;
 }
 
-// Extracted to avoid repeating the IP/MAC grid in both "existing" and "new" branches
-function IpMacFields({ allowStaticIp, netAddress, setNetAddress }: IpMacFieldsProps) {
+/** The optional static address and MAC of the attachment, shared by the existing and new network branches. */
+function IpMacFields({ allowStaticIp, showMac, netAddress, setNetAddress, netMac, setNetMac }: IpMacFieldsProps) {
   const t = useTranslations("containerResources");
-  const showIp  = allowStaticIp;
-
-  if (!showIp) return null;
+  if (!allowStaticIp && !showMac) return null;
 
   return (
     <div className="grid gap-3 grid-cols-1">
-      {showIp && (
+      {allowStaticIp && (
         <div className="space-y-1.5">
-          <Label>{t("wizard.ipAddress")} <span className="text-muted-foreground font-normal">{t("wizard.optionalSuffix")}</span></Label>
+          <Label htmlFor="wiz-address">{t("wizard.ipAddress")} <span className="text-muted-foreground font-normal">{t("wizard.optionalSuffix")}</span></Label>
           <Input
+            id="wiz-address"
             value={netAddress}
             onChange={e => setNetAddress(e.target.value)}
             className="font-mono"
             placeholder="172.20.0.2"
+          />
+        </div>
+      )}
+      {showMac && (
+        <div className="space-y-1.5">
+          <Label htmlFor="wiz-mac">{t("wizard.macAddress")} <span className="text-muted-foreground font-normal">{t("wizard.optionalSuffix")}</span></Label>
+          <Input
+            id="wiz-mac"
+            value={netMac}
+            onChange={e => setNetMac(e.target.value)}
+            className="font-mono"
+            placeholder="02:00:00:00:00:01"
           />
         </div>
       )}

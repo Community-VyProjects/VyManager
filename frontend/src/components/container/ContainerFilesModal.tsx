@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ArrowLeft, CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { containerService } from "@/lib/api/container";
+import type { ApiError } from "@/lib/types/api";
 import type { AppDef } from "@/lib/apps-catalog";
 
 interface Props {
@@ -26,6 +27,7 @@ function resolvePath(template: string, containerName: string): string {
   return template.replace(/\$\{containerName\}/g, containerName);
 }
 
+/** The parent mounts this only while open, so every open starts on the file list. */
 export function ContainerFilesModal({ open, onOpenChange, containerName, app }: Props) {
   const t = useTranslations("containers");
   const tc = useTranslations("common");
@@ -59,7 +61,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
         setContent(result.content ?? "");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("filesModal.readFailed"));
+      setError((err as ApiError).message || t("filesModal.readFailed"));
     } finally {
       setLoading(false);
     }
@@ -78,7 +80,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
         setSaveSuccess(true);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("filesModal.saveFailed"));
+      setError((err as ApiError).message || t("filesModal.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -92,24 +94,20 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
     setSaveSuccess(false);
   };
 
-  useEffect(() => {
-    if (!open) {
-      setView("list");
-      setSelectedIndex(null);
-      setContent("");
-      setError(null);
-      setSaveSuccess(false);
-    }
-  }, [open]);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && saving) return;
+    onOpenChange(next);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {view === "editor" && (
               <button
                 onClick={backToList}
+                disabled={saving}
                 className="mr-1 rounded p-1 hover:bg-muted transition-colors"
                 aria-label={t("filesModal.backToList")}
               >
@@ -166,7 +164,8 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
               ) : (
                 <textarea
                   value={content}
-                  onChange={e => { setContent(e.target.value); setSaveSuccess(false); }}
+                  aria-label={selectedFile?.label ?? t("filesModal.editFile")}
+                  onChange={(e) => { setContent(e.target.value); setSaveSuccess(false); }}
                   className="flex-1 min-h-[320px] w-full rounded-md border bg-background px-3 py-2 text-sm font-mono resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   spellCheck={false}
                 />
@@ -175,7 +174,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
               {error && (
                 <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
                   <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-sm text-destructive">{error}</p>
+                  <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
                 </div>
               )}
 

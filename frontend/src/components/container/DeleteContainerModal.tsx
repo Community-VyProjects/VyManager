@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -11,14 +12,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { ContainerInstance } from "@/lib/api/container";
+import type { ApiError } from "@/lib/types/api";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   container: ContainerInstance | null;
+  /** Runs the delete; throws on a rejected commit. */
   onConfirm: () => Promise<void>;
 }
 
@@ -28,22 +30,24 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (event: MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
     try {
       await onConfirm();
+      onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("deleteModal.failed"));
+      setError((err as ApiError).message || t("deleteModal.failed"));
+    } finally {
       setLoading(false);
-      return;
     }
-    setLoading(false);
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) setError(null);
-    onOpenChange(open);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    if (!next) setError(null);
+    onOpenChange(next);
   };
 
   return (
@@ -75,7 +79,7 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>{tc("cancel")}</AlertDialogCancel>
-          <Button
+          <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -88,7 +92,7 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
             ) : (
               t("deleteModal.title")
             )}
-          </Button>
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

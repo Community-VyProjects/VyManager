@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ImageIcon, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { containerService, type ContainerConfig } from "@/lib/api/container";
-import { thrownMessage } from "@/lib/api-error";
+import { AlertCircle, ImageIcon, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { containerService, type ContainerConfig, type ContainerSSHResponse } from "@/lib/api/container";
+import type { ApiError } from "@/lib/types/api";
 import { isProtectedStackImage } from "@/lib/appliance";
 import { useSessionStore } from "@/store/session-store";
 import { SshOutputModal } from "./SshOutputModal";
@@ -63,46 +63,53 @@ function imagesMatch(pulled: string, configured: string): boolean {
 
 export function ImagesTab({ config, hasWritePermission }: Props) {
   const t = useTranslations("containerResources");
+  const tm = useTranslations("containers");
   const tc = useTranslations("common");
   const appliance = useSessionStore((s) => s.appliance);
   const [pulledImages, setPulledImages] = useState<string[]>([]);
   const [imagesLoading, setImagesLoading] = useState(true);
+  const [imagesError, setImagesError] = useState<string | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addModalKey, setAddModalKey] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [ssh, setSsh] = useState<SshState>({ open: false, title: "", loading: false, success: null });
 
-  const loadImages = useCallback(async () => {
-    setImagesLoading(true);
+  // State is set only after the request returns, so the mount effect sets none synchronously.
+  const fetchImages = useCallback(async () => {
     try {
-      const imgs = await containerService.getImages();
-      setPulledImages(imgs);
-    } catch {
+      setPulledImages(await containerService.getImages());
+      setImagesError(null);
+    } catch (err: unknown) {
       setPulledImages([]);
+      setImagesError((err as ApiError).message || t("images.loadFailed"));
     } finally {
       setImagesLoading(false);
     }
-  }, []);
+  }, [t]);
 
-  useEffect(() => { loadImages(); }, [loadImages]);
+  useEffect(() => {
+    void fetchImages();
+  }, [fetchImages]);
 
-  const runSsh = async (
-    title: string,
-    fn: () => Promise<{ success: boolean; output?: string | null; error?: string | null }>,
-  ) => {
+  const reloadImages = () => {
+    setImagesLoading(true);
+    void fetchImages();
+  };
+
+  const runSsh = async (title: string, fn: () => Promise<ContainerSSHResponse>) => {
     setSsh({ open: true, title, loading: true, success: null });
     try {
       const result = await fn();
       setSsh({ open: true, title, loading: false, success: result.success, output: result.output, error: result.error });
-      if (result.success) loadImages();
+      if (result.success) reloadImages();
     } catch (err: unknown) {
-      setSsh({ open: true, title, loading: false, success: false, error: thrownMessage(err) });
+      setSsh({ open: true, title, loading: false, success: false, error: (err as ApiError).message || tm("sshOutput.failed") });
     }
   };
 
   const usedByContainers = (img: string): string[] =>
-    config.containers
-      .filter(c => c.image && imagesMatch(img, c.image))
-      .map(c => c.name);
+    config.containers.filter((c) => c.image && imagesMatch(img, c.image)).map((c) => c.name);
 
   return (
     <>
@@ -111,17 +118,24 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               {t("images.pulledImages")}
-              {!imagesLoading && (
+              {!imagesLoading && !imagesError && (
                 <Badge variant="outline" className="font-normal">{pulledImages.length}</Badge>
               )}
             </CardTitle>
             <div className="flex items-center gap-2">
               {hasWritePermission && (
-                <Button size="sm" onClick={() => setAddModalOpen(true)}>
+                <Button
+                  size="sm"
+                  disabled={ssh.loading}
+                  onClick={() => {
+                    setAddModalKey((k) => k + 1);
+                    setAddModalOpen(true);
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />{t("images.addImage")}
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={loadImages} disabled={imagesLoading}>
+              <Button variant="outline" size="sm" onClick={reloadImages} disabled={imagesLoading}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${imagesLoading ? "animate-spin" : ""}`} />
                 {tc("refresh")}
               </Button>
@@ -132,6 +146,11 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
           {imagesLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground px-6 py-8">
               <Loader2 className="h-4 w-4 animate-spin" />{t("images.loading")}
+            </div>
+          ) : imagesError ? (
+            <div className="flex items-start gap-2 mx-6 mb-6 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive whitespace-pre-wrap">{imagesError}</p>
             </div>
           ) : pulledImages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -149,7 +168,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pulledImages.map(img => {
+                  {pulledImages.map((img) => {
                     const users = usedByContainers(img);
                     const inUse = users.length > 0;
                     const stackImage = isProtectedStackImage(appliance, img);
@@ -162,7 +181,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                         <TableCell>
                           {inUse ? (
                             <div className="flex flex-wrap gap-1">
-                              {users.map(u => (
+                              {users.map((u) => (
                                 <Badge key={u} variant="outline" className="font-mono text-xs">{u}</Badge>
                               ))}
                             </div>
@@ -176,6 +195,8 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                               <Button
                                 variant="ghost" size="icon" className="h-8 w-8"
                                 title={t("images.updateImage")}
+                                aria-label={t("images.updateImage")}
+                                disabled={ssh.loading}
                                 onClick={() => runSsh(t("images.updateImageTitle", { image: img }), () => containerService.updateImageRef(img))}
                               >
                                 <RefreshCw className="h-4 w-4" />
@@ -189,8 +210,12 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                                       ? t("images.cannotDeleteInUse", { containers: users.join(", ") })
                                       : t("images.deleteImageTooltip")
                                 }
-                                disabled={deleteBlocked}
-                                onClick={() => setDeleteConfirm(img)}
+                                aria-label={t("images.deleteImageTooltip")}
+                                disabled={deleteBlocked || ssh.loading}
+                                onClick={() => {
+                                  setDeleteConfirm(img);
+                                  setDeleteOpen(true);
+                                }}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -208,14 +233,15 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
       </Card>
 
       <AddImageModal
+        key={addModalKey}
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
-        onSubmit={ref => runSsh(t("images.addImageTitle", { image: ref }), () => containerService.pullImage(ref))}
+        onSubmit={(ref) => runSsh(t("images.addImageTitle", { image: ref }), () => containerService.pullImage(ref))}
       />
 
       <SshOutputModal
         open={ssh.open}
-        onOpenChange={open => { if (!open) setSsh(s => ({ ...s, open: false })); }}
+        onOpenChange={(open) => { if (!open) setSsh((s) => ({ ...s, open: false })); }}
         title={ssh.title}
         loading={ssh.loading}
         success={ssh.success}
@@ -223,7 +249,8 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
         error={ssh.error}
       />
 
-      <AlertDialog open={deleteConfirm !== null} onOpenChange={open => { if (!open) setDeleteConfirm(null); }}>
+      {/* The delete runs in the output dialog, which shows its result. */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("images.deleteImage")}</AlertDialogTitle>
@@ -239,9 +266,9 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                const img = deleteConfirm!;
-                setDeleteConfirm(null);
-                runSsh(t("images.deleteImageTitle", { image: img }), () => containerService.deleteImageRef(img));
+                const img = deleteConfirm;
+                setDeleteOpen(false);
+                if (img) void runSsh(t("images.deleteImageTitle", { image: img }), () => containerService.deleteImageRef(img));
               }}
             >
               {t("images.deleteImage")}

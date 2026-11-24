@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertDialog,
@@ -14,11 +14,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { ContainerNetworkConfig } from "@/lib/api/container";
+import type { ApiError } from "@/lib/types/api";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   network: ContainerNetworkConfig | null;
+  /** Runs the delete; throws on a rejected commit (a network a container uses). */
   onConfirm: () => Promise<void>;
 }
 
@@ -28,22 +30,24 @@ export function DeleteNetworkModal({ open, onOpenChange, network, onConfirm }: P
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (event: MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
     try {
       await onConfirm();
+      onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("deleteNetwork.failed"));
+      setError((err as ApiError).message || t("deleteNetwork.failed"));
+    } finally {
       setLoading(false);
-      return;
     }
-    setLoading(false);
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) setError(null);
-    onOpenChange(open);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    if (!next) setError(null);
+    onOpenChange(next);
   };
 
   return (

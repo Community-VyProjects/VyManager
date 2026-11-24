@@ -22,9 +22,11 @@ import type { ContainerConfig, ContainerCapabilities } from "@/lib/api/container
 
 interface Props {
   config: ContainerConfig;
-  capabilities: ContainerCapabilities | null;
+  capabilities: ContainerCapabilities;
   hasWritePermission: boolean;
-  onReload: () => void;
+  /** A post-save reload is running; the config shown may be stale. */
+  refreshing: boolean;
+  onReload: () => Promise<void>;
 }
 
 function AppIcon({ app }: { app: AppDef }) {
@@ -50,7 +52,7 @@ function isAppInstalled(app: AppDef, config: ContainerConfig): boolean {
 
 const ALL_CATEGORIES = Array.from(new Set(APP_CATALOG.map(app => app.category)));
 
-export function AppsTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+export function AppsTab({ config, capabilities, hasWritePermission, refreshing, onReload }: Props) {
   const t = useTranslations("containerResources");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -159,7 +161,7 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
                             ) : (
                               <Button
                                 className="w-full"
-                                disabled={!hasWritePermission}
+                                disabled={!hasWritePermission || refreshing}
                                 onClick={() => setInstallingApp(app)}
                               >
                                 {t("apps.install")}
@@ -185,7 +187,7 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
             onOpenChange={open => { if (!open) setInstallingApp(null); }}
             config={config}
             capabilities={capabilities}
-            onComplete={() => { setInstallingApp(null); onReload(); }}
+            onComplete={() => { setInstallingApp(null); void onReload(); }}
             app={installingApp}
           />
         );
