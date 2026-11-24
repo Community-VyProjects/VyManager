@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,107 +13,70 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { AlertCircle, Loader2, Settings, X } from "lucide-react";
-import { pppoeServerService, PPPoEConfigResponse } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { AlertCircle, Loader2, Settings } from "lucide-react";
+import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
+import { pppoeServerService, PPPoECapabilities, PPPoEConfigResponse } from "@/lib/api/pppoe-server";
+import { generalProblem, PPPOE_RANGES, type PPPoEGeneralDraft } from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface GeneralSettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   config: PPPoEConfigResponse;
+  capabilities: PPPoECapabilities | null;
 }
 
-export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: GeneralSettingsModalProps) {
+export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config, capabilities }: GeneralSettingsModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
-  const [description, setDescription] = useState("");
-  const [accessConcentrator, setAccessConcentrator] = useState("");
-  const [serviceName, setServiceName] = useState("");
-  const [gatewayAddresses, setGatewayAddresses] = useState<string[]>([]);
-  const [gatewayInput, setGatewayInput] = useState("");
-  const [nameServers, setNameServers] = useState<string[]>([]);
-  const [nameServerInput, setNameServerInput] = useState("");
-  const [winsServers, setWinsServers] = useState<string[]>([]);
-  const [winsInput, setWinsInput] = useState("");
-  const [defaultPool, setDefaultPool] = useState("");
-  const [defaultIpv6Pool, setDefaultIpv6Pool] = useState("");
-  const [sessionControl, setSessionControl] = useState("__none__");
-  const [mtu, setMtu] = useState("");
-  const [maxSessions, setMaxSessions] = useState("");
-  const [threadCount, setThreadCount] = useState("");
-  const [acceptAnyService, setAcceptAnyService] = useState(false);
-  const [acceptBlankService, setAcceptBlankService] = useState(false);
-
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  const [draft, setDraft] = useState<PPPoEGeneralDraft>(() => ({
+    description: config.description || "",
+    access_concentrator: config.access_concentrator || "",
+    service_names: config.service_names,
+    gateway_address: config.gateway_address || "",
+    name_servers: config.name_servers,
+    wins_servers: config.wins_servers,
+    mtu: config.mtu || "",
+    max_concurrent_sessions: config.max_concurrent_sessions || "",
+    thread_count: config.thread_count || "",
+    default_pool: config.default_pool || "",
+    default_ipv6_pool: config.default_ipv6_pool || "",
+    session_control: config.session_control || "",
+    accept_any_service: config.accept_any_service,
+    accept_blank_service: config.accept_blank_service,
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setDescription(config.description || "");
-      setAccessConcentrator(config.access_concentrator || "");
-      setServiceName(config.service_name || "");
-      setGatewayAddresses(config.gateway_addresses || []);
-      setGatewayInput("");
-      setNameServers(config.name_servers || []);
-      setNameServerInput("");
-      setWinsServers(config.wins_servers || []);
-      setWinsInput("");
-      setDefaultPool(config.default_pool || "");
-      setDefaultIpv6Pool(config.default_ipv6_pool || "");
-      setSessionControl(config.session_control || "__none__");
-      setMtu(config.mtu || "");
-      setMaxSessions(config.max_concurrent_sessions || "");
-      setThreadCount(config.thread_count || "");
-      setAcceptAnyService(config.accept_any_service || false);
-      setAcceptBlankService(config.accept_blank_service || false);
-      setError(null);
-    }
-  }, [open, config]);
+  const values = capabilities?.values;
+  const threadKeywords = values?.thread_count_keywords || [];
+  const sessionLabels: Record<string, string> = {
+    deny: t("general.sessionDeny"),
+    disable: t("general.sessionDisable"),
+    replace: t("general.sessionReplace"),
+  };
+  const update = (patch: Partial<PPPoEGeneralDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
-  const addToList = (val: string, list: string[], setter: (v: string[]) => void, inputSetter: (v: string) => void) => {
-    const trimmed = val.trim();
-    if (trimmed && !list.includes(trimmed)) {
-      setter([...list, trimmed]);
-      inputSetter("");
-    }
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
   };
 
   const handleSubmit = async () => {
+    const issue = generalProblem(draft, threadKeywords);
+    if (issue) {
+      setError(t(`general.${issue.problem}`, issue.params));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const result = await pppoeServerService.updateGeneralSettings(config, {
-        description,
-        access_concentrator: accessConcentrator,
-        service_name: serviceName,
-        gateway_addresses: gatewayAddresses,
-        name_servers: nameServers,
-        wins_servers: winsServers,
-        default_pool: defaultPool,
-        default_ipv6_pool: defaultIpv6Pool,
-        session_control: sessionControl === "__none__" ? "" : sessionControl,
-        mtu,
-        max_concurrent_sessions: maxSessions,
-        thread_count: threadCount,
-        accept_any_service: acceptAnyService,
-        accept_blank_service: acceptBlankService,
-      });
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("general.updateFailed"));
-      }
+      await pppoeServerService.updateGeneralSettings(config, draft);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("general.updateFailed"));
     } finally {
@@ -121,8 +84,10 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
     }
   };
 
+  const range = PPPOE_RANGES.maxConcurrentSessions;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -135,139 +100,141 @@ export function GeneralSettingsModal({ open, onOpenChange, onSuccess, config }: 
         <div className="space-y-4">
           <h4 className="text-sm font-medium">{t("general.serverIdentity")}</h4>
           <div className="space-y-2">
-            <Label>{tc("description")}</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("general.descriptionPlaceholder")} />
+            <Label htmlFor="pppoe-description">{tc("description")}</Label>
+            <Input
+              id="pppoe-description"
+              value={draft.description}
+              onChange={(e) => update({ description: e.target.value })}
+              placeholder={t("general.descriptionPlaceholder")}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t("general.accessConcentrator")}</Label>
-              <Input value={accessConcentrator} onChange={(e) => setAccessConcentrator(e.target.value)} placeholder="vyos-ac" />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("general.serviceName")}</Label>
-              <Input value={serviceName} onChange={(e) => setServiceName(e.target.value)} placeholder="internet" />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="pppoe-ac">{t("general.accessConcentrator")}</Label>
+            <Input
+              id="pppoe-ac"
+              value={draft.access_concentrator}
+              onChange={(e) => update({ access_concentrator: e.target.value })}
+              placeholder="vyos-ac"
+            />
           </div>
+          <MultiValueInput
+            label={t("general.serviceNames")}
+            values={draft.service_names}
+            placeholder="internet"
+            onChange={(service_names) => update({ service_names })}
+          />
 
           <h4 className="text-sm font-medium">{t("general.addressing")}</h4>
           <div className="space-y-2">
-            <Label>{t("general.gatewayAddresses")}</Label>
-            <div className="flex gap-2">
-              <Input
-                value={gatewayInput}
-                onChange={(e) => setGatewayInput(e.target.value)}
-                placeholder="10.0.0.1"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(gatewayInput, gatewayAddresses, setGatewayAddresses, setGatewayInput); } }}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={() => addToList(gatewayInput, gatewayAddresses, setGatewayAddresses, setGatewayInput)}>{tc("add")}</Button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {gatewayAddresses.map((addr) => (
-                <Badge key={addr} variant="secondary" className="gap-1 font-mono text-xs">
-                  {addr}
-                  <button onClick={() => setGatewayAddresses(gatewayAddresses.filter((a) => a !== addr))}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
+            <Label htmlFor="pppoe-gateway">{t("general.gatewayAddress")}</Label>
+            <Input
+              id="pppoe-gateway"
+              value={draft.gateway_address}
+              onChange={(e) => update({ gateway_address: e.target.value })}
+              placeholder="10.0.0.1"
+            />
           </div>
-
-          <div className="space-y-2">
-            <Label>{t("general.nameServers")}</Label>
-            <div className="flex gap-2">
-              <Input
-                value={nameServerInput}
-                onChange={(e) => setNameServerInput(e.target.value)}
-                placeholder="8.8.8.8"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(nameServerInput, nameServers, setNameServers, setNameServerInput); } }}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={() => addToList(nameServerInput, nameServers, setNameServers, setNameServerInput)}>{tc("add")}</Button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {nameServers.map((ns) => (
-                <Badge key={ns} variant="secondary" className="gap-1 font-mono text-xs">
-                  {ns}
-                  <button onClick={() => setNameServers(nameServers.filter((n) => n !== ns))}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t("general.winsServers")}</Label>
-            <div className="flex gap-2">
-              <Input
-                value={winsInput}
-                onChange={(e) => setWinsInput(e.target.value)}
-                placeholder="192.168.1.10"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(winsInput, winsServers, setWinsServers, setWinsInput); } }}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={() => addToList(winsInput, winsServers, setWinsServers, setWinsInput)}>{tc("add")}</Button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {winsServers.map((ws) => (
-                <Badge key={ws} variant="secondary" className="gap-1 font-mono text-xs">
-                  {ws}
-                  <button onClick={() => setWinsServers(winsServers.filter((w) => w !== ws))}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <MultiValueInput
+            label={t("general.nameServers")}
+            values={draft.name_servers}
+            placeholder="8.8.8.8"
+            onChange={(name_servers) => update({ name_servers })}
+          />
+          <MultiValueInput
+            label={t("general.winsServers")}
+            values={draft.wins_servers}
+            placeholder="192.168.1.10"
+            onChange={(wins_servers) => update({ wins_servers })}
+          />
 
           <h4 className="text-sm font-medium">{t("general.poolsSession")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("general.defaultPool")}</Label>
-              <Input value={defaultPool} onChange={(e) => setDefaultPool(e.target.value)} placeholder="pool1" />
+              <Label htmlFor="pppoe-default-pool">{t("general.defaultPool")}</Label>
+              <NamedListSelect
+                id="pppoe-default-pool"
+                value={draft.default_pool}
+                names={config.client_ip_pools.map((pool) => pool.name)}
+                onValueChange={(default_pool) => update({ default_pool })}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("general.defaultIpv6Pool")}</Label>
-              <Input value={defaultIpv6Pool} onChange={(e) => setDefaultIpv6Pool(e.target.value)} placeholder="ipv6-pool1" />
+              <Label htmlFor="pppoe-default-ipv6-pool">{t("general.defaultIpv6Pool")}</Label>
+              <NamedListSelect
+                id="pppoe-default-ipv6-pool"
+                value={draft.default_ipv6_pool}
+                names={config.client_ipv6_pools.map((pool) => pool.name)}
+                onValueChange={(default_ipv6_pool) => update({ default_ipv6_pool })}
+              />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>{t("general.sessionControl")}</Label>
-            <Select value={sessionControl} onValueChange={setSessionControl}>
-              <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                <SelectItem value="deny">{t("general.sessionDeny")}</SelectItem>
-                <SelectItem value="disable">{t("general.sessionDisable")}</SelectItem>
-                <SelectItem value="replace">{t("general.sessionReplace")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="pppoe-session-control">{t("general.sessionControl")}</Label>
+            <NamedListSelect
+              id="pppoe-session-control"
+              value={draft.session_control}
+              names={values?.session_control_modes || []}
+              labels={sessionLabels}
+              onValueChange={(session_control) => update({ session_control })}
+              noneLabel={tc("default")}
+            />
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>MTU</Label>
-              <Input value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1492" />
+              <Label htmlFor="pppoe-mtu">MTU</Label>
+              <Input
+                id="pppoe-mtu"
+                type="number"
+                min={PPPOE_RANGES.mtu.min}
+                max={PPPOE_RANGES.mtu.max}
+                value={draft.mtu}
+                onChange={(e) => update({ mtu: e.target.value })}
+                placeholder={`${PPPOE_RANGES.mtu.min}-${PPPOE_RANGES.mtu.max}`}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("general.maxSessions")}</Label>
-              <Input value={maxSessions} onChange={(e) => setMaxSessions(e.target.value)} placeholder="0-65535" />
+              <Label htmlFor="pppoe-max-sessions">{t("general.maxSessions")}</Label>
+              <Input
+                id="pppoe-max-sessions"
+                type="number"
+                min={range.min}
+                max={range.max}
+                value={draft.max_concurrent_sessions}
+                onChange={(e) => update({ max_concurrent_sessions: e.target.value })}
+                placeholder={`${range.min}-${range.max}`}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("general.threadCount")}</Label>
-              <Input value={threadCount} onChange={(e) => setThreadCount(e.target.value)} placeholder={t("general.threadCountPlaceholder")} />
+              <Label htmlFor="pppoe-thread-count">{t("general.threadCount")}</Label>
+              <Input
+                id="pppoe-thread-count"
+                list="pppoe-thread-count-keywords"
+                value={draft.thread_count}
+                onChange={(e) => update({ thread_count: e.target.value })}
+                placeholder={`${PPPOE_RANGES.threadCount.min}-${PPPOE_RANGES.threadCount.max}`}
+              />
+              <datalist id="pppoe-thread-count-keywords">
+                {threadKeywords.map((keyword) => <option key={keyword} value={keyword} />)}
+              </datalist>
             </div>
           </div>
 
           <h4 className="text-sm font-medium">{t("general.flags")}</h4>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Checkbox id="accept-any" checked={acceptAnyService} onCheckedChange={(v) => setAcceptAnyService(!!v)} />
+              <Checkbox
+                id="accept-any"
+                checked={draft.accept_any_service}
+                onCheckedChange={(v) => update({ accept_any_service: !!v })}
+              />
               <Label htmlFor="accept-any" className="cursor-pointer">{t("general.acceptAnyService")}</Label>
             </div>
             <div className="flex items-center gap-2">
-              <Checkbox id="accept-blank" checked={acceptBlankService} onCheckedChange={(v) => setAcceptBlankService(!!v)} />
+              <Checkbox
+                id="accept-blank"
+                checked={draft.accept_blank_service}
+                onCheckedChange={(v) => update({ accept_blank_service: !!v })}
+              />
               <Label htmlFor="accept-blank" className="cursor-pointer">{t("general.acceptBlankService")}</Label>
             </div>
           </div>

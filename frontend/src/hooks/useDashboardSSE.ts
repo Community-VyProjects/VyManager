@@ -194,7 +194,10 @@ export interface DashboardSSEData {
 export interface DashboardSSEState {
   status: SSEStatus;
   data: DashboardSSEData;
+  /** Last error event of any channel, as `<channel>: <message>`; cleared by that channel's next payload. */
   error: string | null;
+  /** Current error message per channel, cleared by that channel's next payload. */
+  channelErrors: Record<string, string>;
 }
 
 // ============================================================================
@@ -224,6 +227,7 @@ export function useDashboardSSE(options?: {
     firewallHits: null,
   });
   const [error, setError] = useState<string | null>(null);
+  const [channelErrors, setChannelErrors] = useState<Record<string, string>>({});
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -240,15 +244,29 @@ export function useDashboardSSE(options?: {
     const es = new EventSource(qs ? `/api/vyos/show/stream?${qs}` : "/api/vyos/show/stream");
     esRef.current = es;
 
+    // A newer payload on a channel resolves that channel's last error, so a
+    // repeat of the same error text is reported again instead of being lost.
+    const clearChannelError = (channel: string) => {
+      setError((prev) => (prev?.startsWith(`${channel}: `) ? null : prev));
+      setChannelErrors((prev) => {
+        if (!(channel in prev)) return prev;
+        const next = { ...prev };
+        delete next[channel];
+        return next;
+      });
+    };
+
     es.addEventListener("connected", () => {
       setStatus("connected");
       setError(null);
+      setChannelErrors({});
     });
 
     es.addEventListener("interface-counters", (event: MessageEvent) => {
       try {
         const payload = JSON.parse(event.data) as InterfaceCountersData;
         setData((prev) => ({ ...prev, interfaceCounters: payload }));
+        clearChannelError("interface-counters");
       } catch {
         // Ignore malformed payloads
       }
@@ -258,6 +276,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as SystemInfoData;
         setData((prev) => ({ ...prev, systemInfo: payload }));
+        clearChannelError("system-info");
       } catch {
         // Ignore malformed payloads
       }
@@ -267,6 +286,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as WireGuardPeersData;
         setData((prev) => ({ ...prev, wireguardPeers: payload }));
+        clearChannelError("wireguard-peers");
       } catch {
         // Ignore malformed payloads
       }
@@ -276,6 +296,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as QoSStatsResponse;
         setData((prev) => ({ ...prev, qosStats: payload }));
+        clearChannelError("qos-stats");
       } catch {
         // Ignore malformed payloads
       }
@@ -285,6 +306,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as OpenVpnStatus;
         setData((prev) => ({ ...prev, openvpnStatus: payload }));
+        clearChannelError("openvpn-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -294,6 +316,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as VrrpStatusData;
         setData((prev) => ({ ...prev, vrrpStatus: payload }));
+        clearChannelError("vrrp-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -303,6 +326,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as BgpStatusData;
         setData((prev) => ({ ...prev, bgpStatus: payload }));
+        clearChannelError("bgp-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -312,6 +336,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as IPSecStatus;
         setData((prev) => ({ ...prev, ipsecStatus: payload }));
+        clearChannelError("ipsec-status");
       } catch {
         // Ignore malformed payloads
       }
@@ -321,6 +346,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as PPPoESessionsResponse;
         setData((prev) => ({ ...prev, pppoeSessions: payload }));
+        clearChannelError("pppoe-sessions");
       } catch {
         // Ignore malformed payloads
       }
@@ -330,6 +356,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as HardwareSensorsResponse;
         setData((prev) => ({ ...prev, hardwareSensors: payload }));
+        clearChannelError("hardware-sensors");
       } catch {
         // Ignore malformed payloads
       }
@@ -339,6 +366,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as TransceiverHealthData;
         setData((prev) => ({ ...prev, transceiverHealth: payload }));
+        clearChannelError("transceiver-health");
       } catch {
         // Ignore malformed payloads
       }
@@ -348,6 +376,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as FirewallHitsData;
         setData((prev) => ({ ...prev, firewallHits: payload }));
+        clearChannelError("firewall-statistics");
       } catch {
         // Ignore malformed payloads
       }
@@ -357,6 +386,7 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as { channel: string; message: string };
         setError(`${payload.channel}: ${payload.message}`);
+        setChannelErrors((prev) => ({ ...prev, [payload.channel]: payload.message }));
       } catch {
         // Ignore malformed payloads
       }
@@ -376,5 +406,5 @@ export function useDashboardSSE(options?: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- interestsKey is the stable serialization of interests
   }, [enabled, interestsKey]);
 
-  return { status, data, error };
+  return { status, data, error, channelErrors };
 }

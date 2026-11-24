@@ -1,8 +1,16 @@
-"""PPPoE Server Batch Builder."""
+"""PPPoE Server Batch Builder.
 
-from typing import Dict, Any
-from vyos_mappers import CommandMapperRegistry
+Batch operations for ``service pppoe-server``. The batch router binds the first
+parameter to ``item_name`` (an interface, a pool name, a username, a RADIUS
+server, or a placeholder for global settings, PADO delays included) and the
+value, split on ``|``, to the rest.
+"""
+
+from typing import Any, Dict, List, cast
+
 from vyos_builders.base import BatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.pppoe_server.pppoe_server import PPPoEServerMapper
 
 
 class PPPoEServerBatchBuilder(BatchBuilder):
@@ -17,26 +25,19 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # Core infrastructure
     # ========================================================================
 
-    def clear(self) -> None:
-        self._operations = []
+    def _m(self) -> PPPoEServerMapper:
+        return cast(PPPoEServerMapper, self.mappers[self.mapper_key])
 
-    def operation_count(self) -> int:
-        return len(self._operations)
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a leaf only one VyOS version has; ValueError elsewhere."""
+        mapper = self._m()
+        mapper.require_node(node)
+        return getattr(mapper, method)(*args)
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
-        mapper = self.mappers[self.mapper_key]
-        try:
-            mapper.get_auth_any_login()
-            auth_any_login = True
-        except ValueError:
-            auth_any_login = False
-        try:
-            mapper.get_interface_vpp_cp("eth0")
-            vpp_cp = True
-        except ValueError:
-            vpp_cp = False
+        """Feature flags and value lists, read from the mapper allowlist."""
+        m = self._m()
+        nodes = m.versioned_nodes()
         return {
             "version": self.version,
             "features": {
@@ -44,13 +45,13 @@ class PPPoEServerBatchBuilder(BatchBuilder):
                 "auth_radius": True,
                 "auth_noauth": True,
                 "auth_protocols": True,
-                "auth_any_login": auth_any_login,
+                "auth_any_login": "any_login" in nodes,
                 "local_users": True,
                 "client_ip_pools": True,
                 "client_ipv6_pools": True,
                 "interfaces": True,
-                "vlan_mon": is_1_5,
-                "vpp_cp": vpp_cp,
+                "vlan_mon": "vlan_mon" in nodes,
+                "ipv6_peer_interface_id_secret": "ipv6_peer_interface_id_secret" in nodes,
                 "ppp_options": True,
                 "pado_delay": True,
                 "session_control": True,
@@ -61,9 +62,17 @@ class PPPoEServerBatchBuilder(BatchBuilder):
                 "wins_server": True,
                 "called_sid_format": True,
             },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
+            "values": {
+                "auth_modes": m.auth_modes(),
+                "auth_protocols": m.auth_protocols(),
+                "called_sid_formats": m.called_sid_formats(),
+                "ppp_negotiation_modes": m.ppp_negotiation_modes(),
+                "mppe_modes": m.mppe_modes(),
+                "ipv6_interface_id_keywords": m.ipv6_interface_id_keywords(),
+                "ipv6_peer_interface_id_keywords": m.ipv6_peer_interface_id_keywords(),
+                "session_control_modes": m.session_control_modes(),
+                "thread_count_keywords": m.thread_count_keywords(),
+                "log_levels": m.log_levels(),
             },
         }
 
@@ -72,310 +81,346 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_description(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_description(value))
+        return self.add_set(self._m().get_description(value))
 
     def delete_description(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_description_delete())
+        return self.add_delete(self._m().get_description_delete())
 
     def set_access_concentrator(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_access_concentrator(value))
+        return self.add_set(self._m().get_access_concentrator(value))
 
     def delete_access_concentrator(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_access_concentrator_delete())
+        return self.add_delete(self._m().get_access_concentrator_delete())
 
     def set_service_name(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_service_name(value))
+        return self.add_set(self._m().get_service_name(value))
 
-    def delete_service_name(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_service_name_delete())
+    def delete_service_name(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_service_name_delete(value))
 
     def set_gateway_address(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_gateway_address(address))
+        return self.add_set(self._m().get_gateway_address(address))
 
-    def delete_gateway_address(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_gateway_address_delete(address))
-
-    def delete_all_gateway_addresses(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_gateway_address_all_delete())
+    def delete_gateway_address(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_gateway_address_delete())
 
     def set_name_server(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_name_server(address))
+        return self.add_set(self._m().get_name_server(address))
 
     def delete_name_server(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_name_server_delete(address))
+        return self.add_delete(self._m().get_name_server_delete(address))
 
     def set_wins_server(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_wins_server(address))
+        return self.add_set(self._m().get_wins_server(address))
 
     def delete_wins_server(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_wins_server_delete(address))
+        return self.add_delete(self._m().get_wins_server_delete(address))
 
     def set_mtu(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_mtu(value))
+        return self.add_set(self._m().get_mtu(value))
 
     def delete_mtu(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_mtu_delete())
+        return self.add_delete(self._m().get_mtu_delete())
 
     def set_max_concurrent_sessions(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_max_concurrent_sessions(value))
+        return self.add_set(self._m().get_max_concurrent_sessions(value))
 
     def delete_max_concurrent_sessions(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_max_concurrent_sessions_delete())
+        return self.add_delete(self._m().get_max_concurrent_sessions_delete())
 
     def set_thread_count(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_thread_count(value))
+        return self.add_set(self._m().get_thread_count(value))
 
     def delete_thread_count(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_thread_count_delete())
+        return self.add_delete(self._m().get_thread_count_delete())
 
     def set_default_pool(self, _unused: str, name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_default_pool(name))
+        return self.add_set(self._m().get_default_pool(name))
 
     def delete_default_pool(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_default_pool_delete())
+        return self.add_delete(self._m().get_default_pool_delete())
 
     def set_default_ipv6_pool(self, _unused: str, name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_default_ipv6_pool(name))
+        return self.add_set(self._m().get_default_ipv6_pool(name))
 
     def delete_default_ipv6_pool(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_default_ipv6_pool_delete())
+        return self.add_delete(self._m().get_default_ipv6_pool_delete())
 
     def set_session_control(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_session_control(value))
+        return self.add_set(self._m().get_session_control(value))
 
     def delete_session_control(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_session_control_delete())
+        return self.add_delete(self._m().get_session_control_delete())
 
     def set_accept_any_service(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_accept_any_service())
+        return self.add_set(self._m().get_accept_any_service())
 
     def delete_accept_any_service(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_accept_any_service())
+        return self.add_delete(self._m().get_accept_any_service())
 
     def set_accept_blank_service(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_accept_blank_service())
+        return self.add_set(self._m().get_accept_blank_service())
 
     def delete_accept_blank_service(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_accept_blank_service())
+        return self.add_delete(self._m().get_accept_blank_service())
 
     def delete_pppoe_server(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_pppoe_server_delete())
+        return self.add_delete(self._m().get_pppoe_server_delete())
 
     # ========================================================================
     # PADO delay
-    # item_name = delay value (e.g. "0", "disable")
+    # Global ops: the delay (e.g. "100", "disable") is the value, so one
+    # Advanced save edits every delay in a single batch.
     # ========================================================================
 
-    def set_pado_delay(self, delay: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_pado_delay(delay))
+    def set_pado_delay(self, _unused: str, delay: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_pado_delay(delay))
 
-    def delete_pado_delay(self, delay: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_pado_delay_delete(delay))
+    def delete_pado_delay(self, _unused: str, delay: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_pado_delay_delete(delay))
 
     def delete_all_pado_delays(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_pado_delay_all_delete())
+        return self.add_delete(self._m().get_pado_delay_all_delete())
 
-    def set_pado_delay_sessions(self, delay: str, sessions: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_pado_delay_sessions(delay, sessions))
+    def set_pado_delay_sessions(self, _unused: str, delay: str, sessions: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_pado_delay_sessions(delay, sessions))
 
-    def delete_pado_delay_sessions(self, delay: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_pado_delay_sessions_delete(delay))
+    def delete_pado_delay_sessions(self, _unused: str, delay: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_pado_delay_sessions_delete(delay))
 
     # ========================================================================
     # Log
     # ========================================================================
 
     def set_log_level(self, _unused: str, level: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_log_level(level))
+        return self.add_set(self._m().get_log_level(level))
 
     def delete_log_level(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_log_level_delete())
+        """Delete ``log``: level is its only child, and a leaf delete leaves ``log {}``."""
+        return self.add_delete(self._m().get_log_delete())
 
     # ========================================================================
     # Shaper
     # ========================================================================
 
-    def set_shaper_fwmark(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_shaper_fwmark(value))
-
-    def delete_shaper_fwmark(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_shaper_fwmark_delete())
+    def set_shaper(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn the shaper on without a fwmark (a bare node commits)."""
+        return self.add_set(self._m().get_shaper())
 
     def delete_shaper(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_shaper_delete())
+        return self.add_delete(self._m().get_shaper())
+
+    def set_shaper_fwmark(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_shaper_fwmark(value))
+
+    def delete_shaper_fwmark(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_shaper_fwmark_delete())
 
     # ========================================================================
     # SNMP
     # ========================================================================
 
-    def set_snmp_master_agent(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_snmp_master_agent())
+    def set_snmp(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn SNMP on without the master agent (a bare node commits)."""
+        return self.add_set(self._m().get_snmp())
 
     def delete_snmp(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_snmp_delete())
+        return self.add_delete(self._m().get_snmp())
+
+    def set_snmp_master_agent(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_snmp_master_agent())
+
+    def delete_snmp_master_agent(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_snmp_master_agent())
 
     # ========================================================================
     # Extended scripts
     # ========================================================================
 
+    def set_extended_scripts(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn extended scripts on without a script (a bare node commits)."""
+        return self.add_set(self._m().get_extended_scripts())
+
+    def delete_extended_scripts(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Drop the node; an empty ``extended-scripts`` still loads pppd_compat."""
+        return self.add_delete(self._m().get_extended_scripts())
+
     def set_script_on_change(self, _unused: str, script: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_extended_scripts_on_change(script))
+        return self.add_set(self._m().get_extended_scripts_on_change(script))
 
     def delete_script_on_change(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_extended_scripts_on_change_delete())
+        return self.add_delete(self._m().get_extended_scripts_on_change_delete())
 
     def set_script_on_down(self, _unused: str, script: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_extended_scripts_on_down(script))
+        return self.add_set(self._m().get_extended_scripts_on_down(script))
 
     def delete_script_on_down(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_extended_scripts_on_down_delete())
+        return self.add_delete(self._m().get_extended_scripts_on_down_delete())
 
     def set_script_on_pre_up(self, _unused: str, script: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_extended_scripts_on_pre_up(script))
+        return self.add_set(self._m().get_extended_scripts_on_pre_up(script))
 
     def delete_script_on_pre_up(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_extended_scripts_on_pre_up_delete())
+        return self.add_delete(self._m().get_extended_scripts_on_pre_up_delete())
 
     def set_script_on_up(self, _unused: str, script: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_extended_scripts_on_up(script))
+        return self.add_set(self._m().get_extended_scripts_on_up(script))
 
     def delete_script_on_up(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_extended_scripts_on_up_delete())
+        return self.add_delete(self._m().get_extended_scripts_on_up_delete())
 
     # ========================================================================
     # Limits
     # ========================================================================
 
-    def set_limits_burst(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_limits_burst(value))
-
-    def delete_limits_burst(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_limits_burst_delete())
-
-    def set_limits_connection_limit(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_limits_connection_limit(value))
-
-    def delete_limits_connection_limit(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_limits_connection_limit_delete())
-
-    def set_limits_timeout(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_limits_timeout(value))
-
-    def delete_limits_timeout(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_limits_timeout_delete())
+    def set_limits(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn connection limits on with defaults (a bare node commits)."""
+        return self.add_set(self._m().get_limits())
 
     def delete_limits(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_limits_delete())
+        return self.add_delete(self._m().get_limits())
+
+    def set_limits_burst(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_limits_burst(value))
+
+    def delete_limits_burst(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_limits_burst_delete())
+
+    def set_limits_connection_limit(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_limits_connection_limit(value))
+
+    def delete_limits_connection_limit(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_limits_connection_limit_delete())
+
+    def set_limits_timeout(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_limits_timeout(value))
+
+    def delete_limits_timeout(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_limits_timeout_delete())
 
     # ========================================================================
     # PPP options
     # ========================================================================
 
     def set_ppp_ipv4(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_ipv4(value))
+        return self.add_set(self._m().get_ppp_ipv4(value))
 
     def delete_ppp_ipv4(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_ipv4_delete())
+        return self.add_delete(self._m().get_ppp_ipv4_delete())
 
     def set_ppp_ipv6(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_ipv6(value))
+        return self.add_set(self._m().get_ppp_ipv6(value))
 
     def delete_ppp_ipv6(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_ipv6_delete())
+        return self.add_delete(self._m().get_ppp_ipv6_delete())
 
     def set_ppp_mppe(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_mppe(value))
+        return self.add_set(self._m().get_ppp_mppe(value))
 
     def delete_ppp_mppe(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_mppe_delete())
+        return self.add_delete(self._m().get_ppp_mppe_delete())
 
     def set_ppp_disable_ccp(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_disable_ccp())
+        return self.add_set(self._m().get_ppp_disable_ccp())
 
     def delete_ppp_disable_ccp(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_disable_ccp())
+        return self.add_delete(self._m().get_ppp_disable_ccp())
 
     def set_ppp_interface_cache(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_interface_cache(value))
+        return self.add_set(self._m().get_ppp_interface_cache(value))
 
     def delete_ppp_interface_cache(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_interface_cache_delete())
+        return self.add_delete(self._m().get_ppp_interface_cache_delete())
 
     def set_ppp_ipv6_interface_id(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_ipv6_interface_id(value))
+        return self.add_set(self._m().get_ppp_ipv6_interface_id(value))
 
     def delete_ppp_ipv6_interface_id(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_ipv6_interface_id_delete())
+        return self.add_delete(self._m().get_ppp_ipv6_interface_id_delete())
 
     def set_ppp_ipv6_peer_interface_id(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_ipv6_peer_interface_id(value))
+        return self.add_set(self._m().get_ppp_ipv6_peer_interface_id(value))
 
     def delete_ppp_ipv6_peer_interface_id(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_ipv6_peer_interface_id_delete())
+        return self.add_delete(self._m().get_ppp_ipv6_peer_interface_id_delete())
+
+    def set_ppp_ipv6_peer_interface_id_secret(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
+        """1.5 only."""
+        return self.add_set(self._versioned_path(
+            "ipv6_peer_interface_id_secret", "get_ppp_ipv6_peer_interface_id_secret", value,
+        ))
+
+    def delete_ppp_ipv6_peer_interface_id_secret(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """1.5 only."""
+        return self.add_delete(self._versioned_path(
+            "ipv6_peer_interface_id_secret", "get_ppp_ipv6_peer_interface_id_secret_delete",
+        ))
 
     def set_ppp_ipv6_accept_peer_interface_id(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_ipv6_accept_peer_interface_id())
+        return self.add_set(self._m().get_ppp_ipv6_accept_peer_interface_id())
 
     def delete_ppp_ipv6_accept_peer_interface_id(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_ipv6_accept_peer_interface_id())
+        return self.add_delete(self._m().get_ppp_ipv6_accept_peer_interface_id())
 
     def set_ppp_lcp_echo_failure(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_lcp_echo_failure(value))
+        return self.add_set(self._m().get_ppp_lcp_echo_failure(value))
 
     def delete_ppp_lcp_echo_failure(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_lcp_echo_failure_delete())
+        return self.add_delete(self._m().get_ppp_lcp_echo_failure_delete())
 
     def set_ppp_lcp_echo_interval(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_lcp_echo_interval(value))
+        return self.add_set(self._m().get_ppp_lcp_echo_interval(value))
 
     def delete_ppp_lcp_echo_interval(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_lcp_echo_interval_delete())
+        return self.add_delete(self._m().get_ppp_lcp_echo_interval_delete())
 
     def set_ppp_lcp_echo_timeout(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_lcp_echo_timeout(value))
+        return self.add_set(self._m().get_ppp_lcp_echo_timeout(value))
 
     def delete_ppp_lcp_echo_timeout(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_lcp_echo_timeout_delete())
+        return self.add_delete(self._m().get_ppp_lcp_echo_timeout_delete())
 
     def set_ppp_min_mtu(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_min_mtu(value))
+        return self.add_set(self._m().get_ppp_min_mtu(value))
 
     def delete_ppp_min_mtu(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_min_mtu_delete())
+        return self.add_delete(self._m().get_ppp_min_mtu_delete())
 
     def set_ppp_mru(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ppp_mru(value))
+        return self.add_set(self._m().get_ppp_mru(value))
 
     def delete_ppp_mru(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_mru_delete())
+        return self.add_delete(self._m().get_ppp_mru_delete())
 
     def delete_ppp_options(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ppp_options_delete())
+        return self.add_delete(self._m().get_ppp_options_delete())
 
     # ========================================================================
     # Authentication - mode and protocols
     # ========================================================================
 
     def set_auth_mode(self, _unused: str, mode: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_auth_mode(mode))
+        return self.add_set(self._m().get_auth_mode(mode))
 
     def delete_auth_mode(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_auth_mode_delete())
+        return self.add_delete(self._m().get_auth_mode_delete())
 
     def set_auth_any_login(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_auth_any_login())
+        """1.5 only."""
+        return self.add_set(self._versioned_path("any_login", "get_auth_any_login"))
 
     def delete_auth_any_login(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_auth_any_login_delete())
+        """1.5 only."""
+        return self.add_delete(self._versioned_path("any_login", "get_auth_any_login"))
 
     def set_auth_protocol(self, _unused: str, protocol: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_auth_protocols(protocol))
+        return self.add_set(self._m().get_auth_protocols(protocol))
 
     def delete_auth_protocol(self, _unused: str, protocol: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_auth_protocols_delete(protocol))
+        return self.add_delete(self._m().get_auth_protocols_delete(protocol))
 
     def delete_all_auth_protocols(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_auth_protocols_all_delete())
+        return self.add_delete(self._m().get_auth_protocols_all_delete())
 
     # ========================================================================
     # Authentication - local users
@@ -383,37 +428,41 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def create_local_user(self, username: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_local_user(username))
+        return self.add_set(self._m().get_local_user(username))
 
     def delete_local_user(self, username: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_local_user_delete(username))
+        return self.add_delete(self._m().get_local_user_delete(username))
 
     def set_local_user_password(self, username: str, password: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_local_user_password(username, password))
+        return self.add_set(self._m().get_local_user_password(username, password))
 
     def set_local_user_disable(self, username: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_local_user_disable(username))
+        return self.add_set(self._m().get_local_user_disable(username))
 
     def delete_local_user_disable(self, username: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_local_user_disable(username))
+        return self.add_delete(self._m().get_local_user_disable(username))
 
     def set_local_user_static_ip(self, username: str, ip: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_local_user_static_ip(username, ip))
+        return self.add_set(self._m().get_local_user_static_ip(username, ip))
 
     def delete_local_user_static_ip(self, username: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_local_user_static_ip_delete(username))
+        return self.add_delete(self._m().get_local_user_static_ip_delete(username))
 
     def set_local_user_rate_limit_download(self, username: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_local_user_rate_limit_download(username, value))
+        return self.add_set(self._m().get_local_user_rate_limit_download(username, value))
 
     def delete_local_user_rate_limit_download(self, username: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_local_user_rate_limit_download_delete(username))
+        return self.add_delete(self._m().get_local_user_rate_limit_download_delete(username))
 
     def set_local_user_rate_limit_upload(self, username: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_local_user_rate_limit_upload(username, value))
+        return self.add_set(self._m().get_local_user_rate_limit_upload(username, value))
 
     def delete_local_user_rate_limit_upload(self, username: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_local_user_rate_limit_upload_delete(username))
+        return self.add_delete(self._m().get_local_user_rate_limit_upload_delete(username))
+
+    def delete_local_user_rate_limit(self, username: str) -> "PPPoEServerBatchBuilder":
+        """Clear both directions: deleting both leaves leaves ``rate-limit {}``, which verify rejects."""
+        return self.add_delete(self._m().get_local_user_rate_limit_delete(username))
 
     # ========================================================================
     # Authentication - RADIUS servers
@@ -421,55 +470,55 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_radius_server(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server(server))
+        return self.add_set(self._m().get_radius_server(server))
 
     def delete_radius_server(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_delete(server))
+        return self.add_delete(self._m().get_radius_server_delete(server))
 
     def set_radius_server_key(self, server: str, key: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_key(server, key))
+        return self.add_set(self._m().get_radius_server_key(server, key))
 
     def set_radius_server_port(self, server: str, port: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_port(server, port))
+        return self.add_set(self._m().get_radius_server_port(server, port))
 
     def delete_radius_server_port(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_port_delete(server))
+        return self.add_delete(self._m().get_radius_server_port_delete(server))
 
     def set_radius_server_acct_port(self, server: str, port: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_acct_port(server, port))
+        return self.add_set(self._m().get_radius_server_acct_port(server, port))
 
     def delete_radius_server_acct_port(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_acct_port_delete(server))
+        return self.add_delete(self._m().get_radius_server_acct_port_delete(server))
 
     def set_radius_server_priority(self, server: str, priority: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_priority(server, priority))
+        return self.add_set(self._m().get_radius_server_priority(server, priority))
 
     def delete_radius_server_priority(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_priority_delete(server))
+        return self.add_delete(self._m().get_radius_server_priority_delete(server))
 
     def set_radius_server_fail_time(self, server: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_fail_time(server, value))
+        return self.add_set(self._m().get_radius_server_fail_time(server, value))
 
     def delete_radius_server_fail_time(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_fail_time_delete(server))
+        return self.add_delete(self._m().get_radius_server_fail_time_delete(server))
 
     def set_radius_server_disable(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_disable(server))
+        return self.add_set(self._m().get_radius_server_disable(server))
 
     def delete_radius_server_disable(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_disable(server))
+        return self.add_delete(self._m().get_radius_server_disable(server))
 
     def set_radius_server_backup(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_backup(server))
+        return self.add_set(self._m().get_radius_server_backup(server))
 
     def delete_radius_server_backup(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_backup(server))
+        return self.add_delete(self._m().get_radius_server_backup(server))
 
     def set_radius_server_disable_accounting(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_server_disable_accounting(server))
+        return self.add_set(self._m().get_radius_server_disable_accounting(server))
 
     def delete_radius_server_disable_accounting(self, server: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_server_disable_accounting(server))
+        return self.add_delete(self._m().get_radius_server_disable_accounting(server))
 
     # ========================================================================
     # Authentication - RADIUS global settings
@@ -477,106 +526,109 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_radius_source_address(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_source_address(address))
+        return self.add_set(self._m().get_radius_source_address(address))
 
     def delete_radius_source_address(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_source_address_delete())
+        return self.add_delete(self._m().get_radius_source_address_delete())
 
     def set_radius_timeout(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_timeout(value))
+        return self.add_set(self._m().get_radius_timeout(value))
 
     def delete_radius_timeout(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_timeout_delete())
+        return self.add_delete(self._m().get_radius_timeout_delete())
 
     def set_radius_max_try(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_max_try(value))
+        return self.add_set(self._m().get_radius_max_try(value))
 
     def delete_radius_max_try(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_max_try_delete())
+        return self.add_delete(self._m().get_radius_max_try_delete())
 
     def set_radius_nas_identifier(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_nas_identifier(value))
+        return self.add_set(self._m().get_radius_nas_identifier(value))
 
     def delete_radius_nas_identifier(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_nas_identifier_delete())
+        return self.add_delete(self._m().get_radius_nas_identifier_delete())
 
     def set_radius_nas_ip_address(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_nas_ip_address(address))
+        return self.add_set(self._m().get_radius_nas_ip_address(address))
 
     def delete_radius_nas_ip_address(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_nas_ip_address_delete())
+        return self.add_delete(self._m().get_radius_nas_ip_address_delete())
 
     def set_radius_accounting_interim_interval(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_accounting_interim_interval(value))
+        return self.add_set(self._m().get_radius_accounting_interim_interval(value))
 
     def delete_radius_accounting_interim_interval(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_accounting_interim_interval_delete())
+        return self.add_delete(self._m().get_radius_accounting_interim_interval_delete())
 
     def set_radius_acct_interim_jitter(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_acct_interim_jitter(value))
+        return self.add_set(self._m().get_radius_acct_interim_jitter(value))
 
     def delete_radius_acct_interim_jitter(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_acct_interim_jitter_delete())
+        return self.add_delete(self._m().get_radius_acct_interim_jitter_delete())
 
     def set_radius_acct_timeout(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_acct_timeout(value))
+        return self.add_set(self._m().get_radius_acct_timeout(value))
 
     def delete_radius_acct_timeout(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_acct_timeout_delete())
+        return self.add_delete(self._m().get_radius_acct_timeout_delete())
 
     def set_radius_preallocate_vif(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_preallocate_vif())
+        return self.add_set(self._m().get_radius_preallocate_vif())
 
     def delete_radius_preallocate_vif(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_preallocate_vif())
+        return self.add_delete(self._m().get_radius_preallocate_vif())
 
     def set_radius_called_sid_format(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_called_sid_format(value))
+        return self.add_set(self._m().get_radius_called_sid_format(value))
 
     def delete_radius_called_sid_format(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_called_sid_format_delete())
+        return self.add_delete(self._m().get_radius_called_sid_format_delete())
 
     def set_radius_dynamic_author_server(self, _unused: str, address: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_dynamic_author_server(address))
+        return self.add_set(self._m().get_radius_dynamic_author_server(address))
 
     def delete_radius_dynamic_author_server(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_dynamic_author_server_delete())
+        return self.add_delete(self._m().get_radius_dynamic_author_server_delete())
 
     def set_radius_dynamic_author_port(self, _unused: str, port: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_dynamic_author_port(port))
+        return self.add_set(self._m().get_radius_dynamic_author_port(port))
 
     def delete_radius_dynamic_author_port(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_dynamic_author_port_delete())
+        return self.add_delete(self._m().get_radius_dynamic_author_port_delete())
 
     def set_radius_dynamic_author_key(self, _unused: str, key: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_dynamic_author_key(key))
+        return self.add_set(self._m().get_radius_dynamic_author_key(key))
 
     def delete_radius_dynamic_author_key(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_dynamic_author_key_delete())
+        return self.add_delete(self._m().get_radius_dynamic_author_key_delete())
 
     def set_radius_rate_limit_enable(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_rate_limit_enable())
+        return self.add_set(self._m().get_radius_rate_limit_enable())
+
+    def delete_radius_rate_limit_enable(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_radius_rate_limit_enable())
 
     def delete_radius_rate_limit(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_rate_limit_delete())
+        return self.add_delete(self._m().get_radius_rate_limit_delete())
 
     def set_radius_rate_limit_attribute(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_rate_limit_attribute(value))
+        return self.add_set(self._m().get_radius_rate_limit_attribute(value))
 
     def delete_radius_rate_limit_attribute(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_rate_limit_attribute_delete())
+        return self.add_delete(self._m().get_radius_rate_limit_attribute_delete())
 
     def set_radius_rate_limit_vendor(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_rate_limit_vendor(value))
+        return self.add_set(self._m().get_radius_rate_limit_vendor(value))
 
     def delete_radius_rate_limit_vendor(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_rate_limit_vendor_delete())
+        return self.add_delete(self._m().get_radius_rate_limit_vendor_delete())
 
     def set_radius_rate_limit_multiplier(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_radius_rate_limit_multiplier(value))
+        return self.add_set(self._m().get_radius_rate_limit_multiplier(value))
 
     def delete_radius_rate_limit_multiplier(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_radius_rate_limit_multiplier_delete())
+        return self.add_delete(self._m().get_radius_rate_limit_multiplier_delete())
 
     # ========================================================================
     # Client IP pools
@@ -584,22 +636,22 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def create_pool(self, name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_pool(name))
+        return self.add_set(self._m().get_pool(name))
 
     def delete_pool(self, name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_pool_delete(name))
+        return self.add_delete(self._m().get_pool_delete(name))
 
     def set_pool_range(self, name: str, cidr: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_pool_range(name, cidr))
+        return self.add_set(self._m().get_pool_range(name, cidr))
 
     def delete_pool_range(self, name: str, cidr: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_pool_range_delete(name, cidr))
+        return self.add_delete(self._m().get_pool_range_delete(name, cidr))
 
     def set_pool_next_pool(self, name: str, next_name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_pool_next_pool(name, next_name))
+        return self.add_set(self._m().get_pool_next_pool(name, next_name))
 
     def delete_pool_next_pool(self, name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_pool_next_pool_delete(name))
+        return self.add_delete(self._m().get_pool_next_pool_delete(name))
 
     # ========================================================================
     # Client IPv6 pools
@@ -607,24 +659,29 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def create_ipv6_pool(self, name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_ipv6_pool(name))
+        return self.add_set(self._m().get_ipv6_pool(name))
 
     def delete_ipv6_pool(self, name: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ipv6_pool_delete(name))
+        return self.add_delete(self._m().get_ipv6_pool_delete(name))
 
-    def set_ipv6_pool_prefix(self, name: str, prefix_mask: str) -> "PPPoEServerBatchBuilder":
-        prefix, mask = prefix_mask.split("|", 1)
-        return self.add_set(self.mappers[self.mapper_key].get_ipv6_pool_prefix_mask(name, prefix, mask))
+    def set_ipv6_pool_prefix(self, name: str, prefix: str) -> "PPPoEServerBatchBuilder":
+        """Prefix on the default mask (64)."""
+        return self.add_set(self._m().get_ipv6_pool_prefix(name, prefix))
+
+    def set_ipv6_pool_prefix_mask(self, name: str, prefix: str, mask: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_ipv6_pool_prefix_mask(name, prefix, mask))
+
+    def delete_ipv6_pool_prefix_mask(self, name: str, prefix: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_ipv6_pool_prefix_mask_delete(name, prefix))
 
     def delete_ipv6_pool_prefix(self, name: str, prefix: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ipv6_pool_prefix_delete(name, prefix))
+        return self.add_delete(self._m().get_ipv6_pool_prefix_delete(name, prefix))
 
-    def set_ipv6_pool_delegate(self, name: str, prefix_len: str) -> "PPPoEServerBatchBuilder":
-        prefix, length = prefix_len.split("|", 1)
-        return self.add_set(self.mappers[self.mapper_key].get_ipv6_pool_delegate_prefix_len(name, prefix, length))
+    def set_ipv6_pool_delegate(self, name: str, prefix: str, length: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_ipv6_pool_delegate_prefix_len(name, prefix, length))
 
     def delete_ipv6_pool_delegate(self, name: str, prefix: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_ipv6_pool_delegate_delete(name, prefix))
+        return self.add_delete(self._m().get_ipv6_pool_delegate_delete(name, prefix))
 
     # ========================================================================
     # Interfaces
@@ -632,34 +689,30 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def create_interface(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_interface(iface))
+        return self.add_set(self._m().get_interface(iface))
 
     def delete_interface(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_interface_delete(iface))
+        return self.add_delete(self._m().get_interface_delete(iface))
 
     def set_interface_vlan(self, iface: str, vlan: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_interface_vlan(iface, vlan))
+        return self.add_set(self._m().get_interface_vlan(iface, vlan))
 
     def delete_interface_vlan(self, iface: str, vlan: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_interface_vlan_delete(iface, vlan))
+        return self.add_delete(self._m().get_interface_vlan_delete(iface, vlan))
 
     def delete_interface_all_vlans(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_interface_vlan_all_delete(iface))
+        return self.add_delete(self._m().get_interface_vlan_all_delete(iface))
 
     def set_interface_vlan_mon(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_interface_vlan_mon(iface))
+        """1.5 only."""
+        return self.add_set(self._versioned_path("vlan_mon", "get_interface_vlan_mon", iface))
 
     def delete_interface_vlan_mon(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_interface_vlan_mon(iface))
+        """1.5 only."""
+        return self.add_delete(self._versioned_path("vlan_mon", "get_interface_vlan_mon", iface))
 
-    def set_interface_vpp_cp(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_interface_vpp_cp(iface))
-
-    def delete_interface_vpp_cp(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_interface_vpp_cp(iface))
-
-    def set_interface_combined(self, iface: str, value: str) -> "PPPoEServerBatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_interface_combined(iface, value))
+    def set_interface_combined(self, iface: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self._m().get_interface_combined(iface))
 
     def delete_interface_combined(self, iface: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_interface_combined_delete(iface))
+        return self.add_delete(self._m().get_interface_combined(iface))

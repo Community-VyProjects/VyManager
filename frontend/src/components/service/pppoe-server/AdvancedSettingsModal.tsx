@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -15,88 +15,79 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, Settings, Trash2 } from "lucide-react";
-import { pppoeServerService, PPPoEConfigResponse, PPPoEPadoDelay } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import { pppoeServerService, PPPoECapabilities, PPPoEConfigResponse } from "@/lib/api/pppoe-server";
+import {
+  advancedProblem,
+  PADO_DISABLE,
+  PPPOE_RANGES,
+  type PPPoEAdvancedDraft,
+  type PPPoEPadoDelayRow,
+} from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 
 interface AdvancedSettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   config: PPPoEConfigResponse;
+  capabilities: PPPoECapabilities | null;
 }
 
-export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }: AdvancedSettingsModalProps) {
+export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config, capabilities }: AdvancedSettingsModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
-  const [logLevel, setLogLevel] = useState("__clear__");
-  const [limitsBurst, setLimitsBurst] = useState("");
-  const [limitsConnLimit, setLimitsConnLimit] = useState("");
-  const [limitsTimeout, setLimitsTimeout] = useState("");
-  const [padoDelays, setPadoDelays] = useState<PPPoEPadoDelay[]>([]);
-  const [shaperFwmark, setShaperFwmark] = useState("");
-  const [snmpMasterAgent, setSnmpMasterAgent] = useState(false);
-  const [scriptsOnChange, setScriptsOnChange] = useState("");
-  const [scriptsOnDown, setScriptsOnDown] = useState("");
-  const [scriptsOnPreUp, setScriptsOnPreUp] = useState("");
-  const [scriptsOnUp, setScriptsOnUp] = useState("");
-
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  const [draft, setDraft] = useState<PPPoEAdvancedDraft>(() => ({
+    log_level: config.log.level || "",
+    pado_delays: config.pado_delays.map((d) => ({ delay: d.delay, sessions: d.sessions || "" })),
+    limits_enabled: config.limits.enabled,
+    limits_burst: config.limits.burst || "",
+    limits_connection_limit: config.limits.connection_limit || "",
+    limits_timeout: config.limits.timeout || "",
+    shaper_enabled: config.shaper.enabled,
+    shaper_fwmark: config.shaper.fwmark || "",
+    snmp_enabled: config.snmp.enabled,
+    snmp_master_agent: config.snmp.master_agent,
+    scripts_enabled: config.extended_scripts.enabled,
+    scripts_on_change: config.extended_scripts.on_change || "",
+    scripts_on_down: config.extended_scripts.on_down || "",
+    scripts_on_pre_up: config.extended_scripts.on_pre_up || "",
+    scripts_on_up: config.extended_scripts.on_up || "",
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setLogLevel(config.log?.level || "__clear__");
-      setLimitsBurst(config.limits?.burst || "");
-      setLimitsConnLimit(config.limits?.connection_limit || "");
-      setLimitsTimeout(config.limits?.timeout || "");
-      setPadoDelays(config.pado_delays ? [...config.pado_delays] : []);
-      setShaperFwmark(config.shaper?.fwmark || "");
-      setSnmpMasterAgent(config.snmp?.master_agent || false);
-      setScriptsOnChange(config.extended_scripts?.on_change || "");
-      setScriptsOnDown(config.extended_scripts?.on_down || "");
-      setScriptsOnPreUp(config.extended_scripts?.on_pre_up || "");
-      setScriptsOnUp(config.extended_scripts?.on_up || "");
-      setError(null);
-    }
-  }, [open, config]);
+  const logLabels: Record<string, string> = {
+    "0": t("advanced.logLevel0"),
+    "1": t("advanced.logLevel1"),
+    "2": t("advanced.logLevel2"),
+    "3": t("advanced.logLevel3"),
+    "4": t("advanced.logLevel4"),
+    "5": t("advanced.logLevel5"),
+  };
+  const update = (patch: Partial<PPPoEAdvancedDraft>) => setDraft((current) => ({ ...current, ...patch }));
+  const updateDelay = (index: number, patch: Partial<PPPoEPadoDelayRow>) => {
+    update({ pado_delays: draft.pado_delays.map((row, i) => (i === index ? { ...row, ...patch } : row)) });
+  };
 
-  const updatePadoDelay = (i: number, field: keyof PPPoEPadoDelay, value: string) => {
-    const updated = [...padoDelays];
-    updated[i] = { ...updated[i], [field]: value };
-    setPadoDelays(updated);
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
   };
 
   const handleSubmit = async () => {
+    const issue = advancedProblem(draft);
+    if (issue) {
+      setError(t(`advanced.${issue.problem}`, issue.params));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const result = await pppoeServerService.updateAdvancedSettings(config, {
-        log_level: logLevel === "__clear__" ? "" : logLevel,
-        shaper_fwmark: shaperFwmark,
-        snmp_master_agent: snmpMasterAgent,
-        limits_burst: limitsBurst,
-        limits_connection_limit: limitsConnLimit,
-        limits_timeout: limitsTimeout,
-        scripts_on_change: scriptsOnChange,
-        scripts_on_down: scriptsOnDown,
-        scripts_on_pre_up: scriptsOnPreUp,
-        scripts_on_up: scriptsOnUp,
-        pado_delays: padoDelays,
-      });
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("advanced.updateFailed"));
-      }
+      await pppoeServerService.updateAdvancedSettings(config, draft);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("advanced.updateFailed"));
     } finally {
@@ -104,8 +95,10 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }:
     }
   };
 
+  const { padoDelay, padoSessions, shaperFwmark } = PPPOE_RANGES;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -117,106 +110,184 @@ export function AdvancedSettingsModal({ open, onOpenChange, onSuccess, config }:
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("advanced.logLevel")}</Label>
-            <Select value={logLevel} onValueChange={setLogLevel}>
-              <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__clear__">{t("advanced.defaultUnset")}</SelectItem>
-                <SelectItem value="0">{t("advanced.logLevel0")}</SelectItem>
-                <SelectItem value="1">{t("advanced.logLevel1")}</SelectItem>
-                <SelectItem value="2">{t("advanced.logLevel2")}</SelectItem>
-                <SelectItem value="3">{t("advanced.logLevel3")}</SelectItem>
-                <SelectItem value="4">{t("advanced.logLevel4")}</SelectItem>
-                <SelectItem value="5">{t("advanced.logLevel5")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="pppoe-log-level">{t("advanced.logLevel")}</Label>
+            <NamedListSelect
+              id="pppoe-log-level"
+              value={draft.log_level}
+              names={capabilities?.values.log_levels || []}
+              labels={logLabels}
+              noneLabel={t("advanced.defaultUnset")}
+              onValueChange={(log_level) => update({ log_level })}
+            />
           </div>
 
           <Separator />
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium">{t("advanced.padoDelays")}</h4>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setPadoDelays([...padoDelays, { delay: "", sessions: "" }])}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => update({ pado_delays: [...draft.pado_delays, { delay: "", sessions: "" }] })}
+            >
               <Plus className="h-3 w-3 mr-1" /> {tc("add")}
             </Button>
           </div>
-          {padoDelays.length === 0 && (
+          {draft.pado_delays.length === 0 && (
             <p className="text-xs text-muted-foreground">{t("advanced.noPadoDelays")}</p>
           )}
-          {padoDelays.map((d, i) => (
+          {draft.pado_delays.map((row, i) => (
             <div key={i} className="flex gap-2 items-center">
-              <div className="flex-1 space-y-1">
-                <Input
-                  value={d.delay}
-                  onChange={(e) => updatePadoDelay(i, "delay", e.target.value)}
-                  placeholder={t("advanced.delayPlaceholder")}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="w-32 space-y-1">
-                <Input
-                  value={d.sessions || ""}
-                  onChange={(e) => updatePadoDelay(i, "sessions", e.target.value)}
-                  placeholder={t("advanced.sessionsPlaceholder")}
-                  className="text-sm"
-                />
-              </div>
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setPadoDelays(padoDelays.filter((_, j) => j !== i))}>
+              <Input
+                list="pppoe-pado-delay-keywords"
+                value={row.delay}
+                onChange={(e) => updateDelay(i, { delay: e.target.value })}
+                placeholder={t("advanced.delayPlaceholder", { min: padoDelay.min, max: padoDelay.max })}
+                className="flex-1 font-mono text-sm"
+              />
+              <Input
+                type="number"
+                min={padoSessions.min}
+                max={padoSessions.max}
+                value={row.sessions}
+                onChange={(e) => updateDelay(i, { sessions: e.target.value })}
+                placeholder={t("advanced.sessionsPlaceholder")}
+                className="w-32 text-sm"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() => update({ pado_delays: draft.pado_delays.filter((_, j) => j !== i) })}
+              >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
           ))}
+          <datalist id="pppoe-pado-delay-keywords">
+            <option value={PADO_DISABLE} />
+          </datalist>
 
           <Separator />
-          <h4 className="text-sm font-medium">{t("advanced.connectionLimits")}</h4>
+          <div className="flex items-center gap-2">
+            <Checkbox id="pppoe-limits" checked={draft.limits_enabled} onCheckedChange={(v) => update({ limits_enabled: !!v })} />
+            <Label htmlFor="pppoe-limits" className="cursor-pointer font-medium">{t("advanced.connectionLimits")}</Label>
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>{t("advanced.burst")}</Label>
-              <Input value={limitsBurst} onChange={(e) => setLimitsBurst(e.target.value)} placeholder="10" />
+              <Label htmlFor="pppoe-limits-burst">{t("advanced.burst")}</Label>
+              <Input
+                id="pppoe-limits-burst"
+                value={draft.limits_burst}
+                onChange={(e) => update({ limits_burst: e.target.value })}
+                placeholder="10"
+                disabled={!draft.limits_enabled}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("advanced.connLimit")}</Label>
-              <Input value={limitsConnLimit} onChange={(e) => setLimitsConnLimit(e.target.value)} placeholder="60/sec" />
+              <Label htmlFor="pppoe-limits-conn">{t("advanced.connLimit")}</Label>
+              <Input
+                id="pppoe-limits-conn"
+                value={draft.limits_connection_limit}
+                onChange={(e) => update({ limits_connection_limit: e.target.value })}
+                placeholder="60/sec"
+                disabled={!draft.limits_enabled}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("advanced.timeout")}</Label>
-              <Input value={limitsTimeout} onChange={(e) => setLimitsTimeout(e.target.value)} placeholder={t("advanced.secondsPlaceholder")} />
+              <Label htmlFor="pppoe-limits-timeout">{t("advanced.timeout")}</Label>
+              <Input
+                id="pppoe-limits-timeout"
+                value={draft.limits_timeout}
+                onChange={(e) => update({ limits_timeout: e.target.value })}
+                placeholder={t("advanced.secondsPlaceholder")}
+                disabled={!draft.limits_enabled}
+              />
             </div>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">{t("advanced.shaper")}</h4>
-          <div className="space-y-2">
-            <Label>FWMark</Label>
-            <Input value={shaperFwmark} onChange={(e) => setShaperFwmark(e.target.value)} placeholder="0x1000" />
-          </div>
-
-          <Separator />
-          <h4 className="text-sm font-medium">SNMP</h4>
           <div className="flex items-center gap-2">
-            <Checkbox id="snmp-agent" checked={snmpMasterAgent} onCheckedChange={(v) => setSnmpMasterAgent(!!v)} />
+            <Checkbox id="pppoe-shaper" checked={draft.shaper_enabled} onCheckedChange={(v) => update({ shaper_enabled: !!v })} />
+            <Label htmlFor="pppoe-shaper" className="cursor-pointer font-medium">{t("advanced.shaper")}</Label>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pppoe-shaper-fwmark">FWMark</Label>
+            <Input
+              id="pppoe-shaper-fwmark"
+              type="number"
+              min={shaperFwmark.min}
+              max={shaperFwmark.max}
+              value={draft.shaper_fwmark}
+              onChange={(e) => update({ shaper_fwmark: e.target.value })}
+              placeholder={`${shaperFwmark.min}-${shaperFwmark.max}`}
+              disabled={!draft.shaper_enabled}
+            />
+          </div>
+
+          <Separator />
+          <div className="flex items-center gap-2">
+            <Checkbox id="pppoe-snmp" checked={draft.snmp_enabled} onCheckedChange={(v) => update({ snmp_enabled: !!v })} />
+            <Label htmlFor="pppoe-snmp" className="cursor-pointer font-medium">{t("advanced.snmp")}</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="snmp-agent"
+              checked={draft.snmp_master_agent}
+              onCheckedChange={(v) => update({ snmp_master_agent: !!v })}
+              disabled={!draft.snmp_enabled}
+            />
             <Label htmlFor="snmp-agent" className="cursor-pointer">{t("advanced.snmpMasterAgent")}</Label>
           </div>
 
           <Separator />
-          <h4 className="text-sm font-medium">{t("advanced.extendedScripts")}</h4>
+          <div className="flex items-center gap-2">
+            <Checkbox id="pppoe-scripts" checked={draft.scripts_enabled} onCheckedChange={(v) => update({ scripts_enabled: !!v })} />
+            <Label htmlFor="pppoe-scripts" className="cursor-pointer font-medium">{t("advanced.extendedScripts")}</Label>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("advanced.onChange")}</Label>
-              <Input value={scriptsOnChange} onChange={(e) => setScriptsOnChange(e.target.value)} placeholder="/path/to/script" />
+              <Label htmlFor="pppoe-script-change">{t("advanced.onChange")}</Label>
+              <Input
+                id="pppoe-script-change"
+                value={draft.scripts_on_change}
+                onChange={(e) => update({ scripts_on_change: e.target.value })}
+                placeholder="/path/to/script"
+                disabled={!draft.scripts_enabled}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("advanced.onDown")}</Label>
-              <Input value={scriptsOnDown} onChange={(e) => setScriptsOnDown(e.target.value)} placeholder="/path/to/script" />
+              <Label htmlFor="pppoe-script-down">{t("advanced.onDown")}</Label>
+              <Input
+                id="pppoe-script-down"
+                value={draft.scripts_on_down}
+                onChange={(e) => update({ scripts_on_down: e.target.value })}
+                placeholder="/path/to/script"
+                disabled={!draft.scripts_enabled}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("advanced.onPreUp")}</Label>
-              <Input value={scriptsOnPreUp} onChange={(e) => setScriptsOnPreUp(e.target.value)} placeholder="/path/to/script" />
+              <Label htmlFor="pppoe-script-pre-up">{t("advanced.onPreUp")}</Label>
+              <Input
+                id="pppoe-script-pre-up"
+                value={draft.scripts_on_pre_up}
+                onChange={(e) => update({ scripts_on_pre_up: e.target.value })}
+                placeholder="/path/to/script"
+                disabled={!draft.scripts_enabled}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("advanced.onUp")}</Label>
-              <Input value={scriptsOnUp} onChange={(e) => setScriptsOnUp(e.target.value)} placeholder="/path/to/script" />
+              <Label htmlFor="pppoe-script-up">{t("advanced.onUp")}</Label>
+              <Input
+                id="pppoe-script-up"
+                value={draft.scripts_on_up}
+                onChange={(e) => update({ scripts_on_up: e.target.value })}
+                placeholder="/path/to/script"
+                disabled={!draft.scripts_enabled}
+              />
             </div>
           </div>
         </div>

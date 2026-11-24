@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DEFAULT_LABEL_FACTOR, DEFAULT_LABEL_PRIORITY, PPPOE_LABEL_LIMITS } from "@/lib/api/pppoe-server";
 import type { PPPoESessionLabelDefinition, PPPoESessionLabelRule } from "@/lib/api/pppoe-server";
 
 const METRIC_OPTIONS: { value: NonNullable<PPPoESessionLabelRule["numerator"]>; label: "rxBytes" | "txBytes" | "rxRate" | "txRate" }[] = [
@@ -35,6 +36,8 @@ interface SessionLabelRegistryDialogProps {
   onDraftChange: (next: PPPoESessionLabelDefinition[]) => void;
   onSave: () => void;
   saving: boolean;
+  /** False until the stored catalog loaded: saving replaces it whole. */
+  canSave: boolean;
   error: string | null;
 }
 
@@ -45,6 +48,7 @@ export function SessionLabelRegistryDialog({
   onDraftChange,
   onSave,
   saving,
+  canSave,
   error,
 }: SessionLabelRegistryDialogProps) {
   const t = useTranslations("pppoeServer.labelRegistry");
@@ -68,17 +72,17 @@ export function SessionLabelRegistryDialog({
       ...draft,
       {
         code: `custom-label-${Date.now()}`,
-        name: "New label",
+        name: t("newLabel"),
         description: "",
         severity: "info",
-        priority: 10,
+        priority: DEFAULT_LABEL_PRIORITY,
         enabled: true,
         rules: {
           type: "ratio",
           numerator: "rx_bytes",
           denominator: "tx_bytes",
           operator: ">",
-          factor: 0.1,
+          factor: DEFAULT_LABEL_FACTOR,
         },
       },
     ]);
@@ -88,8 +92,12 @@ export function SessionLabelRegistryDialog({
     onDraftChange(draft.filter((_, i) => i !== index));
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!saving) onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle>{t("title")}</DialogTitle>
@@ -100,7 +108,7 @@ export function SessionLabelRegistryDialog({
 
         <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive whitespace-pre-wrap">
               {error}
             </div>
           )}
@@ -112,7 +120,7 @@ export function SessionLabelRegistryDialog({
           ) : (
             draft.map((label, index) => (
               <div
-                key={`${label.code}-${index}`}
+                key={index}
                 className="rounded-lg border bg-muted/10 p-4 space-y-4"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -123,6 +131,7 @@ export function SessionLabelRegistryDialog({
                         id={`label-code-${index}`}
                         value={label.code ?? ""}
                         onChange={(e) => updateAt(index, { code: e.target.value })}
+                        maxLength={PPPOE_LABEL_LIMITS.code}
                         className="font-mono text-sm"
                       />
                     </div>
@@ -132,6 +141,7 @@ export function SessionLabelRegistryDialog({
                         id={`label-name-${index}`}
                         value={label.name ?? ""}
                         onChange={(e) => updateAt(index, { name: e.target.value })}
+                        maxLength={PPPOE_LABEL_LIMITS.name}
                       />
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
@@ -147,8 +157,12 @@ export function SessionLabelRegistryDialog({
                       <Input
                         id={`label-priority-${index}`}
                         type="number"
-                        value={label.priority ?? 10}
-                        onChange={(e) => updateAt(index, { priority: Number(e.target.value) })}
+                        step={1}
+                        min={PPPOE_LABEL_LIMITS.priorityMin}
+                        max={PPPOE_LABEL_LIMITS.priorityMax}
+                        value={Number.isNaN(label.priority) ? "" : (label.priority ?? DEFAULT_LABEL_PRIORITY)}
+                        // A cleared box is NaN, which the save check rejects (never a silent 0).
+                        onChange={(e) => updateAt(index, { priority: e.target.value === "" ? NaN : Number(e.target.value) })}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -202,7 +216,7 @@ export function SessionLabelRegistryDialog({
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
-                      <Label>{t("numerator")}</Label>
+                      <Label htmlFor={`label-numerator-${index}`}>{t("numerator")}</Label>
                       <Select
                         value={label.rules?.numerator ?? "rx_bytes"}
                         onValueChange={(value) =>
@@ -211,7 +225,7 @@ export function SessionLabelRegistryDialog({
                           })
                         }
                       >
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id={`label-numerator-${index}`} className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {METRIC_OPTIONS.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>{t(`metrics.${opt.label}`)}</SelectItem>
@@ -220,7 +234,7 @@ export function SessionLabelRegistryDialog({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>{t("denominator")}</Label>
+                      <Label htmlFor={`label-denominator-${index}`}>{t("denominator")}</Label>
                       <Select
                         value={label.rules?.denominator ?? "tx_bytes"}
                         onValueChange={(value) =>
@@ -229,7 +243,7 @@ export function SessionLabelRegistryDialog({
                           })
                         }
                       >
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id={`label-denominator-${index}`} className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {METRIC_OPTIONS.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>{t(`metrics.${opt.label}`)}</SelectItem>
@@ -238,7 +252,7 @@ export function SessionLabelRegistryDialog({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>{t("operator")}</Label>
+                      <Label htmlFor={`label-operator-${index}`}>{t("operator")}</Label>
                       <Select
                         value={label.rules?.operator ?? ">"}
                         onValueChange={(value) =>
@@ -247,7 +261,7 @@ export function SessionLabelRegistryDialog({
                           })
                         }
                       >
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id={`label-operator-${index}`} className="w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value=">">&gt;</SelectItem>
                           <SelectItem value=">=">&ge;</SelectItem>
@@ -257,13 +271,15 @@ export function SessionLabelRegistryDialog({
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>{t("factor")}</Label>
+                      <Label htmlFor={`label-factor-${index}`}>{t("factor")}</Label>
                       <Input
+                        id={`label-factor-${index}`}
                         type="number"
                         step="0.01"
-                        min="0"
-                        value={label.rules?.factor ?? 0.1}
-                        onChange={(e) => updateRuleAt(index, { factor: Number(e.target.value) })}
+                        min={PPPOE_LABEL_LIMITS.factorMin}
+                        value={Number.isNaN(label.rules?.factor) ? "" : (label.rules?.factor ?? DEFAULT_LABEL_FACTOR)}
+                        // A cleared box is NaN, which the save check rejects (never a silent 0).
+                        onChange={(e) => updateRuleAt(index, { factor: e.target.value === "" ? NaN : Number(e.target.value) })}
                       />
                     </div>
                   </div>
@@ -278,10 +294,10 @@ export function SessionLabelRegistryDialog({
             <Plus className="h-4 w-4 mr-2" /> {t("newLabel")}
           </Button>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={saving}>
               <X className="h-4 w-4 mr-2" /> {tc("cancel")}
             </Button>
-            <Button size="sm" onClick={onSave} disabled={saving}>
+            <Button size="sm" onClick={onSave} disabled={saving || !canSave}>
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (

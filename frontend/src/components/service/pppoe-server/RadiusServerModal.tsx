@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -16,86 +16,56 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Server } from "lucide-react";
 import { pppoeServerService, PPPoERadiusServer } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import { PPPOE_RANGES, radiusServerProblem, type PPPoERadiusServerDraft } from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface RadiusServerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingServer: PPPoERadiusServer | null;
+  /** Configured server addresses; Add rejects them. */
+  configuredServers: string[];
 }
 
-export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServer }: RadiusServerModalProps) {
+export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServer, configuredServers }: RadiusServerModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
   const isEdit = !!existingServer;
-
-  const [address, setAddress] = useState("");
-  const [key, setKey] = useState("");
-  const [port, setPort] = useState("");
-  const [acctPort, setAcctPort] = useState("");
-  const [priority, setPriority] = useState("");
-  const [failTime, setFailTime] = useState("");
-  const [disabled, setDisabled] = useState(false);
-  const [backup, setBackup] = useState(false);
-  const [disableAccounting, setDisableAccounting] = useState(false);
-
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  // The key is required, so it loads blank: blank keeps the stored one.
+  const [draft, setDraft] = useState<PPPoERadiusServerDraft>(() => ({
+    address: existingServer?.address || "",
+    key: "",
+    port: existingServer?.port || "",
+    acct_port: existingServer?.acct_port || "",
+    priority: existingServer?.priority || "",
+    fail_time: existingServer?.fail_time || "",
+    disabled: existingServer?.disabled || false,
+    backup: existingServer?.backup || false,
+    disable_accounting: existingServer?.disable_accounting || false,
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      if (existingServer) {
-        setAddress(existingServer.address);
-        setKey("");
-        setPort(existingServer.port || "");
-        setAcctPort(existingServer.acct_port || "");
-        setPriority(existingServer.priority || "");
-        setFailTime(existingServer.fail_time || "");
-        setDisabled(existingServer.disabled || false);
-        setBackup(existingServer.backup || false);
-        setDisableAccounting(existingServer.disable_accounting || false);
-      } else {
-        setAddress("");
-        setKey("");
-        setPort("");
-        setAcctPort("");
-        setPriority("");
-        setFailTime("");
-        setDisabled(false);
-        setBackup(false);
-        setDisableAccounting(false);
-      }
-      setError(null);
-    }
-  }, [open, existingServer]);
+  const update = (patch: Partial<PPPoERadiusServerDraft>) => setDraft((current) => ({ ...current, ...patch }));
+
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
 
   const handleSubmit = async () => {
-    if (!address.trim()) { setError(t("radiusServer.addressRequired")); return; }
-
+    const issue = radiusServerProblem(existingServer, draft, configuredServers);
+    if (issue) {
+      setError(t(`radiusServer.${issue.problem}`, issue.params));
+      return;
+    }
     setLoading(true);
     setError(null);
-
     try {
-      if (isEdit) await pppoeServerService.deleteRadiusServer(existingServer!.address);
-
-      const result = await pppoeServerService.createRadiusServer(address.trim(), {
-        key: key || undefined,
-        port: port || undefined,
-        acct_port: acctPort || undefined,
-        priority: priority || undefined,
-        fail_time: failTime || undefined,
-        disabled,
-        backup,
-        disable_accounting: disableAccounting,
-      });
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("radiusServer.saveFailed"));
-      }
+      await pppoeServerService.saveRadiusServer(existingServer, draft);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("radiusServer.saveFailed"));
     } finally {
@@ -103,8 +73,10 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
     }
   };
 
+  const { port, radiusPriority: priority, radiusFailTime: failTime } = PPPOE_RANGES;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -116,44 +88,93 @@ export function RadiusServerModal({ open, onOpenChange, onSuccess, existingServe
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("radiusServer.address")}</Label>
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="10.0.0.100" disabled={isEdit} />
+            <Label htmlFor="pppoe-srv-address">{t("radiusServer.address")}</Label>
+            <Input
+              id="pppoe-srv-address"
+              value={draft.address}
+              onChange={(e) => update({ address: e.target.value })}
+              placeholder="10.0.0.100"
+              disabled={isEdit}
+            />
           </div>
           <div className="space-y-2">
-            <Label>{t("radiusServer.sharedKey")}</Label>
-            <Input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={isEdit ? t("leaveBlankToKeep") : t("radiusServer.enterSharedKey")} />
+            <Label htmlFor="pppoe-srv-key">{t("radiusServer.sharedKey")}</Label>
+            <Input
+              id="pppoe-srv-key"
+              type="password"
+              autoComplete="new-password"
+              value={draft.key}
+              onChange={(e) => update({ key: e.target.value })}
+              placeholder={existingServer?.key ? t("leaveBlankToKeep") : t("radiusServer.enterSharedKey")}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("radiusServer.authPort")}</Label>
-              <Input value={port} onChange={(e) => setPort(e.target.value)} placeholder="1812" />
+              <Label htmlFor="pppoe-srv-port">{t("radiusServer.authPort")}</Label>
+              <Input
+                id="pppoe-srv-port"
+                type="number"
+                min={port.min}
+                max={port.max}
+                value={draft.port}
+                onChange={(e) => update({ port: e.target.value })}
+                placeholder="1812"
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("radiusServer.acctPort")}</Label>
-              <Input value={acctPort} onChange={(e) => setAcctPort(e.target.value)} placeholder="1813" />
+              <Label htmlFor="pppoe-srv-acct-port">{t("radiusServer.acctPort")}</Label>
+              <Input
+                id="pppoe-srv-acct-port"
+                type="number"
+                min={port.min}
+                max={port.max}
+                value={draft.acct_port}
+                onChange={(e) => update({ acct_port: e.target.value })}
+                placeholder="1813"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("radiusServer.priority")}</Label>
-              <Input value={priority} onChange={(e) => setPriority(e.target.value)} placeholder="1" />
+              <Label htmlFor="pppoe-srv-priority">{t("radiusServer.priority")}</Label>
+              <Input
+                id="pppoe-srv-priority"
+                type="number"
+                min={priority.min}
+                max={priority.max}
+                value={draft.priority}
+                onChange={(e) => update({ priority: e.target.value })}
+                placeholder={`${priority.min}-${priority.max}`}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{t("radiusServer.failTime")}</Label>
-              <Input value={failTime} onChange={(e) => setFailTime(e.target.value)} placeholder="60" />
+              <Label htmlFor="pppoe-srv-fail-time">{t("radiusServer.failTime")}</Label>
+              <Input
+                id="pppoe-srv-fail-time"
+                type="number"
+                min={failTime.min}
+                max={failTime.max}
+                value={draft.fail_time}
+                onChange={(e) => update({ fail_time: e.target.value })}
+                placeholder={`${failTime.min}-${failTime.max}`}
+              />
             </div>
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Checkbox id="srv-disabled" checked={disabled} onCheckedChange={(v) => setDisabled(!!v)} />
+              <Checkbox id="srv-disabled" checked={draft.disabled} onCheckedChange={(v) => update({ disabled: !!v })} />
               <Label htmlFor="srv-disabled" className="cursor-pointer">{tc("disabled")}</Label>
             </div>
             <div className="flex items-center gap-2">
-              <Checkbox id="srv-backup" checked={backup} onCheckedChange={(v) => setBackup(!!v)} />
+              <Checkbox id="srv-backup" checked={draft.backup} onCheckedChange={(v) => update({ backup: !!v })} />
               <Label htmlFor="srv-backup" className="cursor-pointer">{t("radiusServer.backup")}</Label>
             </div>
             <div className="flex items-center gap-2">
-              <Checkbox id="srv-no-acct" checked={disableAccounting} onCheckedChange={(v) => setDisableAccounting(!!v)} />
+              <Checkbox
+                id="srv-no-acct"
+                checked={draft.disable_accounting}
+                onCheckedChange={(v) => update({ disable_accounting: !!v })}
+              />
               <Label htmlFor="srv-no-acct" className="cursor-pointer">{t("radiusServer.disableAccounting")}</Label>
             </div>
           </div>

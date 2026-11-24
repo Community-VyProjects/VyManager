@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,75 +13,56 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Loader2, Network, X } from "lucide-react";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { AlertCircle, Loader2, Network } from "lucide-react";
+import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { pppoeServerService, PPPoEIPv4Pool } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import { ipPoolProblem, type PPPoEIPPoolDraft } from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface IPPoolModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingPool: PPPoEIPv4Pool | null;
+  /** Configured IPv4 pool names: Add rejects them, next-pool picks from them. */
+  poolNames: string[];
 }
 
-export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPPoolModalProps) {
+export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool, poolNames }: IPPoolModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
   const isEdit = !!existingPool;
-
-  const [name, setName] = useState("");
-  const [ranges, setRanges] = useState<string[]>([]);
-  const [rangeInput, setRangeInput] = useState("");
-  const [nextPool, setNextPool] = useState("");
-
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  const [draft, setDraft] = useState<PPPoEIPPoolDraft>(() => ({
+    name: existingPool?.name || "",
+    ranges: existingPool?.ranges || [],
+    next_pool: existingPool?.next_pool || "",
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      if (existingPool) {
-        setName(existingPool.name);
-        setRanges(existingPool.ranges || []);
-        setNextPool(existingPool.next_pool || "");
-      } else {
-        setName("");
-        setRanges([]);
-        setNextPool("");
-      }
-      setRangeInput("");
-      setError(null);
-    }
-  }, [open, existingPool]);
+  const update = (patch: Partial<PPPoEIPPoolDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
-  const addRange = () => {
-    const val = rangeInput.trim();
-    if (val && !ranges.includes(val)) {
-      setRanges([...ranges, val]);
-      setRangeInput("");
-    }
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError(t("poolNameRequired")); return; }
-
+    const issue = ipPoolProblem(existingPool, draft, poolNames);
+    if (issue) {
+      const { problem, params } = issue;
+      setError(problem === "poolNameRequired" || problem === "poolExists"
+        ? t(problem, params)
+        : t(`ipPool.${problem}`));
+      return;
+    }
     setLoading(true);
     setError(null);
-
     try {
-      let result;
-      if (isEdit) {
-        result = await pppoeServerService.updateIPPool(existingPool!.name, existingPool!, ranges, nextPool || undefined);
-      } else {
-        result = await pppoeServerService.createIPPool(name.trim(), ranges, nextPool || undefined);
-      }
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("ipPool.saveFailed"));
-      }
+      await pppoeServerService.saveIPPool(existingPool, draft);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("ipPool.saveFailed"));
     } finally {
@@ -90,7 +71,7 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -102,38 +83,31 @@ export function IPPoolModal({ open, onOpenChange, onSuccess, existingPool }: IPP
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("poolName")}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="pool1" disabled={isEdit} />
+            <Label htmlFor="pppoe-pool-name">{t("poolName")}</Label>
+            <Input
+              id="pppoe-pool-name"
+              value={draft.name}
+              onChange={(e) => update({ name: e.target.value })}
+              placeholder="pool1"
+              disabled={isEdit}
+            />
           </div>
 
-          <div className="space-y-2">
-            <Label>{t("ipPool.ranges")}</Label>
-            <div className="flex gap-2">
-              <Input
-                value={rangeInput}
-                onChange={(e) => setRangeInput(e.target.value)}
-                placeholder={t("ipPool.rangePlaceholder")}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addRange(); } }}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addRange}>{tc("add")}</Button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {ranges.map((r) => (
-                <Badge key={r} variant="secondary" className="gap-1 font-mono text-xs">
-                  {r}
-                  <button onClick={() => setRanges(ranges.filter((x) => x !== r))}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <MultiValueInput
+            label={t("ipPool.ranges")}
+            values={draft.ranges}
+            placeholder={t("ipPool.rangePlaceholder")}
+            onChange={(ranges) => update({ ranges })}
+          />
 
           <div className="space-y-2">
-            <Label>{t("ipPool.nextPool")}</Label>
-            <Input value={nextPool} onChange={(e) => setNextPool(e.target.value)} placeholder="pool2" />
-            <p className="text-xs text-muted-foreground">{t("ipPool.nextPoolHelp")}</p>
+            <Label htmlFor="pppoe-pool-next">{t("ipPool.nextPool")}</Label>
+            <NamedListSelect
+              id="pppoe-pool-next"
+              value={draft.next_pool}
+              names={poolNames.filter((name) => name !== existingPool?.name)}
+              onValueChange={(next_pool) => update({ next_pool })}
+            />
           </div>
         </div>
 

@@ -3,6 +3,7 @@
   "createPool": "Create Pool",
   "poolName": "Pool Name",
   "poolNameRequired": "Pool name is required",
+  "poolExists": "Pool {name} already exists",
   "leaveBlankToKeep": "Leave blank to keep current",
   "general": {
     "title": "General Settings",
@@ -11,9 +12,9 @@
     "serverIdentity": "Server Identity",
     "descriptionPlaceholder": "PPPoE broadband server",
     "accessConcentrator": "Access Concentrator",
-    "serviceName": "Service Name",
+    "serviceNames": "Service Names",
     "addressing": "Addressing",
-    "gatewayAddresses": "Gateway Addresses",
+    "gatewayAddress": "Gateway Address",
     "nameServers": "Name Servers",
     "winsServers": "WINS Servers",
     "poolsSession": "Pools & Session",
@@ -25,10 +26,15 @@
     "sessionReplace": "Replace",
     "maxSessions": "Max Sessions",
     "threadCount": "Thread Count",
-    "threadCountPlaceholder": "auto",
     "flags": "Flags",
     "acceptAnyService": "Accept Any Service",
-    "acceptBlankService": "Accept Blank Service"
+    "acceptBlankService": "Accept Blank Service",
+    "maxSessionsRange": "Max sessions must be between {min} and {max}",
+    "mtuRange": "MTU must be between {min} and {max}",
+    "threadCountInvalid": "Thread count must be between {min} and {max}, or one of the listed keywords",
+    "tooManyIpv4NameServers": "At most {max} IPv4 name servers can be configured",
+    "tooManyIpv6NameServers": "At most {max} IPv6 name servers can be configured",
+    "tooManyWinsServers": "At most {max} WINS servers can be configured"
   },
   "advanced": {
     "title": "Advanced Settings",
@@ -44,7 +50,7 @@
     "logLevel5": "5 — Debug",
     "padoDelays": "PADO Delays",
     "noPadoDelays": "No PADO delays configured.",
-    "delayPlaceholder": "delay (ms or 'disable')",
+    "delayPlaceholder": "delay ({min}-{max} or disable)",
     "sessionsPlaceholder": "sessions",
     "connectionLimits": "Connection Limits",
     "burst": "Burst",
@@ -52,12 +58,22 @@
     "timeout": "Timeout",
     "secondsPlaceholder": "seconds",
     "shaper": "Shaper",
+    "snmp": "SNMP",
     "snmpMasterAgent": "SNMP Master Agent",
     "extendedScripts": "Extended Scripts",
     "onChange": "On Change",
     "onDown": "On Down",
     "onPreUp": "On Pre-Up",
-    "onUp": "On Up"
+    "onUp": "On Up",
+    "padoDelayRequired": "Every PADO delay row needs a delay",
+    "padoDelayInvalid": "PADO delay {delay} must be between {min} and {max}, or disable",
+    "padoSessionsRange": "PADO delay {delay}: sessions must be between {min} and {max}",
+    "duplicatePadoDelay": "PADO delay {delay} is listed twice",
+    "padoDisableNeedsSessions": "PADO delay disable needs a session count",
+    "padoOneWithoutSessions": "Only one PADO delay can be set without a session count",
+    "padoAfterDisable": "PADO delay {delay} has more sessions than disable",
+    "connectionLimitFormat": "Connection limit {value} must be a number followed by /min or /sec (e.g. 60/sec)",
+    "fwmarkRange": "FWMark must be between {min} and {max}"
   },
   "auth": {
     "title": "Authentication Settings",
@@ -65,9 +81,12 @@
     "updateFailed": "Failed to update authentication settings",
     "mode": "Authentication Mode",
     "modeLocal": "Local",
+    "modeRadius": "RADIUS",
     "modeNoauth": "No Authentication",
     "protocols": "Protocols",
-    "anyLogin": "Any login"
+    "anyLogin": "Any login",
+    "localModeNeedsUser": "Local mode needs at least one local user",
+    "radiusModeNeedsServer": "RADIUS mode needs at least one RADIUS server"
   },
   "pppOptions": {
     "title": "PPP Options",
@@ -89,7 +108,17 @@
     "interfaceId": "Interface ID",
     "interfaceIdPlaceholder": "random or x:x:x:x",
     "peerInterfaceId": "Peer Interface ID",
-    "acceptPeerInterfaceId": "Accept Peer Interface ID"
+    "acceptPeerInterfaceId": "Accept Peer Interface ID",
+    "peerInterfaceIdSecret": "Peer Interface ID Secret",
+    "minMtuRange": "Min MTU must be between {min} and {max}",
+    "mruRange": "MRU must be between {min} and {max}",
+    "interfaceCacheRange": "Interface cache must be between {min} and {max}",
+    "lcpEchoFailureMin": "LCP echo failure must be a whole number of at least {min}",
+    "lcpEchoIntervalMin": "LCP echo interval must be a whole number of at least {min}",
+    "lcpEchoTimeoutMin": "LCP echo timeout must be a whole number of at least {min}",
+    "peerSecretRequired": "Calling SID needs a peer interface ID secret",
+    "peerSecretIsMask": "Enter the actual secret, not the mask",
+    "peerSecretInvalid": "The secret must be {min} to {max} printable characters without spaces"
   },
   "radiusSettings": {
     "title": "RADIUS Global Settings",
@@ -112,13 +141,21 @@
     "daeServer": "DAE Server",
     "daePort": "DAE Port",
     "daeKey": "DAE Key",
-    "daeKeyKeep": "Leave blank to keep",
     "daeKeyEnter": "Enter DAE key",
     "rateLimiting": "Rate Limiting",
     "enableRateLimiting": "Enable Rate Limiting",
     "attribute": "Attribute",
     "vendor": "Vendor",
-    "multiplier": "Multiplier"
+    "multiplier": "Multiplier",
+    "timeoutRange": "Timeout must be between {min} and {max}",
+    "maxTryRange": "Max try must be between {min} and {max}",
+    "interimIntervalRange": "Interim interval must be between {min} and {max}",
+    "interimJitterRange": "Interim jitter must be between {min} and {max}",
+    "acctTimeoutRange": "Accounting timeout must be between {min} and {max}",
+    "daePortRange": "DAE port must be between {min} and {max}",
+    "daeKeyIsMask": "Enter the actual DAE key, not the mask",
+    "daeKeyRequired": "A DAE server needs a DAE key",
+    "multiplierRange": "Multiplier must be between {min} and {max}"
   },
   "radiusServer": {
     "addTitle": "Add RADIUS Server",
@@ -135,7 +172,14 @@
     "failTime": "Fail Time",
     "backup": "Backup Server",
     "disableAccounting": "Disable Accounting",
-    "addServer": "Add Server"
+    "addServer": "Add Server",
+    "addressExists": "Server {address} already exists",
+    "keyRequired": "A shared key is required",
+    "keyIsMask": "Enter the actual key, not the mask",
+    "portRange": "Auth port must be between {min} and {max}",
+    "acctPortRange": "Accounting port must be between {min} and {max}",
+    "priorityRange": "Priority must be between {min} and {max}",
+    "failTimeRange": "Fail time must be between {min} and {max}"
   },
   "localUser": {
     "addTitle": "Add Local User",
@@ -150,7 +194,10 @@
     "staticIp": "Static IP (optional)",
     "rateDownload": "Rate Limit Download",
     "rateUpload": "Rate Limit Upload",
-    "addUser": "Add User"
+    "addUser": "Add User",
+    "userExists": "User {username} already exists",
+    "passwordIsMask": "Enter the actual password, not the mask",
+    "rateLimitBothDirections": "Set both the download and upload rate limits, or neither"
   },
   "ipPool": {
     "createTitle": "Create IP Pool",
@@ -160,7 +207,7 @@
     "ranges": "Ranges",
     "rangePlaceholder": "192.168.100.0/24 or 192.168.1.1-192.168.1.254",
     "nextPool": "Next Pool (optional)",
-    "nextPoolHelp": "Pool to use when this one is exhausted"
+    "nextPoolWithoutRange": "A pool with a next pool needs at least one range"
   },
   "ipv6Pool": {
     "createTitle": "Create IPv6 Pool",
@@ -168,8 +215,18 @@
     "description": "Configure an IPv6 client address pool.",
     "saveFailed": "Failed to save IPv6 pool",
     "prefixes": "Prefixes",
-    "maskPlaceholder": "mask (48-128)",
+    "maskPlaceholder": "mask ({min}-{max})",
     "delegatePrefixes": "Delegate Prefixes",
-    "delegationPlaceholder": "delegation (32-64)"
+    "delegationPlaceholder": "delegation ({min}-{max})",
+    "prefixRequired": "Every prefix row needs a prefix",
+    "prefixHasPipe": "Prefix {prefix} must not contain |",
+    "duplicatePrefix": "Prefix {prefix} is listed twice",
+    "maskRange": "Prefix {prefix}: mask must be between {min} and {max}",
+    "delegateWithoutPrefix": "A delegate prefix needs at least one prefix in the pool",
+    "delegatePrefixRequired": "Every delegate row needs a prefix",
+    "delegatePrefixHasPipe": "Delegate prefix {prefix} must not contain |",
+    "delegationPrefixRequired": "Delegate {prefix} needs a delegation length",
+    "delegationPrefixRange": "Delegate {prefix}: delegation length must be between {min} and {max}",
+    "duplicateDelegate": "Delegate {prefix} is listed twice"
   }
 }

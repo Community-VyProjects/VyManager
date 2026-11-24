@@ -3,6 +3,7 @@
   "createPool": "创建地址池",
   "poolName": "地址池名称",
   "poolNameRequired": "地址池名称为必填项",
+  "poolExists": "地址池 {name} 已存在",
   "leaveBlankToKeep": "留空则保持当前值",
   "general": {
     "title": "常规设置",
@@ -11,9 +12,9 @@
     "serverIdentity": "服务器标识",
     "descriptionPlaceholder": "PPPoE 宽带服务器",
     "accessConcentrator": "访问集中器 (AC 名称)",
-    "serviceName": "服务名称",
+    "serviceNames": "服务名称",
     "addressing": "地址",
-    "gatewayAddresses": "网关地址",
+    "gatewayAddress": "网关地址",
     "nameServers": "DNS 服务器",
     "winsServers": "WINS 服务器",
     "poolsSession": "地址池与会话",
@@ -25,10 +26,15 @@
     "sessionReplace": "替换",
     "maxSessions": "最大会话数",
     "threadCount": "线程数",
-    "threadCountPlaceholder": "自动",
     "flags": "选项",
     "acceptAnyService": "接受任意服务",
-    "acceptBlankService": "接受空服务名"
+    "acceptBlankService": "接受空服务名",
+    "maxSessionsRange": "最大会话数必须介于 {min} 和 {max} 之间",
+    "mtuRange": "MTU 必须介于 {min} 和 {max} 之间",
+    "threadCountInvalid": "线程数必须介于 {min} 和 {max} 之间，或为列出的关键字之一",
+    "tooManyIpv4NameServers": "最多可配置 {max} 个 IPv4 DNS 服务器",
+    "tooManyIpv6NameServers": "最多可配置 {max} 个 IPv6 DNS 服务器",
+    "tooManyWinsServers": "最多可配置 {max} 个 WINS 服务器"
   },
   "advanced": {
     "title": "高级设置",
@@ -44,7 +50,7 @@
     "logLevel5": "5 — 调试",
     "padoDelays": "PADO 延迟",
     "noPadoDelays": "未配置 PADO 延迟。",
-    "delayPlaceholder": "延迟（毫秒或 'disable'）",
+    "delayPlaceholder": "延迟 ({min}-{max} 或 disable)",
     "sessionsPlaceholder": "会话数",
     "connectionLimits": "连接限制",
     "burst": "突发",
@@ -52,12 +58,22 @@
     "timeout": "超时",
     "secondsPlaceholder": "秒",
     "shaper": "限速",
+    "snmp": "SNMP",
     "snmpMasterAgent": "SNMP 主代理",
     "extendedScripts": "扩展脚本",
     "onChange": "变更时",
     "onDown": "断开时",
     "onPreUp": "建立前",
-    "onUp": "建立时"
+    "onUp": "建立时",
+    "padoDelayRequired": "每个 PADO 延迟行都需要填写延迟",
+    "padoDelayInvalid": "PADO 延迟 {delay} 必须介于 {min} 和 {max} 之间，或为 disable",
+    "padoSessionsRange": "PADO 延迟 {delay}：会话数必须介于 {min} 和 {max} 之间",
+    "duplicatePadoDelay": "PADO 延迟 {delay} 重复",
+    "padoDisableNeedsSessions": "PADO 延迟 disable 需要会话数",
+    "padoOneWithoutSessions": "只能有一个 PADO 延迟不设置会话数",
+    "padoAfterDisable": "PADO 延迟 {delay} 的会话数大于 disable",
+    "connectionLimitFormat": "连接限制 {value} 必须是数字后跟 /min 或 /sec（例如 60/sec）",
+    "fwmarkRange": "FWMark 必须介于 {min} 和 {max} 之间"
   },
   "auth": {
     "title": "认证设置",
@@ -65,9 +81,12 @@
     "updateFailed": "更新认证设置失败",
     "mode": "认证模式",
     "modeLocal": "本地",
+    "modeRadius": "RADIUS",
     "modeNoauth": "无认证",
     "protocols": "协议",
-    "anyLogin": "允许任意登录"
+    "anyLogin": "允许任意登录",
+    "localModeNeedsUser": "本地模式至少需要一个本地用户",
+    "radiusModeNeedsServer": "RADIUS 模式至少需要一个 RADIUS 服务器"
   },
   "pppOptions": {
     "title": "PPP 选项",
@@ -89,7 +108,17 @@
     "interfaceId": "接口 ID",
     "interfaceIdPlaceholder": "random 或 x:x:x:x",
     "peerInterfaceId": "对端接口 ID",
-    "acceptPeerInterfaceId": "接受对端接口 ID"
+    "acceptPeerInterfaceId": "接受对端接口 ID",
+    "peerInterfaceIdSecret": "对端接口 ID 密钥",
+    "minMtuRange": "最小 MTU 必须介于 {min} 和 {max} 之间",
+    "mruRange": "MRU 必须介于 {min} 和 {max} 之间",
+    "interfaceCacheRange": "接口缓存必须介于 {min} 和 {max} 之间",
+    "lcpEchoFailureMin": "LCP Echo 失败次数必须是不小于 {min} 的整数",
+    "lcpEchoIntervalMin": "LCP Echo 间隔必须是不小于 {min} 的整数",
+    "lcpEchoTimeoutMin": "LCP Echo 超时必须是不小于 {min} 的整数",
+    "peerSecretRequired": "Calling SID 需要对端接口 ID 密钥",
+    "peerSecretIsMask": "请输入实际密钥，而不是掩码",
+    "peerSecretInvalid": "密钥必须为 {min} 到 {max} 个不含空格的可打印字符"
   },
   "radiusSettings": {
     "title": "RADIUS 全局设置",
@@ -112,13 +141,21 @@
     "daeServer": "DAE 服务器",
     "daePort": "DAE 端口",
     "daeKey": "DAE 密钥",
-    "daeKeyKeep": "留空则保持不变",
     "daeKeyEnter": "输入 DAE 密钥",
     "rateLimiting": "限速",
     "enableRateLimiting": "启用限速",
     "attribute": "属性",
     "vendor": "厂商",
-    "multiplier": "倍数"
+    "multiplier": "倍数",
+    "timeoutRange": "超时必须介于 {min} 和 {max} 之间",
+    "maxTryRange": "最大尝试次数必须介于 {min} 和 {max} 之间",
+    "interimIntervalRange": "中间计费间隔必须介于 {min} 和 {max} 之间",
+    "interimJitterRange": "中间计费抖动必须介于 {min} 和 {max} 之间",
+    "acctTimeoutRange": "计费超时必须介于 {min} 和 {max} 之间",
+    "daePortRange": "DAE 端口必须介于 {min} 和 {max} 之间",
+    "daeKeyIsMask": "请输入实际 DAE 密钥，而不是掩码",
+    "daeKeyRequired": "DAE 服务器需要 DAE 密钥",
+    "multiplierRange": "倍数必须介于 {min} 和 {max} 之间"
   },
   "radiusServer": {
     "addTitle": "添加 RADIUS 服务器",
@@ -135,7 +172,14 @@
     "failTime": "失效时间",
     "backup": "备用服务器",
     "disableAccounting": "禁用计费",
-    "addServer": "添加服务器"
+    "addServer": "添加服务器",
+    "addressExists": "服务器 {address} 已存在",
+    "keyRequired": "共享密钥为必填项",
+    "keyIsMask": "请输入实际密钥，而不是掩码",
+    "portRange": "认证端口必须介于 {min} 和 {max} 之间",
+    "acctPortRange": "计费端口必须介于 {min} 和 {max} 之间",
+    "priorityRange": "优先级必须介于 {min} 和 {max} 之间",
+    "failTimeRange": "失效时间必须介于 {min} 和 {max} 之间"
   },
   "localUser": {
     "addTitle": "添加本地用户",
@@ -150,7 +194,10 @@
     "staticIp": "静态 IP（可选）",
     "rateDownload": "下载限速",
     "rateUpload": "上传限速",
-    "addUser": "添加用户"
+    "addUser": "添加用户",
+    "userExists": "用户 {username} 已存在",
+    "passwordIsMask": "请输入实际密码，而不是掩码",
+    "rateLimitBothDirections": "请同时设置下载和上传速率限制，或都不设置"
   },
   "ipPool": {
     "createTitle": "创建 IP 池",
@@ -160,7 +207,7 @@
     "ranges": "范围",
     "rangePlaceholder": "192.168.100.0/24 或 192.168.1.1-192.168.1.254",
     "nextPool": "下一个地址池（可选）",
-    "nextPoolHelp": "当前地址池耗尽时使用的地址池"
+    "nextPoolWithoutRange": "设置了下一个地址池的地址池至少需要一个范围"
   },
   "ipv6Pool": {
     "createTitle": "创建 IPv6 池",
@@ -168,8 +215,18 @@
     "description": "配置 IPv6 客户端地址池。",
     "saveFailed": "保存 IPv6 地址池失败",
     "prefixes": "前缀",
-    "maskPlaceholder": "掩码 (48-128)",
+    "maskPlaceholder": "掩码 ({min}-{max})",
     "delegatePrefixes": "委派前缀",
-    "delegationPlaceholder": "委派长度 (32-64)"
+    "delegationPlaceholder": "委派长度 ({min}-{max})",
+    "prefixRequired": "每个前缀行都需要填写前缀",
+    "prefixHasPipe": "前缀 {prefix} 不能包含 |",
+    "duplicatePrefix": "前缀 {prefix} 重复",
+    "maskRange": "前缀 {prefix}：掩码必须介于 {min} 和 {max} 之间",
+    "delegateWithoutPrefix": "委派前缀要求地址池中至少有一个前缀",
+    "delegatePrefixRequired": "每个委派行都需要填写前缀",
+    "delegatePrefixHasPipe": "委派前缀 {prefix} 不能包含 |",
+    "delegationPrefixRequired": "委派 {prefix} 需要委派长度",
+    "delegationPrefixRange": "委派 {prefix}：委派长度必须介于 {min} 和 {max} 之间",
+    "duplicateDelegate": "委派 {prefix} 重复"
   }
 }

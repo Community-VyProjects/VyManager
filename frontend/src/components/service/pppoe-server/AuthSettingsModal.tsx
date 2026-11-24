@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,18 +13,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Key, Loader2 } from "lucide-react";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { pppoeServerService, PPPoEAuthentication, PPPoECapabilities } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
-
-const ALL_PROTOCOLS = ["pap", "chap", "mschap", "mschap-v2"];
+import { authProblem, type PPPoEAuthDraft } from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface AuthSettingsModalProps {
   open: boolean;
@@ -34,45 +27,58 @@ interface AuthSettingsModalProps {
   capabilities: PPPoECapabilities | null;
 }
 
+/** Labels for the `authentication mode` values; the page badge reads the same map. */
+export function authModeLabels(
+  t: (key: "auth.modeLocal" | "auth.modeRadius" | "auth.modeNoauth") => string,
+): Record<string, string> {
+  return {
+    local: t("auth.modeLocal"),
+    radius: t("auth.modeRadius"),
+    noauth: t("auth.modeNoauth"),
+  };
+}
+
 export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, capabilities }: AuthSettingsModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
-  const [mode, setMode] = useState("local");
-  const [protocols, setProtocols] = useState<string[]>([]);
-  const [anyLogin, setAnyLogin] = useState(false);
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  // An empty mode is the unset leaf (the lab default); choosing it deletes the mode.
+  const [draft, setDraft] = useState<PPPoEAuthDraft>(() => ({
+    mode: currentAuth.mode || "",
+    protocols: currentAuth.protocols,
+    any_login: currentAuth.any_login,
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const showAnyLogin = capabilities?.features.auth_any_login ?? false;
+  const modeLabels = authModeLabels(t);
 
-  useEffect(() => {
-    if (open) {
-      setMode(currentAuth.mode || "local");
-      setProtocols(currentAuth.protocols || []);
-      setAnyLogin(currentAuth.any_login || false);
-      setError(null);
-    }
-  }, [open, currentAuth]);
+  const toggleProtocol = (protocol: string) => {
+    setDraft((current) => ({
+      ...current,
+      protocols: current.protocols.includes(protocol)
+        ? current.protocols.filter((p) => p !== protocol)
+        : [...current.protocols, protocol],
+    }));
+  };
 
-  const toggleProtocol = (p: string) => {
-    setProtocols((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
   };
 
   const handleSubmit = async () => {
+    const issue = authProblem(currentAuth, draft);
+    if (issue) {
+      setError(t(`auth.${issue.problem}`));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const result = await pppoeServerService.updateAuthSettings(currentAuth, {
-        mode,
-        protocols: mode === "local" ? protocols : undefined,
-        any_login: showAnyLogin ? anyLogin : undefined,
-      });
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("auth.updateFailed"));
-      }
+      await pppoeServerService.updateAuthSettings(currentAuth, draft, showAnyLogin);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("auth.updateFailed"));
     } finally {
@@ -81,7 +87,7 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -93,41 +99,39 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("auth.mode")}</Label>
-            <Select value={mode} onValueChange={setMode}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="local">{t("auth.modeLocal")}</SelectItem>
-                <SelectItem value="radius">RADIUS</SelectItem>
-                <SelectItem value="noauth">{t("auth.modeNoauth")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="pppoe-auth-mode">{t("auth.mode")}</Label>
+            <NamedListSelect
+              id="pppoe-auth-mode"
+              value={draft.mode}
+              names={capabilities?.values.auth_modes || []}
+              labels={modeLabels}
+              onValueChange={(mode) => setDraft((current) => ({ ...current, mode }))}
+              noneLabel={tc("default")}
+            />
           </div>
 
-          {mode === "local" && (
-            <div className="space-y-2">
-              <Label>{t("auth.protocols")}</Label>
-              <div className="space-y-1">
-                {ALL_PROTOCOLS.map((p) => (
-                  <div key={p} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`proto-${p}`}
-                      checked={protocols.includes(p)}
-                      onCheckedChange={() => toggleProtocol(p)}
-                    />
-                    <Label htmlFor={`proto-${p}`} className="cursor-pointer font-mono text-sm">{p}</Label>
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <Label>{t("auth.protocols")}</Label>
+            <div className="space-y-1">
+              {(capabilities?.values.auth_protocols || []).map((protocol) => (
+                <div key={protocol} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`proto-${protocol}`}
+                    checked={draft.protocols.includes(protocol)}
+                    onCheckedChange={() => toggleProtocol(protocol)}
+                  />
+                  <Label htmlFor={`proto-${protocol}`} className="cursor-pointer font-mono text-sm">{protocol}</Label>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
 
           {showAnyLogin && (
             <div className="flex items-center gap-2">
               <Checkbox
                 id="pppoe-auth-any-login"
-                checked={anyLogin}
-                onCheckedChange={(checked) => setAnyLogin(checked === true)}
+                checked={draft.any_login}
+                onCheckedChange={(checked) => setDraft((current) => ({ ...current, any_login: checked === true }))}
               />
               <Label htmlFor="pppoe-auth-any-login" className="cursor-pointer text-sm">
                 {t("auth.anyLogin")}

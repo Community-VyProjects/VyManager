@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { VyOSResponse } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteConfirmModalProps {
   open: boolean;
@@ -69,8 +69,12 @@ export function DeleteConfirmModal({
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">

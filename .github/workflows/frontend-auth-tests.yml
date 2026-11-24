@@ -97,3 +97,7 @@ jobs:
       - name: Run IPoE server save op tests
         working-directory: frontend
         run: npm run test:ipoe-server-save
+
+      - name: Run PPPoE server save op tests
+        working-directory: frontend
+        run: npm run test:pppoe-server-save

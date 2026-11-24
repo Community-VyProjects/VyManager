@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -15,100 +15,74 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
-import { pppoeServerService, PPPoERadiusSettings } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { pppoeServerService, PPPoECapabilities, PPPoERadiusSettings } from "@/lib/api/pppoe-server";
+import {
+  PPPOE_RANGES,
+  radiusSettingsProblem,
+  type NumberRange,
+  type PPPoERadiusSettingsDraft,
+} from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface RadiusSettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   currentSettings: PPPoERadiusSettings;
+  capabilities: PPPoECapabilities | null;
 }
 
-export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSettings }: RadiusSettingsModalProps) {
+type TextField = {
+  [K in keyof PPPoERadiusSettingsDraft]: PPPoERadiusSettingsDraft[K] extends string ? K : never;
+}[keyof PPPoERadiusSettingsDraft];
+
+export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSettings, capabilities }: RadiusSettingsModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
-  const [sourceAddress, setSourceAddress] = useState("");
-  const [timeout, setTimeout] = useState("");
-  const [maxTry, setMaxTry] = useState("");
-  const [nasIdentifier, setNasIdentifier] = useState("");
-  const [nasIpAddress, setNasIpAddress] = useState("");
-  const [preallocateVif, setPreallocateVif] = useState(false);
-  const [acctInterval, setAcctInterval] = useState("");
-  const [acctJitter, setAcctJitter] = useState("");
-  const [acctTimeout, setAcctTimeout] = useState("");
-  const [calledSidFormat, setCalledSidFormat] = useState("__none__");
-  const [daeServer, setDaeServer] = useState("");
-  const [daePort, setDaePort] = useState("");
-  const [daeKey, setDaeKey] = useState("");
-  const [rateLimitEnable, setRateLimitEnable] = useState(false);
-  const [rateLimitAttribute, setRateLimitAttribute] = useState("");
-  const [rateLimitVendor, setRateLimitVendor] = useState("");
-  const [rateLimitMultiplier, setRateLimitMultiplier] = useState("");
-
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  // The optional DAE key loads as the mask: the mask keeps it, blank deletes it.
+  const [draft, setDraft] = useState<PPPoERadiusSettingsDraft>(() => ({
+    source_address: currentSettings.source_address || "",
+    timeout: currentSettings.timeout || "",
+    max_try: currentSettings.max_try || "",
+    nas_identifier: currentSettings.nas_identifier || "",
+    nas_ip_address: currentSettings.nas_ip_address || "",
+    preallocate_vif: currentSettings.preallocate_vif,
+    accounting_interim_interval: currentSettings.accounting_interim_interval || "",
+    acct_interim_jitter: currentSettings.acct_interim_jitter || "",
+    acct_timeout: currentSettings.acct_timeout || "",
+    called_sid_format: currentSettings.called_sid_format || "",
+    dae_server: currentSettings.dynamic_author.server || "",
+    dae_port: currentSettings.dynamic_author.port || "",
+    dae_key: currentSettings.dynamic_author.key || "",
+    rate_limit_enable: currentSettings.rate_limit.enable,
+    rate_limit_attribute: currentSettings.rate_limit.attribute || "",
+    rate_limit_vendor: currentSettings.rate_limit.vendor || "",
+    rate_limit_multiplier: currentSettings.rate_limit.multiplier || "",
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setSourceAddress(currentSettings.source_address || "");
-      setTimeout(currentSettings.timeout || "");
-      setMaxTry(currentSettings.max_try || "");
-      setNasIdentifier(currentSettings.nas_identifier || "");
-      setNasIpAddress(currentSettings.nas_ip_address || "");
-      setPreallocateVif(currentSettings.preallocate_vif || false);
-      setAcctInterval(currentSettings.accounting_interim_interval || "");
-      setAcctJitter(currentSettings.acct_interim_jitter || "");
-      setAcctTimeout(currentSettings.acct_timeout || "");
-      setCalledSidFormat(currentSettings.called_sid_format || "__none__");
-      setDaeServer(currentSettings.dynamic_author?.server || "");
-      setDaePort(currentSettings.dynamic_author?.port || "");
-      setDaeKey("");
-      setRateLimitEnable(currentSettings.rate_limit?.enable || false);
-      setRateLimitAttribute(currentSettings.rate_limit?.attribute || "");
-      setRateLimitVendor(currentSettings.rate_limit?.vendor || "");
-      setRateLimitMultiplier(currentSettings.rate_limit?.multiplier || "");
-      setError(null);
-    }
-  }, [open, currentSettings]);
+  const update = (patch: Partial<PPPoERadiusSettingsDraft>) => setDraft((current) => ({ ...current, ...patch }));
+
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
 
   const handleSubmit = async () => {
+    const issue = radiusSettingsProblem(currentSettings, draft);
+    if (issue) {
+      setError(t(`radiusSettings.${issue.problem}`, issue.params));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const result = await pppoeServerService.updateRadiusSettings(currentSettings, {
-        source_address: sourceAddress,
-        timeout,
-        max_try: maxTry,
-        nas_identifier: nasIdentifier,
-        nas_ip_address: nasIpAddress,
-        preallocate_vif: preallocateVif,
-        accounting_interim_interval: acctInterval,
-        acct_interim_jitter: acctJitter,
-        acct_timeout: acctTimeout,
-        called_sid_format: calledSidFormat === "__none__" ? "" : calledSidFormat,
-        dae_server: daeServer,
-        dae_port: daePort,
-        dae_key: daeKey || undefined,
-        rate_limit_enable: rateLimitEnable,
-        rate_limit_attribute: rateLimitAttribute,
-        rate_limit_vendor: rateLimitVendor,
-        rate_limit_multiplier: rateLimitMultiplier,
-      });
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("radiusSettings.updateFailed"));
-      }
+      await pppoeServerService.updateRadiusSettings(currentSettings, draft);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("radiusSettings.updateFailed"));
     } finally {
@@ -116,8 +90,35 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
     }
   };
 
+  const numberField = (
+    id: string,
+    label: string,
+    field: TextField,
+    range: NumberRange,
+    step?: number,
+    disabled = false,
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        min={range.min}
+        max={range.max}
+        step={step}
+        value={draft[field]}
+        onChange={(e) => update({ [field]: e.target.value })}
+        placeholder={`${range.min}-${range.max}`}
+        disabled={disabled}
+      />
+    </div>
+  );
+
+  // The DAE port and key only serve a DAE server; without one the save deletes them.
+  const daeOff = !draft.dae_server.trim();
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -131,104 +132,124 @@ export function RadiusSettingsModal({ open, onOpenChange, onSuccess, currentSett
           <h4 className="text-sm font-medium">{t("radiusSettings.general")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("radiusSettings.sourceAddress")}</Label>
-              <Input value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="10.0.0.1" />
+              <Label htmlFor="pppoe-radius-source">{t("radiusSettings.sourceAddress")}</Label>
+              <Input
+                id="pppoe-radius-source"
+                value={draft.source_address}
+                onChange={(e) => update({ source_address: e.target.value })}
+                placeholder="10.0.0.1"
+              />
             </div>
-            <div className="space-y-2">
-              <Label>{t("radiusSettings.timeout")}</Label>
-              <Input value={timeout} onChange={(e) => setTimeout(e.target.value)} placeholder="3" />
-            </div>
+            {numberField("pppoe-radius-timeout", t("radiusSettings.timeout"), "timeout", PPPOE_RANGES.radiusTimeout)}
           </div>
           <div className="grid grid-cols-2 gap-4">
+            {numberField("pppoe-radius-max-try", t("radiusSettings.maxTry"), "max_try", PPPOE_RANGES.radiusMaxTry)}
             <div className="space-y-2">
-              <Label>{t("radiusSettings.maxTry")}</Label>
-              <Input value={maxTry} onChange={(e) => setMaxTry(e.target.value)} placeholder="3" />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("radiusSettings.nasIdentifier")}</Label>
-              <Input value={nasIdentifier} onChange={(e) => setNasIdentifier(e.target.value)} placeholder="vyos-pppoe" />
+              <Label htmlFor="pppoe-radius-nas-id">{t("radiusSettings.nasIdentifier")}</Label>
+              <Input
+                id="pppoe-radius-nas-id"
+                value={draft.nas_identifier}
+                onChange={(e) => update({ nas_identifier: e.target.value })}
+                placeholder="vyos-pppoe"
+              />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>{t("radiusSettings.nasIpAddress")}</Label>
-            <Input value={nasIpAddress} onChange={(e) => setNasIpAddress(e.target.value)} placeholder="10.0.0.1" />
+            <Label htmlFor="pppoe-radius-nas-ip">{t("radiusSettings.nasIpAddress")}</Label>
+            <Input
+              id="pppoe-radius-nas-ip"
+              value={draft.nas_ip_address}
+              onChange={(e) => update({ nas_ip_address: e.target.value })}
+              placeholder="10.0.0.1"
+            />
           </div>
           <div className="flex items-center gap-2">
-            <Checkbox id="preallocate-vif" checked={preallocateVif} onCheckedChange={(v) => setPreallocateVif(!!v)} />
+            <Checkbox
+              id="preallocate-vif"
+              checked={draft.preallocate_vif}
+              onCheckedChange={(v) => update({ preallocate_vif: !!v })}
+            />
             <Label htmlFor="preallocate-vif" className="cursor-pointer">{t("radiusSettings.preallocateVif")}</Label>
           </div>
 
           <Separator />
           <h4 className="text-sm font-medium">{t("radiusSettings.accounting")}</h4>
           <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>{t("radiusSettings.interimInterval")}</Label>
-              <Input value={acctInterval} onChange={(e) => setAcctInterval(e.target.value)} placeholder="60" />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("radiusSettings.interimJitter")}</Label>
-              <Input value={acctJitter} onChange={(e) => setAcctJitter(e.target.value)} placeholder="10" />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("radiusSettings.acctTimeout")}</Label>
-              <Input value={acctTimeout} onChange={(e) => setAcctTimeout(e.target.value)} placeholder="3" />
-            </div>
+            {numberField("pppoe-radius-interim", t("radiusSettings.interimInterval"), "accounting_interim_interval",
+              PPPOE_RANGES.radiusAcctInterimInterval)}
+            {numberField("pppoe-radius-jitter", t("radiusSettings.interimJitter"), "acct_interim_jitter",
+              PPPOE_RANGES.radiusAcctInterimJitter)}
+            {numberField("pppoe-radius-acct-timeout", t("radiusSettings.acctTimeout"), "acct_timeout",
+              PPPOE_RANGES.radiusAcctTimeout)}
           </div>
 
           <Separator />
           <h4 className="text-sm font-medium">{t("radiusSettings.calledStation")}</h4>
           <div className="space-y-2">
-            <Label>{t("radiusSettings.calledSidFormat")}</Label>
-            <Select value={calledSidFormat} onValueChange={setCalledSidFormat}>
-              <SelectTrigger><SelectValue placeholder={tc("none")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">{tc("none")}</SelectItem>
-                <SelectItem value="ifname">ifname</SelectItem>
-                <SelectItem value="ifname:mac">ifname:mac</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="pppoe-radius-called-sid">{t("radiusSettings.calledSidFormat")}</Label>
+            <NamedListSelect
+              id="pppoe-radius-called-sid"
+              value={draft.called_sid_format}
+              names={capabilities?.values.called_sid_formats || []}
+              onValueChange={(called_sid_format) => update({ called_sid_format })}
+              noneLabel={tc("default")}
+            />
           </div>
 
           <Separator />
           <h4 className="text-sm font-medium">{t("radiusSettings.dynamicAuthorization")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("radiusSettings.daeServer")}</Label>
-              <Input value={daeServer} onChange={(e) => setDaeServer(e.target.value)} placeholder="10.0.0.100" />
+              <Label htmlFor="pppoe-dae-server">{t("radiusSettings.daeServer")}</Label>
+              <Input
+                id="pppoe-dae-server"
+                value={draft.dae_server}
+                onChange={(e) => update({ dae_server: e.target.value })}
+                placeholder="10.0.0.100"
+              />
             </div>
-            <div className="space-y-2">
-              <Label>{t("radiusSettings.daePort")}</Label>
-              <Input value={daePort} onChange={(e) => setDaePort(e.target.value)} placeholder="3799" />
-            </div>
+            {numberField("pppoe-dae-port", t("radiusSettings.daePort"), "dae_port", PPPOE_RANGES.port, undefined, daeOff)}
           </div>
           <div className="space-y-2">
-            <Label>{t("radiusSettings.daeKey")}</Label>
-            <Input type="password" value={daeKey} onChange={(e) => setDaeKey(e.target.value)} placeholder={currentSettings.dynamic_author?.key ? t("radiusSettings.daeKeyKeep") : t("radiusSettings.daeKeyEnter")} />
+            <Label htmlFor="pppoe-dae-key">{t("radiusSettings.daeKey")}</Label>
+            <Input
+              id="pppoe-dae-key"
+              type="password"
+              autoComplete="new-password"
+              value={draft.dae_key}
+              onChange={(e) => update({ dae_key: e.target.value })}
+              placeholder={t("radiusSettings.daeKeyEnter")}
+              disabled={daeOff}
+            />
           </div>
 
           <Separator />
           <h4 className="text-sm font-medium">{t("radiusSettings.rateLimiting")}</h4>
           <div className="flex items-center gap-2">
-            <Checkbox id="rate-limit-enable" checked={rateLimitEnable} onCheckedChange={(v) => setRateLimitEnable(!!v)} />
+            <Checkbox
+              id="rate-limit-enable"
+              checked={draft.rate_limit_enable}
+              onCheckedChange={(v) => update({ rate_limit_enable: !!v })}
+            />
             <Label htmlFor="rate-limit-enable" className="cursor-pointer">{t("radiusSettings.enableRateLimiting")}</Label>
           </div>
-          {rateLimitEnable && (
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>{t("radiusSettings.attribute")}</Label>
-                {/* eslint-disable-next-line vymanager/no-untranslated-text -- RADIUS attribute name */}
-                <Input value={rateLimitAttribute} onChange={(e) => setRateLimitAttribute(e.target.value)} placeholder="Filter-Id" />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("radiusSettings.vendor")}</Label>
-                <Input value={rateLimitVendor} onChange={(e) => setRateLimitVendor(e.target.value)} placeholder={t("radiusSettings.vendor")} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("radiusSettings.multiplier")}</Label>
-                <Input value={rateLimitMultiplier} onChange={(e) => setRateLimitMultiplier(e.target.value)} placeholder="1" />
-              </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pppoe-rate-attribute">{t("radiusSettings.attribute")}</Label>
+              {/* eslint-disable-next-line vymanager/no-untranslated-text -- RADIUS attribute name */}
+              <Input id="pppoe-rate-attribute" value={draft.rate_limit_attribute} onChange={(e) => update({ rate_limit_attribute: e.target.value })} placeholder="Filter-Id" />
             </div>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="pppoe-rate-vendor">{t("radiusSettings.vendor")}</Label>
+              <Input
+                id="pppoe-rate-vendor"
+                value={draft.rate_limit_vendor}
+                onChange={(e) => update({ rate_limit_vendor: e.target.value })}
+              />
+            </div>
+            {numberField("pppoe-rate-multiplier", t("radiusSettings.multiplier"), "rate_limit_multiplier",
+              PPPOE_RANGES.radiusRateLimitMultiplier, 0.001)}
+          </div>
         </div>
 
         {error && (
