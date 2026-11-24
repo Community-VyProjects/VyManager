@@ -1,6 +1,6 @@
 """parse_config for NAT64 and NAT66 returns the shape GET /config serves."""
 
-from routers.nat64.nat64 import NAT64SourceRule
+from routers.nat64.nat64 import NAT64ConfigResponse
 from routers.nat66.nat66 import NAT66DestinationRule, NAT66SourceRule
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.nat64 import NAT64Mapper
@@ -25,7 +25,9 @@ def test_nat64_parse_config_reads_rules_and_pools():
             "x": {},
         }}},
     })
-    rules = [NAT64SourceRule(**rule) for rule in parsed["source_rules"]]
+    response = NAT64ConfigResponse(**parsed)
+    assert response.total == 2
+    rules = response.source_rules
     assert [rule.rule_number for rule in rules] == [10, 20]
     assert rules[0].disable is True
     assert rules[0].match_mark == "7"

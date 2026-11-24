@@ -110,44 +110,6 @@ class NAT64Mapper(BaseFeatureMapper):
     # ==================== Config Parsing ====================
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse nat64 source rules from the VyOS config tree."""
-        rules_config = full_config.get("nat64", {}).get("source", {}).get("rule", {})
-        source_rules = []
-        for rule_num_str, rule_data in rules_config.items():
-            try:
-                rule_number = int(rule_num_str)
-            except (ValueError, TypeError):
-                continue
+        from .config_parse import parse_config as parse_nat64_config
 
-            translation_pools = []
-            for pool_num_str, pool_data in rule_data.get("translation", {}).get("pool", {}).items():
-                try:
-                    pool_number = int(pool_num_str)
-                except (ValueError, TypeError):
-                    continue
-                protocol_config = pool_data.get("protocol", {})
-                translation_pools.append({
-                    "pool_number": pool_number,
-                    "address": pool_data.get("address"),
-                    "description": pool_data.get("description"),
-                    "disable": "disable" in pool_data,
-                    "port": pool_data.get("port"),
-                    "protocol": {
-                        "tcp": "tcp" in protocol_config,
-                        "udp": "udp" in protocol_config,
-                        "icmp": "icmp" in protocol_config,
-                    } if protocol_config else None,
-                })
-            translation_pools.sort(key=lambda pool: pool["pool_number"])
-
-            source_rules.append({
-                "rule_number": rule_number,
-                "description": rule_data.get("description"),
-                "disable": "disable" in rule_data,
-                "match_mark": rule_data.get("match", {}).get("mark"),
-                "source_prefix": rule_data.get("source", {}).get("prefix"),
-                "translation_pools": translation_pools,
-            })
-
-        source_rules.sort(key=lambda rule: rule["rule_number"])
-        return {"source_rules": source_rules}
+        return parse_nat64_config(self, full_config)

@@ -5,24 +5,28 @@ API endpoints for managing VyOS NAT64 configuration.
 Supports source NAT64 rules with IPv6-to-IPv4 translation pools.
 """
 
-import inspect
 import logging
+from typing import Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, cast
+
+from batch_dispatch import call_item_batch_op
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.nat64 import NAT64BatchBuilder
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.nat64 import NAT64Mapper
-from fastapi_permissions import require_read_permission, require_write_permission
-from rbac_permissions import FeatureGroup
-from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/nat64", tags=["nat64"])
+
+# ``nat64 source rule`` and ``translation pool`` tags: u32 1-999999 on both labs.
+NUMBER_MIN = 1
+NUMBER_MAX = 999999
 
 
 # ==================== Request/Response Models ====================
@@ -35,21 +39,22 @@ class NAT64BatchOperation(BaseModel):
 
 class NAT64BatchRequest(BaseModel):
     """Model for batch NAT64 rule configuration."""
-    rule_number: int = Field(..., description="NAT64 rule number")
-    pool_number: Optional[int] = Field(None, description="Translation pool number (for pool operations)")
+    rule_number: int = Field(..., ge=NUMBER_MIN, le=NUMBER_MAX, description="NAT64 rule number")
+    pool_number: Optional[int] = Field(
+        None, ge=NUMBER_MIN, le=NUMBER_MAX, description="Translation pool number (for pool operations)"
+    )
     operations: List[NAT64BatchOperation] = Field(..., description="List of operations to perform")
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "rule_number": 100,
-                "operations": [
-                    {"op": "set_source_rule"},
-                    {"op": "set_source_rule_description", "value": "Translate IPv6 to IPv4"},
-                    {"op": "set_source_rule_source_prefix", "value": "64:ff9b::/96"},
-                ]
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "rule_number": 100,
+            "operations": [
+                {"op": "set_source_rule"},
+                {"op": "set_source_rule_description", "value": "Translate IPv6 to IPv4"},
+                {"op": "set_source_rule_source_prefix", "value": "64:ff9b::/96"},
+            ]
         }
+    })
 
 
 class VyOSResponse(BaseModel):
@@ -63,6 +68,7 @@ class VyOSResponse(BaseModel):
 
 class NAT64TranslationPoolProtocol(BaseModel):
     """Protocol flags for a translation pool."""
+    model_config = ConfigDict(extra="forbid")
     tcp: bool = False
     udp: bool = False
     icmp: bool = False
@@ -94,16 +100,60 @@ class NAT64ConfigResponse(BaseModel):
     total: int = 0
 
 
+class NAT64PoolData(BaseModel):
+    """One translation pool of a recreated rule (the reorder body)."""
+    model_config = ConfigDict(extra="forbid")
+    pool_number: int = Field(..., ge=NUMBER_MIN, le=NUMBER_MAX)
+    address: Optional[str] = None
+    description: Optional[str] = None
+    disable: bool = False
+    port: Optional[str] = None
+    protocol: Optional[NAT64TranslationPoolProtocol] = None
+
+
+class NAT64RuleData(BaseModel):
+    """Leaves of one rule, without its number (the reorder body)."""
+    model_config = ConfigDict(extra="forbid")
+    description: Optional[str] = None
+    disable: bool = False
+    match_mark: Optional[str] = None
+    source_prefix: Optional[str] = None
+    translation_pools: List[NAT64PoolData] = []
+
+    @model_validator(mode="after")
+    def _unique_pools(self) -> "NAT64RuleData":
+        numbers = [pool.pool_number for pool in self.translation_pools]
+        if len(set(numbers)) != len(numbers):
+            raise ValueError("duplicate pool_number")
+        return self
+
+
 class ReorderRuleItem(BaseModel):
     """Single rule item for reordering."""
-    old_number: int
-    new_number: Optional[int] = None  # None = delete-only (removed, not recreated)
-    rule_data: Dict[str, Any]
+    old_number: int = Field(..., ge=NUMBER_MIN, le=NUMBER_MAX)
+    new_number: Optional[int] = Field(None, ge=NUMBER_MIN, le=NUMBER_MAX)  # None = delete-only
+    rule_data: Optional[NAT64RuleData] = None
+
+    @model_validator(mode="after")
+    def _data_for_recreated_rule(self) -> "ReorderRuleItem":
+        if self.new_number is not None and self.rule_data is None:
+            raise ValueError("rule_data is required when new_number is set")
+        return self
 
 
 class ReorderNAT64Request(BaseModel):
     """Request model for reordering NAT64 rules."""
-    rules: List[ReorderRuleItem] = Field(..., description="List of rules with old and new numbers")
+    rules: List[ReorderRuleItem] = Field(..., min_length=1, description="Rules with old and new numbers")
+
+    @model_validator(mode="after")
+    def _unique_numbers(self) -> "ReorderNAT64Request":
+        old = [item.old_number for item in self.rules]
+        new = [item.new_number for item in self.rules if item.new_number is not None]
+        if len(set(old)) != len(old):
+            raise ValueError("duplicate old_number")
+        if len(set(new)) != len(new):
+            raise ValueError("duplicate new_number")
+        return self
 
 
 # ==================== Endpoints ====================
@@ -136,12 +186,7 @@ async def get_config(request: Request, refresh: bool = False):
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         mapper = cast(NAT64Mapper, CommandMapperRegistry.get_mapper("nat64", version))
-        source_rules = mapper.parse_config(full_config)["source_rules"]
-
-        return NAT64ConfigResponse(
-            source_rules=[NAT64SourceRule(**rule) for rule in source_rules],
-            total=len(source_rules),
-        )
+        return NAT64ConfigResponse(**mapper.parse_config(full_config))
 
     except HTTPException:
         raise
@@ -152,89 +197,38 @@ async def get_config(request: Request, refresh: bool = False):
 
 @router.post("/batch", response_model=VyOSResponse)
 async def batch_configure(http_request: Request, request: NAT64BatchRequest):
-    """Execute batch NAT64 operations in a single commit."""
+    """Execute batch NAT64 operations in a single commit.
+
+    Each op names a builder method. The first parameter is bound to
+    ``rule_number`` and a ``pool_number`` parameter to the request's
+    ``pool_number``; a remaining parameter takes ``value``. A rule-only or
+    pool-only op takes no value, and a rule op takes no ``pool_number``.
+    """
     await require_write_permission(http_request, FeatureGroup.NAT64)
 
     try:
         service = get_session_vyos_service(http_request)
         batch = NAT64BatchBuilder(version=service.get_version())
 
-        rule_number = request.rule_number
-        pool_number = request.pool_number
-
-        for op in request.operations:
-            op_name = op.op
-            op_value = op.value
-
-
-            method = resolve_batch_method(batch, op_name)
-
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != 'self']
-
-            try:
-                if len(params) == 1:
-                    # rule_number only (e.g., set_source_rule, delete_source_rule)
-                    method(rule_number)
-                elif len(params) == 2:
-                    if "pool_number" in params:
-                        # (rule_number, pool_number)
-                        if pool_number is None:
-                            raise HTTPException(
-                                status_code=400,
-                                detail=f"Operation {op_name} requires pool_number"
-                            )
-                        method(rule_number, pool_number)
-                    else:
-                        # (rule_number, value)
-                        if not op_value:
-                            raise HTTPException(
-                                status_code=400,
-                                detail=f"Operation {op_name} requires a value"
-                            )
-                        method(rule_number, op_value)
-                elif len(params) == 3:
-                    # (rule_number, pool_number, value)
-                    if pool_number is None:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Operation {op_name} requires pool_number"
-                        )
-                    if not op_value:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Operation {op_name} requires a value"
-                        )
-                    method(rule_number, pool_number, op_value)
-                else:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Unsupported operation signature for {op_name}"
-                    )
-            except HTTPException:
-                raise
-            except TypeError:
-                logger.exception("Type error calling %s", op_name)
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid parameters for operation {op_name}",
-                )
+        for operation in request.operations:
+            call_item_batch_op(
+                batch,
+                operation.op,
+                request.rule_number,
+                operation.value,
+                bound={"pool_number": request.pool_number},
+            )
 
         if batch.is_empty():
             return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
         response = await run_in_threadpool(service.execute_batch, batch)
-
-        result_data = response.result
-        if result_data == '' or result_data is None:
-            result_data = {"message": "NAT64 configuration updated successfully"}
-        elif not isinstance(result_data, dict):
-            result_data = {"result": result_data}
+        ok = response.status == 200 and not response.error
 
         return VyOSResponse(
-            success=response.status == 200,
-            data=result_data,
-            error=response.error if response.error else None
+            success=ok,
+            data={"message": "NAT64 configuration updated"} if ok else None,
+            error=None if ok else response.error,
         )
 
     except HTTPException:
@@ -244,12 +238,41 @@ async def batch_configure(http_request: Request, request: NAT64BatchRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+def _recreate_rule(batch: NAT64BatchBuilder, num: int, rd: NAT64RuleData) -> None:
+    batch.set_source_rule(num)
+    if rd.description:
+        batch.set_source_rule_description(num, rd.description)
+    if rd.disable:
+        batch.set_source_rule_disable(num)
+    if rd.match_mark:
+        batch.set_source_rule_match_mark(num, rd.match_mark)
+    if rd.source_prefix:
+        batch.set_source_rule_source_prefix(num, rd.source_prefix)
+
+    for pool in rd.translation_pools:
+        pool_num = pool.pool_number
+        batch.set_source_rule_translation_pool(num, pool_num)
+        if pool.address:
+            batch.set_source_rule_translation_pool_address(num, pool_num, pool.address)
+        if pool.description:
+            batch.set_source_rule_translation_pool_description(num, pool_num, pool.description)
+        if pool.disable:
+            batch.set_source_rule_translation_pool_disable(num, pool_num)
+        if pool.port:
+            batch.set_source_rule_translation_pool_port(num, pool_num, pool.port)
+        if pool.protocol is not None:
+            if pool.protocol.tcp:
+                batch.set_source_rule_translation_pool_protocol_tcp(num, pool_num)
+            if pool.protocol.udp:
+                batch.set_source_rule_translation_pool_protocol_udp(num, pool_num)
+            if pool.protocol.icmp:
+                batch.set_source_rule_translation_pool_protocol_icmp(num, pool_num)
+
+
 @router.post("/reorder", response_model=VyOSResponse)
 async def reorder_nat64_rules(http_request: Request, request: ReorderNAT64Request):
     """
     Reorder NAT64 rules by deleting and recreating them in a single commit.
-
-    Requires: WRITE permission on NAT
     """
     await require_write_permission(http_request, FeatureGroup.NAT64)
 
@@ -257,67 +280,21 @@ async def reorder_nat64_rules(http_request: Request, request: ReorderNAT64Reques
         service = get_session_vyos_service(http_request)
         batch = NAT64BatchBuilder(version=service.get_version())
 
-        # Step 1: Delete all old rules
-        for rule_item in request.rules:
-            batch.delete_source_rule(rule_item.old_number)
-
-        # Step 2: Recreate rules with new numbers
-        for rule_item in request.rules:
-            new_num = rule_item.new_number
-            if new_num is None:
+        # Step 1: delete every old rule; step 2: recreate under the new numbers.
+        for item in request.rules:
+            batch.delete_source_rule(item.old_number)
+        for item in request.rules:
+            if item.new_number is None or item.rule_data is None:
                 continue  # delete-only item: removed above, not recreated
-            rd = rule_item.rule_data
-
-            batch.set_source_rule(new_num)
-
-            if rd.get("description"):
-                batch.set_source_rule_description(new_num, rd["description"])
-            if rd.get("disable"):
-                batch.set_source_rule_disable(new_num)
-            if rd.get("match_mark"):
-                batch.set_source_rule_match_mark(new_num, rd["match_mark"])
-            if rd.get("source_prefix"):
-                batch.set_source_rule_source_prefix(new_num, rd["source_prefix"])
-
-            # Recreate translation pools
-            for pool in rd.get("translation_pools", []):
-                pool_num = pool.get("pool_number")
-                if pool_num is None:
-                    continue
-                batch.set_source_rule_translation_pool(new_num, pool_num)
-                if pool.get("address"):
-                    batch.set_source_rule_translation_pool_address(new_num, pool_num, pool["address"])
-                if pool.get("description"):
-                    batch.set_source_rule_translation_pool_description(new_num, pool_num, pool["description"])
-                if pool.get("disable"):
-                    batch.set_source_rule_translation_pool_disable(new_num, pool_num)
-                if pool.get("port"):
-                    batch.set_source_rule_translation_pool_port(new_num, pool_num, pool["port"])
-                protocol = pool.get("protocol", {})
-                if protocol.get("tcp"):
-                    batch.set_source_rule_translation_pool_protocol_tcp(new_num, pool_num)
-                if protocol.get("udp"):
-                    batch.set_source_rule_translation_pool_protocol_udp(new_num, pool_num)
-                if protocol.get("icmp"):
-                    batch.set_source_rule_translation_pool_protocol_icmp(new_num, pool_num)
-
-        if batch.is_empty():
-            return VyOSResponse(success=False, error="No operations to execute")
+            _recreate_rule(batch, item.new_number, item.rule_data)
 
         response = await run_in_threadpool(service.execute_batch, batch)
-
-        result_data = response.result
-        if result_data == '' or result_data is None:
-            result_data = {"message": f"Reordered {len(request.rules)} NAT64 rules"}
-        elif not isinstance(result_data, dict):
-            result_data = {"result": result_data, "message": f"Reordered {len(request.rules)} NAT64 rules"}
-        else:
-            result_data["message"] = f"Reordered {len(request.rules)} NAT64 rules"
+        ok = response.status == 200 and not response.error
 
         return VyOSResponse(
-            success=response.status == 200,
-            data=result_data,
-            error=response.error if response.error else None
+            success=ok,
+            data={"message": f"Reordered {len(request.rules)} NAT64 rules"} if ok else None,
+            error=None if ok else response.error,
         )
 
     except HTTPException:
