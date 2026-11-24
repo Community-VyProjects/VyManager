@@ -10,9 +10,9 @@ from batch_dispatch import resolve_batch_method
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
-from vyos_builders.community_list.community_list import CommunityListBatchBuilder
-from vyos_builders.extcommunity_list.extcommunity_list import ExtCommunityListBatchBuilder
-from vyos_builders.large_community_list.large_community_list import LargeCommunityListBatchBuilder
+from vyos_builders.community_list.community_list_batch_builder import CommunityListBatchBuilder
+from vyos_builders.extcommunity_list.extcommunity_list_batch_builder import ExtCommunityListBatchBuilder
+from vyos_builders.large_community_list.large_community_list_batch_builder import LargeCommunityListBatchBuilder
 from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.policy_list import KIND_SPEC, POLICY_LIST_KINDS, PolicyListMapper
 import inspect
@@ -174,7 +174,7 @@ def build_router(kind: str) -> APIRouter:
             response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
-                data={"message": "Configuration updated"},
+                data={"message": "Configuration updated"} if response.status == 200 else None,
                 error=response.error if response.error else None,
             )
         except HTTPException:
@@ -207,7 +207,7 @@ def build_router(kind: str) -> APIRouter:
             response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
                 success=response.status == 200,
-                data={"message": f"Successfully reordered {len(body.rules)} rules in {label} {list_name}"},
+                data={"message": f"Successfully reordered {len(body.rules)} rules in {label} {list_name}"} if response.status == 200 else None,
                 error=response.error if response.error else None,
             )
         except HTTPException:

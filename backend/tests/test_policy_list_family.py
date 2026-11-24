@@ -4,11 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from vyos_builders.community_list.community_list import CommunityListBatchBuilder
-from vyos_builders.extcommunity_list.extcommunity_list import ExtCommunityListBatchBuilder
-from vyos_builders.large_community_list.large_community_list import LargeCommunityListBatchBuilder
+from vyos_builders.community_list.community_list_batch_builder import CommunityListBatchBuilder
+from vyos_builders.extcommunity_list.extcommunity_list_batch_builder import ExtCommunityListBatchBuilder
+from vyos_builders.large_community_list.large_community_list_batch_builder import LargeCommunityListBatchBuilder
 from vyos_builders.policy_list import PolicyListBatchBuilder
-from vyos_mappers.policy_list import POLICY_LIST_KINDS, PolicyListMapper
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.policy_list import KIND_SPEC, POLICY_LIST_KINDS, PolicyListMapper
 from routers.operations.operations import describe_batch_builder
 from batch_dispatch import resolve_batch_method
 from fastapi import HTTPException
@@ -30,15 +31,42 @@ def test_policy_list_kind_paths(kind, version):
     cls, set_op, delete_op = BUILDERS[kind]
     builder = cls(version=version)
     getattr(builder, set_op)(NAME)
-    assert builder.get_operations() == [{"op": "set", "path": ["policy", kind, NAME]}]
-    builder.clear()
     getattr(builder, delete_op)(NAME)
-    assert builder.get_operations() == [{"op": "delete", "path": ["policy", kind, NAME]}]
-    builder.clear()
     builder.set_rule_regex(NAME, RULE, "65000:.*")
     assert builder.get_operations() == [
-        {"op": "set", "path": ["policy", kind, NAME, "rule", RULE, "regex", "65000:.*"]}
+        {"op": "set", "path": ["policy", kind, NAME]},
+        {"op": "delete", "path": ["policy", kind, NAME]},
+        {"op": "set", "path": ["policy", kind, NAME, "rule", RULE, "regex", "65000:.*"]},
     ]
+
+
+@pytest.mark.parametrize("kind", list(BUILDERS))
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_builder_loads_the_family_mapper_from_the_registry(monkeypatch, kind, version):
+    calls = []
+    real_get_mapper = CommandMapperRegistry.get_mapper
+
+    def spy(feature, ver):
+        calls.append((feature, ver))
+        return real_get_mapper(feature, ver)
+
+    monkeypatch.setattr(CommandMapperRegistry, "get_mapper", spy)
+    builder = BUILDERS[kind][0](version=version)
+
+    assert calls == [(KIND_SPEC[kind]["ident"], version)]
+    assert isinstance(builder.mapper, PolicyListMapper)
+    assert builder.mapper.kind == kind
+
+
+def test_builders_use_the_batch_builder_filenames():
+    root = Path(__file__).resolve().parents[1] / "vyos_builders"
+    assert not (root / "policy_list.py").exists()
+    assert (root / "policy_list" / "policy_list_batch_builder.py").is_file()
+    for ident in ("community_list", "extcommunity_list", "large_community_list"):
+        assert not (root / ident / f"{ident}.py").exists()
+        assert (root / ident / f"{ident}_batch_builder.py").is_file()
+    source = (root / "policy_list" / "policy_list_batch_builder.py").read_text()
+    assert "PolicyListMapper(" not in source
 
 
 def test_operations_vocab_uses_family_op_names_not_generic_list():
@@ -76,9 +104,9 @@ def test_copied_modules_do_not_reimplement_the_stack():
         "vyos_mappers/community_list/community_list.py",
         "vyos_mappers/extcommunity_list/extcommunity_list.py",
         "vyos_mappers/large_community_list/large_community_list.py",
-        "vyos_builders/community_list/community_list.py",
-        "vyos_builders/extcommunity_list/extcommunity_list.py",
-        "vyos_builders/large_community_list/large_community_list.py",
+        "vyos_builders/community_list/community_list_batch_builder.py",
+        "vyos_builders/extcommunity_list/extcommunity_list_batch_builder.py",
+        "vyos_builders/large_community_list/large_community_list_batch_builder.py",
         "routers/community_list/community_list.py",
         "routers/extcommunity_list/extcommunity_list.py",
         "routers/large_community_list/large_community_list.py",

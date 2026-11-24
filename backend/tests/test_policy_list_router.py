@@ -230,6 +230,7 @@ def test_rejected_commit_is_success_false(monkeypatch, kind):
     assert response.status_code == 200
     assert response.json()["success"] is False
     assert response.json()["error"] == "Commit failed"
+    assert response.json()["data"] is None
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -408,6 +409,7 @@ def test_reorder_rejected_commit_is_success_false(monkeypatch, kind):
     assert response.status_code == 200
     assert response.json()["success"] is False
     assert response.json()["error"] == "Commit failed"
+    assert response.json()["data"] is None
 
 
 @pytest.mark.parametrize("kind", KINDS)

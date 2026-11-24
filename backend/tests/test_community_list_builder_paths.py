@@ -1,8 +1,10 @@
 """Golden (method, args, expected_path) cases for CommunityListBatchBuilder."""
 
+import inspect
+
 import pytest
 
-from vyos_builders.community_list.community_list import CommunityListBatchBuilder
+from vyos_builders.community_list.community_list_batch_builder import CommunityListBatchBuilder
 
 
 NAME = "CUSTOM"
@@ -30,3 +32,11 @@ def test_community_list_builder_paths(method, args, op, expected_path, version):
     getattr(builder, method)(*args)
     operations = builder.get_operations()
     assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
+
+def test_every_builder_op_has_a_case():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(CommunityListBatchBuilder("1.5"), inspect.ismethod)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    assert ops == {case[0] for case in CASES}
