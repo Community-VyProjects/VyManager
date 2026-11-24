@@ -11,6 +11,7 @@ client so no real device or SSH connection is used. They assert:
 import json
 from contextlib import asynccontextmanager
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -37,6 +38,9 @@ class _FakeConfig:
 class _FakeService:
     def __init__(self):
         self.config = _FakeConfig()
+
+    def get_version(self):
+        return "1.5"
 
     def get_full_config(self, refresh=False):
         return {"container": {"name": {"web": {"image": "nginx:1.27"}}}}
@@ -131,6 +135,7 @@ def test_restart_posts_restart_mutation(monkeypatch):
     assert resp.json()["success"] is True
 
     assert _FakeAsyncClient.last_url == "https://10.0.0.1:443/graphql"
+    assert _FakeAsyncClient.last_json is not None
     query = _FakeAsyncClient.last_json["query"]
     assert "RestartContainer" in query
     assert json.dumps("web") in query
@@ -146,6 +151,7 @@ def test_update_image_maps_to_add_image_container(monkeypatch):
     assert resp.status_code == 200, resp.text
     assert resp.json()["success"] is True
     assert resp.json()["output"] == "pulled"
+    assert _FakeAsyncClient.last_json is not None
     query = _FakeAsyncClient.last_json["query"]
     assert "AddImageContainer" in query
     assert "update container image" not in query
@@ -225,6 +231,81 @@ def test_update_image_unknown_container(monkeypatch):
     assert _FakeAsyncClient.last_url is None
 
 
+def test_add_and_delete_image_resolve_the_configured_image(monkeypatch):
+    """Op-mode add/delete container image take an image ref, not the container name."""
+    for path, mutation in (
+        ("/vyos/container/image/add", "AddImageContainer"),
+        ("/vyos/container/image/delete", "DeleteImageContainer"),
+    ):
+        body = {"data": {mutation: {"success": True, "errors": None, "data": {"result": "ok"}}}}
+        client = _build_client(monkeypatch, body)
+        resp = client.post(path, json={"container_name": "web"})
+        assert resp.status_code == 200, resp.text
+        assert _FakeAsyncClient.last_json is not None
+        query = _FakeAsyncClient.last_json["query"]
+        assert mutation in query
+        assert json.dumps("nginx:1.27") in query
+        assert json.dumps("web") not in query
+
+
+def test_delete_image_refuses_a_stack_container_on_the_appliance(monkeypatch):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    client = _build_client(monkeypatch, {"data": {}})
+    resp = client.post("/vyos/container/image/delete", json={"container_name": "vymanager-backend"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == container_mod.appliance_mode.STACK_GUARD_DETAIL
+    assert _FakeAsyncClient.last_url is None
+
+
+@pytest.mark.parametrize("config, detail", [
+    ({"container": {"name": {"web": {"description": "x"}}}}, "No image configured for container web"),
+    ({"container": {"name": {"web": {"image": "bad image"}}}}, "Invalid image reference on container web"),
+])
+def test_configured_image_must_be_a_valid_ref(monkeypatch, config, detail):
+    client = _build_client(monkeypatch, {"data": {}})
+    monkeypatch.setattr(_FakeService, "get_full_config", lambda self, refresh=False: config)
+    for path in ("/vyos/container/image/add", "/vyos/container/image/update", "/vyos/container/image/delete"):
+        resp = client.post(path, json={"container_name": "web"})
+        assert resp.status_code == 400, resp.text
+        assert resp.json()["detail"] == detail
+    assert _FakeAsyncClient.last_url is None
+
+
+@pytest.mark.parametrize("path", ["/vyos/container/image/add", "/vyos/container/image/update", "/vyos/container/log"])
+def test_invalid_container_name_is_400_before_any_lookup(monkeypatch, path):
+    client = _build_client(monkeypatch, {"data": {}})
+    resp = client.post(path, json={"container_name": "web;id"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == container_mod._INVALID_CONTAINER_NAME
+    assert _FakeAsyncClient.last_url is None
+
+
+def test_graphql_body_that_is_not_an_object_is_502(monkeypatch):
+    client = _build_client(monkeypatch, ["not", "an", "object"])
+    resp = client.post("/vyos/container/image/pull", json={"image": "nginx:1.27"})
+    assert resp.status_code == 502, resp.text
+    assert resp.json()["detail"] == "GraphQL response is not a JSON object"
+
+
+def test_graphql_string_errors_are_joined(monkeypatch):
+    client = _build_client(monkeypatch, {"errors": ["T-one", {"message": "T-two"}]})
+    resp = client.post("/vyos/container/image/pull", json={"image": "nginx:1.27"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "output": None, "error": "T-one; T-two"}
+
+
+@pytest.mark.parametrize("body", [
+    {"data": ["x"]},
+    {"data": {"AddImageContainer": "x"}},
+    {"data": {"AddImageContainer": {"success": False, "errors": None, "data": ["x"]}}},
+])
+def test_graphql_parts_that_are_not_objects_are_a_failed_reply(monkeypatch, body):
+    client = _build_client(monkeypatch, body)
+    resp = client.post("/vyos/container/image/pull", json={"image": "nginx:1.27"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"success": False, "output": None, "error": "AddImageContainer failed"}
+
+
 def test_graphql_empty_errors_names_the_mutation(monkeypatch):
     body = {"data": {"AddImageContainer": {"success": False, "errors": None, "data": None}}}
     client = _build_client(monkeypatch, body)
@@ -235,8 +316,18 @@ def test_graphql_empty_errors_names_the_mutation(monkeypatch):
     assert "AddImageContainer failed" in resp.json()["error"]
 
 
-def test_allowlist_maps_update_to_add_image_container():
-    assert container_mod._CONTAINER_GQL_ALLOWLIST["update_image"][0] == "AddImageContainer"
+def test_allowlist_maps_each_mutation():
+    """A re-pull (update) runs add_image; there is no separate update key."""
     assert container_mod._CONTAINER_GQL_ALLOWLIST["add_image"][0] == "AddImageContainer"
     assert container_mod._CONTAINER_GQL_ALLOWLIST["delete_image"][0] == "DeleteImageContainer"
     assert container_mod._CONTAINER_GQL_ALLOWLIST["restart"][0] == "RestartContainer"
+    assert set(container_mod._CONTAINER_GQL_ALLOWLIST) == {"add_image", "delete_image", "restart"}
+
+
+def test_invalid_image_ref_detail_names_the_image(monkeypatch):
+    client = _build_client(monkeypatch, {"data": {}})
+    for path in ("/vyos/container/image/pull", "/vyos/container/image/update-ref", "/vyos/container/image/delete-ref"):
+        resp = client.post(path, json={"image": "bad image"})
+        assert resp.status_code == 400, resp.text
+        assert resp.json()["detail"] == container_mod._INVALID_IMAGE_REF
+    assert _FakeAsyncClient.last_url is None

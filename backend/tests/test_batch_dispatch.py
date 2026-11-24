@@ -1,5 +1,7 @@
 """Batch getattr dispatch must go through resolve_batch_method."""
 
+import re
+
 import pytest
 from fastapi import HTTPException
 
@@ -242,6 +244,31 @@ def test_comma_op_allows_an_empty_part_only_for_named_params():
         call_comma_batch_op(builder, "delete_one", "", may_be_empty=("name",))
     assert ei.value.detail == "Operation delete_one requires a value"
     assert builder.calls == [("set_pair", "eth0", "")]
+
+
+def test_comma_op_name_pattern_matches_the_whole_first_argument():
+    """name_pattern checks the part the method receives, so a one-arg op cannot take "a,b"."""
+    pattern = re.compile(r"[a-z0-9]+")
+    builder = _CommaBuilder()
+    call_comma_batch_op(builder, "delete_one", "eth0", name_pattern=pattern)
+    call_comma_batch_op(builder, "set_pair", "eth0,x,y", name_pattern=pattern)
+    call_comma_batch_op(builder, "delete_all", None, name_pattern=pattern)
+    assert builder.calls == [
+        ("delete_one", "eth0"),
+        ("set_pair", "eth0", "x,y"),
+        ("delete_all",),
+    ]
+    for op, value in (
+        ("delete_one", "eth0,x"),
+        ("delete_one", "eth0\n"),
+        ("set_pair", "ETH0,x"),
+        ("set_pair", " eth0,x"),
+    ):
+        with pytest.raises(HTTPException) as ei:
+            call_comma_batch_op(builder, op, value, name_pattern=pattern)
+        assert ei.value.status_code == 400
+        assert ei.value.detail == f"Invalid name in operation '{op}'."
+    assert len(builder.calls) == 3
 
 
 def test_comma_op_zero_arg_with_a_value_is_400():

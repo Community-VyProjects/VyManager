@@ -5,6 +5,7 @@ lived in each file and drifted; one helper is the only allowed dispatch.
 """
 
 import inspect
+import re
 from typing import Any, Callable, Collection, FrozenSet, List, Mapping, Optional, Union
 
 from fastapi import HTTPException
@@ -48,6 +49,7 @@ def call_comma_batch_op(
     value: Optional[str],
     *,
     may_be_empty: Collection[str] = (),
+    name_pattern: Optional[re.Pattern[str]] = None,
 ) -> None:
     """Resolve op and call it with value split on commas, else HTTP 400.
 
@@ -59,6 +61,9 @@ def call_comma_batch_op(
     may_be_empty names parameters of a multi-arg op whose part may be an empty
     string, for a leaf the device commits with an empty value (an event-handler
     environment variable). Every other part, and the whole value, must be set.
+
+    name_pattern, when given, must match the whole first argument the method
+    receives (an object name), so a single-arg op cannot take "name,extra".
     """
     method = resolve_batch_method(builder, op)
     params = list(inspect.signature(method).parameters)
@@ -75,6 +80,8 @@ def call_comma_batch_op(
         part or name in may_be_empty for name, part in zip(params, parts)
     ):
         raise HTTPException(status_code=400, detail=f"Operation {op} requires {count} values")
+    if name_pattern is not None and not name_pattern.fullmatch(parts[0]):
+        raise HTTPException(status_code=400, detail=f"Invalid name in operation '{op}'.")
     method(*parts)
 
 

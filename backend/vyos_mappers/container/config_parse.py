@@ -1,10 +1,15 @@
 """Read-model for container config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. The container template is the same on 1.4 and 1.5.
+the tree. The registry password, and the environment values of the appliance
+stack containers, are returned as MASKED_SECRET, never in plaintext.
 """
 
 from typing import Any, Dict, List
+
+import appliance_mode
+
+MASKED_SECRET = "***"
 
 
 def _parse_multi(raw) -> List[str]:
@@ -58,11 +63,18 @@ def _parse_container_instance(name: str, cfg: dict) -> Dict[str, Any]:
             }
         )
 
+    # On the appliance the stack containers carry the app's own secrets in
+    # their environment, and Containers refuses edits to them, so the values
+    # never come back as a save.
+    mask_env = appliance_mode.is_appliance() and appliance_mode.is_stack_container(name)
     environments = []
     for env_name, env_cfg in (cfg.get("environment") or {}).items():
         if env_cfg is None:
             env_cfg = {}
-        environments.append({"name": env_name, "value": env_cfg.get("value")})
+        value = env_cfg.get("value")
+        if mask_env and value:
+            value = MASKED_SECRET
+        environments.append({"name": env_name, "value": value})
 
     labels = []
     for label_name, label_cfg in (cfg.get("label") or {}).items():
@@ -210,7 +222,7 @@ def _parse_container_registries(registries_raw: dict) -> List[Dict[str, Any]]:
         if auth_raw and isinstance(auth_raw, dict):
             auth = {
                 "username": auth_raw.get("username"),
-                "password": auth_raw.get("password"),
+                "password": MASKED_SECRET if auth_raw.get("password") else None,
             }
 
         mirror = None
