@@ -7,9 +7,10 @@ locators and per-interface SRv6 packet acceptance.
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.segment_routing import SegmentRoutingMapper
 from vyos_builders.segment_routing import SegmentRoutingBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -77,9 +78,9 @@ class VyOSResponse(BaseModel):
 async def get_segment_routing_capabilities(request: Request):
     """Return Segment Routing feature capabilities based on the device VyOS version.
 
-    version_info.modify_requires_recreate is true on VyOS 1.4, where FRR
-    rejects any modification of an existing segment-routing tree: clients
-    must delete the tree and recreate it in two separate batches to edit.
+    modify_requires_recreate is true on VyOS 1.4, which rejects any
+    modification of an existing segment-routing tree: clients must delete
+    the tree and recreate it in two separate batches to edit.
     """
     await require_read_permission(request, FeatureGroup.SEGMENT_ROUTING)
 
@@ -113,7 +114,10 @@ async def get_segment_routing_config(http_request: Request, refresh: bool = Fals
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("segment_routing", service.get_version())
+        mapper = cast(
+            SegmentRoutingMapper,
+            CommandMapperRegistry.get_mapper("segment_routing", service.get_version()),
+        )
         return SegmentRoutingConfig(**mapper.parse_config(full_config))
     except HTTPException:
         raise

@@ -1,31 +1,18 @@
-"""Factory for version-specific Segment Routing protocol mappers."""
+"""Factory for Segment Routing mappers.
+
+The shared class is returned directly on 1.4. 1.5 differences live on the
+subclass. A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+"""
+
 from ..segment_routing import SegmentRoutingMapper
-from .v1_4 import SegmentRoutingMapperV1_4
 from .v1_5 import SegmentRoutingMapperV1_5
 
 
-def get_segment_routing_mapper(version: str):
-    """Return a version-merged Segment Routing mapper."""
-    base = SegmentRoutingMapper(version)
-
+def get_segment_routing_mapper(version: str) -> SegmentRoutingMapper:
+    """Return the Segment Routing mapper for this device."""
     if "1.4" in version:
-        version_specific = SegmentRoutingMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = SegmentRoutingMapperV1_5()
-    else:
-        version_specific = SegmentRoutingMapperV1_5()
+        return SegmentRoutingMapper(version)
+    return SegmentRoutingMapperV1_5(version)
 
-    class MergedMapper:
-        # parse_config must live here. A method on the base mapper is bound
-        # to `base`, so version branches would not see the merged mapper.
-        def parse_config(self, full_config):
-            from ..config_parse import parse_config as parse_segment_routing_config
 
-            return parse_segment_routing_config(self, full_config)
-
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+__all__ = ["SegmentRoutingMapperV1_5", "get_segment_routing_mapper"]

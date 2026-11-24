@@ -1,6 +1,7 @@
 """Segment Routing GET /config parse lives on the mapper (issue #966)."""
 
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.segment_routing import SegmentRoutingMapper
 from vyos_mappers.segment_routing.segment_routing_versions import get_segment_routing_mapper
 
 
@@ -54,8 +55,11 @@ def test_empty_tree():
 
 def test_registry_matches_factory():
     factory = get_segment_routing_mapper("1.5").parse_config(_tree())
-    registry = CommandMapperRegistry.get_mapper("segment_routing", "1.5").parse_config(_tree())
-    assert registry["locators"][0]["block_len"] == factory["locators"][0]["block_len"]
+    mapper = CommandMapperRegistry.get_mapper("segment_routing", "1.5")
+    assert isinstance(mapper, SegmentRoutingMapper)
+    registry = mapper.parse_config(_tree())
+    assert registry == factory
+    assert SegmentRoutingMapper("1.4").parse_config(_tree()) == factory
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
