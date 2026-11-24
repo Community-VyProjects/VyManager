@@ -2,8 +2,9 @@
 
 from typing import Annotated, Any, Dict, List, Literal, Optional, cast
 
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import AfterValidator, BaseModel, Field, create_model
+from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from pydantic import AfterValidator, BaseModel, Field, ValidationError, create_model
 from starlette.concurrency import run_in_threadpool
 
 from batch_dispatch import resolve_batch_method
@@ -90,6 +91,10 @@ def _unique_rule_numbers(rules: List[ReorderRuleItem]) -> List[ReorderRuleItem]:
 ReorderRules = Annotated[List[ReorderRuleItem], AfterValidator(_unique_rule_numbers)]
 
 
+class PolicyListReorderRequest(BaseModel):
+    rules: ReorderRules = Field(..., min_length=1, description="List of rules with new order")
+
+
 class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
@@ -110,12 +115,11 @@ def build_router(kind: str) -> APIRouter:
         f"{ident}_Config",
         **{lists_field: (List[PolicyList], []), "total": (int, 0)},
     )
+    name_fields: Dict[str, Any] = {name_field: (str, Field(..., min_length=1, description=f"{label} name"))}
     ReorderModel = create_model(
         f"{ident}_ReorderRequest",
-        **{
-            name_field: (str, Field(..., min_length=1, description=f"{label} name")),
-            "rules": (ReorderRules, Field(..., min_length=1, description="List of rules with new order")),
-        },
+        __base__=PolicyListReorderRequest,
+        **name_fields,
     )
 
     router = APIRouter(prefix=f"/vyos/{kind}", tags=[kind])
@@ -167,9 +171,11 @@ def build_router(kind: str) -> APIRouter:
                         raise HTTPException(status_code=400, detail=f"Operation {operation.op} requires rule_number")
                     args.append(str(body.rule_number))
                 if len(params) > len(args):
-                    if not operation.value:
+                    if not operation.value or not operation.value.strip():
                         raise HTTPException(status_code=400, detail=f"Operation {operation.op} requires a value")
                     args.append(operation.value)
+                elif operation.value:
+                    raise HTTPException(status_code=400, detail=f"Operation {operation.op} takes no value")
                 method(*args)
             response = await run_in_threadpool(service.execute_batch, builder)
             return VyOSResponse(
@@ -184,8 +190,17 @@ def build_router(kind: str) -> APIRouter:
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @router.post("/reorder", operation_id=f"reorder_{ident}_rules")
-    async def reorder_rules(http_request: Request, body: ReorderModel):
+    async def reorder_rules(
+        http_request: Request,
+        payload: Annotated[Dict[str, Any], Body()],
+    ):
         await require_write_permission(http_request, feature)
+        try:
+            body = ReorderModel.model_validate(payload)
+        except ValidationError as exc:
+            raise RequestValidationError(
+                [{**error, "loc": ("body", *error["loc"])} for error in exc.errors(include_url=False)]
+            )
         try:
             service = get_session_vyos_service(http_request)
             builder = KIND_BUILDER[kind](version=service.get_version())

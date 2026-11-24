@@ -126,6 +126,7 @@ def test_batch_binds_name_rule_and_value_onto_builder_paths(monkeypatch, kind):
 
     assert response.status_code == 200, response.text
     assert response.json()["success"] is True
+    assert response.json()["data"] == {"message": "Configuration updated"}
     base = ["policy", kind, "L1"]
     assert service.executed == [
         [
@@ -152,7 +153,7 @@ def test_list_op_ignores_the_zero_rule_number_the_client_sends(monkeypatch, kind
 
 
 @pytest.mark.parametrize("kind", KINDS)
-@pytest.mark.parametrize("value", [None, ""])
+@pytest.mark.parametrize("value", [None, "", "   "])
 def test_missing_or_empty_value_is_400(monkeypatch, kind, value):
     service = Service()
     client = _app(monkeypatch, kind, service)
@@ -178,6 +179,45 @@ def test_rule_op_without_rule_number_is_400(monkeypatch, kind, rule_number):
     assert response.status_code == 400
     assert response.json()["detail"] == "Operation delete_rule requires rule_number"
     assert service.executed == []
+
+
+@pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("op", ["set_list_op", "delete_list_op", "set_rule", "delete_rule", "delete_rule_regex", "delete_rule_description"])
+def test_value_on_an_op_that_takes_none_is_400(monkeypatch, kind, op):
+    service = Service()
+    client = _app(monkeypatch, kind, service)
+    ident = KIND_SPEC[kind]["ident"]
+    op = {"set_list_op": f"set_{ident}", "delete_list_op": f"delete_{ident}"}.get(op, op)
+
+    response = _batch(client, kind, [{"op": op, "value": "x"}], rule_number=10)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"Operation {op} takes no value"
+    assert service.executed == []
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_reorder_validation_error_is_422_on_the_body(monkeypatch, kind):
+    service = Service()
+    client = _app(monkeypatch, kind, service)
+
+    response = client.post(f"/vyos/{kind}/reorder", json={"rules": []})
+
+    assert response.status_code == 422
+    locs = [tuple(error["loc"]) for error in response.json()["detail"]]
+    assert ("body", KIND_SPEC[kind]["name_field"]) in locs
+    assert ("body", "rules") in locs
+    assert service.executed == []
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_openapi_schema_builds(monkeypatch, kind):
+    client = _app(monkeypatch, kind, Service())
+
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    assert f"/vyos/{kind}/reorder" in response.json()["paths"]
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -291,6 +331,9 @@ def test_reorder_deletes_then_resets_each_rule(monkeypatch, kind):
     )
 
     assert response.status_code == 200, response.text
+    label = KIND_SPEC[kind]["label"]
+    assert response.json()["success"] is True
+    assert response.json()["data"] == {"message": f"Successfully reordered 2 rules in {label} L1"}
     base = ["policy", kind, "L1", "rule"]
     assert service.executed == [
         [
