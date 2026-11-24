@@ -81,6 +81,7 @@
     "updateFailed": "更新认证设置失败",
     "mode": "认证模式",
     "modeLocal": "本地",
+    "modeRadius": "RADIUS",
     "modeNoauth": "无认证",
     "protocols": "协议",
     "anyLogin": "允许任意登录",

@@ -12,7 +12,8 @@
     "saveLabels": "保存标签定义失败",
     "loadLabels": "加载会话标签定义失败",
     "labelIncomplete": "标签 {label} 需要同时填写代码和显示名称",
-    "labelUnnamed": "标签需要同时填写代码和显示名称"
+    "labelUnnamed": "标签需要同时填写代码和显示名称",
+    "labelDuplicateCode": "标签代码 {code} 重复使用"
   },
   "deleteServer": {
     "button": "删除 PPPoE 服务器",

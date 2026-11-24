@@ -356,6 +356,34 @@ async def get_pppoe_session_labels(request: Request):
         raise HTTPException(status_code=500, detail="Unable to read PPPoE session label registry")
 
 
+# Column sizes of pppoe_session_label_definitions (prisma migration).
+_LABEL_CODE_MAX = 80
+_LABEL_NAME_MAX = 120
+_LABEL_SEVERITY_MAX = 40
+
+
+def _checked_labels(body: List[PPPoESessionLabelDefinitionResponse]) -> List[PPPoESessionLabelDefinitionResponse]:
+    """Trim each label and reject a row the table would refuse, naming it.
+
+    The save replaces the whole catalog, so a bad row is a 400, never dropped.
+    """
+    labels: List[PPPoESessionLabelDefinitionResponse] = []
+    seen: set = set()
+    for item in body:
+        code = item.code.strip()
+        name = item.name.strip()
+        severity = (item.severity or "info").strip() or "info"
+        if not code or not name:
+            raise HTTPException(status_code=400, detail=f"Label {code or name!r} needs both a code and a name")
+        if len(code) > _LABEL_CODE_MAX or len(name) > _LABEL_NAME_MAX or len(severity) > _LABEL_SEVERITY_MAX:
+            raise HTTPException(status_code=400, detail=f"Label {code!r} is too long")
+        if code in seen:
+            raise HTTPException(status_code=400, detail=f"Duplicate label code {code!r}")
+        seen.add(code)
+        labels.append(item.model_copy(update={"code": code, "name": name, "severity": severity}))
+    return labels
+
+
 @router.post("/labels", response_model=List[PPPoESessionLabelDefinitionResponse])
 async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLabelDefinitionResponse]):
     """Replace this instance's PPPoE session label catalog.
@@ -365,8 +393,8 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
     """
     await require_write_permission(request, FeatureGroup.PPPOE)
     instance_id = _require_instance(request)
+    labels = _checked_labels(body)
     try:
-        labels = [item for item in body if item.code and item.name]
 
         async with request_scoped_conn(request) as conn:
             async with conn.transaction():
@@ -382,7 +410,7 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), NOW())
                         """,
                         str(uuid.uuid4()), instance_id, label.code, label.name, label.description,
-                        label.severity or "info", int(label.priority or 10),
+                        label.severity, int(label.priority or 10),
                         bool(label.enabled if label.enabled is not None else True), json.dumps(label.rules or {}),
                     )
 

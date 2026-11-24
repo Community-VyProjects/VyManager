@@ -81,6 +81,7 @@
     "updateFailed": "Failed to update authentication settings",
     "mode": "Authentication Mode",
     "modeLocal": "Local",
+    "modeRadius": "RADIUS",
     "modeNoauth": "No Authentication",
     "protocols": "Protocols",
     "anyLogin": "Any login",

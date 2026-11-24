@@ -457,6 +457,12 @@ function PPPoEPageInner() {
       setLabelError(named ? t("errors.labelIncomplete", { label: named }) : t("errors.labelUnnamed"));
       return;
     }
+    const codes = labelDraft.map((label) => label.code.trim());
+    const duplicate = codes.find((code, index) => codes.indexOf(code) !== index);
+    if (duplicate) {
+      setLabelError(t("errors.labelDuplicateCode", { code: duplicate }));
+      return;
+    }
     try {
       setLabelSaving(true);
       setLabelError(null);

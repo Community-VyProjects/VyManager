@@ -12,7 +12,8 @@
     "saveLabels": "Failed to save label definitions",
     "loadLabels": "Failed to load session label definitions",
     "labelIncomplete": "Label {label} needs both a code and a display name",
-    "labelUnnamed": "A label needs both a code and a display name"
+    "labelUnnamed": "A label needs both a code and a display name",
+    "labelDuplicateCode": "Label code {code} is used more than once"
   },
   "deleteServer": {
     "button": "Delete PPPoE Server",

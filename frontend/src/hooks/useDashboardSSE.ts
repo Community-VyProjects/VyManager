@@ -194,7 +194,7 @@ export interface DashboardSSEData {
 export interface DashboardSSEState {
   status: SSEStatus;
   data: DashboardSSEData;
-  /** Last error event of any channel, as `<channel>: <message>`. */
+  /** Last error event of any channel, as `<channel>: <message>`; cleared by that channel's next payload. */
   error: string | null;
   /** Current error message per channel, cleared by that channel's next payload. */
   channelErrors: Record<string, string>;

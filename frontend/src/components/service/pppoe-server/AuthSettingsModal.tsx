@@ -43,6 +43,7 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, 
   const showAnyLogin = capabilities?.features.auth_any_login ?? false;
   const modeLabels: Record<string, string> = {
     local: t("auth.modeLocal"),
+    radius: t("auth.modeRadius"),
     noauth: t("auth.modeNoauth"),
   };
 
