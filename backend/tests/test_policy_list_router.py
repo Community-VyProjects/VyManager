@@ -217,7 +217,11 @@ def test_openapi_schema_builds(monkeypatch, kind):
     response = client.get("/openapi.json")
 
     assert response.status_code == 200
-    assert f"/vyos/{kind}/reorder" in response.json()["paths"]
+    body = response.json()["paths"][f"/vyos/{kind}/reorder"]["post"]["requestBody"]
+    ident = KIND_SPEC[kind]["ident"]
+    assert body["content"]["application/json"]["schema"] == {"$ref": f"#/components/schemas/{ident}_ReorderRequest"}
+    schema = response.json()["components"]["schemas"][f"{ident}_ReorderRequest"]
+    assert set(schema["required"]) == {KIND_SPEC[kind]["name_field"], "rules"}
 
 
 @pytest.mark.parametrize("kind", KINDS)

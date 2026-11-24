@@ -2,9 +2,8 @@
 
 from typing import Annotated, Any, Dict, List, Literal, Optional, cast
 
-from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.exceptions import RequestValidationError
-from pydantic import AfterValidator, BaseModel, Field, ValidationError, create_model
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import AfterValidator, BaseModel, Field, create_model
 from starlette.concurrency import run_in_threadpool
 
 from batch_dispatch import resolve_batch_method
@@ -189,18 +188,8 @@ def build_router(kind: str) -> APIRouter:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    @router.post("/reorder", operation_id=f"reorder_{ident}_rules")
-    async def reorder_rules(
-        http_request: Request,
-        payload: Annotated[Dict[str, Any], Body()],
-    ):
+    async def reorder_rules(http_request: Request, body: PolicyListReorderRequest):
         await require_write_permission(http_request, feature)
-        try:
-            body = ReorderModel.model_validate(payload)
-        except ValidationError as exc:
-            raise RequestValidationError(
-                [{**error, "loc": ("body", *error["loc"])} for error in exc.errors(include_url=False)]
-            )
         try:
             service = get_session_vyos_service(http_request)
             builder = KIND_BUILDER[kind](version=service.get_version())
@@ -230,5 +219,10 @@ def build_router(kind: str) -> APIRouter:
         except Exception:
             logger.exception("Unhandled error")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+    # The request model carries the per-kind name field, so it is built at
+    # runtime; FastAPI reads the annotation when the route is registered.
+    reorder_rules.__annotations__["body"] = ReorderModel
+    router.post("/reorder", operation_id=f"reorder_{ident}_rules")(reorder_rules)
 
     return router
