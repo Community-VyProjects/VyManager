@@ -325,6 +325,24 @@ def test_reorder_recreates_every_leaf(client, service):
     ]]
 
 
+def test_reorder_pool_with_null_protocol_is_recreated(client, service):
+    """#1392: a pool sent with "protocol": null used to raise AttributeError (500)."""
+    resp = _reorder(client, [{"old_number": 100, "new_number": 101, "rule_data": {
+        "source_prefix": "64:ff9b::/96",
+        "translation_pools": [{"pool_number": 1, "address": "192.0.2.1", "port": "1-100", "protocol": None}],
+    }}])
+    assert resp.status_code == 200, resp.text
+    p = S + ["101", "translation", "pool", "1"]
+    assert service.executed == [[
+        {"op": "delete", "path": S + ["100"]},
+        {"op": "set", "path": S + ["101"]},
+        {"op": "set", "path": S + ["101", "source", "prefix", "64:ff9b::/96"]},
+        {"op": "set", "path": p},
+        {"op": "set", "path": p + ["address", "192.0.2.1"]},
+        {"op": "set", "path": p + ["port", "1-100"]},
+    ]]
+
+
 @pytest.mark.parametrize("rules", [
     [{"old_number": 1, "new_number": 2, "rule_data": {"extra": True}}],
     [{"old_number": 1, "new_number": 2, "rule_data": {"translation_pools": [{"address": "192.0.2.1"}]}}],
@@ -390,6 +408,27 @@ def test_config_route_returns_the_mapper_parse(monkeypatch):
 def test_config_route_unconfigured_keeps_the_same_shape(monkeypatch):
     test_client, _ = _app(monkeypatch, Service(config={}))
     assert test_client.get("/vyos/nat64/config").json() == {"source_rules": [], "total": 0}
+
+
+@pytest.mark.parametrize("config", [
+    {"nat64": None},
+    {"nat64": {"source": None}},
+    {"nat64": {"source": {"rule": None}}},
+])
+def test_config_route_null_nodes_parse_as_unconfigured(monkeypatch, config):
+    test_client, _ = _app(monkeypatch, Service(config=config))
+    assert test_client.get("/vyos/nat64/config").json() == {"source_rules": [], "total": 0}
+
+
+def test_config_route_null_rule_children_parse_as_unset(monkeypatch):
+    service = Service(config={"nat64": {"source": {"rule": {"10": {
+        "match": None, "source": None, "translation": None,
+    }}}}})
+    test_client, _ = _app(monkeypatch, service)
+    rule = test_client.get("/vyos/nat64/config").json()["source_rules"][0]
+    assert rule["match_mark"] is None
+    assert rule["source_prefix"] is None
+    assert rule["translation_pools"] == []
 
 
 def test_device_calls_run_off_the_event_loop(monkeypatch):

@@ -38,7 +38,7 @@ def _parse_pools(pools_config: Any) -> List[Dict[str, Any]]:
 
 def parse_config(_mapper: "NAT64Mapper", full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Return ``{"source_rules": [...], "total": n}``, the shape the client type declares."""
-    rules_config = (full_config.get("nat64") or {}).get("source", {}).get("rule", {})
+    rules_config = ((full_config.get("nat64") or {}).get("source") or {}).get("rule")
     source_rules = []
     for rule_num_str, rule_data in (rules_config or {}).items():
         try:
@@ -50,9 +50,9 @@ def parse_config(_mapper: "NAT64Mapper", full_config: Dict[str, Any]) -> Dict[st
             "rule_number": rule_number,
             "description": rule_data.get("description"),
             "disable": "disable" in rule_data,
-            "match_mark": rule_data.get("match", {}).get("mark"),
-            "source_prefix": rule_data.get("source", {}).get("prefix"),
-            "translation_pools": _parse_pools(rule_data.get("translation", {}).get("pool")),
+            "match_mark": (rule_data.get("match") or {}).get("mark"),
+            "source_prefix": (rule_data.get("source") or {}).get("prefix"),
+            "translation_pools": _parse_pools((rule_data.get("translation") or {}).get("pool")),
         })
 
     source_rules.sort(key=lambda rule: rule["rule_number"])
