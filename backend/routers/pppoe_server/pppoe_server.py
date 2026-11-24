@@ -130,14 +130,17 @@ class PPPoELog(BaseModel):
 
 
 class PPPoEShaper(BaseModel):
+    enabled: bool
     fwmark: Optional[str] = None
 
 
 class PPPoESnmp(BaseModel):
+    enabled: bool
     master_agent: bool
 
 
 class PPPoEExtendedScripts(BaseModel):
+    enabled: bool
     on_change: Optional[str] = None
     on_down: Optional[str] = None
     on_pre_up: Optional[str] = None
@@ -145,6 +148,7 @@ class PPPoEExtendedScripts(BaseModel):
 
 
 class PPPoELimits(BaseModel):
+    enabled: bool
     burst: Optional[str] = None
     connection_limit: Optional[str] = None
     timeout: Optional[str] = None

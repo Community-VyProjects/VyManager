@@ -44,7 +44,6 @@ import {
   ChevronRight,
   Pause,
   Play,
-  Save,
   Search,
   X,
 } from "lucide-react";
@@ -63,8 +62,9 @@ import {
   type PPPoEIPv6Pool,
   type PPPoESession,
   type PPPoESessionLabelDefinition,
-  type PPPoESessionLabelRule,
+  type VyOSResponse,
 } from "@/lib/api/pppoe-server";
+import type { ApiError } from "@/lib/types/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -145,13 +145,17 @@ const PPPOE_SESSION_COLUMNS: ColumnDef[] = [
 
 function PPPoEPageInner() {
   const t = useTranslations("pppoeServer");
+  const ts = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.PPPOE);
   const hasWrite = canWrite(FeatureGroup.PPPOE);
 
+  // `loading` covers the first load and Retry; `refreshing` covers the reload
+  // after a save, so open dialogs stay mounted while it runs.
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<PPPoEConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PPPoECapabilities | null>(null);
@@ -162,7 +166,6 @@ function PPPoEPageInner() {
   const [labelError, setLabelError] = useState<string | null>(null);
   const [labelSaving, setLabelSaving] = useState(false);
   const [sessionTotal, setSessionTotal] = useState(0);
-  const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionRefreshing, setSessionRefreshing] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const previousSessionBytes = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
@@ -204,9 +207,15 @@ function PPPoEPageInner() {
     labels: t("sessionColumns.labels"),
   };
   const translatedColumns = orderedColumns.map((column) => ({ ...column, label: sessionColumnLabels[column.id] ?? column.label }));
-  const [activeTab, setActiveTab] = useState("overview");
+  // The tab follows ?tab= until the user picks one for that URL.
+  const tabParam = searchParams.get("tab") ?? "overview";
+  const [tabChoice, setTabChoice] = useState<{ param: string; tab: string } | null>(null);
+  const activeTab = tabChoice && tabChoice.param === tabParam ? tabChoice.tab : tabParam;
 
-  // Modal state
+  // Modal state. Each open bumps `modalKey`, which remounts the modal so its
+  // form seeds from the current config; the edited subject stays set after
+  // close so the dialog does not switch to Add mode while it animates out.
+  const [modalKey, setModalKey] = useState(0);
   const [showGeneralModal, setShowGeneralModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPPPOptionsModal, setShowPPPOptionsModal] = useState(false);
@@ -231,28 +240,48 @@ function PPPoEPageInner() {
   const [deleteTarget, setDeleteTarget] = useState<{
     type: string;
     name: string;
-    onDelete: () => Promise<import("@/lib/api/pppoe-server").VyOSResponse>;
+    onDelete: () => Promise<VyOSResponse>;
     warning?: string;
     actionLabel?: string;
     actionVerb?: string;
     isReset?: boolean;
   } | null>(null);
 
-  const fetchConfig = async (refresh = false) => {
+  const openModal = (show: (open: boolean) => void) => {
+    setModalKey((key) => key + 1);
+    show(true);
+  };
+
+  /** Read config and capabilities; state is set only after the await. */
+  const loadData = async (refresh = false) => {
     try {
-      setLoading(true);
-      setError(null);
       const [configData, capsData] = await Promise.all([
         pppoeServerService.getConfig(refresh),
         pppoeServerService.getCapabilities(),
       ]);
       setConfig(configData);
       setCapabilities(capsData);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadPppoeConfig"));
+      setError((err as ApiError).message || t("errors.loadPppoeConfig"));
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Re-read the device after a save without unmounting the open dialogs. */
+  const reload = async () => {
+    setRefreshing(true);
+    try {
+      await loadData(true);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const retry = () => {
+    setLoading(true);
+    void loadData(true);
   };
 
   const applySessions = (response: { sessions: PPPoESession[]; total: number }) => {
@@ -301,10 +330,8 @@ function PPPoEPageInner() {
       setSessionError(null);
       const response = await pppoeServerService.getSessions(500);
       applySessions(response);
-      setSessionLoading(false);
     } catch (err) {
-      setSessionError(err instanceof Error ? err.message : t("errors.loadSessions"));
-      setSessionLoading(false);
+      setSessionError((err as ApiError).message || t("errors.loadSessions"));
     } finally {
       setSessionRefreshing(false);
     }
@@ -318,7 +345,7 @@ function PPPoEPageInner() {
 
   useEffect(() => {
     if (!hasRead) return;
-    fetchConfig();
+    void loadData();
     void pppoeServerService.getSessionLabelDefinitions()
       .then((labels) => {
         setSessionLabels(labels ?? []);
@@ -330,35 +357,17 @@ function PPPoEPageInner() {
   }, [hasRead]);
 
   useEffect(() => {
-    setActiveTab(searchParams.get("tab") ?? "overview");
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (liveSessions) {
-      setSessionLoading(true);
-    } else {
-      setSessionLoading(false);
-    }
-  }, [liveSessions]);
-
-  useEffect(() => {
-    if (sessionStreamStatus === "error") {
-      setSessionLoading(false);
-    }
-  }, [sessionStreamStatus]);
-
-  useEffect(() => {
     if (!sessionStream.pppoeSessions) return;
     setSessionError(null);
     applySessions(sessionStream.pppoeSessions);
-    setSessionLoading(false);
   }, [sessionStream.pppoeSessions]);
 
-  useEffect(() => {
-    if (!sessionStreamError || !sessionStreamError.startsWith("pppoe-sessions:")) return;
-    setSessionError(sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || t("errors.loadSessions"));
-    setSessionLoading(false);
-  }, [sessionStreamError, t]);
+  // Stream state is derived during render instead of copied in an effect.
+  const streamError = sessionStreamError?.startsWith("pppoe-sessions:")
+    ? sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || t("errors.loadSessions")
+    : null;
+  const shownSessionError = sessionError ?? streamError;
+  const sessionLoading = liveSessions && sessionStreamStatus !== "error" && !sessionStream.pppoeSessions && !shownSessionError;
 
   const openLabelEditor = () => {
     setLabelDraft(sessionLabels.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
@@ -387,30 +396,13 @@ function PPPoEPageInner() {
       setLabelDraft(saved.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
       setShowLabelEditor(false);
     } catch (err) {
-      setLabelError(err instanceof Error ? err.message : t("errors.saveLabels"));
+      setLabelError((err as ApiError).message || t("errors.saveLabels"));
     } finally {
       setLabelSaving(false);
     }
   };
 
-  const addLabelDraft = () => {
-    const newLabel: PPPoESessionLabelDefinition = {
-      code: `custom-label-${Date.now()}`,
-      name: "New label",
-      description: "",
-      severity: "info",
-      priority: 10,
-      enabled: true,
-      rules: { type: "ratio", numerator: "rx_bytes", denominator: "tx_bytes", operator: ">", factor: 2 },
-    };
-    setLabelDraft((current) => [...current, newLabel]);
-  };
-
-  const removeLabelDraft = (index: number) => {
-    setLabelDraft((current) => current.filter((_, i) => i !== index));
-  };
-
-  const onSuccess = () => fetchConfig(true);
+  const onSuccess = () => { void reload(); };
   const onSessionReset = () => { void fetchSessions(); };
   const sessionKey = (session: SessionWithRates) => `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
 
@@ -475,8 +467,8 @@ function PPPoEPageInner() {
     return active ? (sessionSortDirection === "asc" ? "▲" : "▼") : "↕";
   };
 
-  const authMode = config?.authentication.mode;
-  const isLocalAuth = authMode === "local";
+  // An unset authentication mode is the lab default, local.
+  const isLocalAuth = (config?.authentication.mode || "local") === "local";
   const totals = config?.totals;
 
   if (loading && !config) {
@@ -500,7 +492,7 @@ function PPPoEPageInner() {
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <p className="text-destructive font-medium">{t("errors.loadConfig")}</p>
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => fetchConfig(true)}>
+            <Button onClick={retry}>
               <RefreshCw className="h-4 w-4 mr-2" /> {tc("retry")}
             </Button>
           </div>
@@ -537,6 +529,7 @@ function PPPoEPageInner() {
                   variant="outline"
                   size="sm"
                   className="text-destructive hover:bg-destructive/10"
+                  disabled={refreshing}
                   onClick={() => setDeleteTarget({
                     type: t("deleteTypes.pppoeServer"),
                     name: t("deleteServer.name"),
@@ -548,12 +541,22 @@ function PPPoEPageInner() {
                   {t("deleteServer.button")}
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
-                <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+              <Button variant="outline" size="sm" onClick={() => void reload()} disabled={loading || refreshing}>
+                <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
                 {tc("refresh")}
               </Button>
             </div>
           </div>
+
+          {error && (
+            <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium">{t("errors.loadConfig")}</p>
+                <p className="whitespace-pre-wrap">{error}</p>
+              </div>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
@@ -611,7 +614,7 @@ function PPPoEPageInner() {
 
         {/* Tabs */}
         <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+          <Tabs value={activeTab} onValueChange={(tab) => setTabChoice({ param: tabParam, tab })} className="flex flex-col h-full">
             <div className="px-6 pt-4 border-b">
               <TabsList>
                 <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
@@ -635,7 +638,7 @@ function PPPoEPageInner() {
                       <div className="flex items-center justify-between">
                         <h4 className="text-sm font-medium">{t("overview.generalSettings")}</h4>
                         {hasWrite && (
-                          <Button variant="ghost" size="sm" onClick={() => setShowGeneralModal(true)}>
+                          <Button variant="ghost" size="sm" disabled={refreshing} onClick={() => openModal(setShowGeneralModal)}>
                             <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
@@ -643,8 +646,8 @@ function PPPoEPageInner() {
                       <div className="space-y-2 text-sm">
                         <InfoRow label={tc("description")} value={config?.description} />
                         <InfoRow label={t("overview.accessConcentrator")} value={config?.access_concentrator} />
-                        <InfoRow label={t("overview.serviceName")} value={config?.service_name} />
-                        <InfoRow label={t("overview.gatewayAddresses")} value={(config?.gateway_addresses || []).join(", ")} />
+                        <InfoRow label={ts("general.serviceNames")} value={(config?.service_names || []).join(", ")} />
+                        <InfoRow label={ts("general.gatewayAddress")} value={config?.gateway_address} />
                         <InfoRow label={t("overview.nameServers")} value={(config?.name_servers || []).join(", ")} />
                         <InfoRow label={t("overview.winsServers")} value={(config?.wins_servers || []).join(", ")} />
                         <InfoRow label="MTU" value={config?.mtu} />
@@ -660,7 +663,7 @@ function PPPoEPageInner() {
                       <div className="flex items-center justify-between">
                         <h4 className="text-sm font-medium">{t("pppOptions.title")}</h4>
                         {hasWrite && (
-                          <Button variant="ghost" size="sm" onClick={() => setShowPPPOptionsModal(true)}>
+                          <Button variant="ghost" size="sm" disabled={refreshing} onClick={() => openModal(setShowPPPOptionsModal)}>
                             <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
@@ -738,9 +741,9 @@ function PPPoEPageInner() {
                     )}
                     <span className="ml-auto text-xs text-muted-foreground">{t("sessions.matching", { count: String(filteredSessions.length) })}</span>
                   </div>
-                  {sessionError ? (
-                    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-                      {sessionError}
+                  {shownSessionError ? (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive whitespace-pre-wrap">
+                      {shownSessionError}
                     </div>
                   ) : sessions.length === 0 ? (
                     <EmptyState icon={Activity} label={sessionLoading ? t("sessions.loading") : t("sessions.empty")} />
@@ -866,7 +869,7 @@ function PPPoEPageInner() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">{t("interfaces.title")}</h3>
                     {hasWrite && (
-                      <Button size="sm" onClick={() => { setEditingInterface(null); setShowInterfaceModal(true); }}>
+                      <Button size="sm" disabled={refreshing} onClick={() => { setEditingInterface(null); openModal(setShowInterfaceModal); }}>
                         <Plus className="h-4 w-4 mr-1" /> {tc("addInterface")}
                       </Button>
                     )}
@@ -880,7 +883,6 @@ function PPPoEPageInner() {
                           <TableHead>{t("interfaces.interface")}</TableHead>
                           <TableHead>{tc("shown.vlans")}</TableHead>
                           <TableHead>{t("interfaces.vlanMon")}</TableHead>
-                          {(capabilities?.features.vpp_cp ?? false) && <TableHead>VPP-CP</TableHead>}
                           <TableHead>{t("interfaces.combined")}</TableHead>
                           {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
@@ -891,13 +893,13 @@ function PPPoEPageInner() {
                             <TableCell className="font-medium font-mono">{iface.interface}</TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
-                                {(iface.vlans || []).slice(0, 4).map((v) => (
+                                {iface.vlans.slice(0, 4).map((v) => (
                                   <Badge key={v} variant="secondary" className="text-xs font-mono">{v}</Badge>
                                 ))}
-                                {(iface.vlans || []).length > 4 && (
-                                  <Badge variant="secondary" className="text-xs">+{(iface.vlans || []).length - 4}</Badge>
+                                {iface.vlans.length > 4 && (
+                                  <Badge variant="secondary" className="text-xs">+{iface.vlans.length - 4}</Badge>
                                 )}
-                                {(iface.vlans || []).length === 0 && "-"}
+                                {iface.vlans.length === 0 && "-"}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -905,21 +907,18 @@ function PPPoEPageInner() {
                                 <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
                               ) : "-"}
                             </TableCell>
-                            {(capabilities?.features.vpp_cp ?? false) && (
-                              <TableCell>
-                                {iface.vpp_cp ? (
-                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
-                                ) : "-"}
-                              </TableCell>
-                            )}
-                            <TableCell>{iface.combined || "-"}</TableCell>
+                            <TableCell>
+                              {iface.combined ? (
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("yes")}</Badge>
+                              ) : "-"}
+                            </TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingInterface(iface); setShowInterfaceModal(true); }}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={refreshing} onClick={() => { setEditingInterface(iface); openModal(setShowInterfaceModal); }}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" disabled={refreshing} onClick={() => setDeleteTarget({
                                     type: t("deleteTypes.interface"),
                                     name: iface.interface,
                                     onDelete: () => pppoeServerService.deleteInterface(iface.interface),
@@ -943,7 +942,7 @@ function PPPoEPageInner() {
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-medium">{t("auth.mode")}</h4>
                         {hasWrite && (
-                          <Button variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>
+                          <Button variant="ghost" size="sm" disabled={refreshing} onClick={() => openModal(setShowAuthModal)}>
                             <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                           </Button>
                         )}
@@ -951,7 +950,7 @@ function PPPoEPageInner() {
                       <div className="flex items-center gap-3">
                         <Key className="h-4 w-4 text-muted-foreground" />
                         <Badge variant="outline" className="text-sm">
-                          {config?.authentication.mode || tc("notSet")}
+                          {config?.authentication.mode || tc("default")}
                         </Badge>
                         {(config?.authentication.protocols || []).length > 0 && (
                           <div className="flex gap-1">
@@ -960,180 +959,174 @@ function PPPoEPageInner() {
                             ))}
                           </div>
                         )}
+                        {capabilities?.features.auth_any_login && config?.authentication.any_login && (
+                          <Badge variant="secondary">{ts("auth.anyLogin")}</Badge>
+                        )}
                       </div>
                     </Card>
                   </div>
 
-                  {isLocalAuth ? (
-                    <>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">{t("auth.localUsers")}</h3>
-                        {hasWrite && (
-                          <Button size="sm" onClick={() => { setEditingLocalUser(null); setShowLocalUserModal(true); }}>
-                            <Plus className="h-4 w-4 mr-1" /> {t("auth.addUser")}
-                          </Button>
-                        )}
-                      </div>
-                      {(config?.authentication.local_users.length ?? 0) === 0 ? (
-                        <EmptyState icon={User} label={t("auth.noLocalUsers")} />
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>{t("auth.username")}</TableHead>
-                              <TableHead>{t("auth.staticIp")}</TableHead>
-                              <TableHead>{t("auth.rateDown")}</TableHead>
-                              <TableHead>{t("auth.rateUp")}</TableHead>
-                              <TableHead>{tc("status")}</TableHead>
-                              {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {config?.authentication.local_users.map((user) => (
-                              <TableRow key={user.username} className="group">
-                                <TableCell className="font-medium font-mono">{user.username}</TableCell>
-                                <TableCell>
-                                  {user.static_ip ? (
-                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{user.static_ip}</code>
-                                  ) : "-"}
-                                </TableCell>
-                                <TableCell>{user.rate_limit?.download || "-"}</TableCell>
-                                <TableCell>{user.rate_limit?.upload || "-"}</TableCell>
-                                <TableCell>
-                                  {user.disabled ? (
-                                    <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("auth.active")}</Badge>
-                                  )}
-                                </TableCell>
-                                {hasWrite && (
-                                  <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingLocalUser(user); setShowLocalUserModal(true); }}>
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                        type: t("deleteTypes.localUser"),
-                                        name: user.username,
-                                        onDelete: () => pppoeServerService.deleteLocalUser(user.username),
-                                      })}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      )}
-                    </>
+                  {/* Both lists stay reachable: a mode switch needs its users or servers first. */}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">{t("auth.localUsers")}</h3>
+                    {hasWrite && (
+                      <Button size="sm" disabled={refreshing} onClick={() => { setEditingLocalUser(null); openModal(setShowLocalUserModal); }}>
+                        <Plus className="h-4 w-4 mr-1" /> {t("auth.addUser")}
+                      </Button>
+                    )}
+                  </div>
+                  {(config?.authentication.local_users.length ?? 0) === 0 ? (
+                    <EmptyState icon={User} label={t("auth.noLocalUsers")} />
                   ) : (
-                    <>
-                      <div className="mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-semibold">{t("radius.settingsTitle")}</h3>
-                          {hasWrite && (
-                            <Button variant="outline" size="sm" onClick={() => setShowRadiusSettingsModal(true)}>
-                              <Pencil className="h-3 w-3 mr-1" /> {t("radius.editSettings")}
-                            </Button>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-6">
-                          <Card className="p-4 space-y-2 text-sm">
-                            <h4 className="text-sm font-medium mb-2">{t("radius.general")}</h4>
-                            <InfoRow label={t("radius.sourceAddress")} value={config?.authentication.radius?.source_address} />
-                            <InfoRow label={t("radius.timeout")} value={config?.authentication.radius?.timeout} />
-                            <InfoRow label={t("radius.maxTry")} value={config?.authentication.radius?.max_try} />
-                            <InfoRow label={t("radius.nasIdentifier")} value={config?.authentication.radius?.nas_identifier} />
-                            <InfoRow label="NAS IP" value={config?.authentication.radius?.nas_ip_address} />
-                            <InfoRow label={t("radius.calledSidFormat")} value={config?.authentication.radius?.called_sid_format} />
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">{t("radius.preallocateVif")}</span>
-                              <Badge variant={config?.authentication.radius?.preallocate_vif ? "default" : "secondary"}>
-                                {config?.authentication.radius?.preallocate_vif ? t("yes") : t("no")}
-                              </Badge>
-                            </div>
-                          </Card>
-                          <Card className="p-4 space-y-2 text-sm">
-                            <h4 className="text-sm font-medium mb-2">{t("radius.daeRateLimit")}</h4>
-                            <InfoRow label={t("radius.daeServer")} value={config?.authentication.radius?.dynamic_author?.server} />
-                            <InfoRow label={t("radius.daePort")} value={config?.authentication.radius?.dynamic_author?.port} />
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">{t("radius.rateLimit")}</span>
-                              <Badge variant={config?.authentication.radius?.rate_limit?.enable ? "default" : "secondary"}>
-                                {config?.authentication.radius?.rate_limit?.enable ? tc("enabled") : tc("disabled")}
-                              </Badge>
-                            </div>
-                            <InfoRow label={t("radius.attribute")} value={config?.authentication.radius?.rate_limit?.attribute} />
-                            <InfoRow label={t("radius.multiplier")} value={config?.authentication.radius?.rate_limit?.multiplier} />
-                          </Card>
-                        </div>
-                      </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("auth.username")}</TableHead>
+                          <TableHead>{t("auth.staticIp")}</TableHead>
+                          <TableHead>{t("auth.rateDown")}</TableHead>
+                          <TableHead>{t("auth.rateUp")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config?.authentication.local_users.map((user) => (
+                          <TableRow key={user.username} className="group">
+                            <TableCell className="font-medium font-mono">{user.username}</TableCell>
+                            <TableCell>
+                              {user.static_ip ? (
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{user.static_ip}</code>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell>{user.rate_limit.download || "-"}</TableCell>
+                            <TableCell>{user.rate_limit.upload || "-"}</TableCell>
+                            <TableCell>
+                              {user.disabled ? (
+                                <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("auth.active")}</Badge>
+                              )}
+                            </TableCell>
+                            {hasWrite && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={refreshing} onClick={() => { setEditingLocalUser(user); openModal(setShowLocalUserModal); }}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" disabled={refreshing} onClick={() => setDeleteTarget({
+                                    type: t("deleteTypes.localUser"),
+                                    name: user.username,
+                                    onDelete: () => pppoeServerService.deleteLocalUser(user.username),
+                                  })}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
 
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">{t("radius.serversTitle")}</h3>
-                        {hasWrite && (
-                          <Button size="sm" onClick={() => { setEditingRadiusServer(null); setShowRadiusServerModal(true); }}>
-                            <Plus className="h-4 w-4 mr-1" /> {t("radius.addServer")}
-                          </Button>
-                        )}
-                      </div>
-                      {(config?.authentication.radius?.servers?.length ?? 0) === 0 ? (
-                        <EmptyState icon={Server} label={t("radius.noServers")} />
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>{t("radius.address")}</TableHead>
-                              <TableHead>{t("radius.port")}</TableHead>
-                              <TableHead>{t("radius.acctPort")}</TableHead>
-                              <TableHead>{t("radius.priority")}</TableHead>
-                              <TableHead>{tc("status")}</TableHead>
-                              {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {(config?.authentication.radius?.servers ?? []).map((srv) => (
-                              <TableRow key={srv.address} className="group">
-                                <TableCell>
-                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{srv.address}</code>
-                                </TableCell>
-                                <TableCell>{srv.port || "1812"}</TableCell>
-                                <TableCell>{srv.acct_port || "1813"}</TableCell>
-                                <TableCell>{srv.priority || "-"}</TableCell>
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    {srv.disabled ? (
-                                      <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
-                                    ) : (
-                                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("auth.active")}</Badge>
-                                    )}
-                                    {srv.backup && <Badge variant="outline">{t("radius.backup")}</Badge>}
-                                  </div>
-                                </TableCell>
-                                {hasWrite && (
-                                  <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingRadiusServer(srv); setShowRadiusServerModal(true); }}>
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
-                                        type: t("deleteTypes.radiusServer"),
-                                        name: srv.address,
-                                        onDelete: () => pppoeServerService.deleteRadiusServer(srv.address),
-                                      })}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                  <div className="mt-8 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold">{t("radius.settingsTitle")}</h3>
+                      {hasWrite && (
+                        <Button variant="outline" size="sm" disabled={refreshing} onClick={() => openModal(setShowRadiusSettingsModal)}>
+                          <Pencil className="h-3 w-3 mr-1" /> {t("radius.editSettings")}
+                        </Button>
                       )}
-                    </>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <Card className="p-4 space-y-2 text-sm">
+                        <h4 className="text-sm font-medium mb-2">{t("radius.general")}</h4>
+                        <InfoRow label={t("radius.sourceAddress")} value={config?.authentication.radius.source_address} />
+                        <InfoRow label={t("radius.timeout")} value={config?.authentication.radius.timeout} />
+                        <InfoRow label={t("radius.maxTry")} value={config?.authentication.radius.max_try} />
+                        <InfoRow label={t("radius.nasIdentifier")} value={config?.authentication.radius.nas_identifier} />
+                        <InfoRow label={ts("radiusSettings.nasIpAddress")} value={config?.authentication.radius.nas_ip_address} />
+                        <InfoRow label={t("radius.calledSidFormat")} value={config?.authentication.radius.called_sid_format} />
+                        <YesNoRow label={t("radius.preallocateVif")} value={config?.authentication.radius.preallocate_vif} yes={t("yes")} no={t("no")} />
+                      </Card>
+                      <Card className="p-4 space-y-2 text-sm">
+                        <h4 className="text-sm font-medium mb-2">{t("radius.daeRateLimit")}</h4>
+                        <InfoRow label={t("radius.daeServer")} value={config?.authentication.radius.dynamic_author.server} />
+                        <InfoRow label={t("radius.daePort")} value={config?.authentication.radius.dynamic_author.port} />
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t("radius.rateLimit")}</span>
+                          <Badge variant={config?.authentication.radius.rate_limit.enable ? "default" : "secondary"}>
+                            {config?.authentication.radius.rate_limit.enable ? tc("enabled") : tc("disabled")}
+                          </Badge>
+                        </div>
+                        <InfoRow label={t("radius.attribute")} value={config?.authentication.radius.rate_limit.attribute} />
+                        <InfoRow label={ts("radiusSettings.vendor")} value={config?.authentication.radius.rate_limit.vendor} />
+                        <InfoRow label={t("radius.multiplier")} value={config?.authentication.radius.rate_limit.multiplier} />
+                      </Card>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">{t("radius.serversTitle")}</h3>
+                    {hasWrite && (
+                      <Button size="sm" disabled={refreshing} onClick={() => { setEditingRadiusServer(null); openModal(setShowRadiusServerModal); }}>
+                        <Plus className="h-4 w-4 mr-1" /> {t("radius.addServer")}
+                      </Button>
+                    )}
+                  </div>
+                  {(config?.authentication.radius.servers.length ?? 0) === 0 ? (
+                    <EmptyState icon={Server} label={t("radius.noServers")} />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("radius.address")}</TableHead>
+                          <TableHead>{t("radius.port")}</TableHead>
+                          <TableHead>{t("radius.acctPort")}</TableHead>
+                          <TableHead>{t("radius.priority")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                          {hasWrite && <TableHead className="text-right">{tc("actions")}</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(config?.authentication.radius.servers ?? []).map((srv) => (
+                          <TableRow key={srv.address} className="group">
+                            <TableCell>
+                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{srv.address}</code>
+                            </TableCell>
+                            <TableCell>{srv.port || "1812"}</TableCell>
+                            <TableCell>{srv.acct_port || "1813"}</TableCell>
+                            <TableCell>{srv.priority || "-"}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {srv.disabled ? (
+                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600">{tc("disabled")}</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">{t("auth.active")}</Badge>
+                                )}
+                                {srv.backup && <Badge variant="outline">{t("radius.backup")}</Badge>}
+                              </div>
+                            </TableCell>
+                            {hasWrite && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={refreshing} onClick={() => { setEditingRadiusServer(srv); openModal(setShowRadiusServerModal); }}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" disabled={refreshing} onClick={() => setDeleteTarget({
+                                    type: t("deleteTypes.radiusServer"),
+                                    name: srv.address,
+                                    onDelete: () => pppoeServerService.deleteRadiusServer(srv.address),
+                                  })}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   )}
                 </TabsContent>
 
@@ -1142,7 +1135,7 @@ function PPPoEPageInner() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">{t("pools.ipv4Title")}</h3>
                     {hasWrite && (
-                      <Button size="sm" onClick={() => { setEditingIPPool(null); setShowIPPoolModal(true); }}>
+                      <Button size="sm" disabled={refreshing} onClick={() => { setEditingIPPool(null); openModal(setShowIPPoolModal); }}>
                         <Plus className="h-4 w-4 mr-1" /> {t("pools.addPool")}
                       </Button>
                     )}
@@ -1165,20 +1158,20 @@ function PPPoEPageInner() {
                             <TableCell className="font-medium">{pool.name}</TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
-                                {(pool.ranges || []).map((r) => (
+                                {pool.ranges.map((r) => (
                                   <Badge key={r} variant="secondary" className="font-mono text-xs">{r}</Badge>
                                 ))}
-                                {(pool.ranges || []).length === 0 && "-"}
+                                {pool.ranges.length === 0 && "-"}
                               </div>
                             </TableCell>
                             <TableCell>{pool.next_pool || "-"}</TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingIPPool(pool); setShowIPPoolModal(true); }}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={refreshing} onClick={() => { setEditingIPPool(pool); openModal(setShowIPPoolModal); }}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" disabled={refreshing} onClick={() => setDeleteTarget({
                                     type: t("deleteTypes.ipPool"),
                                     name: pool.name,
                                     onDelete: () => pppoeServerService.deleteIPPool(pool.name),
@@ -1200,7 +1193,7 @@ function PPPoEPageInner() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">{t("pools.ipv6Title")}</h3>
                     {hasWrite && (
-                      <Button size="sm" onClick={() => { setEditingIPv6Pool(null); setShowIPv6PoolModal(true); }}>
+                      <Button size="sm" disabled={refreshing} onClick={() => { setEditingIPv6Pool(null); openModal(setShowIPv6PoolModal); }}>
                         <Plus className="h-4 w-4 mr-1" /> {t("pools.addPool")}
                       </Button>
                     )}
@@ -1223,31 +1216,31 @@ function PPPoEPageInner() {
                             <TableCell className="font-medium">{pool.name}</TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
-                                {(pool.prefixes || []).map((p, i) => (
-                                  <Badge key={i} variant="outline" className="text-xs font-mono">
+                                {pool.prefixes.map((p) => (
+                                  <Badge key={p.prefix} variant="outline" className="text-xs font-mono">
                                     {p.prefix}{p.mask ? ` /${p.mask}` : ""}
                                   </Badge>
                                 ))}
-                                {(!pool.prefixes || pool.prefixes.length === 0) && "-"}
+                                {pool.prefixes.length === 0 && "-"}
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
-                                {(pool.delegates || []).map((d, i) => (
-                                  <Badge key={i} variant="outline" className="text-xs font-mono">
+                                {pool.delegates.map((d) => (
+                                  <Badge key={d.prefix} variant="outline" className="text-xs font-mono">
                                     {d.prefix}{d.delegation_prefix ? ` /${d.delegation_prefix}` : ""}
                                   </Badge>
                                 ))}
-                                {(!pool.delegates || pool.delegates.length === 0) && "-"}
+                                {pool.delegates.length === 0 && "-"}
                               </div>
                             </TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingIPv6Pool(pool); setShowIPv6PoolModal(true); }}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={refreshing} onClick={() => { setEditingIPv6Pool(pool); openModal(setShowIPv6PoolModal); }}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteTarget({
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" disabled={refreshing} onClick={() => setDeleteTarget({
                                     type: t("deleteTypes.ipv6Pool"),
                                     name: pool.name,
                                     onDelete: () => pppoeServerService.deleteIPv6Pool(pool.name),
@@ -1270,7 +1263,7 @@ function PPPoEPageInner() {
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-medium">{t("pppOptions.title")}</h4>
                       {hasWrite && (
-                        <Button variant="ghost" size="sm" onClick={() => setShowPPPOptionsModal(true)}>
+                        <Button variant="ghost" size="sm" disabled={refreshing} onClick={() => openModal(setShowPPPOptionsModal)}>
                           <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                         </Button>
                       )}
@@ -1318,7 +1311,7 @@ function PPPoEPageInner() {
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-medium">{t("advanced.title")}</h4>
                       {hasWrite && (
-                        <Button variant="ghost" size="sm" onClick={() => setShowAdvancedModal(true)}>
+                        <Button variant="ghost" size="sm" disabled={refreshing} onClick={() => openModal(setShowAdvancedModal)}>
                           <Pencil className="h-3 w-3 mr-1" /> {tc("edit")}
                         </Button>
                       )}
@@ -1352,25 +1345,24 @@ function PPPoEPageInner() {
                     <div className="grid grid-cols-2 gap-6 text-sm">
                       <div className="space-y-2">
                         <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("advanced.limits")}</h5>
-                        <InfoRow label={t("advanced.burst")} value={config?.limits?.burst} />
-                        <InfoRow label={t("advanced.connLimit")} value={config?.limits?.connection_limit} />
-                        <InfoRow label={t("advanced.timeout")} value={config?.limits?.timeout} />
+                        <YesNoRow label={ts("advanced.connectionLimits")} value={config?.limits.enabled} yes={t("yes")} no={t("no")} />
+                        <InfoRow label={t("advanced.burst")} value={config?.limits.burst} />
+                        <InfoRow label={t("advanced.connLimit")} value={config?.limits.connection_limit} />
+                        <InfoRow label={t("advanced.timeout")} value={config?.limits.timeout} />
                         <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">{t("advanced.logShaper")}</h5>
-                        <InfoRow label={t("advanced.logLevel")} value={config?.log?.level} />
-                        <InfoRow label={t("advanced.shaperFwmark")} value={config?.shaper?.fwmark} />
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">{t("advanced.snmpMasterAgent")}</span>
-                          <Badge variant={config?.snmp?.master_agent ? "default" : "secondary"}>
-                            {config?.snmp?.master_agent ? t("yes") : t("no")}
-                          </Badge>
-                        </div>
+                        <InfoRow label={t("advanced.logLevel")} value={config?.log.level} />
+                        <YesNoRow label={ts("advanced.shaper")} value={config?.shaper.enabled} yes={t("yes")} no={t("no")} />
+                        <InfoRow label={t("advanced.shaperFwmark")} value={config?.shaper.fwmark} />
+                        <YesNoRow label={ts("advanced.snmp")} value={config?.snmp.enabled} yes={t("yes")} no={t("no")} />
+                        <YesNoRow label={t("advanced.snmpMasterAgent")} value={config?.snmp.master_agent} yes={t("yes")} no={t("no")} />
                       </div>
                       <div className="space-y-2">
                         <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("advanced.extendedScripts")}</h5>
-                        <InfoRow label={t("advanced.onChange")} value={config?.extended_scripts?.on_change} />
-                        <InfoRow label={t("advanced.onDown")} value={config?.extended_scripts?.on_down} />
-                        <InfoRow label={t("advanced.onPreUp")} value={config?.extended_scripts?.on_pre_up} />
-                        <InfoRow label={t("advanced.onUp")} value={config?.extended_scripts?.on_up} />
+                        <YesNoRow label={tc("enabled")} value={config?.extended_scripts.enabled} yes={t("yes")} no={t("no")} />
+                        <InfoRow label={t("advanced.onChange")} value={config?.extended_scripts.on_change} />
+                        <InfoRow label={t("advanced.onDown")} value={config?.extended_scripts.on_down} />
+                        <InfoRow label={t("advanced.onPreUp")} value={config?.extended_scripts.on_pre_up} />
+                        <InfoRow label={t("advanced.onUp")} value={config?.extended_scripts.on_up} />
                       </div>
                     </div>
                   </Card>
@@ -1409,150 +1401,19 @@ function PPPoEPageInner() {
         error={labelError}
       />
 
-      {false && <Dialog open={showLabelEditor} onOpenChange={(open) => {
-        if (!open) {
-          setShowLabelEditor(false);
-          setLabelError(null);
-        }
-      }}>
-        <DialogContent className="max-w-6xl border-0 p-0">
-          <div className="rounded-xl border border-border/60 bg-background shadow-2xl">
-            <DialogHeader className="flex items-center justify-between border-b px-6 py-4">
-              <div className="space-y-1">
-                <DialogTitle className="text-2xl font-semibold tracking-tight">{t("labelRegistry.title")}</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  {t("legacyLabelEditor.description")}
-                </DialogDescription>
-              </div>
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowLabelEditor(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogHeader>
-
-            <div className="space-y-4 px-6 py-5">
-              {labelError && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                  {labelError}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  <span>{t("legacyLabelEditor.definitions")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-9 px-4" onClick={addLabelDraft}>
-                    <Plus className="h-4 w-4 mr-2" /> {t("legacyLabelEditor.new")}
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => setShowLabelEditor(false)}>
-                    {tc("cancel")}
-                  </Button>
-                  <Button size="sm" className="h-9 px-5" onClick={() => void saveLabelEditor()} disabled={labelSaving}>
-                    {labelSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                    {labelSaving ? tc("saving") : t("labelRegistry.saveRegistry")}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/10">
-                <div className="grid grid-cols-[minmax(110px,0.9fr)_minmax(140px,1.2fr)_minmax(180px,1.8fr)_minmax(75px,0.7fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(105px,1fr)_minmax(105px,1fr)_minmax(82px,1fr)_minmax(62px,0.7fr)_52px] gap-2 border-b bg-muted/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>{t("labelRegistry.code")}</span>
-                  <span>{tc("name")}</span>
-                  <span>{tc("description")}</span>
-                  <span>{t("labelRegistry.priority")}</span>
-                  <span>{t("labelRegistry.severity")}</span>
-                  <span>{tc("enabled")}</span>
-                  <span>{t("labelRegistry.numerator")}</span>
-                  <span>{t("labelRegistry.denominator")}</span>
-                  <span>{t("labelRegistry.operator")}</span>
-                  <span>{t("labelRegistry.factor")}</span>
-                  <span className="text-right">{tc("actions")}</span>
-                </div>
-
-                {labelDraft.length === 0 ? (
-                  <div className="px-4 py-8 text-sm text-muted-foreground">{t("legacyLabelEditor.noLabels")}</div>
-                ) : (
-                  <div className="max-h-[55vh] overflow-auto">
-                    {labelDraft.map((label, index) => (
-                      <div key={`${label.code}-${index}`} className="grid grid-cols-[minmax(110px,0.9fr)_minmax(140px,1.2fr)_minmax(180px,1.8fr)_minmax(75px,0.7fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(105px,1fr)_minmax(105px,1fr)_minmax(82px,1fr)_minmax(62px,0.7fr)_52px] gap-2 border-b border-border/30 px-4 py-3 last:border-b-0 hover:bg-muted/20">
-                        <div className="min-w-0">
-                          <Input value={label.code ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, code: event.target.value } : item))} className="h-9 text-sm font-medium" />
-                        </div>
-                        <div className="min-w-0">
-                          <Input value={label.name ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, name: event.target.value } : item))} className="h-9 text-sm" />
-                        </div>
-                        <div className="min-w-0">
-                          <Input value={label.description ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, description: event.target.value } : item))} className="h-9 text-sm" />
-                        </div>
-                        <div className="min-w-0">
-                          <Input value={label.priority ?? 10} type="number" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, priority: Number(event.target.value) } : item))} className="h-9 text-sm" />
-                        </div>
-                        <div className="min-w-0">
-                          <select value={label.severity ?? "info"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, severity: event.target.value } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="info">{tc("shown.info")}</option>
-                            <option value="warning">{tc("shown.warning")}</option>
-                            <option value="danger">{tc("shown.danger")}</option>
-                          </select>
-                        </div>
-                        <div className="min-w-0">
-                          <select value={label.enabled === false ? "false" : "true"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, enabled: event.target.value === "true" } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="true">{t("yes")}</option>
-                            <option value="false">{t("no")}</option>
-                          </select>
-                        </div>
-                        <div className="min-w-0">
-                          <select value={label.rules?.numerator ?? "rx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", numerator: event.target.value as PPPoESessionLabelRule["numerator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="rx_bytes">{t("legacyLabelEditor.rxBytes")}</option>
-                            <option value="tx_bytes">{t("legacyLabelEditor.txBytes")}</option>
-                            <option value="rxRate">{t("legacyLabelEditor.rxRate")}</option>
-                            <option value="txRate">{t("legacyLabelEditor.txRate")}</option>
-                          </select>
-                        </div>
-                        <div className="min-w-0">
-                          <select value={label.rules?.denominator ?? "tx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", denominator: event.target.value as PPPoESessionLabelRule["denominator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="rx_bytes">{t("legacyLabelEditor.rxBytes")}</option>
-                            <option value="tx_bytes">{t("legacyLabelEditor.txBytes")}</option>
-                            <option value="rxRate">{t("legacyLabelEditor.rxRate")}</option>
-                            <option value="txRate">{t("legacyLabelEditor.txRate")}</option>
-                          </select>
-                        </div>
-                        <div className="min-w-0">
-                          <select value={label.rules?.operator ?? ">"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", operator: event.target.value as PPPoESessionLabelRule["operator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value=">">&gt;</option>
-                            <option value=">=">&ge;</option>
-                            <option value="<">&lt;</option>
-                            <option value="<=">&le;</option>
-                          </select>
-                        </div>
-                        <div className="min-w-0">
-                          <Input value={label.rules?.factor ?? 0.1} type="number" step="0.01" min="0" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", factor: Number(event.target.value) } } : item))} className="h-9 text-sm" />
-                        </div>
-                        <div className="flex items-center justify-end">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => removeLabelDraft(index)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>}
-
       {/* Modals */}
       {config && (
         <>
           <GeneralSettingsModal
+            key={`general-${modalKey}`}
             open={showGeneralModal}
             onOpenChange={setShowGeneralModal}
             onSuccess={onSuccess}
             config={config}
+            capabilities={capabilities}
           />
           <AuthSettingsModal
+            key={`auth-${modalKey}`}
             open={showAuthModal}
             onOpenChange={setShowAuthModal}
             onSuccess={onSuccess}
@@ -1560,57 +1421,72 @@ function PPPoEPageInner() {
             capabilities={capabilities}
           />
           <PPPOptionsModal
+            key={`ppp-${modalKey}`}
             open={showPPPOptionsModal}
             onOpenChange={setShowPPPOptionsModal}
             onSuccess={onSuccess}
-            config={config}
+            current={config.ppp_options}
+            capabilities={capabilities}
           />
           <AdvancedSettingsModal
+            key={`advanced-${modalKey}`}
             open={showAdvancedModal}
             onOpenChange={setShowAdvancedModal}
             onSuccess={onSuccess}
             config={config}
+            capabilities={capabilities}
           />
           <RadiusSettingsModal
+            key={`radius-${modalKey}`}
             open={showRadiusSettingsModal}
             onOpenChange={setShowRadiusSettingsModal}
             onSuccess={onSuccess}
-            currentSettings={config.authentication.radius ?? { servers: [] }}
+            currentSettings={config.authentication.radius}
+            capabilities={capabilities}
+          />
+          <LocalUserModal
+            key={`user-${modalKey}`}
+            open={showLocalUserModal}
+            onOpenChange={setShowLocalUserModal}
+            onSuccess={onSuccess}
+            existingUser={editingLocalUser}
+            configuredUsers={config.authentication.local_users.map((user) => user.username)}
+          />
+          <RadiusServerModal
+            key={`server-${modalKey}`}
+            open={showRadiusServerModal}
+            onOpenChange={setShowRadiusServerModal}
+            onSuccess={onSuccess}
+            existingServer={editingRadiusServer}
+            configuredServers={config.authentication.radius.servers.map((srv) => srv.address)}
+          />
+          <IPPoolModal
+            key={`pool-${modalKey}`}
+            open={showIPPoolModal}
+            onOpenChange={setShowIPPoolModal}
+            onSuccess={onSuccess}
+            existingPool={editingIPPool}
+            poolNames={config.client_ip_pools.map((pool) => pool.name)}
+          />
+          <IPv6PoolModal
+            key={`pool6-${modalKey}`}
+            open={showIPv6PoolModal}
+            onOpenChange={setShowIPv6PoolModal}
+            onSuccess={onSuccess}
+            existingPool={editingIPv6Pool}
+            poolNames={config.client_ipv6_pools.map((pool) => pool.name)}
+          />
+          <InterfaceModal
+            key={`iface-${modalKey}`}
+            open={showInterfaceModal}
+            onOpenChange={setShowInterfaceModal}
+            onSuccess={onSuccess}
+            existingInterface={editingInterface}
+            capabilities={capabilities}
+            configuredInterfaces={config.interfaces.map((iface) => iface.interface)}
           />
         </>
       )}
-
-      <LocalUserModal
-        open={showLocalUserModal}
-        onOpenChange={(open) => { setShowLocalUserModal(open); if (!open) setEditingLocalUser(null); }}
-        onSuccess={onSuccess}
-        existingUser={editingLocalUser}
-      />
-      <RadiusServerModal
-        open={showRadiusServerModal}
-        onOpenChange={(open) => { setShowRadiusServerModal(open); if (!open) setEditingRadiusServer(null); }}
-        onSuccess={onSuccess}
-        existingServer={editingRadiusServer}
-      />
-      <IPPoolModal
-        open={showIPPoolModal}
-        onOpenChange={(open) => { setShowIPPoolModal(open); if (!open) setEditingIPPool(null); }}
-        onSuccess={onSuccess}
-        existingPool={editingIPPool}
-      />
-      <IPv6PoolModal
-        open={showIPv6PoolModal}
-        onOpenChange={(open) => { setShowIPv6PoolModal(open); if (!open) setEditingIPv6Pool(null); }}
-        onSuccess={onSuccess}
-        existingPool={editingIPv6Pool}
-      />
-      <InterfaceModal
-        open={showInterfaceModal}
-        onOpenChange={(open) => { setShowInterfaceModal(open); if (!open) setEditingInterface(null); }}
-        onSuccess={onSuccess}
-        existingInterface={editingInterface}
-        capabilities={capabilities}
-      />
       {deleteTarget && (
         <DeleteConfirmModal
           open={!!deleteTarget}
@@ -1625,6 +1501,15 @@ function PPPoEPageInner() {
         />
       )}
     </AppLayout>
+  );
+}
+
+function YesNoRow({ label, value, yes, no }: { label: string; value?: boolean; yes: string; no: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <Badge variant={value ? "default" : "secondary"}>{value ? yes : no}</Badge>
+    </div>
   );
 }
 

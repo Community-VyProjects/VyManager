@@ -205,7 +205,7 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_shaper_fwmark_delete(self) -> List[str]:
         return BASE + ["shaper", "fwmark"]
 
-    def get_shaper_delete(self) -> List[str]:
+    def get_shaper(self) -> List[str]:
         return BASE + ["shaper"]
 
     # ========================================================================
@@ -215,12 +215,15 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_snmp_master_agent(self) -> List[str]:
         return BASE + ["snmp", "master-agent"]
 
-    def get_snmp_delete(self) -> List[str]:
+    def get_snmp(self) -> List[str]:
         return BASE + ["snmp"]
 
     # ========================================================================
     # Extended scripts
     # ========================================================================
+
+    def get_extended_scripts(self) -> List[str]:
+        return BASE + ["extended-scripts"]
 
     def get_extended_scripts_on_change(self, script: str) -> List[str]:
         return BASE + ["extended-scripts", "on-change", script]
@@ -268,7 +271,7 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_limits_timeout_delete(self) -> List[str]:
         return BASE + ["limits", "timeout"]
 
-    def get_limits_delete(self) -> List[str]:
+    def get_limits(self) -> List[str]:
         return BASE + ["limits"]
 
     # ========================================================================
@@ -402,6 +405,9 @@ class PPPoEServerMapper(BaseFeatureMapper):
 
     def get_local_user_rate_limit_upload(self, username: str, value: str) -> List[str]:
         return BASE + ["authentication", "local-users", "username", username, "rate-limit", "upload", value]
+
+    def get_local_user_rate_limit_delete(self, username: str) -> List[str]:
+        return BASE + ["authentication", "local-users", "username", username, "rate-limit"]
 
     def get_local_user_rate_limit_upload_delete(self, username: str) -> List[str]:
         return BASE + ["authentication", "local-users", "username", username, "rate-limit", "upload"]

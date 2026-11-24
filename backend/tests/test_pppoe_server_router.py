@@ -10,7 +10,7 @@ import inspect
 import re
 import threading
 from types import SimpleNamespace
-from typing import cast
+from typing import Optional, cast
 
 import pytest
 from fastapi import FastAPI, HTTPException, Request
@@ -34,8 +34,8 @@ class Service:
         self.threads = []
         self.loop_threads = []
         self.status = 200
-        self.error = None
-        self.raise_on_execute = None
+        self.error: Optional[str] = None
+        self.raise_on_execute: Optional[Exception] = None
         self.device = SimpleNamespace(reset=self._reset)
 
     def get_version(self):
@@ -147,7 +147,10 @@ def test_registry_mapper_parses_into_the_response_model(version):
     assert data["accept_blank_service"] is False
     assert data["pado_delays"] == [{"delay": "100", "sessions": "50"}]
     assert data["log"] == {"level": "3"}
-    assert data["snmp"] == {"master_agent": True}
+    assert data["snmp"] == {"enabled": True, "master_agent": True}
+    assert data["limits"] == {"enabled": True, "burst": "3", "connection_limit": None, "timeout": None}
+    assert data["shaper"] == {"enabled": False, "fwmark": None}
+    assert data["extended_scripts"]["enabled"] is False
     assert data["ppp_options"]["disable_ccp"] is True
     assert data["ppp_options"]["ipv6_peer_interface_id_secret"] == "***"
     auth = data["authentication"]
@@ -193,16 +196,11 @@ def test_unconfigured_has_the_same_shape_as_configured():
     empty = mapper.parse_config({})
     full = mapper.parse_config(FULL_TREE)
 
-    def shape(value):
-        if isinstance(value, dict):
-            return {key: shape(item) for key, item in value.items()}
-        return type(value).__name__ if isinstance(value, (list, bool, int)) else "scalar"
-
     assert empty["configured"] is False
     assert set(empty) == set(full)
     for key in ("log", "shaper", "snmp", "extended_scripts", "limits", "ppp_options", "authentication", "totals"):
         assert set(empty[key]) == set(full[key]), key
-    assert shape(empty["authentication"]["radius"]).keys() == shape(full["authentication"]["radius"]).keys()
+    assert set(empty["authentication"]["radius"]) == set(full["authentication"]["radius"])
     assert empty["totals"] == dict.fromkeys(full["totals"], 0)
     PPPoEConfig(**empty)
 
@@ -212,6 +210,17 @@ def test_bare_root_is_configured_and_flags_parse_false():
 
     assert data.configured is True
     assert data.accept_any_service is False
+    assert data.snmp.master_agent is False
+    for section in (data.shaper, data.snmp, data.extended_scripts, data.limits):
+        assert section.enabled is False
+
+
+def test_bare_sections_parse_enabled():
+    """A bare shaper, snmp, extended-scripts or limits node turns its module on."""
+    tree = {"service": {"pppoe-server": {"shaper": {}, "snmp": {}, "extended-scripts": {}, "limits": {}}}}
+    data = PPPoEConfig(**PPPoEServerMapper("1.4").parse_config(tree))
+    for section in (data.shaper, data.snmp, data.extended_scripts, data.limits):
+        assert section.enabled is True
     assert data.snmp.master_agent is False
     assert data.authentication.any_login is False
     assert data.authentication.radius.preallocate_vif is False
@@ -438,6 +447,25 @@ def test_three_part_op_splits_on_the_bar(monkeypatch):
     assert response.status_code == 200
     assert [op["path"] for op in service.executed[0]] == [
         BASE + ["client-ipv6-pool", "P6", "delegate", "2001:db8::/48", "delegation-prefix", "56"],
+    ]
+
+
+def test_pado_delays_are_global_ops_in_one_batch(monkeypatch):
+    """Every PADO delay in one Advanced save goes through one request item."""
+    service = Service()
+    client = _app(monkeypatch, service)
+
+    response = _post(client, "pppoe", [
+        {"op": "delete_pado_delay", "value": "100"},
+        {"op": "set_pado_delay_sessions", "value": "200|64"},
+        {"op": "delete_pado_delay_sessions", "value": "300"},
+    ])
+
+    assert response.status_code == 200
+    assert [(op["op"], op["path"]) for op in service.executed[0]] == [
+        ("delete", BASE + ["pado-delay", "100"]),
+        ("set", BASE + ["pado-delay", "200", "sessions", "64"]),
+        ("delete", BASE + ["pado-delay", "300", "sessions"]),
     ]
 
 

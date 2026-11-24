@@ -47,8 +47,6 @@
   "overview": {
     "generalSettings": "General Settings",
     "accessConcentrator": "Access Concentrator",
-    "serviceName": "Service Name",
-    "gatewayAddresses": "Gateway Addresses",
     "nameServers": "Name Servers",
     "winsServers": "WINS Servers",
     "maxSessions": "Max Sessions",
@@ -199,16 +197,6 @@
     "title": "Session traffic history",
     "description": "Select rate, PPS, or total traffic from the graph."
   },
-  "legacyLabelEditor": {
-    "description": "Store the PPPoE label catalog in Postgres. Rules drive the session badge labels shown in the table.",
-    "definitions": "Definitions",
-    "new": "New",
-    "noLabels": "No labels defined.",
-    "rxBytes": "RX bytes",
-    "txBytes": "TX bytes",
-    "rxRate": "RX Rate",
-    "txRate": "TX Rate"
-  },
   "labelRegistry": {
     "title": "Session label registry",
     "description": "Rules are stored in Postgres and evaluated on the client. PPPoE RX is upload and TX is download.",
@@ -260,7 +248,8 @@
     "selectInterface": "Select an interface",
     "vlanPlaceholder": "100 or 100-200",
     "vlanMonitoring": "VLAN Monitoring",
-    "combined": "Combined (simultaneous sessions)",
-    "adding": "Adding..."
+    "adding": "Adding...",
+    "vlanInvalid": "VLAN {vlan} must be an id or a start-end range between {min} and {max}",
+    "vlanMonWithoutVlan": "VLAN monitoring needs at least one VLAN"
   }
 }

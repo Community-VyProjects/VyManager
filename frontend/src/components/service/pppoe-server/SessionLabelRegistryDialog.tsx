@@ -68,7 +68,7 @@ export function SessionLabelRegistryDialog({
       ...draft,
       {
         code: `custom-label-${Date.now()}`,
-        name: "New label",
+        name: t("newLabel"),
         description: "",
         severity: "info",
         priority: 10,
@@ -88,8 +88,12 @@ export function SessionLabelRegistryDialog({
     onDraftChange(draft.filter((_, i) => i !== index));
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!saving) onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle>{t("title")}</DialogTitle>
@@ -100,7 +104,7 @@ export function SessionLabelRegistryDialog({
 
         <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive whitespace-pre-wrap">
               {error}
             </div>
           )}
@@ -112,7 +116,7 @@ export function SessionLabelRegistryDialog({
           ) : (
             draft.map((label, index) => (
               <div
-                key={`${label.code}-${index}`}
+                key={index}
                 className="rounded-lg border bg-muted/10 p-4 space-y-4"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -278,7 +282,7 @@ export function SessionLabelRegistryDialog({
             <Plus className="h-4 w-4 mr-2" /> {t("newLabel")}
           </Button>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={saving}>
               <X className="h-4 w-4 mr-2" /> {tc("cancel")}
             </Button>
             <Button size="sm" onClick={onSave} disabled={saving}>

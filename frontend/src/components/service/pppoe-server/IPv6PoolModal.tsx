@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -15,63 +15,68 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Network, Plus, Trash2 } from "lucide-react";
 import { pppoeServerService, PPPoEIPv6Pool } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import {
+  ipv6PoolProblem,
+  PPPOE_RANGES,
+  type PPPoEIPv6DelegateRow,
+  type PPPoEIPv6PrefixRow,
+} from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface IPv6PoolModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingPool: PPPoEIPv6Pool | null;
+  /** Configured IPv6 pool names; Add rejects them. */
+  poolNames: string[];
 }
 
-export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: IPv6PoolModalProps) {
+export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool, poolNames }: IPv6PoolModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
   const isEdit = !!existingPool;
-
-  const [name, setName] = useState("");
-  const [prefixes, setPrefixes] = useState<Array<{ prefix: string; mask: string }>>([]);
-  const [delegates, setDelegates] = useState<Array<{ prefix: string; delegation_prefix: string }>>([]);
-
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  const [name, setName] = useState(existingPool?.name || "");
+  const [prefixes, setPrefixes] = useState<PPPoEIPv6PrefixRow[]>(() => existingPool
+    ? existingPool.prefixes.map((p) => ({ prefix: p.prefix, mask: p.mask || "" }))
+    : [{ prefix: "", mask: "" }]);
+  const [delegates, setDelegates] = useState<PPPoEIPv6DelegateRow[]>(() => (existingPool?.delegates ?? [])
+    .map((d) => ({ prefix: d.prefix, delegation_prefix: d.delegation_prefix || "" })));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      if (existingPool) {
-        setName(existingPool.name);
-        setPrefixes((existingPool.prefixes || []).map((p) => ({ prefix: p.prefix, mask: p.mask || "" })));
-        setDelegates((existingPool.delegates || []).map((d) => ({ prefix: d.prefix, delegation_prefix: d.delegation_prefix || "" })));
-      } else {
-        setName("");
-        setPrefixes([{ prefix: "", mask: "" }]);
-        setDelegates([]);
-      }
-      setError(null);
-    }
-  }, [open, existingPool]);
+  const mask = PPPOE_RANGES.ipv6PrefixMask;
+  const delegation = PPPOE_RANGES.ipv6DelegationPrefix;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
+
+  const updatePrefix = (index: number, patch: Partial<PPPoEIPv6PrefixRow>) => {
+    setPrefixes(prefixes.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+
+  const updateDelegate = (index: number, patch: Partial<PPPoEIPv6DelegateRow>) => {
+    setDelegates(delegates.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError(t("poolNameRequired")); return; }
-
+    const draft = { name, prefixes, delegates };
+    const issue = ipv6PoolProblem(existingPool, draft, poolNames);
+    if (issue) {
+      const { problem, params } = issue;
+      setError(problem === "poolNameRequired" || problem === "poolExists"
+        ? t(problem, params)
+        : t(`ipv6Pool.${problem}`, params));
+      return;
+    }
     setLoading(true);
     setError(null);
-
-    const validPrefixes = prefixes.filter((p) => p.prefix && p.mask);
-    const validDelegates = delegates.filter((d) => d.prefix && d.delegation_prefix);
-
     try {
-      if (isEdit) {
-        await pppoeServerService.deleteIPv6Pool(existingPool!.name);
-      }
-      const result = await pppoeServerService.createIPv6Pool(name.trim(), validPrefixes, validDelegates);
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("ipv6Pool.saveFailed"));
-      }
+      await pppoeServerService.saveIPv6Pool(existingPool, draft);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("ipv6Pool.saveFailed"));
     } finally {
@@ -80,7 +85,7 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -92,8 +97,14 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("poolName")}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ipv6-pool1" disabled={isEdit} />
+            <Label htmlFor="pppoe-ipv6-pool-name">{t("poolName")}</Label>
+            <Input
+              id="pppoe-ipv6-pool-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="ipv6-pool1"
+              disabled={isEdit}
+            />
           </div>
 
           <div className="space-y-2">
@@ -107,14 +118,17 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
               <div key={i} className="flex gap-2">
                 <Input
                   value={p.prefix}
-                  onChange={(e) => { const np = [...prefixes]; np[i].prefix = e.target.value; setPrefixes(np); }}
+                  onChange={(e) => updatePrefix(i, { prefix: e.target.value })}
                   placeholder="2001:db8::/48"
                   className="flex-1"
                 />
                 <Input
+                  type="number"
+                  min={mask.min}
+                  max={mask.max}
                   value={p.mask}
-                  onChange={(e) => { const np = [...prefixes]; np[i].mask = e.target.value; setPrefixes(np); }}
-                  placeholder={t("ipv6Pool.maskPlaceholder")}
+                  onChange={(e) => updatePrefix(i, { mask: e.target.value })}
+                  placeholder={t("ipv6Pool.maskPlaceholder", { min: mask.min, max: mask.max })}
                   className="w-32"
                 />
                 <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setPrefixes(prefixes.filter((_, j) => j !== i))}>
@@ -135,14 +149,17 @@ export function IPv6PoolModal({ open, onOpenChange, onSuccess, existingPool }: I
               <div key={i} className="flex gap-2">
                 <Input
                   value={d.prefix}
-                  onChange={(e) => { const nd = [...delegates]; nd[i].prefix = e.target.value; setDelegates(nd); }}
+                  onChange={(e) => updateDelegate(i, { prefix: e.target.value })}
                   placeholder="2001:db8:1::/48"
                   className="flex-1"
                 />
                 <Input
+                  type="number"
+                  min={delegation.min}
+                  max={delegation.max}
                   value={d.delegation_prefix}
-                  onChange={(e) => { const nd = [...delegates]; nd[i].delegation_prefix = e.target.value; setDelegates(nd); }}
-                  placeholder={t("ipv6Pool.delegationPlaceholder")}
+                  onChange={(e) => updateDelegate(i, { delegation_prefix: e.target.value })}
+                  placeholder={t("ipv6Pool.delegationPlaceholder", { min: delegation.min, max: delegation.max })}
                   className="w-36"
                 />
                 <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setDelegates(delegates.filter((_, j) => j !== i))}>

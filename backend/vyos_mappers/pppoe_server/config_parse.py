@@ -192,15 +192,19 @@ def parse_config(_mapper: Any, full_config: Dict[str, Any]) -> Dict[str, Any]:
         "accept_blank_service": "accept-blank-service" in cfg,
         "pado_delays": _parse_pado_delays(_dict(cfg.get("pado-delay"))),
         "log": {"level": log.get("level")},
-        "shaper": {"fwmark": shaper.get("fwmark")},
-        "snmp": {"master_agent": "master-agent" in snmp},
+        # A bare shaper, snmp, extended-scripts or limits node commits and
+        # turns the module on, so each section reads its presence by key.
+        "shaper": {"enabled": "shaper" in cfg, "fwmark": shaper.get("fwmark")},
+        "snmp": {"enabled": "snmp" in cfg, "master_agent": "master-agent" in snmp},
         "extended_scripts": {
+            "enabled": "extended-scripts" in cfg,
             "on_change": scripts.get("on-change"),
             "on_down": scripts.get("on-down"),
             "on_pre_up": scripts.get("on-pre-up"),
             "on_up": scripts.get("on-up"),
         },
         "limits": {
+            "enabled": "limits" in cfg,
             "burst": limits.get("burst"),
             "connection_limit": limits.get("connection-limit"),
             "timeout": limits.get("timeout"),

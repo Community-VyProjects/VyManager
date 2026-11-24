@@ -2,8 +2,8 @@
 
 Batch operations for ``service pppoe-server``. The batch router binds the first
 parameter to ``item_name`` (an interface, a pool name, a username, a RADIUS
-server, a PADO delay, or a placeholder for global settings) and the value to
-the second.
+server, or a placeholder for global settings, PADO delays included) and the
+value, split on ``|``, to the rest.
 """
 
 from typing import Any, Dict, List, cast
@@ -175,22 +175,23 @@ class PPPoEServerBatchBuilder(BatchBuilder):
 
     # ========================================================================
     # PADO delay
-    # item_name = delay value (e.g. "0", "disable")
+    # Global ops: the delay (e.g. "100", "disable") is the value, so one
+    # Advanced save edits every delay in a single batch.
     # ========================================================================
 
-    def set_pado_delay(self, delay: str) -> "PPPoEServerBatchBuilder":
+    def set_pado_delay(self, _unused: str, delay: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self._m().get_pado_delay(delay))
 
-    def delete_pado_delay(self, delay: str) -> "PPPoEServerBatchBuilder":
+    def delete_pado_delay(self, _unused: str, delay: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self._m().get_pado_delay_delete(delay))
 
     def delete_all_pado_delays(self, _unused: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self._m().get_pado_delay_all_delete())
 
-    def set_pado_delay_sessions(self, delay: str, sessions: str) -> "PPPoEServerBatchBuilder":
+    def set_pado_delay_sessions(self, _unused: str, delay: str, sessions: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self._m().get_pado_delay_sessions(delay, sessions))
 
-    def delete_pado_delay_sessions(self, delay: str) -> "PPPoEServerBatchBuilder":
+    def delete_pado_delay_sessions(self, _unused: str, delay: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self._m().get_pado_delay_sessions_delete(delay))
 
     # ========================================================================
@@ -207,28 +208,47 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # Shaper
     # ========================================================================
 
+    def set_shaper(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn the shaper on without a fwmark (a bare node commits)."""
+        return self.add_set(self._m().get_shaper())
+
+    def delete_shaper(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_shaper())
+
     def set_shaper_fwmark(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self._m().get_shaper_fwmark(value))
 
     def delete_shaper_fwmark(self, _unused: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self._m().get_shaper_fwmark_delete())
 
-    def delete_shaper(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self._m().get_shaper_delete())
-
     # ========================================================================
     # SNMP
     # ========================================================================
 
+    def set_snmp(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn SNMP on without the master agent (a bare node commits)."""
+        return self.add_set(self._m().get_snmp())
+
+    def delete_snmp(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_snmp())
+
     def set_snmp_master_agent(self, _unused: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self._m().get_snmp_master_agent())
 
-    def delete_snmp(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self._m().get_snmp_delete())
+    def delete_snmp_master_agent(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_snmp_master_agent())
 
     # ========================================================================
     # Extended scripts
     # ========================================================================
+
+    def set_extended_scripts(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn extended scripts on without a script (a bare node commits)."""
+        return self.add_set(self._m().get_extended_scripts())
+
+    def delete_extended_scripts(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Drop the node; an empty ``extended-scripts`` still loads pppd_compat."""
+        return self.add_delete(self._m().get_extended_scripts())
 
     def set_script_on_change(self, _unused: str, script: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self._m().get_extended_scripts_on_change(script))
@@ -258,6 +278,13 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     # Limits
     # ========================================================================
 
+    def set_limits(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        """Turn connection limits on with defaults (a bare node commits)."""
+        return self.add_set(self._m().get_limits())
+
+    def delete_limits(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_limits())
+
     def set_limits_burst(self, _unused: str, value: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self._m().get_limits_burst(value))
 
@@ -275,9 +302,6 @@ class PPPoEServerBatchBuilder(BatchBuilder):
 
     def delete_limits_timeout(self, _unused: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self._m().get_limits_timeout_delete())
-
-    def delete_limits(self, _unused: str) -> "PPPoEServerBatchBuilder":
-        return self.add_delete(self._m().get_limits_delete())
 
     # ========================================================================
     # PPP options
@@ -441,6 +465,10 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     def delete_local_user_rate_limit_upload(self, username: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self._m().get_local_user_rate_limit_upload_delete(username))
 
+    def delete_local_user_rate_limit(self, username: str) -> "PPPoEServerBatchBuilder":
+        """Clear both directions: deleting both leaves leaves ``rate-limit {}``, which verify rejects."""
+        return self.add_delete(self._m().get_local_user_rate_limit_delete(username))
+
     # ========================================================================
     # Authentication - RADIUS servers
     # item_name = RADIUS server IP
@@ -582,6 +610,9 @@ class PPPoEServerBatchBuilder(BatchBuilder):
 
     def set_radius_rate_limit_enable(self, _unused: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self._m().get_radius_rate_limit_enable())
+
+    def delete_radius_rate_limit_enable(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self._m().get_radius_rate_limit_enable())
 
     def delete_radius_rate_limit(self, _unused: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self._m().get_radius_rate_limit_delete())

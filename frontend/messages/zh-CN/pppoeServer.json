@@ -47,8 +47,6 @@
   "overview": {
     "generalSettings": "常规设置",
     "accessConcentrator": "访问集中器 (AC 名称)",
-    "serviceName": "服务名称",
-    "gatewayAddresses": "网关地址",
     "nameServers": "DNS 服务器",
     "winsServers": "WINS 服务器",
     "maxSessions": "最大会话数",
@@ -199,16 +197,6 @@
     "title": "会话流量历史",
     "description": "可在图表中选择速率、PPS 或总流量。"
   },
-  "legacyLabelEditor": {
-    "description": "将 PPPoE 标签目录存储在 Postgres 中。规则决定表格中显示的会话标签。",
-    "definitions": "定义",
-    "new": "新建",
-    "noLabels": "未定义标签。",
-    "rxBytes": "RX 字节",
-    "txBytes": "TX 字节",
-    "rxRate": "RX 速率",
-    "txRate": "TX 速率"
-  },
   "labelRegistry": {
     "title": "会话标签注册表",
     "description": "规则存储在 Postgres 中，并在客户端评估。PPPoE 的 RX 为上传，TX 为下载。",
@@ -260,7 +248,8 @@
     "selectInterface": "选择接口",
     "vlanPlaceholder": "100 或 100-200",
     "vlanMonitoring": "VLAN 监控",
-    "combined": "组合（同时会话数）",
-    "adding": "正在添加..."
+    "adding": "正在添加...",
+    "vlanInvalid": "VLAN {vlan} 必须是介于 {min} 和 {max} 之间的 ID 或 起始-结束 范围",
+    "vlanMonWithoutVlan": "VLAN 监控至少需要一个 VLAN"
   }
 }

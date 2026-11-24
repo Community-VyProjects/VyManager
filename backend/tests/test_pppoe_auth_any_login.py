@@ -14,7 +14,7 @@ from vyos_mappers.pppoe_server.pppoe_server import PPPoEServerMapper
 
 REPO = Path(__file__).resolve().parents[2]
 MODAL = REPO / "frontend/src/components/service/pppoe-server/AuthSettingsModal.tsx"
-API = REPO / "frontend/src/lib/api/pppoe-server.ts"
+SAVE_OPS = REPO / "frontend/src/lib/api/pppoe-server-save-ops.ts"
 ROUTER = REPO / "backend/routers/pppoe_server/pppoe_server.py"
 
 PATH = ["service", "pppoe-server", "authentication", "any-login"]
@@ -66,8 +66,8 @@ def test_auth_modal_gates_any_login():
     assert "1.4 only" not in text
 
 
-def test_api_emits_any_login_ops():
-    text = API.read_text()
+def test_save_ops_emit_any_login_ops():
+    text = SAVE_OPS.read_text()
     assert "set_auth_any_login" in text
     assert "delete_auth_any_login" in text
 

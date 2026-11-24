@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -15,93 +15,76 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
-import { pppoeServerService, PPPoEConfigResponse } from "@/lib/api/pppoe-server";
-import { ApiError } from "@/lib/types/api";
+import { CapabilitySelect } from "./CapabilitySelect";
+import { pppoeServerService, PPPoECapabilities, PPPoEPppOptions } from "@/lib/api/pppoe-server";
+import {
+  CALLING_SID,
+  PPPOE_RANGES,
+  pppOptionsProblem,
+  type PPPoEPppOptionsDraft,
+} from "@/lib/api/pppoe-server-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface PPPOptionsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  config: PPPoEConfigResponse;
+  current: PPPoEPppOptions;
+  capabilities: PPPoECapabilities | null;
 }
 
-const IP_MODES = ["deny", "allow", "prefer", "require"];
-
-export function PPPOptionsModal({ open, onOpenChange, onSuccess, config }: PPPOptionsModalProps) {
+export function PPPOptionsModal({ open, onOpenChange, onSuccess, current, capabilities }: PPPOptionsModalProps) {
   const t = useTranslations("pppoeServerSettings");
   const tc = useTranslations("common");
-  const [ipv4, setIpv4] = useState("__none__");
-  const [ipv6, setIpv6] = useState("__none__");
-  const [mppe, setMppe] = useState("__none__");
-  const [disableCcp, setDisableCcp] = useState(false);
-  const [interfaceCache, setInterfaceCache] = useState("");
-  const [minMtu, setMinMtu] = useState("");
-  const [mru, setMru] = useState("");
-  const [lcpEchoFailure, setLcpEchoFailure] = useState("");
-  const [lcpEchoInterval, setLcpEchoInterval] = useState("");
-  const [lcpEchoTimeout, setLcpEchoTimeout] = useState("");
-  const [ipv6InterfaceId, setIpv6InterfaceId] = useState("");
-  const [ipv6PeerInterfaceId, setIpv6PeerInterfaceId] = useState("");
-  const [ipv6AcceptPeer, setIpv6AcceptPeer] = useState(false);
-
+  // The page remounts this modal (key) on every open, so state seeds from props.
+  // The optional peer-id secret loads as the mask: the mask keeps it, blank deletes it.
+  const [draft, setDraft] = useState<PPPoEPppOptionsDraft>(() => ({
+    ipv4: current.ipv4 || "",
+    ipv6: current.ipv6 || "",
+    mppe: current.mppe || "",
+    disable_ccp: current.disable_ccp,
+    interface_cache: current.interface_cache || "",
+    min_mtu: current.min_mtu || "",
+    mru: current.mru || "",
+    lcp_echo_failure: current.lcp_echo_failure || "",
+    lcp_echo_interval: current.lcp_echo_interval || "",
+    lcp_echo_timeout: current.lcp_echo_timeout || "",
+    ipv6_interface_id: current.ipv6_interface_id || "",
+    ipv6_peer_interface_id: current.ipv6_peer_interface_id || "",
+    ipv6_peer_interface_id_secret: current.ipv6_peer_interface_id_secret || "",
+    ipv6_accept_peer_interface_id: current.ipv6_accept_peer_interface_id,
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ppp = config.ppp_options || {};
+  const values = capabilities?.values;
+  const secretSupported = capabilities?.features.ipv6_peer_interface_id_secret ?? false;
+  const showSecret = secretSupported && draft.ipv6_peer_interface_id.trim() === CALLING_SID;
+  const mppeLabels: Record<string, string> = {
+    require: t("pppOptions.mppeRequire"),
+    prefer: t("pppOptions.mppePrefer"),
+    deny: t("pppOptions.mppeDeny"),
+  };
+  const cache = PPPOE_RANGES.interfaceCache;
+  const update = (patch: Partial<PPPoEPppOptionsDraft>) => setDraft((d) => ({ ...d, ...patch }));
 
-  useEffect(() => {
-    if (open) {
-      setIpv4(ppp.ipv4 || "__none__");
-      setIpv6(ppp.ipv6 || "__none__");
-      setMppe(ppp.mppe || "__none__");
-      setDisableCcp(ppp.disable_ccp || false);
-      setInterfaceCache(ppp.interface_cache || "");
-      setMinMtu(ppp.min_mtu || "");
-      setMru(ppp.mru || "");
-      setLcpEchoFailure(ppp.lcp_echo_failure || "");
-      setLcpEchoInterval(ppp.lcp_echo_interval || "");
-      setLcpEchoTimeout(ppp.lcp_echo_timeout || "");
-      setIpv6InterfaceId(ppp.ipv6_interface_id || "");
-      setIpv6PeerInterfaceId(ppp.ipv6_peer_interface_id || "");
-      setIpv6AcceptPeer(ppp.ipv6_accept_peer_interface_id || false);
-      setError(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form from ppp config when the modal opens
-  }, [open, config]);
+  const handleOpenChange = (next: boolean) => {
+    if (!loading) onOpenChange(next);
+  };
 
   const handleSubmit = async () => {
+    const issue = pppOptionsProblem(current, draft, secretSupported);
+    if (issue) {
+      setError(t(`pppOptions.${issue.problem}`, issue.params));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const result = await pppoeServerService.updatePPPOptions(ppp, {
-        ipv4: ipv4 === "__none__" ? "" : ipv4,
-        ipv6: ipv6 === "__none__" ? "" : ipv6,
-        mppe: mppe === "__none__" ? "" : mppe,
-        disable_ccp: disableCcp,
-        interface_cache: interfaceCache,
-        min_mtu: minMtu,
-        mru,
-        lcp_echo_failure: lcpEchoFailure,
-        lcp_echo_interval: lcpEchoInterval,
-        lcp_echo_timeout: lcpEchoTimeout,
-        ipv6_interface_id: ipv6InterfaceId,
-        ipv6_peer_interface_id: ipv6PeerInterfaceId,
-        ipv6_accept_peer_interface_id: ipv6AcceptPeer,
-      });
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("pppOptions.updateFailed"));
-      }
+      await pppoeServerService.updatePPPOptions(current, draft, secretSupported);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("pppOptions.updateFailed"));
     } finally {
@@ -110,7 +93,7 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, config }: PPPOp
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -124,43 +107,39 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, config }: PPPOp
           <h4 className="text-sm font-medium">{t("pppOptions.ipNegotiation")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>IPv4</Label>
-              <Select value={ipv4} onValueChange={setIpv4}>
-                <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">{tc("default")}</SelectItem>
-                  {IP_MODES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="pppoe-ppp-ipv4">IPv4</Label>
+              <CapabilitySelect
+                id="pppoe-ppp-ipv4"
+                value={draft.ipv4}
+                values={values?.ppp_negotiation_modes || []}
+                onChange={(ipv4) => update({ ipv4 })}
+              />
             </div>
             <div className="space-y-2">
-              <Label>IPv6</Label>
-              <Select value={ipv6} onValueChange={setIpv6}>
-                <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">{tc("default")}</SelectItem>
-                  {IP_MODES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="pppoe-ppp-ipv6">IPv6</Label>
+              <CapabilitySelect
+                id="pppoe-ppp-ipv6"
+                value={draft.ipv6}
+                values={values?.ppp_negotiation_modes || []}
+                onChange={(ipv6) => update({ ipv6 })}
+              />
             </div>
           </div>
 
           <Separator />
           <h4 className="text-sm font-medium">{t("pppOptions.encryption")}</h4>
           <div className="space-y-2">
-            <Label>MPPE</Label>
-            <Select value={mppe} onValueChange={setMppe}>
-              <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">{tc("default")}</SelectItem>
-                <SelectItem value="require">{t("pppOptions.mppeRequire")}</SelectItem>
-                <SelectItem value="prefer">{t("pppOptions.mppePrefer")}</SelectItem>
-                <SelectItem value="deny">{t("pppOptions.mppeDeny")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="pppoe-ppp-mppe">MPPE</Label>
+            <CapabilitySelect
+              id="pppoe-ppp-mppe"
+              value={draft.mppe}
+              values={values?.mppe_modes || []}
+              labels={mppeLabels}
+              onChange={(mppe) => update({ mppe })}
+            />
           </div>
           <div className="flex items-center gap-2">
-            <Checkbox id="disable-ccp" checked={disableCcp} onCheckedChange={(v) => setDisableCcp(!!v)} />
+            <Checkbox id="disable-ccp" checked={draft.disable_ccp} onCheckedChange={(v) => update({ disable_ccp: !!v })} />
             <Label htmlFor="disable-ccp" className="cursor-pointer">{t("pppOptions.disableCcp")}</Label>
           </div>
 
@@ -168,16 +147,24 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, config }: PPPOp
           <h4 className="text-sm font-medium">MTU/MRU</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>{t("pppOptions.minMtu")}</Label>
-              <Input value={minMtu} onChange={(e) => setMinMtu(e.target.value)} placeholder="1280" />
+              <Label htmlFor="pppoe-ppp-min-mtu">{t("pppOptions.minMtu")}</Label>
+              <Input id="pppoe-ppp-min-mtu" value={draft.min_mtu} onChange={(e) => update({ min_mtu: e.target.value })} placeholder="1280" />
             </div>
             <div className="space-y-2">
-              <Label>MRU</Label>
-              <Input value={mru} onChange={(e) => setMru(e.target.value)} placeholder="1492" />
+              <Label htmlFor="pppoe-ppp-mru">MRU</Label>
+              <Input id="pppoe-ppp-mru" value={draft.mru} onChange={(e) => update({ mru: e.target.value })} placeholder="1492" />
             </div>
             <div className="space-y-2">
-              <Label>{t("pppOptions.interfaceCache")}</Label>
-              <Input value={interfaceCache} onChange={(e) => setInterfaceCache(e.target.value)} placeholder="0" />
+              <Label htmlFor="pppoe-ppp-cache">{t("pppOptions.interfaceCache")}</Label>
+              <Input
+                id="pppoe-ppp-cache"
+                type="number"
+                min={cache.min}
+                max={cache.max}
+                value={draft.interface_cache}
+                onChange={(e) => update({ interface_cache: e.target.value })}
+                placeholder={`${cache.min}-${cache.max}`}
+              />
             </div>
           </div>
 
@@ -185,16 +172,16 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, config }: PPPOp
           <h4 className="text-sm font-medium">{t("pppOptions.lcpEchoKeepalive")}</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>{t("pppOptions.failure")}</Label>
-              <Input value={lcpEchoFailure} onChange={(e) => setLcpEchoFailure(e.target.value)} placeholder="3" />
+              <Label htmlFor="pppoe-lcp-failure">{t("pppOptions.failure")}</Label>
+              <Input id="pppoe-lcp-failure" value={draft.lcp_echo_failure} onChange={(e) => update({ lcp_echo_failure: e.target.value })} placeholder="3" />
             </div>
             <div className="space-y-2">
-              <Label>{t("pppOptions.interval")}</Label>
-              <Input value={lcpEchoInterval} onChange={(e) => setLcpEchoInterval(e.target.value)} placeholder="30" />
+              <Label htmlFor="pppoe-lcp-interval">{t("pppOptions.interval")}</Label>
+              <Input id="pppoe-lcp-interval" value={draft.lcp_echo_interval} onChange={(e) => update({ lcp_echo_interval: e.target.value })} placeholder="30" />
             </div>
             <div className="space-y-2">
-              <Label>{t("pppOptions.timeout")}</Label>
-              <Input value={lcpEchoTimeout} onChange={(e) => setLcpEchoTimeout(e.target.value)} placeholder="0" />
+              <Label htmlFor="pppoe-lcp-timeout">{t("pppOptions.timeout")}</Label>
+              <Input id="pppoe-lcp-timeout" value={draft.lcp_echo_timeout} onChange={(e) => update({ lcp_echo_timeout: e.target.value })} placeholder="0" />
             </div>
           </div>
 
@@ -202,16 +189,50 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, config }: PPPOp
           <h4 className="text-sm font-medium">{t("pppOptions.ipv6InterfaceIds")}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("pppOptions.interfaceId")}</Label>
-              <Input value={ipv6InterfaceId} onChange={(e) => setIpv6InterfaceId(e.target.value)} placeholder={t("pppOptions.interfaceIdPlaceholder")} />
+              <Label htmlFor="pppoe-ipv6-intf-id">{t("pppOptions.interfaceId")}</Label>
+              <Input
+                id="pppoe-ipv6-intf-id"
+                list="pppoe-ipv6-intf-id-keywords"
+                value={draft.ipv6_interface_id}
+                onChange={(e) => update({ ipv6_interface_id: e.target.value })}
+                placeholder={t("pppOptions.interfaceIdPlaceholder")}
+              />
+              <datalist id="pppoe-ipv6-intf-id-keywords">
+                {(values?.ipv6_interface_id_keywords || []).map((k) => <option key={k} value={k} />)}
+              </datalist>
             </div>
             <div className="space-y-2">
-              <Label>{t("pppOptions.peerInterfaceId")}</Label>
-              <Input value={ipv6PeerInterfaceId} onChange={(e) => setIpv6PeerInterfaceId(e.target.value)} placeholder="x:x:x:x" />
+              <Label htmlFor="pppoe-ipv6-peer-id">{t("pppOptions.peerInterfaceId")}</Label>
+              <Input
+                id="pppoe-ipv6-peer-id"
+                list="pppoe-ipv6-peer-id-keywords"
+                value={draft.ipv6_peer_interface_id}
+                onChange={(e) => update({ ipv6_peer_interface_id: e.target.value })}
+                placeholder="x:x:x:x"
+              />
+              <datalist id="pppoe-ipv6-peer-id-keywords">
+                {(values?.ipv6_peer_interface_id_keywords || []).map((k) => <option key={k} value={k} />)}
+              </datalist>
             </div>
           </div>
+          {showSecret && (
+            <div className="space-y-2">
+              <Label htmlFor="pppoe-ipv6-peer-secret">{t("pppOptions.peerInterfaceIdSecret")}</Label>
+              <Input
+                id="pppoe-ipv6-peer-secret"
+                type="password"
+                autoComplete="new-password"
+                value={draft.ipv6_peer_interface_id_secret}
+                onChange={(e) => update({ ipv6_peer_interface_id_secret: e.target.value })}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-2">
-            <Checkbox id="accept-peer-id" checked={ipv6AcceptPeer} onCheckedChange={(v) => setIpv6AcceptPeer(!!v)} />
+            <Checkbox
+              id="accept-peer-id"
+              checked={draft.ipv6_accept_peer_interface_id}
+              onCheckedChange={(v) => update({ ipv6_accept_peer_interface_id: !!v })}
+            />
             <Label htmlFor="accept-peer-id" className="cursor-pointer">{t("pppOptions.acceptPeerInterfaceId")}</Label>
           </div>
         </div>
