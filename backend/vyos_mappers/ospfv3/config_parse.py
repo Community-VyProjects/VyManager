@@ -60,6 +60,7 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
 
     log_adj = ospfv3_config.get("log-adjacency-changes")
     return {
+        "configured": True,
         "parameters": parse_parameters(ospfv3_config.get("parameters", {})),
         "areas": areas,
         "interfaces": interfaces,
@@ -102,11 +103,11 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
         if config is None:
             config = {}
 
-        # Parse area type
+        # area-type has one child: stub (no-summary) or nssa (no-summary,
+        # default-information-originate). A normal area has no area-type.
         area_type_raw = config.get("area-type", {}) or {}
         area_type = None
         area_type_no_summary = False
-        area_type_default_cost = None
         nssa_default_information_originate = False
 
         if "stub" in area_type_raw:
@@ -114,18 +115,14 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
             stub_config = area_type_raw.get("stub", {}) or {}
             if isinstance(stub_config, dict):
                 area_type_no_summary = "no-summary" in stub_config
-                area_type_default_cost = _safe_int(stub_config.get("default-cost"))
         elif "nssa" in area_type_raw:
             area_type = "nssa"
             nssa_config = area_type_raw.get("nssa", {}) or {}
             if isinstance(nssa_config, dict):
                 area_type_no_summary = "no-summary" in nssa_config
-                area_type_default_cost = _safe_int(nssa_config.get("default-cost"))
                 nssa_default_information_originate = (
                     "default-information-originate" in nssa_config
                 )
-        elif "normal" in area_type_raw:
-            area_type = "normal"
 
         # Parse ranges
         ranges = []
@@ -145,7 +142,6 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
                 "area_id": area_id,
                 "area_type": area_type,
                 "area_type_no_summary": area_type_no_summary,
-                "area_type_default_cost": area_type_default_cost,
                 "nssa_default_information_originate": nssa_default_information_originate,
                 "ranges": ranges,
                 "export_list": config.get("export-list"),
@@ -262,12 +258,11 @@ def parse_graceful_restart(raw: dict) -> Dict[str, Any]:
 
     helper_raw = raw.get("helper", {}) or {}
 
-    # Parse helper enable - can be a flag or have router-id values
-    enable_raw = helper_raw.get("enable", {})
-    helper_enable = False
+    # helper enable is a node; router-id under it is a multi leaf.
+    helper_enable = "enable" in helper_raw
+    enable_raw = helper_raw.get("enable")
     router_ids = []
-    if enable_raw is not None:
-        helper_enable = True
+    if helper_enable:
         if isinstance(enable_raw, dict):
             rid_raw = enable_raw.get("router-id")
             if isinstance(rid_raw, dict):

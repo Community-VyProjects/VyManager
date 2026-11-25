@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -23,7 +24,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
-import type { Ospfv3Area, Ospfv3AreaRange } from "@/lib/api/ospfv3";
+import type { Ospfv3Area, Ospfv3AreaRange, Ospfv3Capabilities } from "@/lib/api/ospfv3";
+import {
+  ospfv3AreaProblem,
+  ospfv3ProblemArgs,
+  ospfv3RangeMode,
+  type Ospfv3RangeMode,
+} from "@/lib/api/ospfv3-save-ops";
 import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
@@ -34,6 +41,16 @@ interface Ospfv3AreaModalProps {
   existingArea?: Ospfv3Area | null;
   existingAreaIds: string[];
   accessListNames?: string[];
+  capabilities?: Ospfv3Capabilities | null;
+}
+
+interface RangeRow {
+  prefix: string;
+  mode: Ospfv3RangeMode;
+}
+
+function toRange(row: RangeRow): Ospfv3AreaRange {
+  return { prefix: row.prefix, advertise: row.mode === "advertise", not_advertise: row.mode === "not-advertise" };
 }
 
 export function Ospfv3AreaModal({
@@ -43,6 +60,7 @@ export function Ospfv3AreaModal({
   existingArea,
   existingAreaIds,
   accessListNames = [],
+  capabilities,
 }: Ospfv3AreaModalProps) {
   const t = useTranslations("ospfv3");
   const tc = useTranslations("common");
@@ -51,55 +69,34 @@ export function Ospfv3AreaModal({
   const [areaId, setAreaId] = useState("");
   const [areaType, setAreaType] = useState("");
   const [noSummary, setNoSummary] = useState(false);
-  const [defaultCost, setDefaultCost] = useState("");
   const [nssaDefaultOriginate, setNssaDefaultOriginate] = useState(false);
-  const [ranges, setRanges] = useState<Ospfv3AreaRange[]>([]);
+  const [ranges, setRanges] = useState<RangeRow[]>([]);
   const [newRangePrefix, setNewRangePrefix] = useState("");
-  const [newRangeAdvertise, setNewRangeAdvertise] = useState(true);
+  const [newRangeMode, setNewRangeMode] = useState<Ospfv3RangeMode>("advertise");
   const [exportList, setExportList] = useState("");
   const [importList, setImportList] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const areaTypes = capabilities?.features?.areas?.area_types || [];
+
   useEffect(() => {
-    if (open) {
-      if (existingArea) {
-        setAreaId(existingArea.area_id);
-        setAreaType(existingArea.area_type || "");
-        setNoSummary(existingArea.area_type_no_summary);
-        setDefaultCost(existingArea.area_type_default_cost != null ? String(existingArea.area_type_default_cost) : "");
-        setNssaDefaultOriginate(existingArea.nssa_default_information_originate);
-        setRanges([...existingArea.ranges]);
-        setExportList(existingArea.export_list || "");
-        setImportList(existingArea.import_list || "");
-        setNewRangePrefix("");
-        setNewRangeAdvertise(true);
-        setError(null);
-      } else {
-        resetForm();
-      }
-    }
+    if (!open) return;
+    const src = existingArea;
+    setAreaId(src?.area_id ?? "");
+    setAreaType(src?.area_type ?? "");
+    setNoSummary(src?.area_type_no_summary ?? false);
+    setNssaDefaultOriginate(src?.nssa_default_information_originate ?? false);
+    setRanges((src?.ranges || []).map((r) => ({ prefix: r.prefix, mode: ospfv3RangeMode(r) })));
+    setExportList(src?.export_list ?? "");
+    setImportList(src?.import_list ?? "");
+    setNewRangePrefix("");
+    setNewRangeMode("advertise");
+    setError(null);
   }, [open, existingArea]);
 
-  const resetForm = () => {
-    setAreaId("");
-    setAreaType("");
-    setNoSummary(false);
-    setDefaultCost("");
-    setNssaDefaultOriginate(false);
-    setRanges([]);
-    setNewRangePrefix("");
-    setNewRangeAdvertise(true);
-    setExportList("");
-    setImportList("");
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
+  const handleClose = () => onOpenChange(false);
 
   const handleOpenChange = (next: boolean) => {
     if (!next && !loading) handleClose();
@@ -108,63 +105,55 @@ export function Ospfv3AreaModal({
   const addRange = () => {
     const prefix = newRangePrefix.trim();
     if (!prefix) return;
-    if (ranges.some(r => r.prefix === prefix)) {
-      setError(t("areaModal.rangeExists"));
-      return;
-    }
-    setRanges([...ranges, {
-      prefix,
-      advertise: newRangeAdvertise,
-      not_advertise: !newRangeAdvertise,
-    }]);
+    setRanges([...ranges, { prefix, mode: newRangeMode }]);
     setNewRangePrefix("");
-    setNewRangeAdvertise(true);
+    setNewRangeMode("advertise");
     setError(null);
   };
 
-  const removeRange = (prefix: string) => {
-    setRanges(ranges.filter((r) => r.prefix !== prefix));
-  };
+  const subTyped = areaType === "stub" || areaType === "nssa";
 
-  const validateForm = (): string | null => {
-    if (!areaId.trim()) return t("areaModal.areaIdRequired");
-    if (!isEditMode && existingAreaIds.includes(areaId.trim())) return t("areaModal.areaIdExists");
-    return null;
-  };
+  const buildArea = (): Ospfv3Area => ({
+    area_id: areaId.trim(),
+    area_type: areaType || null,
+    area_type_no_summary: subTyped && noSummary,
+    nssa_default_information_originate: areaType === "nssa" && nssaDefaultOriginate,
+    ranges: ranges.map(toRange),
+    export_list: exportList || null,
+    import_list: importList || null,
+  });
 
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const area = buildArea();
+    const problem = ospfv3AreaProblem(area, capabilities, { existingIds: isEditMode ? [] : existingAreaIds });
+    if (problem) {
+      setError(t(`validation.${problem.key}`, ospfv3ProblemArgs(problem)));
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      const area: Ospfv3Area = {
-        area_id: areaId.trim(),
-        area_type: areaType || null,
-        area_type_no_summary: noSummary,
-        area_type_default_cost: defaultCost.trim() ? parseInt(defaultCost.trim(), 10) : null,
-        nssa_default_information_originate: areaType === "nssa" ? nssaDefaultOriginate : false,
-        ranges,
-        export_list: exportList || null,
-        import_list: importList || null,
-      };
-
       await onSubmit(area);
       handleClose();
     } catch (err: unknown) {
-      const message = (err as ApiError).message || tc("operationFailed");
-      setError(message);
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const showStubNssaOptions = areaType === "stub" || areaType === "nssa";
+  const modeSelect = (id: string, value: Ospfv3RangeMode, onChange: (mode: Ospfv3RangeMode) => void) => (
+    <Select value={value || NONE_SENTINEL} onValueChange={(v) => onChange(v === NONE_SENTINEL ? "" : (v as Ospfv3RangeMode))}>
+      <SelectTrigger id={id} className="w-36" aria-label={t("fields.ranges")}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+        <SelectItem value="advertise">{t("areaModal.advertise")}</SelectItem>
+        <SelectItem value="not-advertise">{t("areaModal.notAdvertise")}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -182,7 +171,6 @@ export function Ospfv3AreaModal({
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 pb-2">
-            {/* Area ID */}
             <div className="space-y-2">
               <Label htmlFor="ospfv3-area-id">{t("fields.areaId")}</Label>
               <Input
@@ -195,23 +183,22 @@ export function Ospfv3AreaModal({
               />
             </div>
 
-            {/* Area Type */}
             <div className="space-y-2">
               <Label htmlFor="ospfv3-area-type">{t("areaModal.areaType")}</Label>
-              <Select value={areaType} onValueChange={setAreaType}>
+              <Select value={areaType || NONE_SENTINEL} onValueChange={(v) => setAreaType(v === NONE_SENTINEL ? "" : v)}>
                 <SelectTrigger id="ospfv3-area-type">
                   <SelectValue placeholder={t("areaModal.areaTypePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">{t("areaModal.normal")}</SelectItem>
-                  <SelectItem value="stub">{t("areaModal.stub")}</SelectItem>
-                  <SelectItem value="nssa">NSSA</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{t("areaModal.normal")}</SelectItem>
+                  {areaTypes.map((at) => (
+                    <SelectItem key={at} value={at}>{at === "stub" ? t("areaModal.stub") : at.toUpperCase()}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Stub/NSSA options */}
-            {showStubNssaOptions && (
+            {subTyped && (
               <div className="space-y-3 pl-4 border-l-2 border-muted">
                 <div className="flex items-center space-x-3">
                   <Checkbox
@@ -222,17 +209,6 @@ export function Ospfv3AreaModal({
                   <Label htmlFor="ospfv3-area-no-summary" className="cursor-pointer">
                     {areaType === "stub" ? t("areaModal.noSummaryStub") : t("areaModal.noSummaryNssa")}
                   </Label>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-area-default-cost">{t("areaModal.defaultCost")}</Label>
-                  <Input
-                    id="ospfv3-area-default-cost"
-                    type="number"
-                    value={defaultCost}
-                    onChange={(e) => setDefaultCost(e.target.value)}
-                    placeholder={t("areaModal.defaultCostPlaceholder")}
-                    min={0}
-                  />
                 </div>
                 {areaType === "nssa" && (
                   <div className="flex items-center space-x-3">
@@ -249,7 +225,6 @@ export function Ospfv3AreaModal({
               </div>
             )}
 
-            {/* Ranges */}
             <div className="space-y-2">
               <Label htmlFor="ospfv3-area-range">{t("fields.ranges")}</Label>
               <div className="flex gap-2">
@@ -261,33 +236,24 @@ export function Ospfv3AreaModal({
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addRange())}
                   className="flex-1"
                 />
-                <Select
-                  value={newRangeAdvertise ? "advertise" : "not-advertise"}
-                  onValueChange={(v) => setNewRangeAdvertise(v === "advertise")}
-                >
-                  <SelectTrigger className="w-36" aria-label={t("fields.ranges")}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="advertise">{t("areaModal.advertise")}</SelectItem>
-                    <SelectItem value="not-advertise">{t("areaModal.notAdvertise")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                {modeSelect("ospfv3-area-range-mode", newRangeMode, setNewRangeMode)}
                 <Button type="button" variant="outline" size="icon" onClick={addRange}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
               {ranges.length > 0 && (
                 <div className="space-y-1 mt-2">
-                  {ranges.map((range) => (
-                    <div key={range.prefix} className="flex items-center justify-between rounded-md border px-3 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-mono">{range.prefix}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({range.not_advertise ? t("areaModal.notAdvertised") : t("areaModal.advertised")})
-                        </span>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRange(range.prefix)}>
+                  {ranges.map((range, index) => (
+                    <div key={`${range.prefix}-${index}`} className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5">
+                      <span className="text-sm font-mono flex-1">{range.prefix}</span>
+                      {modeSelect(`ospfv3-area-range-mode-${index}`, range.mode, (mode) =>
+                        setRanges(ranges.map((r, i) => (i === index ? { ...r, mode } : r))))}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setRanges(ranges.filter((_, i) => i !== index))}
+                      >
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -296,7 +262,6 @@ export function Ospfv3AreaModal({
               )}
             </div>
 
-            {/* Export/Import Lists */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ospfv3-area-export">{t("fields.exportList")}</Label>

@@ -18,8 +18,6 @@
     "options": "选项",
     "passive": "被动",
     "defaultInformation": "默认信息发布",
-    "type1": "类型 1",
-    "type2": "类型 2",
     "addArea": "添加区域",
     "addRedistribute": "添加重分发",
     "adding": "正在添加..."
@@ -61,7 +59,8 @@
     "referenceBandwidthPlaceholder": "默认 (100 Mbps)",
     "logAdjacencyChanges": "记录邻接变化",
     "logAdjacencyChangesDetail": "记录邻接变化（详细）",
-    "always": "始终"
+    "always": "始终",
+    "deleteOspfv3": "删除 OSPFv3"
   },
   "areas": {
     "description": "OSPFv3 区域配置",
@@ -95,8 +94,6 @@
     "gracePeriodPlaceholder": "默认 (120)",
     "enableHelper": "启用辅助模式",
     "helperRouterIds": "辅助路由器 ID",
-    "helperRouterIdInvalid": "请输入 IPv4 格式的路由器 ID",
-    "helperRouterIdExists": "该路由器 ID 已在列表中",
     "disableLsaCheck": "禁用 LSA 检查",
     "plannedOnly": "仅计划内重启",
     "supportedGraceTime": "支持的宽限时间（秒）"
@@ -108,7 +105,8 @@
     "failed": "删除失败",
     "itemArea": "区域",
     "itemInterface": "接口",
-    "itemRedistribute": "重分发"
+    "itemRedistribute": "重分发",
+    "allDescription": "这将从路由器中删除全部 OSPFv3 配置。"
   },
   "areaModal": {
     "titleEdit": "编辑 OSPFv3 区域",
@@ -122,24 +120,15 @@
     "stub": "存根",
     "noSummaryStub": "无汇总（完全存根）",
     "noSummaryNssa": "无汇总（完全 NSSA）",
-    "defaultCost": "默认开销",
-    "defaultCostPlaceholder": "注入的默认路由的开销",
     "rangePlaceholder": "例如 2001:db8::/32",
     "advertise": "通告",
-    "notAdvertise": "不通告",
-    "advertised": "已通告",
-    "notAdvertised": "不通告",
-    "rangeExists": "范围前缀已存在",
-    "areaIdRequired": "区域 ID 为必填项",
-    "areaIdExists": "该区域已存在"
+    "notAdvertise": "不通告"
   },
   "interfaceModal": {
     "titleEdit": "编辑 OSPFv3 接口",
     "titleAdd": "添加 OSPFv3 接口",
     "descriptionEdit": "修改 {name} 的 OSPFv3 设置。",
     "descriptionAdd": "在网络接口上配置 OSPFv3 以进行 IPv6 路由。",
-    "areaPlaceholder": "例如 0.0.0.0 或 0",
-    "areaHelp": "将此接口分配到 OSPFv3 区域。",
     "costAndPriority": "开销与优先级",
     "interfaceMtu": "接口 MTU",
     "interfaceMtuPlaceholder": "IPv6 MTU（字节）",
@@ -152,18 +141,41 @@
     "mtuIgnore": "忽略 MTU",
     "bfdTitle": "BFD（双向转发检测）",
     "enableBfd": "启用 BFD",
-    "bfdProfile": "BFD 配置文件",
-    "bfdProfilePlaceholder": "配置文件名称（可选）",
-    "selectInterface": "请选择接口",
-    "costRange": "开销必须介于 1 到 65535 之间",
-    "priorityRange": "优先级必须介于 0 到 255 之间",
-    "instanceIdRange": "实例 ID 必须介于 0 到 255 之间"
+    "bfdProfile": "BFD 配置文件"
   },
   "redistributeModal": {
     "title": "添加路由重分发",
     "description": "将其他协议的路由重分发到 OSPFv3。",
     "selectProtocol": "选择协议",
     "metricPlaceholder": "度量值",
-    "selectProtocolError": "请选择协议"
+    "titleEdit": "编辑路由重分发"
+  },
+  "validation": {
+    "routerIdInvalid": "请输入 IPv4 点分格式的路由器 ID",
+    "referenceBandwidthRange": "参考带宽必须介于 {min} 到 {max} 之间",
+    "metricRange": "度量值必须介于 {min} 到 {max} 之间",
+    "metricTypeRange": "度量类型必须介于 {min} 到 {max} 之间",
+    "distanceRange": "距离必须介于 {min} 到 {max} 之间",
+    "gracePeriodRange": "宽限期必须介于 {min} 到 {max} 之间",
+    "supportedGraceTimeRange": "支持的宽限时间必须介于 {min} 到 {max} 之间",
+    "helperRouterIdInvalid": "请输入 IPv4 点分格式的辅助路由器 ID",
+    "helperRouterIdDuplicate": "该路由器 ID 已在列表中",
+    "areaIdRequired": "区域 ID 为必填项",
+    "areaIdInvalid": "区域 ID 必须是 0 到 4294967295 之间的数字或 IPv4 地址",
+    "areaIdExists": "该区域已存在",
+    "rangePrefixRequired": "范围前缀为必填项",
+    "rangePrefixInvalid": "范围必须是 IPv6 前缀",
+    "rangeDuplicate": "范围前缀已存在",
+    "interfaceRequired": "请选择接口",
+    "interfaceAreaInvalid": "区域必须是 0 到 4294967295 之间的数字或 IPv4 地址",
+    "costRange": "开销必须介于 {min} 到 {max} 之间",
+    "priorityRange": "优先级必须介于 {min} 到 {max} 之间",
+    "helloIntervalRange": "Hello 间隔必须介于 {min} 到 {max} 之间",
+    "deadIntervalRange": "Dead 间隔必须介于 {min} 到 {max} 之间",
+    "retransmitIntervalRange": "重传间隔必须介于 {min} 到 {max} 之间",
+    "transmitDelayRange": "传输延迟必须介于 {min} 到 {max} 之间",
+    "ifmtuRange": "接口 MTU 必须介于 {min} 到 {max} 之间",
+    "instanceIdRange": "实例 ID 必须介于 {min} 到 {max} 之间",
+    "protocolRequired": "请选择协议"
   }
 }

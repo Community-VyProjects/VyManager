@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { Ospfv3Redistribute, Ospfv3Capabilities } from "@/lib/api/ospfv3";
+import { ospfv3ProblemArgs, ospfv3Range, ospfv3RedistributeProblem } from "@/lib/api/ospfv3-save-ops";
 import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
@@ -31,6 +33,7 @@ interface Ospfv3RedistributeModalProps {
   onSubmit: (entry: Ospfv3Redistribute) => Promise<void>;
   capabilities?: Ospfv3Capabilities | null;
   existingProtocols: string[];
+  existingEntry?: Ospfv3Redistribute | null;
   routeMapNames?: string[];
 }
 
@@ -40,10 +43,12 @@ export function Ospfv3RedistributeModal({
   onSubmit,
   capabilities,
   existingProtocols,
+  existingEntry,
   routeMapNames = [],
 }: Ospfv3RedistributeModalProps) {
   const t = useTranslations("ospfv3");
   const tc = useTranslations("common");
+  const isEditMode = !!existingEntry;
   const [protocol, setProtocol] = useState("");
   const [metric, setMetric] = useState("");
   const [metricType, setMetricType] = useState("");
@@ -52,60 +57,46 @@ export function Ospfv3RedistributeModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const allProtocols = capabilities?.redistribute_protocols || [
-    "babel", "bgp", "connected", "isis", "kernel", "ripng", "static",
-  ];
-
-  const availableProtocols = allProtocols.filter(
-    (p) => !existingProtocols.includes(p)
-  );
+  const allProtocols = capabilities?.features?.redistribute?.protocols || [];
+  const metricTypes = capabilities?.features?.redistribute?.metric_types || [];
+  const availableProtocols = allProtocols.filter((p) => !existingProtocols.includes(p));
+  const metricRange = ospfv3Range(capabilities, "metric");
 
   useEffect(() => {
-    if (open) {
-      setProtocol("");
-      setMetric("");
-      setMetricType("");
-      setRouteMap("");
-      setError(null);
-    }
-  }, [open]);
+    if (!open) return;
+    setProtocol(existingEntry?.protocol ?? "");
+    setMetric(existingEntry?.metric ?? "");
+    setMetricType(existingEntry?.metric_type ?? "");
+    setRouteMap(existingEntry?.route_map ?? "");
+    setError(null);
+  }, [open, existingEntry]);
 
-  const handleClose = () => {
-    onOpenChange(false);
-  };
+  const handleClose = () => onOpenChange(false);
 
   const handleOpenChange = (next: boolean) => {
     if (!next && !loading) handleClose();
   };
 
-  const validateForm = (): string | null => {
-    if (!protocol) return t("redistributeModal.selectProtocolError");
-    return null;
-  };
-
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const entry: Ospfv3Redistribute = {
+      protocol,
+      metric: metric.trim() || null,
+      metric_type: metricType || null,
+      route_map: routeMap || null,
+    };
+    const problem = ospfv3RedistributeProblem(entry, capabilities);
+    if (problem) {
+      setError(t(`validation.${problem.key}`, ospfv3ProblemArgs(problem)));
       return;
     }
 
     setLoading(true);
     setError(null);
-
     try {
-      const entry: Ospfv3Redistribute = {
-        protocol,
-        metric: metric.trim() || null,
-        metric_type: metricType || null,
-        route_map: routeMap || null,
-      };
-
       await onSubmit(entry);
       handleClose();
     } catch (err: unknown) {
-      const message = (err as ApiError).message || tc("operationFailed");
-      setError(message);
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
@@ -115,7 +106,7 @@ export function Ospfv3RedistributeModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("redistributeModal.title")}</DialogTitle>
+          <DialogTitle>{isEditMode ? t("redistributeModal.titleEdit") : t("redistributeModal.title")}</DialogTitle>
           <DialogDescription>
             {t("redistributeModal.description")}
           </DialogDescription>
@@ -124,12 +115,13 @@ export function Ospfv3RedistributeModal({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="ospfv3-redist-proto">{t("fields.protocol")}</Label>
-            <Select value={protocol} onValueChange={setProtocol}>
+            <Select value={protocol} onValueChange={setProtocol} disabled={isEditMode}>
               <SelectTrigger id="ospfv3-redist-proto">
                 <SelectValue placeholder={t("redistributeModal.selectProtocol")} />
               </SelectTrigger>
               <SelectContent>
-                {availableProtocols.map((p) => (
+                {isEditMode && protocol && <SelectItem value={protocol}>{protocol}</SelectItem>}
+                {!isEditMode && availableProtocols.map((p) => (
                   <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
               </SelectContent>
@@ -142,6 +134,8 @@ export function Ospfv3RedistributeModal({
               <Input
                 id="ospfv3-redist-metric"
                 type="number"
+                min={metricRange?.min}
+                max={metricRange?.max}
                 value={metric}
                 onChange={(e) => setMetric(e.target.value)}
                 placeholder={t("redistributeModal.metricPlaceholder")}
@@ -149,13 +143,15 @@ export function Ospfv3RedistributeModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="ospfv3-redist-metric-type">{t("fields.metricType")}</Label>
-              <Select value={metricType} onValueChange={setMetricType}>
+              <Select value={metricType || NONE_SENTINEL} onValueChange={(v) => setMetricType(v === NONE_SENTINEL ? "" : v)}>
                 <SelectTrigger id="ospfv3-redist-metric-type">
                   <SelectValue placeholder={tc("default")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">{t("fields.type1")}</SelectItem>
-                  <SelectItem value="2">{t("fields.type2")}</SelectItem>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                  {metricTypes.map((mt) => (
+                    <SelectItem key={mt} value={mt}>{t("values.type", { type: mt })}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -187,8 +183,10 @@ export function Ospfv3RedistributeModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("fields.adding")}
+                {isEditMode ? tc("saving") : t("fields.adding")}
               </>
+            ) : isEditMode ? (
+              tc("saveChanges")
             ) : (
               t("fields.addRedistribute")
             )}
