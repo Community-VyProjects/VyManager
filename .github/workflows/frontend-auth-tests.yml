@@ -110,6 +110,10 @@ jobs:
         working-directory: frontend
         run: npm run test:macsec-save
 
+      - name: Run VXLAN save op tests
+        working-directory: frontend
+        run: npm run test:vxlan-save
+
       - name: Run WireGuard form tests
         working-directory: frontend
         run: npm run test:wireguard-form

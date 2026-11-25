@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -23,12 +24,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
+import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { AlertCircle, Boxes, Loader2, Plus, Trash2 } from "lucide-react";
 import { vxlanService, type VxlanInterface, type VxlanCapabilities } from "@/lib/api/vxlan";
-import { showService, type InterfaceName } from "@/lib/api/show";
-import { InterfaceSelect } from "@/components/ui/interface-select";
-import { ApiError } from "@/lib/types/api";
+import {
+  ACCEPT_DAD_VALUES,
+  ADJUST_MSS_RANGE,
+  ARP_CACHE_TIMEOUT_RANGE,
+  BASE_REACHABLE_TIME_RANGE,
+  CLAMP_MSS_TO_PMTU,
+  DAD_TRANSMITS_RANGE,
+  DESCRIPTION_MAX,
+  DF_VALUES,
+  FLOWLABEL_INHERIT,
+  MTU_RANGE,
+  PORT_RANGE,
+  SOURCE_VALIDATION_VALUES,
+  TOS_RANGE,
+  TTL_RANGE,
+  VLAN_ID_RANGE,
+  VNI_RANGE,
+  vxlanForm,
+  vxlanProblem,
+  vxlanSupports,
+  type NumericRange,
+  type VxlanForm,
+  type VxlanIpForm,
+  type VxlanIpv6Form,
+  type VxlanParametersForm,
+  type VxlanProblem,
+  type VxlanVlanRow,
+} from "@/lib/api/vxlan-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
+
+/** A leaf that takes a keyword or a typed value: none, the keyword, or custom. */
+const keywordMode = (value: string, keyword: string) => (!value ? "none" : value === keyword ? "keyword" : "custom");
 
 interface VxlanModalProps {
   open: boolean;
@@ -39,12 +72,7 @@ interface VxlanModalProps {
   existing?: VxlanInterface | null;
 }
 
-interface VlanToVniRow {
-  vlan_id: string;
-  vni: string;
-  description: string;
-}
-
+/** The page passes a `key` that changes per open, so the form is seeded from props here. */
 export function VxlanModal({
   open,
   onOpenChange,
@@ -56,333 +84,173 @@ export function VxlanModal({
   const t = useTranslations("vxlan");
   const tc = useTranslations("common");
   const isEdit = modalIsEdit(existing);
+  const original = existing ?? null;
 
-  // Basic form state
-  const [name, setName] = useState("vxlan0");
-  const [vni, setVni] = useState("");
-  const [description, setDescription] = useState("");
-  const [sourceAddress, setSourceAddress] = useState("");
-  const [sourceInterface, setSourceInterface] = useState("");
-  const [group, setGroup] = useState("");
-  const [remotes, setRemotes] = useState("");
-  const [port, setPort] = useState("");
-  const [mtu, setMtu] = useState("");
-  const [addresses, setAddresses] = useState("");
-  const [mac, setMac] = useState("");
-  const [vrf, setVrf] = useState("");
-  const [redirect, setRedirect] = useState("");
-
-  // Advanced state
-  const [disabled, setDisabled] = useState(false);
-  const [gpe, setGpe] = useState(false);
-  const [external, setExternal] = useState(false);
-  const [nolearning, setNolearning] = useState(false);
-  const [neighborSuppress, setNeighborSuppress] = useState(false);
-  const [vniFilter, setVniFilter] = useState(false);
-  const [ipDf, setIpDf] = useState("");
-  const [ipTos, setIpTos] = useState("");
-  const [ipTtl, setIpTtl] = useState("");
-  const [ipv6Flowlabel, setIpv6Flowlabel] = useState("");
-  const [mirrorIngress, setMirrorIngress] = useState("");
-  const [mirrorEgress, setMirrorEgress] = useState("");
-
-  // VLAN-to-VNI state
-  const [vlanToVni, setVlanToVni] = useState<VlanToVniRow[]>([]);
-
-  // Available interfaces for dropdowns
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-
-  // UI state
+  const [form, setForm] = useState<VxlanForm>(() => vxlanForm(original, existingInterfaces));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "Custom" with a still-empty value would read back as "none" without these.
+  const [ipMssCustom, setIpMssCustom] = useState(() => keywordMode(form.ip.adjust_mss, CLAMP_MSS_TO_PMTU) === "custom");
+  const [ipv6MssCustom, setIpv6MssCustom] = useState(() => keywordMode(form.ipv6.adjust_mss, CLAMP_MSS_TO_PMTU) === "custom");
+  const [flowlabelCustom, setFlowlabelCustom] = useState(
+    () => keywordMode(form.parameters.ipv6_flowlabel, FLOWLABEL_INHERIT) === "custom",
+  );
 
-  const getNextInterfaceName = (): string => {
-    let i = 0;
-    while (existingInterfaces.includes(`vxlan${i}`)) {
-      i++;
-    }
-    return `vxlan${i}`;
-  };
-
-  const resetForm = () => {
-    setName(getNextInterfaceName());
-    setVni("");
-    setDescription("");
-    setSourceAddress("");
-    setSourceInterface("");
-    setGroup("");
-    setRemotes("");
-    setPort("");
-    setMtu("");
-    setAddresses("");
-    setMac("");
-    setVrf("");
-    setRedirect("");
-    setDisabled(false);
-    setGpe(false);
-    setExternal(false);
-    setNolearning(false);
-    setNeighborSuppress(false);
-    setVniFilter(false);
-    setIpDf("");
-    setIpTos("");
-    setIpTtl("");
-    setIpv6Flowlabel("");
-    setMirrorIngress("");
-    setMirrorEgress("");
-    setVlanToVni([]);
-    setError(null);
-  };
-
-  const populateForm = (interfaceData: VxlanInterface) => {
-    setName(interfaceData.name);
-    setVni(interfaceData.vni || "");
-    setDescription(interfaceData.description || "");
-    setSourceAddress(interfaceData.source_address || "");
-    setSourceInterface(interfaceData.source_interface || "");
-    setGroup(interfaceData.group || "");
-    setRemotes(interfaceData.remotes.join(", "));
-    setPort(interfaceData.port || "");
-    setMtu(interfaceData.mtu || "");
-    setAddresses(interfaceData.addresses.join(", "));
-    setMac(interfaceData.mac || "");
-    setVrf(interfaceData.vrf || "");
-    setRedirect(interfaceData.redirect || "");
-    setDisabled(interfaceData.disabled);
-    setGpe(interfaceData.gpe);
-    setExternal(interfaceData.parameters.external);
-    setNolearning(interfaceData.parameters.nolearning);
-    setNeighborSuppress(interfaceData.parameters.neighbor_suppress);
-    setVniFilter(interfaceData.parameters.vni_filter);
-    setIpDf(interfaceData.parameters.ip.df || "");
-    setIpTos(interfaceData.parameters.ip.tos || "");
-    setIpTtl(interfaceData.parameters.ip.ttl || "");
-    setIpv6Flowlabel(interfaceData.parameters.ipv6.flowlabel || "");
-    setMirrorIngress(interfaceData.mirror.ingress || "");
-    setMirrorEgress(interfaceData.mirror.egress || "");
-    setVlanToVni(
-      interfaceData.vlan_to_vni.map((m) => ({
-        vlan_id: m.vlan_id,
-        vni: m.vni || "",
-        description: m.description || "",
-      }))
-    );
-    setError(null);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
-    if (existing) {
-      populateForm(existing);
-    } else {
-      resetForm();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, existing]);
-
+  const name = form.name;
   const lockedName = lockedIdentity(existing, (i) => i.name, name);
 
-  const validateCreate = (): string | null => {
-    if (!name.trim()) return tc("interfaceNameRequired");
-    if (!/^vxlan\d+$/.test(name.trim())) return t("modal.errors.nameFormat");
-    if (existingInterfaces.includes(name.trim())) return t("modal.errors.nameExists", { name });
-    return null;
+  const update = (patch: Partial<VxlanForm>) => setForm((f) => ({ ...f, ...patch }));
+  const updateParams = (patch: Partial<VxlanParametersForm>) =>
+    setForm((f) => ({ ...f, parameters: { ...f.parameters, ...patch } }));
+  const updateIp = (patch: Partial<VxlanIpForm>) => setForm((f) => ({ ...f, ip: { ...f.ip, ...patch } }));
+  const updateIpv6 = (patch: Partial<VxlanIpv6Form>) => setForm((f) => ({ ...f, ipv6: { ...f.ipv6, ...patch } }));
+
+  // VLAN-to-VNI rows (row key is the index)
+  const addVlanMapping = () =>
+    setForm((f) => ({ ...f, vlan_to_vni: [...f.vlan_to_vni, { vlan_id: "", vni: "", description: "" }] }));
+  const removeVlanMapping = (index: number) =>
+    setForm((f) => ({ ...f, vlan_to_vni: f.vlan_to_vni.filter((_, i) => i !== index) }));
+  const updateVlanMapping = (index: number, patch: Partial<VxlanVlanRow>) =>
+    setForm((f) => ({ ...f, vlan_to_vni: f.vlan_to_vni.map((r, i) => (i === index ? { ...r, ...patch } : r)) }));
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
-  const submitCreate = async () => {
-    const config: Parameters<typeof vxlanService.createInterface>[0] = {
-      name: name.trim(),
-    };
-
-    if (vni.trim()) config.vni = vni.trim();
-    if (description.trim()) config.description = description.trim();
-    if (sourceAddress.trim()) config.source_address = sourceAddress.trim();
-    if (sourceInterface.trim()) config.source_interface = sourceInterface.trim();
-    if (group.trim()) config.group = group.trim();
-    if (port.trim()) config.port = port.trim();
-    if (mtu.trim()) config.mtu = mtu.trim();
-    if (mac.trim()) config.mac = mac.trim();
-    if (vrf.trim()) config.vrf = vrf.trim();
-    if (redirect.trim()) config.redirect = redirect.trim();
-    if (disabled) config.disabled = true;
-    if (gpe) config.gpe = true;
-
-    if (addresses.trim()) {
-      config.addresses = addresses.split(",").map((a) => a.trim()).filter(Boolean);
-    }
-    if (remotes.trim()) {
-      config.remotes = remotes.split(",").map((r) => r.trim()).filter(Boolean);
-    }
-
-    const effectiveIpDf = ipDf === "__none__" ? "" : ipDf;
-    const params: NonNullable<typeof config.parameters> = {};
-    if (external) params.external = true;
-    if (nolearning) params.nolearning = true;
-    if (neighborSuppress) params.neighbor_suppress = true;
-    if (vniFilter) params.vni_filter = true;
-    if (effectiveIpDf.trim()) params.ip_df = effectiveIpDf.trim();
-    if (ipTos.trim()) params.ip_tos = ipTos.trim();
-    if (ipTtl.trim()) params.ip_ttl = ipTtl.trim();
-    if (ipv6Flowlabel.trim()) params.ipv6_flowlabel = ipv6Flowlabel.trim();
-    if (Object.keys(params).length > 0) config.parameters = params;
-
-    const mirror: NonNullable<typeof config.mirror> = {};
-    if (mirrorIngress.trim()) mirror.ingress = mirrorIngress.trim();
-    if (mirrorEgress.trim()) mirror.egress = mirrorEgress.trim();
-    if (Object.keys(mirror).length > 0) config.mirror = mirror;
-
-    const validMappings = vlanToVni.filter((m) => m.vlan_id.trim());
-    if (validMappings.length > 0) {
-      config.vlan_to_vni = validMappings.map((m) => ({
-        vlan_id: m.vlan_id.trim(),
-        vni: m.vni.trim() || "",
-        description: m.description.trim() || undefined,
-      }));
-    }
-
-    return vxlanService.createInterface(config);
-  };
-
-  const submitUpdate = async (current: VxlanInterface, targetName: string) => {
-    const parseList = (val: string) => val.split(",").map((s) => s.trim()).filter(Boolean);
-
-    const updated: Parameters<typeof vxlanService.updateInterface>[2] = {};
-
-    if (vni.trim() !== (current.vni || "")) updated.vni = vni.trim() || null;
-    if (description.trim() !== (current.description || "")) updated.description = description.trim() || null;
-    if (sourceAddress.trim() !== (current.source_address || "")) updated.source_address = sourceAddress.trim() || null;
-    if (sourceInterface.trim() !== (current.source_interface || "")) updated.source_interface = sourceInterface.trim() || null;
-    if (group.trim() !== (current.group || "")) updated.group = group.trim() || null;
-    if (port.trim() !== (current.port || "")) updated.port = port.trim() || null;
-    if (mtu.trim() !== (current.mtu || "")) updated.mtu = mtu.trim() || null;
-    if (mac.trim() !== (current.mac || "")) updated.mac = mac.trim() || null;
-    if (vrf.trim() !== (current.vrf || "")) updated.vrf = vrf.trim() || null;
-    if (redirect.trim() !== (current.redirect || "")) updated.redirect = redirect.trim() || null;
-
-    if (disabled !== current.disabled) updated.disabled = disabled;
-    if (gpe !== current.gpe) updated.gpe = gpe;
-
-    const newAddresses = parseList(addresses);
-    if (JSON.stringify(newAddresses) !== JSON.stringify(current.addresses)) {
-      updated.addresses = newAddresses;
-    }
-    const newRemotes = parseList(remotes);
-    if (JSON.stringify(newRemotes) !== JSON.stringify(current.remotes)) {
-      updated.remotes = newRemotes;
-    }
-
-    const cp = current.parameters;
-    const paramChanges: NonNullable<typeof updated.parameters> = {};
-    if (external !== cp.external) paramChanges.external = external;
-    if (nolearning !== cp.nolearning) paramChanges.nolearning = nolearning;
-    if (neighborSuppress !== cp.neighbor_suppress) paramChanges.neighbor_suppress = neighborSuppress;
-    if (vniFilter !== cp.vni_filter) paramChanges.vni_filter = vniFilter;
-    const effectiveIpDf = ipDf === "__none__" ? "" : ipDf;
-    if (effectiveIpDf.trim() !== (cp.ip.df || "")) paramChanges.ip_df = effectiveIpDf.trim() || null;
-    if (ipTos.trim() !== (cp.ip.tos || "")) paramChanges.ip_tos = ipTos.trim() || null;
-    if (ipTtl.trim() !== (cp.ip.ttl || "")) paramChanges.ip_ttl = ipTtl.trim() || null;
-    if (ipv6Flowlabel.trim() !== (cp.ipv6.flowlabel || "")) paramChanges.ipv6_flowlabel = ipv6Flowlabel.trim() || null;
-    if (Object.keys(paramChanges).length > 0) updated.parameters = paramChanges;
-
-    const mirrorChanges: NonNullable<typeof updated.mirror> = {};
-    if (mirrorIngress.trim() !== (current.mirror.ingress || "")) mirrorChanges.ingress = mirrorIngress.trim() || null;
-    if (mirrorEgress.trim() !== (current.mirror.egress || "")) mirrorChanges.egress = mirrorEgress.trim() || null;
-    if (Object.keys(mirrorChanges).length > 0) updated.mirror = mirrorChanges;
-
-    const validMappings = vlanToVni.filter((m) => m.vlan_id.trim());
-    const currentMappings = current.vlan_to_vni.map((m) => ({
-      vlan_id: m.vlan_id,
-      vni: m.vni || "",
-      description: m.description || "",
-    }));
-    if (JSON.stringify(validMappings) !== JSON.stringify(currentMappings)) {
-      updated.vlan_to_vni = validMappings.map((m) => ({
-        vlan_id: m.vlan_id.trim(),
-        vni: m.vni.trim() || null,
-        description: m.description.trim() || null,
-      }));
-    }
-
-    return vxlanService.updateInterface(targetName, current, updated);
-  };
+  // An empty name reuses the shared common message.
+  const problemText = (p: VxlanProblem) =>
+    p.key === "nameRequired" ? tc("interfaceNameRequired") : t(`modal.errors.${p.key}`, p.values);
 
   const handleSubmit = async () => {
-    const write = modalWriteKind(existing);
-
-    if (write.kind === "create") {
-      const validationError = validateCreate();
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-    } else if (!existing) {
+    const issue = vxlanProblem(original, form, capabilities, existingInterfaces);
+    if (issue) {
+      setError(problemText(issue));
       return;
     }
-
+    const write = modalWriteKind(existing);
     setLoading(true);
     setError(null);
-
     try {
-      const result =
-        write.kind === "update" && existing
-          ? await submitUpdate(existing, write.name)
-          : await submitCreate();
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || (isEdit ? t("modal.errors.updateFailed") : t("modal.errors.createFailed")));
-      }
+      if (write.kind === "update" && original) await vxlanService.updateInterface(original, form, capabilities);
+      else await vxlanService.createInterface(form, capabilities);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
-      setError(
-        (err as ApiError).message ||
-          (isEdit ? t("modal.errors.updateFailed") : t("modal.errors.createFailed")),
-      );
+      setError((err as ApiError).message || t(isEdit ? "modal.errors.updateFailed" : "modal.errors.createFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const addVlanMapping = () => {
-    setVlanToVni([...vlanToVni, { vlan_id: "", vni: "", description: "" }]);
+  const hasInterfaceIdentifier = vxlanSupports(capabilities, "ipv6_address_interface_identifier");
+  const hasVlanDescription = vxlanSupports(capabilities, "vlan_to_vni_description");
+  const sourceValidationLabels: Record<string, string> = {
+    strict: t("modal.ip.strict"),
+    loose: t("modal.ip.loose"),
+    disable: t("modal.ip.disable"),
+  };
+  const none = { label: tc("none"), value: "" };
+  const rangeText = (range: NumericRange) =>
+    range.max === undefined ? t("modal.minPlaceholder", { min: range.min }) : t("modal.rangePlaceholder", { min: range.min, max: range.max });
+
+  const numberField = (
+    id: string,
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    range: NumericRange,
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-xs">{label}</Label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={rangeText(range)}
+        className="h-8 text-sm"
+        type="number"
+        min={range.min}
+        max={range.max}
+      />
+    </div>
+  );
+
+  const checkField = (id: string, label: string, checked: boolean, onChange: (checked: boolean) => void) => (
+    <div className="flex items-center space-x-2">
+      <Checkbox id={id} checked={checked} onCheckedChange={(c) => onChange(c === true)} />
+      <Label htmlFor={id} className="text-xs font-normal">{label}</Label>
+    </div>
+  );
+
+  /** adjust-mss: none, clamp-mss-to-pmtu, or a number in ADJUST_MSS_RANGE. */
+  const adjustMssField = (
+    id: string,
+    value: string,
+    custom: boolean,
+    setCustom: (custom: boolean) => void,
+    onChange: (value: string) => void,
+  ) => {
+    const mode = custom ? "custom" : keywordMode(value.trim(), CLAMP_MSS_TO_PMTU);
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={id} className="text-xs">{t("modal.ip.adjustMss")}</Label>
+        <Select
+          value={mode}
+          onValueChange={(v) => {
+            setCustom(v === "custom");
+            onChange(v === "keyword" ? CLAMP_MSS_TO_PMTU : "");
+          }}
+        >
+          <SelectTrigger id={id} className="h-8 text-sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">{t("modal.ip.mssNone")}</SelectItem>
+            <SelectItem value="keyword">{t("modal.ip.mssClamp")}</SelectItem>
+            <SelectItem value="custom">{t("modal.ip.mssCustom")}</SelectItem>
+          </SelectContent>
+        </Select>
+        {mode === "custom" && (
+          <Input
+            id={`${id}Value`}
+            aria-label={t("modal.ip.mssCustom")}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={rangeText(ADJUST_MSS_RANGE)}
+            className="h-8 text-sm"
+            type="number"
+            min={ADJUST_MSS_RANGE.min}
+            max={ADJUST_MSS_RANGE.max}
+          />
+        )}
+      </div>
+    );
   };
 
-  const removeVlanMapping = (index: number) => {
-    setVlanToVni(vlanToVni.filter((_, i) => i !== index));
-  };
-
-  const updateVlanMapping = (index: number, field: keyof VlanToVniRow, value: string) => {
-    const updated = [...vlanToVni];
-    updated[index] = { ...updated[index], [field]: value };
-    setVlanToVni(updated);
-  };
-
-  const supportsVlanDescription = capabilities?.features.vlan_to_vni_description?.supported ?? false;
+  const flowlabel = form.parameters.ipv6_flowlabel;
+  const flowlabelMode = flowlabelCustom ? "custom" : keywordMode(flowlabel.trim(), FLOWLABEL_INHERIT);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Boxes className="h-5 w-5 text-primary" />
             {isEdit ? t("modal.editTitle", { name: existing.name }) : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? t("modal.editDescription")
-              : t("modal.createDescription")}
+            {isEdit ? t("modal.editDescription") : t("modal.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="basic">{t("modal.tabs.basic")}</TabsTrigger>
             <TabsTrigger value="advanced">{t("modal.tabs.advanced")}</TabsTrigger>
-            <TabsTrigger value="vlan-vni">VLAN-to-VNI</TabsTrigger>
+            <TabsTrigger value="ip">{t("modal.tabs.ip")}</TabsTrigger>
+            <TabsTrigger value="vlan-vni">{t("modal.tabs.vlanVni")}</TabsTrigger>
           </TabsList>
 
+          {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -390,285 +258,374 @@ export function VxlanModal({
                 <Input
                   id="vxlan-name"
                   value={lockedName.value}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => update({ name: e.target.value })}
                   placeholder="vxlan0"
                   disabled={lockedName.disabled}
                   className={lockedName.disabled ? "bg-muted" : undefined}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {lockedName.disabled ? t("modal.basic.nameLocked") : t("modal.basic.nameFormatHint")}
-                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vxlan-vni">VNI</Label>
-                <Input id="vxlan-vni" value={vni} onChange={(e) => setVni(e.target.value)} placeholder="0-16777214" />
-                <p className="text-xs text-muted-foreground">{t("modal.basic.vniHint")}</p>
+                <Input
+                  id="vxlan-vni"
+                  value={form.vni}
+                  onChange={(e) => update({ vni: e.target.value })}
+                  placeholder={rangeText(VNI_RANGE)}
+                  type="number"
+                  min={VNI_RANGE.min}
+                  max={VNI_RANGE.max}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="vxlan-description">{tc("description")}</Label>
-              <Input id="vxlan-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("modal.basic.descriptionPlaceholder")} />
+              <Input
+                id="vxlan-description"
+                value={form.description}
+                onChange={(e) => update({ description: e.target.value })}
+                placeholder={t("modal.basic.descriptionPlaceholder")}
+                maxLength={DESCRIPTION_MAX}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vxlan-sourceAddress">{t("modal.basic.sourceAddress")}</Label>
-                <Input id="vxlan-sourceAddress" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="192.168.1.1" />
-                <p className="text-xs text-muted-foreground">{t("modal.basic.sourceAddressHint")}</p>
+                <Input
+                  id="vxlan-sourceAddress"
+                  value={form.source_address}
+                  onChange={(e) => update({ source_address: e.target.value })}
+                  placeholder="192.0.2.1"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vxlan-sourceInterface">{t("modal.basic.sourceInterface")}</Label>
                 <InterfaceSelect
-                  value={sourceInterface || "__none__"}
-                  onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
-                  interfaces={availableInterfaces}
-                  noneOption={{ label: tc("none"), value: "__none__" }}
+                  id="vxlan-sourceInterface"
+                  value={form.source_interface}
+                  onValueChange={(source_interface) => update({ source_interface })}
+                  noneOption={none}
                   placeholder={tc("selectInterface")}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="vxlan-remotes">{t("modal.basic.remoteAddresses")}</Label>
-              <Input id="vxlan-remotes" value={remotes} onChange={(e) => setRemotes(e.target.value)} placeholder="10.0.0.2, 10.0.0.3" />
-              <p className="text-xs text-muted-foreground">{t("modal.basic.remoteAddressesHint")}</p>
-            </div>
+            <MultiValueInput
+              label={t("modal.basic.remoteAddresses")}
+              values={form.remotes}
+              onChange={(remotes) => update({ remotes })}
+              placeholder="192.0.2.2"
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vxlan-group">{t("modal.basic.multicastGroup")}</Label>
-                <Input id="vxlan-group" value={group} onChange={(e) => setGroup(e.target.value)} placeholder="239.1.1.1" />
+                <Input
+                  id="vxlan-group"
+                  value={form.group}
+                  onChange={(e) => update({ group: e.target.value })}
+                  placeholder="239.1.1.1"
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="vxlan-port">{t("modal.basic.udpPort")}</Label>
-                <Input id="vxlan-port" value={port} onChange={(e) => setPort(e.target.value)} placeholder="4789" />
-              </div>
+              {numberField("vxlan-port", t("modal.basic.udpPort"), form.port, (port) => update({ port }), PORT_RANGE)}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="vxlan-addresses">{t("modal.basic.ipAddresses")}</Label>
-              <Input id="vxlan-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="10.10.10.1/24, fd00::1/64" />
-              <p className="text-xs text-muted-foreground">{t("modal.basic.ipAddressesHint")}</p>
-            </div>
+            <MultiValueInput
+              label={t("modal.basic.ipAddresses")}
+              values={form.addresses}
+              onChange={(addresses) => update({ addresses })}
+              placeholder="10.10.10.1/24"
+            />
 
             <div className="grid grid-cols-3 gap-4">
+              {numberField("vxlan-mtu", "MTU", form.mtu, (mtu) => update({ mtu }), MTU_RANGE)}
               <div className="space-y-2">
-                <Label htmlFor="vxlan-mtu">MTU</Label>
-                <Input id="vxlan-mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
+                <Label htmlFor="vxlan-mac" className="text-xs">{t("modal.basic.macAddress")}</Label>
+                <Input
+                  id="vxlan-mac"
+                  value={form.mac}
+                  onChange={(e) => update({ mac: e.target.value })}
+                  placeholder="00:11:22:33:44:55"
+                  className="h-8 text-sm font-mono"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vxlan-mac">{t("modal.basic.macAddress")}</Label>
-                <Input id="vxlan-mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="00:11:22:33:44:55" />
+                <Label htmlFor="vxlan-vrf" className="text-xs">VRF</Label>
+                <VrfSelect id="vxlan-vrf" value={form.vrf} onValueChange={(vrf) => update({ vrf })} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="vxlan-vrf">VRF</Label>
-                <VrfSelect id="vxlan-vrf" value={vrf} onValueChange={setVrf} />
-              </div>
+            </div>
+
+            <div className="flex gap-6">
+              {checkField("vxlan-disabled", tc("disabled"), form.disabled, (disabled) => update({ disabled }))}
+              {checkField("vxlan-gpe", "GPE", form.gpe, (gpe) => update({ gpe }))}
             </div>
           </TabsContent>
 
+          {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4 mt-4">
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">{t("modal.advanced.tunnelParameters")}</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="vxlan-external" checked={external} onCheckedChange={(c) => setExternal(c === true)} />
-                  <div className="flex-1">
-                    <Label htmlFor="vxlan-external" className="cursor-pointer text-sm">{t("modal.advanced.external")}</Label>
-                    <p className="text-xs text-muted-foreground">{t("modal.advanced.externalHint")}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="vxlan-nolearning" checked={nolearning} onCheckedChange={(c) => setNolearning(c === true)} />
-                  <div className="flex-1">
-                    <Label htmlFor="vxlan-nolearning" className="cursor-pointer text-sm">{t("modal.advanced.noLearning")}</Label>
-                    <p className="text-xs text-muted-foreground">{t("modal.advanced.noLearningHint")}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="vxlan-neighborSuppress" checked={neighborSuppress} onCheckedChange={(c) => setNeighborSuppress(c === true)} />
-                  <div className="flex-1">
-                    <Label htmlFor="vxlan-neighborSuppress" className="cursor-pointer text-sm">{t("modal.advanced.neighborSuppress")}</Label>
-                    <p className="text-xs text-muted-foreground">{t("modal.advanced.neighborSuppressHint")}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="vxlan-vniFilter" checked={vniFilter} onCheckedChange={(c) => setVniFilter(c === true)} />
-                  <div className="flex-1">
-                    <Label htmlFor="vxlan-vniFilter" className="cursor-pointer text-sm">{t("modal.advanced.vniFilter")}</Label>
-                    <p className="text-xs text-muted-foreground">{t("modal.advanced.vniFilterHint")}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="vxlan-gpe" checked={gpe} onCheckedChange={(c) => setGpe(c === true)} />
-                  <div className="flex-1">
-                    <Label htmlFor="vxlan-gpe" className="cursor-pointer text-sm">GPE</Label>
-                    <p className="text-xs text-muted-foreground">{t("modal.advanced.gpeHint")}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="vxlan-disabled" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
-                  <div className="flex-1">
-                    <Label htmlFor="vxlan-disabled" className="cursor-pointer text-sm">{tc("disabled")}</Label>
-                    <p className="text-xs text-muted-foreground">{t("modal.advanced.disabledHint")}</p>
-                  </div>
-                </div>
-              </div>
+            <h4 className="text-sm font-medium">{t("modal.advanced.tunnelParameters")}</h4>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {checkField("vxlan-external", t("modal.advanced.external"), form.parameters.external, (external) => updateParams({ external }))}
+              {checkField("vxlan-nolearning", t("modal.advanced.noLearning"), form.parameters.nolearning, (nolearning) => updateParams({ nolearning }))}
+              {checkField("vxlan-neighborSuppress", t("modal.advanced.neighborSuppress"), form.parameters.neighbor_suppress, (neighbor_suppress) => updateParams({ neighbor_suppress }))}
+              {checkField("vxlan-vniFilter", t("modal.advanced.vniFilter"), form.parameters.vni_filter, (vni_filter) => updateParams({ vni_filter }))}
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">{t("modal.advanced.ipParameters")}</Label>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="vxlan-ipDf" className="text-xs">{t("modal.advanced.dontFragment")}</Label>
-                  <Select value={ipDf || "__none__"} onValueChange={setIpDf}>
-                    <SelectTrigger><SelectValue placeholder={tc("default")} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">{tc("default")}</SelectItem>
-                      <SelectItem value="set">{t("modal.advanced.dfSet")}</SelectItem>
-                      <SelectItem value="unset">{t("modal.advanced.dfUnset")}</SelectItem>
-                      <SelectItem value="inherit">{t("modal.advanced.dfInherit")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="vxlan-ipTos" className="text-xs">{t("modal.advanced.typeOfService")}</Label>
-                  <Input id="vxlan-ipTos" value={ipTos} onChange={(e) => setIpTos(e.target.value)} placeholder={t("modal.advanced.tosPlaceholder")} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="vxlan-ipTtl" className="text-xs">TTL</Label>
-                  <Input id="vxlan-ipTtl" value={ipTtl} onChange={(e) => setIpTtl(e.target.value)} placeholder="0-255" />
-                </div>
+            <Separator />
+
+            <h4 className="text-sm font-medium">{t("modal.advanced.ipParameters")}</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="vxlan-ipDf" className="text-xs">{t("modal.advanced.dontFragment")}</Label>
+                <NamedListSelect
+                  id="vxlan-ipDf"
+                  value={form.parameters.ip_df}
+                  names={DF_VALUES}
+                  noneLabel={tc("default")}
+                  onValueChange={(ip_df) => updateParams({ ip_df })}
+                />
               </div>
+              {numberField("vxlan-ipTos", t("modal.advanced.typeOfService"), form.parameters.ip_tos, (ip_tos) => updateParams({ ip_tos }), TOS_RANGE)}
+              {numberField("vxlan-ipTtl", "TTL", form.parameters.ip_ttl, (ip_ttl) => updateParams({ ip_ttl }), TTL_RANGE)}
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">{t("modal.advanced.ipv6Parameters")}</Label>
+            <h4 className="text-sm font-medium">{t("modal.advanced.ipv6Parameters")}</h4>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vxlan-ipv6Flowlabel" className="text-xs">{t("modal.advanced.flowLabel")}</Label>
-                <Input id="vxlan-ipv6Flowlabel" value={ipv6Flowlabel} onChange={(e) => setIpv6Flowlabel(e.target.value)} placeholder="0x0-0xfffff" />
+                <Select
+                  value={flowlabelMode}
+                  onValueChange={(v) => {
+                    setFlowlabelCustom(v === "custom");
+                    updateParams({ ipv6_flowlabel: v === "keyword" ? FLOWLABEL_INHERIT : "" });
+                  }}
+                >
+                  <SelectTrigger id="vxlan-ipv6Flowlabel" className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{tc("default")}</SelectItem>
+                    <SelectItem value="keyword" className="font-mono">{FLOWLABEL_INHERIT}</SelectItem>
+                    <SelectItem value="custom">{t("modal.advanced.flowLabelCustom")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {flowlabelMode === "custom" && (
+                  <Input
+                    id="vxlan-ipv6FlowlabelValue"
+                    aria-label={t("modal.advanced.flowLabelCustom")}
+                    value={flowlabel}
+                    onChange={(e) => updateParams({ ipv6_flowlabel: e.target.value })}
+                    placeholder={t("modal.advanced.flowLabelPlaceholder")}
+                    className="h-8 text-sm font-mono"
+                  />
+                )}
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">{t("modal.advanced.mirror")}</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="vxlan-mirrorIngress" className="text-xs">{t("modal.advanced.ingressInterface")}</Label>
-                  <InterfaceSelect
-                    value={mirrorIngress || "__none__"}
-                    onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
-                    interfaces={availableInterfaces}
-                    noneOption={{ label: tc("none"), value: "__none__" }}
-                    placeholder={tc("selectInterface")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="vxlan-mirrorEgress" className="text-xs">{t("modal.advanced.egressInterface")}</Label>
-                  <InterfaceSelect
-                    value={mirrorEgress || "__none__"}
-                    onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
-                    interfaces={availableInterfaces}
-                    noneOption={{ label: tc("none"), value: "__none__" }}
-                    placeholder={tc("selectInterface")}
-                  />
-                </div>
-              </div>
-            </div>
+            <Separator />
 
-            <div className="space-y-2">
-              <Label htmlFor="vxlan-redirect">{t("modal.advanced.redirectInterface")}</Label>
-              <InterfaceSelect
-                value={redirect || "__none__"}
-                onValueChange={(v) => setRedirect(v === "__none__" ? "" : v)}
-                interfaces={availableInterfaces}
-                noneOption={{ label: tc("none"), value: "__none__" }}
-                placeholder={tc("selectInterface")}
-              />
-              <p className="text-xs text-muted-foreground">{t("modal.advanced.redirectHint")}</p>
+            <h4 className="text-sm font-medium">{t("modal.advanced.mirror")}</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="vxlan-mirrorIngress" className="text-xs">{t("modal.advanced.ingressInterface")}</Label>
+                <InterfaceSelect id="vxlan-mirrorIngress" value={form.mirror_ingress} onValueChange={(mirror_ingress) => update({ mirror_ingress })} noneOption={none} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vxlan-mirrorEgress" className="text-xs">{t("modal.advanced.egressInterface")}</Label>
+                <InterfaceSelect id="vxlan-mirrorEgress" value={form.mirror_egress} onValueChange={(mirror_egress) => update({ mirror_egress })} noneOption={none} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vxlan-redirect" className="text-xs">{t("modal.advanced.redirectInterface")}</Label>
+                <InterfaceSelect id="vxlan-redirect" value={form.redirect} onValueChange={(redirect) => update({ redirect })} noneOption={none} className="h-8 text-sm" />
+              </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="vlan-vni" className="space-y-4 mt-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">{t("modal.vlanVni.title")}</Label>
-                  <p className="text-xs text-muted-foreground mt-1">{t("modal.vlanVni.description")}</p>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={addVlanMapping} className="gap-1">
-                  <Plus className="h-3 w-3" /> {t("modal.vlanVni.addMapping")}
-                </Button>
+          {/* IP Settings Tab */}
+          <TabsContent value="ip" className="space-y-4 mt-4">
+            <h4 className="text-sm font-medium">{t("modal.ip.ipv4Settings")}</h4>
+            <div className="grid grid-cols-2 gap-4">
+              {adjustMssField("vxlan-ipAdjustMss", form.ip.adjust_mss, ipMssCustom, setIpMssCustom, (adjust_mss) => updateIp({ adjust_mss }))}
+              {numberField(
+                "vxlan-ipArpCacheTimeout",
+                t("modal.ip.arpCacheTimeout"),
+                form.ip.arp_cache_timeout,
+                (arp_cache_timeout) => updateIp({ arp_cache_timeout }),
+                ARP_CACHE_TIMEOUT_RANGE,
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="vxlan-ipSourceValidation" className="text-xs">{t("modal.ip.sourceValidation")}</Label>
+                <NamedListSelect
+                  id="vxlan-ipSourceValidation"
+                  value={form.ip.source_validation}
+                  names={SOURCE_VALIDATION_VALUES}
+                  labels={sourceValidationLabels}
+                  onValueChange={(source_validation) => updateIp({ source_validation })}
+                />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {checkField("vxlan-ipDisableArpFilter", t("modal.ip.disableArpFilter"), form.ip.disable_arp_filter, (disable_arp_filter) => updateIp({ disable_arp_filter }))}
+              {checkField("vxlan-ipDisableForwarding", t("modal.ip.disableForwarding"), form.ip.disable_forwarding, (disable_forwarding) => updateIp({ disable_forwarding }))}
+              {checkField("vxlan-ipEnableArpAccept", t("modal.ip.enableArpAccept"), form.ip.enable_arp_accept, (enable_arp_accept) => updateIp({ enable_arp_accept }))}
+              {checkField("vxlan-ipEnableArpAnnounce", t("modal.ip.enableArpAnnounce"), form.ip.enable_arp_announce, (enable_arp_announce) => updateIp({ enable_arp_announce }))}
+              {checkField("vxlan-ipEnableArpIgnore", t("modal.ip.enableArpIgnore"), form.ip.enable_arp_ignore, (enable_arp_ignore) => updateIp({ enable_arp_ignore }))}
+              {checkField("vxlan-ipEnableDirectedBroadcast", t("modal.ip.enableDirectedBroadcast"), form.ip.enable_directed_broadcast, (enable_directed_broadcast) => updateIp({ enable_directed_broadcast }))}
+              {checkField("vxlan-ipEnableProxyArp", t("modal.ip.enableProxyArp"), form.ip.enable_proxy_arp, (enable_proxy_arp) => updateIp({ enable_proxy_arp }))}
+              {checkField("vxlan-ipProxyArpPvlan", t("modal.ip.proxyArpPvlan"), form.ip.proxy_arp_pvlan, (proxy_arp_pvlan) => updateIp({ proxy_arp_pvlan }))}
+            </div>
 
-              {vlanToVni.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-8 text-center">
-                  <p className="text-sm text-muted-foreground">{t("modal.vlanVni.empty")}</p>
-                  <Button type="button" variant="outline" size="sm" onClick={addVlanMapping} className="mt-3 gap-1">
-                    <Plus className="h-3 w-3" /> {t("modal.vlanVni.addFirstMapping")}
-                  </Button>
-                </div>
-              ) : (
+            <Separator />
+
+            <h4 className="text-sm font-medium">{t("modal.ip.ipv6Settings")}</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="vxlan-ipv6AcceptDad" className="text-xs">{t("modal.ip.acceptDad")}</Label>
+                <NamedListSelect
+                  id="vxlan-ipv6AcceptDad"
+                  value={form.ipv6.accept_dad}
+                  names={ACCEPT_DAD_VALUES}
+                  noneLabel={tc("default")}
+                  onValueChange={(accept_dad) => updateIpv6({ accept_dad })}
+                />
+              </div>
+              {numberField(
+                "vxlan-ipv6DupAddrDetect",
+                t("modal.ip.dadTransmits"),
+                form.ipv6.dup_addr_detect_transmits,
+                (dup_addr_detect_transmits) => updateIpv6({ dup_addr_detect_transmits }),
+                DAD_TRANSMITS_RANGE,
+              )}
+              {hasInterfaceIdentifier && (
                 <div className="space-y-2">
-                  {vlanToVni.map((mapping, index) => (
-                    <div key={index} className="flex items-center gap-2 rounded-lg border p-3">
-                      <div className="flex-1 grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">VLAN ID</Label>
-                          <Input
-                            value={mapping.vlan_id}
-                            onChange={(e) => updateVlanMapping(index, "vlan_id", e.target.value)}
-                            placeholder="1-4094"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">VNI</Label>
-                          <Input
-                            value={mapping.vni}
-                            onChange={(e) => updateVlanMapping(index, "vni", e.target.value)}
-                            placeholder="0-16777214"
-                          />
-                        </div>
+                  <Label htmlFor="vxlan-ipv6InterfaceIdentifier" className="text-xs">{t("modal.ip.interfaceIdentifier")}</Label>
+                  <Input
+                    id="vxlan-ipv6InterfaceIdentifier"
+                    value={form.ipv6.address_interface_identifier}
+                    onChange={(e) => updateIpv6({ address_interface_identifier: e.target.value })}
+                    placeholder="::1"
+                    className="h-8 text-sm font-mono"
+                  />
+                </div>
+              )}
+              {adjustMssField("vxlan-ipv6AdjustMss", form.ipv6.adjust_mss, ipv6MssCustom, setIpv6MssCustom, (adjust_mss) => updateIpv6({ adjust_mss }))}
+              {numberField(
+                "vxlan-ipv6BaseReachableTime",
+                t("modal.ip.baseReachableTime"),
+                form.ipv6.base_reachable_time,
+                (base_reachable_time) => updateIpv6({ base_reachable_time }),
+                BASE_REACHABLE_TIME_RANGE,
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="vxlan-ipv6SourceValidation" className="text-xs">{t("modal.ip.sourceValidation")}</Label>
+                <NamedListSelect
+                  id="vxlan-ipv6SourceValidation"
+                  value={form.ipv6.source_validation}
+                  names={SOURCE_VALIDATION_VALUES}
+                  labels={sourceValidationLabels}
+                  onValueChange={(source_validation) => updateIpv6({ source_validation })}
+                />
+              </div>
+            </div>
+            <MultiValueInput
+              label={t("modal.ip.eui64Prefix")}
+              values={form.ipv6.address_eui64}
+              onChange={(address_eui64) => updateIpv6({ address_eui64 })}
+              placeholder="2001:db8::/64"
+            />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {checkField("vxlan-ipv6AddressAutoconf", t("modal.ip.addressAutoconf"), form.ipv6.address_autoconf, (address_autoconf) => updateIpv6({ address_autoconf }))}
+              {checkField("vxlan-ipv6NoDefaultLinkLocal", t("modal.ip.noDefaultLinkLocal"), form.ipv6.address_no_default_link_local, (address_no_default_link_local) => updateIpv6({ address_no_default_link_local }))}
+              {checkField("vxlan-ipv6DisableForwarding", t("modal.ip.disableForwarding"), form.ipv6.disable_forwarding, (disable_forwarding) => updateIpv6({ disable_forwarding }))}
+            </div>
+          </TabsContent>
+
+          {/* VLAN-to-VNI Tab */}
+          <TabsContent value="vlan-vni" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">{t("modal.vlanVni.title")}</h4>
+              <Button type="button" variant="outline" size="sm" onClick={addVlanMapping} className="gap-1">
+                <Plus className="h-3 w-3" /> {t("modal.vlanVni.addMapping")}
+              </Button>
+            </div>
+
+            {form.vlan_to_vni.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-2">{t("modal.vlanVni.empty")}</p>
+            ) : (
+              <div className="space-y-2">
+                {form.vlan_to_vni.map((mapping, index) => (
+                  <div key={index} className="flex items-end gap-2 rounded-lg border p-3">
+                    <div className={`flex-1 grid gap-2 ${hasVlanDescription ? "grid-cols-3" : "grid-cols-2"}`}>
+                      <div className="space-y-1">
+                        <Label htmlFor={`vxlan-vlanId${index}`} className="text-xs">{t("modal.vlanVni.vlanId")}</Label>
+                        <Input
+                          id={`vxlan-vlanId${index}`}
+                          value={mapping.vlan_id}
+                          onChange={(e) => updateVlanMapping(index, { vlan_id: e.target.value })}
+                          placeholder={rangeText(VLAN_ID_RANGE)}
+                          className="h-8 text-sm"
+                        />
                       </div>
-                      {supportsVlanDescription && (
-                        <div className="flex-1 space-y-1">
-                          <Label className="text-xs">{tc("description")}</Label>
+                      <div className="space-y-1">
+                        <Label htmlFor={`vxlan-vlanVni${index}`} className="text-xs">VNI</Label>
+                        <Input
+                          id={`vxlan-vlanVni${index}`}
+                          value={mapping.vni}
+                          onChange={(e) => updateVlanMapping(index, { vni: e.target.value })}
+                          placeholder={rangeText(VNI_RANGE)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      {hasVlanDescription && (
+                        <div className="space-y-1">
+                          <Label htmlFor={`vxlan-vlanDescription${index}`} className="text-xs">{tc("description")}</Label>
                           <Input
+                            id={`vxlan-vlanDescription${index}`}
                             value={mapping.description}
-                            onChange={(e) => updateVlanMapping(index, "description", e.target.value)}
+                            onChange={(e) => updateVlanMapping(index, { description: e.target.value })}
                             placeholder={tc("optional")}
+                            className="h-8 text-sm"
                           />
                         </div>
                       )}
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeVlanMapping(index)} className="shrink-0 mt-5">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeVlanMapping(index)}
+                      className="h-8 w-8 shrink-0 text-destructive"
+                      aria-label={tc("delete")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
         {error && (
-          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+            <pre className="text-sm text-destructive whitespace-pre-wrap flex-1">{error}</pre>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>{tc("cancel")}</Button>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
+            {tc("cancel")}
+          </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {isEdit ? tc("saving") : tc("creating")}
               </>
+            ) : isEdit ? (
+              tc("saveChanges")
             ) : (
-              isEdit ? tc("saveChanges") : t("modal.createInterface")
+              t("modal.createInterface")
             )}
           </Button>
         </DialogFooter>
