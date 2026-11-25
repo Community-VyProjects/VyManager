@@ -194,7 +194,14 @@ export function RouteRuleModal({
     return range ? t("rangePlaceholder", { min: range.min, max: range.max }) : undefined;
   };
 
-  const textField = (key: SingleKey, label: string, placeholder?: string, rangeKey?: RouteRangeKey) => (
+  // `numeric` is false for leaves that also take a range or a `!` (match mark, tcp mss).
+  const textField = (
+    key: SingleKey,
+    label: string,
+    placeholder?: string,
+    rangeKey?: RouteRangeKey,
+    numeric: boolean = rangeKey !== undefined,
+  ) => (
     <div className="space-y-2">
       <Label htmlFor={`rr-${key}`}>{label}</Label>
       <Input
@@ -202,7 +209,7 @@ export function RouteRuleModal({
         value={form[key]}
         onChange={(e) => set(key, e.target.value)}
         placeholder={placeholder ?? (rangeKey ? rangeHint(rangeKey) : undefined)}
-        inputMode={rangeKey ? "numeric" : undefined}
+        inputMode={numeric ? "numeric" : undefined}
         disabled={loading}
         className="font-mono"
       />
@@ -463,7 +470,7 @@ export function RouteRuleModal({
               <h3 className="font-semibold text-sm">{t("protocol.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
                 {groupPick("protocol", t("protocol.protocol"), values?.protocols || [])}
-                {tcpMssOn && textField("tcp_mss", t("protocol.tcpMss"), undefined, "tcp_mss")}
+                {tcpMssOn && textField("tcp_mss", t("protocol.tcpMss"), undefined, "tcp_mss", false)}
               </div>
               <div className="space-y-2">
                 <Label>{t("protocol.tcpFlags")}</Label>
@@ -609,7 +616,7 @@ export function RouteRuleModal({
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {textField("mark", t("state.mark"), undefined, "mark")}
+                {textField("mark", t("state.mark"), undefined, "mark", false)}
                 {listField("connection_mark", t("state.connectionMark"), "connection_mark")}
               </div>
             </div>
