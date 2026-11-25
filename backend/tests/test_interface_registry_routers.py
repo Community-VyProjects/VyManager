@@ -1,9 +1,8 @@
-"""Input, loopback, SSTPC and VTI routers: registry mapper, 400 passthrough, batch off the loop.
+"""Input, loopback, MACsec, SSTPC and VTI routers: registry mapper, 400 passthrough, batch off the loop.
 
-Both labs have the same trees for these types, so GET /config loads the shared
-class from ``CommandMapperRegistry`` for 1.4 and for the rolling 1.5 string. A
-stub service records what the handlers send; the app middleware records the
-event-loop thread so a device call made on it is caught.
+GET /config loads the mapper from ``CommandMapperRegistry`` for 1.4 and for
+the rolling 1.5 string. A stub service records what the handlers send; the app
+middleware records the event-loop thread so a device call made on it is caught.
 """
 
 import ast
@@ -18,6 +17,7 @@ from fastapi.testclient import TestClient
 
 from vyos_builders.interfaces.input import InputInterfaceBuilderMixin
 from vyos_builders.interfaces.loopback import LoopbackInterfaceBuilderMixin
+from vyos_builders.interfaces.macsec import MacsecInterfaceBuilderMixin
 from vyos_builders.interfaces.sstpc import SstpcInterfaceBuilderMixin
 from vyos_builders.interfaces.vti import VtiInterfaceBuilderMixin
 
@@ -31,6 +31,8 @@ ROUTERS = [
      InputInterfaceBuilderMixin, "INPUT_IFACE"),
     ("loopback", "/vyos/loopback", "loopback", "lo", "create_loopback_batch",
      LoopbackInterfaceBuilderMixin, "LOOPBACK"),
+    ("macsec", "/vyos/macsec", "macsec", "macsec0", None,
+     MacsecInterfaceBuilderMixin, "MACSEC"),
     ("sstpc", "/vyos/sstpc", "sstpc", "sstpc0", None,
      SstpcInterfaceBuilderMixin, "SSTPC"),
     ("vti", "/vyos/vti", "vti", "vti0", "create_vti_batch",
@@ -186,6 +188,53 @@ def test_sstpc_config_masks_the_password(monkeypatch, commit, auth, expected):
     assert resp.status_code == 200, resp.text
     assert resp.json()["interfaces"][0]["authentication"] == expected
     assert "s3cret" not in resp.text
+
+
+def test_macsec_config_masks_every_key_and_lists_multi_leaves(monkeypatch, commit):
+    cak = "0123456789abcdef0123456789abcdef"
+    static_key = "00112233445566778899aabbccddeeff"
+    peer_key = "ffeeddccbbaa99887766554433221100"
+    row = ROUTERS[IDS.index("macsec")]
+    app, _state = _client(
+        monkeypatch, commit, row,
+        iface={
+            "description": "lab",
+            "source-interface": "eth1",
+            "address": "dhcp",
+            "security": {
+                "cipher": "gcm-aes-128",
+                "encrypt": {},
+                "mka": {"cak": cak, "ckn": "0011"},
+                "static": {
+                    "key": static_key,
+                    "peer": {"P0": {"key": peer_key, "mac": "00:11:22:33:44:55"}, "P1": {"disable": {}}},
+                },
+            },
+            "ipv6": {"address": {"eui64": ["2001:db8::/64", "2001:db8:1::/64"]}},
+            "dhcp-options": {"reject": "192.0.2.9"},
+            "dhcpv6-options": {"pd": {"0": {"length": "56", "interface": {"eth1": {"sla-id": "1"}}}}},
+        },
+    )
+    with TestClient(app) as http:
+        resp = http.get("/vyos/macsec/config")
+    assert resp.status_code == 200, resp.text
+    iface = resp.json()["interfaces"][0]
+    assert iface["addresses"] == ["dhcp"]
+    assert iface["security"]["mka"] == {"cak": "***", "ckn": "0011", "priority": None}
+    assert iface["security"]["static"] == {
+        "key": "***",
+        "peers": [
+            {"name": "P0", "key": "***", "mac": "00:11:22:33:44:55", "disable": False},
+            {"name": "P1", "key": None, "mac": None, "disable": True},
+        ],
+    }
+    assert iface["ipv6"]["address_eui64"] == ["2001:db8::/64", "2001:db8:1::/64"]
+    assert iface["dhcp_options"]["reject"] == ["192.0.2.9"]
+    assert iface["dhcpv6_options"]["pd"] == {
+        "0": {"length": "56", "interfaces": {"eth1": {"address": None, "sla_id": "1"}}},
+    }
+    for secret in (cak, static_key, peer_key):
+        assert secret not in resp.text
 
 
 @pytest.mark.parametrize("row", ROUTERS, ids=IDS)

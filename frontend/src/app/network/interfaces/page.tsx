@@ -253,9 +253,19 @@ function InterfacesPageInner() {
   const [macsecCapabilities, setMacsecCapabilities] = useState<MacsecCapabilities | null>(null);
 
   // MACsec Modal states
-  const [isCreateMacsecModalOpen, setIsCreateMacsecModalOpen] = useState(false);
+  // The subject stays set after close so the dialog does not flip mode while it animates out;
+  // the key changes per open so the modal seeds its draft from props.
+  const [macsecModalOpen, setMacsecModalOpen] = useState(false);
+  const [macsecModalKey, setMacsecModalKey] = useState(0);
   const [editingMacsec, setEditingMacsec] = useState<MacsecInterface | null>(null);
+  const [deleteMacsecOpen, setDeleteMacsecOpen] = useState(false);
+  const [deleteMacsecKey, setDeleteMacsecKey] = useState(0);
   const [deletingMacsec, setDeletingMacsec] = useState<MacsecInterface | null>(null);
+  const openMacsecModal = (iface: MacsecInterface | null) => {
+    setEditingMacsec(iface);
+    setMacsecModalKey((key) => key + 1);
+    setMacsecModalOpen(true);
+  };
 
   // Bonding state
   const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
@@ -1929,7 +1939,7 @@ function InterfacesPageInner() {
                       setIsCreateLoopbackModalOpen(true);
                     }
                   } else if (selectedType === "macsec") {
-                    setIsCreateMacsecModalOpen(true);
+                    openMacsecModal(null);
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
@@ -2821,7 +2831,7 @@ function InterfacesPageInner() {
                       </TableHeader>
                       <TableBody>
                         {filteredMacsec.map((iface) => {
-                          const securityMode = iface.security?.mka?.cak ? "MKA" : iface.security?.static?.key ? "Static" : null;
+                          const securityMode = iface.security?.static ? "Static" : iface.security?.mka ? "MKA" : null;
                           return (
                             <TableRow key={iface.name} className="group">
                               <TableCell><code className="font-semibold font-mono text-foreground">{iface.name}</code></TableCell>
@@ -2863,10 +2873,10 @@ function InterfacesPageInner() {
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   {(canWrite(FeatureGroup.MACSEC) || canWrite(FeatureGroup.INTERFACES)) && (
                                     <>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingMacsec(iface)}>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMacsecModal(iface)}>
                                         <Pencil className="h-3.5 w-3.5" />
                                       </Button>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingMacsec(iface)}>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { setDeletingMacsec(iface); setDeleteMacsecKey((key) => key + 1); setDeleteMacsecOpen(true); }}>
                                         <Trash2 className="h-3.5 w-3.5" />
                                       </Button>
                                     </>
@@ -4369,28 +4379,19 @@ function InterfacesPageInner() {
       />
       {/* MACsec Modals */}
       <MacsecModal
-        open={isCreateMacsecModalOpen || !!editingMacsec}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsCreateMacsecModalOpen(false);
-            setEditingMacsec(null);
-          }
-        }}
-        onSuccess={() => {
-          setEditingMacsec(null);
-          loadData();
-        }}
+        key={macsecModalKey}
+        open={macsecModalOpen}
+        onOpenChange={setMacsecModalOpen}
+        onSuccess={loadData}
         capabilities={macsecCapabilities}
         existingInterfaces={macsecInterfaces.map((i) => i.name)}
         existing={editingMacsec}
       />
       <DeleteMacsecModal
-        open={!!deletingMacsec}
-        onOpenChange={(open) => !open && setDeletingMacsec(null)}
-        onSuccess={() => {
-          setDeletingMacsec(null);
-          loadData();
-        }}
+        key={deleteMacsecKey}
+        open={deleteMacsecOpen}
+        onOpenChange={setDeleteMacsecOpen}
+        onSuccess={loadData}
         interfaceData={deletingMacsec}
       />
       {/* Bonding Modals */}

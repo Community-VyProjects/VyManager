@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { macsecService, type MacsecInterface } from "@/lib/api/macsec";
-import { ApiError } from "@/lib/types/api";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteMacsecModalProps {
   open: boolean;
@@ -40,14 +40,9 @@ export function DeleteMacsecModal({
     setError(null);
 
     try {
-      const result = await macsecService.deleteInterface(interfaceData.name);
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("delete.failed"));
-      }
+      await macsecService.deleteInterface(interfaceData.name);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("delete.failed"));
     } finally {
@@ -55,14 +50,19 @@ export function DeleteMacsecModal({
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   if (!interfaceData) return null;
 
-  const securityMode = interfaceData.security?.mka?.cak ? "MKA" : interfaceData.security?.static?.key ? t("delete.modeStatic") : null;
+  const securityMode = interfaceData.security?.static ? t("delete.modeStatic") : interfaceData.security?.mka ? "MKA" : null;
   const strong = (chunks: ReactNode) => <span className="font-medium text-foreground">{chunks}</span>;
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -100,7 +100,7 @@ export function DeleteMacsecModal({
         <AlertDialogFooter>
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={loading}
           >
             {tc("cancel")}
