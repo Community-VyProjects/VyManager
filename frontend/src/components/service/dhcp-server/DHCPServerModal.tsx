@@ -34,6 +34,7 @@ import {
 import { failedSaveMessage } from "./dhcp-save";
 import {
   emptyServerDraft,
+  nextSubnetId,
   serverDraftFrom,
   serverFieldSupport,
   submitServerCreate,
@@ -109,34 +110,6 @@ export function DHCPServerModal({
   const [catalogOriginal, setCatalogOriginal] = useState<CatalogDraft>({});
   const subnetLeaves = capabilities?.catalog?.subnet ?? NO_LEAVES;
   const support = serverFieldSupport(capabilities);
-
-  const calculateNextSubnetId = useCallback(async () => {
-    if (!capabilities?.fields.subnet_id.supported) return;
-
-    try {
-      const config = await dhcpServerService.getConfig();
-      const usedIds = new Set<number>();
-
-      // Collect all used subnet IDs
-      config.shared_networks.forEach((network) => {
-        network.subnets.forEach((subnet) => {
-          if (subnet.subnet_id) {
-            usedIds.add(subnet.subnet_id);
-          }
-        });
-      });
-
-      // Find the lowest available ID starting from 1
-      let nextId = 1;
-      while (usedIds.has(nextId)) {
-        nextId++;
-      }
-
-      setSubnetId(nextId.toString());
-    } catch (err) {
-      setError((err as ApiError).message || t("page.errors.loadFailed"));
-    }
-  }, [capabilities, t]);
 
   const applyDraft = (next: ServerDraft) => {
     setMode(next.mode);
@@ -217,14 +190,13 @@ export function DHCPServerModal({
         next.selectedNetwork = existingNetwork;
       }
       applyDraft(next);
-      calculateNextSubnetId();
       loadExistingNetworks();
       const loaded = emptyCatalogDraft(subnetLeaves);
       setCatalogDraft(loaded);
       setCatalogOriginal(loaded);
     }
     setError(null);
-  }, [open, existing, existingNetwork, calculateNextSubnetId, loadExistingNetworks, subnetLeaves]);
+  }, [open, existing, existingNetwork, loadExistingNetworks, subnetLeaves]);
 
 
 
@@ -301,20 +273,9 @@ export function DHCPServerModal({
       } else {
         let calculatedSubnetId: number | undefined;
         if (support.hasSubnetId) {
-          if (subnetId) {
-            calculatedSubnetId = parseInt(subnetId, 10);
-          } else {
-            const config = await dhcpServerService.getConfig();
-            const usedIds = new Set<number>();
-            config.shared_networks.forEach((network) => {
-              network.subnets.forEach((entry) => {
-                if (entry.subnet_id) usedIds.add(entry.subnet_id);
-              });
-            });
-            let nextId = 1;
-            while (usedIds.has(nextId)) nextId++;
-            calculatedSubnetId = nextId;
-          }
+          calculatedSubnetId = subnetId
+            ? parseInt(subnetId, 10)
+            : nextSubnetId(await dhcpServerService.getConfig());
         }
         const created = await submitServerCreate(
           draft,

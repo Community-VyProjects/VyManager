@@ -12,6 +12,7 @@ import {
   emptyServerDraft,
   ipToNumber,
   isIPInSubnet,
+  nextSubnetId,
   serverDraftFrom,
   submitServerCreate,
   submitServerUpdate,
@@ -308,5 +309,17 @@ describe("isIPInSubnet", () => {
   it("converts an address to an unsigned number", () => {
     assert.equal(ipToNumber("192.168.1.10") - ipToNumber("192.168.1.1"), 9);
     assert.equal(ipToNumber("255.255.255.255"), 0xffffffff);
+  });
+});
+
+describe("nextSubnetId", () => {
+  it("returns the lowest id no subnet uses", () => {
+    const config = {
+      shared_networks: [
+        { subnets: [{ subnet_id: 1 }, { subnet_id: 3 }] },
+        { subnets: [{ subnet_id: 2 }, {}] },
+      ],
+    } as unknown as DHCPConfigResponse;
+    assert.equal(nextSubnetId(config), 4);
   });
 });

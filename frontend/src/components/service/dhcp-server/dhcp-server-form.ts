@@ -12,6 +12,7 @@ import {
   DHCPServerService,
   type DHCPBatchOperation,
   type DHCPCapabilitiesResponse,
+  type DHCPConfigResponse,
   type DHCPRange,
   type DHCPSubnet,
   type CreateSubnetConfig,
@@ -551,4 +552,17 @@ export async function submitServerUpdate(
   const payload = buildServerUpdate(existing, draft, support, catalogOperations);
   if (!payload) return null;
   return service.updateSubnet(payload);
+}
+
+/** Lowest subnet-id not used by any subnet in the config. */
+export function nextSubnetId(config: DHCPConfigResponse): number {
+  const used = new Set<number>();
+  for (const network of config.shared_networks) {
+    for (const subnet of network.subnets) {
+      if (subnet.subnet_id) used.add(subnet.subnet_id);
+    }
+  }
+  let next = 1;
+  while (used.has(next)) next++;
+  return next;
 }

@@ -320,8 +320,6 @@ export function DHCPServerContent() {
     return leases.filter((l) => l.state === "active" && isIPInSubnet(l.ip_address, subnet)).length;
   };
 
-  // Get total active leases for a network
-
   // Get all static mappings for current network
   const getAllStaticMappings = (): Array<DHCPStaticMapping & { subnet: string }> => {
     if (!currentNetwork) return [];
@@ -1167,15 +1165,11 @@ export function DHCPServerContent() {
                                           size="icon"
                                           className="h-8 w-8 hover:bg-destructive/10"
                                           onClick={() => {
+                                            const { subnet: mappingSubnet, ...stored } = mapping;
                                             setDeletingStaticMapping({
                                               network: currentNetwork.name,
-                                              subnet: mapping.subnet,
-                                              mapping: {
-                                                name: mapping.name,
-                                                ip_address: mapping.ip_address,
-                                                mac_address: mapping.mac_address,
-                                                disable: mapping.disable,
-                                              },
+                                              subnet: mappingSubnet,
+                                              mapping: stored,
                                             });
                                           }}
                                         >
