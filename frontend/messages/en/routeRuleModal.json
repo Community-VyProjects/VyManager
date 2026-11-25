@@ -7,121 +7,127 @@
     "edit": "Update the {family} policy rule",
     "create": "Add a new rule to the {family} policy"
   },
+  "examplePlaceholder": "e.g. {example}",
+  "rangePlaceholder": "{min}-{max}",
   "errors": {
-    "ruleNumberRequired": "Rule number is required",
     "updateFailed": "Failed to update rule",
-    "createFailed": "Failed to create rule"
+    "createFailed": "Failed to create rule",
+    "groupsLoadFailed": "Failed to load firewall groups",
+    "ruleNumberRequired": "Rule number is required",
+    "ruleNumberRange": "Rule number must be a whole number from {min} to {max}",
+    "ruleNumberTaken": "This rule number is already used in the policy",
+    "descriptionTooLong": "Description must be at most {max} characters",
+    "sourceGroupConflict": "Source can use only one of address group, network group and domain group",
+    "destinationGroupConflict": "Destination can use only one of address group, network group and domain group",
+    "portNeedsProtocol": "A port or port group needs a protocol",
+    "tcpNeedsProtocolTcp": "TCP flags and TCP MSS need protocol tcp",
+    "tcpFlagConflict": "TCP flag {value} cannot be both matched and negated",
+    "setTcpMssNeedsSyn": "Setting TCP MSS needs the TCP flag syn",
+    "icmpNeedsProtocolIcmp": "ICMP matching needs protocol icmp",
+    "icmpv6NeedsProtocolIcmpv6": "ICMPv6 type needs protocol icmpv6",
+    "icmpCodeRange": "ICMP code must be from {min} to {max}",
+    "icmpTypeRange": "ICMP type must be from {min} to {max}",
+    "ttlRange": "TTL must be from {min} to {max}",
+    "hopLimitRange": "Hop limit must be from {min} to {max}",
+    "tcpMssRange": "TCP MSS must be a number or range from {min} to {max}",
+    "packetLengthRange": "Packet length {value} must be a number or range from {min} to {max}",
+    "dscpRange": "DSCP {value} must be a number or range from {min} to {max}",
+    "markRange": "Mark must be a number or range from {min} to {max}",
+    "connectionMarkRange": "Connection mark {value} must be a single number from {min} to {max} (no range)",
+    "negationNotAllowed": "{value}: this match does not accept a leading !",
+    "limitBurstRange": "Limit burst must be from {min} to {max}",
+    "limitRateInvalid": "Limit rate needs a number from {min} to {max} and a unit",
+    "limitRateUnsupported": "This device cannot set a limit rate",
+    "geoipCountryUnknown": "Unknown GeoIP country code {value}",
+    "geoipAsnRange": "GeoIP ASN {value} must be from {min} to {max}",
+    "weekdayInvalid": "Unknown weekday {value}",
+    "setConnectionMarkRange": "Set connection mark must be from {min} to {max}",
+    "setDscpRange": "Set DSCP must be from {min} to {max}",
+    "setMarkRange": "Set mark must be from {min} to {max}",
+    "setTableRange": "Table must be main or a number from {min} to {max}",
+    "setTcpMssRange": "Set TCP MSS must be from {min} to {max}"
   },
   "tabs": {
     "basic": "Basic",
     "match": "Match Conditions",
+    "advanced": "Advanced Matching",
     "set": "Set Actions"
   },
   "basic": {
     "ruleNumber": "Rule Number *",
-    "ruleNumberLocked": "Rule number cannot be changed",
     "descriptionPlaceholder": "Rule description",
+    "action": "Action",
     "disable": "Disable this rule",
     "log": "Enable logging for this rule"
   },
   "invertMatch": "Invert match",
-  "address": {
-    "title": "Address Matching",
-    "source": "Source Address",
-    "destination": "Destination Address",
-    "sourceMac": "Source MAC Address",
-    "destinationMac": "Destination MAC Address"
+  "side": {
+    "source": "Source",
+    "destination": "Destination"
   },
-  "geoip": {
-    "title": "GeoIP Matching",
-    "source": "Source GeoIP Countries",
-    "destination": "Destination GeoIP Countries",
-    "exclude": "Exclude countries (inverse match)"
+  "address": {
+    "address": "Address",
+    "mac": "MAC Address",
+    "port": "Port"
   },
   "groups": {
-    "title": "Firewall Groups",
-    "sourceAddressGroup": "Source Address/Network/Domain Group (choose one)",
-    "destinationAddressGroup": "Destination Address/Network/Domain Group (choose one)",
+    "addressGroupKind": "Address, Network or Domain Group",
     "addressGroup": "Address Group",
     "networkGroup": "Network Group",
     "domainGroup": "Domain Group",
-    "selectGroup": "Select group",
-    "sourceMacGroup": "Source MAC Group (optional)",
-    "sourcePortGroup": "Source Port Group (optional)",
-    "destinationMacGroup": "Destination MAC Group (optional)",
-    "destinationPortGroup": "Destination Port Group (optional)",
-    "protocolRestricted": "Protocol will be restricted to TCP/UDP"
+    "macGroup": "MAC Group",
+    "portGroup": "Port Group"
   },
-  "portProtocol": {
-    "title": "Port & Protocol",
-    "sourcePort": "Source Port",
-    "destinationPort": "Destination Port",
-    "portPlaceholder": "80 or 80,443 or 8000-9000",
+  "geoip": {
+    "countryCodes": "GeoIP Country Codes",
+    "asn": "GeoIP ASN",
+    "inverse": "Inverse GeoIP match"
+  },
+  "protocol": {
+    "title": "Protocol",
     "protocol": "Protocol",
-    "allProtocols": "All protocols",
-    "restrictedWithPorts": "Protocol restricted to TCP/UDP when using ports",
+    "tcpMss": "TCP MSS",
     "tcpFlags": "TCP Flags",
-    "tcpMssMatch": "TCP MSS Match",
-    "tcpMssPlaceholder": "1400 or 500-1460"
+    "tcpFlagsNot": "TCP Flags (Not)"
   },
   "icmp": {
-    "title": "ICMP Matching (IPv4 only)",
+    "title": "ICMP Matching",
     "type": "ICMP Type",
-    "typeName": "ICMP Type Name",
     "code": "ICMP Code",
-    "selectType": "Select type",
-    "v6Title": "ICMPv6 Matching (IPv6 only)",
-    "v6Type": "ICMPv6 Type",
-    "v6TypeName": "ICMPv6 Type Name",
-    "v6Code": "ICMPv6 Code"
+    "typeName": "ICMP Type Name",
+    "v6Title": "ICMPv6 Matching",
+    "v6Type": "ICMPv6 Type"
   },
-  "packet": {
-    "title": "Packet Characteristics",
-    "fragment": "Fragment Matching",
-    "matchFragments": "Match fragments",
-    "excludeFragments": "Exclude fragments",
-    "type": "Packet Type",
-    "length": "Packet Length",
-    "lengthExclude": "Packet Length (Exclude)",
-    "lengthPlaceholder": "64 or 64-128",
-    "dscpExclude": "DSCP (Exclude)",
-    "dscpPlaceholder": "0-63 or range 0-10"
-  },
-  "state": {
-    "title": "Connection State & Marks",
-    "connectionState": "Connection State",
-    "states": {
-      "established": "established",
-      "invalid": "invalid",
-      "new": "new",
-      "related": "related"
-    },
-    "ipsecStatus": "IPsec Status",
-    "inbound": "Inbound",
-    "outbound": "Outbound",
-    "noMatch": "No match",
-    "matchIpsec": "Match IPsec",
-    "matchNonIpsec": "Match non-IPsec",
-    "excludeIpsec": "Exclude IPsec",
-    "connectionMark": "Connection Mark",
-    "mark": "Mark"
-  },
-  "ttl": {
-    "title": "TTL (IPv4 only)",
-    "operator": "TTL Operator",
-    "value": "TTL Value",
-    "hopTitle": "Hop Limit (IPv6 only)",
-    "hopOperator": "Hop Limit Operator",
-    "hopValue": "Hop Limit Value",
+  "compare": {
+    "ttlTitle": "TTL",
+    "hopLimitTitle": "Hop Limit",
     "eq": "Equal to (eq)",
     "gt": "Greater than (gt)",
     "lt": "Less than (lt)"
   },
+  "packet": {
+    "title": "Packet Characteristics",
+    "type": "Packet Type",
+    "fragment": "Fragment",
+    "length": "Packet Length",
+    "lengthExclude": "Packet Length (Exclude)",
+    "dscp": "DSCP",
+    "dscpExclude": "DSCP (Exclude)"
+  },
+  "state": {
+    "title": "Connection State & Marks",
+    "connectionState": "Connection State",
+    "ipsec": "IPsec",
+    "mark": "Mark",
+    "connectionMark": "Connection Mark"
+  },
   "time": {
     "title": "Time-based Matching",
     "monthDays": "Month Days",
-    "monthDaysPlaceholder": "1-31 (comma-separated)",
-    "monthDaysExample": "Example: 1,15,30",
+    "startDate": "Start Date",
+    "stopDate": "Stop Date",
+    "startTime": "Start Time",
+    "stopTime": "Stop Time",
     "weekdays": "Weekdays",
     "days": {
       "mon": "Mon",
@@ -132,38 +138,25 @@
       "sat": "Sat",
       "sun": "Sun"
     },
-    "startDate": "Start Date",
-    "stopDate": "Stop Date",
-    "startTime": "Start Time",
-    "stopTime": "Stop Time",
     "utc": "Use UTC time"
   },
-  "rate": {
+  "limit": {
     "title": "Rate Limiting",
-    "limitBurst": "Limit Burst",
-    "packetsPlaceholder": "Number of packets",
-    "limitBurstHelp": "Maximum burst before rate limiting applies",
-    "limitRate": "Limit Rate",
-    "limitRatePlaceholder": "packets/second, packets/minute, etc.",
-    "limitRateExample": "Example: 10/second, 100/minute",
-    "recentCount": "Recent Count",
-    "recentTime": "Recent Time",
-    "seconds": "Seconds"
+    "burst": "Limit Burst",
+    "rate": "Limit Rate",
+    "unit": "Unit",
+    "recent": "Recent: count {count}, time {time}",
+    "removeRecent": "Remove recent match"
   },
   "actions": {
-    "drop": "Drop matching packets",
-    "marking": "Packet Marking",
     "connectionMark": "Connection Mark",
     "mark": "Mark",
-    "routing": "Routing",
+    "dscp": "DSCP",
+    "tcpMss": "TCP MSS",
     "routingTable": "Routing Table",
     "mainTable": "Main table",
     "customTable": "Custom table",
-    "tablePlaceholder": "Table number or name",
-    "vrfHelp": "VRF routing",
-    "tcpOptions": "TCP Options",
-    "tcpMssPlaceholder": "500-1460 or 'clamp-mss-to-pmtu'",
-    "tcpMssHelp": "TCP Maximum Segment Size"
+    "vrf": "VRF"
   },
   "buttons": {
     "createRule": "Create Rule"

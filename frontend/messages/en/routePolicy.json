@@ -30,12 +30,10 @@
   "ruleRow": {
     "conditions": "{count, plural, one {# condition} other {# conditions}}",
     "actions": "{count, plural, one {# action} other {# actions}}",
-    "drop": "Drop",
     "match": {
       "sourceAddress": "Src Addr",
       "destinationAddress": "Dst Addr",
       "sourceMac": "Src MAC",
-      "destinationMac": "Dst MAC",
       "sourceGeoip": "Src GeoIP",
       "destinationGeoip": "Dst GeoIP",
       "sourceGroupAddress": "Src Group Addr",
@@ -52,20 +50,17 @@
       "destinationPort": "Dst Port",
       "protocol": "Protocol",
       "tcpFlags": "TCP Flags",
+      "tcpFlagsNot": "TCP Flags Not",
       "icmpCode": "ICMP Code",
       "icmpType": "ICMP Type",
       "icmpTypeName": "ICMP Name",
-      "icmpv6Code": "ICMPv6 Code",
       "icmpv6Type": "ICMPv6 Type",
-      "icmpv6TypeName": "ICMPv6 Name",
       "fragment": "Fragment",
       "packetType": "Pkt Type",
       "packetLength": "Pkt Length",
       "packetLengthExclude": "Pkt Len Excl",
       "dscpExclude": "DSCP Excl",
       "state": "State",
-      "ipsecIn": "IPsec In",
-      "ipsecOut": "IPsec Out",
       "mark": "Mark",
       "connectionMark": "Conn Mark",
       "hopLimitEq": "Hop Limit =",
@@ -96,10 +91,11 @@
   "createPolicy": {
     "title": "Create {family} Policy",
     "description": "Create a new policy {policyType} for {family} traffic routing",
-    "nameRequired": "Policy name is required",
     "createFailed": "Failed to create policy",
     "nameLabel": "Policy Name *",
+    "namePlaceholder": "e.g. {example}",
     "descriptionPlaceholder": "Policy description",
+    "interfaces": "Interfaces",
     "defaultLog": "Enable default logging for unmatched packets",
     "submit": "Create Policy"
   },
@@ -129,10 +125,15 @@
     "submit": "Delete Rule"
   },
   "manageInterfaces": {
-    "loadFailed": "Failed to load data",
     "updateFailed": "Failed to update interfaces",
     "title": "Manage Policy Interfaces",
     "description": "Select interfaces to apply the \"{policyName}\" policy to.",
-    "noInterfaces": "No interfaces available"
+    "interfaces": "Interfaces"
+  },
+  "policyErrors": {
+    "nameRequired": "Policy name is required",
+    "nameInvalid": "Policy name may contain only letters, digits, hyphens, underscores and dots",
+    "nameTaken": "A policy with this name already exists",
+    "descriptionTooLong": "Description must be at most {max} characters"
   }
 }

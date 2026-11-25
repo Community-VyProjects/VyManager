@@ -7,16 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
-import { PolicyRouteRule } from "@/lib/api/route";
+import type { GeoIPMatch, PolicyRouteRule } from "@/lib/api/route";
 import { useTranslations } from "next-intl";
+import { activeMatchEntries } from "./route-rule-form";
 
 interface RouteRuleRowProps {
   rule: PolicyRouteRule;
   onEdit: (rule: PolicyRouteRule) => void;
   onDelete: (rule: PolicyRouteRule) => void;
+  /** The user may change the policy (shows drag, Edit and Delete). */
+  canWrite: boolean;
+  /** Dragging is off while the page reloads or a reorder commits. */
+  dragDisabled: boolean;
+  /** Edit and Delete are off while the page reloads or a new order is unsaved. */
+  disabled: boolean;
 }
 
-export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
+export function RouteRuleRow({ rule, onEdit, onDelete, canWrite, dragDisabled, disabled }: RouteRuleRowProps) {
   const t = useTranslations("routePolicy.ruleRow");
   const tc = useTranslations("common");
   const {
@@ -26,7 +33,7 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: rule.rule_number });
+  } = useSortable({ id: rule.rule_number, disabled: !canWrite || dragDisabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -38,7 +45,6 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     source_address: t("match.sourceAddress"),
     destination_address: t("match.destinationAddress"),
     source_mac_address: t("match.sourceMac"),
-    destination_mac_address: t("match.destinationMac"),
     source_geoip: t("match.sourceGeoip"),
     destination_geoip: t("match.destinationGeoip"),
     source_group_address: t("match.sourceGroupAddress"),
@@ -55,13 +61,12 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     destination_port: t("match.destinationPort"),
     protocol: t("match.protocol"),
     tcp_flags: t("match.tcpFlags"),
+    tcp_flags_not: t("match.tcpFlagsNot"),
     tcp_mss: "TCP MSS",
     icmp_code: t("match.icmpCode"),
     icmp_type: t("match.icmpType"),
     icmp_type_name: t("match.icmpTypeName"),
-    icmpv6_code: t("match.icmpv6Code"),
     icmpv6_type: t("match.icmpv6Type"),
-    icmpv6_type_name: t("match.icmpv6TypeName"),
     fragment: t("match.fragment"),
     packet_type: t("match.packetType"),
     packet_length: t("match.packetLength"),
@@ -70,8 +75,6 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     dscp_exclude: t("match.dscpExclude"),
     state: t("match.state"),
     ipsec: "IPsec",
-    ipsec_in: t("match.ipsecIn"),
-    ipsec_out: t("match.ipsecOut"),
     mark: t("match.mark"),
     connection_mark: t("match.connectionMark"),
     ttl_eq: "TTL =",
@@ -104,8 +107,8 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
 
   const formatMatchValue = (key: string, value: unknown): string => {
     if ((key === "source_geoip" || key === "destination_geoip") && value && typeof value === "object") {
-      const geoip = value as { country_code?: string[] | null; inverse_match?: boolean | null };
-      const codes = (geoip.country_code || []).join(",");
+      const geoip = value as GeoIPMatch;
+      const codes = [...geoip.country_code, ...geoip.asn].join(",");
       return `${geoip.inverse_match ? "!" : ""}${codes}`;
     }
     if (Array.isArray(value)) {
@@ -114,22 +117,10 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     return String(value);
   };
 
-  const activeMatchConditions = rule.match
-    ? Object.entries(rule.match).filter(([, value]) => {
-        if (value === null || value === undefined || value === false || value === "") return false;
-        if (Array.isArray(value) && value.length === 0) return false;
-        if (typeof value === "object") {
-          const geoip = value as { country_code?: string[] | null; inverse_match?: boolean | null };
-          return Boolean((geoip.country_code && geoip.country_code.length > 0) || geoip.inverse_match);
-        }
-        return true;
-      })
-    : [];
+  const activeMatchConditions = activeMatchEntries(rule.match);
 
   const activeSetActions = rule.set
-    ? Object.entries(rule.set).filter(
-        ([key, value]) => key !== "action_drop" && value !== null && value !== undefined && value !== false && value !== ""
-      )
+    ? Object.entries(rule.set).filter(([, value]) => value !== null && value !== undefined && value !== "")
     : [];
 
   const matchCount = activeMatchConditions.length;
@@ -139,16 +130,18 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     <TableRow
       ref={setNodeRef}
       style={style}
-      className="group cursor-move hover:bg-accent/50"
+      className="group hover:bg-accent/50"
     >
       <TableCell className="w-12">
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 hover:bg-accent rounded"
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </div>
+        {canWrite && (
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-accent rounded"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
       </TableCell>
       <TableCell className="font-mono font-medium">{rule.rule_number}</TableCell>
       <TableCell>{rule.description || "-"}</TableCell>
@@ -183,9 +176,13 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
         )}
       </TableCell>
       <TableCell>
-        {rule.set?.action_drop ? (
-          <Badge variant="destructive">{t("drop")}</Badge>
-        ) : setCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-1">
+        {rule.action && (
+          <Badge variant={rule.action === "drop" || rule.action === "reject" ? "destructive" : "outline"} className="font-mono">
+            {rule.action}
+          </Badge>
+        )}
+        {setCount > 0 ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -211,8 +208,9 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
             </Tooltip>
           </TooltipProvider>
         ) : (
-          <span className="text-muted-foreground text-sm">—</span>
+          !rule.action && <span className="text-muted-foreground text-sm">—</span>
         )}
+        </div>
       </TableCell>
       <TableCell>
         {rule.disable ? (
@@ -222,12 +220,15 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
         )}
       </TableCell>
       <TableCell className="text-right">
+        {canWrite && (
         <div className="flex gap-2 justify-end">
           <Button
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => onEdit(rule)}
+            disabled={disabled}
+            aria-label={tc("edit")}
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -236,10 +237,13 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
             size="sm"
             className="h-8 w-8 p-0 text-destructive hover:text-destructive"
             onClick={() => onDelete(rule)}
+            disabled={disabled}
+            aria-label={tc("delete")}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
+        )}
       </TableCell>
     </TableRow>
   );
