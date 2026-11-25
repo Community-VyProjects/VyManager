@@ -1,13 +1,21 @@
 """
 Failover Routing Batch Builder
 
-Provides all batch operations for failover route configuration.
-Handles version-specific differences through the mapper layer.
+Provides all batch operations for failover route configuration. The mapper
+allowlist (versioned_nodes) decides which version-only nodes this device
+has; a 1.5-only op raises ValueError on 1.4.
 """
 
-from typing import Dict, Any
-from vyos_mappers import CommandMapperRegistry
+from typing import Any, Dict, List, cast
+
 from vyos_builders.base import BatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.failover.failover import FailoverMapper
+
+# Lab syntax bounds, the same on 1.4 and 1.5.
+PORT_RANGE = {"min": 1, "max": 65535}
+TIMEOUT_RANGE = {"min": 1, "max": 255}
+METRIC_RANGE = {"min": 1, "max": 255}
 
 
 class FailoverBatchBuilder(BatchBuilder):
@@ -18,16 +26,27 @@ class FailoverBatchBuilder(BatchBuilder):
         self.mapper_key = "failover"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
+    def _mapper(self) -> FailoverMapper:
+        # Read mappers[mapper_key] on every call: VRF swaps that entry for a
+        # PathPrefixMapper after construction.
+        return cast(FailoverMapper, self.mappers[self.mapper_key])
+
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a node only one VyOS version has; ValueError elsewhere."""
+        mapper = self._mapper()
+        mapper.require_node(node)
+        return getattr(mapper, method)(*args)
+
     # ========================================================================
     # Route Operations
     # ========================================================================
 
     def set_route(self, destination: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_route_path(destination)
+        path = self._mapper().get_route_path(destination)
         return self.add_set(path)
 
     def delete_route(self, destination: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_route_path(destination)
+        path = self._mapper().get_route_path(destination)
         return self.add_delete(path)
 
     # ========================================================================
@@ -35,101 +54,97 @@ class FailoverBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_next_hop(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_path(destination, next_hop)
+        path = self._mapper().get_next_hop_path(destination, next_hop)
         return self.add_set(path)
 
     def delete_next_hop(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_path(destination, next_hop)
+        path = self._mapper().get_next_hop_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_check_policy(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_policy(destination, next_hop, value)
+        path = self._mapper().get_next_hop_check_policy(destination, next_hop, value)
         return self.add_set(path)
 
     def delete_next_hop_check_policy(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_policy_path(destination, next_hop)
+        path = self._mapper().get_next_hop_check_policy_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_check_port(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_port(destination, next_hop, value)
+        path = self._mapper().get_next_hop_check_port(destination, next_hop, value)
         return self.add_set(path)
 
     def delete_next_hop_check_port(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_port_path(destination, next_hop)
+        path = self._mapper().get_next_hop_check_port_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_check_target(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_target(destination, next_hop, value)
+        path = self._mapper().get_next_hop_check_target(destination, next_hop, value)
         return self.add_set(path)
 
     def delete_next_hop_check_target(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        """Delete a specific target. In 1.4 removes from multi-value list, in 1.5 removes tag node."""
-        path = self.mappers[self.mapper_key].get_next_hop_check_target(destination, next_hop, value)
+        """Delete one target (a multi value on 1.4, a tag node on 1.5)."""
+        path = self._mapper().get_next_hop_check_target(destination, next_hop, value)
         return self.add_delete(path)
 
     def delete_next_hop_check_target_all(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
         """Delete all targets."""
-        path = self.mappers[self.mapper_key].get_next_hop_check_target_path(destination, next_hop)
+        path = self._mapper().get_next_hop_check_target_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_check_target_interface(self, destination: str, next_hop: str, target: str, value: str) -> "FailoverBatchBuilder":
-        """Set target interface (1.5 only)."""
-        path = self.mappers[self.mapper_key].get_next_hop_check_target_interface(destination, next_hop, target, value)
+        path = self._versioned_path("check target interface", "get_next_hop_check_target_interface", destination, next_hop, target, value)
         return self.add_set(path)
 
     def delete_next_hop_check_target_interface(self, destination: str, next_hop: str, target: str) -> "FailoverBatchBuilder":
-        """Delete target interface (1.5 only)."""
-        path = self.mappers[self.mapper_key].get_next_hop_check_target_interface_path(destination, next_hop, target)
+        path = self._versioned_path("check target interface", "get_next_hop_check_target_interface_path", destination, next_hop, target)
         return self.add_delete(path)
 
     def set_next_hop_check_target_vrf(self, destination: str, next_hop: str, target: str, value: str) -> "FailoverBatchBuilder":
-        """Set target VRF (1.5 only)."""
-        path = self.mappers[self.mapper_key].get_next_hop_check_target_vrf(destination, next_hop, target, value)
+        path = self._versioned_path("check target vrf", "get_next_hop_check_target_vrf", destination, next_hop, target, value)
         return self.add_set(path)
 
     def delete_next_hop_check_target_vrf(self, destination: str, next_hop: str, target: str) -> "FailoverBatchBuilder":
-        """Delete target VRF (1.5 only)."""
-        path = self.mappers[self.mapper_key].get_next_hop_check_target_vrf_path(destination, next_hop, target)
+        path = self._versioned_path("check target vrf", "get_next_hop_check_target_vrf_path", destination, next_hop, target)
         return self.add_delete(path)
 
     def set_next_hop_check_timeout(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_timeout(destination, next_hop, value)
+        path = self._mapper().get_next_hop_check_timeout(destination, next_hop, value)
         return self.add_set(path)
 
     def delete_next_hop_check_timeout(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_timeout_path(destination, next_hop)
+        path = self._mapper().get_next_hop_check_timeout_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_check_type(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_type(destination, next_hop, value)
+        path = self._mapper().get_next_hop_check_type(destination, next_hop, value)
         return self.add_set(path)
 
     def delete_next_hop_check_type(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_check_type_path(destination, next_hop)
+        path = self._mapper().get_next_hop_check_type_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_interface(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_interface(destination, next_hop, value)
+        path = self._mapper().get_next_hop_interface(destination, next_hop, value)
         return self.add_set(path)
 
     def delete_next_hop_interface(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_interface_path(destination, next_hop)
+        path = self._mapper().get_next_hop_interface_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_metric(self, destination: str, next_hop: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_metric(destination, next_hop, value)
+        path = self._mapper().get_next_hop_metric(destination, next_hop, value)
         return self.add_set(path)
 
     def delete_next_hop_metric(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_metric_path(destination, next_hop)
+        path = self._mapper().get_next_hop_metric_path(destination, next_hop)
         return self.add_delete(path)
 
     def set_next_hop_onlink(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_onlink(destination, next_hop)
+        path = self._mapper().get_next_hop_onlink(destination, next_hop)
         return self.add_set(path)
 
     def delete_next_hop_onlink(self, destination: str, next_hop: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_next_hop_onlink(destination, next_hop)
+        path = self._mapper().get_next_hop_onlink(destination, next_hop)
         return self.add_delete(path)
 
     # ========================================================================
@@ -137,95 +152,95 @@ class FailoverBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_dhcp_interface(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_path", destination, dhcp_interface)
         return self.add_set(path)
 
     def delete_dhcp_interface(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_check_policy(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_policy(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_policy", destination, dhcp_interface, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_check_policy(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_policy_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_policy_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_check_port(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_port(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_port", destination, dhcp_interface, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_check_port(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_port_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_port_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_check_target(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_target(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_target", destination, dhcp_interface, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_check_target(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_target(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_target", destination, dhcp_interface, value)
         return self.add_delete(path)
 
     def delete_dhcp_interface_check_target_all(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_target_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_target_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_check_target_interface(self, destination: str, dhcp_interface: str, target: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_target_interface(destination, dhcp_interface, target, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_target_interface", destination, dhcp_interface, target, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_check_target_interface(self, destination: str, dhcp_interface: str, target: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_target_interface_path(destination, dhcp_interface, target)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_target_interface_path", destination, dhcp_interface, target)
         return self.add_delete(path)
 
     def set_dhcp_interface_check_target_vrf(self, destination: str, dhcp_interface: str, target: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_target_vrf(destination, dhcp_interface, target, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_target_vrf", destination, dhcp_interface, target, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_check_target_vrf(self, destination: str, dhcp_interface: str, target: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_target_vrf_path(destination, dhcp_interface, target)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_target_vrf_path", destination, dhcp_interface, target)
         return self.add_delete(path)
 
     def set_dhcp_interface_check_timeout(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_timeout(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_timeout", destination, dhcp_interface, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_check_timeout(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_timeout_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_timeout_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_check_type(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_type(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_type", destination, dhcp_interface, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_check_type(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_check_type_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_check_type_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_interface(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_interface(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_interface", destination, dhcp_interface, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_interface(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_interface_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_interface_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_metric(self, destination: str, dhcp_interface: str, value: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_metric(destination, dhcp_interface, value)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_metric", destination, dhcp_interface, value)
         return self.add_set(path)
 
     def delete_dhcp_interface_metric(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_metric_path(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_metric_path", destination, dhcp_interface)
         return self.add_delete(path)
 
     def set_dhcp_interface_onlink(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_onlink(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_onlink", destination, dhcp_interface)
         return self.add_set(path)
 
     def delete_dhcp_interface_onlink(self, destination: str, dhcp_interface: str) -> "FailoverBatchBuilder":
-        path = self.mappers[self.mapper_key].get_dhcp_interface_onlink(destination, dhcp_interface)
+        path = self._versioned_path("dhcp-interface", "get_dhcp_interface_onlink", destination, dhcp_interface)
         return self.add_delete(path)
 
     # ========================================================================
@@ -233,31 +248,21 @@ class FailoverBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_5 = "1.5" in self.version or "latest" in self.version
-        is_1_4 = "1.4" in self.version
+        mapper = self._mapper()
+        nodes = mapper.versioned_nodes()
 
         return {
             "version": self.version,
             "features": {
-                "routes": {
-                    "supported": True,
-                    "description": "Failover route configuration",
-                },
-                "next_hop": {
-                    "supported": True,
-                    "description": "Next-hop failover with health checks",
-                },
-                "dhcp_interface": {
-                    "supported": is_1_5,
-                    "description": "DHCP interface failover (VyOS 1.5+)",
-                },
-                "check_target_properties": {
-                    "supported": is_1_5,
-                    "description": "Check target interface/VRF properties (VyOS 1.5+)",
-                },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
+                "routes": {"supported": True},
+                "next_hop": {"supported": True},
+                "dhcp_interface": {"supported": "dhcp-interface" in nodes},
+                "check_target_interface": {"supported": "check target interface" in nodes},
+                "check_target_vrf": {"supported": "check target vrf" in nodes},
+                "check_policy": {"supported": True, "values": mapper.check_policy_values()},
+                "check_type": {"supported": True, "values": mapper.check_type_values()},
+                "check_port": {"supported": True, **PORT_RANGE},
+                "check_timeout": {"supported": True, **TIMEOUT_RANGE},
+                "metric": {"supported": True, **METRIC_RANGE},
             },
         }

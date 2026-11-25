@@ -1,16 +1,13 @@
 """Read-model for failover config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree. Version branches use mapper.version, matching the old router
-check: ``"1.5" in version or "latest" in version``.
+the tree. The parse reads the shape the device returned, not the version
+string: ``check target`` is a ``multi:`` list (or one string) on 1.4 and a
+tag dict with ``interface``/``vrf`` children on 1.5, and ``dhcp-interface``
+appears only on a device that has it.
 """
 
 from typing import Any, Dict, List
-
-
-def _is_1_5(mapper) -> bool:
-    version = mapper.version
-    return "1.5" in version or "latest" in version
 
 
 def _empty_check() -> Dict[str, Any]:
@@ -23,42 +20,30 @@ def _empty_check() -> Dict[str, Any]:
     }
 
 
-def parse_check_targets(check_config: dict, is_1_5: bool) -> List[Dict[str, Any]]:
+def parse_check_targets(check_config: dict) -> List[Dict[str, Any]]:
     """Parse health check targets from config."""
-    target_raw = check_config.get("target", {})
+    target_raw = check_config.get("target")
     if not target_raw:
         return []
 
-    targets = []
+    if isinstance(target_raw, dict):
+        targets = []
+        for addr, props in target_raw.items():
+            props = props if isinstance(props, dict) else {}
+            targets.append(
+                {
+                    "address": addr,
+                    "interface": props.get("interface"),
+                    "vrf": props.get("vrf"),
+                }
+            )
+        return targets
 
-    if is_1_5:
-        # 1.5: target is a tag node dict {addr: {interface: ..., vrf: ...}}
-        if isinstance(target_raw, dict):
-            for addr, props in target_raw.items():
-                if props is None:
-                    props = {}
-                targets.append(
-                    {
-                        "address": addr,
-                        "interface": props.get("interface") if isinstance(props, dict) else None,
-                        "vrf": props.get("vrf") if isinstance(props, dict) else None,
-                    }
-                )
-        elif isinstance(target_raw, list):
-            for addr in target_raw:
-                targets.append({"address": addr, "interface": None, "vrf": None})
-    else:
-        # 1.4: target is a multi-value (list of IPs or single string)
-        if isinstance(target_raw, list):
-            for addr in target_raw:
-                targets.append({"address": addr, "interface": None, "vrf": None})
-        elif isinstance(target_raw, str):
-            targets.append({"address": target_raw, "interface": None, "vrf": None})
-
-    return targets
+    addresses = target_raw if isinstance(target_raw, list) else [target_raw]
+    return [{"address": addr, "interface": None, "vrf": None} for addr in addresses]
 
 
-def parse_check(check_config: dict, is_1_5: bool) -> Dict[str, Any]:
+def parse_check(check_config: dict) -> Dict[str, Any]:
     """Parse health check configuration."""
     if not check_config:
         return _empty_check()
@@ -66,88 +51,51 @@ def parse_check(check_config: dict, is_1_5: bool) -> Dict[str, Any]:
     return {
         "policy": check_config.get("policy"),
         "port": int(check_config["port"]) if check_config.get("port") else None,
-        "targets": parse_check_targets(check_config, is_1_5),
+        "targets": parse_check_targets(check_config),
         "timeout": int(check_config["timeout"]) if check_config.get("timeout") else None,
         "type": check_config.get("type"),
     }
 
 
-def parse_next_hops(route_config: dict, is_1_5: bool) -> List[Dict[str, Any]]:
+def _parse_gateway(config: dict) -> Dict[str, Any]:
+    """Leaves a next-hop and a dhcp-interface share."""
+    return {
+        "check": parse_check(config.get("check") or {}),
+        "interface": config.get("interface"),
+        "metric": int(config["metric"]) if config.get("metric") else None,
+        "onlink": "onlink" in config,
+    }
+
+
+def parse_next_hops(route_config: dict) -> List[Dict[str, Any]]:
     """Parse next-hop configurations for a route."""
-    next_hops_raw = route_config.get("next-hop", {})
-    if not next_hops_raw:
-        return []
-
-    next_hops = []
-    for nh_addr, nh_config in next_hops_raw.items():
-        if nh_config is None:
-            nh_config = {}
-
-        next_hops.append(
-            {
-                "address": nh_addr,
-                "check": parse_check(nh_config.get("check", {}), is_1_5),
-                "interface": nh_config.get("interface"),
-                "metric": int(nh_config["metric"]) if nh_config.get("metric") else None,
-                "onlink": "onlink" in nh_config,
-            }
-        )
-
-    return next_hops
+    return [
+        {"address": addr, **_parse_gateway(config or {})}
+        for addr, config in (route_config.get("next-hop") or {}).items()
+    ]
 
 
-def parse_dhcp_interfaces(route_config: dict, is_1_5: bool) -> List[Dict[str, Any]]:
-    """Parse DHCP interface configurations for a route (1.5 only)."""
-    if not is_1_5:
-        return []
-
-    dhcp_raw = route_config.get("dhcp-interface", {})
-    if not dhcp_raw:
-        return []
-
-    dhcp_interfaces = []
-    for iface_name, iface_config in dhcp_raw.items():
-        if iface_config is None:
-            iface_config = {}
-
-        dhcp_interfaces.append(
-            {
-                "name": iface_name,
-                "check": parse_check(iface_config.get("check", {}), is_1_5),
-                "interface": iface_config.get("interface"),
-                "metric": int(iface_config["metric"]) if iface_config.get("metric") else None,
-                "onlink": "onlink" in iface_config,
-            }
-        )
-
-    return dhcp_interfaces
+def parse_dhcp_interfaces(route_config: dict) -> List[Dict[str, Any]]:
+    """Parse DHCP interface configurations for a route."""
+    return [
+        {"name": name, **_parse_gateway(config or {})}
+        for name, config in (route_config.get("dhcp-interface") or {}).items()
+    ]
 
 
-def parse_routes(routes_raw: dict, is_1_5: bool) -> List[Dict[str, Any]]:
+def parse_routes(routes_raw: dict) -> List[Dict[str, Any]]:
     """Parse failover route configurations."""
-    routes = []
-
-    for dest, route_config in routes_raw.items():
-        if route_config is None:
-            route_config = {}
-
-        routes.append(
-            {
-                "destination": dest,
-                "next_hops": parse_next_hops(route_config, is_1_5),
-                "dhcp_interfaces": parse_dhcp_interfaces(route_config, is_1_5),
-            }
-        )
-
-    return routes
+    return [
+        {
+            "destination": dest,
+            "next_hops": parse_next_hops(route_config or {}),
+            "dhcp_interfaces": parse_dhcp_interfaces(route_config or {}),
+        }
+        for dest, route_config in routes_raw.items()
+    ]
 
 
-def parse_config(mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
+def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/failover/config payload."""
-    is_1_5 = _is_1_5(mapper)
-    failover_config = full_config.get("protocols", {}).get("failover", {})
-
-    if not failover_config:
-        return {"routes": []}
-
-    return {"routes": parse_routes(failover_config.get("route", {}), is_1_5)}
+    failover_config = (full_config.get("protocols") or {}).get("failover") or {}
+    return {"routes": parse_routes(failover_config.get("route") or {})}

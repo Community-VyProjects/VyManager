@@ -1,37 +1,116 @@
 """
 Failover Routing Command Mapper
 
-Handles command path generation for protocols failover configuration.
-Common paths shared between VyOS 1.4 and 1.5.
-Version-specific logic is in failover_versions/.
+One class holds the ``protocols failover`` commands both VyOS versions
+have. ``dhcp-interface`` and the ``interface``/``vrf`` children of a check
+target exist only on 1.5; those paths live on
+``failover_versions.v1_5.FailoverMapperV1_5``.
 
-Config tree (common):
+Config tree (both versions):
   protocols failover/
     route/<DEST>/
       next-hop/<NH>/
-        check/{policy, port, timeout, type}
+        check/{policy, port, target, timeout, type}
         interface
         metric
         onlink
 
-Version differences:
-  1.4: check/target is a multi-value node (flat list of IPs)
-  1.5: check/target is a tag node with interface/vrf sub-properties
-  1.5: adds dhcp-interface/<IFACE>/ with same check structure as next-hop
+``check target`` is ``multi:`` on 1.4 and a tag node on 1.5. The set and
+delete paths of one target are the same on both.
 """
 
-from typing import List
+from typing import Any, Dict, FrozenSet, List, Tuple
+
 from ..base import BaseFeatureMapper
+
+# Lab `allowed:` lines, the same on 1.4 and 1.5.
+CHECK_POLICIES = ["any-available", "all-available"]
+CHECK_TYPES = ["arp", "icmp", "tcp"]
 
 
 class FailoverMapper(BaseFeatureMapper):
-    """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
+    """Failover paths shared by VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    # Version-only CLI node -> every path method under it (on the subclass).
+    _VERSIONED_NODES: Dict[str, Tuple[str, ...]] = {
+        "dhcp-interface": (
+            "get_dhcp_interface_path",
+            "get_dhcp_interface_check_policy",
+            "get_dhcp_interface_check_policy_path",
+            "get_dhcp_interface_check_port",
+            "get_dhcp_interface_check_port_path",
+            "get_dhcp_interface_check_target",
+            "get_dhcp_interface_check_target_path",
+            "get_dhcp_interface_check_target_interface",
+            "get_dhcp_interface_check_target_interface_path",
+            "get_dhcp_interface_check_target_vrf",
+            "get_dhcp_interface_check_target_vrf_path",
+            "get_dhcp_interface_check_timeout",
+            "get_dhcp_interface_check_timeout_path",
+            "get_dhcp_interface_check_type",
+            "get_dhcp_interface_check_type_path",
+            "get_dhcp_interface_interface",
+            "get_dhcp_interface_interface_path",
+            "get_dhcp_interface_metric",
+            "get_dhcp_interface_metric_path",
+            "get_dhcp_interface_onlink",
+        ),
+        "check target interface": (
+            "get_next_hop_check_target_interface",
+            "get_next_hop_check_target_interface_path",
+            "get_dhcp_interface_check_target_interface",
+            "get_dhcp_interface_check_target_interface_path",
+        ),
+        "check target vrf": (
+            "get_next_hop_check_target_vrf",
+            "get_next_hop_check_target_vrf_path",
+            "get_dhcp_interface_check_target_vrf",
+            "get_dhcp_interface_check_target_vrf_path",
+        ),
+    }
 
     def _base(self) -> List[str]:
         return ["protocols", "failover"]
+
+    # ========================================================================
+    # Version allowlist
+    # ========================================================================
+
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Failover nodes only some VyOS versions have.
+
+        A node counts when every path method below it is on this mapper.
+        Capabilities and the builder read this set instead of the version
+        string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
+
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"failover {node} is not supported on this device")
+
+    # ========================================================================
+    # Value lists
+    # ========================================================================
+
+    def check_policy_values(self) -> List[str]:
+        return list(CHECK_POLICIES)
+
+    def check_type_values(self) -> List[str]:
+        return list(CHECK_TYPES)
+
+    # ========================================================================
+    # Config read
+    # ========================================================================
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_failover_config
+
+        return parse_failover_config(self, full_config)
 
     # ========================================================================
     # Route Paths
@@ -46,7 +125,7 @@ class FailoverMapper(BaseFeatureMapper):
         return self._base() + ["route", destination]
 
     # ========================================================================
-    # Next-Hop Paths (common to both 1.4 and 1.5)
+    # Next-Hop Paths
     # ========================================================================
 
     def get_next_hop_path(self, destination: str, next_hop: str) -> List[str]:
@@ -57,6 +136,10 @@ class FailoverMapper(BaseFeatureMapper):
 
     def get_next_hop_check_port(self, destination: str, next_hop: str, value: str) -> List[str]:
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "port", value]
+
+    def get_next_hop_check_target(self, destination: str, next_hop: str, target: str) -> List[str]:
+        """One check target (a multi value on 1.4, a tag node on 1.5)."""
+        return self._base() + ["route", destination, "next-hop", next_hop, "check", "target", target]
 
     def get_next_hop_check_timeout(self, destination: str, next_hop: str, value: str) -> List[str]:
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "timeout", value]
@@ -82,6 +165,10 @@ class FailoverMapper(BaseFeatureMapper):
 
     def get_next_hop_check_port_path(self, destination: str, next_hop: str) -> List[str]:
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "port"]
+
+    def get_next_hop_check_target_path(self, destination: str, next_hop: str) -> List[str]:
+        """Every check target of a next-hop."""
+        return self._base() + ["route", destination, "next-hop", next_hop, "check", "target"]
 
     def get_next_hop_check_timeout_path(self, destination: str, next_hop: str) -> List[str]:
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "timeout"]
