@@ -1,38 +1,21 @@
-"""Factory for version-specific firewall global-options mappers."""
+"""Factory for firewall global-options mappers.
+
+The shared class is returned directly on 1.4. ``apply-to-bridged-traffic``,
+``geoip``, ``state-policy offload`` and ``timeout`` exist only on 1.5, so
+that version gets the subclass. There is no merge proxy and no 1.4 file.
+"""
 from ..firewall_global_options import FirewallGlobalOptionsMapper
-from .v1_4 import FirewallGlobalOptionsMapperV1_4
 from .v1_5 import FirewallGlobalOptionsMapperV1_5
 
 
-def get_firewall_global_options_mapper(version: str):
-    """Factory function to get appropriate mapper for version.
+def get_firewall_global_options_mapper(version: str) -> FirewallGlobalOptionsMapper:
+    """Return the shared mapper, or the 1.5 subclass.
 
-    Args:
-        version: VyOS version string (e.g., "1.4", "1.5")
-
-    Returns:
-        A merged mapper with base + version-specific methods
+    A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
     """
-    base = FirewallGlobalOptionsMapper(version)
-
     if "1.4" in version:
-        version_specific = FirewallGlobalOptionsMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = FirewallGlobalOptionsMapperV1_5()
-    else:
-        # Default to latest (1.5)
-        version_specific = FirewallGlobalOptionsMapperV1_5()
+        return FirewallGlobalOptionsMapper(version)
+    return FirewallGlobalOptionsMapperV1_5(version)
 
-    # Merge base and version-specific mappers
-    class MergedMapper:
-        def __init__(self):
-            self._base = base
-            self._version_specific = version_specific
 
-        def __getattr__(self, name):
-            # Try version-specific first, fall back to base
-            if hasattr(self._version_specific, name):
-                return getattr(self._version_specific, name)
-            return getattr(self._base, name)
-
-    return MergedMapper()
+__all__ = ["FirewallGlobalOptionsMapperV1_5", "get_firewall_global_options_mapper"]

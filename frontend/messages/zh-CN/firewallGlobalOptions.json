@@ -28,9 +28,8 @@
   "icmp": {
     "title": "ICMP 设置",
     "allPing": "全部 Ping",
-    "allPingDesc": "接受/拒绝所有 IPv4 ICMP 回显请求",
     "broadcastPing": "广播 Ping",
-    "broadcastPingDesc": "接受/拒绝广播 Ping"
+    "directedBroadcast": "定向广播"
   },
   "sourceRouting": {
     "title": "源路由",
@@ -46,20 +45,15 @@
   "security": {
     "title": "安全选项",
     "logMartians": "记录火星包",
-    "logMartiansDesc": "记录地址不可能存在的数据包",
     "sourceValidation": "源地址验证",
-    "sourceValidationDesc": "反向路径过滤模式",
+    "ipv6SourceValidation": "IPv6 源地址验证",
     "synCookies": "SYN Cookies",
-    "synCookiesDesc": "SYN 洪泛防护",
-    "twaHazards": "TWA 风险防护",
-    "twaHazardsDesc": "RFC1337 TIME-WAIT 防护"
+    "twaHazards": "TWA 风险防护"
   },
   "dns": {
     "title": "DNS 解析器",
     "resolverCache": "解析器缓存",
-    "resolverCacheDesc": "域名解析失败时保留上次解析结果",
-    "resolverInterval": "解析器间隔（秒）",
-    "resolverIntervalDesc": "域名解析器更新间隔（10-3600，默认 300）"
+    "resolverInterval": "解析器间隔（秒）"
   },
   "statePolicies": {
     "title": "状态策略",
@@ -68,12 +62,23 @@
     "related": "相关",
     "action": "动作",
     "logLevel": "日志级别",
-    "log": "记录日志"
+    "log": "记录日志",
+    "offloadTarget": "卸载流表"
   },
   "bridged": {
     "title": "桥接流量",
     "ipv4": "应用于 IPv4 桥接流量",
-    "ipv6": "应用于 IPv6 桥接流量"
+    "ipv6": "应用于 IPv6 桥接流量",
+    "acceptInvalid": "接受无效的以太网类型"
+  },
+  "geoip": {
+    "title": "GeoIP",
+    "provider": "提供商",
+    "accountId": "MaxMind 账户 ID",
+    "licenseKey": "MaxMind 许可证密钥",
+    "lite": "使用 MaxMind GeoLite2",
+    "sourceAddress": "源地址",
+    "vrf": "VRF"
   },
   "timeouts": {
     "title": "连接超时",
@@ -88,6 +93,16 @@
     "synSent": "SYN Sent",
     "timeWait": "TIME Wait",
     "stream": "流",
-    "udpOther": "其他"
+    "udpOther": "其他",
+    "tcp": "TCP",
+    "udp": "UDP"
+  },
+  "errors": {
+    "resolverIntervalRange": "解析器间隔必须在 {min} 到 {max} 秒之间",
+    "timeoutRange": "每个超时必须在 {min} 到 {max} 秒之间",
+    "maxmindAccountRequired": "MaxMind 提供商需要账户 ID",
+    "maxmindKeyRequired": "MaxMind 提供商需要许可证密钥",
+    "licenseKeyIsMask": "请输入许可证密钥本身，而不是掩码",
+    "sourceAddressInvalid": "源地址必须是 IPv4 或 IPv6 地址"
   }
 }

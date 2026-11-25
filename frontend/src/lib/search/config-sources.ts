@@ -100,9 +100,10 @@ export const configSources: ConfigSourceDefinition[] = [
       if (s.includes("timeout")) return { section: "connection-timeouts" };
       if (s.includes("state_policy")) return { section: "state-policies" };
       if (s.includes("bridged")) return { section: "bridged-traffic" };
+      if (s.includes("geoip")) return { section: "geoip" };
       if (s.includes("redirect")) return { section: "icmp-redirects" };
-      if (s.includes("src_route") || s.includes("source")) return { section: "source-routing" };
-      if (s.includes("ping") || s.includes("icmp")) return { section: "icmp-settings" };
+      if (s.includes("src_route")) return { section: "source-routing" };
+      if (s.includes("ping") || s.includes("broadcast")) return { section: "icmp-settings" };
       if (s.includes("resolver")) return { section: "dns-resolver" };
       return { section: "security-options" };
     },

@@ -7,15 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import {
   RefreshCw,
   AlertCircle,
@@ -24,253 +19,93 @@ import {
   CheckCircle2,
   Settings,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
-import { Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { ApiError } from "@/lib/types/api";
 import {
   firewallGlobalOptionsService,
-  type FirewallGlobalOptionsConfig,
   type FirewallGlobalOptionsCapabilities,
 } from "@/lib/api/firewall-global-options";
+import {
+  draftFromConfig,
+  globalOptionsProblem,
+  globalOptionsRange,
+  STATES,
+  TCP_TIMEOUT_KEYS,
+  UDP_TIMEOUT_KEYS,
+  type GlobalOptionsDraft,
+  type StateKey,
+  type TimeoutKey,
+  type ToggleKey,
+} from "@/lib/api/firewall-global-options-save-ops";
+import { flowtablesService } from "@/lib/api/firewall-flowtables";
 import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
 import { cn } from "@/lib/utils";
+
+const TIMEOUT_LABEL_KEYS = {
+  icmp: "icmp",
+  other: "other",
+  tcp_established: "established",
+  tcp_close: "close",
+  tcp_close_wait: "closeWait",
+  tcp_fin_wait: "finWait",
+  tcp_last_ack: "lastAck",
+  tcp_syn_recv: "synRecv",
+  tcp_syn_sent: "synSent",
+  tcp_time_wait: "timeWait",
+  udp_stream: "stream",
+  udp_other: "udpOther",
+} as const satisfies Record<TimeoutKey, string>;
+
+function SettingRow({ fieldId, label, children }: { fieldId: string; label: string; children: ReactNode }) {
+  return (
+    <div
+      id={fieldId}
+      className="flex items-center justify-between py-2 border-b border-border/50 last:border-0 scroll-mt-24"
+    >
+      <span className="flex-1 min-w-0 pr-4 text-sm font-medium">{label}</span>
+      <div className="w-[200px]">{children}</div>
+    </div>
+  );
+}
 
 function FirewallGlobalOptionsPageInner() {
   const t = useTranslations("firewallGlobalOptions");
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
-  const [config, setConfig] = useState<FirewallGlobalOptionsConfig | null>(null);
   const [capabilities, setCapabilities] = useState<FirewallGlobalOptionsCapabilities | null>(null);
+  const [original, setOriginal] = useState<GlobalOptionsDraft | null>(null);
+  const [draft, setDraft] = useState<GlobalOptionsDraft | null>(null);
+  const [flowtableNames, setFlowtableNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
 
-  // Form state - Basic Options
-  const [allPing, setAllPing] = useState<string>("not_set");
-  const [broadcastPing, setBroadcastPing] = useState<string>("not_set");
-
-  // Form state - Source Routing
-  const [ipSrcRoute, setIpSrcRoute] = useState<string>("not_set");
-  const [ipv6SrcRoute, setIpv6SrcRoute] = useState<string>("not_set");
-
-  // Form state - ICMP Redirects
-  const [receiveRedirects, setReceiveRedirects] = useState<string>("not_set");
-  const [ipv6ReceiveRedirects, setIpv6ReceiveRedirects] = useState<string>("not_set");
-  const [sendRedirects, setSendRedirects] = useState<string>("not_set");
-
-  // Form state - Security Options
-  const [logMartians, setLogMartians] = useState<string>("not_set");
-  const [sourceValidation, setSourceValidation] = useState<string>("not_set");
-  const [synCookies, setSynCookies] = useState<string>("not_set");
-  const [twaHazardsProtection, setTwaHazardsProtection] = useState<string>("not_set");
-
-  // Form state - DNS Resolver
-  const [resolverCache, setResolverCache] = useState(false);
-  const [resolverInterval, setResolverInterval] = useState<string>("");
-
-  // Form state - State Policies
-  const [establishedAction, setEstablishedAction] = useState<string>("not_set");
-  const [establishedLog, setEstablishedLog] = useState(false);
-  const [establishedLogLevel, setEstablishedLogLevel] = useState<string>("not_set");
-
-  const [invalidAction, setInvalidAction] = useState<string>("not_set");
-  const [invalidLog, setInvalidLog] = useState(false);
-  const [invalidLogLevel, setInvalidLogLevel] = useState<string>("not_set");
-
-  const [relatedAction, setRelatedAction] = useState<string>("not_set");
-  const [relatedLog, setRelatedLog] = useState(false);
-  const [relatedLogLevel, setRelatedLogLevel] = useState<string>("not_set");
-
-  const [bridgedIpv4, setBridgedIpv4] = useState(false);
-  const [bridgedIpv6, setBridgedIpv6] = useState(false);
-
-  const [timeoutIcmp, setTimeoutIcmp] = useState<string>("");
-  const [timeoutOther, setTimeoutOther] = useState<string>("");
-  const [timeoutTcpClose, setTimeoutTcpClose] = useState<string>("");
-  const [timeoutTcpCloseWait, setTimeoutTcpCloseWait] = useState<string>("");
-  const [timeoutTcpEstablished, setTimeoutTcpEstablished] = useState<string>("");
-  const [timeoutTcpFinWait, setTimeoutTcpFinWait] = useState<string>("");
-  const [timeoutTcpLastAck, setTimeoutTcpLastAck] = useState<string>("");
-  const [timeoutTcpSynRecv, setTimeoutTcpSynRecv] = useState<string>("");
-  const [timeoutTcpSynSent, setTimeoutTcpSynSent] = useState<string>("");
-  const [timeoutTcpTimeWait, setTimeoutTcpTimeWait] = useState<string>("");
-  const [timeoutUdpOther, setTimeoutUdpOther] = useState<string>("");
-  const [timeoutUdpStream, setTimeoutUdpStream] = useState<string>("");
-
-  // Initial form values for change detection
-  const [initialValues, setInitialValues] = useState<Record<string, unknown>>({});
-
-
-  const populateFormFromConfig = (cfg: FirewallGlobalOptionsConfig) => {
-    setAllPing(cfg.all_ping || "not_set");
-    setBroadcastPing(cfg.broadcast_ping || "not_set");
-    setIpSrcRoute(cfg.ip_src_route || "not_set");
-    setIpv6SrcRoute(cfg.ipv6_src_route || "not_set");
-    setReceiveRedirects(cfg.receive_redirects || "not_set");
-    setIpv6ReceiveRedirects(cfg.ipv6_receive_redirects || "not_set");
-    setSendRedirects(cfg.send_redirects || "not_set");
-    setLogMartians(cfg.log_martians || "not_set");
-    setSourceValidation(cfg.source_validation || "not_set");
-    setSynCookies(cfg.syn_cookies || "not_set");
-    setTwaHazardsProtection(cfg.twa_hazards_protection || "not_set");
-
-    setResolverCache(cfg.resolver_cache || false);
-    setResolverInterval(cfg.resolver_interval?.toString() || "");
-
-    if (cfg.state_policy_established) {
-      setEstablishedAction(cfg.state_policy_established.action || "not_set");
-      setEstablishedLog(cfg.state_policy_established.log || false);
-      setEstablishedLogLevel(cfg.state_policy_established.log_level || "not_set");
-    } else {
-      setEstablishedAction("not_set");
-      setEstablishedLog(false);
-      setEstablishedLogLevel("not_set");
-    }
-
-    if (cfg.state_policy_invalid) {
-      setInvalidAction(cfg.state_policy_invalid.action || "not_set");
-      setInvalidLog(cfg.state_policy_invalid.log || false);
-      setInvalidLogLevel(cfg.state_policy_invalid.log_level || "not_set");
-    } else {
-      setInvalidAction("not_set");
-      setInvalidLog(false);
-      setInvalidLogLevel("not_set");
-    }
-
-    if (cfg.state_policy_related) {
-      setRelatedAction(cfg.state_policy_related.action || "not_set");
-      setRelatedLog(cfg.state_policy_related.log || false);
-      setRelatedLogLevel(cfg.state_policy_related.log_level || "not_set");
-    } else {
-      setRelatedAction("not_set");
-      setRelatedLog(false);
-      setRelatedLogLevel("not_set");
-    }
-
-    if (cfg.bridged_traffic) {
-      setBridgedIpv4(cfg.bridged_traffic.ipv4 || false);
-      setBridgedIpv6(cfg.bridged_traffic.ipv6 || false);
-    } else {
-      setBridgedIpv4(false);
-      setBridgedIpv6(false);
-    }
-
-    if (cfg.timeouts) {
-      setTimeoutIcmp(cfg.timeouts.icmp?.toString() || "");
-      setTimeoutOther(cfg.timeouts.other?.toString() || "");
-      setTimeoutTcpClose(cfg.timeouts.tcp_close?.toString() || "");
-      setTimeoutTcpCloseWait(cfg.timeouts.tcp_close_wait?.toString() || "");
-      setTimeoutTcpEstablished(cfg.timeouts.tcp_established?.toString() || "");
-      setTimeoutTcpFinWait(cfg.timeouts.tcp_fin_wait?.toString() || "");
-      setTimeoutTcpLastAck(cfg.timeouts.tcp_last_ack?.toString() || "");
-      setTimeoutTcpSynRecv(cfg.timeouts.tcp_syn_recv?.toString() || "");
-      setTimeoutTcpSynSent(cfg.timeouts.tcp_syn_sent?.toString() || "");
-      setTimeoutTcpTimeWait(cfg.timeouts.tcp_time_wait?.toString() || "");
-      setTimeoutUdpOther(cfg.timeouts.udp_other?.toString() || "");
-      setTimeoutUdpStream(cfg.timeouts.udp_stream?.toString() || "");
-    } else {
-      setTimeoutIcmp("");
-      setTimeoutOther("");
-      setTimeoutTcpClose("");
-      setTimeoutTcpCloseWait("");
-      setTimeoutTcpEstablished("");
-      setTimeoutTcpFinWait("");
-      setTimeoutTcpLastAck("");
-      setTimeoutTcpSynRecv("");
-      setTimeoutTcpSynSent("");
-      setTimeoutTcpTimeWait("");
-      setTimeoutUdpOther("");
-      setTimeoutUdpStream("");
-    }
-
-    setInitialValues({
-      allPing: cfg.all_ping || "not_set",
-      broadcastPing: cfg.broadcast_ping || "not_set",
-      ipSrcRoute: cfg.ip_src_route || "not_set",
-      ipv6SrcRoute: cfg.ipv6_src_route || "not_set",
-      receiveRedirects: cfg.receive_redirects || "not_set",
-      ipv6ReceiveRedirects: cfg.ipv6_receive_redirects || "not_set",
-      sendRedirects: cfg.send_redirects || "not_set",
-      logMartians: cfg.log_martians || "not_set",
-      sourceValidation: cfg.source_validation || "not_set",
-      synCookies: cfg.syn_cookies || "not_set",
-      twaHazardsProtection: cfg.twa_hazards_protection || "not_set",
-      resolverCache: cfg.resolver_cache || false,
-      resolverInterval: cfg.resolver_interval?.toString() || "",
-      establishedAction: cfg.state_policy_established?.action || "not_set",
-      establishedLog: cfg.state_policy_established?.log || false,
-      establishedLogLevel: cfg.state_policy_established?.log_level || "not_set",
-      invalidAction: cfg.state_policy_invalid?.action || "not_set",
-      invalidLog: cfg.state_policy_invalid?.log || false,
-      invalidLogLevel: cfg.state_policy_invalid?.log_level || "not_set",
-      relatedAction: cfg.state_policy_related?.action || "not_set",
-      relatedLog: cfg.state_policy_related?.log || false,
-      relatedLogLevel: cfg.state_policy_related?.log_level || "not_set",
-      bridgedIpv4: cfg.bridged_traffic?.ipv4 || false,
-      bridgedIpv6: cfg.bridged_traffic?.ipv6 || false,
-      timeoutIcmp: cfg.timeouts?.icmp?.toString() || "",
-      timeoutOther: cfg.timeouts?.other?.toString() || "",
-      timeoutTcpClose: cfg.timeouts?.tcp_close?.toString() || "",
-      timeoutTcpCloseWait: cfg.timeouts?.tcp_close_wait?.toString() || "",
-      timeoutTcpEstablished: cfg.timeouts?.tcp_established?.toString() || "",
-      timeoutTcpFinWait: cfg.timeouts?.tcp_fin_wait?.toString() || "",
-      timeoutTcpLastAck: cfg.timeouts?.tcp_last_ack?.toString() || "",
-      timeoutTcpSynRecv: cfg.timeouts?.tcp_syn_recv?.toString() || "",
-      timeoutTcpSynSent: cfg.timeouts?.tcp_syn_sent?.toString() || "",
-      timeoutTcpTimeWait: cfg.timeouts?.tcp_time_wait?.toString() || "",
-      timeoutUdpOther: cfg.timeouts?.udp_other?.toString() || "",
-      timeoutUdpStream: cfg.timeouts?.udp_stream?.toString() || "",
-    });
-    setHasChanges(false);
-  };
-
-  useEffect(() => {
-    const currentValues = {
-      allPing, broadcastPing, ipSrcRoute, ipv6SrcRoute, receiveRedirects,
-      ipv6ReceiveRedirects, sendRedirects, logMartians, sourceValidation,
-      synCookies, twaHazardsProtection, establishedAction, establishedLog,
-      establishedLogLevel, invalidAction, invalidLog, invalidLogLevel,
-      relatedAction, relatedLog, relatedLogLevel, bridgedIpv4, bridgedIpv6,
-      timeoutIcmp, timeoutOther, timeoutTcpClose, timeoutTcpCloseWait,
-      timeoutTcpEstablished, timeoutTcpFinWait, timeoutTcpLastAck,
-      timeoutTcpSynRecv, timeoutTcpSynSent, timeoutTcpTimeWait,
-      timeoutUdpOther, timeoutUdpStream,
-      resolverCache, resolverInterval,
-    };
-    const changed = Object.keys(currentValues).some(
-      (key) => currentValues[key as keyof typeof currentValues] !== initialValues[key]
-    );
-    // Before a config has loaded there is nothing to diff against.
-    setHasChanges(config !== null && changed);
-  }, [
-    allPing, broadcastPing, ipSrcRoute, ipv6SrcRoute, receiveRedirects,
-    ipv6ReceiveRedirects, sendRedirects, logMartians, sourceValidation,
-    synCookies, twaHazardsProtection, establishedAction, establishedLog,
-    establishedLogLevel, invalidAction, invalidLog, invalidLogLevel,
-    relatedAction, relatedLog, relatedLogLevel, bridgedIpv4, bridgedIpv6,
-    timeoutIcmp, timeoutOther, timeoutTcpClose, timeoutTcpCloseWait,
-    timeoutTcpEstablished, timeoutTcpFinWait, timeoutTcpLastAck,
-    timeoutTcpSynRecv, timeoutTcpSynSent, timeoutTcpTimeWait,
-    timeoutUdpOther, timeoutUdpStream, resolverCache, resolverInterval,
-    initialValues, config,
-  ]);
-
-  const loadData = useCallback(async (forceRefresh: boolean = true) => {
+  const loadData = useCallback(async () => {
     try {
       setError(null);
       setLoading(true);
-      const [configResponse, capabilitiesData] = await Promise.all([
-        firewallGlobalOptionsService.getConfig(forceRefresh),
+      const [config, caps] = await Promise.all([
+        firewallGlobalOptionsService.getConfig(true),
         firewallGlobalOptionsService.getCapabilities(),
       ]);
-      setConfig(configResponse.config);
-      setCapabilities(capabilitiesData);
-      populateFormFromConfig(configResponse.config);
+      setCapabilities(caps);
+      const loaded = draftFromConfig(config);
+      setOriginal(loaded);
+      setDraft(structuredClone(loaded));
+      if (firewallFeatureSupported(caps, "state_policy_offload")) {
+        try {
+          const flowtables = await flowtablesService.getConfig();
+          setFlowtableNames(flowtables.flowtables.map((flowtable) => flowtable.name));
+        } catch {
+          // Without flowtable read access the picker keeps the loaded target.
+          setFlowtableNames([]);
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("loadFailed"));
+      setError((err as ApiError).message || t("loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -291,100 +126,49 @@ function FirewallGlobalOptionsPageInner() {
     }
   }, [searchParams]);
 
+  const hasChanges = original !== null && draft !== null && JSON.stringify(original) !== JSON.stringify(draft);
+  const resolverRange = globalOptionsRange(capabilities, "resolver_interval");
+  const timeoutRange = globalOptionsRange(capabilities, "timeouts");
+
   const handleSave = async () => {
+    if (!original || !draft) return;
+    setError(null);
+    setSuccessMessage(null);
+    const problem = globalOptionsProblem(original, draft, {
+      resolverInterval: resolverRange,
+      timeout: timeoutRange,
+    });
+    if (problem) {
+      setError(t(`errors.${problem.key}`, { min: problem.min ?? 0, max: problem.max ?? 0 }));
+      return;
+    }
     try {
       setSaving(true);
-      setError(null);
-      setSuccessMessage(null);
-
-      // Use empty string "" for "not_set" values to trigger deletion in backend
-      // Backend checks: if value is truthy -> set, if value is falsy but not None -> delete
-      const updateConfig: Partial<FirewallGlobalOptionsConfig> = {
-        all_ping: allPing !== "not_set" ? allPing : "",
-        broadcast_ping: broadcastPing !== "not_set" ? broadcastPing : "",
-        ip_src_route: ipSrcRoute !== "not_set" ? ipSrcRoute : "",
-        ipv6_src_route: ipv6SrcRoute !== "not_set" ? ipv6SrcRoute : "",
-        receive_redirects: receiveRedirects !== "not_set" ? receiveRedirects : "",
-        ipv6_receive_redirects: ipv6ReceiveRedirects !== "not_set" ? ipv6ReceiveRedirects : "",
-        send_redirects: sendRedirects !== "not_set" ? sendRedirects : "",
-        log_martians: logMartians !== "not_set" ? logMartians : "",
-        source_validation: sourceValidation !== "not_set" ? sourceValidation : "",
-        syn_cookies: synCookies !== "not_set" ? synCookies : "",
-        twa_hazards_protection: twaHazardsProtection !== "not_set" ? twaHazardsProtection : "",
-        resolver_cache: resolverCache,
-        resolver_interval: resolverInterval ? parseInt(resolverInterval) : null,
-      };
-
-      // Always send state policy config so backend can delete if needed
-      updateConfig.state_policy_established = {
-        action: establishedAction !== "not_set" ? establishedAction : "",
-        log: establishedLog,
-        log_level: establishedLogLevel !== "not_set" ? establishedLogLevel : "",
-      };
-
-      updateConfig.state_policy_invalid = {
-        action: invalidAction !== "not_set" ? invalidAction : "",
-        log: invalidLog,
-        log_level: invalidLogLevel !== "not_set" ? invalidLogLevel : "",
-      };
-
-      updateConfig.state_policy_related = {
-        action: relatedAction !== "not_set" ? relatedAction : "",
-        log: relatedLog,
-        log_level: relatedLogLevel !== "not_set" ? relatedLogLevel : "",
-      };
-
-      if (firewallFeatureSupported(capabilities, "bridged_traffic")) {
-        updateConfig.bridged_traffic = { ipv4: bridgedIpv4, ipv6: bridgedIpv6 };
-      }
-
-      if (firewallFeatureSupported(capabilities, "timeouts")) {
-        updateConfig.timeouts = {
-          icmp: timeoutIcmp ? parseInt(timeoutIcmp) : null,
-          other: timeoutOther ? parseInt(timeoutOther) : null,
-          tcp_close: timeoutTcpClose ? parseInt(timeoutTcpClose) : null,
-          tcp_close_wait: timeoutTcpCloseWait ? parseInt(timeoutTcpCloseWait) : null,
-          tcp_established: timeoutTcpEstablished ? parseInt(timeoutTcpEstablished) : null,
-          tcp_fin_wait: timeoutTcpFinWait ? parseInt(timeoutTcpFinWait) : null,
-          tcp_last_ack: timeoutTcpLastAck ? parseInt(timeoutTcpLastAck) : null,
-          tcp_syn_recv: timeoutTcpSynRecv ? parseInt(timeoutTcpSynRecv) : null,
-          tcp_syn_sent: timeoutTcpSynSent ? parseInt(timeoutTcpSynSent) : null,
-          tcp_time_wait: timeoutTcpTimeWait ? parseInt(timeoutTcpTimeWait) : null,
-          udp_other: timeoutUdpOther ? parseInt(timeoutUdpOther) : null,
-          udp_stream: timeoutUdpStream ? parseInt(timeoutUdpStream) : null,
-        };
-      }
-
-      const response = await firewallGlobalOptionsService.updateConfig(updateConfig);
-
-      if (response.success) {
-        setSuccessMessage(t("saveSuccess"));
-        await loadData();
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setError(response.error || t("saveFailed"));
-      }
+      await firewallGlobalOptionsService.save(original, draft);
+      setSuccessMessage(t("saveSuccess"));
+      setTimeout(() => setSuccessMessage(null), 3000);
+      await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("saveFailed"));
+      setError((err as ApiError).message || t("saveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = () => {
-    if (config) {
-      populateFormFromConfig(config);
-    }
+    if (original) setDraft(structuredClone(original));
   };
 
-  const showBridgedTraffic = firewallFeatureSupported(capabilities, "bridged_traffic");
-  const showTimeouts = firewallFeatureSupported(capabilities, "timeouts");
+  const update = (change: (next: GlobalOptionsDraft) => void) => {
+    setDraft((current) => {
+      if (!current) return current;
+      const next = structuredClone(current);
+      change(next);
+      return next;
+    });
+  };
 
-  // Lock the form while a load or save is in flight so a reload cannot
-  // overwrite edits made mid-request.
-  const formLocked = loading || saving;
-
-  if (loading && !config) {
+  if (loading && !draft) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-96">
@@ -394,76 +178,108 @@ function FirewallGlobalOptionsPageInner() {
     );
   }
 
-  // Compact select component for settings
-  const SettingSelect = ({
-    label,
-    value,
-    onChange,
-    options,
-    description,
-    fieldId,
-  }: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    options: { value: string; label: string }[];
-    description?: string;
-    fieldId?: string;
-  }) => (
-    <div
-      id={fieldId}
-      className="flex items-center justify-between py-2 border-b border-border/50 last:border-0 scroll-mt-24"
-    >
-      <div className="flex-1 min-w-0 pr-4">
-        <span className="text-sm font-medium">{label}</span>
-        {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+  // Lock the form while a load or save is in flight so a reload cannot
+  // overwrite edits made mid-request.
+  const formLocked = loading || saving || !draft;
+  const features = capabilities?.features;
+  const showOffload = firewallFeatureSupported(capabilities, "state_policy_offload");
+  const showBridgedTraffic = firewallFeatureSupported(capabilities, "bridged_traffic");
+  const showGeoip = firewallFeatureSupported(capabilities, "geoip");
+  const showTimeouts = firewallFeatureSupported(capabilities, "timeouts");
+
+  const optionLabels: Record<string, string> = {
+    enable: t("options.enable"),
+    disable: t("options.disable"),
+    strict: t("options.strict"),
+    loose: t("options.loose"),
+    accept: t("options.accept"),
+    drop: t("options.drop"),
+    reject: t("options.reject"),
+    emerg: t("options.emerg"),
+    alert: t("options.alert"),
+    crit: t("options.crit"),
+    err: t("options.err"),
+    warn: t("options.warn"),
+    notice: t("options.notice"),
+    info: t("options.info"),
+    debug: t("options.debug"),
+  };
+
+  const toggleRow = (key: ToggleKey, fieldId: string, label: string) => (
+    <SettingRow key={key} fieldId={fieldId} label={label}>
+      <NamedListSelect
+        value={draft?.toggles[key] ?? ""}
+        names={features?.[key]?.values || []}
+        onValueChange={(value) => update((next) => (next.toggles[key] = value))}
+        disabled={formLocked}
+        noneLabel={t("options.notSetDefault")}
+        labels={optionLabels}
+      />
+    </SettingRow>
+  );
+
+  const stateBlock = (state: StateKey, first: boolean) => {
+    const value = draft?.states[state];
+    return (
+      <div key={state} className={cn("space-y-2", !first && "pt-2 border-t border-border/50")}>
+        <Badge variant="outline" className="text-xs font-medium">{t(`statePolicies.${state}`)}</Badge>
+        <div className="grid grid-cols-3 gap-2">
+          <div id={`${state}-action`} className="scroll-mt-24">
+            <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
+            <NamedListSelect
+              value={value?.action ?? ""}
+              names={features?.state_policy?.actions || []}
+              onValueChange={(action) => update((next) => (next.states[state].action = action))}
+              disabled={formLocked}
+              noneLabel={t("options.notSet")}
+              labels={optionLabels}
+            />
+          </div>
+          <div id={`${state}-log-level`} className="scroll-mt-24">
+            <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
+            <NamedListSelect
+              value={value?.log_level ?? ""}
+              names={features?.state_policy?.log_levels || []}
+              onValueChange={(level) => update((next) => (next.states[state].log_level = level))}
+              disabled={formLocked}
+              noneLabel={t("options.notSet")}
+              labels={optionLabels}
+            />
+          </div>
+          <div id={`${state}-log`} className="flex items-end pb-2 scroll-mt-24">
+            <div className="flex items-center gap-1.5">
+              <Checkbox
+                disabled={formLocked}
+                id={`${state}-log-flag`}
+                checked={value?.log ?? false}
+                onCheckedChange={(checked) => update((next) => (next.states[state].log = checked === true))}
+              />
+              <Label htmlFor={`${state}-log-flag`} className="text-xs">{t("statePolicies.log")}</Label>
+            </div>
+          </div>
+        </div>
       </div>
-      <Select disabled={formLocked} value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-[160px] h-8 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-              {opt.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    );
+  };
+
+  const timeoutInput = (key: TimeoutKey) => (
+    <div key={key} id={`timeout-${key.replace(/_/g, "-")}`} className="scroll-mt-24">
+      <Label className="text-xs text-muted-foreground">{t(`timeouts.${TIMEOUT_LABEL_KEYS[key]}`)}</Label>
+      <Input
+        disabled={formLocked}
+        type="number"
+        min={timeoutRange.min}
+        max={timeoutRange.max}
+        value={draft?.timeouts[key] ?? ""}
+        onChange={(e) => update((next) => (next.timeouts[key] = e.target.value))}
+        className="h-8 text-xs mt-1"
+      />
     </div>
   );
 
-  const enableDisableOptions = [
-    { value: "not_set", label: t("options.notSetDefault") },
-    { value: "enable", label: t("options.enable") },
-    { value: "disable", label: t("options.disable") },
-  ];
-
-  const actionOptions = [
-    { value: "not_set", label: t("options.notSet") },
-    { value: "accept", label: t("options.accept") },
-    { value: "drop", label: t("options.drop") },
-    { value: "reject", label: t("options.reject") },
-  ];
-
-  const logLevelOptions = [
-    { value: "not_set", label: t("options.notSet") },
-    { value: "emerg", label: t("options.emerg") },
-    { value: "alert", label: t("options.alert") },
-    { value: "crit", label: t("options.crit") },
-    { value: "err", label: t("options.err") },
-    { value: "warn", label: t("options.warn") },
-    { value: "notice", label: t("options.notice") },
-    { value: "info", label: t("options.info") },
-    { value: "debug", label: t("options.debug") },
-  ];
-
-  const sourceValidationOptions = [
-    { value: "not_set", label: t("options.notSetDefault") },
-    { value: "strict", label: t("options.strict") },
-    { value: "loose", label: t("options.loose") },
-    { value: "disable", label: t("options.disable") },
-  ];
+  const ethernetTypes = features?.bridged_traffic?.ethernet_types || [];
+  const selectedTypes = draft?.bridged_ethernet_types ?? [];
+  const listedTypes = [...ethernetTypes, ...selectedTypes.filter((type) => !ethernetTypes.includes(type))];
 
   return (
     <AppLayout>
@@ -482,7 +298,7 @@ function FirewallGlobalOptionsPageInner() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => loadData()} disabled={formLocked || hasChanges}>
+            <Button variant="outline" size="sm" onClick={() => loadData()} disabled={loading || saving || hasChanges}>
               <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
               {tc("refresh")}
             </Button>
@@ -512,7 +328,7 @@ function FirewallGlobalOptionsPageInner() {
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2 flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-destructive" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
         {hasChanges && (
@@ -528,310 +344,98 @@ function FirewallGlobalOptionsPageInner() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Left Column */}
           <div className="space-y-4">
-            {/* ICMP Settings */}
             <Card id="icmp-settings">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">{t("icmp.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
-                <SettingSelect
-                  fieldId="all-ping"
-                  label={t("icmp.allPing")}
-                  value={allPing}
-                  onChange={setAllPing}
-                  options={enableDisableOptions}
-                  description={t("icmp.allPingDesc")}
-                />
-                <SettingSelect
-                  fieldId="broadcast-ping"
-                  label={t("icmp.broadcastPing")}
-                  value={broadcastPing}
-                  onChange={setBroadcastPing}
-                  options={enableDisableOptions}
-                  description={t("icmp.broadcastPingDesc")}
-                />
+                {toggleRow("all_ping", "all-ping", t("icmp.allPing"))}
+                {toggleRow("broadcast_ping", "broadcast-ping", t("icmp.broadcastPing"))}
+                {toggleRow("directed_broadcast", "directed-broadcast", t("icmp.directedBroadcast"))}
               </CardContent>
             </Card>
 
-            {/* Source Routing */}
             <Card id="source-routing">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">{t("sourceRouting.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
-                <SettingSelect
-                  fieldId="ipv4-source-routing"
-                  label={t("sourceRouting.ipv4")}
-                  value={ipSrcRoute}
-                  onChange={setIpSrcRoute}
-                  options={enableDisableOptions}
-                />
-                <SettingSelect
-                  fieldId="ipv6-source-routing"
-                  label={t("sourceRouting.ipv6")}
-                  value={ipv6SrcRoute}
-                  onChange={setIpv6SrcRoute}
-                  options={enableDisableOptions}
-                />
+                {toggleRow("ip_src_route", "ipv4-source-routing", t("sourceRouting.ipv4"))}
+                {toggleRow("ipv6_src_route", "ipv6-source-routing", t("sourceRouting.ipv6"))}
               </CardContent>
             </Card>
 
-            {/* ICMP Redirects */}
             <Card id="icmp-redirects">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">{t("redirects.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
-                <SettingSelect
-                  fieldId="receive-redirects-ipv4"
-                  label={t("redirects.receiveIpv4")}
-                  value={receiveRedirects}
-                  onChange={setReceiveRedirects}
-                  options={enableDisableOptions}
-                />
-                <SettingSelect
-                  fieldId="receive-redirects-ipv6"
-                  label={t("redirects.receiveIpv6")}
-                  value={ipv6ReceiveRedirects}
-                  onChange={setIpv6ReceiveRedirects}
-                  options={enableDisableOptions}
-                />
-                <SettingSelect
-                  fieldId="send-redirects"
-                  label={t("redirects.send")}
-                  value={sendRedirects}
-                  onChange={setSendRedirects}
-                  options={enableDisableOptions}
-                />
+                {toggleRow("receive_redirects", "receive-redirects-ipv4", t("redirects.receiveIpv4"))}
+                {toggleRow("ipv6_receive_redirects", "receive-redirects-ipv6", t("redirects.receiveIpv6"))}
+                {toggleRow("send_redirects", "send-redirects", t("redirects.send"))}
               </CardContent>
             </Card>
 
-            {/* Security Options */}
             <Card id="security-options">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">{t("security.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
-                <SettingSelect
-                  fieldId="log-martians"
-                  label={t("security.logMartians")}
-                  value={logMartians}
-                  onChange={setLogMartians}
-                  options={enableDisableOptions}
-                  description={t("security.logMartiansDesc")}
-                />
-                <SettingSelect
-                  fieldId="source-validation"
-                  label={t("security.sourceValidation")}
-                  value={sourceValidation}
-                  onChange={setSourceValidation}
-                  options={sourceValidationOptions}
-                  description={t("security.sourceValidationDesc")}
-                />
-                <SettingSelect
-                  fieldId="syn-cookies"
-                  label={t("security.synCookies")}
-                  value={synCookies}
-                  onChange={setSynCookies}
-                  options={enableDisableOptions}
-                  description={t("security.synCookiesDesc")}
-                />
-                <SettingSelect
-                  fieldId="twa-hazards"
-                  label={t("security.twaHazards")}
-                  value={twaHazardsProtection}
-                  onChange={setTwaHazardsProtection}
-                  options={enableDisableOptions}
-                  description={t("security.twaHazardsDesc")}
-                />
+                {toggleRow("log_martians", "log-martians", t("security.logMartians"))}
+                {toggleRow("source_validation", "source-validation", t("security.sourceValidation"))}
+                {toggleRow("ipv6_source_validation", "ipv6-source-validation", t("security.ipv6SourceValidation"))}
+                {toggleRow("syn_cookies", "syn-cookies", t("security.synCookies"))}
+                {toggleRow("twa_hazards_protection", "twa-hazards", t("security.twaHazards"))}
               </CardContent>
             </Card>
 
-            {/* DNS Resolver */}
             <Card id="dns-resolver">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">{t("dns.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
-                <div
-                  id="resolver-cache"
-                  className="flex items-center justify-between py-2 border-b border-border/50 scroll-mt-24"
-                >
-                  <div className="flex-1 min-w-0 pr-4">
-                    <span className="text-sm font-medium">{t("dns.resolverCache")}</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("dns.resolverCacheDesc")}
-                    </p>
-                  </div>
-                  <Checkbox disabled={formLocked}
-                    checked={resolverCache}
-                    onCheckedChange={(c) => setResolverCache(c === true)}
+                <SettingRow fieldId="resolver-cache" label={t("dns.resolverCache")}>
+                  <Checkbox
+                    disabled={formLocked}
+                    checked={draft?.resolver_cache ?? false}
+                    onCheckedChange={(checked) => update((next) => (next.resolver_cache = checked === true))}
                   />
-                </div>
-                <div
-                  id="resolver-interval"
-                  className="flex items-center justify-between py-2 scroll-mt-24"
-                >
-                  <div className="flex-1 min-w-0 pr-4">
-                    <span className="text-sm font-medium">{t("dns.resolverInterval")}</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("dns.resolverIntervalDesc")}
-                    </p>
-                  </div>
-                  <Input disabled={formLocked}
+                </SettingRow>
+                <SettingRow fieldId="resolver-interval" label={t("dns.resolverInterval")}>
+                  <Input
+                    disabled={formLocked}
                     type="number"
-                    placeholder="300"
-                    value={resolverInterval}
-                    onChange={(e) => setResolverInterval(e.target.value)}
-                    className="w-[160px] h-8 text-xs"
+                    min={resolverRange.min}
+                    max={resolverRange.max}
+                    value={draft?.resolver_interval ?? ""}
+                    onChange={(e) => update((next) => (next.resolver_interval = e.target.value))}
+                    className="h-8 text-xs"
                   />
-                </div>
+                </SettingRow>
               </CardContent>
             </Card>
           </div>
 
           {/* Right Column */}
           <div className="space-y-4">
-            {/* State Policies */}
             <Card id="state-policies">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">{t("statePolicies.title")}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0 space-y-4">
-                {/* Established */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-medium">{t("statePolicies.established")}</Badge>
+                {STATES.map((state, index) => stateBlock(state, index === 0))}
+                {showOffload && (
+                  <div id="offload-target" className="pt-2 border-t border-border/50 scroll-mt-24">
+                    <Label className="text-xs text-muted-foreground">{t("statePolicies.offloadTarget")}</Label>
+                    <NamedListSelect
+                      value={draft?.offload_target ?? ""}
+                      names={flowtableNames}
+                      onValueChange={(name) => update((next) => (next.offload_target = name))}
+                      disabled={formLocked}
+                      noneLabel={t("options.notSet")}
+                    />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div id="established-action" className="scroll-mt-24">
-                      <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
-                      <Select disabled={formLocked} value={establishedAction} onValueChange={setEstablishedAction}>
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {actionOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div id="established-log-level" className="scroll-mt-24">
-                      <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
-                      <Select disabled={formLocked} value={establishedLogLevel} onValueChange={setEstablishedLogLevel}>
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {logLevelOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div id="established-log" className="flex items-end pb-1 scroll-mt-24">
-                      <div className="flex items-center gap-1.5">
-                        <Checkbox disabled={formLocked}
-                          id="est-log"
-                          checked={establishedLog}
-                          onCheckedChange={(c) => setEstablishedLog(c === true)}
-                        />
-                        <Label htmlFor="est-log" className="text-xs">{t("statePolicies.log")}</Label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Invalid */}
-                <div className="space-y-2 pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-medium">{t("statePolicies.invalid")}</Badge>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
-                      <Select disabled={formLocked} value={invalidAction} onValueChange={setInvalidAction}>
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {actionOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
-                      <Select disabled={formLocked} value={invalidLogLevel} onValueChange={setInvalidLogLevel}>
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {logLevelOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-end pb-1">
-                      <div className="flex items-center gap-1.5">
-                        <Checkbox disabled={formLocked}
-                          id="inv-log"
-                          checked={invalidLog}
-                          onCheckedChange={(c) => setInvalidLog(c === true)}
-                        />
-                        <Label htmlFor="inv-log" className="text-xs">{t("statePolicies.log")}</Label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Related */}
-                <div className="space-y-2 pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-medium">{t("statePolicies.related")}</Badge>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">{t("statePolicies.action")}</Label>
-                      <Select disabled={formLocked} value={relatedAction} onValueChange={setRelatedAction}>
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {actionOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">{t("statePolicies.logLevel")}</Label>
-                      <Select disabled={formLocked} value={relatedLogLevel} onValueChange={setRelatedLogLevel}>
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {logLevelOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-end pb-1">
-                      <div className="flex items-center gap-1.5">
-                        <Checkbox disabled={formLocked}
-                          id="rel-log"
-                          checked={relatedLog}
-                          onCheckedChange={(c) => setRelatedLog(c === true)}
-                        />
-                        <Label htmlFor="rel-log" className="text-xs">{t("statePolicies.log")}</Label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -841,20 +445,101 @@ function FirewallGlobalOptionsPageInner() {
                   <CardTitle className="text-sm font-semibold">{t("bridged.title")}</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3 pt-0">
-                  <div className="flex items-center justify-between py-2 border-b border-border/50">
-                    <span className="text-sm">{t("bridged.ipv4")}</span>
-                    <Checkbox disabled={formLocked}
-                      checked={bridgedIpv4}
-                      onCheckedChange={(c) => setBridgedIpv4(c === true)}
+                  <SettingRow fieldId="bridged-ipv4" label={t("bridged.ipv4")}>
+                    <Checkbox
+                      disabled={formLocked}
+                      checked={draft?.bridged_ipv4 ?? false}
+                      onCheckedChange={(checked) => update((next) => (next.bridged_ipv4 = checked === true))}
                     />
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm">{t("bridged.ipv6")}</span>
-                    <Checkbox disabled={formLocked}
-                      checked={bridgedIpv6}
-                      onCheckedChange={(c) => setBridgedIpv6(c === true)}
+                  </SettingRow>
+                  <SettingRow fieldId="bridged-ipv6" label={t("bridged.ipv6")}>
+                    <Checkbox
+                      disabled={formLocked}
+                      checked={draft?.bridged_ipv6 ?? false}
+                      onCheckedChange={(checked) => update((next) => (next.bridged_ipv6 = checked === true))}
                     />
+                  </SettingRow>
+                  <div id="bridged-accept-invalid" className="py-2 scroll-mt-24">
+                    <span className="text-sm font-medium">{t("bridged.acceptInvalid")}</span>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {listedTypes.map((type) => (
+                        <div key={type} className="flex items-center gap-1.5">
+                          <Checkbox
+                            disabled={formLocked}
+                            id={`ethernet-type-${type}`}
+                            checked={selectedTypes.includes(type)}
+                            onCheckedChange={(checked) =>
+                              update((next) => {
+                                const rest = next.bridged_ethernet_types.filter((item) => item !== type);
+                                next.bridged_ethernet_types = checked === true ? [...rest, type] : rest;
+                              })
+                            }
+                          />
+                          <Label htmlFor={`ethernet-type-${type}`} className="text-xs font-mono">{type}</Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {showGeoip && (
+              <Card id="geoip">
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">{t("geoip.title")}</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3 pt-0">
+                  <SettingRow fieldId="geoip-provider" label={t("geoip.provider")}>
+                    <NamedListSelect
+                      value={draft?.geoip.provider ?? ""}
+                      names={features?.geoip?.providers || []}
+                      onValueChange={(provider) => update((next) => (next.geoip.provider = provider))}
+                      disabled={formLocked}
+                      noneLabel={t("options.notSetDefault")}
+                    />
+                  </SettingRow>
+                  <SettingRow fieldId="geoip-account-id" label={t("geoip.accountId")}>
+                    <Input
+                      disabled={formLocked}
+                      value={draft?.geoip.maxmind_account_id ?? ""}
+                      onChange={(e) => update((next) => (next.geoip.maxmind_account_id = e.target.value))}
+                      className="h-8 text-xs"
+                    />
+                  </SettingRow>
+                  <SettingRow fieldId="geoip-license-key" label={t("geoip.licenseKey")}>
+                    <Input
+                      disabled={formLocked}
+                      type="password"
+                      autoComplete="new-password"
+                      value={draft?.geoip.maxmind_license_key ?? ""}
+                      onChange={(e) => update((next) => (next.geoip.maxmind_license_key = e.target.value))}
+                      className="h-8 text-xs"
+                    />
+                  </SettingRow>
+                  <SettingRow fieldId="geoip-lite" label={t("geoip.lite")}>
+                    <Checkbox
+                      disabled={formLocked}
+                      checked={draft?.geoip.maxmind_lite ?? false}
+                      onCheckedChange={(checked) => update((next) => (next.geoip.maxmind_lite = checked === true))}
+                    />
+                  </SettingRow>
+                  <SettingRow fieldId="geoip-source-address" label={t("geoip.sourceAddress")}>
+                    <Input
+                      disabled={formLocked}
+                      value={draft?.geoip.source_address ?? ""}
+                      onChange={(e) => update((next) => (next.geoip.source_address = e.target.value))}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </SettingRow>
+                  <SettingRow fieldId="geoip-vrf" label={t("geoip.vrf")}>
+                    <VrfSelect
+                      value={draft?.geoip.vrf ?? ""}
+                      onValueChange={(vrf) => update((next) => (next.geoip.vrf = vrf))}
+                      disabled={formLocked}
+                      noneLabel={tc("none")}
+                    />
+                  </SettingRow>
                 </CardContent>
               </Card>
             )}
@@ -865,82 +550,17 @@ function FirewallGlobalOptionsPageInner() {
                   <CardTitle className="text-sm font-semibold">{t("timeouts.title")}</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3 pt-0 space-y-3">
-                  {/* General */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">{t("timeouts.icmp")}</Label>
-                      <Input disabled={formLocked}
-                        type="number"
-                        placeholder="30"
-                        value={timeoutIcmp}
-                        onChange={(e) => setTimeoutIcmp(e.target.value)}
-                        className="h-8 text-xs mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">{t("timeouts.other")}</Label>
-                      <Input disabled={formLocked}
-                        type="number"
-                        placeholder="600"
-                        value={timeoutOther}
-                        onChange={(e) => setTimeoutOther(e.target.value)}
-                        className="h-8 text-xs mt-1"
-                      />
-                    </div>
+                    {timeoutInput("icmp")}
+                    {timeoutInput("other")}
                   </div>
-
-                  {/* TCP */}
                   <div className="pt-2 border-t border-border/50">
-                    <Label className="text-xs font-medium text-muted-foreground mb-2 block">TCP</Label>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.established")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="432000" value={timeoutTcpEstablished} onChange={(e) => setTimeoutTcpEstablished(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.close")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="10" value={timeoutTcpClose} onChange={(e) => setTimeoutTcpClose(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.closeWait")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="60" value={timeoutTcpCloseWait} onChange={(e) => setTimeoutTcpCloseWait(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.finWait")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="120" value={timeoutTcpFinWait} onChange={(e) => setTimeoutTcpFinWait(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.lastAck")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="30" value={timeoutTcpLastAck} onChange={(e) => setTimeoutTcpLastAck(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.synRecv")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="60" value={timeoutTcpSynRecv} onChange={(e) => setTimeoutTcpSynRecv(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.synSent")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="120" value={timeoutTcpSynSent} onChange={(e) => setTimeoutTcpSynSent(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.timeWait")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="120" value={timeoutTcpTimeWait} onChange={(e) => setTimeoutTcpTimeWait(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                    </div>
+                    <Label className="text-xs font-medium text-muted-foreground mb-2 block">{t("timeouts.tcp")}</Label>
+                    <div className="grid grid-cols-4 gap-2">{TCP_TIMEOUT_KEYS.map(timeoutInput)}</div>
                   </div>
-
-                  {/* UDP */}
                   <div className="pt-2 border-t border-border/50">
-                    <Label className="text-xs font-medium text-muted-foreground mb-2 block">UDP</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.stream")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="180" value={timeoutUdpStream} onChange={(e) => setTimeoutUdpStream(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">{t("timeouts.udpOther")}</Label>
-                        <Input disabled={formLocked} type="number" placeholder="30" value={timeoutUdpOther} onChange={(e) => setTimeoutUdpOther(e.target.value)} className="h-7 text-xs mt-0.5" />
-                      </div>
-                    </div>
+                    <Label className="text-xs font-medium text-muted-foreground mb-2 block">{t("timeouts.udp")}</Label>
+                    <div className="grid grid-cols-2 gap-2">{UDP_TIMEOUT_KEYS.map(timeoutInput)}</div>
                   </div>
                 </CardContent>
               </Card>
