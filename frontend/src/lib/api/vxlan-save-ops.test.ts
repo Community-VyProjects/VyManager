@@ -831,7 +831,7 @@ describe("save checks", () => {
     }
   });
 
-  it("checks external with other VXLAN interfaces for vni-filter here and on every other", () => {
+  it("checks external with other VXLAN interfaces for vni-filter here and on at least one other", () => {
     const f = structuredClone(validCreate());
     f.vni = "";
     f.parameters.external = true;
@@ -842,8 +842,9 @@ describe("save checks", () => {
     assert.equal(key(null, f), "externalOthersNeedVniFilter");
     const filtered = bare({ name: "vxlan5", parameters: { ...bare().parameters, external: true, vni_filter: true } });
     assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [filtered] }), null);
-    // One other tunnel without vni-filter is enough for the device to reject it.
-    assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [bare(), filtered] }), "externalOthersNeedVniFilter");
+    // One other tunnel with vni-filter is enough; a plain tunnel on another port may stay.
+    const plain = bare({ port: "4790" });
+    assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [plain, filtered] }), null);
   });
 
   it("rejects vni-filter without external", () => {
@@ -852,21 +853,34 @@ describe("save checks", () => {
     assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [] }), "vniFilterNeedsExternal");
   });
 
-  it("rejects a tunnel without external on the UDP port of an external one", () => {
-    const external = (port: string | null) =>
-      bare({ name: "vxlan7", port, parameters: { ...bare().parameters, external: true } });
-    const ctx = (port: string | null) => ({ bridgeMember: true, others: [external(port)] });
-    const f = structuredClone(validCreate());
+  it("rejects an external and a non-external tunnel on the same UDP port, both ways", () => {
+    const other = (port: string | null, external: boolean) =>
+      bare({ name: "vxlan7", port, parameters: { ...bare().parameters, external, vni_filter: external } });
+    const ctx = (port: string | null, external: boolean) => ({ bridgeMember: true, others: [other(port, external)] });
+    const plain = structuredClone(validCreate());
     // Both unset: both on the default port.
-    assert.deepEqual(vxlanProblem(null, f, CAPS15, ctx(null)), {
+    assert.deepEqual(vxlanProblem(null, plain, CAPS15, ctx(null, true)), {
       key: "externalPortInUse",
       values: { port: "4789", name: "vxlan7" },
     });
-    assert.equal(key(null, f, CAPS15, ctx("4789")), "externalPortInUse");
-    assert.equal(key(null, f, CAPS15, ctx("4790")), null);
-    f.port = "4790";
-    assert.equal(key(null, f, CAPS15, ctx("4790")), "externalPortInUse");
-    assert.equal(key(null, f, CAPS15, ctx(null)), null);
+    assert.equal(key(null, plain, CAPS15, ctx("4789", true)), "externalPortInUse");
+    assert.equal(key(null, plain, CAPS15, ctx("4790", true)), null);
+    plain.port = "4790";
+    assert.equal(key(null, plain, CAPS15, ctx("4790", true)), "externalPortInUse");
+    assert.equal(key(null, plain, CAPS15, ctx(null, true)), null);
+    // Two plain tunnels may share a port.
+    assert.equal(key(null, plain, CAPS15, ctx("4790", false)), null);
+
+    const external = structuredClone(validCreate());
+    external.vni = "";
+    external.parameters.external = true;
+    external.parameters.vni_filter = true;
+    const filtered = bare({ name: "vxlan5", port: "4791", parameters: { ...bare().parameters, external: true, vni_filter: true } });
+    const withPlain = (port: string | null) => ({ bridgeMember: true, others: [filtered, other(port, false)] });
+    assert.equal(key(null, external, CAPS15, withPlain(null)), "externalPortInUse");
+    assert.equal(key(null, external, CAPS15, withPlain("4790")), null);
+    // Two external tunnels may share a port.
+    assert.equal(key(null, external, CAPS15, { bridgeMember: true, others: [bare({ ...filtered, port: null })] }), null);
   });
 
   it("checks bridge membership rules", () => {

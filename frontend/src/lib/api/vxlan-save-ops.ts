@@ -665,17 +665,17 @@ function verifyProblem(n: Norm, ctx: VxlanSaveContext): VxlanProblem | null {
   if (!n.vni && !p.external) return problem("vniOrExternal");
   if (n.vni && p.external) return problem("vniWithExternal");
   if (p.vni_filter && !p.external) return problem("vniFilterNeedsExternal");
-  // More than one VXLAN with external needs vni-filter on every one of them.
+  // More than one VXLAN with external needs vni-filter here and on at least one other tunnel.
   if (p.external && others.length > 0) {
     if (!p.vni_filter) return problem("externalNeedsVniFilter");
-    if (!others.every((o) => o.parameters.vni_filter)) return problem("externalOthersNeedVniFilter");
+    if (!others.some((o) => o.parameters.vni_filter)) return problem("externalOthersNeedVniFilter");
   }
-  // A tunnel without external cannot share its UDP port with an external one.
-  if (!p.external) {
-    const port = Number(n.port || DEFAULT_PORT);
-    const taken = others.find((o) => o.parameters.external && Number(o.port?.trim() || DEFAULT_PORT) === port);
-    if (taken) return problem("externalPortInUse", { port: String(port), name: taken.name });
-  }
+  // An external and a non-external tunnel cannot share a UDP port.
+  const port = Number(n.port || DEFAULT_PORT);
+  const clash = others.find(
+    (o) => o.parameters.external !== p.external && Number(o.port?.trim() || DEFAULT_PORT) === port,
+  );
+  if (clash) return problem("externalPortInUse", { port: String(port), name: clash.name });
   if (n.gpe && !p.external) return problem("gpeNeedsExternal");
   if (!n.group && n.remotes.length === 0 && !n.source_address && !n.source_interface) return problem("endpointRequired");
   if (n.group && !n.source_interface) return problem("groupNeedsSourceInterface");
