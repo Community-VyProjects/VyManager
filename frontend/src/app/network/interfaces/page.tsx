@@ -190,9 +190,24 @@ function InterfacesPageInner() {
   const [editingVIFC, setEditingVIFC] = useState<VIFCWithParent | null>(null);
 
   // VXLAN Modal states
-  const [isCreateVxlanModalOpen, setIsCreateVxlanModalOpen] = useState(false);
+  // The subject stays set after close so the dialog does not flip mode while it animates out;
+  // the key changes per open so the modal seeds its form from props.
+  const [vxlanModalOpen, setVxlanModalOpen] = useState(false);
+  const [vxlanModalKey, setVxlanModalKey] = useState(0);
   const [editingVxlan, setEditingVxlan] = useState<VxlanInterface | null>(null);
+  const [deleteVxlanOpen, setDeleteVxlanOpen] = useState(false);
+  const [deleteVxlanKey, setDeleteVxlanKey] = useState(0);
   const [deletingVxlan, setDeletingVxlan] = useState<VxlanInterface | null>(null);
+  const openVxlanModal = (iface: VxlanInterface | null) => {
+    setEditingVxlan(iface);
+    setVxlanModalKey((key) => key + 1);
+    setVxlanModalOpen(true);
+  };
+  const openDeleteVxlan = (iface: VxlanInterface) => {
+    setDeletingVxlan(iface);
+    setDeleteVxlanKey((key) => key + 1);
+    setDeleteVxlanOpen(true);
+  };
 
   // Tunnel state
   const [tunnelInterfaces, setTunnelInterfaces] = useState<TunnelInterface[]>([]);
@@ -1920,7 +1935,7 @@ function InterfacesPageInner() {
                   } else if (selectedType === "wireguard") {
                     window.location.href = "/vpn/wireguard";
                   } else if (selectedType === "vxlan") {
-                    setIsCreateVxlanModalOpen(true);
+                    openVxlanModal(null);
                   } else if (selectedType === "tunnel") {
                     setIsCreateTunnelModalOpen(true);
                   } else if (selectedType === "dummy") {
@@ -2339,10 +2354,10 @@ function InterfacesPageInner() {
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {canWrite(FeatureGroup.VXLAN) && (
                                   <>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingVxlan(vx)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openVxlanModal(vx)}>
                                       <Pencil className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingVxlan(vx)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => openDeleteVxlan(vx)}>
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   </>
@@ -4198,28 +4213,20 @@ function InterfacesPageInner() {
 
       {/* VXLAN Modals */}
       <VxlanModal
-        open={isCreateVxlanModalOpen || !!editingVxlan}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsCreateVxlanModalOpen(false);
-            setEditingVxlan(null);
-          }
-        }}
-        onSuccess={() => {
-          setEditingVxlan(null);
-          loadData();
-        }}
+        key={vxlanModalKey}
+        open={vxlanModalOpen}
+        onOpenChange={setVxlanModalOpen}
+        onSuccess={loadData}
         capabilities={vxlanCapabilities}
-        existingInterfaces={vxlanInterfaces.map((i) => i.name)}
+        others={vxlanInterfaces.filter((i) => i.name !== editingVxlan?.name)}
+        bridgeMember={!!editingVxlan && bridgeInterfaces.some((b) => b.members.some((m) => m.name === editingVxlan.name))}
         existing={editingVxlan}
       />
       <DeleteVxlanModal
-        open={!!deletingVxlan}
-        onOpenChange={(open) => !open && setDeletingVxlan(null)}
-        onSuccess={() => {
-          setDeletingVxlan(null);
-          loadData();
-        }}
+        key={deleteVxlanKey}
+        open={deleteVxlanOpen}
+        onOpenChange={setDeleteVxlanOpen}
+        onSuccess={loadData}
         interfaceData={deletingVxlan}
       />
       {/* Tunnel Modals */}

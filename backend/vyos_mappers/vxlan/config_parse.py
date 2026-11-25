@@ -87,6 +87,7 @@ def _parse_vxlan_interface(name: str, data: dict) -> Dict[str, Any]:
             "egress": mirror_data.get("egress"),
             "ingress": mirror_data.get("ingress"),
         },
+        "mirror_configured": "mirror" in data,
         "mtu": data.get("mtu"),
         "parameters": {
             "external": "external" in params_data,

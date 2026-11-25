@@ -236,6 +236,7 @@ _SUBJECT_FIELDS: dict[str, str] = {
     "virtual-ethernet": "interface",
     "vpp": "interface",
     "vti": "interface",
+    "vxlan": "interface_name",
     "wireless": "interface",
     "wwan": "interface",
 }

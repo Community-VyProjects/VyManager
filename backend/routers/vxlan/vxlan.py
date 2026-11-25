@@ -19,16 +19,16 @@ Config tree:
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.vxlan import VxlanBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.vxlan import VxlanMapper
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +121,7 @@ class VxlanInterface(BaseModel):
     ipv6: VxlanIpv6Settings = VxlanIpv6Settings()
     mac: Optional[str] = None
     mirror: VxlanMirror = VxlanMirror()
+    mirror_configured: bool = False
     mtu: Optional[str] = None
     parameters: VxlanParameters = VxlanParameters()
     port: Optional[str] = None
@@ -140,7 +141,11 @@ class VxlanConfigResponse(BaseModel):
 
 
 class VxlanBatchOperation(BaseModel):
-    """Single operation in a batch request."""
+    """Single operation in a batch request.
+
+    The value fills the op's parameters after the interface name; an op with
+    two of them (a VLAN-to-VNI vni or description) takes ``vlan_id|value``.
+    """
     op: str = Field(..., description="Operation name")
     value: Optional[str] = Field(None, description="Operation value")
 
@@ -149,6 +154,13 @@ class VxlanBatchRequest(BaseModel):
     """Batch request scoped to a single VXLAN interface."""
     interface_name: str
     operations: List[VxlanBatchOperation]
+
+    @field_validator("interface_name")
+    @classmethod
+    def _interface_name_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("interface_name must not be blank")
+        return value
 
 
 class VyOSResponse(BaseModel):
@@ -170,14 +182,15 @@ async def get_vxlan_capabilities(request: Request):
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = VxlanBatchBuilder(version=version)
+        builder = VxlanBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -196,8 +209,10 @@ async def get_vxlan_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("vxlan", service.get_version())
+        mapper = cast(VxlanMapper, CommandMapperRegistry.get_mapper("vxlan", service.get_version()))
         return VxlanConfigResponse(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -218,32 +233,28 @@ async def vxlan_batch_configure(http_request: Request, body: VxlanBatchRequest):
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = VxlanBatchBuilder(version=version)
+        builder = VxlanBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            if len(params) == 1:
-                method(body.interface_name)
-            elif len(params) == 2 and operation.value is not None:
-                method(body.interface_name, operation.value)
+        # Every op takes the interface name first; the value fills the rest,
+        # split on "|" so a description keeps any "|" in its last part.
+        try:
+            for operation in body.operations:
+                call_item_batch_op(builder, operation.op, body.interface_name, operation.value)
+        except ValueError as e:
+            # The mapper rejects a leaf this device version does not have.
+            raise HTTPException(status_code=400, detail=str(e))
 
         if builder.is_empty():
             return VyOSResponse(success=True, data={"message": "No operations to execute"})
 
-        response = service.execute_batch(builder)
+        response = await run_in_threadpool(service.execute_batch, builder)
+        ok = response.status == 200 and not response.error
 
         return VyOSResponse(
-            success=response.status == 200,
-            data={"message": "VXLAN configuration updated"},
-            error=response.error if response.error else None,
+            success=ok,
+            data={"message": "VXLAN configuration updated"} if ok else None,
+            error=None if ok else response.error,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except HTTPException:
         raise
     except Exception:

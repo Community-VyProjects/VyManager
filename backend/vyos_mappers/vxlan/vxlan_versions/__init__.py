@@ -1,30 +1,21 @@
 """
-VXLAN version-aware mapper factory.
+VXLAN mapper factory.
 
-Merges base VxlanMapper with version-specific paths (v1_4 or v1_5).
+Returns the shared VxlanMapper on 1.4 and the 1.5 subclass otherwise.
 """
 
 from ..vxlan import VxlanMapper
-from .v1_4 import VxlanMapperV1_4
 from .v1_5 import VxlanMapperV1_5
 
 
-def get_vxlan_mapper(version: str):
-    """Factory function that returns a merged mapper for the given VyOS version."""
-    base = VxlanMapper(version)
-    version_specific = VxlanMapperV1_5() if "1.5" in version or "latest" in version else VxlanMapperV1_4()
+def get_vxlan_mapper(version: str) -> VxlanMapper:
+    """Return the vxlan mapper for this device.
 
-    class MergedMapper:
-        # parse_config must live here. A method on the base class is bound to
-        # `base`, so version-specific lookup would not see this instance.
-        def parse_config(self, full_config):
-            from ..config_parse import parse_config as parse_vxlan_config
+    A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+    """
+    if "1.4" in version:
+        return VxlanMapper(version)
+    return VxlanMapperV1_5(version)
 
-            return parse_vxlan_config(self, full_config)
 
-        def __getattr__(self, name):
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
-
-    return MergedMapper()
+__all__ = ["VxlanMapperV1_5", "get_vxlan_mapper"]

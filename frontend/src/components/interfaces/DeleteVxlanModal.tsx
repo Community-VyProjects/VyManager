@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { vxlanService, type VxlanInterface } from "@/lib/api/vxlan";
-import { ApiError } from "@/lib/types/api";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteVxlanModalProps {
   open: boolean;
@@ -40,14 +40,10 @@ export function DeleteVxlanModal({
     setError(null);
 
     try {
-      const result = await vxlanService.deleteInterface(interfaceData.name);
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("delete.failed"));
-      }
+      // A rejected commit throws, so the dialog stays open with the device error.
+      await vxlanService.deleteInterface(interfaceData.name);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("delete.failed"));
     } finally {
@@ -55,11 +51,16 @@ export function DeleteVxlanModal({
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   if (!interfaceData) return null;
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -74,9 +75,6 @@ export function DeleteVxlanModal({
                 <p className="text-sm text-amber-600 font-medium">
                   {t("delete.mappingsWarning", { count: interfaceData.vlan_to_vni.length })}
                 </p>
-                <p className="text-xs text-amber-600/80 mt-1">
-                  {t("delete.mappingsRemoved")}
-                </p>
               </div>
             )}
           </AlertDialogDescription>
@@ -84,14 +82,14 @@ export function DeleteVxlanModal({
 
         {error && (
           <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-            <p className="text-sm text-destructive">{error}</p>
+            <pre className="text-sm text-destructive whitespace-pre-wrap">{error}</pre>
           </div>
         )}
 
         <AlertDialogFooter>
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={loading}
           >
             {tc("cancel")}
