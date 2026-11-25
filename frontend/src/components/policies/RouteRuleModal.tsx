@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NamedListSelect } from "@/components/ui/named-list-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { CountryMultiSelect } from "@/components/firewall/CountryMultiSelect";
@@ -722,14 +723,22 @@ export function RouteRuleModal({
                         className="font-mono"
                       />
                       <div className="w-40">
-                        <NamedListSelect
-                          id="rr-limit-rate-unit"
-                          value={rate.unit}
-                          names={rateUnits}
+                        <Select
+                          value={rate.unit || rateUnits[0]}
                           onValueChange={(unit) => set("limit_rate", joinLimitRate(rate.count, unit))}
                           disabled={loading || !rate.count}
-                          noneLabel={t("limit.unit")}
-                        />
+                        >
+                          <SelectTrigger id="rr-limit-rate-unit" aria-label={t("limit.unit")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {rateUnits.map((unit) => (
+                              <SelectItem key={unit} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
