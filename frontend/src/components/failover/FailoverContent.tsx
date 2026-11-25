@@ -29,12 +29,23 @@ import {
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   failoverService,
-  FailoverConfig,
-  FailoverCapabilities,
-  FailoverRoute,
+  type FailoverConfig,
+  type FailoverCapabilities,
+  type FailoverRoute,
 } from "@/lib/api/failover";
+import { failoverEffectiveCheckType, failoverSupports } from "@/lib/api/failover-save-ops";
+import type { ApiError } from "@/lib/types/api";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 import { FailoverRouteModal } from "./FailoverRouteModal";
 import { DeleteFailoverRouteModal } from "./DeleteFailoverRouteModal";
+
+/** True when any of the values contains the trimmed, lowercased query. */
+function matches(query: string, ...values: (string | null | undefined)[]): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return values.some((v) => (v ?? "").toLowerCase().includes(q));
+}
 
 export function FailoverContent() {
   const t = useTranslations("failover");
@@ -42,33 +53,68 @@ export function FailoverContent() {
   const [config, setConfig] = useState<FailoverConfig | null>(null);
   const [capabilities, setCapabilities] = useState<FailoverCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  // Modal state
+  const { canWrite } = usePermissions();
+  const hasWrite = canWrite(FeatureGroup.FAILOVER);
+  // The subject stays set after close so the dialog text does not flip during
+  // the close animation; the key reseeds the route form on every open.
   const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [routeModalKey, setRouteModalKey] = useState(0);
   const [editingRoute, setEditingRoute] = useState<FailoverRoute | null>(null);
-  const [deletingRoute, setDeletingRoute] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingRoute, setDeletingRoute] = useState("");
 
-  const loadData = useCallback(async (refresh = false) => {
+  /** Read config and capabilities; state is only set after the await. */
+  const fetchData = useCallback(async (refresh: boolean) => {
     try {
-      setLoading(true);
-      setError(null);
       const [configData, capData] = await Promise.all([
         failoverService.getConfig(refresh),
         failoverService.getCapabilities(),
       ]);
       setConfig(configData);
       setCapabilities(capData);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
+      setError((err as ApiError).message || t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
   }, [t]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void fetchData(false);
+  }, [fetchData]);
+
+  const retry = async () => {
+    setLoading(true);
+    await fetchData(true);
+  };
+
+  /** Re-read after a save without swapping the page (and its dialogs) for the spinner. */
+  const reload = async () => {
+    setRefreshing(true);
+    await fetchData(true);
+    setRefreshing(false);
+  };
+
+  const openCreate = () => {
+    setEditingRoute(null);
+    setRouteModalKey((k) => k + 1);
+    setRouteModalOpen(true);
+  };
+
+  const openEdit = (route: FailoverRoute) => {
+    setEditingRoute(route);
+    setRouteModalKey((k) => k + 1);
+    setRouteModalOpen(true);
+  };
+
+  const openDelete = (destination: string) => {
+    setDeletingRoute(destination);
+    setDeleteOpen(true);
+  };
 
   // Stats
   const routeCount = config?.routes.length ?? 0;
@@ -84,40 +130,18 @@ export function FailoverContent() {
   const totalDhcpInterfaces =
     config?.routes.reduce((sum, r) => sum + r.dhcp_interfaces.length, 0) ?? 0;
 
-  const showDhcp = capabilities?.features.dhcp_interface.supported ?? false;
+  const showDhcp = failoverSupports(capabilities, "dhcp_interface");
+  // Writes need the capability lists the route dialog reads.
+  const canEdit = hasWrite && capabilities !== null;
 
-  // Search filter
-  const filteredRoutes = config?.routes.filter((route) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    if (route.destination.toLowerCase().includes(q)) return true;
-    if (route.next_hops.some((nh) => nh.address.toLowerCase().includes(q))) return true;
-    if (route.dhcp_interfaces.some((d) => d.name.toLowerCase().includes(q))) return true;
-    return false;
-  }) ?? [];
-
-  // ==========================================================================
-  // Handlers
-  // ==========================================================================
-
-  const handleCreateRoute = async (route: FailoverRoute) => {
-    await failoverService.createRoute(route);
-    await loadData(true);
-  };
-
-  const handleUpdateRoute = async (route: FailoverRoute) => {
-    if (!editingRoute) return;
-    await failoverService.updateRoute(editingRoute, route);
-    setEditingRoute(null);
-    await loadData(true);
-  };
-
-  const handleDeleteRoute = async () => {
-    if (!deletingRoute) return;
-    await failoverService.deleteRoute(deletingRoute);
-    setDeletingRoute(null);
-    await loadData(true);
-  };
+  const filteredRoutes = config?.routes.filter((route) =>
+    matches(
+      searchQuery,
+      route.destination,
+      ...route.next_hops.flatMap((nh) => [nh.address, nh.interface]),
+      ...route.dhcp_interfaces.flatMap((d) => [d.name, d.interface]),
+    )
+  ) ?? [];
 
   // ==========================================================================
   // Render
@@ -134,8 +158,8 @@ export function FailoverContent() {
   if (error && !config) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>
+        <p className="text-destructive whitespace-pre-wrap">{error}</p>
+        <Button variant="outline" onClick={() => void retry()}>
           {tc("retry")}
         </Button>
       </div>
@@ -157,15 +181,16 @@ export function FailoverContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(true)}
+              onClick={() => void reload()}
+              disabled={refreshing}
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
               {tc("refresh")}
             </Button>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm whitespace-pre-wrap">
               {error}
             </div>
           )}
@@ -237,21 +262,18 @@ export function FailoverContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-9"
+                aria-label={t("content.searchPlaceholder")}
                 placeholder={t("content.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingRoute(null);
-                setRouteModalOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t("addRoute")}
-            </Button>
+            {canEdit && (
+              <Button size="sm" onClick={openCreate} disabled={refreshing}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t("addRoute")}
+              </Button>
+            )}
           </div>
 
           {/* Table or empty state */}
@@ -265,16 +287,12 @@ export function FailoverContent() {
                 <p className="text-xs text-muted-foreground mb-4">
                   {t("content.emptyHint")}
                 </p>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setEditingRoute(null);
-                    setRouteModalOpen(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("addRoute")}
-                </Button>
+                {canEdit && (
+                  <Button size="sm" onClick={openCreate} disabled={refreshing}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("addRoute")}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -288,19 +306,19 @@ export function FailoverContent() {
                       <TableHead>{t("table.healthCheck")}</TableHead>
                       <TableHead>{t("table.metrics")}</TableHead>
                       {showDhcp && <TableHead>{t("table.dhcpInterfaces")}</TableHead>}
-                      <TableHead className="text-right">{tc("actions")}</TableHead>
+                      {canEdit && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRoutes.map((route) => {
                       const nhAddrs = route.next_hops.map((nh) => nh.address);
-                      const checkType = route.next_hops[0]?.check.type;
-                      const targetCount = route.next_hops.reduce(
-                        (sum, nh) => sum + nh.check.targets.length,
-                        0
-                      );
-                      const metrics = route.next_hops
-                        .map((nh) => nh.metric)
+                      const first = route.next_hops[0] ?? route.dhcp_interfaces[0];
+                      const checkType = first ? failoverEffectiveCheckType(first.check.type) : null;
+                      const targetCount =
+                        route.next_hops.reduce((sum, nh) => sum + nh.check.targets.length, 0) +
+                        route.dhcp_interfaces.reduce((sum, d) => sum + d.check.targets.length, 0);
+                      const metrics = [...route.next_hops, ...route.dhcp_interfaces]
+                        .map((g) => g.metric)
                         .filter((m) => m != null);
 
                       return (
@@ -331,11 +349,8 @@ export function FailoverContent() {
                           <TableCell>
                             {checkType ? (
                               <div className="flex items-center gap-1">
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs"
-                                >
-                                  {checkType.toUpperCase()}
+                                <Badge variant="outline" className="text-xs font-mono">
+                                  {checkType}
                                 </Badge>
                                 {targetCount > 0 && (
                                   <span className="text-xs text-muted-foreground">
@@ -368,36 +383,39 @@ export function FailoverContent() {
                               </div>
                             </TableCell>
                           )}
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingRoute(route);
-                                  setRouteModalOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => setDeletingRoute(route.destination)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                          {canEdit && (
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={tc("edit")}
+                                  className="h-8 w-8"
+                                  disabled={refreshing}
+                                  onClick={() => openEdit(route)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={tc("delete")}
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  disabled={refreshing}
+                                  onClick={() => openDelete(route.destination)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
                     {filteredRoutes.length === 0 && searchQuery.trim() && (
                       <TableRow>
                         <TableCell
-                          colSpan={showDhcp ? 6 : 5}
+                          colSpan={4 + (showDhcp ? 1 : 0) + (canEdit ? 1 : 0)}
                           className="text-center py-8 text-muted-foreground"
                         >
                           {t("content.noMatch", { query: searchQuery })}
@@ -413,24 +431,23 @@ export function FailoverContent() {
       </div>
 
       {/* Modals */}
-      <FailoverRouteModal
-        open={routeModalOpen}
-        onOpenChange={(open) => {
-          setRouteModalOpen(open);
-          if (!open) setEditingRoute(null);
-        }}
-        existingRoute={editingRoute}
-        capabilities={capabilities}
-        onSubmit={editingRoute ? handleUpdateRoute : handleCreateRoute}
-      />
+      {capabilities && (
+        <FailoverRouteModal
+          key={routeModalKey}
+          open={routeModalOpen}
+          onOpenChange={setRouteModalOpen}
+          existingRoute={editingRoute}
+          capabilities={capabilities}
+          destinations={config?.routes.map((r) => r.destination) ?? []}
+          onSuccess={() => void reload()}
+        />
+      )}
 
       <DeleteFailoverRouteModal
-        open={!!deletingRoute}
-        onOpenChange={(open) => {
-          if (!open) setDeletingRoute(null);
-        }}
-        destination={deletingRoute ?? ""}
-        onConfirm={handleDeleteRoute}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        destination={deletingRoute}
+        onSuccess={() => void reload()}
       />
     </>
   );

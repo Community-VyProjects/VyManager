@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,463 +9,168 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { showService, InterfaceName } from "@/lib/api/show";
-import type {
-  FailoverRoute,
-  FailoverCapabilities,
-  FailoverNextHop,
-  FailoverDhcpInterface,
-  FailoverCheck,
-  FailoverCheckTarget,
-} from "@/lib/api/failover";
-
-// ============================================================================
-// Form State Types
-// ============================================================================
-
-interface TargetFormEntry {
-  address: string;
-  interface: string;
-  vrf: string;
-}
-
-interface NextHopFormEntry {
-  address: string;
-  metric: string;
-  interface: string;
-  onlink: boolean;
-  checkType: string;
-  checkPolicy: string;
-  checkPort: string;
-  checkTimeout: string;
-  targets: TargetFormEntry[];
-}
-
-interface DhcpInterfaceFormEntry {
-  name: string;
-  metric: string;
-  interface: string;
-  onlink: boolean;
-  checkType: string;
-  checkPolicy: string;
-  checkPort: string;
-  checkTimeout: string;
-  targets: TargetFormEntry[];
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function emptyTarget(): TargetFormEntry {
-  return { address: "", interface: "", vrf: "" };
-}
-
-function emptyNextHop(): NextHopFormEntry {
-  return {
-    address: "",
-    metric: "",
-    interface: "",
-    onlink: false,
-    checkType: "",
-    checkPolicy: "",
-    checkPort: "",
-    checkTimeout: "",
-    targets: [],
-  };
-}
-
-function emptyDhcpInterface(): DhcpInterfaceFormEntry {
-  return {
-    name: "",
-    metric: "",
-    interface: "",
-    onlink: false,
-    checkType: "",
-    checkPolicy: "",
-    checkPort: "",
-    checkTimeout: "",
-    targets: [],
-  };
-}
-
-function nhToForm(nh: FailoverNextHop): NextHopFormEntry {
-  return {
-    address: nh.address,
-    metric: nh.metric != null ? String(nh.metric) : "",
-    interface: nh.interface || "",
-    onlink: nh.onlink,
-    checkType: nh.check.type || "",
-    checkPolicy: nh.check.policy || "",
-    checkPort: nh.check.port != null ? String(nh.check.port) : "",
-    checkTimeout: nh.check.timeout != null ? String(nh.check.timeout) : "",
-    targets: nh.check.targets.map((t) => ({
-      address: t.address,
-      interface: t.interface || "",
-      vrf: t.vrf || "",
-    })),
-  };
-}
-
-function dhcpToForm(d: FailoverDhcpInterface): DhcpInterfaceFormEntry {
-  return {
-    name: d.name,
-    metric: d.metric != null ? String(d.metric) : "",
-    interface: d.interface || "",
-    onlink: d.onlink,
-    checkType: d.check.type || "",
-    checkPolicy: d.check.policy || "",
-    checkPort: d.check.port != null ? String(d.check.port) : "",
-    checkTimeout: d.check.timeout != null ? String(d.check.timeout) : "",
-    targets: d.check.targets.map((t) => ({
-      address: t.address,
-      interface: t.interface || "",
-      vrf: t.vrf || "",
-    })),
-  };
-}
-
-function formToCheck(entry: NextHopFormEntry | DhcpInterfaceFormEntry): FailoverCheck {
-  const targets: FailoverCheckTarget[] = entry.targets
-    .filter((t) => t.address.trim())
-    .map((t) => ({
-      address: t.address.trim(),
-      interface: t.interface.trim() || null,
-      vrf: t.vrf.trim() || null,
-    }));
-
-  return {
-    type: entry.checkType || null,
-    policy: entry.checkPolicy || null,
-    port: entry.checkPort.trim() ? parseInt(entry.checkPort.trim(), 10) : null,
-    timeout: entry.checkTimeout.trim() ? parseInt(entry.checkTimeout.trim(), 10) : null,
-    targets,
-  };
-}
-
-function formToNextHop(entry: NextHopFormEntry): FailoverNextHop {
-  return {
-    address: entry.address.trim(),
-    metric: entry.metric.trim() ? parseInt(entry.metric.trim(), 10) : null,
-    interface: entry.interface.trim() || null,
-    onlink: entry.onlink,
-    check: formToCheck(entry),
-  };
-}
-
-function formToDhcpInterface(entry: DhcpInterfaceFormEntry): FailoverDhcpInterface {
-  return {
-    name: entry.name.trim(),
-    metric: entry.metric.trim() ? parseInt(entry.metric.trim(), 10) : null,
-    interface: entry.interface.trim() || null,
-    onlink: entry.onlink,
-    check: formToCheck(entry),
-  };
-}
-
-// ============================================================================
-// Interface Select Component
-// ============================================================================
-
-function InterfaceSelect({
-  id,
-  value,
-  onChange,
-  interfaces,
-  placeholder,
-}: {
-  id?: string;
-  value: string;
-  onChange: (value: string) => void;
-  interfaces: InterfaceName[];
-  placeholder?: string;
-}) {
-  const tc = useTranslations("common");
-  return (
-    <Select
-      value={value || "__none__"}
-      onValueChange={(v) => onChange(v === "__none__" ? "" : v)}
-    >
-      <SelectTrigger id={id} className="h-8 text-xs">
-        <SelectValue placeholder={placeholder || tc("selectInterface")} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">{tc("none")}</SelectItem>
-        {interfaces.map((iface) => (
-          <SelectItem key={iface.name} value={iface.name}>
-            <span className="font-mono">{iface.name}</span>
-            {iface.description && (
-              <span className="text-muted-foreground ml-2 text-xs">{iface.description}</span>
-            )}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-// ============================================================================
-// Component
-// ============================================================================
+import { failoverService, type FailoverCapabilities, type FailoverRoute } from "@/lib/api/failover";
+import {
+  DEFAULT_CHECK_POLICY,
+  DEFAULT_CHECK_TYPE,
+  emptyDhcpRow,
+  emptyNextHopRow,
+  emptyTargetRow,
+  failoverForm,
+  failoverProblem,
+  failoverSupports,
+  type FailoverCheckForm,
+  type FailoverForm,
+  type FailoverProblem,
+  type FailoverTargetRow,
+} from "@/lib/api/failover-save-ops";
+import type { ApiError } from "@/lib/types/api";
+import { lockedIdentity, modalIsEdit } from "@/lib/modal-mode";
 
 interface FailoverRouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (route: FailoverRoute) => Promise<void>;
+  onSuccess: () => void;
+  capabilities: FailoverCapabilities;
+  /** Destinations already configured (a create must not reuse one). */
+  destinations: string[];
   existingRoute?: FailoverRoute | null;
-  capabilities?: FailoverCapabilities | null;
 }
 
+/** Shared fields of a next-hop row and a DHCP interface row. */
+interface GatewayRow {
+  interface: string;
+  metric: string;
+  onlink: boolean;
+  check: FailoverCheckForm;
+}
+
+/** The page passes a `key` that changes per open, so the form is seeded from props here. */
 export function FailoverRouteModal({
   open,
   onOpenChange,
-  onSubmit,
-  existingRoute,
+  onSuccess,
   capabilities,
+  destinations,
+  existingRoute,
 }: FailoverRouteModalProps) {
   const t = useTranslations("failover");
   const tc = useTranslations("common");
-  const isEditMode = !!existingRoute;
-  const showDhcp = capabilities?.features.dhcp_interface.supported ?? false;
-  const showTargetProps = capabilities?.features.check_target_properties.supported ?? false;
+  const isEdit = modalIsEdit(existingRoute);
+  const original = existingRoute ?? null;
+  const features = capabilities.features;
+  const showDhcp = failoverSupports(capabilities, "dhcp_interface");
+  const showTargetInterface = failoverSupports(capabilities, "check_target_interface");
+  const showTargetVrf = failoverSupports(capabilities, "check_target_vrf");
 
-  // Form state
-  const [destination, setDestination] = useState("");
-  const [nextHops, setNextHops] = useState<NextHopFormEntry[]>([emptyNextHop()]);
-  const [dhcpInterfaces, setDhcpInterfaces] = useState<DhcpInterfaceFormEntry[]>([]);
-
-  // Interface list from device
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-
-  // UI state
+  const [form, setForm] = useState<FailoverForm>(() => failoverForm(original));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      // Load interfaces when modal opens
-      showService.getAllInterfaces().then((res) => {
-        const sorted = [...res.interfaces].sort((a, b) => a.name.localeCompare(b.name));
-        setAvailableInterfaces(sorted);
-      }).catch(() => {
-        // Silently fail — dropdowns will just be empty
-      });
+  const destination = lockedIdentity(existingRoute, (r) => r.destination, form.destination);
 
-      if (existingRoute) {
-        setDestination(existingRoute.destination);
-        setNextHops(
-          existingRoute.next_hops.length > 0
-            ? existingRoute.next_hops.map(nhToForm)
-            : [emptyNextHop()]
-        );
-        setDhcpInterfaces(existingRoute.dhcp_interfaces.map(dhcpToForm));
-      } else {
-        resetForm();
-      }
-    }
-  }, [open, existingRoute]);
-
-  const resetForm = () => {
-    setDestination("");
-    setNextHops([emptyNextHop()]);
-    setDhcpInterfaces([]);
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   // ==========================================================================
-  // Next-hop array mutators
+  // Row mutators (row key is the index)
   // ==========================================================================
 
-  const updateNextHop = (index: number, updates: Partial<NextHopFormEntry>) => {
-    setNextHops((prev) => prev.map((nh, i) => (i === index ? { ...nh, ...updates } : nh)));
-  };
+  type Kind = "next_hops" | "dhcp_interfaces";
 
-  const removeNextHop = (index: number) => {
-    setNextHops((prev) => prev.filter((_, i) => i !== index));
-  };
+  const updateRow = (kind: Kind, index: number, patch: Partial<GatewayRow> & { address?: string; name?: string }) =>
+    setForm((f) => ({
+      ...f,
+      [kind]: (f[kind] as GatewayRow[]).map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    }));
 
-  const addNextHopTarget = (nhIndex: number) => {
-    setNextHops((prev) =>
-      prev.map((nh, i) =>
-        i === nhIndex ? { ...nh, targets: [...nh.targets, emptyTarget()] } : nh
-      )
-    );
-  };
+  const removeRow = (kind: Kind, index: number) =>
+    setForm((f) => ({ ...f, [kind]: (f[kind] as GatewayRow[]).filter((_, i) => i !== index) }));
 
-  const updateNextHopTarget = (nhIndex: number, tIndex: number, updates: Partial<TargetFormEntry>) => {
-    setNextHops((prev) =>
-      prev.map((nh, i) =>
-        i === nhIndex
-          ? {
-              ...nh,
-              targets: nh.targets.map((t, j) => (j === tIndex ? { ...t, ...updates } : t)),
-            }
-          : nh
-      )
-    );
-  };
+  const updateCheck = (kind: Kind, index: number, patch: Partial<FailoverCheckForm>) =>
+    setForm((f) => ({
+      ...f,
+      [kind]: (f[kind] as GatewayRow[]).map((row, i) =>
+        i === index ? { ...row, check: { ...row.check, ...patch } } : row
+      ),
+    }));
 
-  const removeNextHopTarget = (nhIndex: number, tIndex: number) => {
-    setNextHops((prev) =>
-      prev.map((nh, i) =>
-        i === nhIndex ? { ...nh, targets: nh.targets.filter((_, j) => j !== tIndex) } : nh
-      )
-    );
-  };
-
-  // ==========================================================================
-  // DHCP interface array mutators
-  // ==========================================================================
-
-  const updateDhcpInterface = (index: number, updates: Partial<DhcpInterfaceFormEntry>) => {
-    setDhcpInterfaces((prev) => prev.map((d, i) => (i === index ? { ...d, ...updates } : d)));
-  };
-
-  const removeDhcpInterface = (index: number) => {
-    setDhcpInterfaces((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const addDhcpTarget = (dIndex: number) => {
-    setDhcpInterfaces((prev) =>
-      prev.map((d, i) =>
-        i === dIndex ? { ...d, targets: [...d.targets, emptyTarget()] } : d
-      )
-    );
-  };
-
-  const updateDhcpTarget = (dIndex: number, tIndex: number, updates: Partial<TargetFormEntry>) => {
-    setDhcpInterfaces((prev) =>
-      prev.map((d, i) =>
-        i === dIndex
-          ? {
-              ...d,
-              targets: d.targets.map((t, j) => (j === tIndex ? { ...t, ...updates } : t)),
-            }
-          : d
-      )
-    );
-  };
-
-  const removeDhcpTarget = (dIndex: number, tIndex: number) => {
-    setDhcpInterfaces((prev) =>
-      prev.map((d, i) =>
-        i === dIndex ? { ...d, targets: d.targets.filter((_, j) => j !== tIndex) } : d
-      )
-    );
-  };
-
-  // ==========================================================================
-  // Validation
-  // ==========================================================================
-
-  const validateForm = (): string | null => {
-    if (!destination.trim()) return t("validation.destinationRequired");
-    if (!destination.includes("/")) return t("validation.destinationCidr");
-
-    const validNhs = nextHops.filter((nh) => nh.address.trim());
-    const validDhcps = dhcpInterfaces.filter((d) => d.name.trim());
-
-    if (validNhs.length === 0 && validDhcps.length === 0) {
-      return t("validation.nextHopOrDhcpRequired");
-    }
-
-    for (let i = 0; i < validNhs.length; i++) {
-      const nh = validNhs[i];
-      if (!nh.address.includes(".") && !nh.address.includes(":")) {
-        return t("validation.nhInvalidAddress", { n: i + 1 });
-      }
-      if (nh.metric.trim()) {
-        const val = parseInt(nh.metric.trim(), 10);
-        if (isNaN(val) || val < 1) return t("validation.nhMetric", { n: i + 1 });
-      }
-      if (nh.checkType === "tcp" && !nh.checkPort.trim()) {
-        return t("validation.nhTcpPort", { n: i + 1 });
-      }
-      for (let j = 0; j < nh.targets.length; j++) {
-        if (!nh.targets[j].address.trim()) {
-          return t("validation.nhTargetAddress", { n: i + 1, m: j + 1 });
-        }
-      }
-    }
-
-    for (let i = 0; i < validDhcps.length; i++) {
-      const d = validDhcps[i];
-      if (d.checkType === "tcp" && !d.checkPort.trim()) {
-        return t("validation.dhcpTcpPort", { n: i + 1 });
-      }
-      for (let j = 0; j < d.targets.length; j++) {
-        if (!d.targets[j].address.trim()) {
-          return t("validation.dhcpTargetAddress", { n: i + 1, m: j + 1 });
-        }
-      }
-    }
-
-    return null;
-  };
+  const updateTargets = (kind: Kind, index: number, change: (targets: FailoverTargetRow[]) => FailoverTargetRow[]) =>
+    setForm((f) => ({
+      ...f,
+      [kind]: (f[kind] as GatewayRow[]).map((row, i) =>
+        i === index ? { ...row, check: { ...row.check, targets: change(row.check.targets) } } : row
+      ),
+    }));
 
   // ==========================================================================
   // Submit
   // ==========================================================================
 
+  const problemText = (p: FailoverProblem) => t(`validation.${p.key}`, p.values);
+
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const issue = failoverProblem(original, form, capabilities, { destinations });
+    if (issue) {
+      setError(problemText(issue));
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      const route: FailoverRoute = {
-        destination: destination.trim(),
-        next_hops: nextHops.filter((nh) => nh.address.trim()).map(formToNextHop),
-        dhcp_interfaces: dhcpInterfaces.filter((d) => d.name.trim()).map(formToDhcpInterface),
-      };
-      await onSubmit(route);
-      handleClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      if (original) await failoverService.updateRoute(original, form, capabilities);
+      else await failoverService.createRoute(form, capabilities);
+      onOpenChange(false);
+      onSuccess();
+    } catch (err) {
+      setError((err as ApiError).message || t(isEdit ? "modal.updateFailed" : "modal.createFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   // ==========================================================================
-  // Render: Health Check Card (shared between next-hop and DHCP)
+  // Render helpers
   // ==========================================================================
 
-  const renderHealthCheck = (
-    entry: NextHopFormEntry | DhcpInterfaceFormEntry,
-    prefix: string,
-    onUpdate: (updates: Partial<NextHopFormEntry>) => void,
-    onAddTarget: () => void,
-    onUpdateTarget: (tIndex: number, updates: Partial<TargetFormEntry>) => void,
-    onRemoveTarget: (tIndex: number) => void
+  const rangeText = (range: { min: number; max: number }) =>
+    t("modal.rangePlaceholder", { min: range.min, max: range.max });
+
+  const numberField = (
+    id: string,
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    range: { min: number; max: number },
   ) => (
+    <div className="space-y-1">
+      <Label className="text-xs" htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        className="h-8 text-xs"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={rangeText(range)}
+        min={range.min}
+        max={range.max}
+      />
+    </div>
+  );
+
+  const renderHealthCheck = (kind: Kind, index: number, prefix: string, check: FailoverCheckForm) => (
     <div className="space-y-3 mt-3">
       <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         {t("healthCheck.title")}
@@ -473,286 +178,226 @@ export function FailoverRouteModal({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs" htmlFor={`${prefix}-check-type`}>{t("healthCheck.type")}</Label>
-          <Select
-            value={entry.checkType || "__none__"}
-            onValueChange={(v) => onUpdate({ checkType: v === "__none__" ? "" : v } as Partial<NextHopFormEntry>)}
-          >
-            <SelectTrigger id={`${prefix}-check-type`} className="h-8 text-xs">
-              <SelectValue placeholder={tc("none")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">{tc("none")}</SelectItem>
-              <SelectItem value="arp">ARP</SelectItem>
-              <SelectItem value="icmp">ICMP</SelectItem>
-              <SelectItem value="tcp">TCP</SelectItem>
-              <SelectItem value="none">{tc("disabled")}</SelectItem>
-            </SelectContent>
-          </Select>
+          <NamedListSelect
+            id={`${prefix}-check-type`}
+            value={check.type}
+            names={features.check_type.values}
+            noneLabel={t("modal.defaultValue", { value: DEFAULT_CHECK_TYPE })}
+            onValueChange={(type) => updateCheck(kind, index, { type })}
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs" htmlFor={`${prefix}-check-policy`}>{t("healthCheck.policy")}</Label>
-          <Select
-            value={entry.checkPolicy || "__none__"}
-            onValueChange={(v) => onUpdate({ checkPolicy: v === "__none__" ? "" : v } as Partial<NextHopFormEntry>)}
-          >
-            <SelectTrigger id={`${prefix}-check-policy`} className="h-8 text-xs">
-              <SelectValue placeholder={tc("default")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">{tc("default")}</SelectItem>
-              <SelectItem value="all-pass">{t("healthCheck.allPass")}</SelectItem>
-              <SelectItem value="any-pass">{t("healthCheck.anyPass")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {entry.checkType === "tcp" && (
-          <div className="space-y-1">
-            <Label className="text-xs" htmlFor={`${prefix}-check-port`}>{t("healthCheck.port")}</Label>
-            <Input
-              id={`${prefix}-check-port`}
-              type="number"
-              className="h-8 text-xs"
-              value={entry.checkPort}
-              onChange={(e) => onUpdate({ checkPort: e.target.value } as Partial<NextHopFormEntry>)}
-              placeholder={t("example", { value: "80" })}
-              min={1}
-              max={65535}
-            />
-          </div>
-        )}
-        <div className="space-y-1">
-          <Label className="text-xs" htmlFor={`${prefix}-check-timeout`}>{t("healthCheck.timeout")}</Label>
-          <Input
-            id={`${prefix}-check-timeout`}
-            type="number"
-            className="h-8 text-xs"
-            value={entry.checkTimeout}
-            onChange={(e) => onUpdate({ checkTimeout: e.target.value } as Partial<NextHopFormEntry>)}
-            placeholder={t("healthCheck.seconds")}
-            min={1}
+          <NamedListSelect
+            id={`${prefix}-check-policy`}
+            value={check.policy}
+            names={features.check_policy.values}
+            noneLabel={t("modal.defaultValue", { value: DEFAULT_CHECK_POLICY })}
+            onValueChange={(policy) => updateCheck(kind, index, { policy })}
           />
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        {numberField(`${prefix}-check-port`, t("healthCheck.port"), check.port, (port) => updateCheck(kind, index, { port }), features.check_port)}
+        {numberField(`${prefix}-check-timeout`, t("healthCheck.timeout"), check.timeout, (timeout) => updateCheck(kind, index, { timeout }), features.check_timeout)}
+      </div>
 
-      {/* Check Targets */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label className="text-xs">{t("healthCheck.checkTargets")}</Label>
+          <span className="text-xs font-medium">{t("healthCheck.checkTargets")}</span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             className="h-6 text-xs px-2"
-            onClick={onAddTarget}
+            onClick={() => updateTargets(kind, index, (targets) => [...targets, emptyTargetRow()])}
           >
             <Plus className="h-3 w-3 mr-1" />
             {t("healthCheck.addTarget")}
           </Button>
         </div>
-        {entry.targets.map((target, tIndex) => (
-          <div key={tIndex} className="flex items-start gap-2">
-            <div className={`grid ${showTargetProps ? "grid-cols-3" : "grid-cols-1"} gap-2 flex-1`}>
-              <Input
-                className="h-8 text-xs"
-                value={target.address}
-                onChange={(e) => onUpdateTarget(tIndex, { address: e.target.value })}
-                placeholder={t("healthCheck.targetIp")}
-              />
-              {showTargetProps && (
-                <>
+        {check.targets.map((target, tIndex) => {
+          const setTarget = (patch: Partial<FailoverTargetRow>) =>
+            updateTargets(kind, index, (targets) => targets.map((row, j) => (j === tIndex ? { ...row, ...patch } : row)));
+          const columns = 1 + (showTargetInterface ? 1 : 0) + (showTargetVrf ? 1 : 0);
+          return (
+            <div key={tIndex} className="flex items-start gap-2">
+              <div className={`grid ${columns === 3 ? "grid-cols-3" : columns === 2 ? "grid-cols-2" : "grid-cols-1"} gap-2 flex-1`}>
+                <Input
+                  aria-label={t("healthCheck.targetIp")}
+                  className="h-8 text-xs"
+                  value={target.address}
+                  onChange={(e) => setTarget({ address: e.target.value })}
+                  placeholder={t("healthCheck.targetIp")}
+                />
+                {showTargetInterface && (
                   <InterfaceSelect
+                    className="h-8 text-xs"
                     value={target.interface}
-                    onChange={(v) => onUpdateTarget(tIndex, { interface: v })}
-                    interfaces={availableInterfaces}
+                    onValueChange={(v) => setTarget({ interface: v })}
+                    noneOption={{ label: tc("none"), value: "" }}
                     placeholder={t("modal.interface")}
                   />
+                )}
+                {showTargetVrf && (
                   <VrfSelect
                     className="h-8 text-xs"
                     value={target.vrf}
-                    onValueChange={(v) => onUpdateTarget(tIndex, { vrf: v })}
-                    placeholder="VRF"
-                    extraOptions={[{ label: tc("default"), value: "default" }]}
+                    onValueChange={(v) => setTarget({ vrf: v })}
+                    placeholder={t("modal.vrf")}
                   />
-                </>
-              )}
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={tc("delete")}
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => updateTargets(kind, index, (targets) => targets.filter((_, j) => j !== tIndex))}
+              >
+                <X className="h-3 w-3" />
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={() => onRemoveTarget(tIndex)}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
+
+  const renderGatewayFields = (kind: Kind, index: number, prefix: string, row: GatewayRow) => (
+    <div className="grid grid-cols-2 gap-3 items-end">
+      {numberField(`${prefix}-metric`, t("modal.metric"), row.metric, (metric) => updateRow(kind, index, { metric }), features.metric)}
+      <div className="flex items-center space-x-2 pb-1">
+        <Checkbox
+          id={`${prefix}-onlink`}
+          checked={row.onlink}
+          onCheckedChange={(checked) => updateRow(kind, index, { onlink: checked === true })}
+        />
+        <Label htmlFor={`${prefix}-onlink`} className="text-xs cursor-pointer">
+          {t("modal.onlink")}
+        </Label>
+      </div>
+    </div>
+  );
+
+  // DHCP interface names already used by another row of this route.
+  const dhcpNamesBesides = (index: number) =>
+    new Set(form.dhcp_interfaces.filter((_, i) => i !== index).map((d) => d.name.trim()).filter(Boolean));
 
   // ==========================================================================
   // Render
   // ==========================================================================
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {isEditMode ? t("modal.editTitle") : t("modal.addTitle")}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? t("modal.editTitle") : t("modal.addTitle")}</DialogTitle>
           <DialogDescription>
-            {isEditMode
-              ? t("modal.editDescription", { destination: existingRoute?.destination ?? "" })
+            {isEdit
+              ? t("modal.editDescription", { destination: existingRoute.destination })
               : t("modal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
-          <div className="space-y-6 pb-2">
-            {/* Destination */}
-            <div className="space-y-2">
-              <Label htmlFor="failover-destination">{t("modal.destination")}</Label>
-              <Input
-                id="failover-destination"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder={t("example", { value: "10.0.0.0/24" })}
-                disabled={isEditMode}
-                className={isEditMode ? "bg-muted" : ""}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("modal.destinationHelp")}
-              </p>
+        <div className="space-y-6 pb-2">
+          <div className="space-y-2">
+            <Label htmlFor="failover-destination">{t("modal.destination")}</Label>
+            <Input
+              id="failover-destination"
+              value={destination.value}
+              onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
+              placeholder={t("example", { value: "10.0.0.0/24" })}
+              disabled={destination.disabled}
+              className={destination.disabled ? "bg-muted font-mono" : "font-mono"}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">{t("modal.nextHops")}</h4>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setForm((f) => ({ ...f, next_hops: [...f.next_hops, emptyNextHopRow()] }))}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                {t("modal.addNextHop")}
+              </Button>
             </div>
 
-            <Separator />
-
-            {/* Next-Hops Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">{t("modal.nextHops")}</h4>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setNextHops((prev) => [...prev, emptyNextHop()])}
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  {t("modal.addNextHop")}
-                </Button>
-              </div>
-
-              {nextHops.map((nh, nhIndex) => (
-                <div key={nhIndex} className="rounded-lg border p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {t("modal.nextHopN", { n: nhIndex + 1 })}
-                    </span>
-                    {nextHops.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeNextHop(nhIndex)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-addr`}>{t("modal.addressRequired")}</Label>
-                      <Input
-                        id={`nh-${nhIndex}-addr`}
-                        className="h-8 text-xs"
-                        value={nh.address}
-                        onChange={(e) => updateNextHop(nhIndex, { address: e.target.value })}
-                        placeholder={t("example", { value: "192.168.1.1" })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-metric`}>{t("modal.metric")}</Label>
-                      <Input
-                        id={`nh-${nhIndex}-metric`}
-                        type="number"
-                        className="h-8 text-xs"
-                        value={nh.metric}
-                        onChange={(e) => updateNextHop(nhIndex, { metric: e.target.value })}
-                        placeholder={t("example", { value: "10" })}
-                        min={1}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 items-end">
-                    <div className="space-y-1">
-                      <Label className="text-xs" htmlFor={`nh-${nhIndex}-iface`}>{t("modal.interface")}</Label>
-                      <InterfaceSelect
-                        id={`nh-${nhIndex}-iface`}
-                        value={nh.interface}
-                        onChange={(v) => updateNextHop(nhIndex, { interface: v })}
-                        interfaces={availableInterfaces}
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2 pb-1">
-                      <Checkbox
-                        id={`nh-${nhIndex}-onlink`}
-                        checked={nh.onlink}
-                        onCheckedChange={(checked) =>
-                          updateNextHop(nhIndex, { onlink: checked === true })
-                        }
-                      />
-                      <Label htmlFor={`nh-${nhIndex}-onlink`} className="text-xs cursor-pointer">
-                        {t("modal.onlink")}
-                      </Label>
-                    </div>
-                  </div>
-
-                  {renderHealthCheck(
-                    nh,
-                    `nh-${nhIndex}`,
-                    (updates) => updateNextHop(nhIndex, updates),
-                    () => addNextHopTarget(nhIndex),
-                    (tIndex, updates) => updateNextHopTarget(nhIndex, tIndex, updates),
-                    (tIndex) => removeNextHopTarget(nhIndex, tIndex)
-                  )}
+            {form.next_hops.map((nh, nhIndex) => (
+              <div key={nhIndex} className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t("modal.nextHopN", { n: nhIndex + 1 })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={tc("delete")}
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeRow("next_hops", nhIndex)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
-              ))}
-            </div>
 
-            {/* DHCP Interfaces Section (1.5 only) */}
-            {showDhcp && (
-              <>
-                <Separator />
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">{t("modal.dhcpInterfaces")}</h4>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => setDhcpInterfaces((prev) => [...prev, emptyDhcpInterface()])}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      {t("modal.addDhcpInterface")}
-                    </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs" htmlFor={`nh-${nhIndex}-addr`}>{t("modal.addressRequired")}</Label>
+                    <Input
+                      id={`nh-${nhIndex}-addr`}
+                      className="h-8 text-xs font-mono"
+                      value={nh.address}
+                      onChange={(e) => updateRow("next_hops", nhIndex, { address: e.target.value })}
+                      placeholder={t("example", { value: "192.168.1.1" })}
+                    />
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs" htmlFor={`nh-${nhIndex}-iface`}>{t("modal.interfaceRequired")}</Label>
+                    <InterfaceSelect
+                      id={`nh-${nhIndex}-iface`}
+                      className="h-8 text-xs"
+                      value={nh.interface}
+                      onValueChange={(v) => updateRow("next_hops", nhIndex, { interface: v })}
+                    />
+                  </div>
+                </div>
 
-                  {dhcpInterfaces.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {t("modal.noDhcp")}
-                    </p>
-                  )}
+                {renderGatewayFields("next_hops", nhIndex, `nh-${nhIndex}`, nh)}
+                {renderHealthCheck("next_hops", nhIndex, `nh-${nhIndex}`, nh.check)}
+              </div>
+            ))}
+          </div>
 
-                  {dhcpInterfaces.map((d, dIndex) => (
+          {showDhcp && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">{t("modal.dhcpInterfaces")}</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setForm((f) => ({ ...f, dhcp_interfaces: [...f.dhcp_interfaces, emptyDhcpRow()] }))}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    {t("modal.addDhcpInterface")}
+                  </Button>
+                </div>
+
+                {form.dhcp_interfaces.map((d, dIndex) => {
+                  const used = dhcpNamesBesides(dIndex);
+                  return (
                     <div key={dIndex} className="rounded-lg border p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">
@@ -762,8 +407,9 @@ export function FailoverRouteModal({
                           type="button"
                           variant="ghost"
                           size="icon"
+                          aria-label={tc("delete")}
                           className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                          onClick={() => removeDhcpInterface(dIndex)}
+                          onClick={() => removeRow("dhcp_interfaces", dIndex)}
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -774,85 +420,52 @@ export function FailoverRouteModal({
                           <Label className="text-xs" htmlFor={`dhcp-${dIndex}-name`}>{t("modal.nameRequired")}</Label>
                           <InterfaceSelect
                             id={`dhcp-${dIndex}-name`}
-                            value={d.name}
-                            onChange={(v) => updateDhcpInterface(dIndex, { name: v })}
-                            interfaces={availableInterfaces}
-                            placeholder={tc("selectInterface")}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs" htmlFor={`dhcp-${dIndex}-metric`}>{t("modal.metric")}</Label>
-                          <Input
-                            id={`dhcp-${dIndex}-metric`}
-                            type="number"
                             className="h-8 text-xs"
-                            value={d.metric}
-                            onChange={(e) => updateDhcpInterface(dIndex, { metric: e.target.value })}
-                            placeholder={t("example", { value: "10" })}
-                            min={1}
+                            value={d.name}
+                            onValueChange={(v) => updateRow("dhcp_interfaces", dIndex, { name: v })}
+                            filter={(iface) => !used.has(iface.name)}
                           />
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 items-end">
                         <div className="space-y-1">
                           <Label className="text-xs" htmlFor={`dhcp-${dIndex}-iface`}>{t("modal.interface")}</Label>
                           <InterfaceSelect
                             id={`dhcp-${dIndex}-iface`}
+                            className="h-8 text-xs"
                             value={d.interface}
-                            onChange={(v) => updateDhcpInterface(dIndex, { interface: v })}
-                            interfaces={availableInterfaces}
+                            onValueChange={(v) => updateRow("dhcp_interfaces", dIndex, { interface: v })}
+                            noneOption={{ label: tc("none"), value: "" }}
                           />
-                        </div>
-                        <div className="flex items-center space-x-2 pb-1">
-                          <Checkbox
-                            id={`dhcp-${dIndex}-onlink`}
-                            checked={d.onlink}
-                            onCheckedChange={(checked) =>
-                              updateDhcpInterface(dIndex, { onlink: checked === true })
-                            }
-                          />
-                          <Label htmlFor={`dhcp-${dIndex}-onlink`} className="text-xs cursor-pointer">
-                            {t("modal.onlink")}
-                          </Label>
                         </div>
                       </div>
 
-                      {renderHealthCheck(
-                        d,
-                        `dhcp-${dIndex}`,
-                        (updates) => updateDhcpInterface(dIndex, updates as Partial<DhcpInterfaceFormEntry>),
-                        () => addDhcpTarget(dIndex),
-                        (tIndex, updates) => updateDhcpTarget(dIndex, tIndex, updates),
-                        (tIndex) => removeDhcpTarget(dIndex, tIndex)
-                      )}
+                      {renderGatewayFields("dhcp_interfaces", dIndex, `dhcp-${dIndex}`, d)}
+                      {renderHealthCheck("dhcp_interfaces", dIndex, `dhcp-${dIndex}`, d.check)}
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </ScrollArea>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
 
-        {/* Error Display */}
         {error && (
           <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
             <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? tc("saving") : tc("creating")}
+                {isEdit ? tc("saving") : tc("creating")}
               </>
-            ) : isEditMode ? (
+            ) : isEdit ? (
               tc("saveChanges")
             ) : (
               t("addRoute")
