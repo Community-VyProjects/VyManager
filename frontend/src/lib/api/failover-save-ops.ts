@@ -17,7 +17,8 @@
  * screen removes targets one by one by address).
  */
 import type { FailoverBatchOperation, FailoverCapabilities, FailoverRoute } from "./failover";
-import { isValidIPv4 } from "../validators/firewall";
+// The strict check: the lab `ipv4-address` validator refuses leading-zero octets.
+import { isIPv4Address } from "./bgp-ranges";
 import { isIPv4Prefix } from "../validators/ipv4-prefix";
 
 // ============================================================================
@@ -297,12 +298,12 @@ function inRange(value: string, range: Range): boolean {
   return n >= range.min && n <= range.max;
 }
 
-function range(caps: Caps, leaf: "metric" | "check_port" | "check_timeout"): Range {
-  const r = caps?.features?.[leaf];
-  return { min: r?.min ?? 1, max: r?.max ?? 0 };
+function range(caps: FailoverCapabilities, leaf: "metric" | "check_port" | "check_timeout"): Range {
+  const { min, max } = caps.features[leaf];
+  return { min, max };
 }
 
-function gatewayProblem(g: NormGateway, caps: Caps): FailoverProblem | null {
+function gatewayProblem(g: NormGateway, caps: FailoverCapabilities): FailoverProblem | null {
   const name = g.key;
   const metric = range(caps, "metric");
   if (g.metric && !inRange(g.metric, metric)) return { key: "metricRange", values: { name, ...metric } };
@@ -317,7 +318,7 @@ function gatewayProblem(g: NormGateway, caps: Caps): FailoverProblem | null {
   const seen = new Set<string>();
   for (const t of c.targets) {
     if (!t.address) return { key: "targetAddressMissing", values: { name, n: t.index + 1 } };
-    if (!isValidIPv4(t.address)) return { key: "targetAddressInvalid", values: { name, address: t.address } };
+    if (!isIPv4Address(t.address)) return { key: "targetAddressInvalid", values: { name, address: t.address } };
     if (seen.has(t.address)) return { key: "targetDuplicate", values: { name, address: t.address } };
     seen.add(t.address);
     if (type === "tcp" && t.interface) return { key: "tcpTargetInterface", values: { name, address: t.address } };
@@ -333,7 +334,7 @@ function gatewayProblem(g: NormGateway, caps: Caps): FailoverProblem | null {
 export function failoverProblem(
   original: FailoverRoute | null,
   form: FailoverForm,
-  caps: Caps,
+  caps: FailoverCapabilities,
   context: FailoverSaveContext = { destinations: [] },
 ): FailoverProblem | null {
   const n = normalize(form, caps);
@@ -349,7 +350,7 @@ export function failoverProblem(
   const nextHops = new Set<string>();
   for (const nh of n.nextHops) {
     if (!nh.key) return { key: "nextHopAddressMissing", values: { n: nh.index + 1 } };
-    if (!isValidIPv4(nh.key)) return { key: "nextHopAddressInvalid", values: { address: nh.key } };
+    if (!isIPv4Address(nh.key)) return { key: "nextHopAddressInvalid", values: { address: nh.key } };
     if (nextHops.has(nh.key)) return { key: "nextHopDuplicate", values: { address: nh.key } };
     nextHops.add(nh.key);
     if (!nh.interface) return { key: "nextHopInterfaceRequired", values: { address: nh.key } };

@@ -113,7 +113,7 @@ def test_config_returns_the_parsed_routes(monkeypatch, commit):
                                     "policy": "all-available",
                                     "port": "8080",
                                     "timeout": "5",
-                                    "type": "tcp",
+                                    "type": "icmp",
                                     "target": {"192.0.2.9": {"interface": "eth1", "vrf": "blue"}},
                                 },
                                 "interface": "eth0",
@@ -121,7 +121,9 @@ def test_config_returns_the_parsed_routes(monkeypatch, commit):
                                 "onlink": {},
                             }
                         },
-                        "dhcp-interface": {"eth2": {"metric": "30"}},
+                        "dhcp-interface": {
+                            "eth2": {"metric": "30", "check": {"target": {"192.0.2.10": {}}}}
+                        },
                     }
                 }
             }
@@ -138,7 +140,7 @@ def test_config_returns_the_parsed_routes(monkeypatch, commit):
             "port": 8080,
             "targets": [{"address": "192.0.2.9", "interface": "eth1", "vrf": "blue"}],
             "timeout": 5,
-            "type": "tcp",
+            "type": "icmp",
         },
         "interface": "eth0",
         "metric": 20,

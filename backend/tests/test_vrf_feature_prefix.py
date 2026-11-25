@@ -86,6 +86,20 @@ def test_failover_route_calls_global_builder(monkeypatch):
     ]
 
 
+def test_failover_1_5_only_ops_run_the_global_gate_under_the_vrf_prefix():
+    """dhcp-interface and target vrf go through the global builder's allowlist gate."""
+    builder = VrfBatchBuilder("1.5")
+    builder.set_vrf_failover_route_dhcp_interface("blue", "10.1.0.0/24,eth2")
+    builder.set_vrf_failover_route_next_hop_check_target_vrf(
+        "blue", "10.1.0.0/24,192.0.2.1,203.0.113.5,red"
+    )
+    route = ["vrf", "name", "blue", "protocols", "failover", "route", "10.1.0.0/24"]
+    assert [op["path"] for op in builder.get_operations()] == [
+        route + ["dhcp-interface", "eth2"],
+        route + ["next-hop", "192.0.2.1", "check", "target", "203.0.113.5", "vrf", "red"],
+    ]
+
+
 def test_dhcp_disable_calls_global_builder(monkeypatch):
     called = {}
     real = DHCPServerBatchBuilder.set_global_disable

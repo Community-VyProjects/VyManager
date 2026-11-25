@@ -66,7 +66,7 @@ def _tree_1_5():
                                     "policy": "any-available",
                                     "port": "8080",
                                     "timeout": "255",
-                                    "type": "arp",
+                                    "type": "icmp",
                                     "target": {
                                         "192.0.2.9": {"interface": "eth1", "vrf": "blue"},
                                         "192.0.2.10": {},

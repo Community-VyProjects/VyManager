@@ -85,3 +85,16 @@ def test_capabilities_have_no_version_info():
     for version in ("1.4", ROLLING):
         caps = FailoverBatchBuilder(version=version).get_capabilities()
         assert "version_info" not in caps
+
+
+def test_value_lists_survive_the_vrf_path_prefix():
+    """VRF swaps in a PathPrefixMapper; the value lists must not get the prefix."""
+    from vyos_builders.vrf.vrf_protocol import _install_prefix
+
+    builder = FailoverBatchBuilder(version=ROLLING)
+    _install_prefix(builder, ["vrf", "name", "blue"])
+    assert type(builder.mappers[builder.mapper_key]).__name__ == "PathPrefixMapper"
+    features = builder.get_capabilities()["features"]
+    assert features["check_policy"]["values"] == ["any-available", "all-available"]
+    assert features["check_type"]["values"] == ["arp", "icmp", "tcp"]
+    assert features["dhcp_interface"]["supported"] is True

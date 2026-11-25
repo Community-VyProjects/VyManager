@@ -220,32 +220,42 @@ export function FailoverRouteModal({
           const setTarget = (patch: Partial<FailoverTargetRow>) =>
             updateTargets(kind, index, (targets) => targets.map((row, j) => (j === tIndex ? { ...row, ...patch } : row)));
           const columns = 1 + (showTargetInterface ? 1 : 0) + (showTargetVrf ? 1 : 0);
+          const targetId = `${prefix}-target-${tIndex}`;
           return (
-            <div key={tIndex} className="flex items-start gap-2">
+            <div key={tIndex} className="flex items-end gap-2">
               <div className={`grid ${columns === 3 ? "grid-cols-3" : columns === 2 ? "grid-cols-2" : "grid-cols-1"} gap-2 flex-1`}>
-                <Input
-                  aria-label={t("healthCheck.targetIp")}
-                  className="h-8 text-xs"
-                  value={target.address}
-                  onChange={(e) => setTarget({ address: e.target.value })}
-                  placeholder={t("healthCheck.targetIp")}
-                />
-                {showTargetInterface && (
-                  <InterfaceSelect
-                    className="h-8 text-xs"
-                    value={target.interface}
-                    onValueChange={(v) => setTarget({ interface: v })}
-                    noneOption={{ label: tc("none"), value: "" }}
-                    placeholder={t("modal.interface")}
+                <div className="space-y-1">
+                  <Label className="text-xs" htmlFor={`${targetId}-addr`}>{t("healthCheck.targetIp")}</Label>
+                  <Input
+                    id={`${targetId}-addr`}
+                    className="h-8 text-xs font-mono"
+                    value={target.address}
+                    onChange={(e) => setTarget({ address: e.target.value })}
+                    placeholder={t("example", { value: "198.51.100.1" })}
                   />
+                </div>
+                {showTargetInterface && (
+                  <div className="space-y-1">
+                    <Label className="text-xs" htmlFor={`${targetId}-iface`}>{t("modal.interface")}</Label>
+                    <InterfaceSelect
+                      id={`${targetId}-iface`}
+                      className="h-8 text-xs"
+                      value={target.interface}
+                      onValueChange={(v) => setTarget({ interface: v })}
+                      noneOption={{ label: tc("none"), value: "" }}
+                    />
+                  </div>
                 )}
                 {showTargetVrf && (
-                  <VrfSelect
-                    className="h-8 text-xs"
-                    value={target.vrf}
-                    onValueChange={(v) => setTarget({ vrf: v })}
-                    placeholder={t("modal.vrf")}
-                  />
+                  <div className="space-y-1">
+                    <Label className="text-xs" htmlFor={`${targetId}-vrf`}>{t("modal.vrf")}</Label>
+                    <VrfSelect
+                      id={`${targetId}-vrf`}
+                      className="h-8 text-xs"
+                      value={target.vrf}
+                      onValueChange={(v) => setTarget({ vrf: v })}
+                    />
+                  </div>
                 )}
               </div>
               <Button

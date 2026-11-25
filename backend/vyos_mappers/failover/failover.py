@@ -24,8 +24,8 @@ from typing import Any, Dict, FrozenSet, List, Tuple
 from ..base import BaseFeatureMapper
 
 # Lab `allowed:` lines, the same on 1.4 and 1.5.
-CHECK_POLICIES = ["any-available", "all-available"]
-CHECK_TYPES = ["arp", "icmp", "tcp"]
+CHECK_POLICIES = ("any-available", "all-available")
+CHECK_TYPES = ("arp", "icmp", "tcp")
 
 
 class FailoverMapper(BaseFeatureMapper):
@@ -96,12 +96,14 @@ class FailoverMapper(BaseFeatureMapper):
     # ========================================================================
     # Value lists
     # ========================================================================
+    # Tuples, not lists: VRF wraps this mapper in a PathPrefixMapper, which
+    # prefixes every all-string list a method returns as if it were a path.
 
-    def check_policy_values(self) -> List[str]:
-        return list(CHECK_POLICIES)
+    def check_policy_values(self) -> Tuple[str, ...]:
+        return CHECK_POLICIES
 
-    def check_type_values(self) -> List[str]:
-        return list(CHECK_TYPES)
+    def check_type_values(self) -> Tuple[str, ...]:
+        return CHECK_TYPES
 
     # ========================================================================
     # Config read

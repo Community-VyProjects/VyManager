@@ -426,6 +426,17 @@ describe("failoverProblem", () => {
       key: "targetAddressInvalid",
       values: { name: "192.0.2.1", address: "2001:db8::1" },
     });
+    // The lab `ipv4-address` validator refuses leading-zero octets.
+    assert.deepEqual(problem(loaded(), edit((f) => { nh(f).address = "192.0.2.01"; })), {
+      key: "nextHopAddressInvalid",
+      values: { address: "192.0.2.01" },
+    });
+    assert.deepEqual(problem(loaded(), edit((f) => { nh(f).check.targets[0].address = "198.51.100.01"; })), {
+      key: "targetAddressInvalid",
+      values: { name: "192.0.2.1", address: "198.51.100.01" },
+    });
+    // A lone zero octet is fine.
+    assert.equal(key(loaded(), edit((f) => { nh(f).check.targets[0].address = "198.51.0.1"; })), null);
   });
 
   it("requires a next-hop interface but not a DHCP interface interface", () => {
