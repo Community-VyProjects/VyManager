@@ -17,15 +17,11 @@ import {
   type DHCPStaticMapping,
 } from "@/lib/api/dhcp-server";
 import type { VyOSResponse } from "@/lib/types/api";
+import { isValidIPv4 } from "./dhcp-server-form";
 
 const IP_PATTERN = /^(\d{1,3}\.){3}\d{1,3}$/;
 const MAC_PATTERN = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 const MAPPING_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
-
-function isValidIpv4(value: string): boolean {
-  if (!IP_PATTERN.test(value)) return false;
-  return value.split(".").map(Number).every((octet) => octet >= 0 && octet <= 255);
-}
 
 /** Message key (in the dhcpServer namespace) for a validation error. */
 export type DhcpFormError =
@@ -93,7 +89,7 @@ export function validateRangeShared(draft: RangeDraft): DhcpFormError | null {
   if (!draft.startIp.trim()) {
     return "validation.startIpRequired";
   }
-  if (!isValidIpv4(draft.startIp.trim())) {
+  if (!isValidIPv4(draft.startIp.trim())) {
     return IP_PATTERN.test(draft.startIp.trim())
       ? "validation.startIpOctets"
       : "validation.startIpInvalid";
@@ -102,7 +98,7 @@ export function validateRangeShared(draft: RangeDraft): DhcpFormError | null {
   if (!draft.stopIp.trim()) {
     return "validation.stopIpRequired";
   }
-  if (!isValidIpv4(draft.stopIp.trim())) {
+  if (!isValidIPv4(draft.stopIp.trim())) {
     return IP_PATTERN.test(draft.stopIp.trim())
       ? "validation.stopIpOctets"
       : "validation.stopIpInvalid";
@@ -196,7 +192,7 @@ export function mappingDraftFrom(
 }
 
 export function validateMappingShared(draft: MappingDraft): DhcpFormError | null {
-  if (draft.ipAddress.trim() && !isValidIpv4(draft.ipAddress.trim())) {
+  if (draft.ipAddress.trim() && !isValidIPv4(draft.ipAddress.trim())) {
     return IP_PATTERN.test(draft.ipAddress.trim())
       ? "validation.ipOctets"
       : "validation.ipInvalid";

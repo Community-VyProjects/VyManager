@@ -159,7 +159,8 @@ export function serverDraftFrom(network: string, subnet: DHCPSubnet): ServerDraf
   };
 }
 
-function isValidIPv4(ip: string): boolean {
+/** True for a dotted-quad IPv4 address with every octet 0-255. */
+export function isValidIPv4(ip: string): boolean {
   const match = ip.match(IPV4);
   if (!match) return false;
   return match.slice(1).every((octet) => {
