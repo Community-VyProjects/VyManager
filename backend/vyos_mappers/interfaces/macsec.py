@@ -6,8 +6,18 @@ MACsec (Media Access Control Security) provides layer-2 encryption
 over Ethernet links using IEEE 802.1AE.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, FrozenSet, List
 from ..base import BaseFeatureMapper
+
+MASKED_SECRET = "***"
+
+# 1.5-only MACsec leaves, keyed by capability flag, with the set path method
+# the 1.5 subclass defines for each.
+_VERSIONED_INTERFACE_NODES = {
+    "ipv6_address_interface_identifier": "get_ipv6_address_interface_identifier",
+    "dhcpv6_options_no_request_dns": "get_dhcpv6_options_no_request_dns",
+    "dhcpv6_options_no_request_domain_name": "get_dhcpv6_options_no_request_domain_name",
+}
 
 
 class MacsecInterfaceMapper(BaseFeatureMapper):
@@ -16,6 +26,21 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
         self.interface_type = "macsec"
+
+    def versioned_interface_nodes(self) -> FrozenSet[str]:
+        """1.5-only macsec leaves this device has.
+
+        Each leaf's path methods live on the 1.5 subclass. Capabilities and
+        builders read this set instead of the version string.
+        """
+        return frozenset(
+            node for node, method in _VERSIONED_INTERFACE_NODES.items()
+            if callable(getattr(self, method, None))
+        )
+
+    def _require_interface_node(self, node: str) -> None:
+        if node not in self.versioned_interface_nodes():
+            raise ValueError(f"macsec {node} is not supported on this device")
 
     # ========================================================================
     # Internal helpers
@@ -39,9 +64,6 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
 
     def get_address(self, interface: str, address: str) -> List[str]:
         return self._base(interface) + ["address", address]
-
-    def get_address_path(self, interface: str) -> List[str]:
-        return self._base(interface) + ["address"]
 
     def get_disable(self, interface: str) -> List[str]:
         return self._base(interface) + ["disable"]
@@ -81,6 +103,9 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
         return self._base(interface) + ["security", "replay-window"]
 
     # --- Security MKA (MACsec Key Agreement) ---
+    def get_security_mka_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["security", "mka"]
+
     def get_security_mka_cak(self, interface: str, cak: str) -> List[str]:
         return self._base(interface) + ["security", "mka", "cak", cak]
 
@@ -100,6 +125,9 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
         return self._base(interface) + ["security", "mka", "priority"]
 
     # --- Security Static ---
+    def get_security_static_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["security", "static"]
+
     def get_security_static_key(self, interface: str, key: str) -> List[str]:
         return self._base(interface) + ["security", "static", "key", key]
 
@@ -131,8 +159,14 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def get_ip_adjust_mss_clamp_mss_to_pmtu(self, interface: str) -> List[str]:
         return self._base(interface) + ["ip", "adjust-mss", "clamp-mss-to-pmtu"]
 
+    def get_ip_adjust_mss_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["ip", "adjust-mss"]
+
     def get_ip_arp_cache_timeout(self, interface: str, timeout: str) -> List[str]:
         return self._base(interface) + ["ip", "arp-cache-timeout", timeout]
+
+    def get_ip_arp_cache_timeout_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["ip", "arp-cache-timeout"]
 
     def get_ip_disable_arp_filter(self, interface: str) -> List[str]:
         return self._base(interface) + ["ip", "disable-arp-filter"]
@@ -171,6 +205,9 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def get_ipv6_accept_dad(self, interface: str, count: str) -> List[str]:
         return self._base(interface) + ["ipv6", "accept-dad", count]
 
+    def get_ipv6_accept_dad_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["ipv6", "accept-dad"]
+
     def get_ipv6_address_autoconf(self, interface: str) -> List[str]:
         return self._base(interface) + ["ipv6", "address", "autoconf"]
 
@@ -180,23 +217,29 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def get_ipv6_address_no_default_link_local(self, interface: str) -> List[str]:
         return self._base(interface) + ["ipv6", "address", "no-default-link-local"]
 
-    def get_ipv6_address_interface_identifier(self, interface: str, identifier: str) -> List[str]:
-        return self._base(interface) + ["ipv6", "address", "interface-identifier", identifier]
-
     def get_ipv6_adjust_mss(self, interface: str, mss: str) -> List[str]:
         return self._base(interface) + ["ipv6", "adjust-mss", mss]
 
     def get_ipv6_adjust_mss_clamp_mss_to_pmtu(self, interface: str) -> List[str]:
         return self._base(interface) + ["ipv6", "adjust-mss", "clamp-mss-to-pmtu"]
 
+    def get_ipv6_adjust_mss_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["ipv6", "adjust-mss"]
+
     def get_ipv6_base_reachable_time(self, interface: str, time: str) -> List[str]:
         return self._base(interface) + ["ipv6", "base-reachable-time", time]
+
+    def get_ipv6_base_reachable_time_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["ipv6", "base-reachable-time"]
 
     def get_ipv6_disable_forwarding(self, interface: str) -> List[str]:
         return self._base(interface) + ["ipv6", "disable-forwarding"]
 
     def get_ipv6_dup_addr_detect_transmits(self, interface: str, count: str) -> List[str]:
         return self._base(interface) + ["ipv6", "dup-addr-detect-transmits", count]
+
+    def get_ipv6_dup_addr_detect_transmits_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["ipv6", "dup-addr-detect-transmits"]
 
     def get_ipv6_source_validation(self, interface: str, mode: str) -> List[str]:
         return self._base(interface) + ["ipv6", "source-validation", mode]
@@ -211,11 +254,20 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def get_dhcp_options_client_id(self, interface: str, client_id: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "client-id", client_id]
 
+    def get_dhcp_options_client_id_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["dhcp-options", "client-id"]
+
     def get_dhcp_options_host_name(self, interface: str, hostname: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "host-name", hostname]
 
+    def get_dhcp_options_host_name_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["dhcp-options", "host-name"]
+
     def get_dhcp_options_vendor_class_id(self, interface: str, vendor_id: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "vendor-class-id", vendor_id]
+
+    def get_dhcp_options_vendor_class_id_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["dhcp-options", "vendor-class-id"]
 
     def get_dhcp_options_no_default_route(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "no-default-route"]
@@ -223,11 +275,17 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def get_dhcp_options_default_route_distance(self, interface: str, distance: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "default-route-distance", distance]
 
+    def get_dhcp_options_default_route_distance_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["dhcp-options", "default-route-distance"]
+
     def get_dhcp_options_reject(self, interface: str, server: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "reject", server]
 
     def get_dhcp_options_user_class(self, interface: str, user_class: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "user-class", user_class]
+
+    def get_dhcp_options_user_class_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["dhcp-options", "user-class"]
 
     def get_dhcp_options_mtu(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcp-options", "mtu"]
@@ -239,17 +297,14 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def get_dhcpv6_options_duid(self, interface: str, duid: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "duid", duid]
 
+    def get_dhcpv6_options_duid_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["dhcpv6-options", "duid"]
+
     def get_dhcpv6_options_rapid_commit(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "rapid-commit"]
 
     def get_dhcpv6_options_no_release(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "no-release"]
-
-    def get_dhcpv6_options_no_request_dns(self, interface: str) -> List[str]:
-        return self._base(interface) + ["dhcpv6-options", "no-request-dns"]
-
-    def get_dhcpv6_options_no_request_domain_name(self, interface: str) -> List[str]:
-        return self._base(interface) + ["dhcpv6-options", "no-request-domain-name"]
 
     def get_dhcpv6_options_parameters_only(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "parameters-only"]
@@ -263,19 +318,31 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
     def get_dhcpv6_options_pd_length(self, interface: str, pd_id: str, length: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "pd", pd_id, "length", length]
 
+    def get_dhcpv6_options_pd_length_path(self, interface: str, pd_id: str) -> List[str]:
+        return self._base(interface) + ["dhcpv6-options", "pd", pd_id, "length"]
+
     def get_dhcpv6_options_pd_interface(self, interface: str, pd_id: str, pd_iface: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "pd", pd_id, "interface", pd_iface]
 
     def get_dhcpv6_options_pd_interface_address(self, interface: str, pd_id: str, pd_iface: str, address: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "pd", pd_id, "interface", pd_iface, "address", address]
 
+    def get_dhcpv6_options_pd_interface_address_path(self, interface: str, pd_id: str, pd_iface: str) -> List[str]:
+        return self._base(interface) + ["dhcpv6-options", "pd", pd_id, "interface", pd_iface, "address"]
+
     def get_dhcpv6_options_pd_interface_sla_id(self, interface: str, pd_id: str, pd_iface: str, sla_id: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "pd", pd_id, "interface", pd_iface, "sla-id", sla_id]
+
+    def get_dhcpv6_options_pd_interface_sla_id_path(self, interface: str, pd_id: str, pd_iface: str) -> List[str]:
+        return self._base(interface) + ["dhcpv6-options", "pd", pd_id, "interface", pd_iface, "sla-id"]
 
     def get_dhcpv6_options_path(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options"]
 
     # --- Mirror ---
+    def get_mirror_path(self, interface: str) -> List[str]:
+        return self._base(interface) + ["mirror"]
+
     def get_mirror_ingress(self, interface: str, destination: str) -> List[str]:
         return self._base(interface) + ["mirror", "ingress", destination]
 
@@ -296,19 +363,35 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
         return self._base(interface) + ["redirect"]
 
     # ========================================================================
+    # Enumerated values (node.def allowed:, same on 1.4 and 1.5)
+    # ========================================================================
+
+    def cipher_values(self) -> List[str]:
+        return ["gcm-aes-128", "gcm-aes-256"]
+
+    def source_validation_values(self) -> List[str]:
+        return ["strict", "loose", "disable"]
+
+    # ========================================================================
     # Config Parsing Methods (for READ operations)
     # ========================================================================
 
+    @staticmethod
+    def _values(raw: Any) -> List[str]:
+        """A ``multi:`` leaf as a list (VyOS returns one value as a string)."""
+        if isinstance(raw, list):
+            return [str(v) for v in raw]
+        if isinstance(raw, str):
+            return [raw]
+        return []
+
+    @staticmethod
+    def _secret(raw: Any) -> Any:
+        """Mask a stored key: the config response never returns key material."""
+        return MASKED_SECRET if raw else None
+
     def parse_single_interface(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Parse a single MACsec interface configuration from VyOS."""
-        addresses = []
-        if "address" in config:
-            addr = config["address"]
-            if isinstance(addr, list):
-                addresses = addr
-            elif isinstance(addr, str):
-                addresses = [addr]
-
         ip_config = config.get("ip", {}) or {}
         ipv6_config = config.get("ipv6", {}) or {}
         ipv6_address = ipv6_config.get("address", {}) or {}
@@ -319,30 +402,25 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
         dhcp_options = config.get("dhcp-options", {}) or {}
         dhcpv6_options = config.get("dhcpv6-options", {}) or {}
 
-        # Parse static peers
         static_peers = []
         raw_peers = static_config.get("peer", {}) or {}
         for peer_name, peer_cfg in raw_peers.items():
-            if not isinstance(peer_cfg, dict):
-                continue
+            peer_cfg = peer_cfg if isinstance(peer_cfg, dict) else {}
             static_peers.append({
                 "name": peer_name,
-                "key": peer_cfg.get("key"),
+                "key": self._secret(peer_cfg.get("key")),
                 "mac": peer_cfg.get("mac"),
                 "disable": "disable" in peer_cfg,
             })
 
-        # Parse DHCPv6 PD
         dhcpv6_pd = {}
         raw_pd = dhcpv6_options.get("pd", {}) or {}
         for pd_id, pd_cfg in raw_pd.items():
-            if not isinstance(pd_cfg, dict):
-                continue
-            pd_entry = {"length": pd_cfg.get("length"), "interfaces": {}}
+            pd_cfg = pd_cfg if isinstance(pd_cfg, dict) else {}
+            pd_entry: Dict[str, Any] = {"length": pd_cfg.get("length"), "interfaces": {}}
             raw_pd_ifaces = pd_cfg.get("interface", {}) or {}
             for pd_iface, pd_iface_cfg in raw_pd_ifaces.items():
-                if not isinstance(pd_iface_cfg, dict):
-                    continue
+                pd_iface_cfg = pd_iface_cfg if isinstance(pd_iface_cfg, dict) else {}
                 pd_entry["interfaces"][pd_iface] = {
                     "address": pd_iface_cfg.get("address"),
                     "sla_id": pd_iface_cfg.get("sla-id"),
@@ -352,7 +430,7 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
         return {
             "name": name,
             "type": self.interface_type,
-            "addresses": addresses,
+            "addresses": self._values(config.get("address")),
             "description": config.get("description"),
             "disabled": "disable" in config,
             "mtu": config.get("mtu"),
@@ -363,14 +441,14 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
                 "encrypt": "encrypt" in security_config,
                 "replay_window": security_config.get("replay-window"),
                 "mka": {
-                    "cak": mka_config.get("cak"),
+                    "cak": self._secret(mka_config.get("cak")),
                     "ckn": mka_config.get("ckn"),
                     "priority": mka_config.get("priority"),
-                } if mka_config else None,
+                } if "mka" in security_config else None,
                 "static": {
-                    "key": static_config.get("key"),
+                    "key": self._secret(static_config.get("key")),
                     "peers": static_peers,
-                } if static_config else None,
+                } if "static" in security_config else None,
             },
             "ip": {
                 "adjust_mss": ip_config.get("adjust-mss"),
@@ -388,7 +466,7 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
             "ipv6": {
                 "accept_dad": ipv6_config.get("accept-dad"),
                 "address_autoconf": "autoconf" in ipv6_address,
-                "address_eui64": ipv6_address.get("eui64"),
+                "address_eui64": self._values(ipv6_address.get("eui64")),
                 "address_no_default_link_local": "no-default-link-local" in ipv6_address,
                 "address_interface_identifier": ipv6_address.get("interface-identifier"),
                 "adjust_mss": ipv6_config.get("adjust-mss"),
@@ -403,10 +481,10 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
                 "host_name": dhcp_options.get("host-name"),
                 "mtu": "mtu" in dhcp_options,
                 "no_default_route": "no-default-route" in dhcp_options,
-                "reject": dhcp_options.get("reject"),
+                "reject": self._values(dhcp_options.get("reject")),
                 "user_class": dhcp_options.get("user-class"),
                 "vendor_class_id": dhcp_options.get("vendor-class-id"),
-            } if dhcp_options else None,
+            } if "dhcp-options" in config else None,
             "dhcpv6_options": {
                 "duid": dhcpv6_options.get("duid"),
                 "no_release": "no-release" in dhcpv6_options,
@@ -415,8 +493,8 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
                 "parameters_only": "parameters-only" in dhcpv6_options,
                 "rapid_commit": "rapid-commit" in dhcpv6_options,
                 "temporary": "temporary" in dhcpv6_options,
-                "pd": dhcpv6_pd if dhcpv6_pd else None,
-            } if dhcpv6_options else None,
+                "pd": dhcpv6_pd,
+            } if "dhcpv6-options" in config else None,
             "mirror_ingress": mirror_config.get("ingress"),
             "mirror_egress": mirror_config.get("egress"),
             "redirect": config.get("redirect"),

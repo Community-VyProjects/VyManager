@@ -27,6 +27,9 @@ from vyos_mappers.interfaces.l2tpv3 import L2TPv3InterfaceMapper
 from vyos_mappers.interfaces.l2tpv3_versions import get_l2tpv3_mapper
 from vyos_mappers.interfaces.l2tpv3_versions.v1_5 import L2TPv3Mapper_v1_5
 from vyos_mappers.interfaces.loopback import LoopbackInterfaceMapper
+from vyos_mappers.interfaces.macsec import MacsecInterfaceMapper
+from vyos_mappers.interfaces.macsec_versions import get_macsec_mapper
+from vyos_mappers.interfaces.macsec_versions.v1_5 import MacsecMapper_v1_5
 from vyos_mappers.interfaces.pppoe import PppoeInterfaceMapper
 from vyos_mappers.interfaces.pppoe_versions import get_pppoe_mapper
 from vyos_mappers.interfaces.pppoe_versions.v1_5 import PppoeMapper_v1_5
@@ -74,6 +77,12 @@ FACTORIES = [
         L2TPv3InterfaceMapper, L2TPv3Mapper_v1_5,
         "get_ipv6_address_interface_identifier", ("l2tpeth0", "::1"),
         ["interfaces", "l2tpv3", "l2tpeth0", "ipv6", "address", "interface-identifier", "::1"],
+    ),
+    (
+        "macsec", "interface_macsec", get_macsec_mapper,
+        MacsecInterfaceMapper, MacsecMapper_v1_5,
+        "get_dhcpv6_options_no_request_domain_name", ("macsec0",),
+        ["interfaces", "macsec", "macsec0", "dhcpv6-options", "no-request-domain-name"],
     ),
     (
         "pppoe", "interface_pppoe", get_pppoe_mapper,
