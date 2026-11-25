@@ -39,8 +39,10 @@
   },
   "countrySelect": {
     "placeholder": "Select countries...",
+    "placeholderOne": "Select country...",
     "selected": "{count, plural, one {# country selected} other {# countries selected}}",
     "searchPlaceholder": "Search countries...",
-    "noResults": "No countries found"
+    "noResults": "No countries found",
+    "remove": "Remove {country}"
   }
 }

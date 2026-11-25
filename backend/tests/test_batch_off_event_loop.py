@@ -30,13 +30,6 @@ OFFLOADED = [
     ("batch_configure_nat", "routers/nat/nat.py", "execute_batch", 1),
     ("reorder_nat_rules", "routers/nat/nat.py", "execute_batch", 1),
     ("batch_configure", "routers/high_availability/high_availability.py", "execute_batch", 1),
-    ("pki_batch_configure", "routers/pki/pki.py", "execute_batch", 1),
-    ("generate_ca", "routers/pki/pki.py", "execute_batch", 1),
-    ("generate_key_pair", "routers/pki/pki.py", "execute_batch", 1),
-    ("generate_dh", "routers/pki/pki.py", "execute_batch", 1),
-    ("generate_certificate", "routers/pki/pki.py", "execute_batch", 1),
-    ("generate_openvpn_shared_secret", "routers/pki/pki.py", "generate", 1),
-    ("generate_openssh", "routers/pki/pki.py", "execute_batch", 2),
 ]
 
 # Same offload, added for the remaining config readers and the batch
@@ -228,6 +221,32 @@ ROUTE_POLICY_OFFLOADED = [
     ("reorder_rules", "routers/route/route.py", "execute_batch", 1),
 ]
 
+PKI_OFFLOADED = [
+    # Each generate route reads the config once (409 check), runs key or DH
+    # generation off the loop (RSA and EC branches count twice) and commits once.
+    ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
+    ("reveal_pki_value", "routers/pki/pki.py", "get_full_config", 1),
+    ("pki_batch_configure", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_ca", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_ca", "routers/pki/pki.py", "generate_private_key", 2),
+    ("generate_ca", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_key_pair", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_key_pair", "routers/pki/pki.py", "generate_private_key", 2),
+    ("generate_key_pair", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_dh", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_dh", "routers/pki/pki.py", "generate_parameters", 1),
+    ("generate_dh", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_certificate", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_certificate", "routers/pki/pki.py", "generate_private_key", 2),
+    ("generate_certificate", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_openvpn_shared_secret", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_openvpn_shared_secret", "routers/pki/pki.py", "generate", 1),
+    ("generate_openvpn_shared_secret", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_openssh", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_openssh", "routers/pki/pki.py", "generate_private_key", 1),
+    ("generate_openssh", "routers/pki/pki.py", "execute_batch", 1),
+]
+
 CONTAINER_OFFLOADED = [
     ("get_container_config", "routers/container/container.py", "get_full_config", 1),
     ("_configured_container_image", "routers/container/container.py", "get_full_config", 1),
@@ -244,9 +263,6 @@ POWER_OFFLOADED = [
 
 # handler, file, blocking attribute, expected offload count
 CONFIG_OFFLOADED = [
-    ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
-    ("reveal_pki_value", "routers/pki/pki.py", "get_full_config", 1),
-    ("generate_certificate", "routers/pki/pki.py", "get_full_config", 1),
     ("get_wireguard_config", "routers/wireguard/wireguard.py", "get_full_config", 1),
     ("get_config", "routers/high_availability/high_availability.py", "get_full_config", 1),
 ]
@@ -317,8 +333,8 @@ def test_named_config_handler_reads_config_off_the_event_loop(name, rel, attr, c
 
 @pytest.mark.parametrize(
     "name,rel,attr,count",
-    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + WIREGUARD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED + TFTP_SERVER_OFFLOADED + NHRP_OFFLOADED + RPKI_OFFLOADED + SERVICE_MONITORING_OFFLOADED + BROADCAST_RELAY_OFFLOADED + NTP_OFFLOADED + PPPOE_SERVER_OFFLOADED + VXLAN_OFFLOADED + FAILOVER_OFFLOADED + FIREWALL_GLOBAL_OPTIONS_OFFLOADED + ROUTE_POLICY_OFFLOADED,
-    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + WIREGUARD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED + TFTP_SERVER_OFFLOADED + NHRP_OFFLOADED + RPKI_OFFLOADED + SERVICE_MONITORING_OFFLOADED + BROADCAST_RELAY_OFFLOADED + NTP_OFFLOADED + PPPOE_SERVER_OFFLOADED + VXLAN_OFFLOADED + FAILOVER_OFFLOADED + FIREWALL_GLOBAL_OPTIONS_OFFLOADED + ROUTE_POLICY_OFFLOADED],
+    REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + WIREGUARD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED + TFTP_SERVER_OFFLOADED + NHRP_OFFLOADED + RPKI_OFFLOADED + SERVICE_MONITORING_OFFLOADED + BROADCAST_RELAY_OFFLOADED + NTP_OFFLOADED + PPPOE_SERVER_OFFLOADED + VXLAN_OFFLOADED + FAILOVER_OFFLOADED + FIREWALL_GLOBAL_OPTIONS_OFFLOADED + ROUTE_POLICY_OFFLOADED + PKI_OFFLOADED,
+    ids=[f"{row[1]}:{row[0]}:{row[2]}" for row in REMAINING_OFFLOADED + FIREWALL_FAMILY_OFFLOADED + FIREWALL_FLOWTABLES_OFFLOADED + FIREWALL_ZONES_OFFLOADED + FIREWALL_BRIDGE_OFFLOADED + BABEL_OFFLOADED + BGP_OFFLOADED + CONNTRACK_SYNC_OFFLOADED + SURICATA_OFFLOADED + HTTPS_OFFLOADED + OSPF_OFFLOADED + IPOE_SERVER_OFFLOADED + POLICY_LIST_OFFLOADED + SEGMENT_ROUTING_OFFLOADED + STATIC_ROUTES_OFFLOADED + VRF_OFFLOADED + POWER_OFFLOADED + BFD_OFFLOADED + WIREGUARD_OFFLOADED + RIP_OFFLOADED + CONSOLE_SERVER_OFFLOADED + CONTAINER_OFFLOADED + TFTP_SERVER_OFFLOADED + NHRP_OFFLOADED + RPKI_OFFLOADED + SERVICE_MONITORING_OFFLOADED + BROADCAST_RELAY_OFFLOADED + NTP_OFFLOADED + PPPOE_SERVER_OFFLOADED + VXLAN_OFFLOADED + FAILOVER_OFFLOADED + FIREWALL_GLOBAL_OPTIONS_OFFLOADED + ROUTE_POLICY_OFFLOADED + PKI_OFFLOADED],
 )
 def test_remaining_config_io_runs_off_the_event_loop(name, rel, attr, count):
     handler = _handler(BACKEND / rel, name)
@@ -446,11 +462,15 @@ ROUTE_POLICY_VALUE_ERROR = [
     ("route_batch_configure", "routers/route/route.py"),
 ]
 
+PKI_VALUE_ERROR = [
+    ("pki_batch_configure", "routers/pki/pki.py"),
+]
+
 
 @pytest.mark.parametrize(
     "name,rel",
-    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR + STATIC_ROUTES_VALUE_ERROR + VRF_VALUE_ERROR + RIP_VALUE_ERROR + CONNTRACK_SYNC_VALUE_ERROR + FIREWALL_ZONES_VALUE_ERROR + CONTAINER_VALUE_ERROR + RPKI_VALUE_ERROR + SERVICE_MONITORING_VALUE_ERROR + NTP_VALUE_ERROR + PPPOE_SERVER_VALUE_ERROR + VXLAN_VALUE_ERROR + FAILOVER_VALUE_ERROR + FIREWALL_GLOBAL_OPTIONS_VALUE_ERROR + ROUTE_POLICY_VALUE_ERROR,
-    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR + STATIC_ROUTES_VALUE_ERROR + VRF_VALUE_ERROR + RIP_VALUE_ERROR + CONNTRACK_SYNC_VALUE_ERROR + FIREWALL_ZONES_VALUE_ERROR + CONTAINER_VALUE_ERROR + RPKI_VALUE_ERROR + SERVICE_MONITORING_VALUE_ERROR + NTP_VALUE_ERROR + PPPOE_SERVER_VALUE_ERROR + VXLAN_VALUE_ERROR + FAILOVER_VALUE_ERROR + FIREWALL_GLOBAL_OPTIONS_VALUE_ERROR + ROUTE_POLICY_VALUE_ERROR],
+    VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR + STATIC_ROUTES_VALUE_ERROR + VRF_VALUE_ERROR + RIP_VALUE_ERROR + CONNTRACK_SYNC_VALUE_ERROR + FIREWALL_ZONES_VALUE_ERROR + CONTAINER_VALUE_ERROR + RPKI_VALUE_ERROR + SERVICE_MONITORING_VALUE_ERROR + NTP_VALUE_ERROR + PPPOE_SERVER_VALUE_ERROR + VXLAN_VALUE_ERROR + FAILOVER_VALUE_ERROR + FIREWALL_GLOBAL_OPTIONS_VALUE_ERROR + ROUTE_POLICY_VALUE_ERROR + PKI_VALUE_ERROR,
+    ids=[f"{row[1]}:{row[0]}" for row in VALUE_ERROR_SCOPED + FIREWALL_FAMILY_VALUE_ERROR + FIREWALL_BRIDGE_VALUE_ERROR + BABEL_VALUE_ERROR + BGP_VALUE_ERROR + SURICATA_VALUE_ERROR + HTTPS_VALUE_ERROR + OSPF_VALUE_ERROR + IPOE_SERVER_VALUE_ERROR + L2TP_VALUE_ERROR + NAT66_VALUE_ERROR + STATIC_ROUTES_VALUE_ERROR + VRF_VALUE_ERROR + RIP_VALUE_ERROR + CONNTRACK_SYNC_VALUE_ERROR + FIREWALL_ZONES_VALUE_ERROR + CONTAINER_VALUE_ERROR + RPKI_VALUE_ERROR + SERVICE_MONITORING_VALUE_ERROR + NTP_VALUE_ERROR + PPPOE_SERVER_VALUE_ERROR + VXLAN_VALUE_ERROR + FAILOVER_VALUE_ERROR + FIREWALL_GLOBAL_OPTIONS_VALUE_ERROR + ROUTE_POLICY_VALUE_ERROR + PKI_VALUE_ERROR],
 )
 def test_value_error_does_not_wrap_execute_batch(name, rel):
     """A missing leaf is HTTP 400. An empty batch ValueError stays a 500."""

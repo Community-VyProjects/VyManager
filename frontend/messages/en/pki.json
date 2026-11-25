@@ -4,9 +4,12 @@
     "import": "Import",
     "generate": "Generate",
     "nameRequired": "Name is required",
+    "nameInvalid": "Use letters, digits, '-', '_', '.' or '+', starting with a letter, digit, '-' or '_'",
+    "nameExists": "An item with this name already exists",
     "generationFailed": "Generation failed",
     "generating": "Generating...",
     "leaveEmpty": "Leave empty to keep current",
+    "removeStoredValue": "Remove the stored value",
     "bits": "{size} bits",
     "present": "Present",
     "protected": "Protected",
@@ -22,7 +25,6 @@
     "privateKeyPem": "Private Key (PEM)",
     "parametersPem": "Parameters (PEM)",
     "publicKeyType": "Public Key Type",
-    "selectType": "Select type",
     "keySize": "Key Size",
     "rsaKeySize": "RSA Key Size",
     "key": "Key",
@@ -63,7 +65,16 @@
     "noKeyPairs": "No key pairs configured",
     "noDH": "No DH parameters configured",
     "noOpenSSH": "No OpenSSH keys configured",
-    "noOpenVPN": "No OpenVPN shared secrets configured"
+    "noOpenVPN": "No OpenVPN shared secrets configured",
+    "apply": "Apply",
+    "deleteAll": "Delete All PKI",
+    "deleteAllTitle": "Delete all PKI configuration?",
+    "deleteAllConfirm": "This deletes every CA, certificate, key, DH parameter set, OpenSSH key, OpenVPN shared secret and the x509 defaults from the router.",
+    "deleteAllFailed": "Failed to delete the PKI configuration",
+    "clearDefaults": "Clear Defaults",
+    "clearX509Title": "Clear the x509 defaults?",
+    "clearX509Confirm": "This deletes the default country, state, locality and organization.",
+    "clearX509Failed": "Failed to clear the x509 defaults"
   },
   "itemTypes": {
     "certificate": "Certificate",
@@ -103,7 +114,6 @@
   "x509": {
     "title": "Edit X509 Defaults",
     "description": "Default values used when generating X509 certificates",
-    "countryPlaceholder": "e.g., US",
     "statePlaceholder": "e.g., California",
     "localityPlaceholder": "e.g., San Francisco",
     "organizationPlaceholder": "e.g., My Company"
@@ -124,7 +134,8 @@
     "importOrGenerate": "Import an existing key or generate a new one",
     "generateHint": "An RSA key pair will be generated and installed on the device automatically.",
     "generateButton": "Generate OpenSSH Key",
-    "importButton": "Import OpenSSH Key"
+    "importButton": "Import OpenSSH Key",
+    "publicTypeRequired": "Select a public key type"
   },
   "openvpn": {
     "titleAdd": "Add OpenVPN Shared Secret",

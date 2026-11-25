@@ -4,9 +4,12 @@
     "import": "导入",
     "generate": "生成",
     "nameRequired": "名称为必填项",
+    "nameInvalid": "只能使用字母、数字、'-'、'_'、'.' 或 '+'，且须以字母、数字、'-' 或 '_' 开头",
+    "nameExists": "已存在同名项",
     "generationFailed": "生成失败",
     "generating": "正在生成...",
     "leaveEmpty": "留空以保留当前值",
+    "removeStoredValue": "删除已保存的值",
     "bits": "{size} 位",
     "present": "已设置",
     "protected": "受保护",
@@ -22,7 +25,6 @@
     "privateKeyPem": "私钥 (PEM)",
     "parametersPem": "参数 (PEM)",
     "publicKeyType": "公钥类型",
-    "selectType": "选择类型",
     "keySize": "密钥长度",
     "rsaKeySize": "RSA 密钥长度",
     "key": "密钥",
@@ -63,7 +65,16 @@
     "noKeyPairs": "未配置密钥对",
     "noDH": "未配置 DH 参数",
     "noOpenSSH": "未配置 OpenSSH 密钥",
-    "noOpenVPN": "未配置 OpenVPN 共享密钥"
+    "noOpenVPN": "未配置 OpenVPN 共享密钥",
+    "apply": "应用",
+    "deleteAll": "删除全部 PKI",
+    "deleteAllTitle": "删除全部 PKI 配置？",
+    "deleteAllConfirm": "这会从路由器删除所有 CA、证书、密钥、DH 参数、OpenSSH 密钥、OpenVPN 共享密钥以及 x509 默认值。",
+    "deleteAllFailed": "删除 PKI 配置失败",
+    "clearDefaults": "清除默认值",
+    "clearX509Title": "清除 x509 默认值？",
+    "clearX509Confirm": "这会删除默认的国家、省/州、城市和组织。",
+    "clearX509Failed": "清除 x509 默认值失败"
   },
   "itemTypes": {
     "certificate": "证书",
@@ -103,7 +114,6 @@
   "x509": {
     "title": "编辑 X509 默认值",
     "description": "生成 X509 证书时使用的默认值",
-    "countryPlaceholder": "例如：US",
     "statePlaceholder": "例如：California",
     "localityPlaceholder": "例如：San Francisco",
     "organizationPlaceholder": "例如：我的公司"
@@ -124,7 +134,8 @@
     "importOrGenerate": "导入现有密钥或生成新密钥",
     "generateHint": "将自动生成 RSA 密钥对并安装到设备上。",
     "generateButton": "生成 OpenSSH 密钥",
-    "importButton": "导入 OpenSSH 密钥"
+    "importButton": "导入 OpenSSH 密钥",
+    "publicTypeRequired": "请选择公钥类型"
   },
   "openvpn": {
     "titleAdd": "添加 OpenVPN 共享密钥",

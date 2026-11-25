@@ -1,4 +1,28 @@
 import { apiClient } from "./client";
+import {
+  caCreateOps,
+  caUpdateOps,
+  certificateCreateOps,
+  certificateUpdateOps,
+  deletePKIOps,
+  dhCreateOps,
+  dhUpdateOps,
+  keyPairCreateOps,
+  keyPairUpdateOps,
+  openSSHCreateOps,
+  openSSHUpdateOps,
+  openVPNSecretCreateOps,
+  openVPNSecretUpdateOps,
+  x509DefaultsClearOps,
+  x509DefaultsUpdateOps,
+  type CAForm,
+  type CertificateForm,
+  type DHForm,
+  type KeyPairForm,
+  type OpenSSHForm,
+  type OpenVPNSecretForm,
+  type X509DefaultsForm,
+} from "./pki-save-ops";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -87,10 +111,6 @@ export interface PKIConfigResponse {
 
 export interface PKICapabilities {
   version: string;
-  version_info: {
-    is_1_4: boolean;
-    is_1_5: boolean;
-  };
   features: {
     ca: { supported: boolean; description: string; settings: string[] };
     certificate: { supported: boolean; description: string; settings: string[] };
@@ -234,9 +254,14 @@ class PKIService {
     return result.value;
   }
 
-  async batchConfigure(itemName: string, operations: BatchOperation[]): Promise<VyOSResponse> {
+  /**
+   * One commit. Item ops carry the item name; the global ops (x509 defaults,
+   * delete_pki) are sent with itemName null. An empty list sends nothing.
+   */
+  async batchConfigure(itemName: string | null, operations: BatchOperation[]): Promise<VyOSResponse> {
+    if (operations.length === 0) return { success: true };
     const result = await apiClient.post<VyOSResponse>("/vyos/pki/batch", {
-      item_name: itemName,
+      ...(itemName === null ? {} : { item_name: itemName }),
       operations,
     });
     await this.refreshConfig();
@@ -247,78 +272,12 @@ class PKIService {
   // Certificate Authority (CA)
   // ==========================================================================
 
-  async createCA(name: string, config: {
-    certificate?: string;
-    description?: string;
-    private_key?: string;
-    password_protected?: boolean;
-    crl?: string[];
-    revoke?: boolean;
-    system_install?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "create_ca" }];
-    if (config.certificate) ops.push({ op: "set_ca_certificate", value: config.certificate });
-    if (config.description) ops.push({ op: "set_ca_description", value: config.description });
-    if (config.private_key) ops.push({ op: "set_ca_private_key", value: config.private_key });
-    if (config.password_protected) ops.push({ op: "set_ca_private_password_protected" });
-    if (config.crl) {
-      for (const c of config.crl) {
-        ops.push({ op: "set_ca_crl", value: c });
-      }
-    }
-    if (config.revoke) ops.push({ op: "set_ca_revoke" });
-    if (config.system_install) ops.push({ op: "set_ca_system_install" });
-    return this.batchConfigure(name, ops);
+  async createCA(name: string, form: CAForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, caCreateOps(form));
   }
 
-  async updateCA(name: string, current: PKICA, config: {
-    certificate?: string;
-    description?: string;
-    private_key?: string;
-    password_protected?: boolean;
-    crl?: string[];
-    revoke?: boolean;
-    system_install?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-
-    if (config.certificate !== undefined) {
-      if (config.certificate) ops.push({ op: "set_ca_certificate", value: config.certificate });
-      else if (current.certificate) ops.push({ op: "delete_ca_certificate" });
-    }
-    if (config.description !== undefined) {
-      if (config.description) ops.push({ op: "set_ca_description", value: config.description });
-      else if (current.description) ops.push({ op: "delete_ca_description" });
-    }
-    if (config.private_key !== undefined) {
-      if (config.private_key) ops.push({ op: "set_ca_private_key", value: config.private_key });
-      else if (current.private_key) ops.push({ op: "delete_ca_private_key" });
-    }
-    if (config.password_protected !== undefined) {
-      if (config.password_protected) ops.push({ op: "set_ca_private_password_protected" });
-      else if (current.password_protected) ops.push({ op: "delete_ca_private_password_protected" });
-    }
-    if (config.crl !== undefined) {
-      // Delete old CRLs
-      for (const c of current.crl || []) {
-        ops.push({ op: "delete_ca_crl", value: c });
-      }
-      // Set new CRLs
-      for (const c of config.crl) {
-        ops.push({ op: "set_ca_crl", value: c });
-      }
-    }
-    if (config.revoke !== undefined) {
-      if (config.revoke) ops.push({ op: "set_ca_revoke" });
-      else if (current.revoke) ops.push({ op: "delete_ca_revoke" });
-    }
-    if (config.system_install !== undefined) {
-      if (config.system_install) ops.push({ op: "set_ca_system_install" });
-      else if (current.system_install) ops.push({ op: "delete_ca_system_install" });
-    }
-
-    if (ops.length === 0) return { success: true };
-    return this.batchConfigure(name, ops);
+  async updateCA(name: string, current: PKICA, form: CAForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, caUpdateOps(current, form));
   }
 
   async deleteCA(name: string): Promise<VyOSResponse> {
@@ -326,120 +285,15 @@ class PKIService {
   }
 
   // ==========================================================================
-  // Certificate
+  // Certificate (manual and ACME)
   // ==========================================================================
 
-  async createCertificate(name: string, config: {
-    certificate?: string;
-    description?: string;
-    private_key?: string;
-    password_protected?: boolean;
-    revoke?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "create_certificate" }];
-    if (config.certificate) ops.push({ op: "set_certificate_cert", value: config.certificate });
-    if (config.description) ops.push({ op: "set_certificate_description", value: config.description });
-    if (config.private_key) ops.push({ op: "set_certificate_private_key", value: config.private_key });
-    if (config.password_protected) ops.push({ op: "set_certificate_private_password_protected" });
-    if (config.revoke) ops.push({ op: "set_certificate_revoke" });
-    return this.batchConfigure(name, ops);
+  async createCertificate(name: string, form: CertificateForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, certificateCreateOps(form));
   }
 
-  async createACMECertificate(name: string, config: {
-    domain_names?: string[];
-    email?: string;
-    listen_address?: string;
-    rsa_key_size?: string;
-    url?: string;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [
-      { op: "create_certificate" },
-      { op: "set_certificate_acme" },
-    ];
-    if (config.domain_names) {
-      for (const d of config.domain_names) {
-        ops.push({ op: "set_certificate_acme_domain_name", value: d });
-      }
-    }
-    if (config.email) ops.push({ op: "set_certificate_acme_email", value: config.email });
-    if (config.listen_address) ops.push({ op: "set_certificate_acme_listen_address", value: config.listen_address });
-    if (config.rsa_key_size) ops.push({ op: "set_certificate_acme_rsa_key_size", value: config.rsa_key_size });
-    if (config.url) ops.push({ op: "set_certificate_acme_url", value: config.url });
-    return this.batchConfigure(name, ops);
-  }
-
-  async updateCertificate(name: string, current: PKICertificate, config: {
-    certificate?: string;
-    description?: string;
-    private_key?: string;
-    password_protected?: boolean;
-    revoke?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-
-    if (config.certificate !== undefined) {
-      if (config.certificate) ops.push({ op: "set_certificate_cert", value: config.certificate });
-      else if (current.certificate) ops.push({ op: "delete_certificate_cert" });
-    }
-    if (config.description !== undefined) {
-      if (config.description) ops.push({ op: "set_certificate_description", value: config.description });
-      else if (current.description) ops.push({ op: "delete_certificate_description" });
-    }
-    if (config.private_key !== undefined) {
-      if (config.private_key) ops.push({ op: "set_certificate_private_key", value: config.private_key });
-      else if (current.private_key) ops.push({ op: "delete_certificate_private_key" });
-    }
-    if (config.password_protected !== undefined) {
-      if (config.password_protected) ops.push({ op: "set_certificate_private_password_protected" });
-      else if (current.password_protected) ops.push({ op: "delete_certificate_private_password_protected" });
-    }
-    if (config.revoke !== undefined) {
-      if (config.revoke) ops.push({ op: "set_certificate_revoke" });
-      else if (current.revoke) ops.push({ op: "delete_certificate_revoke" });
-    }
-
-    if (ops.length === 0) return { success: true };
-    return this.batchConfigure(name, ops);
-  }
-
-  async updateACMECertificate(name: string, current: PKICertificate, config: {
-    domain_names?: string[];
-    email?: string;
-    listen_address?: string;
-    rsa_key_size?: string;
-    url?: string;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    const currentAcme = current.acme;
-
-    if (config.domain_names !== undefined) {
-      // Delete old domains
-      if (currentAcme?.domain_names?.length) {
-        ops.push({ op: "delete_certificate_acme_domain_name_all" });
-      }
-      for (const d of config.domain_names) {
-        ops.push({ op: "set_certificate_acme_domain_name", value: d });
-      }
-    }
-    if (config.email !== undefined) {
-      if (config.email) ops.push({ op: "set_certificate_acme_email", value: config.email });
-      else if (currentAcme?.email) ops.push({ op: "delete_certificate_acme_email" });
-    }
-    if (config.listen_address !== undefined) {
-      if (config.listen_address) ops.push({ op: "set_certificate_acme_listen_address", value: config.listen_address });
-      else if (currentAcme?.listen_address) ops.push({ op: "delete_certificate_acme_listen_address" });
-    }
-    if (config.rsa_key_size !== undefined) {
-      if (config.rsa_key_size) ops.push({ op: "set_certificate_acme_rsa_key_size", value: config.rsa_key_size });
-      else if (currentAcme?.rsa_key_size) ops.push({ op: "delete_certificate_acme_rsa_key_size" });
-    }
-    if (config.url !== undefined) {
-      if (config.url) ops.push({ op: "set_certificate_acme_url", value: config.url });
-      else if (currentAcme?.url) ops.push({ op: "delete_certificate_acme_url" });
-    }
-
-    if (ops.length === 0) return { success: true };
-    return this.batchConfigure(name, ops);
+  async updateCertificate(name: string, current: PKICertificate, form: CertificateForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, certificateUpdateOps(current, form));
   }
 
   async deleteCertificate(name: string): Promise<VyOSResponse> {
@@ -450,24 +304,12 @@ class PKIService {
   // Diffie-Hellman (DH)
   // ==========================================================================
 
-  async createDH(name: string, config: {
-    parameters?: string;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "create_dh" }];
-    if (config.parameters) ops.push({ op: "set_dh_parameters", value: config.parameters });
-    return this.batchConfigure(name, ops);
+  async createDH(name: string, form: DHForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, dhCreateOps(form));
   }
 
-  async updateDH(name: string, current: PKIDH, config: {
-    parameters?: string;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    if (config.parameters !== undefined) {
-      if (config.parameters) ops.push({ op: "set_dh_parameters", value: config.parameters });
-      else if (current.parameters) ops.push({ op: "delete_dh_parameters" });
-    }
-    if (ops.length === 0) return { success: true };
-    return this.batchConfigure(name, ops);
+  async updateDH(name: string, current: PKIDH, form: DHForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, dhUpdateOps(current, form));
   }
 
   async deleteDH(name: string): Promise<VyOSResponse> {
@@ -478,38 +320,12 @@ class PKIService {
   // Key Pair
   // ==========================================================================
 
-  async createKeyPair(name: string, config: {
-    private_key?: string;
-    public_key?: string;
-    password_protected?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "create_key_pair" }];
-    if (config.private_key) ops.push({ op: "set_key_pair_private_key", value: config.private_key });
-    if (config.public_key) ops.push({ op: "set_key_pair_public_key", value: config.public_key });
-    if (config.password_protected) ops.push({ op: "set_key_pair_private_password_protected" });
-    return this.batchConfigure(name, ops);
+  async createKeyPair(name: string, form: KeyPairForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, keyPairCreateOps(form));
   }
 
-  async updateKeyPair(name: string, current: PKIKeyPair, config: {
-    private_key?: string;
-    public_key?: string;
-    password_protected?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    if (config.private_key !== undefined) {
-      if (config.private_key) ops.push({ op: "set_key_pair_private_key", value: config.private_key });
-      else if (current.private_key) ops.push({ op: "delete_key_pair_private_key" });
-    }
-    if (config.public_key !== undefined) {
-      if (config.public_key) ops.push({ op: "set_key_pair_public_key", value: config.public_key });
-      else if (current.public_key) ops.push({ op: "delete_key_pair_public_key" });
-    }
-    if (config.password_protected !== undefined) {
-      if (config.password_protected) ops.push({ op: "set_key_pair_private_password_protected" });
-      else if (current.password_protected) ops.push({ op: "delete_key_pair_private_password_protected" });
-    }
-    if (ops.length === 0) return { success: true };
-    return this.batchConfigure(name, ops);
+  async updateKeyPair(name: string, current: PKIKeyPair, form: KeyPairForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, keyPairUpdateOps(current, form));
   }
 
   async deleteKeyPair(name: string): Promise<VyOSResponse> {
@@ -520,45 +336,12 @@ class PKIService {
   // OpenSSH
   // ==========================================================================
 
-  async createOpenSSH(name: string, config: {
-    private_key?: string;
-    public_key?: string;
-    public_type?: string;
-    password_protected?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "create_openssh" }];
-    if (config.private_key) ops.push({ op: "set_openssh_private_key", value: config.private_key });
-    if (config.public_key) ops.push({ op: "set_openssh_public_key", value: config.public_key });
-    if (config.public_type) ops.push({ op: "set_openssh_public_type", value: config.public_type });
-    if (config.password_protected) ops.push({ op: "set_openssh_private_password_protected" });
-    return this.batchConfigure(name, ops);
+  async createOpenSSH(name: string, form: OpenSSHForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, openSSHCreateOps(form));
   }
 
-  async updateOpenSSH(name: string, current: PKIOpenSSH, config: {
-    private_key?: string;
-    public_key?: string;
-    public_type?: string;
-    password_protected?: boolean;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    if (config.private_key !== undefined) {
-      if (config.private_key) ops.push({ op: "set_openssh_private_key", value: config.private_key });
-      else if (current.private_key) ops.push({ op: "delete_openssh_private_key" });
-    }
-    if (config.public_key !== undefined) {
-      if (config.public_key) ops.push({ op: "set_openssh_public_key", value: config.public_key });
-      else if (current.public_key) ops.push({ op: "delete_openssh_public_key" });
-    }
-    if (config.public_type !== undefined) {
-      if (config.public_type) ops.push({ op: "set_openssh_public_type", value: config.public_type });
-      else if (current.public_type) ops.push({ op: "delete_openssh_public_type" });
-    }
-    if (config.password_protected !== undefined) {
-      if (config.password_protected) ops.push({ op: "set_openssh_private_password_protected" });
-      else if (current.password_protected) ops.push({ op: "delete_openssh_private_password_protected" });
-    }
-    if (ops.length === 0) return { success: true };
-    return this.batchConfigure(name, ops);
+  async updateOpenSSH(name: string, current: PKIOpenSSH, form: OpenSSHForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, openSSHUpdateOps(current, form));
   }
 
   async deleteOpenSSH(name: string): Promise<VyOSResponse> {
@@ -569,31 +352,12 @@ class PKIService {
   // OpenVPN Shared Secret
   // ==========================================================================
 
-  async createOpenVPNSecret(name: string, config: {
-    key?: string;
-    version?: string;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "create_openvpn_shared_secret" }];
-    if (config.key) ops.push({ op: "set_openvpn_shared_secret_key", value: config.key });
-    if (config.version) ops.push({ op: "set_openvpn_shared_secret_version", value: config.version });
-    return this.batchConfigure(name, ops);
+  async createOpenVPNSecret(name: string, form: OpenVPNSecretForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, openVPNSecretCreateOps(form));
   }
 
-  async updateOpenVPNSecret(name: string, current: PKIOpenVPNSharedSecret, config: {
-    key?: string;
-    version?: string;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
-    if (config.key !== undefined) {
-      if (config.key) ops.push({ op: "set_openvpn_shared_secret_key", value: config.key });
-      else if (current.key) ops.push({ op: "delete_openvpn_shared_secret_key" });
-    }
-    if (config.version !== undefined) {
-      if (config.version) ops.push({ op: "set_openvpn_shared_secret_version", value: config.version });
-      else if (current.version) ops.push({ op: "delete_openvpn_shared_secret_version" });
-    }
-    if (ops.length === 0) return { success: true };
-    return this.batchConfigure(name, ops);
+  async updateOpenVPNSecret(name: string, current: PKIOpenVPNSharedSecret, form: OpenVPNSecretForm): Promise<VyOSResponse> {
+    return this.batchConfigure(name, openVPNSecretUpdateOps(current, form));
   }
 
   async deleteOpenVPNSecret(name: string): Promise<VyOSResponse> {
@@ -601,37 +365,19 @@ class PKIService {
   }
 
   // ==========================================================================
-  // X509 Defaults
+  // Global: X509 defaults and the whole PKI tree
   // ==========================================================================
 
-  async updateX509Defaults(current: PKIX509Defaults, config: {
-    country?: string;
-    locality?: string;
-    organization?: string;
-    state?: string;
-  }): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [];
+  async updateX509Defaults(current: PKIX509Defaults, form: X509DefaultsForm): Promise<VyOSResponse> {
+    return this.batchConfigure(null, x509DefaultsUpdateOps(current, form));
+  }
 
-    if (config.country !== undefined) {
-      if (config.country) ops.push({ op: "set_x509_default_country", value: config.country });
-      else if (current.country) ops.push({ op: "delete_x509_default_country" });
-    }
-    if (config.locality !== undefined) {
-      if (config.locality) ops.push({ op: "set_x509_default_locality", value: config.locality });
-      else if (current.locality) ops.push({ op: "delete_x509_default_locality" });
-    }
-    if (config.organization !== undefined) {
-      if (config.organization) ops.push({ op: "set_x509_default_organization", value: config.organization });
-      else if (current.organization) ops.push({ op: "delete_x509_default_organization" });
-    }
-    if (config.state !== undefined) {
-      if (config.state) ops.push({ op: "set_x509_default_state", value: config.state });
-      else if (current.state) ops.push({ op: "delete_x509_default_state" });
-    }
+  async clearX509Defaults(): Promise<VyOSResponse> {
+    return this.batchConfigure(null, x509DefaultsClearOps());
+  }
 
-    if (ops.length === 0) return { success: true };
-    // X509 defaults use "pki" as the item_name placeholder
-    return this.batchConfigure("pki", ops);
+  async deleteAllPKI(): Promise<VyOSResponse> {
+    return this.batchConfigure(null, deletePKIOps());
   }
 }
 

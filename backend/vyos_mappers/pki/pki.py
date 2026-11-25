@@ -1,26 +1,24 @@
 """
-PKI (Public Key Infrastructure) Command Mapper
+PKI (Public Key Infrastructure) command mapper.
 
-Handles command path generation and config parsing for PKI.
-The PKI command tree is nearly identical between VyOS 1.4 and 1.5.
-Only difference: VyOS 1.5 ACME listen-address supports IPv6.
+One class holds the ``pki`` commands both VyOS versions have. The only
+difference is ``pki certificate <n> acme listen-address``: 1.4 takes an IPv4
+address, 1.5 also takes IPv6. ``pki_versions.v1_5.PKIMapperV1_5`` reports
+that through ``acme_listen_address_ipv6``.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
+
+from ..base import BaseFeatureMapper
+from . import config_parse
+
+# Lab `allowed:` lines, the same on 1.4 and 1.5.
+ACME_RSA_KEY_SIZES = ("2048", "3072", "4096")
+OPENSSH_PUBLIC_TYPES = ("ssh-rsa",)
 
 
-class PKIMapper:
-    """Base mapper with all PKI operations."""
-
-    def __init__(self, version: str):
-        self.version = version
-
-    # ========================================================================
-    # Base path
-    # ========================================================================
-
-    def get_base_path(self) -> List[str]:
-        return ["pki"]
+class PKIMapper(BaseFeatureMapper):
+    """Shared mapper with every PKI path."""
 
     # ========================================================================
     # Certificate Authority (CA)
@@ -275,166 +273,39 @@ class PKIMapper:
         return ["pki"]
 
     # ========================================================================
+    # Version differences and value lists
+    # ========================================================================
+
+    def acme_listen_address_ipv6(self) -> bool:
+        """Whether ``acme listen-address`` takes an IPv6 address (1.5 only)."""
+        return False
+
+    def rsa_key_size_values(self) -> Tuple[str, ...]:
+        return ACME_RSA_KEY_SIZES
+
+    def openssh_public_type_values(self) -> Tuple[str, ...]:
+        return OPENSSH_PUBLIC_TYPES
+
+    # ========================================================================
     # Config Parsing
     # ========================================================================
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse full VyOS config and extract PKI configuration."""
-        pki_config = full_config.get("pki", {})
+        """GET /config shape: lists of items with secrets masked, plus totals."""
+        return config_parse.parse_config(full_config)
 
-        if not pki_config:
-            return {
-                "configured": False,
-                "ca": {},
-                "certificates": {},
-                "dh": {},
-                "key_pairs": {},
-                "openssh": {},
-                "openvpn_shared_secrets": {},
-                "x509_defaults": {},
-            }
+    def reveal_kinds(self) -> Dict[str, Tuple[str, ...]]:
+        """Item kinds /reveal accepts, each with the masked fields it may return."""
+        return config_parse.REVEAL_FIELDS
 
-        return {
-            "configured": True,
-            "ca": self._parse_ca(pki_config.get("ca", {})),
-            "certificates": self._parse_certificates(pki_config.get("certificate", {})),
-            "dh": self._parse_dh(pki_config.get("dh", {})),
-            "key_pairs": self._parse_key_pairs(pki_config.get("key-pair", {})),
-            "openssh": self._parse_openssh(pki_config.get("openssh", {})),
-            "openvpn_shared_secrets": self._parse_openvpn(pki_config.get("openvpn", {}).get("shared-secret", {})),
-            "x509_defaults": self._parse_x509_defaults(pki_config.get("x509", {}).get("default", {})),
-        }
+    def raw_item(self, full_config: Dict[str, Any], kind: str, name: str) -> Optional[Dict[str, Any]]:
+        """One parsed item with secrets unmasked, or None when it is absent."""
+        return config_parse.raw_item(full_config, kind, name)
 
-    def _parse_ca(self, ca_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse CA entries."""
-        result = {}
-        for name, data in ca_config.items():
-            if not isinstance(data, dict):
-                continue
-            private = data.get("private", {})
-            crl_data = data.get("crl", {})
-            # CRL is multi-value - can be a list or a single string
-            if isinstance(crl_data, str):
-                crl_list = [crl_data]
-            elif isinstance(crl_data, list):
-                crl_list = crl_data
-            elif isinstance(crl_data, dict):
-                crl_list = list(crl_data.keys()) if crl_data else []
-            else:
-                crl_list = []
+    # ========================================================================
+    # Op-mode paths
+    # ========================================================================
 
-            result[name] = {
-                "name": name,
-                "certificate": data.get("certificate"),
-                "crl": crl_list,
-                "description": data.get("description"),
-                "private_key": private.get("key") if isinstance(private, dict) else None,
-                "password_protected": "password-protected" in private if isinstance(private, dict) else False,
-                "revoke": "revoke" in data,
-                "system_install": "system-install" in data,
-            }
-        return result
-
-    def _parse_certificates(self, cert_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse certificate entries."""
-        result = {}
-        for name, data in cert_config.items():
-            if not isinstance(data, dict):
-                continue
-            private = data.get("private", {})
-            acme = data.get("acme", {})
-
-            # ACME domain-name is multi-value
-            acme_domains = acme.get("domain-name", []) if isinstance(acme, dict) else []
-            if isinstance(acme_domains, str):
-                acme_domains = [acme_domains]
-
-            acme_config = None
-            if isinstance(acme, dict) and acme:
-                acme_config = {
-                    "domain_names": acme_domains,
-                    "email": acme.get("email"),
-                    "listen_address": acme.get("listen-address"),
-                    "rsa_key_size": acme.get("rsa-key-size"),
-                    "url": acme.get("url"),
-                }
-
-            result[name] = {
-                "name": name,
-                "certificate": data.get("certificate"),
-                "description": data.get("description"),
-                "private_key": private.get("key") if isinstance(private, dict) else None,
-                "password_protected": "password-protected" in private if isinstance(private, dict) else False,
-                "revoke": "revoke" in data,
-                "acme": acme_config,
-            }
-        return result
-
-    def _parse_dh(self, dh_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse DH parameter entries."""
-        result = {}
-        for name, data in dh_config.items():
-            if not isinstance(data, dict):
-                continue
-            result[name] = {
-                "name": name,
-                "parameters": data.get("parameters"),
-            }
-        return result
-
-    def _parse_key_pairs(self, kp_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse key pair entries."""
-        result = {}
-        for name, data in kp_config.items():
-            if not isinstance(data, dict):
-                continue
-            private = data.get("private", {})
-            public = data.get("public", {})
-            result[name] = {
-                "name": name,
-                "private_key": private.get("key") if isinstance(private, dict) else None,
-                "password_protected": "password-protected" in private if isinstance(private, dict) else False,
-                "public_key": public.get("key") if isinstance(public, dict) else None,
-            }
-        return result
-
-    def _parse_openssh(self, openssh_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse OpenSSH key entries."""
-        result = {}
-        for name, data in openssh_config.items():
-            if not isinstance(data, dict):
-                continue
-            private = data.get("private", {})
-            public = data.get("public", {})
-            result[name] = {
-                "name": name,
-                "private_key": private.get("key") if isinstance(private, dict) else None,
-                "password_protected": "password-protected" in private if isinstance(private, dict) else False,
-                "public_key": public.get("key") if isinstance(public, dict) else None,
-                "public_type": public.get("type") if isinstance(public, dict) else None,
-            }
-        return result
-
-    def _parse_openvpn(self, openvpn_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse OpenVPN shared secret entries."""
-        result = {}
-        for name, data in openvpn_config.items():
-            if not isinstance(data, dict):
-                continue
-            result[name] = {
-                "name": name,
-                "key": data.get("key"),
-                "version": data.get("version"),
-            }
-        return result
-
-    def _parse_x509_defaults(self, x509_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse X509 default values."""
-        if not x509_config:
-            return {}
-        return {
-            "country": x509_config.get("country"),
-            "locality": x509_config.get("locality"),
-            "organization": x509_config.get("organization"),
-            "state": x509_config.get("state"),
-        }
+    def openvpn_shared_secret_generate_path(self) -> List[str]:
+        """``generate pki openvpn shared-secret``: prints a static key, installs nothing."""
+        return ["pki", "openvpn", "shared-secret"]

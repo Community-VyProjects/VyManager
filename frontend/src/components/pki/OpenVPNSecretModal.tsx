@@ -17,16 +17,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Loader2, Lock } from "lucide-react";
 import { pkiService, PKIOpenVPNSharedSecret } from "@/lib/api/pki";
+import { KEEP, typed, type StoredValue, nameProblem } from "@/lib/api/pki-save-ops";
+import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
 interface OpenVPNSecretModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  existingSecret: PKIOpenVPNSharedSecret | null;
+  existingSecret: PKIOpenVPNSharedSecret | null;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
-export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecret }: OpenVPNSecretModalProps) {
+export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecret, existingNames }: OpenVPNSecretModalProps) {
   const t = useTranslations("pki");
   const tc = useTranslations("common");
   const isEdit = !!existingSecret;
@@ -35,7 +38,7 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
 
   // Import fields
   const [name, setName] = useState("");
-  const [key, setKey] = useState("");
+  const [key, setKey] = useState<StoredValue>(KEEP);
   const [version, setVersion] = useState("");
 
   // Generate fields
@@ -49,12 +52,12 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
       if (existingSecret) {
         setMode("import");
         setName(existingSecret.name);
-        setKey("");
+        setKey(KEEP);
         setVersion(existingSecret.version || "");
       } else {
         setMode("import");
         setName("");
-        setKey("");
+        setKey(KEEP);
         setVersion("");
         setGenName("");
       }
@@ -63,7 +66,10 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
   }, [open, existingSecret]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
 
     setLoading(true);
     setError(null);
@@ -71,15 +77,9 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
     try {
       let result;
       if (isEdit) {
-        result = await pkiService.updateOpenVPNSecret(name.trim(), existingSecret!, {
-          key: key || undefined,
-          version,
-        });
+        result = await pkiService.updateOpenVPNSecret(name.trim(), existingSecret!, { key, version });
       } else {
-        result = await pkiService.createOpenVPNSecret(name.trim(), {
-          key: key || undefined,
-          version: version || undefined,
-        });
+        result = await pkiService.createOpenVPNSecret(name.trim(), { key, version });
       }
 
       if (result.success) {
@@ -96,7 +96,8 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
 
     setLoading(true);
     setError(null);
@@ -117,10 +118,16 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
     }
   };
 
+  // Esc or an overlay click must not close the dialog mid-save and lose its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   const handleSubmit = mode === "generate" && !isEdit ? handleGenerateSubmit : handleImportSubmit;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -150,8 +157,8 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
                   <Label htmlFor="ovpn-key">{t("shared.key")}</Label>
                   <Textarea
                     id="ovpn-key"
-                    value={key}
-                    onChange={(e) => setKey(e.target.value)}
+                    value={key.text}
+                    onChange={(e) => setKey(typed(e.target.value))}
                     placeholder={t("openvpn.keyPlaceholder")}
                     className="font-mono text-xs"
                     rows={6}
@@ -176,17 +183,14 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
             </Tabs>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="ovpn-key-edit">{t("shared.key")}</Label>
-                <Textarea
-                  id="ovpn-key-edit"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                  placeholder={t("shared.leaveEmpty")}
-                  className="font-mono text-xs"
-                  rows={6}
-                />
-              </div>
+              <PKIStoredValueField
+                id="ovpn-key-edit"
+                label={t("shared.key")}
+                value={key}
+                onChange={setKey}
+                stored={!!existingSecret?.key}
+                rows={6}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="ovpn-version-edit">{t("shared.version")}</Label>

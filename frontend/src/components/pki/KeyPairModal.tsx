@@ -26,16 +26,19 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Key, Info } from "lucide-react";
 import { pkiService, PKIKeyPair } from "@/lib/api/pki";
+import { KEEP, typed, type StoredValue, nameProblem } from "@/lib/api/pki-save-ops";
+import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
 interface KeyPairModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  existingKeyPair: PKIKeyPair | null;
+  existingKeyPair: PKIKeyPair | null;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
-export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }: KeyPairModalProps) {
+export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair, existingNames }: KeyPairModalProps) {
   const t = useTranslations("pkiCerts");
   const tc = useTranslations("common");
   const isEdit = !!existingKeyPair;
@@ -44,8 +47,8 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
 
   // Import fields
   const [name, setName] = useState("");
-  const [privateKey, setPrivateKey] = useState("");
-  const [publicKey, setPublicKey] = useState("");
+  const [privateKey, setPrivateKey] = useState<StoredValue>(KEEP);
+  const [publicKey, setPublicKey] = useState<StoredValue>(KEEP);
   const [passwordProtected, setPasswordProtected] = useState(false);
 
   // Generate fields
@@ -66,14 +69,14 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
       if (existingKeyPair) {
         setMode("import");
         setName(existingKeyPair.name);
-        setPrivateKey("");
-        setPublicKey("");
+        setPrivateKey(KEEP);
+        setPublicKey(KEEP);
         setPasswordProtected(existingKeyPair.password_protected);
       } else {
         setMode("import");
         setName("");
-        setPrivateKey("");
-        setPublicKey("");
+        setPrivateKey(KEEP);
+        setPublicKey(KEEP);
         setPasswordProtected(false);
         setGenName("");
         setKeyType("rsa");
@@ -95,25 +98,21 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
   }, [keyType]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
 
     setLoading(true);
     setError(null);
 
     try {
+      const form = { privateKey, publicKey, passwordProtected };
       let result;
       if (isEdit) {
-        result = await pkiService.updateKeyPair(name.trim(), existingKeyPair!, {
-          private_key: privateKey || undefined,
-          public_key: publicKey || undefined,
-          password_protected: passwordProtected,
-        });
+        result = await pkiService.updateKeyPair(name.trim(), existingKeyPair!, form);
       } else {
-        result = await pkiService.createKeyPair(name.trim(), {
-          private_key: privateKey || undefined,
-          public_key: publicKey || undefined,
-          password_protected: passwordProtected || undefined,
-        });
+        result = await pkiService.createKeyPair(name.trim(), form);
       }
 
       if (result.success) {
@@ -130,7 +129,8 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
     if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
     setLoading(true);
@@ -158,10 +158,16 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
     }
   };
 
+  // Esc or an overlay click must not close the dialog mid-save and lose its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   const handleSubmit = mode === "generate" && !isEdit ? handleGenerateSubmit : handleImportSubmit;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -192,8 +198,8 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
                     <Label htmlFor="kp-privkey">{t("shared.privateKeyPem")}</Label>
                     <Textarea
                       id="kp-privkey"
-                      value={privateKey}
-                      onChange={(e) => setPrivateKey(e.target.value)}
+                      value={privateKey.text}
+                      onChange={(e) => setPrivateKey(typed(e.target.value))}
                       placeholder="-----BEGIN PRIVATE KEY-----"
                       className="font-mono text-xs"
                       rows={4}
@@ -204,8 +210,8 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
                     <Label htmlFor="kp-pubkey">{t("shared.publicKeyPem")}</Label>
                     <Textarea
                       id="kp-pubkey"
-                      value={publicKey}
-                      onChange={(e) => setPublicKey(e.target.value)}
+                      value={publicKey.text}
+                      onChange={(e) => setPublicKey(typed(e.target.value))}
                       placeholder="-----BEGIN PUBLIC KEY-----"
                       className="font-mono text-xs"
                       rows={4}
@@ -285,29 +291,23 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
               </Tabs>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="kp-privkey-edit">{t("shared.privateKeyPem")}</Label>
-                  <Textarea
-                    id="kp-privkey-edit"
-                    value={privateKey}
-                    onChange={(e) => setPrivateKey(e.target.value)}
-                    placeholder={t("shared.leaveEmpty")}
-                    className="font-mono text-xs"
-                    rows={4}
-                  />
-                </div>
+                <PKIStoredValueField
+                  id="kp-privkey-edit"
+                  label={t("shared.privateKeyPem")}
+                  value={privateKey}
+                  onChange={setPrivateKey}
+                  stored={!!existingKeyPair?.private_key}
+                  rows={4}
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="kp-pubkey-edit">{t("shared.publicKeyPem")}</Label>
-                  <Textarea
-                    id="kp-pubkey-edit"
-                    value={publicKey}
-                    onChange={(e) => setPublicKey(e.target.value)}
-                    placeholder={t("shared.leaveEmpty")}
-                    className="font-mono text-xs"
-                    rows={4}
-                  />
-                </div>
+                <PKIStoredValueField
+                  id="kp-pubkey-edit"
+                  label={t("shared.publicKeyPem")}
+                  value={publicKey}
+                  onChange={setPublicKey}
+                  stored={!!existingKeyPair?.public_key}
+                  rows={4}
+                />
 
                 <div className="flex items-center space-x-2">
                   <Checkbox id="kp-pwd-edit" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />

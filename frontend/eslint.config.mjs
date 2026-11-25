@@ -18,7 +18,6 @@ const eslintConfig = defineConfig([
       "src/components/routing/DeleteRoutingTableModal.tsx",
       "src/components/routing/DeleteTableRouteModal.tsx",
       "src/components/firewall/zones/ZonePolicyModal.tsx",
-      "src/components/firewall/CountrySelect.tsx",
     ],
     plugins: { vymanager: { rules: { "no-untranslated-text": noUntranslatedText } } },
     rules: {
