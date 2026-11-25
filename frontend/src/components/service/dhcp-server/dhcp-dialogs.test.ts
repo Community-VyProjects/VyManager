@@ -35,6 +35,9 @@ describe("DHCP server dialogs", () => {
     "DHCPFailoverModal.tsx",
     "DHCPDdnsModal.tsx",
     "DHCPServerSettingsModal.tsx",
+    "AddLeaseToStaticMappingModal.tsx",
+    "RangeModal.tsx",
+    "StaticMappingModal.tsx",
   ]) {
     it(`${file} scrolls inside its height cap`, () => {
       assert.match(read(file), /<DialogContent className="[^"]*max-h-\[85vh\] overflow-y-auto"/);
@@ -52,7 +55,9 @@ describe("DHCP server dialogs", () => {
   it("a failed lease load shows the error instead of an empty list", () => {
     const source = read("DHCPServerContent.tsx");
     assert.match(source, /setLeasesError\(\(err as ApiError\)\.message \|\| t\("page\.errors\.loadLeasesFailed"\)\)/);
-    assert.ok(source.indexOf(") : leasesError ? (") < source.indexOf(") : filteredLeases.length === 0 ? ("));
+    const errorBranch = source.indexOf(") : leasesError ? (");
+    assert.notEqual(errorBranch, -1);
+    assert.ok(errorBranch < source.indexOf(") : filteredLeases.length === 0 ? ("));
   });
 
   it("write controls are hidden from read-only users", () => {

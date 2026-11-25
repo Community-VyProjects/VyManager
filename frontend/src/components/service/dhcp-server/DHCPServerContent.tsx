@@ -860,7 +860,7 @@ export function DHCPServerContent() {
                                           activeCount > 0 && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                                         )}
                                       >
-                                        {activeCount}
+                                        {leasesError ? "–" : activeCount}
                                       </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -1278,7 +1278,7 @@ export function DHCPServerContent() {
                         {tc("refresh")}
                       </Button>
                       <div className="text-sm text-muted-foreground ml-auto">
-                        {t("page.leaseCount", { count: filteredLeases.length })}
+                        {!leasesError && t("page.leaseCount", { count: filteredLeases.length })}
                       </div>
                     </div>
 
