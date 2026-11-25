@@ -27,7 +27,7 @@ import {
 import { AlertCircle, Loader2, Terminal } from "lucide-react";
 import { pkiService, PKICapabilities, PKIOpenSSH } from "@/lib/api/pki";
 import { NamedListSelect } from "@/components/ui/named-list-select";
-import { KEEP, defaultPublicType, nameProblem, openSSHProblem, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { KEEP, nameProblem, openSSHProblem, typed, withDefaultPublicType, type StoredValue } from "@/lib/api/pki-save-ops";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
@@ -63,6 +63,10 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
 
   const rsaKeySizes = ["2048", "3072", "4096"];
   const publicTypes = capabilities ? capabilities.features.openssh.public_types : [];
+  // The picker shows the default the save will send (only while a public key is set or kept).
+  const shownPublicType = withDefaultPublicType(
+    existingKey, { privateKey, publicKey, publicType, passwordProtected }, publicTypes,
+  ).publicType;
 
   useEffect(() => {
     if (open) {
@@ -71,21 +75,20 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
         setName(existingKey.name);
         setPrivateKey(KEEP);
         setPublicKey(KEEP);
-        setPublicType(existingKey.public_type || defaultPublicType(publicTypes));
+        setPublicType(existingKey.public_type || "");
         setPasswordProtected(existingKey.password_protected);
       } else {
         setMode("import");
         setName("");
         setPrivateKey(KEEP);
         setPublicKey(KEEP);
-        setPublicType(defaultPublicType(publicTypes));
+        setPublicType("");
         setPasswordProtected(false);
         setGenName("");
         setKeySize("2048");
       }
       setError(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form fields when the modal opens
   }, [open, existingKey]);
 
   const handleImportSubmit = async () => {
@@ -94,7 +97,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
       if (nameError) { setError(t(`shared.${nameError}`)); return; }
     }
 
-    const form = { privateKey, publicKey, publicType, passwordProtected };
+    const form = withDefaultPublicType(existingKey, { privateKey, publicKey, publicType, passwordProtected }, publicTypes);
     const problem = openSSHProblem(existingKey, form);
     if (problem) { setError(t(`openssh.${problem}`)); return; }
 
@@ -211,7 +214,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
 
                   <div className="space-y-2">
                     <Label htmlFor="ssh-type">{t("shared.publicKeyType")}</Label>
-                    <NamedListSelect id="ssh-type" value={publicType} names={publicTypes} onValueChange={setPublicType} />
+                    <NamedListSelect id="ssh-type" value={shownPublicType} names={publicTypes} onValueChange={setPublicType} />
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -269,7 +272,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
 
                 <div className="space-y-2">
                   <Label htmlFor="ssh-type-edit">{t("shared.publicKeyType")}</Label>
-                  <NamedListSelect id="ssh-type-edit" value={publicType} names={publicTypes} onValueChange={setPublicType} />
+                  <NamedListSelect id="ssh-type-edit" value={shownPublicType} names={publicTypes} onValueChange={setPublicType} />
                 </div>
 
                 <div className="flex items-center space-x-2">

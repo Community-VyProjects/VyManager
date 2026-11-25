@@ -430,9 +430,9 @@ def test_generate_certificate_needs_a_usable_ca(client, ca_name, status):
 
 
 def test_generate_openvpn_secret_writes_the_parsed_key(client):
-    """No `install`, no name on the op-mode path; the key is committed through the builder."""
+    """No `install`, no name on the op-mode path; key and header version go through the builder."""
     test_client, executed, generated = client
-    resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2", "version": "1"})
+    resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2"})
     assert resp.json()["success"] is True, resp.text
     assert generated == [["pki", "openvpn", "shared-secret"]]
     base = ["pki", "openvpn", "shared-secret", "OV2"]
@@ -443,11 +443,27 @@ def test_generate_openvpn_secret_writes_the_parsed_key(client):
     ]]
 
 
-def test_generate_openvpn_secret_without_version_sets_no_version(client):
+def test_generate_openvpn_secret_version_comes_from_the_block_header(client, commit):
     test_client, executed, _generated = client
+    commit["generate_result"] = OPENVPN_OUTPUT.replace("Static key V1", "Static key V2")
     resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2"})
     assert resp.json()["success"] is True
-    assert [path[-2] for _op, path in executed[0][1:]] == ["key"]
+    assert executed[0][-1] == ("set", ["pki", "openvpn", "shared-secret", "OV2", "version", "2"])
+
+
+def test_generate_openvpn_secret_request_has_no_version_field():
+    from routers.pki.pki import GenerateOpenVPNSecretRequest
+
+    assert set(GenerateOpenVPNSecretRequest.model_fields) == {"name"}
+
+
+@pytest.mark.parametrize("header", ["V1-----\nAAAA\n-----END OpenVPN Static key V2", "V-----\nAAAA\n-----END OpenVPN Static key V"])
+def test_generate_openvpn_secret_needs_a_matching_versioned_block(client, commit, header):
+    test_client, executed, _generated = client
+    commit["generate_result"] = f"-----BEGIN OpenVPN Static key {header}-----\n"
+    resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2"})
+    assert resp.json()["error"] == "VyOS returned no OpenVPN static key"
+    assert executed == []
 
 
 @pytest.mark.parametrize("result", ["", "no key here", None, "-----BEGIN OpenVPN Static key V1-----\n"])

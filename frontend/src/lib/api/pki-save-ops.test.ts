@@ -4,11 +4,11 @@ import {
   KEEP,
   MASKED_SECRET,
   acmeCreateForm,
-  defaultPublicType,
   nameProblem,
   openSSHProblem,
   pemBody,
   splitCrlList,
+  withDefaultPublicType,
   caCreateOps,
   caUpdateOps,
   certificateCreateOps,
@@ -455,9 +455,26 @@ describe("OpenSSH save check", () => {
     assert.equal(openSSHProblem(null, form), null);
   });
 
-  it("defaults the type to the only capability value", () => {
-    assert.equal(defaultPublicType(["ssh-rsa"]), "ssh-rsa");
-    assert.equal(defaultPublicType([]), "");
-    assert.equal(defaultPublicType(["ssh-rsa", "ssh-ed25519"]), "");
+  it("defaults the type to the only capability value only while a public key is set or kept", () => {
+    const one = ["ssh-rsa"];
+    assert.equal(withDefaultPublicType(null, { ...form, publicKey: typed("AAAA") }, one).publicType, "ssh-rsa");
+    assert.equal(withDefaultPublicType(current, form, one).publicType, "ssh-rsa");
+    assert.equal(withDefaultPublicType(null, { ...form, publicKey: typed("AAAA") }, []).publicType, "");
+    assert.equal(withDefaultPublicType(null, { ...form, publicKey: typed("AAAA") }, ["ssh-rsa", "ssh-x"]).publicType, "");
+    assert.equal(withDefaultPublicType(current, { ...form, publicType: "ssh-x" }, one).publicType, "ssh-x");
+    assert.equal(withDefaultPublicType(current, { ...form, publicKey: { text: "", remove: true } }, one).publicType, "");
+  });
+
+  it("a create or edit with no public key never sends set_openssh_public_type", () => {
+    const one = ["ssh-rsa"];
+    const create = withDefaultPublicType(null, { ...form, privateKey: typed("PRIV") }, one);
+    assert.deepEqual(openSSHCreateOps(create), [
+      { op: "create_openssh" },
+      { op: "set_openssh_private_key", value: "PRIV" },
+    ]);
+    const bare = { name: "SSH", private_key: MASKED_SECRET, password_protected: false };
+    assert.deepEqual(openSSHUpdateOps(bare, withDefaultPublicType(bare, form, one)), []);
+    const withKey = withDefaultPublicType(null, { ...form, publicKey: typed("AAAA") }, one);
+    assert.ok(openSSHCreateOps(withKey).some((op) => op.op === "set_openssh_public_type" && op.value === "ssh-rsa"));
   });
 });

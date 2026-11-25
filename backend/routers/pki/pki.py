@@ -156,8 +156,12 @@ def _private_pem(private_key: Any, encrypt_key: bool, passphrase: Optional[str],
     return _normalize_pem(private_key.private_bytes(serialization.Encoding.PEM, fmt, encryption).decode("utf-8"))
 
 
-def _parse_openvpn_key(output: Any) -> Optional[str]:
-    """The key of the first ``OpenVPN Static key`` block, as the key leaf stores it."""
+def _parse_openvpn_key(output: Any) -> Optional[tuple[str, str]]:
+    """(key, version) of the first ``OpenVPN Static key V<n>`` block.
+
+    The key is as the key leaf stores it; the version is the header's ``<n>``,
+    which VyOS's own install writes to the version leaf.
+    """
     if not isinstance(output, str):
         return None
     match = _OPENVPN_BLOCK.search(output)
@@ -165,7 +169,7 @@ def _parse_openvpn_key(output: Any) -> Optional[str]:
         return None
     body = "\n".join(line for line in match.group(0).splitlines() if not line.lstrip().startswith("#"))
     key = _normalize_pem(body)
-    return key or None
+    return (key, match.group("version")) if key else None
 
 
 # ========================================================================
@@ -277,7 +281,7 @@ class PKIRevealRequest(BaseModel):
     """Request to reveal an unmasked PKI value."""
     item_type: str = Field(..., description="PKI item type: ca, certificate, dh, key_pair, openssh, openvpn")
     item_name: str = Field(..., description="Item name")
-    field: str = Field(..., description="Field to reveal: certificate, private_key, public_key, parameters, key, crl")
+    field: str = Field(..., description="Field to reveal: private_key, parameters or key (the fields GET /config masks)")
 
 
 @router.post("/reveal")
@@ -707,7 +711,6 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
 
 class GenerateOpenVPNSecretRequest(_NamedRequest):
     """Request to generate an OpenVPN shared secret."""
-    version: Optional[str] = Field(None, description="Key version leaf, set only when given")
 
 
 @router.post("/generate-openvpn-shared-secret", response_model=VyOSResponse)
@@ -717,7 +720,8 @@ async def generate_openvpn_shared_secret(http_request: Request, request: Generat
 
     Runs ``generate pki openvpn shared-secret`` without ``install`` (that form
     never commits, and would pass the name to a router shell), reads the
-    printed ``OpenVPN Static key`` block, and writes it in one batch.
+    printed ``OpenVPN Static key V<n>`` block, and writes the key and version
+    ``<n>`` in one batch, as VyOS's own install does.
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
@@ -735,15 +739,15 @@ async def generate_openvpn_shared_secret(http_request: Request, request: Generat
                 success=False,
                 error=generated.error or "Failed to generate OpenVPN shared secret",
             )
-        key = _parse_openvpn_key(generated.result)
-        if key is None:
+        parsed = _parse_openvpn_key(generated.result)
+        if parsed is None:
             return VyOSResponse(success=False, error="VyOS returned no OpenVPN static key")
+        key, key_version = parsed
 
         builder = PKIBatchBuilder(version=version)
         builder.create_openvpn_shared_secret(request.name)
         builder.set_openvpn_shared_secret_key(request.name, key)
-        if request.version is not None and request.version.strip():
-            builder.set_openvpn_shared_secret_version(request.name, request.version.strip())
+        builder.set_openvpn_shared_secret_version(request.name, key_version)
 
         response = await run_in_threadpool(service.execute_batch, builder)
         return _commit_response(response, f"OpenVPN shared secret '{request.name}' generated and installed")

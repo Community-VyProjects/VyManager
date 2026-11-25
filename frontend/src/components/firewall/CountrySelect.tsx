@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Select,
   SelectContent,
@@ -23,8 +24,8 @@ interface CountrySelectProps {
 
 const NONE = "__none__";
 
-// ISO 3166-1 alpha-2 country codes with names
-const COUNTRIES = [
+// ISO 3166-1 alpha-2 country codes with names (CountryMultiSelect uses this list too)
+export const COUNTRIES = [
   { code: "AD", name: "Andorra" },
   { code: "AE", name: "United Arab Emirates" },
   { code: "AF", name: "Afghanistan" },
@@ -277,6 +278,7 @@ const COUNTRIES = [
 ];
 
 export function CountrySelect({ value, onChange, label, id, noneLabel }: CountrySelectProps) {
+  const t = useTranslations("firewallCommon");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Filter countries based on search query
@@ -304,10 +306,10 @@ export function CountrySelect({ value, onChange, label, id, noneLabel }: Country
         onValueChange={(next) => onChange(next === NONE ? "" : next)}
       >
         <SelectTrigger id={id}>
-          <SelectValue placeholder="Select country">
+          <SelectValue placeholder={t("countrySelect.placeholderOne")}>
             {selectedCountry
               ? `${selectedCountry.name} (${selectedCountry.code})`
-              : !value && noneLabel ? noneLabel : value ? value.toUpperCase() : "Select country"}
+              : !value && noneLabel ? noneLabel : value ? value.toUpperCase() : t("countrySelect.placeholderOne")}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -315,7 +317,7 @@ export function CountrySelect({ value, onChange, label, id, noneLabel }: Country
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search countries..."
+                placeholder={t("countrySelect.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8"
@@ -334,7 +336,7 @@ export function CountrySelect({ value, onChange, label, id, noneLabel }: Country
               ))
             ) : (
               <div className="p-4 text-center text-sm text-muted-foreground">
-                No countries found
+                {t("countrySelect.noResults")}
               </div>
             )}
           </div>

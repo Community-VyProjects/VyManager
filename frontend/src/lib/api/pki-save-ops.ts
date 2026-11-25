@@ -333,20 +333,34 @@ export function openSSHUpdateOps(current: PKIOpenSSH, form: OpenSSHForm): BatchO
   return ops;
 }
 
+/** The form sets or keeps a public key. */
+function hasOpenSSHPublicKey(current: PKIOpenSSH | null, form: OpenSSHForm): boolean {
+  const typedKey = !!form.publicKey.text.trim() && form.publicKey.text.trim() !== MASKED_SECRET;
+  const keptKey = !!current?.public_key && !form.publicKey.remove;
+  return typedKey || keptKey;
+}
+
 /**
  * OpenSSH save check: a public key that will be set or kept needs a type;
  * a key in the `pki` `openssh` namespace.
  */
 export function openSSHProblem(current: PKIOpenSSH | null, form: OpenSSHForm): "publicTypeRequired" | null {
-  const typedKey = !!form.publicKey.text.trim() && form.publicKey.text.trim() !== MASKED_SECRET;
-  const keptKey = !!current?.public_key && !form.publicKey.remove;
-  if ((typedKey || keptKey) && !form.publicType.trim()) return "publicTypeRequired";
+  if (hasOpenSSHPublicKey(current, form) && !form.publicType.trim()) return "publicTypeRequired";
   return null;
 }
 
-/** The only public type the version offers, else empty (the user picks). */
-export function defaultPublicType(publicTypes: readonly string[]): string {
-  return publicTypes.length === 1 ? publicTypes[0] : "";
+/**
+ * The form with the public type defaulted to the only value the version
+ * offers, and only while a public key is set or kept, so a form with no
+ * public key never sends `set_openssh_public_type`.
+ */
+export function withDefaultPublicType(
+  current: PKIOpenSSH | null,
+  form: OpenSSHForm,
+  publicTypes: readonly string[],
+): OpenSSHForm {
+  if (form.publicType.trim() || publicTypes.length !== 1 || !hasOpenSSHPublicKey(current, form)) return form;
+  return { ...form, publicType: publicTypes[0] };
 }
 
 export function openSSHCreateOps(form: OpenSSHForm): BatchOperation[] {
