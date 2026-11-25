@@ -263,11 +263,11 @@ export class RouteService {
   async saveRule(
     policyType: RoutePolicyType,
     policyName: string,
+    ruleNumber: number,
     original: PolicyRouteRule | null,
     form: RouteRuleForm,
     caps: RouteCapabilitiesResponse | null,
   ): Promise<VyOSResponse> {
-    const ruleNumber = original ? original.rule_number : Number(form.rule_number.trim());
     return this.batchConfigure({
       policy_type: policyType,
       name: policyName,

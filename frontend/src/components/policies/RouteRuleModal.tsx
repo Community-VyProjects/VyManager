@@ -14,7 +14,7 @@ import { NamedListSelect } from "@/components/ui/named-list-select";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { CountryMultiSelect } from "@/components/firewall/CountryMultiSelect";
-import { lockedIdentity, modalIsEdit } from "@/lib/modal-mode";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import {
   routeService,
   type PolicyRouteRule,
@@ -174,7 +174,10 @@ export function RouteRuleModal({
     setLoading(true);
     setError(null);
     try {
-      await routeService.saveRule(policyType, policyName, existing, form, caps);
+      // The stored rule number, not the form field, picks the rule an edit writes.
+      const write = modalWriteKind(existing ? { name: String(existing.rule_number) } : null);
+      const ruleNumber = write.kind === "update" ? Number(write.name) : Number(form.rule_number.trim());
+      await routeService.saveRule(policyType, policyName, ruleNumber, existing, form, caps);
       onOpenChange(false);
       onSuccess();
     } catch (err) {

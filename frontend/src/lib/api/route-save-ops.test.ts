@@ -1089,12 +1089,12 @@ describe("routeService", () => {
     await service.deletePolicy(policy);
     const form = emptyRuleForm(" 20 ");
     form.action = "drop";
-    await service.saveRule("route", "PBR", null, form, CAPS15);
+    await service.saveRule("route", "PBR", 20, null, form, CAPS15);
     const stored = bareRule(10);
     const edit = ruleFormFrom(stored);
     edit.rule_number = "99";
     edit.description = "d";
-    await service.saveRule("route6", "PBR", stored, edit, CAPS15);
+    await service.saveRule("route6", "PBR", stored.rule_number, stored, edit, CAPS15);
     await service.deleteRule("route", "PBR", 10);
     assert.deepEqual(posted, [
       { policy_type: "route", name: "NEW", operations: [{ op: "create_policy" }] },
@@ -1135,7 +1135,7 @@ describe("batchConfigure and reorder", () => {
   it("makes no POST for an unchanged edit", async () => {
     await withPost({ success: true }, async (posts) => {
       const rule = fullRule("route");
-      assert.deepEqual(await routeService.saveRule("route", "PBR", rule, ruleFormFrom(rule), CAPS15), { success: true });
+      assert.deepEqual(await routeService.saveRule("route", "PBR", rule.rule_number, rule, ruleFormFrom(rule), CAPS15), { success: true });
       assert.deepEqual(posts, []);
     });
   });
