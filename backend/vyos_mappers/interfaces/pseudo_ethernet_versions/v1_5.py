@@ -13,9 +13,6 @@ from ..pseudo_ethernet import PseudoEthernetInterfaceMapper
 class PseudoEthernetMapper_v1_5(PseudoEthernetInterfaceMapper):
     """VyOS 1.5 pseudo-ethernet interface mapper."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     # ========================================================================
     # Interface-level 1.5-only paths
     # ========================================================================

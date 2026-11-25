@@ -16,9 +16,6 @@ from ..bridge import BridgeInterfaceMapper
 class BridgeMapper_v1_5(BridgeInterfaceMapper):
     """VyOS 1.5 bridge interface mapper with additional features."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     # --- Member interface guards - VyOS 1.5 only ---
     def get_member_interface_bpdu_guard(self, interface: str, member: str) -> List[str]:
         return self._base(interface) + ["member", "interface", member, "bpdu-guard"]

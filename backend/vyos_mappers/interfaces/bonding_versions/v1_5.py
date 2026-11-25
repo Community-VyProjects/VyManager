@@ -15,9 +15,6 @@ from ..bonding import BondingInterfaceMapper
 class BondingMapper_v1_5(BondingInterfaceMapper):
     """VyOS 1.5 bonding interface mapper with additional features."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     # --- EAPoL (802.1X) - VyOS 1.5 only ---
     def get_eapol_ca_certificate(self, interface: str, value: str) -> List[str]:
         return self._base(interface) + ["eapol", "ca-certificate", value]
