@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, Monitor } from "lucide-react";
 import { dhcpServerService, type DHCPStaticMapping } from "@/lib/api/dhcp-server";
 import { failedSaveMessage } from "./dhcp-save";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteStaticMappingModalProps {
   open: boolean;
@@ -58,15 +59,20 @@ export function DeleteStaticMappingModal({
       onSuccess();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : t("deleteMapping.failed")
+        (err as ApiError).message || t("deleteMapping.failed")
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -115,7 +121,7 @@ export function DeleteStaticMappingModal({
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
         </div>

@@ -28,6 +28,7 @@ import {
   type DHCPFailoverConfig,
 } from "@/lib/api/dhcp-server";
 import { failedSaveMessage } from "./dhcp-save";
+import type { ApiError } from "@/lib/types/api";
 
 interface DHCPFailoverModalProps {
   open: boolean;
@@ -55,6 +56,7 @@ export function DHCPFailoverModal({
   capabilities,
 }: DHCPFailoverModalProps) {
   const t = useTranslations("dhcpServer");
+  const tp = useTranslations("pki");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,12 +87,13 @@ export function DHCPFailoverModal({
           setCerts(pki.certificates.map((c) => c.name));
           setCas(pki.ca.map((c) => c.name));
         })
-        .catch(() => {
+        .catch((err) => {
           setCerts([]);
           setCas([]);
+          setError((err as ApiError).message || tp("page.failedToLoad"));
         });
     }
-  }, [open, failover, canCert]);
+  }, [open, failover, canCert, tp]);
 
   const set = (field: keyof DHCPFailoverConfig, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value === "__none__" ? "" : value }));
@@ -109,15 +112,20 @@ export function DHCPFailoverModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failover.saveFailed"));
+      setError((err as ApiError).message || t("failover.saveFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("failover.title")}</DialogTitle>
           <DialogDescription>{t("failover.description")}</DialogDescription>
@@ -220,7 +228,7 @@ export function DHCPFailoverModal({
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
         </div>

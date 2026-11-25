@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, Plus, X } from "lucide-react";
 import { dhcpServerService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSubnet } from "@/lib/api/dhcp-server";
 
@@ -32,6 +34,7 @@ import {
 import { failedSaveMessage } from "./dhcp-save";
 import {
   emptyServerDraft,
+  nextSubnetId,
   serverDraftFrom,
   serverFieldSupport,
   submitServerCreate,
@@ -108,35 +111,6 @@ export function DHCPServerModal({
   const subnetLeaves = capabilities?.catalog?.subnet ?? NO_LEAVES;
   const support = serverFieldSupport(capabilities);
 
-  const calculateNextSubnetId = useCallback(async () => {
-    if (!capabilities?.fields.subnet_id.supported) return;
-
-    try {
-      const config = await dhcpServerService.getConfig();
-      const usedIds = new Set<number>();
-
-      // Collect all used subnet IDs
-      config.shared_networks.forEach((network) => {
-        network.subnets.forEach((subnet) => {
-          if (subnet.subnet_id) {
-            usedIds.add(subnet.subnet_id);
-          }
-        });
-      });
-
-      // Find the lowest available ID starting from 1
-      let nextId = 1;
-      while (usedIds.has(nextId)) {
-        nextId++;
-      }
-
-      setSubnetId(nextId.toString());
-    } catch (err) {
-      console.error("Failed to calculate next subnet ID:", err);
-      setSubnetId("1");
-    }
-  }, [capabilities]);
-
   const applyDraft = (next: ServerDraft) => {
     setMode(next.mode);
     setNetworkName(next.networkName);
@@ -193,6 +167,15 @@ export function DHCPServerModal({
     disabled,
   });
 
+  const loadExistingNetworks = useCallback(async () => {
+    try {
+      const config = await dhcpServerService.getConfig();
+      setExistingNetworks(config.shared_networks.map(n => n.name));
+    } catch (err) {
+      setError((err as ApiError).message || t("page.errors.loadFailed"));
+    }
+  }, [t]);
+
   useEffect(() => {
     if (!open) return;
     if (existing) {
@@ -207,23 +190,14 @@ export function DHCPServerModal({
         next.selectedNetwork = existingNetwork;
       }
       applyDraft(next);
-      calculateNextSubnetId();
       loadExistingNetworks();
       const loaded = emptyCatalogDraft(subnetLeaves);
       setCatalogDraft(loaded);
       setCatalogOriginal(loaded);
     }
     setError(null);
-  }, [open, existing, existingNetwork, calculateNextSubnetId, subnetLeaves]);
+  }, [open, existing, existingNetwork, loadExistingNetworks, subnetLeaves]);
 
-  const loadExistingNetworks = async () => {
-    try {
-      const config = await dhcpServerService.getConfig();
-      setExistingNetworks(config.shared_networks.map(n => n.name));
-    } catch (err) {
-      console.error("Failed to load existing networks:", err);
-    }
-  };
 
 
   const resetForm = () => {
@@ -299,20 +273,9 @@ export function DHCPServerModal({
       } else {
         let calculatedSubnetId: number | undefined;
         if (support.hasSubnetId) {
-          if (subnetId) {
-            calculatedSubnetId = parseInt(subnetId, 10);
-          } else {
-            const config = await dhcpServerService.getConfig();
-            const usedIds = new Set<number>();
-            config.shared_networks.forEach((network) => {
-              network.subnets.forEach((entry) => {
-                if (entry.subnet_id) usedIds.add(entry.subnet_id);
-              });
-            });
-            let nextId = 1;
-            while (usedIds.has(nextId)) nextId++;
-            calculatedSubnetId = nextId;
-          }
+          calculatedSubnetId = subnetId
+            ? parseInt(subnetId, 10)
+            : nextSubnetId(await dhcpServerService.getConfig());
         }
         const created = await submitServerCreate(
           draft,
@@ -417,8 +380,13 @@ export function DHCPServerModal({
   const lockedNetwork = lockedIdentity(existing, (record) => record.network, networkName);
   const lockedSubnet = lockedIdentity(existing, (record) => record.subnet.subnet, subnet);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
@@ -438,30 +406,20 @@ export function DHCPServerModal({
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium">{t("create.mode")}</Label>
-              <div className="flex gap-4 mt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="mode"
-                    value="new"
-                    checked={mode === "new"}
-                    onChange={(e) => setMode(e.target.value as "new")}
-                    className="text-primary"
-                  />
-                  <span className="text-sm">{t("create.modeNew")}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="mode"
-                    value="existing"
-                    checked={mode === "existing"}
-                    onChange={(e) => setMode(e.target.value as "existing")}
-                    className="text-primary"
-                  />
-                  <span className="text-sm">{t("create.modeExisting")}</span>
-                </label>
-              </div>
+              <RadioGroup
+                value={mode}
+                onValueChange={(value) => setMode(value as "new" | "existing")}
+                className="flex gap-4 mt-2"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="new" id="dhcp-mode-new" />
+                  <Label htmlFor="dhcp-mode-new" className="font-normal cursor-pointer">{t("create.modeNew")}</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="existing" id="dhcp-mode-existing" />
+                  <Label htmlFor="dhcp-mode-existing" className="font-normal cursor-pointer">{t("create.modeExisting")}</Label>
+                </div>
+              </RadioGroup>
             </div>
           </div>
         )}
@@ -492,18 +450,12 @@ export function DHCPServerModal({
                       placeholder={t("examplePlaceholder", { example: "LAN" })}
                     />
                   ) : (
-                    <select
+                    <NamedListSelect
                       value={selectedNetwork}
-                      onChange={(e) => setSelectedNetwork(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="">{t("create.selectExistingNetwork")}</option>
-                      {existingNetworks.map((network) => (
-                        <option key={network} value={network}>
-                          {network}
-                        </option>
-                      ))}
-                    </select>
+                      names={existingNetworks}
+                      onValueChange={setSelectedNetwork}
+                      noneLabel={t("create.selectExistingNetwork")}
+                    />
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {isEdit
@@ -566,7 +518,7 @@ export function DHCPServerModal({
                     id="defaultRouter"
                     value={defaultRouter}
                     onChange={(e) => setDefaultRouter(e.target.value)}
-                    placeholder="e.g., 192.168.1.1"
+                    placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                   />
                 </div>
 
@@ -610,7 +562,7 @@ export function DHCPServerModal({
                       <Input
                         value={ns}
                         onChange={(e) => updateNameServer(index, e.target.value)}
-                        placeholder="e.g., 8.8.8.8"
+                        placeholder={t("examplePlaceholder", { example: "8.8.8.8" })}
                       />
                       {nameServers.length > 1 && (
                         <Button
@@ -722,7 +674,7 @@ export function DHCPServerModal({
                       <Input
                         value={exclude}
                         onChange={(e) => updateExclude(index, e.target.value)}
-                        placeholder="e.g., 192.168.1.50"
+                        placeholder={t("examplePlaceholder", { example: "192.168.1.50" })}
                       />
                       <Button
                         type="button"
@@ -764,7 +716,7 @@ export function DHCPServerModal({
                       id="bootfileServer"
                       value={bootfileServer}
                       onChange={(e) => setBootfileServer(e.target.value)}
-                      placeholder="e.g., 192.168.1.10"
+                      placeholder={t("examplePlaceholder", { example: "192.168.1.10" })}
                     />
                   </div>
                 )}
@@ -790,7 +742,7 @@ export function DHCPServerModal({
                         <Input
                           value={ts}
                           onChange={(e) => updateTimeServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                         />
                         <Button
                           type="button"
@@ -824,7 +776,7 @@ export function DHCPServerModal({
                         <Input
                           value={ntp}
                           onChange={(e) => updateNtpServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                         />
                         <Button
                           type="button"
@@ -858,7 +810,7 @@ export function DHCPServerModal({
                         <Input
                           value={wins}
                           onChange={(e) => updateWinsServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.2"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.2" })}
                         />
                         <Button
                           type="button"
@@ -902,7 +854,7 @@ export function DHCPServerModal({
                       id="clientPrefixLength"
                       value={clientPrefixLength}
                       onChange={(e) => setClientPrefixLength(e.target.value)}
-                      placeholder="e.g., 24"
+                      placeholder={t("examplePlaceholder", { example: "24" })}
                     />
                   </div>
                 )}
@@ -975,7 +927,7 @@ export function DHCPServerModal({
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 

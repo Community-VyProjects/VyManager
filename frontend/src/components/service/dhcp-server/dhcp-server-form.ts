@@ -12,6 +12,7 @@ import {
   DHCPServerService,
   type DHCPBatchOperation,
   type DHCPCapabilitiesResponse,
+  type DHCPConfigResponse,
   type DHCPRange,
   type DHCPSubnet,
   type CreateSubnetConfig,
@@ -159,7 +160,8 @@ export function serverDraftFrom(network: string, subnet: DHCPSubnet): ServerDraf
   };
 }
 
-function isValidIPv4(ip: string): boolean {
+/** True for a dotted-quad IPv4 address with every octet 0-255. */
+export function isValidIPv4(ip: string): boolean {
   const match = ip.match(IPV4);
   if (!match) return false;
   return match.slice(1).every((octet) => {
@@ -181,15 +183,17 @@ function isValidDomain(domain: string): boolean {
   return DOMAIN.test(domain) && domain.length <= 253;
 }
 
-function ipToNumber(ip: string): number {
+/** IPv4 address as an unsigned 32-bit number. */
+export function ipToNumber(ip: string): number {
   return ip.split(".").reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
 }
 
-function isIPInSubnet(ip: string, subnet: string): boolean {
+/** True when a valid IPv4 address falls inside a valid CIDR. */
+export function isIPInSubnet(ip: string, subnet: string): boolean {
   if (!isValidIPv4(ip) || !isValidCIDR(subnet)) return false;
   const [subnetIP, prefixStr] = subnet.split("/");
   const prefix = parseInt(prefixStr, 10);
-  const mask = (0xffffffff << (32 - prefix)) >>> 0;
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
   return (ipToNumber(ip) & mask) === (ipToNumber(subnetIP) & mask);
 }
 
@@ -548,4 +552,17 @@ export async function submitServerUpdate(
   const payload = buildServerUpdate(existing, draft, support, catalogOperations);
   if (!payload) return null;
   return service.updateSubnet(payload);
+}
+
+/** Lowest subnet-id not used by any subnet in the config. */
+export function nextSubnetId(config: DHCPConfigResponse): number {
+  const used = new Set<number>();
+  for (const network of config.shared_networks) {
+    for (const subnet of network.subnets) {
+      if (subnet.subnet_id) used.add(subnet.subnet_id);
+    }
+  }
+  let next = 1;
+  while (used.has(next)) next++;
+  return next;
 }

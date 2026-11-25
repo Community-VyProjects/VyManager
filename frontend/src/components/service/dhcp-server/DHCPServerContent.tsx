@@ -48,6 +48,7 @@ import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { DHCPServerModal } from "./DHCPServerModal";
 import { DeleteDHCPModal } from "./DeleteDHCPModal";
 import { failedSaveMessage } from "./dhcp-save";
+import { ipToNumber, isIPInSubnet } from "./dhcp-server-form";
 import { DeleteStaticMappingModal } from "./DeleteStaticMappingModal";
 import { AddLeaseToStaticMappingModal } from "./AddLeaseToStaticMappingModal";
 import { RangeModal } from "./RangeModal";
@@ -58,6 +59,9 @@ import { DHCPDdnsModal } from "./DHCPDdnsModal";
 import { DHCPNetworkOptionsModal } from "./DHCPNetworkOptionsModal";
 import { DHCPClientClassModal } from "./DHCPClientClassModal";
 import { ChevronRight } from "lucide-react";
+import type { ApiError } from "@/lib/types/api";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 function formatLease(
   seconds: string,
@@ -71,27 +75,10 @@ function formatLease(
   return format("minutes", Math.floor(secs / 60));
 }
 
-// Helper function to check if an IP address is within a CIDR subnet
-function isIpInSubnet(ip: string, cidr: string): boolean {
-  const [subnetIp, maskBits] = cidr.split("/");
-  const mask = parseInt(maskBits);
-
-  const ipParts = ip.split(".").map(Number);
-  const subnetParts = subnetIp.split(".").map(Number);
-
-  // Convert to 32-bit integers
-  const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
-  const subnetInt = (subnetParts[0] << 24) | (subnetParts[1] << 16) | (subnetParts[2] << 8) | subnetParts[3];
-
-  // Create mask
-  const maskInt = mask === 0 ? 0 : (~0 << (32 - mask)) >>> 0;
-
-  // Check if IP is in subnet
-  return ((ipInt >>> 0) & maskInt) === ((subnetInt >>> 0) & maskInt);
-}
-
 export function DHCPServerContent() {
   const t = useTranslations("dhcpServer");
+  const { canWrite } = usePermissions();
+  const hasWrite = canWrite(FeatureGroup.DHCP);
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<DHCPConfigResponse | null>(null);
@@ -113,6 +100,7 @@ export function DHCPServerContent() {
   // Lease states
   const [leases, setLeases] = useState<DHCPLease[]>([]);
   const [leasesLoading, setLeasesLoading] = useState(false);
+  const [leasesError, setLeasesError] = useState<string | null>(null);
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -174,7 +162,7 @@ export function DHCPServerContent() {
 
   // Disable/enable confirmation modal state
   type DisableConfirm =
-    | { kind: "network"; networkName: string; currentlyDisabled: boolean }
+    | { kind: "network"; networkName: string; currentlyDisabled: boolean; blocked?: boolean }
     | { kind: "global"; currentlyDisabled: boolean };
   const [disableConfirm, setDisableConfirm] = useState<DisableConfirm | null>(null);
   const [disableConfirmLoading, setDisableConfirmLoading] = useState(false);
@@ -185,7 +173,7 @@ export function DHCPServerContent() {
       // Guard before even showing the modal
       const enabledCount = config?.shared_networks.filter(n => !n.disable).length ?? 0;
       if (enabledCount <= 1) {
-        setDisableConfirm({ kind: "network", networkName, currentlyDisabled });
+        setDisableConfirm({ kind: "network", networkName, currentlyDisabled, blocked: true });
         setDisableConfirmError(t("page.errors.lastNetwork"));
         return;
       }
@@ -201,7 +189,7 @@ export function DHCPServerContent() {
   };
 
   const handleConfirmDisableToggle = async () => {
-    if (!disableConfirm) return;
+    if (!disableConfirm || (disableConfirm.kind === "network" && disableConfirm.blocked)) return;
     setDisableConfirmLoading(true);
     setDisableConfirmError(null);
     try {
@@ -223,7 +211,7 @@ export function DHCPServerContent() {
       setDisableConfirm(null);
       fetchConfig(true);
     } catch (err) {
-      setDisableConfirmError(err instanceof Error ? err.message : tc("operationFailed"));
+      setDisableConfirmError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setDisableConfirmLoading(false);
     }
@@ -238,25 +226,26 @@ export function DHCPServerContent() {
       setClearLeaseTarget(null);
       fetchLeases();
     } catch (err) {
-      setClearLeaseError(err instanceof Error ? err.message : t("page.errors.clearLeaseFailed"));
+      setClearLeaseError((err as ApiError).message || t("page.errors.clearLeaseFailed"));
     } finally {
       setClearLeaseLoading(false);
     }
   };
 
 
-  const fetchLeases = async () => {
+  const fetchLeases = useCallback(async () => {
     try {
       setLeasesLoading(true);
+      setLeasesError(null);
       const leasesData = await dhcpServerService.getLeases();
       setLeases(leasesData.leases);
     } catch (err) {
-      console.error("Error fetching leases:", err);
       setLeases([]);
+      setLeasesError((err as ApiError).message || t("page.errors.loadLeasesFailed"));
     } finally {
       setLeasesLoading(false);
     }
-  };
+  }, [t]);
 
   const closeDeleteRange = () => {
     setDeleteRangeTarget(null);
@@ -281,7 +270,7 @@ export function DHCPServerContent() {
       closeDeleteRange();
       fetchConfig(true);
     } catch (err) {
-      setDeleteRangeError(err instanceof Error ? err.message : t("range.deleteFailed"));
+      setDeleteRangeError((err as ApiError).message || t("range.deleteFailed"));
     } finally {
       setDeleteRangeLoading(false);
     }
@@ -304,9 +293,8 @@ export function DHCPServerContent() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : t("page.errors.loadFailed")
+        (err as ApiError).message || t("page.errors.loadFailed")
       );
-      console.error("Error fetching DHCP config:", err);
     } finally {
       setLoading(false);
     }
@@ -315,7 +303,7 @@ export function DHCPServerContent() {
   useEffect(() => {
     fetchConfig();
     fetchLeases();
-  }, [fetchConfig]);
+  }, [fetchConfig, fetchLeases]);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -329,10 +317,8 @@ export function DHCPServerContent() {
 
   // Get lease count for a subnet by checking if lease IP falls within subnet CIDR
   const getSubnetLeaseCount = (subnet: string): number => {
-    return leases.filter((l) => l.state === "active" && isIpInSubnet(l.ip_address, subnet)).length;
+    return leases.filter((l) => l.state === "active" && isIPInSubnet(l.ip_address, subnet)).length;
   };
-
-  // Get total active leases for a network
 
   // Get all static mappings for current network
   const getAllStaticMappings = (): Array<DHCPStaticMapping & { subnet: string }> => {
@@ -431,7 +417,7 @@ export function DHCPServerContent() {
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <h2 className="text-xl font-semibold text-foreground">{t("page.errorTitle")}</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
+            <p className="text-muted-foreground max-w-md whitespace-pre-wrap">{error}</p>
             <Button onClick={() => fetchConfig(true)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
               {tc("retry")}
@@ -460,34 +446,40 @@ export function DHCPServerContent() {
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
-            <Button
-              className="w-full"
-              size="sm"
-              onClick={() => setCreateModalOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t("page.newServer")}
-            </Button>
-            <Button
-              className="w-full mt-2"
-              size="sm"
-              variant="outline"
-              onClick={() => setSettingsModalOpen(true)}
-              disabled={!config}
-            >
-              <Settings2 className="h-4 w-4 mr-2" />
-              {t("page.serverSettings")}
-            </Button>
-            <Button
-              className="w-full mt-2"
-              size="sm"
-              variant="outline"
-              onClick={() => setFailoverModalOpen(true)}
-              disabled={!config}
-            >
-              {t("page.highAvailability")}
-            </Button>
-            {(capabilities?.fields.dynamic_dns_update_leaf?.supported ||
+            {hasWrite && (
+              <Button
+                className="w-full"
+                size="sm"
+                onClick={() => setCreateModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t("page.newServer")}
+              </Button>
+            )}
+            {hasWrite && (
+              <Button
+                className="w-full mt-2"
+                size="sm"
+                variant="outline"
+                onClick={() => setSettingsModalOpen(true)}
+                disabled={!config}
+              >
+                <Settings2 className="h-4 w-4 mr-2" />
+                {t("page.serverSettings")}
+              </Button>
+            )}
+            {hasWrite && (
+              <Button
+                className="w-full mt-2"
+                size="sm"
+                variant="outline"
+                onClick={() => setFailoverModalOpen(true)}
+                disabled={!config}
+              >
+                {t("page.highAvailability")}
+              </Button>
+            )}
+            {hasWrite && (capabilities?.fields.dynamic_dns_update_leaf?.supported ||
               capabilities?.fields.dynamic_dns_update_kea?.supported) && (
               <Button
                 className="w-full mt-2"
@@ -499,7 +491,7 @@ export function DHCPServerContent() {
                 {t("page.dynamicDns")}
               </Button>
             )}
-            {capabilities?.fields.client_class?.supported && (
+            {hasWrite && capabilities?.fields.client_class?.supported && (
               <Button
                 className="w-full mt-2"
                 size="sm"
@@ -510,10 +502,29 @@ export function DHCPServerContent() {
                 {t("clientClass.title")}
               </Button>
             )}
+            {hasWrite && (
+              <Button
+                className={cn(
+                  "w-full mt-2",
+                  config?.global_config.disable
+                    ? "border-green-500/50 text-green-600 hover:bg-green-500/10"
+                    : "border-muted text-muted-foreground hover:bg-muted"
+                )}
+                size="sm"
+                variant="outline"
+                onClick={requestToggleGlobalDisable}
+                disabled={!config}
+              >
+                {config?.global_config.disable
+                  ? <><Power className="h-4 w-4 mr-2" />{t("page.enableDhcp")}</>
+                  : <><PowerOff className="h-4 w-4 mr-2" />{t("page.disableDhcp")}</>
+                }
+              </Button>
+            )}
           </div>
 
           {/* Network List */}
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-2">
               {config?.shared_networks.length === 0 ? (
                 <div className="px-3 py-8 text-center">
@@ -547,29 +558,33 @@ export function DHCPServerContent() {
                         <div className="flex-1 min-w-0">
                           <div className={cn("font-medium truncate", isDisabled && "text-muted-foreground")}>{network.name}</div>
                         </div>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            requestToggleNetworkDisable(network.name, isDisabled);
-                          }}
-                          title={isDisabled ? t("page.enableNetwork") : t("page.disableNetwork")}
-                        >
-                          {isDisabled
-                              ? <Power className="h-4 w-4 text-green-500" />
-                              : <PowerOff className="h-4 w-4 text-muted-foreground" />
-                          }
-                        </button>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeletingNetwork(network.name);
-                          }}
-                          title={t("page.deleteNetwork")}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </button>
+                        {hasWrite && (
+                          <>
+                          <button
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              requestToggleNetworkDisable(network.name, isDisabled);
+                            }}
+                            title={isDisabled ? t("page.enableNetwork") : t("page.disableNetwork")}
+                          >
+                            {isDisabled
+                                ? <Power className="h-4 w-4 text-green-500" />
+                                : <PowerOff className="h-4 w-4 text-muted-foreground" />
+                            }
+                          </button>
+                          <button
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingNetwork(network.name);
+                            }}
+                            title={t("page.deleteNetwork")}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </button>
+                          </>
+                        )}
                       </div>
                     );
                   })}
@@ -594,7 +609,7 @@ export function DHCPServerContent() {
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-emerald-500" />
                 <span className="text-muted-foreground">{t("page.stats.leases")}</span>
-                <span className="font-medium">{totalActiveLeases}</span>
+                <span className="font-medium">{leasesError ? "—" : totalActiveLeases}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-purple-500" />
@@ -649,7 +664,7 @@ export function DHCPServerContent() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  {hasWrite && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -657,22 +672,7 @@ export function DHCPServerContent() {
                     >
                       {t("networkOptions.open")}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={requestToggleGlobalDisable}
-                      className={cn(
-                        config?.global_config.disable
-                          ? "border-green-500/50 text-green-600 hover:bg-green-500/10"
-                          : "border-muted text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      {config?.global_config.disable
-                        ? <><Power className="h-4 w-4 mr-1.5" />{t("page.enableDhcp")}</>
-                        : <><PowerOff className="h-4 w-4 mr-1.5" />{t("page.disableDhcp")}</>
-                      }
-                    </Button>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -727,13 +727,15 @@ export function DHCPServerContent() {
                           className="pl-10"
                         />
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => setAddingSubnetToNetwork(currentNetwork.name)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("page.addSubnet")}
-                      </Button>
+                      {hasWrite && (
+                        <Button
+                          size="sm"
+                          onClick={() => setAddingSubnetToNetwork(currentNetwork.name)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {t("page.addSubnet")}
+                        </Button>
+                      )}
                       <div className="text-sm text-muted-foreground ml-auto">
                         {t("page.subnetCount", { count: filteredSubnets.length })}
                       </div>
@@ -751,7 +753,7 @@ export function DHCPServerContent() {
                             <p className="text-sm text-muted-foreground mb-4">
                               {searchQuery ? t("page.noSubnetsMatch") : t("page.noSubnetsHint")}
                             </p>
-                            {!searchQuery && (
+                            {!searchQuery && hasWrite && (
                               <Button onClick={() => setAddingSubnetToNetwork(currentNetwork.name)}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 {t("page.addSubnet")}
@@ -837,7 +839,7 @@ export function DHCPServerContent() {
                                           activeCount > 0 && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                                         )}
                                       >
-                                        {activeCount}
+                                        {leasesError ? "—" : activeCount}
                                       </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -859,28 +861,32 @@ export function DHCPServerContent() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => setEditingSubnet({
-                                            network: currentNetwork.name,
-                                            subnet,
-                                          })}
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 hover:bg-destructive/10"
-                                          onClick={() => setDeletingSubnet({
-                                            network: currentNetwork.name,
-                                            subnet,
-                                          })}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
+                                        {hasWrite && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => setEditingSubnet({
+                                              network: currentNetwork.name,
+                                              subnet,
+                                            })}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                        {hasWrite && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-destructive/10"
+                                            onClick={() => setDeletingSubnet({
+                                              network: currentNetwork.name,
+                                              subnet,
+                                            })}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
@@ -915,13 +921,15 @@ export function DHCPServerContent() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => setAddingRange(true)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("subnetForm.addRange")}
-                      </Button>
+                      {hasWrite && (
+                        <Button
+                          size="sm"
+                          onClick={() => setAddingRange(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {t("subnetForm.addRange")}
+                        </Button>
+                      )}
                       <div className="text-sm text-muted-foreground ml-auto">
                         {t("page.rangeCount", { count: filteredRanges.length })}
                       </div>
@@ -957,11 +965,7 @@ export function DHCPServerContent() {
                                 // Calculate pool size
                                 let poolSize = "—";
                                 if (range.start && range.stop) {
-                                  const startParts = range.start.split(".").map(Number);
-                                  const stopParts = range.stop.split(".").map(Number);
-                                  const startNum = (startParts[0] << 24) + (startParts[1] << 16) + (startParts[2] << 8) + startParts[3];
-                                  const stopNum = (stopParts[0] << 24) + (stopParts[1] << 16) + (stopParts[2] << 8) + stopParts[3];
-                                  poolSize = String((stopNum - startNum + 1) >>> 0);
+                                  poolSize = String(ipToNumber(range.stop) - ipToNumber(range.start) + 1);
                                 }
 
                                 return (
@@ -977,36 +981,36 @@ export function DHCPServerContent() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => setEditingRange({
-                                            subnet: range.subnet,
-                                            range: {
-                                              range_id: range.range_id,
-                                              start: range.start,
-                                              stop: range.stop,
-                                            },
-                                          })}
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 hover:bg-destructive/10"
-                                          onClick={() =>
-                                            setDeleteRangeTarget({
-                                              subnet: range.subnet,
-                                              range_id: range.range_id,
-                                              start: range.start ?? "",
-                                              stop: range.stop ?? "",
-                                            })
-                                          }
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
+                                        {hasWrite && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => {
+                                              const { subnet: rangeSubnet, ...stored } = range;
+                                              setEditingRange({ subnet: rangeSubnet, range: stored });
+                                            }}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                        {hasWrite && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-destructive/10"
+                                            onClick={() =>
+                                              setDeleteRangeTarget({
+                                                subnet: range.subnet,
+                                                range_id: range.range_id,
+                                                start: range.start ?? "",
+                                                stop: range.stop ?? "",
+                                              })
+                                            }
+                                          >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
@@ -1067,13 +1071,15 @@ export function DHCPServerContent() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => setAddingStaticMapping(true)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("mapping.addTitle")}
-                      </Button>
+                      {hasWrite && (
+                        <Button
+                          size="sm"
+                          onClick={() => setAddingStaticMapping(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {t("mapping.addTitle")}
+                        </Button>
+                      )}
                       <div className="text-sm text-muted-foreground ml-auto">
                         {t("page.mappingCount", { count: filteredStaticMappings.length })}
                       </div>
@@ -1136,44 +1142,40 @@ export function DHCPServerContent() {
                                   </TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => {
-                                          setEditingStaticMapping({
-                                            network: currentNetwork.name,
-                                            subnet: mapping.subnet,
-                                            mapping: {
-                                              name: mapping.name,
-                                              ip_address: mapping.ip_address,
-                                              mac_address: mapping.mac_address,
-                                              disable: mapping.disable,
-                                            },
-                                          });
-                                        }}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 hover:bg-destructive/10"
-                                        onClick={() => {
-                                          setDeletingStaticMapping({
-                                            network: currentNetwork.name,
-                                            subnet: mapping.subnet,
-                                            mapping: {
-                                              name: mapping.name,
-                                              ip_address: mapping.ip_address,
-                                              mac_address: mapping.mac_address,
-                                              disable: mapping.disable,
-                                            },
-                                          });
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
+                                      {hasWrite && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => {
+                                            const { subnet: mappingSubnet, ...stored } = mapping;
+                                            setEditingStaticMapping({
+                                              network: currentNetwork.name,
+                                              subnet: mappingSubnet,
+                                              mapping: stored,
+                                            });
+                                          }}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                      {hasWrite && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 hover:bg-destructive/10"
+                                          onClick={() => {
+                                            const { subnet: mappingSubnet, ...stored } = mapping;
+                                            setDeletingStaticMapping({
+                                              network: currentNetwork.name,
+                                              subnet: mappingSubnet,
+                                              mapping: stored,
+                                            });
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      )}
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -1239,7 +1241,7 @@ export function DHCPServerContent() {
                         {tc("refresh")}
                       </Button>
                       <div className="text-sm text-muted-foreground ml-auto">
-                        {t("page.leaseCount", { count: filteredLeases.length })}
+                        {!leasesError && t("page.leaseCount", { count: filteredLeases.length })}
                       </div>
                     </div>
 
@@ -1252,6 +1254,11 @@ export function DHCPServerContent() {
                               <Loader2 className="h-4 w-4 animate-spin" />
                               {t("page.loadingLeases")}
                             </div>
+                          </div>
+                        ) : leasesError ? (
+                          <div className="flex items-center gap-2 m-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                            <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                            <p className="text-sm text-destructive whitespace-pre-wrap">{leasesError}</p>
                           </div>
                         ) : filteredLeases.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-12">
@@ -1316,7 +1323,7 @@ export function DHCPServerContent() {
                                         >
                                           {t("page.staticAssigned")}
                                         </Badge>
-                                      ) : (
+                                      ) : hasWrite ? (
                                         <Button
                                           variant="ghost"
                                           size="sm"
@@ -1326,8 +1333,8 @@ export function DHCPServerContent() {
                                           <Plus className="h-4 w-4 mr-1" />
                                           {t("page.addStatic")}
                                         </Button>
-                                      )}
-                                      {(lease.state === "active" || capabilities?.fields.clear_inactive_lease?.supported) && (
+                                      ) : null}
+                                      {hasWrite && (lease.state === "active" || capabilities?.fields.clear_inactive_lease?.supported) && (
                                         <Button
                                           variant="ghost"
                                           size="icon"
@@ -1360,10 +1367,12 @@ export function DHCPServerContent() {
                 <p className="text-muted-foreground max-w-md">
                   {t("page.noServersDescription")}
                 </p>
-                <Button onClick={() => setCreateModalOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("create.submit")}
-                </Button>
+                {hasWrite && (
+                  <Button onClick={() => setCreateModalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("create.submit")}
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -1577,7 +1586,7 @@ export function DHCPServerContent() {
             {disableConfirmError && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                <p className="text-sm text-destructive">{disableConfirmError}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">{disableConfirmError}</p>
               </div>
             )}
 
@@ -1592,7 +1601,7 @@ export function DHCPServerContent() {
               <Button
                 variant={disableConfirm?.currentlyDisabled ? "default" : "destructive"}
                 onClick={handleConfirmDisableToggle}
-                disabled={disableConfirmLoading || !!disableConfirmError}
+                disabled={disableConfirmLoading || (disableConfirm?.kind === "network" && disableConfirm.blocked === true)}
               >
                 {disableConfirmLoading
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("toggle.processing")}</>
@@ -1628,7 +1637,7 @@ export function DHCPServerContent() {
             {clearLeaseError && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                <p className="text-sm text-destructive">{clearLeaseError}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">{clearLeaseError}</p>
               </div>
             )}
 
@@ -1677,7 +1686,7 @@ export function DHCPServerContent() {
             {deleteRangeError && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                <p className="text-sm text-destructive">{deleteRangeError}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">{deleteRangeError}</p>
               </div>
             )}
 
