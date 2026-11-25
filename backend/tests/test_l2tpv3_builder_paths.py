@@ -4,6 +4,8 @@ Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
 Generated for issue #721; edit the tables directly if the mapper changes.
 """
 
+import inspect
+
 import pytest
 
 from vyos_builders.interfaces.l2tpv3 import L2TPv3InterfaceBuilderMixin
@@ -99,10 +101,29 @@ def test_l2tpv3_common_paths(method, args, op, expected_path, version):
 
 V15_ONLY_CASES = [
     ('delete_ipv6_address_interface_identifier', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'interface-identifier']),
-    ('set_ipv6_address_interface_identifier', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'interface-identifier', '5']),
+    ('set_ipv6_address_interface_identifier', ('l2tpeth0', '::1'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'interface-identifier', '::1']),
 ]
 
 
 @pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
 def test_l2tpv3_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
+
+
+@pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
+def test_l2tpv3_v1_5_only_paths_rejected_on_1_4(method, args, op, expected_path):
+    builder = L2TPv3InterfaceBuilderMixin(version="1.4")
+    with pytest.raises(ValueError, match="not supported on this device"):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []
+
+
+def test_every_builder_op_has_a_golden_row():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(L2TPv3InterfaceBuilderMixin, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    rows = {row[0] for row in COMMON_CASES + V15_ONLY_CASES}
+    assert ops - rows == set()
+    assert rows - ops == set()
