@@ -951,7 +951,8 @@ async def _show_output(service: Any, path: List[str], detail: str) -> str:
     """Op-mode show output; 502 when the device refuses or cannot be reached.
 
     A failed show is not empty output: the caller would report no images or
-    an empty log for a device error.
+    an empty log for a device error. A refused show passes the device's error
+    text through, as the ethernet transceiver route does.
     """
     try:
         response = await run_in_threadpool(service.device.show, path=path)
@@ -962,7 +963,7 @@ async def _show_output(service: Any, path: List[str], detail: str) -> str:
         logger.warning(
             "Container show %s failed (status %s): %s", " ".join(path), response.status, response.error
         )
-        raise HTTPException(status_code=502, detail=detail)
+        raise HTTPException(status_code=502, detail=response.error or detail)
     return response.result if isinstance(response.result, str) else ""
 
 

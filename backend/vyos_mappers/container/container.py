@@ -161,6 +161,18 @@ class ContainerMapper(BaseFeatureMapper):
         return 128
 
     # ========================================================================
+    # Verify rules that differ by version (proven by lab commits)
+    # ========================================================================
+
+    def name_server_needs_no_name_server(self) -> bool:
+        """1.5 refuses a container name-server when its network keeps DNS on."""
+        return False
+
+    def unique_attachment_addresses(self) -> bool:
+        """1.5 refuses an attachment IP or MAC another container already uses."""
+        return False
+
+    # ========================================================================
     # Config parse
     # ========================================================================
 
@@ -337,8 +349,8 @@ class ContainerMapper(BaseFeatureMapper):
     def get_name_label(self, name: str, label: str) -> List[str]:
         return self._name(name) + ["label", label]
 
-    def get_name_label_value(self, name: str, label: str, value: str) -> List[str]:
-        return self._name(name) + ["label", label, "value", value]
+    def get_name_label_value(self, name: str, label: str, label_value: str) -> List[str]:
+        return self._name(name) + ["label", label, "value", label_value]
 
     def get_name_label_value_delete(self, name: str, label: str) -> List[str]:
         return self._name(name) + ["label", label, "value"]

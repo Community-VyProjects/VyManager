@@ -199,6 +199,7 @@ def test_config_masks_the_registry_password(client):
     ({"op": "set_name_image"}, "Operation set_name_image requires a value"),
     ({"op": "set_registry_insecure", "value": ""}, "Operation set_registry_insecure requires a value"),
     ({"op": "set_name_image", "value": "web,"}, "Operation set_name_image requires 2 values"),
+    ({"op": "set_name_label_value", "value": "web,app,"}, "Operation set_name_label_value requires 3 values"),
     ({"op": "set_name_disable", "value": "web,"}, "Invalid name in operation 'set_name_disable'."),
 ])
 def test_batch_missing_value_is_400(client, operation, detail):
@@ -391,23 +392,27 @@ def test_show_paths_come_from_the_registry_mapper(client, monkeypatch, show):
     assert show["paths"] == [["tagged", "image"], ["tagged", "log", "web"]]
 
 
-@pytest.mark.parametrize("reply", [
-    SimpleNamespace(status=400, result="", error=None),
-    SimpleNamespace(status=200, result="", error="T-device-error"),
-    RequestsConnectionError("T-unreachable"),
+@pytest.mark.parametrize("reply, shown", [
+    (SimpleNamespace(status=400, result="", error=None), None),
+    (SimpleNamespace(status=200, result="", error="T-device-error"), "T-device-error"),
+    (SimpleNamespace(status=500, result="", error="T-device-error"), "T-device-error"),
+    (RequestsConnectionError("T-unreachable"), None),
 ])
 @pytest.mark.parametrize("method, path, body, detail", [
     ("get", "/vyos/container/images", None, "Failed to list container images"),
     ("post", "/vyos/container/log", {"container_name": "web"}, "Failed to retrieve container log"),
 ])
-def test_failed_show_is_502(client, show, reply, method, path, body, detail):
-    """A failed show is a 502, not an empty image list or an empty log."""
+def test_failed_show_is_502(client, show, reply, shown, method, path, body, detail):
+    """A failed show is a 502 with the device's error, not an empty image list or log.
+
+    A transport failure keeps the fixed detail; its exception text is only logged.
+    """
     show["replies"].clear()
     show["default"] = reply
     resp = getattr(client.http, method)(path, **({"json": body} if body is not None else {}))
     assert resp.status_code == 502, resp.text
-    assert resp.json()["detail"] == detail
-    assert "T-" not in resp.text
+    assert resp.json()["detail"] == (shown or detail)
+    assert "T-unreachable" not in resp.text
 
 
 @pytest.mark.parametrize("op, value", [

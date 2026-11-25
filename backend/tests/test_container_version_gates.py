@@ -92,6 +92,8 @@ def test_capabilities_on_14(version):
     assert values["network_mac_keywords"] == []
     assert values["health_check_interval_keywords"] == []
     assert values["registry_password_max_length"] == 128
+    assert caps["name_server_needs_no_name_server"] is False
+    assert caps["unique_attachment_addresses"] is False
 
 
 @pytest.mark.parametrize("version", ["1.5", ROLLING])
@@ -110,6 +112,8 @@ def test_capabilities_on_15(version):
     assert values["network_mac_keywords"] == ["auto"]
     assert values["health_check_interval_keywords"] == ["disable"]
     assert values["registry_password_max_length"] == 512
+    assert caps["name_server_needs_no_name_server"] is True
+    assert caps["unique_attachment_addresses"] is True
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.5"])

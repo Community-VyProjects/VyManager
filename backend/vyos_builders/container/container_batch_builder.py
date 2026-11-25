@@ -46,6 +46,9 @@ class ContainerBatchBuilder(BatchBuilder):
         nodes = m.versioned_nodes()
         return {
             "version": self.version,
+            # Verify rules only 1.5 enforces; the screen checks them before a save.
+            "name_server_needs_no_name_server": m.name_server_needs_no_name_server(),
+            "unique_attachment_addresses": m.unique_attachment_addresses(),
             "features": {
                 "allow_host_cgroups": "allow_host_cgroups" in nodes,
                 "health_check": "health_check" in nodes,
@@ -316,8 +319,9 @@ class ContainerBatchBuilder(BatchBuilder):
     def delete_name_label(self, name: str, label: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_label(name, label))
 
-    def set_name_label_value(self, name: str, label: str, value: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_label_value(name, label, value))
+    def set_name_label_value(self, name: str, label: str, label_value: str) -> "ContainerBatchBuilder":
+        # Not named ``value``: the router lets only environment and sysctl values be empty.
+        return self.add_set(self.m.get_name_label_value(name, label, label_value))
 
     def delete_name_label_value(self, name: str, label: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_label_value_delete(name, label))

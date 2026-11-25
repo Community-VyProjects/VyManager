@@ -54,6 +54,16 @@ class ContainerMapperV1_5(ContainerMapper):
         return 512
 
     # ========================================================================
+    # Verify rules
+    # ========================================================================
+
+    def name_server_needs_no_name_server(self) -> bool:
+        return True
+
+    def unique_attachment_addresses(self) -> bool:
+        return True
+
+    # ========================================================================
     # Container name
     # ========================================================================
 
