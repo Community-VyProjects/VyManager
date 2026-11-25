@@ -3,8 +3,10 @@ Policy Route Batch Builder
 
 Provides all batch operations for policy route and route6 configuration.
 The mapper allowlist (versioned_nodes) decides which version-only nodes this
-device has; a 1.5-only op raises ValueError on 1.4, and so does a value a
-value list does not hold.
+device has; a 1.5-only op raises ValueError on 1.4. Ops whose value names a
+child node (tcp flag, fragment, ipsec, ttl / hop-limit operator) raise
+ValueError for a name outside the mapper's list; other values go to the
+device as given and its commit validates them.
 """
 
 from typing import Any, Dict, List, cast

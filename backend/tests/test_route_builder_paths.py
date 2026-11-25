@@ -1,8 +1,10 @@
 """Golden (method, args, op, expected_path) cases for RouteBatchBuilder.
 
 Sample values were committed on 1.4 (100.64.64.4) and 1.5 (100.64.64.5) for
-both policy route and route6 (geoip and set vrf on 1.5 only). icmp/ttl rows
-use route; icmpv6/hop-limit rows use route6.
+both policy route and route6 (geoip and set vrf on 1.5 only), except the
+`recent` rows (that match fails at apply on both labs) and the 1.4
+`limit rate` row (any 1.4 rate fails at apply). icmp/ttl rows use route;
+icmpv6/hop-limit rows use route6.
 """
 
 import inspect
@@ -111,7 +113,6 @@ COMMON_CASES = [
     ('set_match_icmp_type_name', ('route', 'PBR', '10', 'echo-request'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'icmp', 'type-name', 'echo-request']),
     ('set_match_icmpv6_type', ('route6', 'PBR', '10', 'echo-request'), 'set', ['policy', 'route6', 'PBR', 'rule', '10', 'icmpv6', 'type', 'echo-request']),
     ('set_match_limit_burst', ('route', 'PBR', '10', '5'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'limit', 'burst', '5']),
-    ('set_match_limit_rate', ('route', 'PBR', '10', '10/minute'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'limit', 'rate', '10/minute']),
     ('set_match_mark', ('route', 'PBR', '10', '5'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'mark', '5']),
     ('set_match_packet_length', ('route', 'PBR', '10', '300-400'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'packet-length', '300-400']),
     ('set_match_packet_length_exclude', ('route', 'PBR', '10', '200'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'packet-length-exclude', '200']),
@@ -149,11 +150,13 @@ COMMON_CASES = [
 ]
 
 V14_CASES = [
+    ('set_match_limit_rate', ('route', 'PBR', '10', '10'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'limit', 'rate', '10']),
     ('delete_match_ipsec', ('route', 'PBR', '10', 'match-ipsec'), 'delete', ['policy', 'route', 'PBR', 'rule', '10', 'ipsec', 'match-ipsec']),
     ('set_match_ipsec', ('route', 'PBR', '10', 'match-ipsec'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'ipsec', 'match-ipsec']),
 ]
 
 V15_CASES = [
+    ('set_match_limit_rate', ('route', 'PBR', '10', '10/minute'), 'set', ['policy', 'route', 'PBR', 'rule', '10', 'limit', 'rate', '10/minute']),
     ('delete_match_destination_geoip', ('route', 'PBR', '10'), 'delete', ['policy', 'route', 'PBR', 'rule', '10', 'destination', 'geoip']),
     ('delete_match_destination_geoip_asn', ('route', 'PBR', '10', '64501'), 'delete', ['policy', 'route', 'PBR', 'rule', '10', 'destination', 'geoip', 'asn', '64501']),
     ('delete_match_destination_geoip_country_code', ('route', 'PBR', '10', 'de'), 'delete', ['policy', 'route', 'PBR', 'rule', '10', 'destination', 'geoip', 'country-code', 'de']),
@@ -203,7 +206,12 @@ def test_v1_5_paths(method, args, op, path):
     assert (result["op"], result["path"]) == (op, path)
 
 
-@pytest.mark.parametrize("method,args,op,path", V15_CASES, ids=[row[0] for row in V15_CASES])
+# Rows whose op exists on 1.4 with another value shape (ipsec leaves, limit rate)
+# are not 1.5-only.
+V15_ONLY = [row for row in V15_CASES if row[0] not in {r[0] for r in V14_CASES}]
+
+
+@pytest.mark.parametrize("method,args,op,path", V15_ONLY, ids=[row[0] for row in V15_ONLY])
 def test_v1_5_only_rejected_on_v1_4(method, args, op, path):
     with pytest.raises(ValueError):
         getattr(RouteBatchBuilder("1.4.3"), method)(*args)
