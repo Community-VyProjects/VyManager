@@ -9,7 +9,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PolicyInterfacesField } from "./PolicyInterfacesField";
 import { AlertCircle } from "lucide-react";
 import { routeService, type RouteCapabilitiesResponse, type RoutePolicyType } from "@/lib/api/route";
-import { descriptionMaxLength, policyProblem, type PolicyForm } from "@/lib/api/route-save-ops";
+import {
+  descriptionMaxLength,
+  interfacesWithPending,
+  policyProblem,
+  type PolicyForm,
+} from "@/lib/api/route-save-ops";
 import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
@@ -35,12 +40,19 @@ export function CreateRoutePolicyModal({
   const tp = useTranslations("routePolicy.policyErrors");
   const tc = useTranslations("common");
   const [form, setForm] = useState<PolicyForm>({ name: "", description: "", default_log: false, interfaces: [] });
+  const [pattern, setPattern] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const family = policyType === "route" ? "IPv4" : "IPv6";
 
   const handleSubmit = async () => {
-    const problem = policyProblem(form, existingNames, capabilities);
+    const interfaces = interfacesWithPending(form.interfaces, pattern);
+    if (!interfaces) {
+      setError(tp("interfacePatternInvalid"));
+      return;
+    }
+    const submitted = { ...form, interfaces };
+    const problem = policyProblem(submitted, existingNames, capabilities);
     if (problem) {
       setError(tp(problem.key, { max: problem.max ?? "" }));
       return;
@@ -48,7 +60,7 @@ export function CreateRoutePolicyModal({
     setLoading(true);
     setError(null);
     try {
-      await routeService.createPolicy(policyType, form);
+      await routeService.createPolicy(policyType, submitted);
       onOpenChange(false);
       onSuccess();
     } catch (err) {
@@ -107,6 +119,8 @@ export function CreateRoutePolicyModal({
             label={t("interfaces")}
             values={form.interfaces}
             onChange={(interfaces) => setForm((prev) => ({ ...prev, interfaces }))}
+            pattern={pattern}
+            onPatternChange={setPattern}
             disabled={loading}
           />
 

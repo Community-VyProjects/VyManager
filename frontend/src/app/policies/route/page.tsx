@@ -397,7 +397,7 @@ function RoutePageInner() {
                           variant="ghost"
                           size="sm"
                           aria-label={tc("edit")}
-                          disabled={writeDisabled}
+                          disabled={writeDisabled || hasReorder}
                           onClick={() => openModal("editPolicy", selectedPolicyData)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -416,7 +416,7 @@ function RoutePageInner() {
                       {tc("refresh")}
                     </Button>
                     {hasWrite && (
-                      <Button onClick={() => openModal("createRule", selectedPolicyData)} size="sm" disabled={writeDisabled}>
+                      <Button onClick={() => openModal("createRule", selectedPolicyData)} size="sm" disabled={writeDisabled || hasReorder}>
                         <Plus className="h-4 w-4 mr-2" />
                         {t("addRule")}
                       </Button>
@@ -454,7 +454,7 @@ function RoutePageInner() {
                           size="sm"
                           variant="outline"
                           onClick={() => openModal("interfaces", selectedPolicyData)}
-                          disabled={writeDisabled}
+                          disabled={writeDisabled || hasReorder}
                         >
                           <Network className="h-4 w-4 mr-2" />
                           {t("manageInterfaces")}

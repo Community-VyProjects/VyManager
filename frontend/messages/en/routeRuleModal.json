@@ -19,6 +19,8 @@
     "descriptionTooLong": "Description must be at most {max} characters",
     "sourceGroupConflict": "Source can use only one of address group, network group and domain group",
     "destinationGroupConflict": "Destination can use only one of address group, network group and domain group",
+    "protocolInvalid": "Protocol must be a name from the list or a whole number from {min} to {max}",
+    "protocolNumberNegated": "A protocol number cannot be negated with !",
     "portNeedsProtocol": "A port or port group needs protocol tcp, udp or tcp_udp",
     "tcpNeedsProtocolTcp": "TCP flags and TCP MSS need protocol tcp",
     "tcpFlagConflict": "TCP flag {value} cannot be both matched and negated",
@@ -93,7 +95,8 @@
     "protocol": "Protocol",
     "tcpMss": "TCP MSS",
     "tcpFlags": "TCP Flags",
-    "tcpFlagsNot": "TCP Flags (Not)"
+    "tcpFlagsNot": "TCP Flags (Not)",
+    "byNumber": "Enter the protocol as a number"
   },
   "icmp": {
     "title": "ICMP Matching",

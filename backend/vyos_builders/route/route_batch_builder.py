@@ -18,6 +18,7 @@ from vyos_mappers.route.route import RouteMapper
 # Lab syntax bounds (the same on 1.4 and 1.5 unless the leaf is 1.5 only).
 RANGES: Dict[str, Dict[str, int]] = {
     "rule": {"min": 1, "max": 999999},
+    "protocol": {"min": 0, "max": 255},
     "ttl": {"min": 0, "max": 255},
     "icmp_code": {"min": 0, "max": 255},
     "icmp_type": {"min": 0, "max": 255},

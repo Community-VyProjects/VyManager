@@ -136,7 +136,8 @@
     "nameRequired": "Policy name is required",
     "nameInvalid": "Policy name must start with a letter or digit and contain only letters, digits, hyphens, underscores and dots",
     "nameTaken": "A policy with this name already exists",
-    "descriptionTooLong": "Description must be at most {max} characters"
+    "descriptionTooLong": "Description must be at most {max} characters",
+    "interfacePatternInvalid": "An interface pattern cannot be empty or contain spaces"
   },
   "interfacesField": {
     "pattern": "Interface pattern",

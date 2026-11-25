@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { PolicyInterfacesField } from "./PolicyInterfacesField";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { routeService, type PolicyRoute } from "@/lib/api/route";
-import { policyFormFrom, policyUpdateOps } from "@/lib/api/route-save-ops";
+import { interfacesWithPending, policyFormFrom, policyUpdateOps } from "@/lib/api/route-save-ops";
 import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
@@ -31,15 +31,23 @@ export function ManagePolicyInterfacesModal({
   onSuccess,
 }: ManagePolicyInterfacesModalProps) {
   const t = useTranslations("routePolicy.manageInterfaces");
+  const tp = useTranslations("routePolicy.policyErrors");
   const tc = useTranslations("common");
   const [interfaces, setInterfaces] = useState<string[]>(() => [...policy.interfaces]);
+  const [pattern, setPattern] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const form = { ...policyFormFrom(policy), interfaces };
-  const hasChanges = policyUpdateOps(policy, form).length > 0;
+  // A pattern still in the box counts as added, so Save sees it.
+  const submitted = interfacesWithPending(interfaces, pattern);
+  const form = { ...policyFormFrom(policy), interfaces: submitted ?? interfaces };
+  const hasChanges = submitted === null || policyUpdateOps(policy, form).length > 0;
 
   const handleSubmit = async () => {
+    if (submitted === null) {
+      setError(tp("interfacePatternInvalid"));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -78,6 +86,8 @@ export function ManagePolicyInterfacesModal({
           label={t("interfaces")}
           values={interfaces}
           onChange={setInterfaces}
+          pattern={pattern}
+          onPatternChange={setPattern}
           disabled={loading}
         />
 

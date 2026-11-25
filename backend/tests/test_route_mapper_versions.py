@@ -82,3 +82,5 @@ def test_capabilities_carry_every_value_list():
     assert "version_info" not in caps
     # icmpv6 type takes a list name or a number in this range (lab syntax).
     assert caps["ranges"]["icmpv6_type"] == {"min": 0, "max": 255}
+    # protocol also takes a number in this range (ip-protocol validator).
+    assert caps["ranges"]["protocol"] == {"min": 0, "max": 255}

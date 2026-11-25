@@ -1,36 +1,47 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { interfacePatternValid } from "@/lib/api/route-save-ops";
 
 interface PolicyInterfacesFieldProps {
   id: string;
   label: string;
   values: string[];
   onChange: (values: string[]) => void;
+  /** The typed pattern, held by the modal so a submit can add it (see `interfacesWithPending`). */
+  pattern: string;
+  onPatternChange: (pattern: string) => void;
   disabled: boolean;
 }
 
 /**
  * Interfaces a policy is applied to: picks from the interface list plus a
  * typed pattern (the lab takes wildcards such as `eth*`). Every value, picked,
- * typed or loaded, shows as a removable chip.
+ * typed or loaded, shows as a removable chip. A pattern still in the box is
+ * added by the modal's submit.
  */
-export function PolicyInterfacesField({ id, label, values, onChange, disabled }: PolicyInterfacesFieldProps) {
+export function PolicyInterfacesField({
+  id,
+  label,
+  values,
+  onChange,
+  pattern,
+  onPatternChange,
+  disabled,
+}: PolicyInterfacesFieldProps) {
   const t = useTranslations("routePolicy.interfacesField");
-  const [pattern, setPattern] = useState("");
   const trimmed = pattern.trim();
-  const canAdd = trimmed !== "" && !/\s/.test(trimmed) && !values.includes(trimmed);
+  const canAdd = interfacePatternValid(trimmed) && !values.includes(trimmed);
 
   const add = () => {
     if (!canAdd) return;
     onChange([...values, trimmed]);
-    setPattern("");
+    onPatternChange("");
   };
 
   return (
@@ -42,7 +53,7 @@ export function PolicyInterfacesField({ id, label, values, onChange, disabled }:
           id={`${id}-pattern`}
           aria-label={t("pattern")}
           value={pattern}
-          onChange={(e) => setPattern(e.target.value)}
+          onChange={(e) => onPatternChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();

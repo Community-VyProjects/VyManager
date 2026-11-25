@@ -514,6 +514,8 @@ export type RouteRuleProblemKey =
   | "icmpTypeNameConflict"
   | "icmpCodeNeedsType"
   | "icmpv6TypeInvalid"
+  | "protocolInvalid"
+  | "protocolNumberNegated"
   | "setVrfTableConflict"
   | "geoipAsnCountryConflict"
   | "icmpv6NeedsProtocolIcmpv6"
@@ -546,7 +548,12 @@ export interface RouteRuleProblem {
   value?: string;
 }
 
-export type PolicyProblemKey = "nameRequired" | "nameInvalid" | "nameTaken" | "descriptionTooLong";
+export type PolicyProblemKey =
+  | "nameRequired"
+  | "nameInvalid"
+  | "nameTaken"
+  | "descriptionTooLong"
+  | "interfacePatternInvalid";
 
 export interface PolicyProblem {
   key: PolicyProblemKey;
@@ -609,6 +616,19 @@ export function routeRuleProblem(
   for (const side of ["source", "destination"] as const) {
     const picked = (["address", "domain", "network"] as const).filter((g) => f[`${side}_group_${g}`]);
     if (picked.length > 1) return { key: side === "source" ? "sourceGroupConflict" : "destinationGroupConflict" };
+  }
+
+  // A name from the list (optionally negated with `!`) or a digits-only number in range
+  // (lab: `protocol 253` commits, `protocol '!6'` is rejected). A number is not read as
+  // tcp/udp/icmp by the checks below (lab: `protocol 6` plus tcp flags is rejected).
+  if (f.protocol) {
+    const negated = f.protocol.startsWith("!");
+    const protocol = negated ? f.protocol.slice(1) : f.protocol;
+    const protocolRange = routeRange(caps, "protocol");
+    if (negated && /^\d+$/.test(protocol)) return { key: "protocolNumberNegated" };
+    if (!(caps?.values?.protocols || []).includes(protocol) && (negated || !inRange(protocol, protocolRange))) {
+      return rangeProblem("protocolInvalid", protocolRange);
+    }
   }
 
   const hasPort = f.source_port || f.destination_port || f.source_group_port || f.destination_group_port;
@@ -735,6 +755,23 @@ export function routeRuleProblem(
 }
 
 /** A policy create or edit the lab would reject, or null. `existingNames` is null on edit. */
+/** A typed interface pattern: non-empty, no whitespace. */
+export function interfacePatternValid(pattern: string): boolean {
+  const trimmed = pattern.trim();
+  return trimmed !== "" && !/\s/.test(trimmed);
+}
+
+/**
+ * The interfaces a policy save writes: the picked ones plus a pattern typed but
+ * not yet added (so it is not lost on submit). Null when that pattern is invalid.
+ */
+export function interfacesWithPending(interfaces: string[], pending: string): string[] | null {
+  const trimmed = pending.trim();
+  if (!trimmed) return interfaces;
+  if (!interfacePatternValid(trimmed)) return null;
+  return interfaces.includes(trimmed) ? interfaces : [...interfaces, trimmed];
+}
+
 export function policyProblem(
   form: PolicyForm,
   existingNames: string[] | null,

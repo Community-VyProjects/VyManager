@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   emptyRuleForm,
+  interfacesWithPending,
   policyCreateOps,
   policyFormFrom,
   policyProblem,
@@ -27,6 +28,7 @@ const RANGES = {
   icmp_code: { min: 0, max: 255 },
   icmp_type: { min: 0, max: 255 },
   icmpv6_type: { min: 0, max: 255 },
+  protocol: { min: 0, max: 255 },
   packet_length: { min: 1, max: 65535 },
   dscp: { min: 0, max: 63 },
   mark: { min: 0, max: 2147483647 },
@@ -52,7 +54,7 @@ const VALUES = {
   weekdays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
   tcp_flags: ["ack", "cwr", "ecn", "fin", "psh", "rst", "syn", "urg"],
   compare_ops: ["eq", "gt", "lt"],
-  protocols: ["all", "tcp_udp", "icmpv6", "icmp", "tcp", "udp"],
+  protocols: ["all", "tcp_udp", "icmpv6", "icmp", "tcp", "udp", "gre", "ipv6-icmp"],
   icmp_type_names: ["echo-reply", "echo-request"],
   icmpv6_types: ["echo-request", "packet-too-big"],
 };
@@ -783,6 +785,41 @@ describe("routeRuleProblem", () => {
     }
   });
 
+  it("lab: protocol is a listed name (negatable) or a number 0-255 (not negatable)", () => {
+    for (const value of ["tcp", "!tcp", "!gre", "253", "0", "255", " 17 "]) {
+      const f = base();
+      f.protocol = value;
+      assert.equal(key(f), null, value);
+    }
+    for (const value of ["256", "-1", "1.5", "1e3", "!", "!!6", "bogus", "!bogus", "!1.5"]) {
+      const f = base();
+      f.protocol = value;
+      assert.deepEqual(problem(f), { key: "protocolInvalid", min: 0, max: 255, value: undefined }, value);
+    }
+    for (const value of ["!6", "!253", "!300"]) {
+      const f = base();
+      f.protocol = value;
+      assert.deepEqual(problem(f), { key: "protocolNumberNegated" }, value);
+    }
+  });
+
+  it("a protocol number is not read as its name by the tcp, udp and icmp checks", () => {
+    const port = base();
+    port.destination_port = "80";
+    for (const value of ["6", "17"]) {
+      port.protocol = value;
+      assert.equal(key(port), "portNeedsProtocol", value);
+    }
+    const flags = base();
+    flags.tcp_flags = ["syn"];
+    flags.protocol = "6";
+    assert.equal(key(flags), "tcpNeedsProtocolTcp");
+    const icmp = base();
+    icmp.icmp_type = "8";
+    icmp.protocol = "1";
+    assert.equal(key(icmp), "icmpNeedsProtocolIcmp");
+  });
+
   it("lab: icmp code needs icmp type", () => {
     const f = base();
     f.protocol = "icmp";
@@ -1060,6 +1097,32 @@ describe("policy ops", () => {
     assert.equal(policyProblem(form("pbr"), ["PBR"], CAPS15), null);
     assert.deepEqual(policyProblem(form("P", "x".repeat(256)), null, CAPS15), { key: "descriptionTooLong", max: 255 });
     assert.equal(policyProblem(form(""), null, CAPS15), null);
+  });
+});
+
+describe("interfacesWithPending", () => {
+  it("adds a typed pattern on submit, once, and rejects an invalid one", () => {
+    assert.deepEqual(interfacesWithPending(["eth0"], ""), ["eth0"]);
+    assert.deepEqual(interfacesWithPending(["eth0"], "   "), ["eth0"]);
+    assert.deepEqual(interfacesWithPending(["eth0"], " eth* "), ["eth0", "eth*"]);
+    assert.deepEqual(interfacesWithPending(["eth0", "eth*"], "eth*"), ["eth0", "eth*"]);
+    assert.equal(interfacesWithPending(["eth0"], "eth 1"), null);
+  });
+
+  it("the pending pattern reaches the create and update ops", () => {
+    const pending = interfacesWithPending([], "eth*")!;
+    assert.deepEqual(policyCreateOps({ name: "P", description: "", default_log: false, interfaces: pending }), [
+      { op: "create_policy" },
+      { op: "set_interface_policy", value: "eth*" },
+    ]);
+    const policy: PolicyRoute = {
+      name: "P", policy_type: "route", description: null, default_log: false, interfaces: ["eth0"], rules: [],
+    };
+    const form = { ...policyFormFrom(policy), interfaces: interfacesWithPending(policy.interfaces, "wg*")! };
+    assert.deepEqual(policyUpdateOps(policy, form), [{ op: "set_interface_policy", value: "wg*" }]);
+    // Nothing pending and nothing changed: no ops (Save stays off).
+    const same = { ...policyFormFrom(policy), interfaces: interfacesWithPending(policy.interfaces, "")! };
+    assert.deepEqual(policyUpdateOps(policy, same), []);
   });
 });
 

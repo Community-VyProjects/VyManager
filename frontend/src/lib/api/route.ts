@@ -130,6 +130,7 @@ export type RouteRangeKey =
   | "icmp_code"
   | "icmp_type"
   | "icmpv6_type"
+  | "protocol"
   | "packet_length"
   | "dscp"
   | "mark"

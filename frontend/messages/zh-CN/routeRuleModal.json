@@ -19,6 +19,8 @@
     "descriptionTooLong": "描述最多 {max} 个字符",
     "sourceGroupConflict": "源只能使用地址组、网络组和域名组中的一个",
     "destinationGroupConflict": "目标只能使用地址组、网络组和域名组中的一个",
+    "protocolInvalid": "协议必须是列表中的名称或 {min} 到 {max} 之间的整数",
+    "protocolNumberNegated": "协议编号不能用 ! 取反",
     "portNeedsProtocol": "端口或端口组需要协议为 tcp、udp 或 tcp_udp",
     "tcpNeedsProtocolTcp": "TCP 标志和 TCP MSS 需要协议为 tcp",
     "tcpFlagConflict": "TCP 标志 {value} 不能同时匹配和取反",
@@ -93,7 +95,8 @@
     "protocol": "协议",
     "tcpMss": "TCP MSS",
     "tcpFlags": "TCP 标志",
-    "tcpFlagsNot": "TCP 标志（取反）"
+    "tcpFlagsNot": "TCP 标志（取反）",
+    "byNumber": "以数字输入协议"
   },
   "icmp": {
     "title": "ICMP 匹配",

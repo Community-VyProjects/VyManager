@@ -123,6 +123,7 @@ export function RouteRuleModal({
   const [tableMode, setTableMode] = useState<TableMode>(() =>
     form.set_table === "main" ? "main" : form.set_table ? "custom" : "none",
   );
+  const [protocolByNumber, setProtocolByNumber] = useState(() => /^\d+$/.test(form.protocol));
   const [icmpv6ByNumber, setIcmpv6ByNumber] = useState(() => /^\d+$/.test(form.icmpv6_type));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -276,6 +277,51 @@ export function RouteRuleModal({
       </div>
     );
   };
+
+  /** Protocol by name from the list (invertible) or by number (not invertible). */
+  const protocolField = () => {
+    if (!protocolByNumber) {
+      return (
+        <div className="space-y-2">
+          {groupPick("protocol", t("protocol.protocol"), values?.protocols || [])}
+          {protocolByNumberToggle}
+        </div>
+      );
+    }
+    // Lab: a numeric protocol cannot be negated (`'!6' is not a valid IP protocol`), so no invert here.
+    return (
+      <div className="space-y-2">
+        <Label htmlFor="rr-protocol">{t("protocol.protocol")}</Label>
+        <Input
+          id="rr-protocol"
+          value={form.protocol}
+          inputMode="numeric"
+          placeholder={rangeHint("protocol")}
+          onChange={(e) => set("protocol", e.target.value)}
+          disabled={loading}
+          className="font-mono"
+        />
+        {protocolByNumberToggle}
+      </div>
+    );
+  };
+
+  const protocolByNumberToggle = (
+    <div className="flex items-center space-x-2">
+      <Checkbox
+        id="rr-protocol-by-number"
+        checked={protocolByNumber}
+        onCheckedChange={(checked) => {
+          setProtocolByNumber(checked === true);
+          set("protocol", "");
+        }}
+        disabled={loading}
+      />
+      <Label htmlFor="rr-protocol-by-number" className="text-sm font-normal cursor-pointer">
+        {t("protocol.byNumber")}
+      </Label>
+    </div>
+  );
 
   const sidePanel = (side: "source" | "destination") => {
     const kind = side === "source" ? sourceGroupKind : destinationGroupKind;
@@ -472,7 +518,7 @@ export function RouteRuleModal({
             <div className="space-y-4">
               <h3 className="font-semibold text-sm">{t("protocol.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
-                {groupPick("protocol", t("protocol.protocol"), values?.protocols || [])}
+                {protocolField()}
                 {tcpMssOn && textField("tcp_mss", t("protocol.tcpMss"), undefined, "tcp_mss", false)}
               </div>
               <div className="space-y-2">
