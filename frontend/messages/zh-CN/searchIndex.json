@@ -346,6 +346,7 @@
     "frrProfile": "FRR 配置文件",
     "fullName": "全名",
     "general": "常规",
+    "geoip": "GeoIP",
     "globalOptions": "全局选项",
     "globalSettings": "全局设置",
     "group": "组",

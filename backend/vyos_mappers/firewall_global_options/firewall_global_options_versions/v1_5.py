@@ -1,134 +1,92 @@
-"""VyOS 1.5 specific firewall global-options commands.
+"""VyOS 1.5 firewall global-options mapper.
 
 VyOS 1.5 adds:
-- apply-to-bridged-traffic (ipv4/ipv6)
-- timeout settings for various protocols
+  - apply-to-bridged-traffic {ipv4, ipv6, accept-invalid ethernet-type}
+  - geoip {maxmind-account-id, maxmind-license-key, maxmind-lite, provider,
+    source-address, vrf}
+  - state-policy offload offload-target
+  - timeout {icmp, other, tcp <state>, udp {other, stream}}
 """
-from typing import List
+
+from typing import List, Tuple
+
+from ..firewall_global_options import FirewallGlobalOptionsMapper
+
+# Lab `allowed:` lines on 1.5.
+GEOIP_PROVIDER_VALUES = ("db-ip", "maxmind")
+BRIDGED_ETHERNET_TYPE_VALUES = ("arp", "dhcp", "pppoe", "802.1q", "802.1ad", "pppoe-discovery", "wol")
 
 
-class FirewallGlobalOptionsMapperV1_5:
-    """Version-specific mapper for VyOS 1.5 firewall global-options.
+class FirewallGlobalOptionsMapperV1_5(FirewallGlobalOptionsMapper):
+    """VyOS 1.5 firewall global-options mapper with the 1.5-only paths."""
 
-    Adds features not available in VyOS 1.4.
-    """
+    # ========================================================================
+    # Value lists
+    # ========================================================================
 
-    # ==================== Bridged Traffic (VyOS 1.5+) ====================
+    def geoip_provider_values(self) -> Tuple[str, ...]:
+        return GEOIP_PROVIDER_VALUES
 
-    def get_apply_to_bridged_traffic_ipv4(self) -> List[str]:
-        """Get command path for apply-to-bridged-traffic ipv4."""
-        return ["firewall", "global-options", "apply-to-bridged-traffic", "ipv4"]
+    def bridged_ethernet_type_values(self) -> Tuple[str, ...]:
+        return BRIDGED_ETHERNET_TYPE_VALUES
 
-    def get_apply_to_bridged_traffic_ipv4_path(self) -> List[str]:
-        """Get command path for apply-to-bridged-traffic ipv4 (for deletion)."""
-        return ["firewall", "global-options", "apply-to-bridged-traffic", "ipv4"]
+    # ========================================================================
+    # Apply to bridged traffic
+    # ========================================================================
 
-    def get_apply_to_bridged_traffic_ipv6(self) -> List[str]:
-        """Get command path for apply-to-bridged-traffic ipv6."""
-        return ["firewall", "global-options", "apply-to-bridged-traffic", "ipv6"]
+    def get_apply_to_bridged_traffic_path(self) -> List[str]:
+        return self._base() + ["apply-to-bridged-traffic"]
 
-    def get_apply_to_bridged_traffic_ipv6_path(self) -> List[str]:
-        """Get command path for apply-to-bridged-traffic ipv6 (for deletion)."""
-        return ["firewall", "global-options", "apply-to-bridged-traffic", "ipv6"]
+    def get_apply_to_bridged_traffic_family(self, family: str) -> List[str]:
+        """``ipv4`` or ``ipv6``: valueless flags; set and delete share the path."""
+        return self.get_apply_to_bridged_traffic_path() + [family]
 
-    # ==================== Timeout Settings (VyOS 1.5+) ====================
+    def get_apply_to_bridged_traffic_accept_invalid_path(self) -> List[str]:
+        return self.get_apply_to_bridged_traffic_path() + ["accept-invalid"]
 
-    def get_timeout_icmp(self, seconds: int) -> List[str]:
-        """Get command path for timeout icmp."""
-        return ["firewall", "global-options", "timeout", "icmp", str(seconds)]
+    def get_apply_to_bridged_traffic_accept_invalid_ethernet_type(self, ethernet_type: str) -> List[str]:
+        """One value of the ``multi:`` ethernet-type leaf (set or delete)."""
+        return self.get_apply_to_bridged_traffic_accept_invalid_path() + ["ethernet-type", ethernet_type]
 
-    def get_timeout_icmp_path(self) -> List[str]:
-        """Get command path for timeout icmp (for deletion)."""
-        return ["firewall", "global-options", "timeout", "icmp"]
+    # ========================================================================
+    # GeoIP
+    # ========================================================================
 
-    def get_timeout_other(self, seconds: int) -> List[str]:
-        """Get command path for timeout other."""
-        return ["firewall", "global-options", "timeout", "other", str(seconds)]
+    def get_geoip_path(self) -> List[str]:
+        return self._base() + ["geoip"]
 
-    def get_timeout_other_path(self) -> List[str]:
-        """Get command path for timeout other (for deletion)."""
-        return ["firewall", "global-options", "timeout", "other"]
+    def get_geoip_leaf(self, leaf: str, value: str) -> List[str]:
+        """A single-value geoip leaf (provider, maxmind-account-id, ...)."""
+        return self.get_geoip_path() + [leaf, value]
 
-    # TCP Timeouts
+    def get_geoip_leaf_path(self, leaf: str) -> List[str]:
+        return self.get_geoip_path() + [leaf]
 
-    def get_timeout_tcp_close(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp close."""
-        return ["firewall", "global-options", "timeout", "tcp", "close", str(seconds)]
+    def get_geoip_maxmind_lite(self) -> List[str]:
+        """``maxmind-lite`` is a valueless flag; set and delete share the path."""
+        return self.get_geoip_path() + ["maxmind-lite"]
 
-    def get_timeout_tcp_close_path(self) -> List[str]:
-        """Get command path for timeout tcp close (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "close"]
+    # ========================================================================
+    # State policy offload
+    # ========================================================================
 
-    def get_timeout_tcp_close_wait(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp close-wait."""
-        return ["firewall", "global-options", "timeout", "tcp", "close-wait", str(seconds)]
+    def get_state_policy_offload_path(self) -> List[str]:
+        return self.get_state_policy_path() + ["offload"]
 
-    def get_timeout_tcp_close_wait_path(self) -> List[str]:
-        """Get command path for timeout tcp close-wait (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "close-wait"]
+    def get_state_policy_offload_target(self, flowtable: str) -> List[str]:
+        return self.get_state_policy_offload_path() + ["offload-target", flowtable]
 
-    def get_timeout_tcp_established(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp established."""
-        return ["firewall", "global-options", "timeout", "tcp", "established", str(seconds)]
+    # ========================================================================
+    # Connection tracking timeouts
+    # ========================================================================
 
-    def get_timeout_tcp_established_path(self) -> List[str]:
-        """Get command path for timeout tcp established (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "established"]
+    def get_timeout_path(self) -> List[str]:
+        return self._base() + ["timeout"]
 
-    def get_timeout_tcp_fin_wait(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp fin-wait."""
-        return ["firewall", "global-options", "timeout", "tcp", "fin-wait", str(seconds)]
+    def get_timeout(self, leaf: List[str], seconds: str) -> List[str]:
+        """``leaf`` is the path under ``timeout`` (``["tcp", "close"]``)."""
+        return self.get_timeout_path() + leaf + [seconds]
 
-    def get_timeout_tcp_fin_wait_path(self) -> List[str]:
-        """Get command path for timeout tcp fin-wait (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "fin-wait"]
-
-    def get_timeout_tcp_last_ack(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp last-ack."""
-        return ["firewall", "global-options", "timeout", "tcp", "last-ack", str(seconds)]
-
-    def get_timeout_tcp_last_ack_path(self) -> List[str]:
-        """Get command path for timeout tcp last-ack (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "last-ack"]
-
-    def get_timeout_tcp_syn_recv(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp syn-recv."""
-        return ["firewall", "global-options", "timeout", "tcp", "syn-recv", str(seconds)]
-
-    def get_timeout_tcp_syn_recv_path(self) -> List[str]:
-        """Get command path for timeout tcp syn-recv (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "syn-recv"]
-
-    def get_timeout_tcp_syn_sent(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp syn-sent."""
-        return ["firewall", "global-options", "timeout", "tcp", "syn-sent", str(seconds)]
-
-    def get_timeout_tcp_syn_sent_path(self) -> List[str]:
-        """Get command path for timeout tcp syn-sent (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "syn-sent"]
-
-    def get_timeout_tcp_time_wait(self, seconds: int) -> List[str]:
-        """Get command path for timeout tcp time-wait."""
-        return ["firewall", "global-options", "timeout", "tcp", "time-wait", str(seconds)]
-
-    def get_timeout_tcp_time_wait_path(self) -> List[str]:
-        """Get command path for timeout tcp time-wait (for deletion)."""
-        return ["firewall", "global-options", "timeout", "tcp", "time-wait"]
-
-    # UDP Timeouts
-
-    def get_timeout_udp_other(self, seconds: int) -> List[str]:
-        """Get command path for timeout udp other."""
-        return ["firewall", "global-options", "timeout", "udp", "other", str(seconds)]
-
-    def get_timeout_udp_other_path(self) -> List[str]:
-        """Get command path for timeout udp other (for deletion)."""
-        return ["firewall", "global-options", "timeout", "udp", "other"]
-
-    def get_timeout_udp_stream(self, seconds: int) -> List[str]:
-        """Get command path for timeout udp stream."""
-        return ["firewall", "global-options", "timeout", "udp", "stream", str(seconds)]
-
-    def get_timeout_udp_stream_path(self) -> List[str]:
-        """Get command path for timeout udp stream (for deletion)."""
-        return ["firewall", "global-options", "timeout", "udp", "stream"]
+    def get_timeout_leaf_path(self, leaf: List[str]) -> List[str]:
+        """``["tcp"]`` / ``["udp"]`` name the protocol node itself."""
+        return self.get_timeout_path() + leaf

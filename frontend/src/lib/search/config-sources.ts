@@ -94,15 +94,26 @@ export const configSources: ConfigSourceDefinition[] = [
     id: "firewall-global-options",
     feature: "Firewall",
     hrefBase: "/firewall/global-options",
-    fetch: () => firewallGlobalOptionsService.getConfig(),
+    fetch: async () => {
+      // `configured` is not a field; the 1.5-only bridged/geoip/timeout sections
+      // parse as false/null on 1.4, so index them only when something is set.
+      const config: Record<string, unknown> = { ...(await firewallGlobalOptionsService.getConfig()) };
+      delete config.configured;
+      for (const section of ["bridged_traffic", "geoip", "timeouts"]) {
+        const values = Object.values((config[section] ?? {}) as Record<string, unknown>);
+        if (!values.some((value) => (Array.isArray(value) ? value.length > 0 : !!value))) delete config[section];
+      }
+      return config;
+    },
     hrefParams: (path) => {
       const s = path.join(".").toLowerCase();
       if (s.includes("timeout")) return { section: "connection-timeouts" };
       if (s.includes("state_policy")) return { section: "state-policies" };
       if (s.includes("bridged")) return { section: "bridged-traffic" };
+      if (s.includes("geoip")) return { section: "geoip" };
       if (s.includes("redirect")) return { section: "icmp-redirects" };
-      if (s.includes("src_route") || s.includes("source")) return { section: "source-routing" };
-      if (s.includes("ping") || s.includes("icmp")) return { section: "icmp-settings" };
+      if (s.includes("src_route")) return { section: "source-routing" };
+      if (s.includes("ping") || s.includes("broadcast")) return { section: "icmp-settings" };
       if (s.includes("resolver")) return { section: "dns-resolver" };
       return { section: "security-options" };
     },

@@ -28,9 +28,8 @@
   "icmp": {
     "title": "ICMP Settings",
     "allPing": "All Ping",
-    "allPingDesc": "Accept/reject all IPv4 ICMP echo requests",
     "broadcastPing": "Broadcast Ping",
-    "broadcastPingDesc": "Accept/reject broadcast ping"
+    "directedBroadcast": "Directed Broadcast"
   },
   "sourceRouting": {
     "title": "Source Routing",
@@ -46,20 +45,15 @@
   "security": {
     "title": "Security Options",
     "logMartians": "Log Martians",
-    "logMartiansDesc": "Log packets with impossible addresses",
     "sourceValidation": "Source Validation",
-    "sourceValidationDesc": "Reverse path filtering mode",
+    "ipv6SourceValidation": "IPv6 Source Validation",
     "synCookies": "SYN Cookies",
-    "synCookiesDesc": "SYN flood protection",
-    "twaHazards": "TWA Hazards Protection",
-    "twaHazardsDesc": "RFC1337 TIME-WAIT protection"
+    "twaHazards": "TWA Hazards Protection"
   },
   "dns": {
     "title": "DNS Resolver",
     "resolverCache": "Resolver Cache",
-    "resolverCacheDesc": "Retain last resolved value if domain resolution fails",
-    "resolverInterval": "Resolver Interval (sec)",
-    "resolverIntervalDesc": "Domain resolver update interval (10-3600, default 300)"
+    "resolverInterval": "Resolver Interval (sec)"
   },
   "statePolicies": {
     "title": "State Policies",
@@ -68,12 +62,23 @@
     "related": "Related",
     "action": "Action",
     "logLevel": "Log Level",
-    "log": "Log"
+    "log": "Log",
+    "offloadTarget": "Offload Flowtable"
   },
   "bridged": {
     "title": "Bridged Traffic",
     "ipv4": "Apply to IPv4 Bridged Traffic",
-    "ipv6": "Apply to IPv6 Bridged Traffic"
+    "ipv6": "Apply to IPv6 Bridged Traffic",
+    "acceptInvalid": "Accept Invalid Ethernet Types"
+  },
+  "geoip": {
+    "title": "GeoIP",
+    "provider": "Provider",
+    "accountId": "MaxMind Account ID",
+    "licenseKey": "MaxMind License Key",
+    "lite": "Use MaxMind GeoLite2",
+    "sourceAddress": "Source Address",
+    "vrf": "VRF"
   },
   "timeouts": {
     "title": "Connection Timeouts",
@@ -88,6 +93,16 @@
     "synSent": "SYN Sent",
     "timeWait": "TIME Wait",
     "stream": "Stream",
-    "udpOther": "Other"
+    "udpOther": "Other",
+    "tcp": "TCP",
+    "udp": "UDP"
+  },
+  "errors": {
+    "resolverIntervalRange": "Resolver interval must be between {min} and {max} seconds",
+    "timeoutRange": "Each timeout must be between {min} and {max} seconds",
+    "maxmindAccountRequired": "The MaxMind provider needs an account ID",
+    "maxmindKeyRequired": "The MaxMind provider needs a license key",
+    "licenseKeyIsMask": "Enter the license key itself, not the mask",
+    "sourceAddressInvalid": "Source address must be an IPv4 or IPv6 address"
   }
 }

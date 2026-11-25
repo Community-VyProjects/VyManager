@@ -118,6 +118,10 @@ jobs:
         working-directory: frontend
         run: npm run test:failover-save
 
+      - name: Run firewall global-options save op tests
+        working-directory: frontend
+        run: npm run test:firewall-global-options-save
+
       - name: Run WireGuard form tests
         working-directory: frontend
         run: npm run test:wireguard-form
