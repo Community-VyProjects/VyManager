@@ -13,8 +13,11 @@ interface Props<R> {
   addLabel: string;
   removeLabel: string;
   disabled?: boolean;
-  /** Renders one row's fields; `update` patches that row. */
-  children: (row: R, index: number, update: (patch: Partial<R>) => void) => ReactNode;
+  /**
+   * Renders one row's fields; `update` patches that row. `added` is true for a row the
+   * user added with the Add button in this session, false for a loaded row.
+   */
+  children: (row: R, index: number, update: (patch: Partial<R>) => void, added: boolean) => ReactNode;
 }
 
 let lastRowId = 0;
@@ -28,6 +31,7 @@ const nextRowId = () => ++lastRowId;
  */
 export function RowList<R>({ title, rows, onChange, newRow, addLabel, removeLabel, disabled, children }: Props<R>) {
   const [ids, setIds] = useState<number[]>(() => rows.map(() => nextRowId()));
+  const [addedIds, setAddedIds] = useState<ReadonlySet<number>>(() => new Set());
   // Rows replaced from outside: give any new ones an id.
   if (ids.length !== rows.length) {
     setIds(rows.map((_, i) => ids[i] ?? nextRowId()));
@@ -40,7 +44,9 @@ export function RowList<R>({ title, rows, onChange, newRow, addLabel, removeLabe
     onChange(rows.filter((_, i) => i !== index));
   };
   const add = () => {
-    setIds([...ids, nextRowId()]);
+    const id = nextRowId();
+    setIds([...ids, id]);
+    setAddedIds(new Set(addedIds).add(id));
     onChange([...rows, newRow()]);
   };
 
@@ -49,7 +55,9 @@ export function RowList<R>({ title, rows, onChange, newRow, addLabel, removeLabe
       <p className="text-sm font-semibold">{title}</p>
       {rows.map((row, index) => (
         <div key={ids[index] ?? `new-${index}`} className="flex items-start gap-2 rounded-md border p-2">
-          <div className="flex-1 grid grid-cols-2 gap-2">{children(row, index, update(index))}</div>
+          <div className="flex-1 grid grid-cols-2 gap-2">
+            {children(row, index, update(index), ids[index] !== undefined && addedIds.has(ids[index]))}
+          </div>
           <Button
             type="button"
             variant="ghost"

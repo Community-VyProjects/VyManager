@@ -140,10 +140,13 @@ export function ContainerModal({
     t(`problems.${p.key}`, { ...p.values, section: p.section ? t(SECTION_LABEL_KEYS[p.section]) : "" });
 
   /**
-   * Sources of the stored volumes: a loaded row's source never follows its name, and the save
-   * does not `mkdir -p` it (it may be a bind-mounted file).
+   * Sources a configured volume already uses (this container's stored ones and every other
+   * container's): the save does not `mkdir -p` them, since one may be a bind-mounted file.
    */
-  const storedVolumeSources = new Set((container?.volumes ?? []).map((v) => (v.source ?? "").trim()));
+  const usedVolumeSources = new Set(
+    [...(container?.volumes ?? []), ...containers.filter((c) => c.name !== container?.name).flatMap((c) => c.volumes)]
+      .map((v) => (v.source ?? "").trim()),
+  );
 
   const handleSubmit = async () => {
     const issue = containerProblem(container, draft, {
@@ -165,7 +168,7 @@ export function ContainerModal({
       const dirs = new Set<string>([`${VOLUME_BASE}${containerName}`]);
       for (const vol of draft.volumes) {
         const source = (vol.source ?? "").trim();
-        if (source.startsWith(VOLUME_BASE) && !storedVolumeSources.has(source)) dirs.add(source);
+        if (source.startsWith(VOLUME_BASE) && !usedVolumeSources.has(source)) dirs.add(source);
       }
       const mkdirResult = await containerService.createContainerDirs([...dirs]);
       if (!mkdirResult.success) {
@@ -600,7 +603,7 @@ export function ContainerModal({
                   removeLabel={t("modal.removeRow")}
                   disabled={saving}
                 >
-                  {(row, index, update) => (
+                  {(row, index, update, added) => (
                     <>
                       <Input
                         aria-label={t("modal.volumeNamePlaceholder")}
@@ -608,9 +611,7 @@ export function ContainerModal({
                         onChange={(e) => {
                           const name = e.target.value;
                           // The source of a row added here follows the name until the user edits it.
-                          const source = (row.source ?? "").trim();
-                          const followName =
-                            !source || (source === `${volumeBase}${row.name}` && !storedVolumeSources.has(source));
+                          const followName = added && (!row.source || row.source === `${volumeBase}${row.name}`);
                           update(followName ? { name, source: name ? `${volumeBase}${name}` : "" } : { name });
                         }}
                         placeholder={t("modal.volumeNamePlaceholder")}
