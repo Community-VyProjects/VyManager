@@ -7,7 +7,7 @@ Interface naming follows the pattern vtiN (e.g., vti0, vti1).
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ConfigDict
@@ -16,6 +16,9 @@ from starlette.concurrency import run_in_threadpool
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
+from vyos_builders.interfaces.vti import VtiInterfaceBuilderMixin
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.interfaces.vti import VtiInterfaceMapper
 from routers.interfaces.interface_batch import (
     BatchRequest,
     VyOSResponse,
@@ -87,7 +90,6 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for VTI interfaces."""
     await require_read_permission(request, FeatureGroup.VTI)
     service = get_session_vyos_service(request)
-    from vyos_builders.interfaces.vti import VtiInterfaceBuilderMixin
     builder = VtiInterfaceBuilderMixin(version=service.get_version())
     return builder.get_capabilities()
 
@@ -101,10 +103,14 @@ async def get_config(http_request: Request, refresh: bool = False) -> VtiInterfa
         full_config = await run_in_threadpool(service.get_full_config, refresh)
         raw_config = full_config.get("interfaces", {}).get("vti", {})
 
-        from vyos_mappers.interfaces.vti_versions import get_vti_mapper
-        mapper = get_vti_mapper(service.get_version())
+        mapper = cast(
+            VtiInterfaceMapper,
+            CommandMapperRegistry.get_mapper("interface_vti", service.get_version()),
+        )
         parsed = mapper.parse_interfaces_of_type(raw_config)
         return VtiInterfacesConfigResponse(**parsed)
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -182,4 +188,4 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
 
     service = get_session_vyos_service(http_request)
     batch = service.create_vti_batch()
-    return run_interface_batch(service, batch, request)
+    return await run_in_threadpool(run_interface_batch, service, batch, request)
