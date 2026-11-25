@@ -1,70 +1,43 @@
 """
-VyOS 1.5 Failover Mapper Overrides
+VyOS 1.5 Failover Mapper
 
-1.5 differences:
-- dhcp-interface support (new sub-type under route)
-- check/target is a tag node with interface and vrf sub-properties
-
-Config tree (1.5):
-  protocols failover/
-    route/<DEST>/
-      dhcp-interface/<IFACE>/
-        check/{policy, port, target/<ADDR>/{interface, vrf}, timeout, type}
-        interface
-        metric
-        onlink
-      next-hop/<NH>/
-        check/{policy, port, target/<ADDR>/{interface, vrf}, timeout, type}
-        interface
-        metric
-        onlink
+VyOS 1.5 adds:
+  - route <DEST> dhcp-interface <IFACE> (the same check, interface, metric
+    and onlink leaves as a next-hop)
+  - check target <ADDR> interface / vrf under a next-hop and a
+    dhcp-interface (target is a tag node on 1.5)
 """
 
 from typing import List
 
+from ..failover import FailoverMapper
 
-class FailoverMapperV1_5:
-    """VyOS 1.5 specific failover paths."""
 
-    def _base(self) -> List[str]:
-        return ["protocols", "failover"]
+class FailoverMapperV1_5(FailoverMapper):
+    """VyOS 1.5 failover mapper with the 1.5-only paths."""
 
     # ========================================================================
-    # Next-Hop Check Target (tag node in 1.5 — with interface/vrf sub-props)
+    # Next-Hop Check Target children
     # ========================================================================
-
-    def get_next_hop_check_target(self, destination: str, next_hop: str, target: str) -> List[str]:
-        """In 1.5, target is a tag node."""
-        return self._base() + ["route", destination, "next-hop", next_hop, "check", "target", target]
 
     def get_next_hop_check_target_interface(self, destination: str, next_hop: str, target: str, value: str) -> List[str]:
-        """Target interface sub-property (1.5 only)."""
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "target", target, "interface", value]
 
     def get_next_hop_check_target_vrf(self, destination: str, next_hop: str, target: str, value: str) -> List[str]:
-        """Target VRF sub-property (1.5 only)."""
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "target", target, "vrf", value]
 
-    def get_next_hop_check_target_path(self, destination: str, next_hop: str) -> List[str]:
-        """Path for deleting all targets."""
-        return self._base() + ["route", destination, "next-hop", next_hop, "check", "target"]
-
     def get_next_hop_check_target_interface_path(self, destination: str, next_hop: str, target: str) -> List[str]:
-        """Path for deleting a target's interface."""
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "target", target, "interface"]
 
     def get_next_hop_check_target_vrf_path(self, destination: str, next_hop: str, target: str) -> List[str]:
-        """Path for deleting a target's VRF."""
         return self._base() + ["route", destination, "next-hop", next_hop, "check", "target", target, "vrf"]
 
     # ========================================================================
-    # DHCP-Interface Paths (1.5 only)
+    # DHCP-Interface Paths
     # ========================================================================
 
     def get_dhcp_interface_path(self, destination: str, dhcp_interface: str) -> List[str]:
         return self._base() + ["route", destination, "dhcp-interface", dhcp_interface]
-
-    # --- DHCP-Interface: check settings ---
 
     def get_dhcp_interface_check_policy(self, destination: str, dhcp_interface: str, value: str) -> List[str]:
         return self._base() + ["route", destination, "dhcp-interface", dhcp_interface, "check", "policy", value]
@@ -87,8 +60,6 @@ class FailoverMapperV1_5:
     def get_dhcp_interface_check_type(self, destination: str, dhcp_interface: str, value: str) -> List[str]:
         return self._base() + ["route", destination, "dhcp-interface", dhcp_interface, "check", "type", value]
 
-    # --- DHCP-Interface: direct settings ---
-
     def get_dhcp_interface_interface(self, destination: str, dhcp_interface: str, value: str) -> List[str]:
         return self._base() + ["route", destination, "dhcp-interface", dhcp_interface, "interface", value]
 
@@ -98,7 +69,7 @@ class FailoverMapperV1_5:
     def get_dhcp_interface_onlink(self, destination: str, dhcp_interface: str) -> List[str]:
         return self._base() + ["route", destination, "dhcp-interface", dhcp_interface, "onlink"]
 
-    # --- DHCP-Interface: delete helper paths ---
+    # --- delete helper paths (no value leaf) ---
 
     def get_dhcp_interface_check_policy_path(self, destination: str, dhcp_interface: str) -> List[str]:
         return self._base() + ["route", destination, "dhcp-interface", dhcp_interface, "check", "policy"]

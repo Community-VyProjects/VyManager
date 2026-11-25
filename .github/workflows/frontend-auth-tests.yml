@@ -114,6 +114,10 @@ jobs:
         working-directory: frontend
         run: npm run test:vxlan-save
 
+      - name: Run failover save op tests
+        working-directory: frontend
+        run: npm run test:failover-save
+
       - name: Run WireGuard form tests
         working-directory: frontend
         run: npm run test:wireguard-form

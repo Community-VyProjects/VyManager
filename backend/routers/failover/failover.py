@@ -1,25 +1,22 @@
 """
 Failover Routing Router
 
-API endpoints for managing VyOS failover route configuration.
-Supports version-aware configuration for VyOS 1.4 and 1.5.
-
-VyOS 1.4: next-hop only, check/target is multi-value (flat IP list)
-VyOS 1.5: next-hop + dhcp-interface, check/target is tag node with interface/vrf
+API endpoints for managing VyOS failover route configuration. The mapper
+decides which nodes this VyOS version has; capabilities report them.
 """
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.failover import FailoverBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_item_batch_op
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.failover.failover import FailoverMapper
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/failover", tags=["failover"])
@@ -33,17 +30,17 @@ router = APIRouter(prefix="/vyos/failover", tags=["failover"])
 class FailoverCheckTarget(BaseModel):
     """Health check target configuration."""
     address: str
-    interface: Optional[str] = None  # 1.5 only
-    vrf: Optional[str] = None  # 1.5 only
+    interface: Optional[str] = None  # tag-node child (1.5)
+    vrf: Optional[str] = None  # tag-node child (1.5)
 
 
 class FailoverCheck(BaseModel):
     """Health check configuration for a next-hop or dhcp-interface."""
-    policy: Optional[str] = None  # all-pass, any-pass
+    policy: Optional[str] = None  # any-available, all-available
     port: Optional[int] = None
     targets: List[FailoverCheckTarget] = []
     timeout: Optional[int] = None
-    type: Optional[str] = None  # arp, icmp, tcp, none
+    type: Optional[str] = None  # arp, icmp, tcp
 
 
 class FailoverNextHop(BaseModel):
@@ -56,7 +53,7 @@ class FailoverNextHop(BaseModel):
 
 
 class FailoverDhcpInterface(BaseModel):
-    """Failover DHCP interface configuration (1.5 only)."""
+    """Failover DHCP interface configuration (1.5)."""
     name: str
     check: FailoverCheck = FailoverCheck()
     interface: Optional[str] = None
@@ -68,7 +65,7 @@ class FailoverRoute(BaseModel):
     """Failover route configuration."""
     destination: str
     next_hops: List[FailoverNextHop] = []
-    dhcp_interfaces: List[FailoverDhcpInterface] = []  # 1.5 only
+    dhcp_interfaces: List[FailoverDhcpInterface] = []
 
 
 class FailoverConfig(BaseModel):
@@ -78,16 +75,24 @@ class FailoverConfig(BaseModel):
 
 class FailoverBatchOperation(BaseModel):
     """Single operation in a batch request."""
-    op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Operation value")
+    op: str = Field(..., description="Builder method name")
+    value: Optional[str] = Field(
+        None,
+        description="Parameters after the destination, comma-separated (next-hop or dhcp-interface first)",
+    )
 
 
 class FailoverBatchRequest(BaseModel):
     """Model for batch configuration."""
     destination: str = Field(..., description="Route destination (CIDR)")
-    next_hop: Optional[str] = Field(None, description="Next-hop IP address")
-    dhcp_interface: Optional[str] = Field(None, description="DHCP interface name (1.5 only)")
     operations: List[FailoverBatchOperation]
+
+    @field_validator("destination")
+    @classmethod
+    def _destination_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("destination must not be blank")
+        return value
 
 
 class VyOSResponse(BaseModel):
@@ -109,16 +114,17 @@ async def get_failover_capabilities(request: Request):
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = FailoverBatchBuilder(version=version)
+        builder = FailoverBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in failover capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -135,10 +141,12 @@ async def get_failover_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("failover", service.get_version())
+        mapper = cast(FailoverMapper, CommandMapperRegistry.get_mapper("failover", service.get_version()))
         return FailoverConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Unhandled error")
+        logger.exception("Unhandled error in failover config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -154,48 +162,28 @@ async def failover_batch_configure(http_request: Request, body: FailoverBatchReq
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = FailoverBatchBuilder(version=version)
+        builder = FailoverBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
+        try:
+            # Every op takes the route destination first; the value fills the
+            # remaining parameters, split on "," (test_failover_batch_router
+            # locks the arity).
+            for operation in body.operations:
+                call_item_batch_op(
+                    builder, operation.op, body.destination, operation.value, separator=","
+                )
+        except ValueError as exc:
+            # The mapper raises ValueError for a node this VyOS version lacks.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-            # Build arguments dynamically based on parameter names
-            args = []
-
-            if "destination" in params:
-                args.append(body.destination)
-
-            if "next_hop" in params and body.next_hop:
-                args.append(body.next_hop)
-
-            if "dhcp_interface" in params and body.dhcp_interface:
-                args.append(body.dhcp_interface)
-
-            # Add operation value if provided
-            if operation.value and len(params) > len(args):
-                # Handle comma-separated values for multi-parameter operations
-                values = operation.value.split(",") if "," in operation.value else [operation.value]
-                remaining_params = params[len(args):]
-                for i, param in enumerate(remaining_params):
-                    if param != "self" and i < len(values):
-                        args.append(values[i])
-
-            method(*args)
-
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Failover configuration updated"},
-            error=response.error if response.error else None
+            data={"message": "Failover configuration updated"} if response.status == 200 else None,
+            error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in failover batch")
         raise HTTPException(status_code=500, detail="Internal server error")
