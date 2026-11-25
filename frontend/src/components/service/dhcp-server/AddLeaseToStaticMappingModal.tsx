@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Network, Plus } from "lucide-react";
 import { dhcpServerService, type DHCPLease, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 import { failedSaveMessage } from "./dhcp-save";
+import type { ApiError } from "@/lib/types/api";
 
 interface AddLeaseToStaticMappingModalProps {
   open: boolean;
@@ -180,15 +181,20 @@ export function AddLeaseToStaticMappingModal({
       onSuccess();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : t("mapping.createFailed")
+        (err as ApiError).message || t("mapping.createFailed")
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -286,7 +292,7 @@ export function AddLeaseToStaticMappingModal({
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
         </div>

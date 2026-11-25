@@ -238,7 +238,8 @@
     "errors": {
       "lastNetwork": "At least one shared network must remain enabled.",
       "clearLeaseFailed": "Failed to clear lease",
-      "loadFailed": "Failed to load DHCP configuration"
+      "loadFailed": "Failed to load DHCP configuration",
+      "loadLeasesFailed": "Failed to load DHCP leases"
     },
     "loading": "Loading DHCP configuration...",
     "errorTitle": "Error Loading DHCP",

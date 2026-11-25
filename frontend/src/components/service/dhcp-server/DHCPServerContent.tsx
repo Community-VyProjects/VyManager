@@ -58,6 +58,7 @@ import { DHCPDdnsModal } from "./DHCPDdnsModal";
 import { DHCPNetworkOptionsModal } from "./DHCPNetworkOptionsModal";
 import { DHCPClientClassModal } from "./DHCPClientClassModal";
 import { ChevronRight } from "lucide-react";
+import type { ApiError } from "@/lib/types/api";
 
 function formatLease(
   seconds: string,
@@ -113,6 +114,7 @@ export function DHCPServerContent() {
   // Lease states
   const [leases, setLeases] = useState<DHCPLease[]>([]);
   const [leasesLoading, setLeasesLoading] = useState(false);
+  const [leasesError, setLeasesError] = useState<string | null>(null);
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -223,7 +225,7 @@ export function DHCPServerContent() {
       setDisableConfirm(null);
       fetchConfig(true);
     } catch (err) {
-      setDisableConfirmError(err instanceof Error ? err.message : tc("operationFailed"));
+      setDisableConfirmError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setDisableConfirmLoading(false);
     }
@@ -238,25 +240,26 @@ export function DHCPServerContent() {
       setClearLeaseTarget(null);
       fetchLeases();
     } catch (err) {
-      setClearLeaseError(err instanceof Error ? err.message : t("page.errors.clearLeaseFailed"));
+      setClearLeaseError((err as ApiError).message || t("page.errors.clearLeaseFailed"));
     } finally {
       setClearLeaseLoading(false);
     }
   };
 
 
-  const fetchLeases = async () => {
+  const fetchLeases = useCallback(async () => {
     try {
       setLeasesLoading(true);
+      setLeasesError(null);
       const leasesData = await dhcpServerService.getLeases();
       setLeases(leasesData.leases);
     } catch (err) {
-      console.error("Error fetching leases:", err);
       setLeases([]);
+      setLeasesError((err as ApiError).message || t("page.errors.loadLeasesFailed"));
     } finally {
       setLeasesLoading(false);
     }
-  };
+  }, [t]);
 
   const closeDeleteRange = () => {
     setDeleteRangeTarget(null);
@@ -281,7 +284,7 @@ export function DHCPServerContent() {
       closeDeleteRange();
       fetchConfig(true);
     } catch (err) {
-      setDeleteRangeError(err instanceof Error ? err.message : t("range.deleteFailed"));
+      setDeleteRangeError((err as ApiError).message || t("range.deleteFailed"));
     } finally {
       setDeleteRangeLoading(false);
     }
@@ -304,7 +307,7 @@ export function DHCPServerContent() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : t("page.errors.loadFailed")
+        (err as ApiError).message || t("page.errors.loadFailed")
       );
       console.error("Error fetching DHCP config:", err);
     } finally {
@@ -315,7 +318,7 @@ export function DHCPServerContent() {
   useEffect(() => {
     fetchConfig();
     fetchLeases();
-  }, [fetchConfig]);
+  }, [fetchConfig, fetchLeases]);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -510,6 +513,23 @@ export function DHCPServerContent() {
                 {t("clientClass.title")}
               </Button>
             )}
+            <Button
+              className={cn(
+                "w-full mt-2",
+                config?.global_config.disable
+                  ? "border-green-500/50 text-green-600 hover:bg-green-500/10"
+                  : "border-muted text-muted-foreground hover:bg-muted"
+              )}
+              size="sm"
+              variant="outline"
+              onClick={requestToggleGlobalDisable}
+              disabled={!config}
+            >
+              {config?.global_config.disable
+                ? <><Power className="h-4 w-4 mr-2" />{t("page.enableDhcp")}</>
+                : <><PowerOff className="h-4 w-4 mr-2" />{t("page.disableDhcp")}</>
+              }
+            </Button>
           </div>
 
           {/* Network List */}
@@ -649,30 +669,13 @@ export function DHCPServerContent() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setNetworkOptionsOpen(true)}
-                    >
-                      {t("networkOptions.open")}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={requestToggleGlobalDisable}
-                      className={cn(
-                        config?.global_config.disable
-                          ? "border-green-500/50 text-green-600 hover:bg-green-500/10"
-                          : "border-muted text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      {config?.global_config.disable
-                        ? <><Power className="h-4 w-4 mr-1.5" />{t("page.enableDhcp")}</>
-                        : <><PowerOff className="h-4 w-4 mr-1.5" />{t("page.disableDhcp")}</>
-                      }
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setNetworkOptionsOpen(true)}
+                  >
+                    {t("networkOptions.open")}
+                  </Button>
                 </div>
               </div>
 
@@ -1253,6 +1256,11 @@ export function DHCPServerContent() {
                               {t("page.loadingLeases")}
                             </div>
                           </div>
+                        ) : leasesError ? (
+                          <div className="flex items-center gap-2 m-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                            <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                            <p className="text-sm text-destructive whitespace-pre-wrap">{leasesError}</p>
+                          </div>
                         ) : filteredLeases.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-12">
                             <Wifi className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1577,7 +1585,7 @@ export function DHCPServerContent() {
             {disableConfirmError && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                <p className="text-sm text-destructive">{disableConfirmError}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">{disableConfirmError}</p>
               </div>
             )}
 
@@ -1628,7 +1636,7 @@ export function DHCPServerContent() {
             {clearLeaseError && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                <p className="text-sm text-destructive">{clearLeaseError}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">{clearLeaseError}</p>
               </div>
             )}
 
@@ -1677,7 +1685,7 @@ export function DHCPServerContent() {
             {deleteRangeError && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                <p className="text-sm text-destructive">{deleteRangeError}</p>
+                <p className="text-sm text-destructive whitespace-pre-wrap">{deleteRangeError}</p>
               </div>
             )}
 

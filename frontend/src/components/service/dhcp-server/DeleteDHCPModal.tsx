@@ -72,8 +72,13 @@ export function DeleteDHCPModal({
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -121,7 +126,7 @@ export function DeleteDHCPModal({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
         </div>

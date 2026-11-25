@@ -155,8 +155,13 @@ export function RangeModal({
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[450px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -255,7 +260,7 @@ export function RangeModal({
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
         </div>

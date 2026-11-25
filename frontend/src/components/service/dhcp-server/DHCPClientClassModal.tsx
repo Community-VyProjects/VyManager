@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/dhcp-server";
 import { clientClassOperations, duplicateClassName, type ClientClassDraft } from "./dhcp-client-class";
 import { failedSaveMessage } from "./dhcp-save";
+import type { ApiError } from "@/lib/types/api";
 
 interface DHCPClientClassModalProps {
   open: boolean;
@@ -86,7 +87,7 @@ export function DHCPClientClassModal({
       onSuccess();
       setDraft(emptyDraft());
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("clientClass.saveFailed"));
+      setError((err as ApiError).message || t("clientClass.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -107,14 +108,19 @@ export function DHCPClientClassModal({
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("clientClass.deleteFailed"));
+      setError((err as ApiError).message || t("clientClass.deleteFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>{t("clientClass.title")}</DialogTitle>
@@ -187,7 +193,7 @@ export function DHCPClientClassModal({
               />
             </div>
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setDraft(emptyDraft())} disabled={loading}>

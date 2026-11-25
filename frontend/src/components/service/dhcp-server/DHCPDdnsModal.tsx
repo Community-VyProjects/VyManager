@@ -31,6 +31,7 @@ import {
   type DHCPDdnsTsigKey,
 } from "@/lib/api/dhcp-server";
 import { failedSaveMessage } from "./dhcp-save";
+import type { ApiError } from "@/lib/types/api";
 
 interface DHCPDdnsModalProps {
   open: boolean;
@@ -175,7 +176,7 @@ export function DHCPDdnsModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("ddns.saveFailed"));
+      setError((err as ApiError).message || t("ddns.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -275,8 +276,13 @@ export function DHCPDdnsModal({
     </div>
   );
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("ddns.title")}</DialogTitle>
@@ -469,7 +475,7 @@ export function DHCPDdnsModal({
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
         </div>

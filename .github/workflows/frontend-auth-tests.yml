@@ -109,3 +109,7 @@ jobs:
       - name: Run WireGuard form tests
         working-directory: frontend
         run: npm run test:wireguard-form
+
+      - name: Run DHCP server screen tests
+        working-directory: frontend
+        run: npm run test:dhcp-server

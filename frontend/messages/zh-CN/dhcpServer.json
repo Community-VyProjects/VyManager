@@ -238,7 +238,8 @@
     "errors": {
       "lastNetwork": "必须至少保留一个已启用的共享网络。",
       "clearLeaseFailed": "释放租约失败",
-      "loadFailed": "加载 DHCP 配置失败"
+      "loadFailed": "加载 DHCP 配置失败",
+      "loadLeasesFailed": "加载 DHCP 租约失败"
     },
     "loading": "正在加载 DHCP 配置...",
     "errorTitle": "加载 DHCP 出错",

@@ -28,6 +28,7 @@ import {
   type DHCPFailoverConfig,
 } from "@/lib/api/dhcp-server";
 import { failedSaveMessage } from "./dhcp-save";
+import type { ApiError } from "@/lib/types/api";
 
 interface DHCPFailoverModalProps {
   open: boolean;
@@ -109,14 +110,19 @@ export function DHCPFailoverModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failover.saveFailed"));
+      setError((err as ApiError).message || t("failover.saveFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>{t("failover.title")}</DialogTitle>
@@ -220,7 +226,7 @@ export function DHCPFailoverModal({
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
             </div>
           )}
         </div>
