@@ -33,8 +33,6 @@
     "active": "运行中",
     "updateAvailable": "有可用更新",
     "editFiles": "编辑文件",
-    "pullImage": "拉取镜像",
-    "pullImageTitle": "拉取镜像 — {name}",
     "updateImageTitle": "更新镜像 — {name}",
     "restart": "重启",
     "restartTitle": "重启容器 — {name}",

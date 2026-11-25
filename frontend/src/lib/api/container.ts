@@ -311,10 +311,6 @@ class ContainerService {
     return apiClient.post<ContainerSSHResponse>("/vyos/container/image/pull", { image: imageRef });
   }
 
-  async addImage(containerName: string): Promise<ContainerSSHResponse> {
-    return apiClient.post<ContainerSSHResponse>("/vyos/container/image/add", { container_name: containerName });
-  }
-
   async updateImage(containerName: string): Promise<ContainerSSHResponse> {
     return apiClient.post<ContainerSSHResponse>("/vyos/container/image/update", { container_name: containerName });
   }

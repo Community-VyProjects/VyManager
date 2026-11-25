@@ -27,7 +27,6 @@ import {
 import {
   ArrowRight,
   Box,
-  Download,
   FolderOpen,
   ImageOff,
   Pencil,
@@ -389,9 +388,6 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.pullImage")} aria-label={t("tab.pullImage")} disabled={writeDisabled} onClick={() => runSsh(t("tab.pullImageTitle", { name: c.name }), () => containerService.addImage(c.name), true)}>
-                                <Download className="h-4 w-4" />
-                              </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("images.updateImage")} aria-label={tr("images.updateImage")} disabled={writeDisabled} onClick={() => runSsh(t("tab.updateImageTitle", { name: c.name }), () => containerService.updateImage(c.name), true)}>
                                 <RefreshCw className="h-4 w-4" />
                               </Button>

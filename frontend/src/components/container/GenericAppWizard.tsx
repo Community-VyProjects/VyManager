@@ -233,7 +233,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         mac: showMac ? netMac.trim() : "",
       });
     }
-    const ports = (hasNetwork && networkMode === "host") ? [] : (ic.ports ?? []).map(p => ({
+    const hostNetworks = hasNetwork && networkMode === "host";
+    const ports = hostNetworks ? [] : (ic.ports ?? []).map(p => ({
       name: p.name,
       source: resolve(String(p.source), resolvedValues),
       destination: resolve(String(p.destination), resolvedValues),
@@ -246,7 +247,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       ...emptyContainer(name),
       image: app.dockerImage,
       description: ic.description ? resolve(ic.description, resolvedValues) : null,
-      allow_host_networks: hasNetwork && networkMode === "host",
+      allow_host_networks: hostNetworks,
       allow_host_pid: ic.allowHostPid ?? false,
       privileged: ic.privileged ?? false,
       restart: ic.restart ?? null,
@@ -272,7 +273,10 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       name_servers: ic.nameServers ?? [],
       devices: (ic.devices ?? []).map(d => ({ name: d.name, source: d.source, destination: d.destination })),
       labels: (ic.labels ?? []).map(l => ({ name: l.name, value: resolve(l.value, resolvedValues) })),
-      sysctl_params: (ic.sysctl ?? []).map(s => ({ name: s.name, value: s.value })),
+      // The lab rejects net.* sysctl parameters together with host networking.
+      sysctl_params: (ic.sysctl ?? [])
+        .filter(s => !(hostNetworks && s.name.startsWith("net.")))
+        .map(s => ({ name: s.name, value: s.value })),
       tmpfs_mounts: features.tmpfs && ic.tmpfs
         ? ic.tmpfs.map(m => ({ name: m.name, destination: m.destination, size: m.size ?? null }))
         : [],

@@ -33,8 +33,6 @@
     "active": "Active",
     "updateAvailable": "Update available",
     "editFiles": "Edit Files",
-    "pullImage": "Pull image",
-    "pullImageTitle": "Pull Image — {name}",
     "updateImageTitle": "Update Image — {name}",
     "restart": "Restart",
     "restartTitle": "Restart Container — {name}",
