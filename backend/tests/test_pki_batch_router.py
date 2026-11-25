@@ -849,11 +849,22 @@ def test_legacy_encrypted_pem_is_400(client, label):
 
 
 def test_every_pem_op_is_covered():
-    from routers.pki.pki import _PEM_OP_LABELS, _PEM_VALUE_OPS
+    from routers.pki.pki import _PEM_OP_LABELS
 
     assert set(_PEM_OP_LABELS) == set(PEM_OPS)
-    # Own parse paths, tested elsewhere in this file.
-    assert set(_PEM_VALUE_OPS) == set(PEM_OPS) | {"set_openssh_public_key", "set_openvpn_shared_secret_key"}
+
+
+def test_pkcs1_key_with_comment_lines_inside_is_read(client):
+    test_client, executed, _generated = client
+    key, pem = _legacy_key_pem("pkcs1")
+    lines = pem.strip().splitlines()
+    lines.insert(1, "# exported by a tool")
+    lines.insert(5, "   # another note")
+    resp = _batch(test_client, [{"op": "set_ca_private_key", "value": "\n".join(lines)}], item_name="X")
+    assert resp.json()["success"] is True, resp.text
+    assert executed[0][0][1][-1] == _b64(key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption(),
+    ))
 
 
 def test_openssh_public_key_bare_value_with_spaces_is_400(client):
@@ -909,7 +920,9 @@ def test_openvpn_import_of_other_or_broken_armor_is_400(client, value, detail):
     "san",
     ["bücher.de", "exämple.com", "foo bar", "a/b", "http://x.example", "-bad-.com", "bad-.com", "a..b",
      "*.", "a.*.example.com", "x" * 64 + ".com", ".example.com", "example.com.", "under_score.com",
-     ".".join(["a" * 63] * 4) + ".com"],
+     ".".join(["a" * 63] * 4) + ".com",
+     # An all-digit last label is a mistyped IP address.
+     "999.1.1.1", "192.168.1.256", "1.2.3", "host.123", "*.42"],
 )
 def test_non_hostname_san_is_400_naming_the_entry(client, san):
     test_client, executed, _generated = client
@@ -929,8 +942,29 @@ def test_valid_sans_are_accepted(client):
     resp = test_client.post("/vyos/pki/generate-certificate", json={
         **GENERATE["/vyos/pki/generate-certificate"][1], "name": "NEW",
         "subject_alt_names": [
-            "192.0.2.1", "2001:db8::1", "*.example.com", "xn--bcher-kva.de", "localhost", "a-b.c1", longest, "  ",
+            "192.0.2.1", "2001:db8::1", "*.example.com", "xn--bcher-kva.de", "localhost", "a-b.c1", "1host.example", "123.example.com", longest, "  ",
         ],
     })
     assert resp.json()["success"] is True, resp.text
     assert len(executed) == 1
+
+
+@pytest.mark.parametrize(
+    "value,detail",
+    [
+        # The CRL screen sends a stray armor line on its own; see splitCrlList.
+        ("-----BEGIN X509 CRL-----", "PEM block 'X509 CRL' has no matching END line"),
+        ("-----BEGIN CERTIFICATE-----", "PEM block 'CERTIFICATE' has no matching END line"),
+        ("-----END X509 CRL-----", "PEM END line 'X509 CRL' has no matching BEGIN line"),
+        ("MIIB kTCC", "A value without PEM armor must be a single line of base64 with no spaces"),
+    ],
+)
+def test_crl_screen_probe_values_are_400(client, value, detail):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [
+        {"op": "set_ca_crl", "value": "MIIBLDCB"},
+        {"op": "set_ca_crl", "value": value},
+    ], item_name="CA1")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == detail
+    assert executed == []

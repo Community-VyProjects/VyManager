@@ -60,10 +60,6 @@ _PEM_OP_LABELS: Dict[str, tuple[str, ...]] = {
 # Unencrypted PKCS1 / SEC1 keys are converted to unencrypted PKCS8.
 _CONVERTIBLE_KEY_LABELS = ("RSA PRIVATE KEY", "EC PRIVATE KEY")
 
-# Ops whose value is key material with its own parse: the labelled PEM ops,
-# the OpenSSH public key line and the OpenVPN static key block.
-_PEM_VALUE_OPS = frozenset({*_PEM_OP_LABELS, "set_openssh_public_key", "set_openvpn_shared_secret_key"})
-
 # One armor line; the label is anything up to the closing dashes.
 _ARMOR_LINE = re.compile(r"-----(?P<kind>BEGIN|END) (?P<label>[^\n]*?)-----")
 
@@ -126,7 +122,10 @@ def _bare_value(value: str) -> str:
 
 def _pkcs8_body(label: str, body: str) -> str:
     """An unencrypted PKCS1 / SEC1 key converted to an unencrypted PKCS8 body."""
-    pem = f"-----BEGIN {label}-----\n{body.strip()}\n-----END {label}-----\n".encode()
+    # `#` comment lines are dropped, as _block_body does for the stored value.
+    lines = [line.strip() for line in body.splitlines() if not line.lstrip().startswith("#")]
+    text = "\n".join(line for line in lines if line)
+    pem = f"-----BEGIN {label}-----\n{text}\n-----END {label}-----\n".encode()
     try:
         key = serialization.load_pem_private_key(pem, password=None)
     except (ValueError, TypeError, UnsupportedAlgorithm):
@@ -219,7 +218,8 @@ def _check_subject(country: Optional[str], common_name: str, days: int) -> None:
 
 
 # A DNS SAN: optional leading "*.", labels of 1-63 [A-Za-z0-9-] chars that do
-# not start or end with "-", 253 chars at most.
+# not start or end with "-", 253 chars at most, and a last label that is not
+# all digits.
 _DNS_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 _DNS_NAME = re.compile(rf"(?:\*\.)?{_DNS_LABEL}(?:\.{_DNS_LABEL})*")
 MAX_DNS_NAME = 253
@@ -237,7 +237,8 @@ def _san_entries(names: List[str]) -> List[x509.GeneralName]:
             continue
         except ValueError:
             pass  # Not an IP address: it must be a DNS hostname below.
-        if len(san) > MAX_DNS_NAME or not _DNS_NAME.fullmatch(san):
+        # An all-digit last label is a mistyped IP address, not a hostname.
+        if len(san) > MAX_DNS_NAME or not _DNS_NAME.fullmatch(san) or san.rsplit(".", 1)[-1].isdigit():
             raise HTTPException(
                 status_code=400,
                 detail=f"Subject alternative name '{san}' is not an IP address or a DNS hostname",
@@ -499,7 +500,9 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
                     value = _import_value(operation.op, value)
                 _call_batch_op(builder, operation.op, request.item_name, value)
         except ValueError as exc:
-            # The builder raises ValueError for a value this VyOS version rejects.
+            # _import_value raises ValueError for a value the leaf cannot hold
+            # (armor, labels, PKCS8, whitespace, newlines); the builder raises it
+            # for a value this VyOS version rejects.
             raise HTTPException(status_code=400, detail=str(exc))
 
         if builder.is_empty():

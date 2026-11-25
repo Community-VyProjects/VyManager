@@ -277,7 +277,6 @@ export function splitList(text: string): string[] {
 // A whole armored block; the END label matches BEGIN (as the backend checks).
 const PEM_BLOCK = /-----BEGIN ([^\n]*?)-----[\s\S]*?-----END \1-----/g;
 const PEM_ARMOR = /-----(?:BEGIN|END) [^\n]*?-----/g;
-const BASE64 = /^[A-Za-z0-9+/=]+$/;
 
 /** A PEM block's body as the backend stores it: armor, `#` lines and whitespace removed. */
 export function pemBody(block: string): string {
@@ -289,23 +288,42 @@ export function pemBody(block: string): string {
     .replace(/\s+/g, "");
 }
 
+/** openssl header lines around a pasted block; dropped from the CRL box. */
+const HEADER_LINE = /^(?:subject=|issuer=|#)/;
+const BAG_ATTRIBUTES = /^Bag Attributes\b/;
+const INDENTED_ATTRIBUTE = /^\s+\S[^:]*:/;
+
 /**
- * CA CRL text box. Each pasted PEM block is one value, sent whole with its
- * armor (the backend picks the `X509 CRL` block and normalizes it). The other
- * lines, or comma-separated parts, are each a bare base64 value. Text around a
- * pasted block that is not base64 (openssl `subject=` headers, `#` comments)
- * is dropped. A BEGIN with no matching END stays as text, and the backend
- * rejects it.
+ * CA CRL text box.
+ * - Every matched BEGIN…END block is one value, sent whole with its armor;
+ *   the backend picks the `X509 CRL` block and normalizes it.
+ * - Every other non-empty line is sent, comma-split, as its own value, except
+ *   openssl header shapes: `subject=` / `issuer=` lines, `Bag Attributes` and
+ *   the indented `key: value` lines right after it, and `#` lines.
+ * - A stray BEGIN or END line outside a matched block is always sent whole,
+ *   so the backend rejects it.
  */
 export function splitCrlList(text: string): string[] {
   const blocks = (text.match(PEM_BLOCK) ?? []).map((block) => block.trim());
-  const rest = text
-    .replace(PEM_BLOCK, "\n")
-    .split(/[,\n]/)
-    .map((part) => part.trim())
-    .filter((part) => !part.startsWith("#"))
-    .filter((part) => blocks.length === 0 || BASE64.test(part));
-  return normalizeList([...blocks, ...rest]);
+  const values: string[] = [];
+  let inBagAttributes = false;
+  for (const line of text.replace(PEM_BLOCK, "\n").split(/\r?\n/)) {
+    if (inBagAttributes && INDENTED_ATTRIBUTE.test(line)) continue;
+    inBagAttributes = false;
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (BAG_ATTRIBUTES.test(trimmed)) {
+      inBagAttributes = true;
+      continue;
+    }
+    if (HEADER_LINE.test(trimmed)) continue;
+    if (trimmed.includes("-----BEGIN ") || trimmed.includes("-----END ")) {
+      values.push(trimmed);
+      continue;
+    }
+    values.push(...trimmed.split(","));
+  }
+  return normalizeList([...blocks, ...values]);
 }
 
 /** A pasted CRL block whose body is already stored counts as that stored value. */

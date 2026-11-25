@@ -447,13 +447,32 @@ describe("CA CRL text box", () => {
     assert.deepEqual(splitCrlList(text), [pem, other, "CRLA", "CRLB", "CRLC"]);
   });
 
-  it("without a block every line is kept, for the backend to check", () => {
+  it("every other line is sent, so a mistyped line with a space reaches the backend", () => {
     assert.deepEqual(splitCrlList("CRLA\nnot base64 here, CRLB\n# comment"), ["CRLA", "not base64 here", "CRLB"]);
+    // Next to a block too: the backend 400s "MIIB kTCC" (no spaces in a bare value).
+    assert.deepEqual(splitCrlList(`${pem}\nMIIB kTCC`), [pem, "MIIB kTCC"]);
   });
 
-  it("a BEGIN with no matching END is left as lines the backend rejects", () => {
-    const broken = "-----BEGIN X509 CRL-----\nMIIB\n-----END CERTIFICATE-----";
-    assert.deepEqual(splitCrlList(broken), broken.split("\n"));
+  it("probe: a BEGIN with no END after a block is sent for the backend to reject", () => {
+    assert.deepEqual(splitCrlList(`${pem}\n-----BEGIN X509 CRL-----\nMIIB`), [pem, "-----BEGIN X509 CRL-----", "MIIB"]);
+  });
+
+  it("probe: a stray BEGIN CERTIFICATE line before a block is sent", () => {
+    assert.deepEqual(splitCrlList(`-----BEGIN CERTIFICATE-----\nAAAA\n${pem}`), [pem, "-----BEGIN CERTIFICATE-----", "AAAA"]);
+  });
+
+  it("probe: a stray END line is sent", () => {
+    assert.deepEqual(splitCrlList(`${pem}\n-----END X509 CRL-----`), [pem, "-----END X509 CRL-----"]);
+    const mismatched = "-----BEGIN X509 CRL-----\nMIIB\n-----END CERTIFICATE-----";
+    assert.deepEqual(splitCrlList(mismatched), mismatched.split("\n"));
+  });
+
+  it("probe: subject=/CN=ca and the other openssl headers are dropped", () => {
+    assert.deepEqual(splitCrlList(`subject=/CN=ca\nissuer=/CN=root\n${pem}`), [pem]);
+    const bag = ["Bag Attributes", "    localKeyID: 01 02 03", "    friendlyName: lab-ca", pem, "CRLB"].join("\n");
+    assert.deepEqual(splitCrlList(bag), [pem, "CRLB"]);
+    // Indented lines are dropped only right after Bag Attributes.
+    assert.deepEqual(splitCrlList("CRLA\n    odd: line"), ["CRLA", "odd: line"]);
   });
 
   it("the stored one-per-line seed round-trips to no ops", () => {
