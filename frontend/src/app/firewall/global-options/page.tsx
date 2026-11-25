@@ -129,9 +129,15 @@ function FirewallGlobalOptionsPageInner() {
     });
   }, [searchParams, loaded]);
 
-  const hasChanges = original !== null && draft !== null && globalOptionsSaveOps(original, draft).length > 0;
   const resolverRange = globalOptionsRange(capabilities, "resolver_interval");
   const timeoutRange = globalOptionsRange(capabilities, "timeouts");
+  // A draft the save check rejects (the mask typed as a new key) emits no op
+  // but must still reach Save so the check can report it.
+  const hasChanges =
+    original !== null &&
+    draft !== null &&
+    (globalOptionsSaveOps(original, draft).length > 0 ||
+      globalOptionsProblem(original, draft, { resolverInterval: resolverRange, timeout: timeoutRange }) !== null);
 
   const handleSave = async () => {
     if (!original || !draft) return;

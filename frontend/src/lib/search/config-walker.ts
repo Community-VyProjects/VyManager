@@ -169,6 +169,11 @@ const FIELD_ID_OVERRIDES: Record<string, string> = {
       [`state_policy.${state}.log_level`, `${state}-log-level`],
     ])
   ),
+  ip_src_route: "ipv4-source-routing",
+  ipv6_src_route: "ipv6-source-routing",
+  receive_redirects: "receive-redirects-ipv4",
+  ipv6_receive_redirects: "receive-redirects-ipv6",
+  twa_hazards_protection: "twa-hazards",
   "state_policy.offload_target": "offload-target",
   "bridged_traffic.ipv4": "bridged-ipv4",
   "bridged_traffic.ipv6": "bridged-ipv6",

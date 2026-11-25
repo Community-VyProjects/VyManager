@@ -95,11 +95,11 @@ export const configSources: ConfigSourceDefinition[] = [
     feature: "Firewall",
     hrefBase: "/firewall/global-options",
     fetch: async () => {
-      // `configured` is not a field; the 1.5-only bridged/geoip sections parse as
-      // false/null on 1.4, so index them only when something is set.
+      // `configured` is not a field; the 1.5-only bridged/geoip/timeout sections
+      // parse as false/null on 1.4, so index them only when something is set.
       const config: Record<string, unknown> = { ...(await firewallGlobalOptionsService.getConfig()) };
       delete config.configured;
-      for (const section of ["bridged_traffic", "geoip"]) {
+      for (const section of ["bridged_traffic", "geoip", "timeouts"]) {
         const values = Object.values((config[section] ?? {}) as Record<string, unknown>);
         if (!values.some((value) => (Array.isArray(value) ? value.length > 0 : !!value))) delete config[section];
       }
