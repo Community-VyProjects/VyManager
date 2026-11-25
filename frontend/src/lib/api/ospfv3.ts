@@ -116,7 +116,6 @@ export type Ospfv3RangeKey =
   | "area_id"
   | "reference_bandwidth"
   | "metric"
-  | "metric_type"
   | "distance"
   | "grace_period"
   | "supported_grace_time"

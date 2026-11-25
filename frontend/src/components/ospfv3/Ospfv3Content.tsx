@@ -81,6 +81,8 @@ export function Ospfv3Content() {
   const [capabilities, setCapabilities] = useState<Ospfv3Capabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Picker lists that failed to load (a 403 stays silent: the user may not read that feature).
+  const [listErrors, setListErrors] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
 
   // Policy names for dropdowns
@@ -156,16 +158,23 @@ export function Ospfv3Content() {
       setConfig(configData);
       setCapabilities(capData);
 
-      // Load policy names for dropdowns - these require separate permissions
-      // so we catch errors silently and default to empty arrays
+      // Picker names come from features with their own permissions. A 403
+      // leaves the picker empty without a message; any other failure says so.
+      const failed: string[] = [];
+      const names = (load: Promise<string[]>, message: string) =>
+        load.catch((err: unknown) => {
+          if ((err as ApiError).status !== 403) failed.push(message);
+          return [] as string[];
+        });
       const [rmNames, aclNames, bfdNames] = await Promise.all([
-        routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => []),
-        accessListService.getConfig().then((c) => c.ipv6_lists.map((al) => al.number)).catch(() => []),
-        bfdService.getConfig().then((c) => c.profiles.map((p) => p.name)).catch(() => []),
+        names(routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)), t("page.loadRouteMapsFailed")),
+        names(accessListService.getConfig().then((c) => c.ipv6_lists.map((al) => al.number)), t("page.loadAccessListsFailed")),
+        names(bfdService.getConfig().then((c) => c.profiles.map((p) => p.name)), t("page.loadBfdProfilesFailed")),
       ]);
       setRouteMapNames(rmNames);
       setAccessListNames(aclNames);
       setBfdProfileNames(bfdNames);
+      setListErrors(failed);
     } catch (err) {
       setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
@@ -475,6 +484,14 @@ export function Ospfv3Content() {
           {error && (
             <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
               {error}
+            </div>
+          )}
+
+          {listErrors.length > 0 && (
+            <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm space-y-1">
+              {listErrors.map((message) => (
+                <p key={message}>{message}</p>
+              ))}
             </div>
           )}
 

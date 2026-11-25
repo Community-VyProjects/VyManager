@@ -35,7 +35,10 @@
     "loadFailed": "加载 OSPFv3 配置失败",
     "saveParametersFailed": "保存参数失败",
     "saveDefaultInfoFailed": "保存默认信息发布设置失败",
-    "saveAdvancedFailed": "保存高级设置失败"
+    "saveAdvancedFailed": "保存高级设置失败",
+    "loadRouteMapsFailed": "加载路由映射失败",
+    "loadAccessListsFailed": "加载 IPv6 访问列表失败",
+    "loadBfdProfilesFailed": "加载 BFD 配置文件失败"
   },
   "stats": {
     "areas": "区域",

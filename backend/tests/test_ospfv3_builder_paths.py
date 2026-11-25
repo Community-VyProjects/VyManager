@@ -231,6 +231,8 @@ def test_capabilities_do_not_branch_on_version():
 
 
 def test_ranges_match_the_lab():
+    # metric-type is an enum (1 or 2) checked against metric_types; no range entry.
+    assert "metric_type" not in RANGES
     assert RANGES["grace_period"] == {"min": 5, "max": 1800}
     assert RANGES["supported_grace_time"] == {"min": 10, "max": 1800}
     assert RANGES["reference_bandwidth"] == {"min": 1, "max": 4294967}

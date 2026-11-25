@@ -106,7 +106,7 @@ export function Ospfv3InterfaceModal({
     setIfmtu(toText(src?.ifmtu));
     setInstanceId(toText(src?.instance_id));
     setError(null);
-  }, [open, existingInterface]);
+  }, [open, existingInterface, t]);
 
   const handleClose = () => onOpenChange(false);
 

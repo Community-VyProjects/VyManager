@@ -43,7 +43,6 @@ const CAPS: Pick<Ospfv3Capabilities, "ranges"> = {
     area_id: { min: 0, max: 4294967295 },
     reference_bandwidth: { min: 1, max: 4294967 },
     metric: { min: 0, max: 16777214 },
-    metric_type: { min: 1, max: 2 },
     distance: { min: 1, max: 255 },
     grace_period: { min: 5, max: 1800 },
     supported_grace_time: { min: 10, max: 1800 },
@@ -625,6 +624,15 @@ describe("screens", () => {
       assert.match(src, /DialogContent className="[^"]*max-h-\[85vh\] flex flex-col overflow-hidden"/, file);
       assert.match(src, /ScrollArea className="flex-1 min-h-0/, file);
     }
+  });
+
+  it("reports a failed picker list load unless it is a 403", () => {
+    const page = read("Ospfv3Content.tsx");
+    assert.match(page, /\(err as ApiError\)\.status !== 403/);
+    for (const key of ["loadRouteMapsFailed", "loadAccessListsFailed", "loadBfdProfilesFailed"]) {
+      assert.match(page, new RegExp(`t\\("page\\.${key}"\\)`), key);
+    }
+    assert.doesNotMatch(page, /\.catch\(\(\) => \[\]\)/);
   });
 
   it("disables the child controls while Enabled is unchecked", () => {

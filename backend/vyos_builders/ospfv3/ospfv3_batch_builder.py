@@ -23,7 +23,6 @@ RANGES: Dict[str, Dict[str, int]] = {
     "area_id": {"min": 0, "max": 4294967295},
     "reference_bandwidth": {"min": 1, "max": 4294967},
     "metric": {"min": 0, "max": 16777214},
-    "metric_type": {"min": 1, "max": 2},
     "distance": {"min": 1, "max": 255},
     "grace_period": {"min": 5, "max": 1800},
     "supported_grace_time": {"min": 10, "max": 1800},

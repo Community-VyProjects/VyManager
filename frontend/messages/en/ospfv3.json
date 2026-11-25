@@ -35,7 +35,10 @@
     "loadFailed": "Failed to load OSPFv3 configuration",
     "saveParametersFailed": "Failed to save parameters",
     "saveDefaultInfoFailed": "Failed to save default information",
-    "saveAdvancedFailed": "Failed to save advanced settings"
+    "saveAdvancedFailed": "Failed to save advanced settings",
+    "loadRouteMapsFailed": "Failed to load route maps",
+    "loadAccessListsFailed": "Failed to load IPv6 access lists",
+    "loadBfdProfilesFailed": "Failed to load BFD profiles"
   },
   "stats": {
     "areas": "Areas",
