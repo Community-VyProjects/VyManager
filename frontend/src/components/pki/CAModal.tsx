@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, ShieldCheck, Info } from "lucide-react";
 import { pkiService, PKICA, PKIX509Defaults } from "@/lib/api/pki";
-import { KEEP, splitCrlList, typed, type StoredValue, nameProblem } from "@/lib/api/pki-save-ops";
+import { KEEP, splitCrlList, typed, type StoredValue, nameProblem, generateSubjectProblem, MAX_COMMON_NAME, MAX_DAYS } from "@/lib/api/pki-save-ops";
 import { CountrySelect } from "@/components/firewall/CountrySelect";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
@@ -167,11 +167,11 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
   const handleGenerateSubmit = async () => {
     const nameError = nameProblem(genName, existingNames);
     if (nameError) { setError(t(`shared.${nameError}`)); return; }
-    if (!commonName.trim()) { setError(t("shared.commonNameRequired")); return; }
     if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
+    const subjectError = generateSubjectProblem(commonName, days);
+    if (subjectError) { setError(t(subjectError, { max: subjectError === "ca.daysTooMany" ? MAX_DAYS : MAX_COMMON_NAME })); return; }
     const daysNum = parseInt(days, 10);
-    if (isNaN(daysNum) || daysNum < 1) { setError(t("ca.daysPositive")); return; }
 
     setLoading(true);
     setError(null);
@@ -358,7 +358,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
                   <div className="space-y-2">
                     <Label htmlFor="gen-days">{t("shared.validityDays")}</Label>
-                    <Input id="gen-days" type="number" value={days} onChange={(e) => setDays(e.target.value)} placeholder="3650" min={1} />
+                    <Input id="gen-days" type="number" value={days} onChange={(e) => setDays(e.target.value)} placeholder="3650" min={1} max={MAX_DAYS} />
                   </div>
 
                   <div className="space-y-3">

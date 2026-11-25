@@ -6,6 +6,7 @@
     "nameInvalid": "Use letters, digits, '-', '_', '.' or '+', starting with a letter, digit, '-' or '_'",
     "nameExists": "An item with this name already exists",
     "commonNameRequired": "Common Name is required",
+    "commonNameTooLong": "Common Name must be at most {max} characters",
     "passphraseRequired": "Passphrase is required when encrypting the key",
     "generationFailed": "Generation failed",
     "generating": "Generating...",
@@ -39,6 +40,7 @@
     "cnPlaceholder": "My Root CA",
     "orgPlaceholder": "My Company",
     "daysPositive": "Days must be a positive number",
+    "daysTooMany": "Days must be at most {max}",
     "systemInstall": "System Install",
     "generateButton": "Generate CA",
     "importButton": "Import CA"

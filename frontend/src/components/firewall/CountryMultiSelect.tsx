@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { Search, X, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { COUNTRIES } from "./CountrySelect";
+import { filterCountries, localizeCountries } from "./countries";
 
 interface CountryMultiSelectProps {
   value: string[];
@@ -24,25 +24,16 @@ interface CountryMultiSelectProps {
 
 export function CountryMultiSelect({ value, onChange, label, id }: CountryMultiSelectProps) {
   const t = useTranslations("firewallCommon");
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Normalize value to always be an array of uppercase codes
   const normalizedValue = (value || []).map(v => v.toUpperCase());
 
-  // Filter countries based on search query
-  const filteredCountries = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return COUNTRIES;
-    }
-
-    const query = searchQuery.toLowerCase();
-    return COUNTRIES.filter(
-      (country) =>
-        country.name.toLowerCase().includes(query) ||
-        country.code.toLowerCase().includes(query)
-    );
-  }, [searchQuery]);
+  // Names in the UI locale; search matches the localized name or the code.
+  const countries = useMemo(() => localizeCountries(locale), [locale]);
+  const filteredCountries = useMemo(() => filterCountries(countries, searchQuery), [countries, searchQuery]);
 
   const toggleCountry = (code: string) => {
     if (normalizedValue.includes(code)) {
@@ -57,7 +48,7 @@ export function CountryMultiSelect({ value, onChange, label, id }: CountryMultiS
   };
 
   const getCountryName = (code: string) => {
-    return COUNTRIES.find(c => c.code === code.toUpperCase())?.name || code;
+    return countries.find(c => c.code === code.toUpperCase())?.name || code;
   };
 
   return (

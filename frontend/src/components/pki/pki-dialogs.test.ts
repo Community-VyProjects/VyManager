@@ -72,7 +72,15 @@ describe("PKI dialogs", () => {
     assert.ok(!cert.includes("effectiveMode"));
     assert.ok(!cert.includes('setMode(acme ? "acme" : "manual")'));
     assert.ok(cert.includes("acmeCreateForm(entered)"));
-    assert.ok(cert.includes('setError(t("ca.daysPositive"))'));
+    assert.ok(cert.includes("generateSubjectProblem(commonName, days)"));
+  });
+
+  it("both generate forms bound days and common name like the backend", () => {
+    for (const file of ["CAModal.tsx", "CertificateModal.tsx"]) {
+      const source = readFileSync(join(here, file), "utf8");
+      assert.ok(source.includes("generateSubjectProblem(commonName, days)"), file);
+      assert.ok(source.includes('type="number"') && source.includes("min={1} max={MAX_DAYS}"), file);
+    }
   });
 
   it("value lists come from capabilities with no hardcoded fallback", () => {

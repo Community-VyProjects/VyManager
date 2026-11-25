@@ -668,3 +668,114 @@ def test_session_http_exception_passes_through(monkeypatch, client, method, path
 
 def _must_not_run(*_args, **_kwargs):
     raise AssertionError("key generation ran before the session lookup")
+
+
+# ---------------------------------------------------------------- PEM and key parsing
+
+
+PEM_BODY = "MIIBkTCCATegAwIBAgIUQ"
+PEM_WRAPPED = "-----BEGIN CERTIFICATE-----\nMIIBkTCC\nATegAwIBAgIUQ\n-----END CERTIFICATE-----"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        PEM_WRAPPED,
+        f"\n  {PEM_WRAPPED}\n\n",
+        # openssl pkcs12 output
+        f"Bag Attributes\n    localKeyID: 01 02\nsubject=CN = srv\nissuer=CN = ca\n{PEM_WRAPPED}\n",
+        f"# exported by a tool\n{PEM_WRAPPED}\n# trailing note\nsubject=CN = other\n",
+        # a second block after the first is dropped
+        f"{PEM_WRAPPED}\n-----BEGIN CERTIFICATE-----\nOTHER\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\r\nMIIBkTCC ATegAw\r\n\tIBAgIUQ\r\n-----END CERTIFICATE-----\r\n",
+    ],
+)
+@pytest.mark.parametrize(
+    "op,leaf",
+    [
+        ("set_ca_certificate", ["pki", "ca", "X", "certificate"]),
+        ("set_ca_private_key", ["pki", "ca", "X", "private", "key"]),
+        ("set_ca_crl", ["pki", "ca", "X", "crl"]),
+        ("set_certificate_cert", ["pki", "certificate", "X", "certificate"]),
+        ("set_certificate_private_key", ["pki", "certificate", "X", "private", "key"]),
+        ("set_dh_parameters", ["pki", "dh", "X", "parameters"]),
+        ("set_key_pair_private_key", ["pki", "key-pair", "X", "private", "key"]),
+        ("set_key_pair_public_key", ["pki", "key-pair", "X", "public", "key"]),
+        ("set_openssh_private_key", ["pki", "openssh", "X", "private", "key"]),
+    ],
+)
+def test_pem_block_is_found_anywhere_and_its_body_kept(client, value, op, leaf):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": op, "value": value}], item_name="X")
+    assert resp.json()["success"] is True, resp.text
+    assert executed == [[("set", leaf + [PEM_BODY])]]
+
+
+def test_every_pem_op_is_covered():
+    from routers.pki.pki import _PEM_VALUE_OPS
+
+    tested = {
+        "set_ca_certificate", "set_ca_private_key", "set_ca_crl", "set_certificate_cert",
+        "set_certificate_private_key", "set_dh_parameters", "set_key_pair_private_key",
+        "set_key_pair_public_key", "set_openssh_private_key",
+        # Own parse paths, tested below and above.
+        "set_openssh_public_key", "set_openvpn_shared_secret_key",
+    }
+    assert set(_PEM_VALUE_OPS) == tested
+
+
+def test_bare_base64_is_only_trimmed(client):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_ca_certificate", "value": "  MIIBkTCC  "}], item_name="X")
+    assert resp.json()["success"] is True
+    assert executed == [[("set", ["pki", "ca", "X", "certificate", "MIIBkTCC"])]]
+
+
+def test_openvpn_import_uses_the_generate_parse(client):
+    """Comment lines around and inside the block are dropped; no version op is added."""
+    test_client, executed, _generated = client
+    lines = OPENVPN_OUTPUT.splitlines()
+    begin = lines.index("-----BEGIN OpenVPN Static key V1-----")
+    lines.insert(begin + 2, "# a note inside the block")
+    value = "leading text\n" + "\n".join(lines) + "\ntrailing text\n"
+    resp = _batch(test_client, [{"op": "set_openvpn_shared_secret_key", "value": value}], item_name="OVPN2")
+    assert resp.json()["success"] is True
+    assert executed == [[("set", ["pki", "openvpn", "shared-secret", "OVPN2", "key", "".join(OPENVPN_LINES)])]]
+
+
+def test_openvpn_import_bare_key_is_trimmed(client):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_openvpn_shared_secret_key", "value": " abcdef01 "}], item_name="OVPN2")
+    assert resp.json()["success"] is True
+    assert executed == [[("set", ["pki", "openvpn", "shared-secret", "OVPN2", "key", "abcdef01"])]]
+
+
+@pytest.mark.parametrize("value", [PEM_WRAPPED, "-----BEGIN OpenVPN Static key V1-----\nabcd\n-----END OpenVPN Static key V2-----"])
+def test_openvpn_import_of_other_armor_is_400(client, value):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_openvpn_shared_secret_key", "value": value}], item_name="OVPN2")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Not an OpenVPN static key block"
+    assert executed == []
+
+
+@pytest.mark.parametrize("san", ["bücher.de", "exämple.com"])
+def test_non_ascii_dns_san_is_400_naming_the_entry(client, san):
+    test_client, executed, _generated = client
+    resp = test_client.post("/vyos/pki/generate-certificate", json={
+        **GENERATE["/vyos/pki/generate-certificate"][1], "name": "NEW",
+        "subject_alt_names": ["192.0.2.1", san, "ok.example.com"],
+    })
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == f"Subject alternative name '{san}' is not an IP address or an ASCII DNS name"
+    assert executed == []
+
+
+def test_valid_sans_are_accepted(client):
+    test_client, executed, _generated = client
+    resp = test_client.post("/vyos/pki/generate-certificate", json={
+        **GENERATE["/vyos/pki/generate-certificate"][1], "name": "NEW",
+        "subject_alt_names": ["192.0.2.1", "2001:db8::1", "*.example.com", "xn--bcher-kva.de", "  "],
+    })
+    assert resp.json()["success"] is True, resp.text
+    assert len(executed) == 1

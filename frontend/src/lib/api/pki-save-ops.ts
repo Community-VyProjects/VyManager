@@ -226,6 +226,22 @@ export function certificateCreateOps(form: CertificateForm): BatchOperation[] {
   return [{ op: "create_certificate" }, ...certificateUpdateOps(EMPTY_CERTIFICATE, form)];
 }
 
+/** Backend limits for the generate forms (routers/pki/pki.py MAX_DAYS, MAX_COMMON_NAME). */
+export const MAX_DAYS = 36500;
+export const MAX_COMMON_NAME = 64;
+
+/** CA and certificate generate check; a key in the `pkiCerts` namespace. */
+export function generateSubjectProblem(
+  commonName: string,
+  days: string,
+): "shared.commonNameRequired" | "shared.commonNameTooLong" | "ca.daysPositive" | "ca.daysTooMany" | null {
+  if (!commonName.trim()) return "shared.commonNameRequired";
+  if (commonName.length > MAX_COMMON_NAME) return "shared.commonNameTooLong";
+  if (!/^\d+$/.test(days.trim()) || parseInt(days, 10) < 1) return "ca.daysPositive";
+  if (parseInt(days, 10) > MAX_DAYS) return "ca.daysTooMany";
+  return null;
+}
+
 /**
  * ACME create: only the ACME fields. Text typed on the Import tab of the
  * same dialog is not sent.

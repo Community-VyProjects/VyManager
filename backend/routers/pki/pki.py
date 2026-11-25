@@ -53,14 +53,15 @@ _PEM_VALUE_OPS = frozenset({
     "set_openvpn_shared_secret_key",
 })
 
-# Any armor line, including the mixed-case "OpenVPN Static key V1".
-_PEM_ARMOR = re.compile(r"-----(?:BEGIN|END) [^\n]*?-----")
+# The first armored block anywhere in a value; the END label matches BEGIN
+# (this also covers the mixed-case "OpenVPN Static key V1").
+_PEM_BLOCK = re.compile(r"-----BEGIN (?P<label>[^\n]*?)-----(?P<body>.*?)-----END (?P=label)-----", re.DOTALL)
 
 # Lab tag syntax for every `pki <kind> <name>` node (same on 1.4 and 1.5).
 NAME_PATTERN = re.compile(r"[-_a-zA-Z0-9][\w\-\.\+]*", re.ASCII)
 
 _OPENVPN_BLOCK = re.compile(
-    r"-----BEGIN OpenVPN Static key V(?P<version>\d+)-----.*?-----END OpenVPN Static key V(?P=version)-----",
+    r"-----BEGIN OpenVPN Static key V(?P<version>\d+)-----(?P<body>.*?)-----END OpenVPN Static key V(?P=version)-----",
     re.DOTALL,
 )
 
@@ -71,19 +72,24 @@ MAX_DAYS = 36500
 MAX_COMMON_NAME = 64
 
 
-def _normalize_pem(value: str) -> str:
-    """Strip PEM headers/footers and newlines so VyOS gets a single-line base64 value.
+def _block_body(body: str) -> str:
+    """An armored block's body as VyOS stores it: ``#`` lines and whitespace removed."""
+    lines = (line for line in body.splitlines() if not line.lstrip().startswith("#"))
+    return "".join("".join(lines).split())
 
-    VyOS config values cannot contain newlines.  If *value* looks like PEM-encoded
-    data, the ``-----BEGIN …-----`` / ``-----END …-----`` wrapper lines are removed
-    and all remaining whitespace is collapsed, yielding a continuous base64 string
-    (hex for an OpenVPN static key). Non-PEM values are returned unchanged.
+
+def _normalize_pem(value: str) -> str:
+    """Single-line value for a PEM leaf (VyOS config values cannot hold newlines).
+
+    The first ``-----BEGIN X-----`` … ``-----END X-----`` block is found
+    anywhere in *value*; text before or after it (openssl ``Bag Attributes`` /
+    ``subject=`` headers, ``#`` comment lines) is dropped and the body's
+    whitespace removed. A value with no armor is bare base64 and only trimmed.
     """
-    stripped = value.strip()
-    if stripped.startswith("-----BEGIN "):
-        stripped = _PEM_ARMOR.sub("", stripped)
-        return "".join(stripped.split())
-    return stripped
+    match = _PEM_BLOCK.search(value)
+    if match is None:
+        return value.strip()
+    return _block_body(match.group("body"))
 
 
 def _openssh_public_key_data(value: str) -> str:
@@ -133,6 +139,28 @@ def _check_subject(country: Optional[str], common_name: str, days: int) -> None:
         raise HTTPException(status_code=400, detail=f"common_name must be 1 to {MAX_COMMON_NAME} characters")
 
 
+def _san_entries(names: List[str]) -> List[x509.GeneralName]:
+    """Each SAN as an IP or an ASCII DNS name, else 400 naming the entry."""
+    entries: List[x509.GeneralName] = []
+    for raw in names:
+        san = raw.strip()
+        if not san:
+            continue
+        try:
+            entries.append(x509.IPAddress(ipaddress.ip_address(san)))
+            continue
+        except ValueError:
+            pass  # Not an IP address: try it as a DNS name below.
+        try:
+            entries.append(x509.DNSName(san))
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Subject alternative name '{san}' is not an IP address or an ASCII DNS name",
+            )
+    return entries
+
+
 def _subject(request: Any) -> x509.Name:
     attrs = []
     if request.country:
@@ -167,9 +195,22 @@ def _parse_openvpn_key(output: Any) -> Optional[tuple[str, str]]:
     match = _OPENVPN_BLOCK.search(output)
     if match is None:
         return None
-    body = "\n".join(line for line in match.group(0).splitlines() if not line.lstrip().startswith("#"))
-    key = _normalize_pem(body)
+    key = _block_body(match.group("body"))
     return (key, match.group("version")) if key else None
+
+
+def _openvpn_key_value(value: str) -> str:
+    """Key leaf value for an imported shared secret: the same block parse as generate.
+
+    A value with no armor is the bare key; armor that is not an OpenVPN
+    static key block is a ValueError (HTTP 400).
+    """
+    parsed = _parse_openvpn_key(value)
+    if parsed is not None:
+        return parsed[0]
+    if "-----BEGIN " in value:
+        raise ValueError("Not an OpenVPN static key block")
+    return value.strip()
 
 
 # ========================================================================
@@ -355,7 +396,9 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
         try:
             for operation in request.operations:
                 value = operation.value
-                if value is not None and operation.op in _PEM_VALUE_OPS:
+                if value is not None and operation.op == "set_openvpn_shared_secret_key":
+                    value = _openvpn_key_value(value)
+                elif value is not None and operation.op in _PEM_VALUE_OPS:
                     value = _normalize_pem(value)
                 if value is not None and operation.op == "set_openssh_public_key":
                     value = _openssh_public_key_data(value)
@@ -626,6 +669,7 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
         service = get_session_vyos_service(http_request)
         _check_key(request.key_type, request.key_size, request.encrypt_key, request.passphrase)
         _check_subject(request.country, request.common_name, request.days)
+        san_entries = _san_entries(request.subject_alt_names or [])
 
         version = service.get_version()
         mapper = _mapper(version)
@@ -674,18 +718,8 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
             )
         )
 
-        if request.subject_alt_names:
-            san_entries: list = []
-            for san in request.subject_alt_names:
-                san = san.strip()
-                if not san:
-                    continue
-                try:
-                    san_entries.append(x509.IPAddress(ipaddress.ip_address(san)))
-                except ValueError:
-                    san_entries.append(x509.DNSName(san))
-            if san_entries:
-                builder = builder.add_extension(x509.SubjectAlternativeName(san_entries), critical=False)
+        if san_entries:
+            builder = builder.add_extension(x509.SubjectAlternativeName(san_entries), critical=False)
 
         cert = builder.sign(ca_private_key, hashes.SHA256())
         cert_pem = _normalize_pem(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))

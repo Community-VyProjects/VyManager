@@ -4,6 +4,7 @@ import {
   KEEP,
   MASKED_SECRET,
   acmeCreateForm,
+  generateSubjectProblem,
   nameProblem,
   openSSHProblem,
   pemBody,
@@ -476,5 +477,16 @@ describe("OpenSSH save check", () => {
     assert.deepEqual(openSSHUpdateOps(bare, withDefaultPublicType(bare, form, one)), []);
     const withKey = withDefaultPublicType(null, { ...form, publicKey: typed("AAAA") }, one);
     assert.ok(openSSHCreateOps(withKey).some((op) => op.op === "set_openssh_public_type" && op.value === "ssh-rsa"));
+  });
+});
+
+describe("generate subject check", () => {
+  it("common name 1..64 and days 1..36500, as the backend", () => {
+    assert.equal(generateSubjectProblem(" ", "365"), "shared.commonNameRequired");
+    assert.equal(generateSubjectProblem("x".repeat(65), "365"), "shared.commonNameTooLong");
+    assert.equal(generateSubjectProblem("x".repeat(64), "36500"), null);
+    assert.equal(generateSubjectProblem("cn", "1"), null);
+    for (const bad of ["0", "-5", "", "abc", "1.5"]) assert.equal(generateSubjectProblem("cn", bad), "ca.daysPositive", bad);
+    assert.equal(generateSubjectProblem("cn", "36501"), "ca.daysTooMany");
   });
 });

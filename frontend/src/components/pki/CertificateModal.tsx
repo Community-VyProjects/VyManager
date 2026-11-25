@@ -35,6 +35,9 @@ import {
   type StoredValue,
   acmeCreateForm,
   nameProblem,
+  generateSubjectProblem,
+  MAX_COMMON_NAME,
+  MAX_DAYS,
 } from "@/lib/api/pki-save-ops";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { CountrySelect } from "@/components/firewall/CountrySelect";
@@ -215,11 +218,11 @@ export function CertificateModal({
     const nameError = nameProblem(genName, existingNames);
     if (nameError) { setError(t(`shared.${nameError}`)); return; }
     if (!caName) { setError(t("cert.selectCARequired")); return; }
-    if (!commonName.trim()) { setError(t("shared.commonNameRequired")); return; }
     if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
+    const subjectError = generateSubjectProblem(commonName, days);
+    if (subjectError) { setError(t(subjectError, { max: subjectError === "ca.daysTooMany" ? MAX_DAYS : MAX_COMMON_NAME })); return; }
     const daysNum = parseInt(days, 10);
-    if (isNaN(daysNum) || daysNum < 1) { setError(t("ca.daysPositive")); return; }
 
     setLoading(true);
     setError(null);
@@ -469,7 +472,7 @@ export function CertificateModal({
 
       <div className="space-y-2">
         <Label htmlFor="gen-cert-days">{t("shared.validityDays")}</Label>
-        <Input id="gen-cert-days" type="number" value={days} onChange={(e) => setDays(e.target.value)} placeholder="365" />
+        <Input id="gen-cert-days" type="number" value={days} onChange={(e) => setDays(e.target.value)} placeholder="365" min={1} max={MAX_DAYS} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
