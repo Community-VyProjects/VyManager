@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -24,18 +24,51 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Lock, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
-import { macsecService, type MacsecInterface, type MacsecCapabilities, type MacsecMkaConfig, type MacsecStaticConfig } from "@/lib/api/macsec";
-import { showService, type InterfaceName } from "@/lib/api/show";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { InterfaceSelect } from "@/components/ui/interface-select";
-import { ApiError } from "@/lib/types/api";
-
-interface StaticPeerEntry {
-  name: string;
-  key: string;
-  mac: string;
-  disable: boolean;
-}
+import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
+import { listedNames } from "@/lib/named-list-select-options";
+import { Lock, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { macsecService, type MacsecInterface, type MacsecCapabilities } from "@/lib/api/macsec";
+import {
+  ACCEPT_DAD_VALUES,
+  ARP_CACHE_TIMEOUT_RANGE,
+  BASE_REACHABLE_TIME_RANGE,
+  DAD_TRANSMITS_RANGE,
+  DEFAULT_ROUTE_DISTANCE_RANGE,
+  DESCRIPTION_MAX,
+  MKA_PRIORITY_RANGE,
+  MTU_RANGE,
+  PD_ADDRESS_RANGE,
+  PD_ID_RANGE,
+  PD_LENGTH_RANGE,
+  PD_SLA_ID_RANGE,
+  PEER_NAME_MAX,
+  REPLAY_WINDOW_RANGE,
+  SOURCE_INTERFACE_TYPE,
+  emptyMacsecDhcp,
+  emptyMacsecDhcpv6,
+  macsecCipherValues,
+  macsecDraft,
+  macsecKeyHexLength,
+  macsecSaveProblem,
+  macsecSourceValidationValues,
+  macsecSupports,
+  nextPdId,
+  nextPeerName,
+  type MacsecDhcpDraft,
+  type MacsecDhcpv6Draft,
+  type MacsecDraft,
+  type MacsecIpDraft,
+  type MacsecIpv6Draft,
+  type MacsecMode,
+  type MacsecPdDraft,
+  type MacsecPdInterfaceDraft,
+  type MacsecPeerDraft,
+  type MacsecProblem,
+  type NumericRange,
+} from "@/lib/api/macsec-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface MacsecModalProps {
   open: boolean;
@@ -46,514 +79,132 @@ interface MacsecModalProps {
   existing?: MacsecInterface | null;
 }
 
+/** The page passes a `key` that changes per open, so the draft is seeded from props here. */
 export function MacsecModal({
   open,
   onOpenChange,
   onSuccess,
+  capabilities,
   existingInterfaces,
   existing,
 }: MacsecModalProps) {
   const t = useTranslations("macsec");
   const tc = useTranslations("common");
   const isEdit = !!existing;
-  const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
+  const original = existing ?? null;
 
-  // Basic
-  const [name, setName] = useState("macsec0");
-  const [sourceInterface, setSourceInterface] = useState("");
-  const [description, setDescription] = useState("");
-  const [mtu, setMtu] = useState("");
-  const [vrf, setVrf] = useState("");
-  const [disabled, setDisabled] = useState(false);
-
-  // Security
-  const [cipher, setCipher] = useState("gcm-aes-128");
-  const [encrypt, setEncrypt] = useState(true);
-  const [replayWindow, setReplayWindow] = useState("");
-  const [securityMode, setSecurityMode] = useState<"mka" | "static">("mka");
-
-  // MKA
-  const [mkaCak, setMkaCak] = useState("");
-  const [mkaCkn, setMkaCkn] = useState("");
-  const [mkaPriority, setMkaPriority] = useState("");
-
-  // Static
-  const [staticKey, setStaticKey] = useState("");
-  const [staticPeers, setStaticPeers] = useState<StaticPeerEntry[]>([]);
-
-  // Addresses
-  const [addresses, setAddresses] = useState("");
-  const [useDhcp, setUseDhcp] = useState(false);
-  const [useDhcpv6, setUseDhcpv6] = useState(false);
-
-  // DHCP Options
-  const [dhcpClientId, setDhcpClientId] = useState("");
-  const [dhcpHostName, setDhcpHostName] = useState("");
-  const [dhcpVendorClassId, setDhcpVendorClassId] = useState("");
-  const [dhcpNoDefaultRoute, setDhcpNoDefaultRoute] = useState(false);
-  const [dhcpDefaultRouteDistance, setDhcpDefaultRouteDistance] = useState("");
-  const [dhcpMtu, setDhcpMtu] = useState(false);
-
-  // IP settings
-  const [ipAdjustMss, setIpAdjustMss] = useState("");
-  const [ipArpCacheTimeout, setIpArpCacheTimeout] = useState("");
-  const [ipDisableArpFilter, setIpDisableArpFilter] = useState(false);
-  const [ipDisableForwarding, setIpDisableForwarding] = useState(false);
-  const [ipEnableArpAccept, setIpEnableArpAccept] = useState(false);
-  const [ipEnableArpAnnounce, setIpEnableArpAnnounce] = useState(false);
-  const [ipEnableArpIgnore, setIpEnableArpIgnore] = useState(false);
-  const [ipEnableDirectedBroadcast, setIpEnableDirectedBroadcast] = useState(false);
-  const [ipEnableProxyArp, setIpEnableProxyArp] = useState(false);
-  const [ipProxyArpPvlan, setIpProxyArpPvlan] = useState(false);
-  const [ipSourceValidation, setIpSourceValidation] = useState("");
-
-  // IPv6 settings
-  const [ipv6AcceptDad, setIpv6AcceptDad] = useState("");
-  const [ipv6AddressAutoconf, setIpv6AddressAutoconf] = useState(false);
-  const [ipv6AddressEui64, setIpv6AddressEui64] = useState("");
-  const [ipv6NoDefaultLinkLocal, setIpv6NoDefaultLinkLocal] = useState(false);
-  const [ipv6InterfaceIdentifier, setIpv6InterfaceIdentifier] = useState("");
-  const [ipv6AdjustMss, setIpv6AdjustMss] = useState("");
-  const [ipv6BaseReachableTime, setIpv6BaseReachableTime] = useState("");
-  const [ipv6DisableForwarding, setIpv6DisableForwarding] = useState(false);
-  const [ipv6DupAddrDetect, setIpv6DupAddrDetect] = useState("");
-  const [ipv6SourceValidation, setIpv6SourceValidation] = useState("");
-
-  // Mirror & Redirect
-  const [mirrorIngress, setMirrorIngress] = useState("");
-  const [mirrorEgress, setMirrorEgress] = useState("");
-  const [redirect, setRedirect] = useState("");
-
-  // UI state
+  const [draft, setDraft] = useState<MacsecDraft>(() => macsecDraft(original, capabilities, existingInterfaces));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const resetForm = () => {
-    setName("macsec0");
-    setSourceInterface("");
-    setDescription("");
-    setMtu("");
-    setVrf("");
-    setDisabled(false);
-    setCipher("gcm-aes-128");
-    setEncrypt(true);
-    setReplayWindow("");
-    setSecurityMode("mka");
-    setMkaCak("");
-    setMkaCkn("");
-    setMkaPriority("");
-    setStaticKey("");
-    setStaticPeers([]);
-    setAddresses("");
-    setUseDhcp(false);
-    setUseDhcpv6(false);
-    setDhcpClientId("");
-    setDhcpHostName("");
-    setDhcpVendorClassId("");
-    setDhcpNoDefaultRoute(false);
-    setDhcpDefaultRouteDistance("");
-    setDhcpMtu(false);
-    setIpAdjustMss("");
-    setIpArpCacheTimeout("");
-    setIpDisableArpFilter(false);
-    setIpDisableForwarding(false);
-    setIpEnableArpAccept(false);
-    setIpEnableArpAnnounce(false);
-    setIpEnableArpIgnore(false);
-    setIpEnableDirectedBroadcast(false);
-    setIpEnableProxyArp(false);
-    setIpProxyArpPvlan(false);
-    setIpSourceValidation("");
-    setIpv6AcceptDad("");
-    setIpv6AddressAutoconf(false);
-    setIpv6AddressEui64("");
-    setIpv6NoDefaultLinkLocal(false);
-    setIpv6InterfaceIdentifier("");
-    setIpv6AdjustMss("");
-    setIpv6BaseReachableTime("");
-    setIpv6DisableForwarding(false);
-    setIpv6DupAddrDetect("");
-    setIpv6SourceValidation("");
-    setMirrorIngress("");
-    setMirrorEgress("");
-    setRedirect("");
-    setError(null);
+  const update = (patch: Partial<MacsecDraft>) => setDraft((d) => ({ ...d, ...patch }));
+  const updateIp = (patch: Partial<MacsecIpDraft>) => setDraft((d) => ({ ...d, ip: { ...d.ip, ...patch } }));
+  const updateIpv6 = (patch: Partial<MacsecIpv6Draft>) => setDraft((d) => ({ ...d, ipv6: { ...d.ipv6, ...patch } }));
+  const updateDhcp = (patch: Partial<MacsecDhcpDraft>) =>
+    setDraft((d) => ({ ...d, dhcp_options: { ...d.dhcp_options, ...patch } }));
+  const updateDhcpv6 = (patch: Partial<MacsecDhcpv6Draft>) =>
+    setDraft((d) => ({ ...d, dhcpv6_options: { ...d.dhcpv6_options, ...patch } }));
+
+  // Static peers (row key is the index; a new row gets the next unused name)
+  const addPeer = () =>
+    setDraft((d) => ({
+      ...d,
+      peers: [...d.peers, { name: nextPeerName(d.peers, original), key: "", mac: "", disable: false }],
+    }));
+  const removePeer = (index: number) => setDraft((d) => ({ ...d, peers: d.peers.filter((_, i) => i !== index) }));
+  const updatePeer = (index: number, patch: Partial<MacsecPeerDraft>) =>
+    setDraft((d) => ({ ...d, peers: d.peers.map((p, i) => (i === index ? { ...p, ...patch } : p)) }));
+
+  // DHCPv6 prefix delegations
+  const setPd = (pd: MacsecPdDraft[]) => updateDhcpv6({ pd });
+  const pdRows = draft.dhcpv6_options.pd;
+  const addPd = () => setPd([...pdRows, { id: nextPdId(pdRows, original), length: "", interfaces: [] }]);
+  const removePd = (index: number) => setPd(pdRows.filter((_, i) => i !== index));
+  const updatePd = (index: number, patch: Partial<MacsecPdDraft>) =>
+    setPd(pdRows.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  const addPdInterface = (index: number) =>
+    updatePd(index, { interfaces: [...pdRows[index].interfaces, { name: "", address: "", sla_id: "" }] });
+  const removePdInterface = (index: number, row: number) =>
+    updatePd(index, { interfaces: pdRows[index].interfaces.filter((_, i) => i !== row) });
+  const updatePdInterface = (index: number, row: number, patch: Partial<MacsecPdInterfaceDraft>) =>
+    updatePd(index, {
+      interfaces: pdRows[index].interfaces.map((r, i) => (i === row ? { ...r, ...patch } : r)),
+    });
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
-  const populateForm = (interfaceData: MacsecInterface) => {
-    setName(interfaceData.name);
-    setSourceInterface(interfaceData.source_interface || "");
-    setDescription(interfaceData.description || "");
-    setMtu(interfaceData.mtu || "");
-    setVrf(interfaceData.vrf || "");
-    setDisabled(interfaceData.disabled);
-
-    setCipher(interfaceData.security?.cipher || "gcm-aes-128");
-    setEncrypt(interfaceData.security?.encrypt ?? true);
-    setReplayWindow(interfaceData.security?.replay_window || "");
-
-    if (interfaceData.security?.static?.key || (interfaceData.security?.static?.peers && interfaceData.security.static.peers.length > 0)) {
-      setSecurityMode("static");
-      setStaticKey(interfaceData.security.static?.key || "");
-      setStaticPeers(
-        (interfaceData.security.static?.peers || []).map((p) => ({
-          name: p.name,
-          key: p.key || "",
-          mac: p.mac || "",
-          disable: p.disable,
-        }))
-      );
-      setMkaCak("");
-      setMkaCkn("");
-      setMkaPriority("");
-    } else {
-      setSecurityMode("mka");
-      setMkaCak(interfaceData.security?.mka?.cak || "");
-      setMkaCkn(interfaceData.security?.mka?.ckn || "");
-      setMkaPriority(interfaceData.security?.mka?.priority || "");
-      setStaticKey("");
-      setStaticPeers([]);
-    }
-
-    const staticAddrs = (interfaceData.addresses || []).filter((a) => a !== "dhcp" && a !== "dhcpv6");
-    setAddresses(staticAddrs.join(", "));
-    setUseDhcp((interfaceData.addresses || []).includes("dhcp"));
-    setUseDhcpv6((interfaceData.addresses || []).includes("dhcpv6"));
-
-    setDhcpClientId(interfaceData.dhcp_options?.client_id || "");
-    setDhcpHostName(interfaceData.dhcp_options?.host_name || "");
-    setDhcpVendorClassId(interfaceData.dhcp_options?.vendor_class_id || "");
-    setDhcpNoDefaultRoute(interfaceData.dhcp_options?.no_default_route ?? false);
-    setDhcpDefaultRouteDistance(interfaceData.dhcp_options?.default_route_distance || "");
-    setDhcpMtu(interfaceData.dhcp_options?.mtu ?? false);
-
-    setIpAdjustMss(interfaceData.ip?.adjust_mss || "");
-    setIpArpCacheTimeout(interfaceData.ip?.arp_cache_timeout || "");
-    setIpDisableArpFilter(interfaceData.ip?.disable_arp_filter ?? false);
-    setIpDisableForwarding(interfaceData.ip?.disable_forwarding ?? false);
-    setIpEnableArpAccept(interfaceData.ip?.enable_arp_accept ?? false);
-    setIpEnableArpAnnounce(interfaceData.ip?.enable_arp_announce ?? false);
-    setIpEnableArpIgnore(interfaceData.ip?.enable_arp_ignore ?? false);
-    setIpEnableDirectedBroadcast(interfaceData.ip?.enable_directed_broadcast ?? false);
-    setIpEnableProxyArp(interfaceData.ip?.enable_proxy_arp ?? false);
-    setIpProxyArpPvlan(interfaceData.ip?.proxy_arp_pvlan ?? false);
-    setIpSourceValidation(interfaceData.ip?.source_validation || "");
-
-    setIpv6AcceptDad(interfaceData.ipv6?.accept_dad || "");
-    setIpv6AddressAutoconf(interfaceData.ipv6?.address_autoconf ?? false);
-    setIpv6AddressEui64(interfaceData.ipv6?.address_eui64 || "");
-    setIpv6NoDefaultLinkLocal(interfaceData.ipv6?.address_no_default_link_local ?? false);
-    setIpv6InterfaceIdentifier(interfaceData.ipv6?.address_interface_identifier || "");
-    setIpv6AdjustMss(interfaceData.ipv6?.adjust_mss || "");
-    setIpv6BaseReachableTime(interfaceData.ipv6?.base_reachable_time || "");
-    setIpv6DisableForwarding(interfaceData.ipv6?.disable_forwarding ?? false);
-    setIpv6DupAddrDetect(interfaceData.ipv6?.dup_addr_detect_transmits || "");
-    setIpv6SourceValidation(interfaceData.ipv6?.source_validation || "");
-
-    setMirrorIngress(interfaceData.mirror_ingress || "");
-    setMirrorEgress(interfaceData.mirror_egress || "");
-    setRedirect(interfaceData.redirect || "");
-    setError(null);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    showService.getAllInterfaces().then((res) => setAllInterfaces(res.interfaces)).catch(() => {});
-    if (existing) {
-      populateForm(existing);
-    } else {
-      resetForm();
-    }
-  }, [open, existing]);
-
-  const addStaticPeer = () => {
-    setStaticPeers([...staticPeers, { name: `peer${staticPeers.length}`, key: "", mac: "", disable: false }]);
-  };
-
-  const removeStaticPeer = (index: number) => {
-    setStaticPeers(staticPeers.filter((_, i) => i !== index));
-  };
-
-  const updateStaticPeer = (index: number, field: keyof StaticPeerEntry, value: string | boolean) => {
-    const updated = [...staticPeers];
-    updated[index] = { ...updated[index], [field]: value };
-    setStaticPeers(updated);
-  };
-
-  const validateShared = (): string | null => {
-    if (!sourceInterface.trim()) return t("modal.errors.sourceRequired");
-    if (mtu && (parseInt(mtu) < 68 || parseInt(mtu) > 16000)) return t("modal.errors.mtuRange");
-    return null;
-  };
-
-  const validateForm = (): string | null => {
-    if (!name.trim()) return tc("interfaceNameRequired");
-    if (!/^macsec\d+$/.test(name)) return t("modal.errors.nameFormat");
-    if (existingInterfaces.includes(name)) return t("modal.errors.nameExists", { name });
-    return validateShared();
-  };
-
-  const submitUpdate = async () => {
-    if (!existing) return;
-
-    const validationError = validateShared();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const addrList = addresses
-        .split(/[,\n]/)
-        .map((a) => a.trim())
-        .filter(Boolean);
-      if (useDhcp) addrList.push("dhcp");
-      if (useDhcpv6) addrList.push("dhcpv6");
-
-      const updated: Parameters<typeof macsecService.updateInterface>[2] = {};
-
-      const desc = description.trim() || null;
-      if (desc !== (existing.description || null)) updated.description = desc;
-
-      const src = sourceInterface.trim() || null;
-      if (src !== (existing.source_interface || null)) updated.source_interface = src;
-
-      const mtuVal = mtu.trim() || null;
-      if (mtuVal !== (existing.mtu || null)) updated.mtu = mtuVal;
-
-      const vrfVal = vrf.trim() || null;
-      if (vrfVal !== (existing.vrf || null)) updated.vrf = vrfVal;
-
-      if (disabled !== existing.disabled) updated.disabled = disabled;
-
-      const currentAddrs = [...(existing.addresses || [])].sort();
-      const newAddrs = [...addrList].sort();
-      if (JSON.stringify(currentAddrs) !== JSON.stringify(newAddrs)) {
-        updated.addresses = addrList;
-      }
-
-      const secUpdated: {
-        cipher?: string | null;
-        encrypt?: boolean;
-        replay_window?: string | null;
-        mka?: Partial<MacsecMkaConfig> | null;
-        static?: Partial<MacsecStaticConfig> | null;
-      } = {};
-      let secChanged = false;
-
-      const cipherVal = cipher || null;
-      if (cipherVal !== (existing.security?.cipher || null)) {
-        secUpdated.cipher = cipherVal;
-        secChanged = true;
-      }
-
-      if (encrypt !== (existing.security?.encrypt ?? false)) {
-        secUpdated.encrypt = encrypt;
-        secChanged = true;
-      }
-
-      const rwVal = replayWindow.trim() || null;
-      if (rwVal !== (existing.security?.replay_window || null)) {
-        secUpdated.replay_window = rwVal;
-        secChanged = true;
-      }
-
-      const currentMode = (existing.security?.static?.key || (existing.security?.static?.peers && existing.security.static.peers.length > 0)) ? "static" : "mka";
-
-      if (securityMode === "mka") {
-        if (currentMode === "static") {
-          secUpdated.static = null;
-          secChanged = true;
-        }
-
-        const mkaUpdated: Partial<MacsecMkaConfig> = {};
-        let mkaChanged = false;
-        const cakVal = mkaCak.trim() || null;
-        if (cakVal !== (existing.security?.mka?.cak || null)) { mkaUpdated.cak = cakVal; mkaChanged = true; }
-        const cknVal = mkaCkn.trim() || null;
-        if (cknVal !== (existing.security?.mka?.ckn || null)) { mkaUpdated.ckn = cknVal; mkaChanged = true; }
-        const priVal = mkaPriority.trim() || null;
-        if (priVal !== (existing.security?.mka?.priority || null)) { mkaUpdated.priority = priVal; mkaChanged = true; }
-
-        if (mkaChanged) {
-          secUpdated.mka = mkaUpdated;
-          secChanged = true;
-        }
-      } else {
-        if (currentMode === "mka") {
-          secUpdated.mka = null;
-          secChanged = true;
-        }
-
-        const staticUpdated: Partial<MacsecStaticConfig> = {};
-        let staticChanged = false;
-
-        const keyVal = staticKey.trim() || null;
-        if (keyVal !== (existing.security?.static?.key || null)) { staticUpdated.key = keyVal; staticChanged = true; }
-
-        const currentPeers = JSON.stringify((existing.security?.static?.peers || []).map((p) => ({ name: p.name, key: p.key, mac: p.mac, disable: p.disable })));
-        const newPeersData = staticPeers.map((p) => ({ name: p.name, key: p.key || null, mac: p.mac || null, disable: p.disable }));
-        if (JSON.stringify(newPeersData) !== currentPeers) {
-          staticUpdated.peers = newPeersData;
-          staticChanged = true;
-        }
-
-        if (staticChanged) {
-          secUpdated.static = staticUpdated;
-          secChanged = true;
-        }
-      }
-
-      if (secChanged) updated.security = secUpdated as typeof updated.security;
-
-      const mi = mirrorIngress.trim() || null;
-      if (mi !== (existing.mirror_ingress || null)) updated.mirror_ingress = mi;
-      const me = mirrorEgress.trim() || null;
-      if (me !== (existing.mirror_egress || null)) updated.mirror_egress = me;
-      const rd = redirect.trim() || null;
-      if (rd !== (existing.redirect || null)) updated.redirect = rd;
-
-      const result = await macsecService.updateInterface(existing.name, existing, updated);
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("modal.errors.updateFailed"));
-      }
-    } catch (err) {
-      setError((err as ApiError).message || t("modal.errors.updateFailed"));
-    } finally {
-      setLoading(false);
-    }
-  };
+  // An empty name reuses the shared common message.
+  const problemText = (p: MacsecProblem) =>
+    p.key === "nameRequired" ? tc("interfaceNameRequired") : t(`modal.errors.${p.key}`, p.values);
 
   const handleSubmit = async () => {
-    if (isEdit) {
-      await submitUpdate();
+    const issue = macsecSaveProblem(original, draft, capabilities, existingInterfaces);
+    if (issue) {
+      setError(problemText(issue));
       return;
     }
-
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
     setLoading(true);
     setError(null);
-
     try {
-      const addrList = addresses
-        .split(/[,\n]/)
-        .map((a) => a.trim())
-        .filter(Boolean);
-      if (useDhcp) addrList.push("dhcp");
-      if (useDhcpv6) addrList.push("dhcpv6");
-
-      const config: Parameters<typeof macsecService.createInterface>[0] = {
-        name,
-        source_interface: sourceInterface.trim(),
-      };
-
-      if (description.trim()) config.description = description.trim();
-      if (mtu.trim()) config.mtu = mtu.trim();
-      if (vrf.trim()) config.vrf = vrf.trim();
-      if (disabled) config.disabled = true;
-      if (addrList.length > 0) config.addresses = addrList;
-
-      // Security
-      const security: NonNullable<typeof config.security> = {};
-      if (cipher) security.cipher = cipher;
-      if (encrypt) security.encrypt = true;
-      if (replayWindow.trim()) security.replay_window = replayWindow.trim();
-
-      if (securityMode === "mka") {
-        const mka: NonNullable<typeof security.mka> = {};
-        if (mkaCak.trim()) mka.cak = mkaCak.trim();
-        if (mkaCkn.trim()) mka.ckn = mkaCkn.trim();
-        if (mkaPriority.trim()) mka.priority = mkaPriority.trim();
-        if (Object.keys(mka).length > 0) security.mka = mka;
-      } else {
-        if (staticKey.trim()) security.static_key = staticKey.trim();
-        if (staticPeers.length > 0) {
-          security.static_peers = staticPeers.map((p) => ({
-            name: p.name,
-            key: p.key || undefined,
-            mac: p.mac || undefined,
-            disable: p.disable || undefined,
-          }));
-        }
-      }
-
-      if (Object.keys(security).length > 0) config.security = security;
-
-      // IP settings
-      const ip: NonNullable<typeof config.ip> = {};
-      if (ipAdjustMss.trim()) ip.adjust_mss = ipAdjustMss.trim();
-      if (ipArpCacheTimeout.trim()) ip.arp_cache_timeout = ipArpCacheTimeout.trim();
-      if (ipDisableArpFilter) ip.disable_arp_filter = true;
-      if (ipDisableForwarding) ip.disable_forwarding = true;
-      if (ipEnableArpAccept) ip.enable_arp_accept = true;
-      if (ipEnableArpAnnounce) ip.enable_arp_announce = true;
-      if (ipEnableArpIgnore) ip.enable_arp_ignore = true;
-      if (ipEnableDirectedBroadcast) ip.enable_directed_broadcast = true;
-      if (ipEnableProxyArp) ip.enable_proxy_arp = true;
-      if (ipProxyArpPvlan) ip.proxy_arp_pvlan = true;
-      if (ipSourceValidation) ip.source_validation = ipSourceValidation;
-      if (Object.keys(ip).length > 0) config.ip = ip;
-
-      // IPv6 settings
-      const ipv6: NonNullable<typeof config.ipv6> = {};
-      if (ipv6AcceptDad.trim()) ipv6.accept_dad = ipv6AcceptDad.trim();
-      if (ipv6AddressAutoconf) ipv6.address_autoconf = true;
-      if (ipv6AddressEui64.trim()) ipv6.address_eui64 = ipv6AddressEui64.trim();
-      if (ipv6NoDefaultLinkLocal) ipv6.address_no_default_link_local = true;
-      if (ipv6InterfaceIdentifier.trim()) ipv6.address_interface_identifier = ipv6InterfaceIdentifier.trim();
-      if (ipv6AdjustMss.trim()) ipv6.adjust_mss = ipv6AdjustMss.trim();
-      if (ipv6BaseReachableTime.trim()) ipv6.base_reachable_time = ipv6BaseReachableTime.trim();
-      if (ipv6DisableForwarding) ipv6.disable_forwarding = true;
-      if (ipv6DupAddrDetect.trim()) ipv6.dup_addr_detect_transmits = ipv6DupAddrDetect.trim();
-      if (ipv6SourceValidation) ipv6.source_validation = ipv6SourceValidation;
-      if (Object.keys(ipv6).length > 0) config.ipv6 = ipv6;
-
-      // DHCP options
-      if (useDhcp) {
-        const dhcp: NonNullable<typeof config.dhcp_options> = {};
-        if (dhcpClientId.trim()) dhcp.client_id = dhcpClientId.trim();
-        if (dhcpHostName.trim()) dhcp.host_name = dhcpHostName.trim();
-        if (dhcpVendorClassId.trim()) dhcp.vendor_class_id = dhcpVendorClassId.trim();
-        if (dhcpNoDefaultRoute) dhcp.no_default_route = true;
-        if (dhcpDefaultRouteDistance.trim()) dhcp.default_route_distance = dhcpDefaultRouteDistance.trim();
-        if (dhcpMtu) dhcp.mtu = true;
-        if (Object.keys(dhcp).length > 0) config.dhcp_options = dhcp;
-      }
-
-      // Mirror & Redirect
-      if (mirrorIngress.trim()) config.mirror_ingress = mirrorIngress.trim();
-      if (mirrorEgress.trim()) config.mirror_egress = mirrorEgress.trim();
-      if (redirect.trim()) config.redirect = redirect.trim();
-
-      const result = await macsecService.createInterface(config);
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || t("modal.errors.createFailed"));
-      }
+      if (original) await macsecService.updateInterface(original, draft, capabilities);
+      else await macsecService.createInterface(draft, capabilities);
+      onOpenChange(false);
+      onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || t("modal.errors.createFailed"));
+      setError((err as ApiError).message || t(isEdit ? "modal.errors.updateFailed" : "modal.errors.createFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const ciphers = listedNames(macsecCipherValues(capabilities), draft.cipher);
+  const sourceValidation = macsecSourceValidationValues(capabilities);
+  const sourceValidationLabels: Record<string, string> = {
+    strict: t("modal.advanced.strict"),
+    loose: t("modal.advanced.loose"),
+    disable: t("modal.advanced.disable"),
+  };
+  const keyPlaceholder = macsecKeyHexLength(draft.cipher) === 64 ? t("modal.security.hex64") : t("modal.security.hex32");
+  const hasInterfaceIdentifier = macsecSupports(capabilities, "ipv6_address_interface_identifier");
+  const hasNoRequestDns = macsecSupports(capabilities, "dhcpv6_options_no_request_dns");
+  const hasNoRequestDomainName = macsecSupports(capabilities, "dhcpv6_options_no_request_domain_name");
+  const none = { label: tc("none"), value: "" };
+
+  const numberField = (
+    id: string,
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    range: NumericRange,
+    placeholder?: string,
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-xs">{label}</Label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-8 text-sm"
+        type="number"
+        min={range.min}
+        max={range.max}
+      />
+    </div>
+  );
+
+  const checkField = (id: string, label: string, checked: boolean, onChange: (checked: boolean) => void) => (
+    <div className="flex items-center space-x-2">
+      <Checkbox id={id} checked={checked} onCheckedChange={(c) => onChange(c === true)} />
+      <Label htmlFor={id} className="text-xs font-normal">{label}</Label>
+    </div>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -561,7 +212,7 @@ export function MacsecModal({
             {isEdit ? t("modal.editTitle") : t("modal.createTitle")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? (
+            {existing ? (
               t.rich("modal.editDescription", {
                 name: existing.name,
                 code: (chunks) => (
@@ -591,47 +242,45 @@ export function MacsecModal({
                 <Label htmlFor="name">{t("modal.basic.interfaceName")}</Label>
                 <Input
                   id="name"
-                  value={isEdit ? existing.name : name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={draft.name}
+                  onChange={(e) => update({ name: e.target.value })}
                   placeholder="macsec0"
                   disabled={isEdit}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {isEdit
-                    ? t("modal.basic.nameLocked")
-                    : t("modal.basic.nameFormatHint")}
-                </p>
               </div>
               <div className="space-y-2">
-                <Label>{t("modal.basic.sourceInterface")} <span className="text-destructive">*</span></Label>
+                <Label htmlFor="sourceInterface">{t("modal.basic.sourceInterface")} <span className="text-destructive">*</span></Label>
                 <InterfaceSelect
-                  value={sourceInterface}
-                  onValueChange={setSourceInterface}
-                  interfaces={allInterfaces}
+                  id="sourceInterface"
+                  value={draft.source_interface}
+                  onValueChange={(source_interface) => update({ source_interface })}
+                  filter={(iface) => iface.type === SOURCE_INTERFACE_TYPE}
                   placeholder={t("modal.basic.sourceInterfacePlaceholder")}
                 />
-                <p className="text-xs text-muted-foreground">{t("modal.basic.sourceInterfaceHint")}</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="description">{tc("description")}</Label>
-              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("modal.basic.descriptionPlaceholder")} />
+              <Input
+                id="description"
+                value={draft.description}
+                onChange={(e) => update({ description: e.target.value })}
+                placeholder={t("modal.basic.descriptionPlaceholder")}
+                maxLength={DESCRIPTION_MAX}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              {numberField("mtu", "MTU", draft.mtu, (mtu) => update({ mtu }), MTU_RANGE, t("modal.basic.mtuPlaceholder"))}
               <div className="space-y-2">
-                <Label htmlFor="mtu">MTU</Label>
-                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder={t("modal.basic.mtuPlaceholder")} type="number" min={68} max={16000} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="vrf">VRF</Label>
-                <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
+                <Label htmlFor="vrf" className="text-xs">VRF</Label>
+                <VrfSelect id="vrf" value={draft.vrf} onValueChange={(vrf) => update({ vrf })} />
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox id="disabled" checked={disabled} onCheckedChange={(checked) => setDisabled(checked === true)} />
+              <Checkbox id="disabled" checked={draft.disabled} onCheckedChange={(checked) => update({ disabled: checked === true })} />
               <Label htmlFor="disabled" className="text-sm font-normal">{t("modal.basic.disableInterface")}</Label>
             </div>
           </TabsContent>
@@ -640,34 +289,39 @@ export function MacsecModal({
           <TabsContent value="security" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cipher">{t("modal.security.cipherSuite")}</Label>
-                <Select value={cipher} onValueChange={setCipher}>
-                  <SelectTrigger>
+                <Label htmlFor="cipher" className="text-xs">{t("modal.security.cipherSuite")}</Label>
+                <Select value={draft.cipher} onValueChange={(cipher) => update({ cipher })}>
+                  <SelectTrigger id="cipher" className="h-8 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="gcm-aes-128">GCM-AES-128</SelectItem>
-                    <SelectItem value="gcm-aes-256">GCM-AES-256</SelectItem>
+                    {ciphers.map((cipher) => (
+                      <SelectItem key={cipher} value={cipher} className="font-mono">{cipher}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="replayWindow">{t("modal.security.replayWindow")}</Label>
-                <Input id="replayWindow" value={replayWindow} onChange={(e) => setReplayWindow(e.target.value)} placeholder={t("modal.security.replayWindowPlaceholder")} type="number" min={0} />
-              </div>
+              {numberField(
+                "replayWindow",
+                t("modal.security.replayWindow"),
+                draft.replay_window,
+                (replay_window) => update({ replay_window }),
+                REPLAY_WINDOW_RANGE,
+                t("modal.security.replayWindowPlaceholder"),
+              )}
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox id="encrypt" checked={encrypt} onCheckedChange={(checked) => setEncrypt(checked === true)} />
+              <Checkbox id="encrypt" checked={draft.encrypt} onCheckedChange={(checked) => update({ encrypt: checked === true })} />
               <Label htmlFor="encrypt" className="text-sm font-normal">{t("modal.security.enableEncryption")}</Label>
             </div>
 
             <Separator />
 
             <div className="space-y-2">
-              <Label>{t("modal.security.securityMode")}</Label>
-              <Select value={securityMode} onValueChange={(v) => setSecurityMode(v as "mka" | "static")}>
-                <SelectTrigger>
+              <Label htmlFor="securityMode">{t("modal.security.securityMode")}</Label>
+              <Select value={draft.mode} onValueChange={(v) => update({ mode: v as MacsecMode })}>
+                <SelectTrigger id="securityMode">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -677,72 +331,119 @@ export function MacsecModal({
               </Select>
             </div>
 
-            {securityMode === "mka" ? (
+            {draft.mode === "mka" ? (
               <div className="space-y-4 rounded-lg border p-4">
                 <h4 className="text-sm font-medium">{t("modal.security.mkaTitle")}</h4>
                 <div className="space-y-2">
                   <Label htmlFor="cak">{t("modal.security.cak")}</Label>
-                  <Input id="cak" value={mkaCak} onChange={(e) => setMkaCak(e.target.value)} placeholder={cipher === "gcm-aes-256" ? t("modal.security.hex64") : t("modal.security.hex32")} className="font-mono" />
-                  <p className="text-xs text-muted-foreground">{cipher === "gcm-aes-256" ? t("modal.security.keyHint256") : t("modal.security.keyHint128")}</p>
+                  <Input
+                    id="cak"
+                    type="password"
+                    autoComplete="new-password"
+                    value={draft.mka_cak}
+                    onChange={(e) => update({ mka_cak: e.target.value })}
+                    placeholder={keyPlaceholder}
+                    className="font-mono"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ckn">{t("modal.security.ckn")}</Label>
-                  <Input id="ckn" value={mkaCkn} onChange={(e) => setMkaCkn(e.target.value)} placeholder={t("modal.security.cknPlaceholder")} className="font-mono" />
-                  <p className="text-xs text-muted-foreground">{t("modal.security.cknHint")}</p>
+                  <Input
+                    id="ckn"
+                    value={draft.mka_ckn}
+                    onChange={(e) => update({ mka_ckn: e.target.value })}
+                    placeholder={t("modal.security.cknPlaceholder")}
+                    className="font-mono"
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="priority">{t("modal.security.mkaPriority")}</Label>
-                  <Input id="priority" value={mkaPriority} onChange={(e) => setMkaPriority(e.target.value)} placeholder={t("modal.security.mkaPriorityPlaceholder")} type="number" min={0} max={255} />
-                </div>
+                {numberField(
+                  "priority",
+                  t("modal.security.mkaPriority"),
+                  draft.mka_priority,
+                  (mka_priority) => update({ mka_priority }),
+                  MKA_PRIORITY_RANGE,
+                  t("modal.security.mkaPriorityPlaceholder"),
+                )}
               </div>
             ) : (
               <div className="space-y-4 rounded-lg border p-4">
                 <h4 className="text-sm font-medium">{t("modal.security.staticTitle")}</h4>
                 <div className="space-y-2">
                   <Label htmlFor="staticKey">{t("modal.security.localKey")}</Label>
-                  <Input id="staticKey" value={staticKey} onChange={(e) => setStaticKey(e.target.value)} placeholder={cipher === "gcm-aes-256" ? t("modal.security.hex64") : t("modal.security.hex32")} className="font-mono" />
-                  <p className="text-xs text-muted-foreground">{cipher === "gcm-aes-256" ? t("modal.security.keyHint256") : t("modal.security.keyHint128")}</p>
+                  <Input
+                    id="staticKey"
+                    type="password"
+                    autoComplete="new-password"
+                    value={draft.static_key}
+                    onChange={(e) => update({ static_key: e.target.value })}
+                    placeholder={keyPlaceholder}
+                    className="font-mono"
+                  />
                 </div>
 
                 <Separator />
 
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-medium">{t("modal.security.staticPeers")}</h4>
-                  <Button type="button" variant="outline" size="sm" onClick={addStaticPeer}>
+                  <Button type="button" variant="outline" size="sm" onClick={addPeer}>
                     <Plus className="h-3.5 w-3.5 mr-1" /> {t("modal.security.addPeer")}
                   </Button>
                 </div>
 
-                {staticPeers.length === 0 && (
+                {draft.peers.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-2">{t("modal.security.noPeers")}</p>
                 )}
 
-                {staticPeers.map((peer, index) => (
+                {draft.peers.map((peer, index) => (
                   <div key={index} className="rounded-md border p-3 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{t("modal.security.peerLabel", { n: String(index + 1) })}</span>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeStaticPeer(index)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => removePeer(index)}
+                        aria-label={tc("delete")}
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-xs">{tc("name")}</Label>
-                        <Input value={peer.name} onChange={(e) => updateStaticPeer(index, "name", e.target.value)} placeholder="peer0" className="h-8 text-sm" />
+                        <Label htmlFor={`peerName${index}`} className="text-xs">{tc("name")}</Label>
+                        <Input
+                          id={`peerName${index}`}
+                          value={peer.name}
+                          onChange={(e) => updatePeer(index, { name: e.target.value })}
+                          maxLength={PEER_NAME_MAX}
+                          className="h-8 text-sm"
+                        />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">{t("modal.security.peerKey")}</Label>
-                        <Input value={peer.key} onChange={(e) => updateStaticPeer(index, "key", e.target.value)} placeholder={t("modal.security.peerKeyPlaceholder")} className="h-8 text-sm font-mono" />
+                        <Label htmlFor={`peerKey${index}`} className="text-xs">{t("modal.security.peerKey")}</Label>
+                        <Input
+                          id={`peerKey${index}`}
+                          type="password"
+                          autoComplete="new-password"
+                          value={peer.key}
+                          onChange={(e) => updatePeer(index, { key: e.target.value })}
+                          placeholder={t("modal.security.peerKeyPlaceholder")}
+                          className="h-8 text-sm font-mono"
+                        />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">{t("modal.security.macAddress")}</Label>
-                        <Input value={peer.mac} onChange={(e) => updateStaticPeer(index, "mac", e.target.value)} placeholder="00:11:22:33:44:55" className="h-8 text-sm font-mono" />
+                        <Label htmlFor={`peerMac${index}`} className="text-xs">{t("modal.security.macAddress")}</Label>
+                        <Input
+                          id={`peerMac${index}`}
+                          value={peer.mac}
+                          onChange={(e) => updatePeer(index, { mac: e.target.value })}
+                          placeholder="00:11:22:33:44:55"
+                          className="h-8 text-sm font-mono"
+                        />
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox checked={peer.disable} onCheckedChange={(checked) => updateStaticPeer(index, "disable", checked === true)} />
-                      <Label className="text-xs font-normal">{t("modal.security.disablePeer")}</Label>
-                    </div>
+                    {checkField(`peerDisable${index}`, t("modal.security.disablePeer"), peer.disable, (disable) => updatePeer(index, { disable }))}
                   </div>
                 ))}
               </div>
@@ -751,55 +452,167 @@ export function MacsecModal({
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="addresses">{t("modal.addresses.ipAddresses")}</Label>
-              <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="10.0.0.1/24, 192.168.1.1/24" />
-              <p className="text-xs text-muted-foreground">{t("modal.addresses.ipAddressesHint")}</p>
-            </div>
+            <MultiValueInput
+              label={t("modal.addresses.ipAddresses")}
+              values={draft.addresses}
+              onChange={(addresses) => update({ addresses })}
+              placeholder="10.0.0.1/24"
+            />
 
             <div className="flex gap-6">
               <div className="flex items-center space-x-2">
-                <Checkbox id="useDhcp" checked={useDhcp} onCheckedChange={(checked) => setUseDhcp(checked === true)} />
+                <Checkbox id="useDhcp" checked={draft.dhcp} onCheckedChange={(checked) => update(checked === true ? { dhcp: true } : { dhcp: false, dhcp_options: emptyMacsecDhcp() })} />
                 <Label htmlFor="useDhcp" className="text-sm font-normal">{t("modal.addresses.enableDhcp")}</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox id="useDhcpv6" checked={useDhcpv6} onCheckedChange={(checked) => setUseDhcpv6(checked === true)} />
+                <Checkbox id="useDhcpv6" checked={draft.dhcpv6} onCheckedChange={(checked) => update(checked === true ? { dhcpv6: true } : { dhcpv6: false, dhcpv6_options: emptyMacsecDhcpv6() })} />
                 <Label htmlFor="useDhcpv6" className="text-sm font-normal">{t("modal.addresses.enableDhcpv6")}</Label>
               </div>
             </div>
 
-            {useDhcp && (
+            {draft.dhcp && (
               <>
                 <Separator />
                 <h4 className="text-sm font-medium">{t("modal.addresses.dhcpOptions")}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="dhcpClientId" className="text-xs">{t("modal.addresses.clientId")}</Label>
-                    <Input id="dhcpClientId" value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} className="h-8 text-sm" />
+                    <Input id="dhcpClientId" value={draft.dhcp_options.client_id} onChange={(e) => updateDhcp({ client_id: e.target.value })} className="h-8 text-sm" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="dhcpHostName" className="text-xs">{t("modal.addresses.hostName")}</Label>
-                    <Input id="dhcpHostName" value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} className="h-8 text-sm" />
+                    <Input id="dhcpHostName" value={draft.dhcp_options.host_name} onChange={(e) => updateDhcp({ host_name: e.target.value })} className="h-8 text-sm" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="dhcpVendorClassId" className="text-xs">{t("modal.addresses.vendorClassId")}</Label>
-                    <Input id="dhcpVendorClassId" value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} className="h-8 text-sm" />
+                    <Input id="dhcpVendorClassId" value={draft.dhcp_options.vendor_class_id} onChange={(e) => updateDhcp({ vendor_class_id: e.target.value })} className="h-8 text-sm" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dhcpDefaultRouteDistance" className="text-xs">{t("modal.addresses.defaultRouteDistance")}</Label>
-                    <Input id="dhcpDefaultRouteDistance" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} className="h-8 text-sm" type="number" />
+                    <Label htmlFor="dhcpUserClass" className="text-xs">{t("modal.addresses.userClass")}</Label>
+                    <Input id="dhcpUserClass" value={draft.dhcp_options.user_class} onChange={(e) => updateDhcp({ user_class: e.target.value })} className="h-8 text-sm" />
                   </div>
+                  {numberField(
+                    "dhcpDefaultRouteDistance",
+                    t("modal.addresses.defaultRouteDistance"),
+                    draft.dhcp_options.default_route_distance,
+                    (default_route_distance) => updateDhcp({ default_route_distance }),
+                    DEFAULT_ROUTE_DISTANCE_RANGE,
+                  )}
                 </div>
+                <MultiValueInput
+                  label={t("modal.addresses.reject")}
+                  values={draft.dhcp_options.reject}
+                  onChange={(reject) => updateDhcp({ reject })}
+                  placeholder="192.0.2.1"
+                />
                 <div className="flex gap-6">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="dhcpNoDefaultRoute" checked={dhcpNoDefaultRoute} onCheckedChange={(checked) => setDhcpNoDefaultRoute(checked === true)} />
-                    <Label htmlFor="dhcpNoDefaultRoute" className="text-xs font-normal">{t("modal.addresses.noDefaultRoute")}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="dhcpMtu" checked={dhcpMtu} onCheckedChange={(checked) => setDhcpMtu(checked === true)} />
-                    <Label htmlFor="dhcpMtu" className="text-xs font-normal">{t("modal.addresses.requestMtu")}</Label>
-                  </div>
+                  {checkField("dhcpNoDefaultRoute", t("modal.addresses.noDefaultRoute"), draft.dhcp_options.no_default_route, (no_default_route) => updateDhcp({ no_default_route }))}
+                  {checkField("dhcpMtu", t("modal.addresses.requestMtu"), draft.dhcp_options.mtu, (mtu) => updateDhcp({ mtu }))}
                 </div>
+              </>
+            )}
+
+            {draft.dhcpv6 && (
+              <>
+                <Separator />
+                <h4 className="text-sm font-medium">{t("modal.addresses.dhcpv6Options")}</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="dhcpv6Duid" className="text-xs">{t("modal.addresses.duid")}</Label>
+                  <Input
+                    id="dhcpv6Duid"
+                    value={draft.dhcpv6_options.duid}
+                    onChange={(e) => updateDhcpv6({ duid: e.target.value })}
+                    placeholder="00:01:00:01"
+                    className="h-8 text-sm font-mono"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  {checkField("dhcpv6RapidCommit", t("modal.addresses.rapidCommit"), draft.dhcpv6_options.rapid_commit, (rapid_commit) => updateDhcpv6({ rapid_commit }))}
+                  {checkField("dhcpv6NoRelease", t("modal.addresses.noRelease"), draft.dhcpv6_options.no_release, (no_release) => updateDhcpv6({ no_release }))}
+                  {checkField("dhcpv6ParametersOnly", t("modal.addresses.parametersOnly"), draft.dhcpv6_options.parameters_only, (parameters_only) => updateDhcpv6({ parameters_only }))}
+                  {checkField("dhcpv6Temporary", t("modal.addresses.temporary"), draft.dhcpv6_options.temporary, (temporary) => updateDhcpv6({ temporary }))}
+                  {hasNoRequestDns &&
+                    checkField("dhcpv6NoRequestDns", t("modal.addresses.noRequestDns"), draft.dhcpv6_options.no_request_dns, (no_request_dns) => updateDhcpv6({ no_request_dns }))}
+                  {hasNoRequestDomainName &&
+                    checkField(
+                      "dhcpv6NoRequestDomainName",
+                      t("modal.addresses.noRequestDomainName"),
+                      draft.dhcpv6_options.no_request_domain_name,
+                      (no_request_domain_name) => updateDhcpv6({ no_request_domain_name }),
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">{t("modal.addresses.prefixDelegation")}</h4>
+                  <Button type="button" variant="outline" size="sm" onClick={addPd}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {t("modal.addresses.addPd")}
+                  </Button>
+                </div>
+                {pdRows.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-2">{t("modal.addresses.noPd")}</p>
+                )}
+                {pdRows.map((pd, index) => (
+                  <div key={index} className="rounded-md border p-3 space-y-3">
+                    <div className="flex items-end gap-2">
+                      <div className="grid grid-cols-2 gap-2 flex-1">
+                        {numberField(`pdId${index}`, t("modal.addresses.pdId"), pd.id, (id) => updatePd(index, { id }), PD_ID_RANGE)}
+                        {numberField(`pdLength${index}`, t("modal.addresses.pdLength"), pd.length, (length) => updatePd(index, { length }), PD_LENGTH_RANGE)}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => removePd(index)}
+                        aria-label={tc("delete")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    {pd.interfaces.map((iface, row) => (
+                      <div key={row} className="flex items-end gap-2">
+                        <div className="grid grid-cols-3 gap-2 flex-1">
+                          <div className="space-y-2">
+                            <Label htmlFor={`pdInterface${index}-${row}`} className="text-xs">{t("modal.addresses.pdInterface")}</Label>
+                            <InterfaceSelect
+                              id={`pdInterface${index}-${row}`}
+                              value={iface.name}
+                              onValueChange={(name) => updatePdInterface(index, row, { name })}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          {numberField(
+                            `pdAddress${index}-${row}`,
+                            t("modal.addresses.pdAddress"),
+                            iface.address,
+                            (address) => updatePdInterface(index, row, { address }),
+                            PD_ADDRESS_RANGE,
+                          )}
+                          {numberField(
+                            `pdSlaId${index}-${row}`,
+                            t("modal.addresses.slaId"),
+                            iface.sla_id,
+                            (sla_id) => updatePdInterface(index, row, { sla_id }),
+                            PD_SLA_ID_RANGE,
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => removePdInterface(index, row)}
+                          aria-label={tc("delete")}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => addPdInterface(index)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> {tc("addInterface")}
+                    </Button>
+                  </div>
+                ))}
               </>
             )}
           </TabsContent>
@@ -810,59 +623,41 @@ export function MacsecModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ipAdjustMss" className="text-xs">{t("modal.advanced.adjustMss")}</Label>
-                <Input id="ipAdjustMss" value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder={t("modal.advanced.adjustMssPlaceholder")} className="h-8 text-sm" />
+                <Input
+                  id="ipAdjustMss"
+                  value={draft.ip.adjust_mss}
+                  onChange={(e) => updateIp({ adjust_mss: e.target.value })}
+                  placeholder={t("modal.advanced.adjustMssPlaceholder")}
+                  className="h-8 text-sm"
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ipArpCacheTimeout" className="text-xs">{t("modal.advanced.arpCacheTimeout")}</Label>
-                <Input id="ipArpCacheTimeout" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} className="h-8 text-sm" type="number" />
-              </div>
+              {numberField(
+                "ipArpCacheTimeout",
+                t("modal.advanced.arpCacheTimeout"),
+                draft.ip.arp_cache_timeout,
+                (arp_cache_timeout) => updateIp({ arp_cache_timeout }),
+                ARP_CACHE_TIMEOUT_RANGE,
+              )}
               <div className="space-y-2">
                 <Label htmlFor="ipSourceValidation" className="text-xs">{t("modal.advanced.sourceValidation")}</Label>
-                <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="strict">{t("modal.advanced.strict")}</SelectItem>
-                    <SelectItem value="loose">{t("modal.advanced.loose")}</SelectItem>
-                    <SelectItem value="disable">{t("modal.advanced.disable")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NamedListSelect
+                  id="ipSourceValidation"
+                  value={draft.ip.source_validation}
+                  names={sourceValidation}
+                  labels={sourceValidationLabels}
+                  onValueChange={(source_validation) => updateIp({ source_validation })}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipDisableArpFilter" checked={ipDisableArpFilter} onCheckedChange={(checked) => setIpDisableArpFilter(checked === true)} />
-                <Label htmlFor="ipDisableArpFilter" className="text-xs font-normal">{t("modal.advanced.disableArpFilter")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(checked) => setIpDisableForwarding(checked === true)} />
-                <Label htmlFor="ipDisableForwarding" className="text-xs font-normal">{t("modal.advanced.disableForwarding")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipEnableArpAccept" checked={ipEnableArpAccept} onCheckedChange={(checked) => setIpEnableArpAccept(checked === true)} />
-                <Label htmlFor="ipEnableArpAccept" className="text-xs font-normal">{t("modal.advanced.enableArpAccept")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipEnableArpAnnounce" checked={ipEnableArpAnnounce} onCheckedChange={(checked) => setIpEnableArpAnnounce(checked === true)} />
-                <Label htmlFor="ipEnableArpAnnounce" className="text-xs font-normal">{t("modal.advanced.enableArpAnnounce")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipEnableArpIgnore" checked={ipEnableArpIgnore} onCheckedChange={(checked) => setIpEnableArpIgnore(checked === true)} />
-                <Label htmlFor="ipEnableArpIgnore" className="text-xs font-normal">{t("modal.advanced.enableArpIgnore")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipEnableDirectedBroadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(checked) => setIpEnableDirectedBroadcast(checked === true)} />
-                <Label htmlFor="ipEnableDirectedBroadcast" className="text-xs font-normal">{t("modal.advanced.enableDirectedBroadcast")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipEnableProxyArp" checked={ipEnableProxyArp} onCheckedChange={(checked) => setIpEnableProxyArp(checked === true)} />
-                <Label htmlFor="ipEnableProxyArp" className="text-xs font-normal">{t("modal.advanced.enableProxyArp")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipProxyArpPvlan" checked={ipProxyArpPvlan} onCheckedChange={(checked) => setIpProxyArpPvlan(checked === true)} />
-                <Label htmlFor="ipProxyArpPvlan" className="text-xs font-normal">{t("modal.advanced.proxyArpPvlan")}</Label>
-              </div>
+              {checkField("ipDisableArpFilter", t("modal.advanced.disableArpFilter"), draft.ip.disable_arp_filter, (disable_arp_filter) => updateIp({ disable_arp_filter }))}
+              {checkField("ipDisableForwarding", t("modal.advanced.disableForwarding"), draft.ip.disable_forwarding, (disable_forwarding) => updateIp({ disable_forwarding }))}
+              {checkField("ipEnableArpAccept", t("modal.advanced.enableArpAccept"), draft.ip.enable_arp_accept, (enable_arp_accept) => updateIp({ enable_arp_accept }))}
+              {checkField("ipEnableArpAnnounce", t("modal.advanced.enableArpAnnounce"), draft.ip.enable_arp_announce, (enable_arp_announce) => updateIp({ enable_arp_announce }))}
+              {checkField("ipEnableArpIgnore", t("modal.advanced.enableArpIgnore"), draft.ip.enable_arp_ignore, (enable_arp_ignore) => updateIp({ enable_arp_ignore }))}
+              {checkField("ipEnableDirectedBroadcast", t("modal.advanced.enableDirectedBroadcast"), draft.ip.enable_directed_broadcast, (enable_directed_broadcast) => updateIp({ enable_directed_broadcast }))}
+              {checkField("ipEnableProxyArp", t("modal.advanced.enableProxyArp"), draft.ip.enable_proxy_arp, (enable_proxy_arp) => updateIp({ enable_proxy_arp }))}
+              {checkField("ipProxyArpPvlan", t("modal.advanced.proxyArpPvlan"), draft.ip.proxy_arp_pvlan, (proxy_arp_pvlan) => updateIp({ proxy_arp_pvlan }))}
             </div>
 
             <Separator />
@@ -871,55 +666,71 @@ export function MacsecModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ipv6AcceptDad" className="text-xs">{t("modal.advanced.acceptDad")}</Label>
-                <Input id="ipv6AcceptDad" value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} className="h-8 text-sm" type="number" />
+                <NamedListSelect
+                  id="ipv6AcceptDad"
+                  value={draft.ipv6.accept_dad}
+                  names={ACCEPT_DAD_VALUES}
+                  noneLabel={tc("default")}
+                  onValueChange={(accept_dad) => updateIpv6({ accept_dad })}
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ipv6DupAddrDetect" className="text-xs">{t("modal.advanced.dadTransmits")}</Label>
-                <Input id="ipv6DupAddrDetect" value={ipv6DupAddrDetect} onChange={(e) => setIpv6DupAddrDetect(e.target.value)} className="h-8 text-sm" type="number" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ipv6AddressEui64" className="text-xs">{t("modal.advanced.eui64Prefix")}</Label>
-                <Input id="ipv6AddressEui64" value={ipv6AddressEui64} onChange={(e) => setIpv6AddressEui64(e.target.value)} className="h-8 text-sm" placeholder="2001:db8::/64" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ipv6InterfaceIdentifier" className="text-xs">{t("modal.advanced.interfaceIdentifier")}</Label>
-                <Input id="ipv6InterfaceIdentifier" value={ipv6InterfaceIdentifier} onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)} className="h-8 text-sm" />
-              </div>
+              {numberField(
+                "ipv6DupAddrDetect",
+                t("modal.advanced.dadTransmits"),
+                draft.ipv6.dup_addr_detect_transmits,
+                (dup_addr_detect_transmits) => updateIpv6({ dup_addr_detect_transmits }),
+                DAD_TRANSMITS_RANGE,
+              )}
+              {hasInterfaceIdentifier && (
+                <div className="space-y-2">
+                  <Label htmlFor="ipv6InterfaceIdentifier" className="text-xs">{t("modal.advanced.interfaceIdentifier")}</Label>
+                  <Input
+                    id="ipv6InterfaceIdentifier"
+                    value={draft.ipv6.address_interface_identifier}
+                    onChange={(e) => updateIpv6({ address_interface_identifier: e.target.value })}
+                    placeholder="::1"
+                    className="h-8 text-sm font-mono"
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="ipv6AdjustMss" className="text-xs">{t("modal.advanced.adjustMss")}</Label>
-                <Input id="ipv6AdjustMss" value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} className="h-8 text-sm" />
+                <Input
+                  id="ipv6AdjustMss"
+                  value={draft.ipv6.adjust_mss}
+                  onChange={(e) => updateIpv6({ adjust_mss: e.target.value })}
+                  placeholder={t("modal.advanced.adjustMssPlaceholder")}
+                  className="h-8 text-sm"
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ipv6BaseReachableTime" className="text-xs">{t("modal.advanced.baseReachableTime")}</Label>
-                <Input id="ipv6BaseReachableTime" value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} className="h-8 text-sm" type="number" />
-              </div>
+              {numberField(
+                "ipv6BaseReachableTime",
+                t("modal.advanced.baseReachableTime"),
+                draft.ipv6.base_reachable_time,
+                (base_reachable_time) => updateIpv6({ base_reachable_time }),
+                BASE_REACHABLE_TIME_RANGE,
+              )}
               <div className="space-y-2">
                 <Label htmlFor="ipv6SourceValidation" className="text-xs">{t("modal.advanced.sourceValidation")}</Label>
-                <Select value={ipv6SourceValidation} onValueChange={setIpv6SourceValidation}>
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder={tc("none")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="strict">{t("modal.advanced.strict")}</SelectItem>
-                    <SelectItem value="loose">{t("modal.advanced.loose")}</SelectItem>
-                    <SelectItem value="disable">{t("modal.advanced.disable")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NamedListSelect
+                  id="ipv6SourceValidation"
+                  value={draft.ipv6.source_validation}
+                  names={sourceValidation}
+                  labels={sourceValidationLabels}
+                  onValueChange={(source_validation) => updateIpv6({ source_validation })}
+                />
               </div>
             </div>
+            <MultiValueInput
+              label={t("modal.advanced.eui64Prefix")}
+              values={draft.ipv6.address_eui64}
+              onChange={(address_eui64) => updateIpv6({ address_eui64 })}
+              placeholder="2001:db8::/64"
+            />
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipv6AddressAutoconf" checked={ipv6AddressAutoconf} onCheckedChange={(checked) => setIpv6AddressAutoconf(checked === true)} />
-                <Label htmlFor="ipv6AddressAutoconf" className="text-xs font-normal">{t("modal.advanced.addressAutoconf")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipv6NoDefaultLinkLocal" checked={ipv6NoDefaultLinkLocal} onCheckedChange={(checked) => setIpv6NoDefaultLinkLocal(checked === true)} />
-                <Label htmlFor="ipv6NoDefaultLinkLocal" className="text-xs font-normal">{t("modal.advanced.noDefaultLinkLocal")}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="ipv6DisableForwarding" checked={ipv6DisableForwarding} onCheckedChange={(checked) => setIpv6DisableForwarding(checked === true)} />
-                <Label htmlFor="ipv6DisableForwarding" className="text-xs font-normal">{t("modal.advanced.disableForwarding")}</Label>
-              </div>
+              {checkField("ipv6AddressAutoconf", t("modal.advanced.addressAutoconf"), draft.ipv6.address_autoconf, (address_autoconf) => updateIpv6({ address_autoconf }))}
+              {checkField("ipv6NoDefaultLinkLocal", t("modal.advanced.noDefaultLinkLocal"), draft.ipv6.address_no_default_link_local, (address_no_default_link_local) => updateIpv6({ address_no_default_link_local }))}
+              {checkField("ipv6DisableForwarding", t("modal.advanced.disableForwarding"), draft.ipv6.disable_forwarding, (disable_forwarding) => updateIpv6({ disable_forwarding }))}
             </div>
 
             <Separator />
@@ -928,15 +739,15 @@ export function MacsecModal({
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="mirrorIngress" className="text-xs">{t("modal.advanced.mirrorIngress")}</Label>
-                <InterfaceSelect id="mirrorIngress" value={mirrorIngress} onValueChange={setMirrorIngress} noneOption={{ label: tc("none"), value: "" }} className="h-8 text-sm" />
+                <InterfaceSelect id="mirrorIngress" value={draft.mirror_ingress} onValueChange={(mirror_ingress) => update({ mirror_ingress })} noneOption={none} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="mirrorEgress" className="text-xs">{t("modal.advanced.mirrorEgress")}</Label>
-                <InterfaceSelect id="mirrorEgress" value={mirrorEgress} onValueChange={setMirrorEgress} noneOption={{ label: tc("none"), value: "" }} className="h-8 text-sm" />
+                <InterfaceSelect id="mirrorEgress" value={draft.mirror_egress} onValueChange={(mirror_egress) => update({ mirror_egress })} noneOption={none} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="redirect" className="text-xs">{t("modal.advanced.redirect")}</Label>
-                <InterfaceSelect id="redirect" value={redirect} onValueChange={setRedirect} noneOption={{ label: tc("none"), value: "" }} className="h-8 text-sm" />
+                <InterfaceSelect id="redirect" value={draft.redirect} onValueChange={(redirect) => update({ redirect })} noneOption={none} className="h-8 text-sm" />
               </div>
             </div>
           </TabsContent>
@@ -950,7 +761,7 @@ export function MacsecModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
