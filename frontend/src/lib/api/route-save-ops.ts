@@ -10,7 +10,9 @@ import type {
 /** Lab `description` bound, used when capabilities have not loaded. */
 export const DESCRIPTION_MAX_LENGTH = 255;
 /** Lab tag syntax of a policy route / route6 name. */
-export const POLICY_NAME_PATTERN = /^[-_a-zA-Z0-9.]+$/;
+export const POLICY_NAME_PATTERN = /^[a-zA-Z0-9][-_a-zA-Z0-9.]*$/;
+/** Lab bound of a numeric `icmpv6 type`, used when capabilities carry none. */
+export const ICMPV6_TYPE_RANGE: RouteRange = { min: 0, max: 255 };
 
 // ============================================================================
 // Forms
@@ -247,6 +249,8 @@ type Node =
   | { kind: "flag"; key: FlagKey; op: string }
   | { kind: "compare"; key: SingleKey; op: string; cmp: string }
   | { kind: "readonly"; key: SingleKey }
+  /** A version-gated leaf this device does not offer: never emitted, but a loaded value keeps its parent. */
+  | { kind: "gated"; child: Node }
   | { kind: "section"; del: string; children: Node[] };
 
 function nodeHasValue(node: Node, form: RouteRuleForm): boolean {
@@ -260,6 +264,8 @@ function nodeHasValue(node: Node, form: RouteRuleForm): boolean {
       return form[node.key].length > 0;
     case "flag":
       return form[node.key];
+    case "gated":
+      return nodeHasValue(node.child, form);
     case "section":
       return node.children.some((child) => nodeHasValue(child, form));
   }
@@ -285,6 +291,7 @@ function emitNode(node: Node, before: RouteRuleForm, after: RouteRuleForm): Op[]
     case "flag":
       return flag(`set_${node.op}`, `delete_${node.op}`, before[node.key], after[node.key]);
     case "readonly":
+    case "gated":
       return [];
     case "section":
       // Every leaf under the node cleared: one section delete, no empty parent left behind.
@@ -297,20 +304,21 @@ function single(key: SingleKey, op: string = `match_${key}`): Node {
   return { kind: "single", key, op };
 }
 
+/** Every gated node stays in the tree so the "section emptied" decision sees every form key. */
+function gate(on: boolean, node: Node): Node {
+  return on ? node : { kind: "gated", child: node };
+}
+
 function sideTree(side: "source" | "destination", caps: RouteCapabilitiesResponse | null): Node {
-  const geoip: Node[] = caps?.features?.geoip_matching?.supported === true
-    ? [
-        {
-          kind: "section",
-          del: `delete_match_${side}_geoip`,
-          children: [
-            { kind: "list", key: `${side}_geoip_country_code`, op: `match_${side}_geoip_country_code` },
-            { kind: "list", key: `${side}_geoip_asn`, op: `match_${side}_geoip_asn` },
-            { kind: "flag", key: `${side}_geoip_inverse`, op: `match_${side}_geoip_inverse` },
-          ],
-        },
-      ]
-    : [];
+  const geoip = gate(caps?.features?.geoip_matching?.supported === true, {
+    kind: "section",
+    del: `delete_match_${side}_geoip`,
+    children: [
+      { kind: "list", key: `${side}_geoip_country_code`, op: `match_${side}_geoip_country_code` },
+      { kind: "list", key: `${side}_geoip_asn`, op: `match_${side}_geoip_asn` },
+      { kind: "flag", key: `${side}_geoip_inverse`, op: `match_${side}_geoip_inverse` },
+    ],
+  });
   return {
     kind: "section",
     del: `delete_match_${side}`,
@@ -325,16 +333,18 @@ function sideTree(side: "source" | "destination", caps: RouteCapabilitiesRespons
           single(`${side}_group_${g}`),
         ),
       },
-      ...geoip,
+      geoip,
     ],
   };
 }
 
 const COMPARE = ["eq", "gt", "lt"] as const;
+/** Lab: "Protocol must be tcp, udp, or tcp_udp when specifying a port or port-group". */
+export const PORT_PROTOCOLS = ["tcp", "udp", "tcp_udp"];
 
-/** Every rule leaf this family and version has, grouped by its CLI parent node. */
+/** Every rule leaf of this family, grouped by its CLI parent node; leaves this version lacks are gated. */
 function ruleTree(policyType: RoutePolicyType, caps: RouteCapabilitiesResponse | null): Node[] {
-  const tcpMss: Node[] = caps?.features?.tcp_mss_matching?.supported === true ? [single("tcp_mss")] : [];
+  const tcpMss = gate(caps?.features?.tcp_mss_matching?.supported === true, single("tcp_mss"));
   const rateUnits = caps?.features?.limit_rate?.units || [];
   const family: Node[] =
     policyType === "route"
@@ -361,7 +371,7 @@ function ruleTree(policyType: RoutePolicyType, caps: RouteCapabilitiesResponse |
             ),
           },
         ];
-  const vrf: Node[] = caps?.features?.vrf_routing?.supported === true ? [single("set_vrf", "vrf")] : [];
+  const vrf = gate(caps?.features?.vrf_routing?.supported === true, single("set_vrf", "vrf"));
   return [
     sideTree("source", caps),
     sideTree("destination", caps),
@@ -382,7 +392,7 @@ function ruleTree(policyType: RoutePolicyType, caps: RouteCapabilitiesResponse |
             },
           ],
         },
-        ...tcpMss,
+        tcpMss,
       ],
     },
     ...family,
@@ -429,7 +439,7 @@ function ruleTree(policyType: RoutePolicyType, caps: RouteCapabilitiesResponse |
         single("set_mark", "mark"),
         single("set_table", "table"),
         single("set_tcp_mss", "tcp_mss"),
-        ...vrf,
+        vrf,
       ],
     },
   ];
@@ -502,6 +512,11 @@ export type RouteRuleProblemKey =
   | "tcpFlagConflict"
   | "setTcpMssNeedsSyn"
   | "icmpNeedsProtocolIcmp"
+  | "icmpTypeNameConflict"
+  | "icmpCodeNeedsType"
+  | "icmpv6TypeRange"
+  | "setVrfTableConflict"
+  | "geoipAsnCountryConflict"
   | "icmpv6NeedsProtocolIcmpv6"
   | "icmpCodeRange"
   | "icmpTypeRange"
@@ -598,7 +613,7 @@ export function routeRuleProblem(
   }
 
   const hasPort = f.source_port || f.destination_port || f.source_group_port || f.destination_group_port;
-  if (hasPort && !f.protocol) return { key: "portNeedsProtocol" };
+  if (hasPort && !PORT_PROTOCOLS.includes(f.protocol)) return { key: "portNeedsProtocol" };
 
   const tcpMssOn = caps?.features?.tcp_mss_matching?.supported === true && f.tcp_mss !== "";
   if ((f.tcp_flags.length > 0 || f.tcp_flags_not.length > 0 || tcpMssOn) && f.protocol !== "tcp") {
@@ -612,6 +627,10 @@ export function routeRuleProblem(
     if ((f.icmp_code || f.icmp_type || f.icmp_type_name) && f.protocol !== "icmp") {
       return { key: "icmpNeedsProtocolIcmp" };
     }
+    // Lab: "Cannot use ICMP type/code with ICMP type-name".
+    if (f.icmp_type_name && (f.icmp_type || f.icmp_code)) return { key: "icmpTypeNameConflict" };
+    // Lab: "ICMP code can only be defined if ICMP type is defined".
+    if (f.icmp_code && !f.icmp_type) return { key: "icmpCodeNeedsType" };
     const icmpCode = routeRange(caps, "icmp_code");
     if (f.icmp_code && !inRange(f.icmp_code, icmpCode)) return rangeProblem("icmpCodeRange", icmpCode);
     const icmpType = routeRange(caps, "icmp_type");
@@ -622,6 +641,11 @@ export function routeRuleProblem(
     }
   } else {
     if (f.icmpv6_type && f.protocol !== "icmpv6") return { key: "icmpv6NeedsProtocolIcmpv6" };
+    // A name from the list or a number (lab: `icmpv6 type 135` commits).
+    const icmpv6Range = routeRange(caps, "icmpv6_type") ?? ICMPV6_TYPE_RANGE;
+    if (/^[-+.\d]+$/.test(f.icmpv6_type) && !inRange(f.icmpv6_type, icmpv6Range)) {
+      return rangeProblem("icmpv6TypeRange", icmpv6Range);
+    }
     const hop = routeRange(caps, "ttl");
     for (const cmp of COMPARE) {
       if (f[`hop_limit_${cmp}`] && !inRange(f[`hop_limit_${cmp}`], hop)) return rangeProblem("hopLimitRange", hop);
@@ -682,6 +706,10 @@ export function routeRuleProblem(
       if (unknown) return { key: "geoipCountryUnknown", value: unknown };
       const badAsn = f[`${side}_geoip_asn`].find((value) => !inRange(value, asn));
       if (badAsn) return rangeProblem("geoipAsnRange", asn, badAsn);
+      // Lab: "Only one of asn or country-code can be specified".
+      if (f[`${side}_geoip_asn`].length > 0 && f[`${side}_geoip_country_code`].length > 0) {
+        return { key: "geoipAsnCountryConflict" };
+      }
     }
   }
 
@@ -698,6 +726,10 @@ export function routeRuleProblem(
   const table = routeRange(caps, "set_table");
   if (f.set_table && f.set_table !== "main" && !inRange(f.set_table, table)) {
     return rangeProblem("setTableRange", table);
+  }
+  // Lab (1.5): "Cannot set both forwarding route table and VRF".
+  if (caps?.features?.vrf_routing?.supported === true && f.set_vrf && f.set_table) {
+    return { key: "setVrfTableConflict" };
   }
   return null;
 }

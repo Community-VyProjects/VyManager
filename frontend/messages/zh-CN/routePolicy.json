@@ -36,6 +36,8 @@
       "sourceMac": "源 MAC",
       "sourceGeoip": "源 GeoIP",
       "destinationGeoip": "目标 GeoIP",
+      "geoipCountries": "国家 {codes}",
+      "geoipAsn": "ASN {asn}",
       "sourceGroupAddress": "源地址组",
       "sourceGroupDomain": "源域名组",
       "sourceGroupMac": "源 MAC 组",
@@ -132,8 +134,13 @@
   },
   "policyErrors": {
     "nameRequired": "策略名称为必填项",
-    "nameInvalid": "策略名称只能包含字母、数字、连字符、下划线和点",
+    "nameInvalid": "策略名称必须以字母或数字开头，且只能包含字母、数字、连字符、下划线和点",
     "nameTaken": "已存在同名策略",
     "descriptionTooLong": "描述最多 {max} 个字符"
+  },
+  "interfacesField": {
+    "pattern": "接口模式",
+    "patternPlaceholder": "模式，例如 {example}",
+    "add": "添加"
   }
 }

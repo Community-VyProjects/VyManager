@@ -19,14 +19,17 @@
     "descriptionTooLong": "Description must be at most {max} characters",
     "sourceGroupConflict": "Source can use only one of address group, network group and domain group",
     "destinationGroupConflict": "Destination can use only one of address group, network group and domain group",
-    "portNeedsProtocol": "A port or port group needs a protocol",
+    "portNeedsProtocol": "A port or port group needs protocol tcp, udp or tcp_udp",
     "tcpNeedsProtocolTcp": "TCP flags and TCP MSS need protocol tcp",
     "tcpFlagConflict": "TCP flag {value} cannot be both matched and negated",
     "setTcpMssNeedsSyn": "Setting TCP MSS needs the TCP flag syn",
     "icmpNeedsProtocolIcmp": "ICMP matching needs protocol icmp",
     "icmpv6NeedsProtocolIcmpv6": "ICMPv6 type needs protocol icmpv6",
+    "icmpv6TypeRange": "ICMPv6 type must be a name from the list or a number from {min} to {max}",
     "icmpCodeRange": "ICMP code must be from {min} to {max}",
     "icmpTypeRange": "ICMP type must be from {min} to {max}",
+    "icmpTypeNameConflict": "ICMP type name cannot be combined with ICMP type or code",
+    "icmpCodeNeedsType": "ICMP code needs an ICMP type",
     "ttlRange": "TTL must be from {min} to {max}",
     "hopLimitRange": "Hop limit must be from {min} to {max}",
     "tcpMssRange": "TCP MSS must be a number or range from {min} to {max}",
@@ -40,12 +43,14 @@
     "limitRateUnsupported": "This device cannot set a limit rate",
     "geoipCountryUnknown": "Unknown GeoIP country code {value}",
     "geoipAsnRange": "GeoIP ASN {value} must be from {min} to {max}",
+    "geoipAsnCountryConflict": "Each side can use GeoIP ASNs or country codes, not both",
     "weekdayInvalid": "Unknown weekday {value}",
     "setConnectionMarkRange": "Set connection mark must be from {min} to {max}",
     "setDscpRange": "Set DSCP must be from {min} to {max}",
     "setMarkRange": "Set mark must be from {min} to {max}",
     "setTableRange": "Table must be main or a number from {min} to {max}",
-    "setTcpMssRange": "Set TCP MSS must be from {min} to {max}"
+    "setTcpMssRange": "Set TCP MSS must be from {min} to {max}",
+    "setVrfTableConflict": "Set either a routing table or a VRF, not both"
   },
   "tabs": {
     "basic": "Basic",
@@ -96,7 +101,8 @@
     "code": "ICMP Code",
     "typeName": "ICMP Type Name",
     "v6Title": "ICMPv6 Matching",
-    "v6Type": "ICMPv6 Type"
+    "v6Type": "ICMPv6 Type",
+    "v6ByNumber": "Enter the type as a number"
   },
   "compare": {
     "ttlTitle": "TTL",
@@ -145,6 +151,8 @@
     "burst": "Limit Burst",
     "rate": "Limit Rate",
     "unit": "Unit",
+    "rateReadOnly": "Limit rate: {rate} (this device cannot change it)",
+    "removeRate": "Remove limit rate",
     "recent": "Recent: count {count}, time {time}",
     "removeRecent": "Remove recent match"
   },

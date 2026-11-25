@@ -108,8 +108,11 @@ export function RouteRuleRow({ rule, onEdit, onDelete, canWrite, dragDisabled, d
   const formatMatchValue = (key: string, value: unknown): string => {
     if ((key === "source_geoip" || key === "destination_geoip") && value && typeof value === "object") {
       const geoip = value as GeoIPMatch;
-      const codes = [...geoip.country_code, ...geoip.asn].join(",");
-      return `${geoip.inverse_match ? "!" : ""}${codes}`;
+      const parts = [
+        ...(geoip.country_code.length ? [t("match.geoipCountries", { codes: geoip.country_code.join(",") })] : []),
+        ...(geoip.asn.length ? [t("match.geoipAsn", { asn: geoip.asn.join(",") })] : []),
+      ];
+      return `${geoip.inverse_match ? "!" : ""}${parts.join("; ")}`;
     }
     if (Array.isArray(value)) {
       return value.join(",");

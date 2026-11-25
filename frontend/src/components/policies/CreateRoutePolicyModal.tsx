@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { PolicyInterfacesField } from "./PolicyInterfacesField";
 import { AlertCircle } from "lucide-react";
 import { routeService, type RouteCapabilitiesResponse, type RoutePolicyType } from "@/lib/api/route";
 import { descriptionMaxLength, policyProblem, type PolicyForm } from "@/lib/api/route-save-ops";
@@ -102,15 +102,13 @@ export function CreateRoutePolicyModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="route-policy-interfaces">{t("interfaces")}</Label>
-            <InterfaceMultiSelect
-              id="route-policy-interfaces"
-              values={form.interfaces}
-              onChange={(interfaces) => setForm((prev) => ({ ...prev, interfaces }))}
-              disabled={loading}
-            />
-          </div>
+          <PolicyInterfacesField
+            id="route-policy-interfaces"
+            label={t("interfaces")}
+            values={form.interfaces}
+            onChange={(interfaces) => setForm((prev) => ({ ...prev, interfaces }))}
+            disabled={loading}
+          />
 
           <div className="flex items-center space-x-2">
             <Checkbox

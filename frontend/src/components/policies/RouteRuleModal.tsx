@@ -13,6 +13,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
+import { CountryMultiSelect } from "@/components/firewall/CountryMultiSelect";
+import { lockedIdentity, modalIsEdit } from "@/lib/modal-mode";
 import {
   routeService,
   type PolicyRouteRule,
@@ -22,6 +24,7 @@ import {
 import {
   descriptionMaxLength,
   emptyRuleForm,
+  ICMPV6_TYPE_RANGE,
   routeRange,
   routeRuleProblem,
   ruleFormFrom,
@@ -107,11 +110,11 @@ export function RouteRuleModal({
 }: RouteRuleModalProps) {
   const t = useTranslations("routeRuleModal");
   const tc = useTranslations("common");
-  const isEdit = existing !== null;
+  const isEdit = modalIsEdit(existing);
   const family = policyType === "route" ? "IPv4" : "IPv6";
 
   const [form, setForm] = useState<RouteRuleForm>(() =>
-    existing ? ruleFormFrom(existing) : emptyRuleForm(nextRuleNumber(existingRuleNumbers, routeRange(caps, "rule"))),
+    modalIsEdit(existing) ? ruleFormFrom(existing) : emptyRuleForm(nextRuleNumber(existingRuleNumbers, routeRange(caps, "rule"))),
   );
   const [sourceGroupKind, setSourceGroupKind] = useState<GroupKind>(() => groupKindOf(form, "source"));
   const [destinationGroupKind, setDestinationGroupKind] = useState<GroupKind>(() =>
@@ -120,6 +123,7 @@ export function RouteRuleModal({
   const [tableMode, setTableMode] = useState<TableMode>(() =>
     form.set_table === "main" ? "main" : form.set_table ? "custom" : "none",
   );
+  const [icmpv6ByNumber, setIcmpv6ByNumber] = useState(() => /^\d+$/.test(form.icmpv6_type));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groups, setGroups] = useState<GroupsConfigResponse | null>(null);
@@ -147,6 +151,9 @@ export function RouteRuleModal({
   const vrfOn = caps?.features?.vrf_routing?.supported === true;
   const rateUnits = caps?.features?.limit_rate?.units || [];
   const loadedRecent = existing && (existing.match.recent_count || existing.match.recent_time) ? existing.match : null;
+  // 1.4 cannot set a rate; a loaded one is shown read-only so it can still be removed.
+  const loadedRate14 = rateUnits.length === 0 && existing?.match.limit_rate ? existing.match.limit_rate : null;
+  const lockedRule = lockedIdentity(existing, (r) => String(r.rule_number), form.rule_number);
 
   const set = <K extends keyof RouteRuleForm>(key: K, value: RouteRuleForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -304,12 +311,12 @@ export function RouteRuleModal({
 
         {geoipOn && (
           <div className="space-y-3">
-            {listField(
-              `${side}_geoip_country_code`,
-              t("geoip.countryCodes"),
-              undefined,
-              caps?.features?.geoip_matching?.country_codes || [],
-            )}
+            <CountryMultiSelect
+              id={`rr-${side}-geoip-country`}
+              label={t("geoip.countryCodes")}
+              value={form[`${side}_geoip_country_code`]}
+              onChange={(next) => set(`${side}_geoip_country_code`, next)}
+            />
             {listField(`${side}_geoip_asn`, t("geoip.asn"), "geoip_asn")}
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -359,7 +366,7 @@ export function RouteRuleModal({
         <DialogHeader>
           <DialogTitle>
             {isEdit
-              ? t("title.edit", { number: String(existing.rule_number), policyName })
+              ? t("title.edit", { number: lockedRule.value, policyName })
               : t("title.create", { policyName })}
           </DialogTitle>
           <DialogDescription>
@@ -393,9 +400,9 @@ export function RouteRuleModal({
                   type="number"
                   min={routeRange(caps, "rule")?.min}
                   max={routeRange(caps, "rule")?.max}
-                  value={isEdit ? String(existing.rule_number) : form.rule_number}
+                  value={lockedRule.value}
                   onChange={(e) => set("rule_number", e.target.value)}
-                  disabled={loading || isEdit}
+                  disabled={loading || lockedRule.disabled}
                 />
               </div>
               <div className="space-y-2">
@@ -456,16 +463,7 @@ export function RouteRuleModal({
             <div className="space-y-4">
               <h3 className="font-semibold text-sm">{t("protocol.title")}</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rr-protocol">{t("protocol.protocol")}</Label>
-                  <NamedListSelect
-                    id="rr-protocol"
-                    value={form.protocol}
-                    names={values?.protocols || []}
-                    onValueChange={(v) => set("protocol", v)}
-                    disabled={loading}
-                  />
-                </div>
+                {groupPick("protocol", t("protocol.protocol"), values?.protocols || [])}
                 {tcpMssOn && textField("tcp_mss", t("protocol.tcpMss"), undefined, "tcp_mss")}
               </div>
               <div className="space-y-2">
@@ -514,13 +512,42 @@ export function RouteRuleModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="rr-icmpv6-type">{t("icmp.v6Type")}</Label>
-                    <NamedListSelect
-                      id="rr-icmpv6-type"
-                      value={form.icmpv6_type}
-                      names={values?.icmpv6_types || []}
-                      onValueChange={(v) => set("icmpv6_type", v)}
-                      disabled={loading}
-                    />
+                    {icmpv6ByNumber ? (
+                      <Input
+                        id="rr-icmpv6-type"
+                        value={form.icmpv6_type}
+                        inputMode="numeric"
+                        placeholder={t("rangePlaceholder", {
+                          min: (routeRange(caps, "icmpv6_type") ?? ICMPV6_TYPE_RANGE).min,
+                          max: (routeRange(caps, "icmpv6_type") ?? ICMPV6_TYPE_RANGE).max,
+                        })}
+                        onChange={(e) => set("icmpv6_type", e.target.value)}
+                        disabled={loading}
+                        className="font-mono"
+                      />
+                    ) : (
+                      <NamedListSelect
+                        id="rr-icmpv6-type"
+                        value={form.icmpv6_type}
+                        names={values?.icmpv6_types || []}
+                        onValueChange={(v) => set("icmpv6_type", v)}
+                        disabled={loading}
+                      />
+                    )}
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="rr-icmpv6-by-number"
+                        checked={icmpv6ByNumber}
+                        onCheckedChange={(checked) => {
+                          setIcmpv6ByNumber(checked === true);
+                          set("icmpv6_type", "");
+                        }}
+                        disabled={loading}
+                      />
+                      <Label htmlFor="rr-icmpv6-by-number" className="text-sm font-normal cursor-pointer">
+                        {t("icmp.v6ByNumber")}
+                      </Label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -656,6 +683,22 @@ export function RouteRuleModal({
                   </div>
                 )}
               </div>
+              {loadedRate14 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-mono">{t("limit.rateReadOnly", { rate: loadedRate14 })}</p>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="rr-rate-remove"
+                      checked={!form.limit_rate}
+                      onCheckedChange={(checked) => set("limit_rate", checked === true ? "" : loadedRate14)}
+                      disabled={loading}
+                    />
+                    <Label htmlFor="rr-rate-remove" className="text-sm font-normal cursor-pointer">
+                      {t("limit.removeRate")}
+                    </Label>
+                  </div>
+                </div>
+              )}
               {loadedRecent && (
                 <div className="space-y-2">
                   <p className="text-sm font-mono">
@@ -736,6 +779,7 @@ export function RouteRuleModal({
                   id="rr-set-vrf"
                   value={form.set_vrf}
                   onValueChange={(v) => set("set_vrf", v)}
+                  extraOptions={[{ label: tc("default"), value: "default" }]}
                   disabled={loading}
                 />
               </div>

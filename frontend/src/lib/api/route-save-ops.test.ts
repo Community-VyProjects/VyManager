@@ -538,6 +538,43 @@ describe("ruleSaveOps edit", () => {
     ]);
   });
 
+  it("a loaded 1.5 leaf the device does not offer keeps its parent section (caps null or flag off)", () => {
+    // The loaded rule holds geoip, tcp mss and set vrf; the form clears every modelled sibling.
+    const loaded = bareRule();
+    loaded.match.source_address = "10.0.0.0/8";
+    loaded.match.source_geoip = { country_code: ["de"], asn: [], inverse_match: false };
+    loaded.match.protocol = "tcp";
+    loaded.match.tcp_flags = ["syn"];
+    loaded.match.tcp_mss = "1400";
+    loaded.set = { ...loaded.set, table: "100", vrf: "BLUE" };
+    for (const caps of [null, CAPS14]) {
+      const form = ruleFormFrom(loaded);
+      form.source_address = "";
+      form.tcp_flags = [];
+      form.set_table = "";
+      assert.deepEqual(ruleSaveOps("route", loaded, form, caps), [
+        { op: "delete_match_source_address" },
+        { op: "delete_match_tcp_flags" },
+        { op: "delete_table" },
+      ]);
+      // Unchanged: nothing, and the gated leaves are never sent.
+      assert.deepEqual(ruleSaveOps("route", loaded, ruleFormFrom(loaded), caps), []);
+    }
+    // With the flags on, clearing the last children does delete the section.
+    const form = ruleFormFrom(loaded);
+    form.source_address = "";
+    form.source_geoip_country_code = [];
+    form.tcp_flags = [];
+    form.tcp_mss = "";
+    form.set_table = "";
+    form.set_vrf = "";
+    assert.deepEqual(names(ruleSaveOps("route", loaded, form, CAPS15)), [
+      "delete_match_source",
+      "delete_match_tcp",
+      "delete_set",
+    ]);
+  });
+
   it("changing a single leaf is one set, never a delete then set", () => {
     const rule = fullRule("route");
     const form = ruleFormFrom(rule);
@@ -630,12 +667,19 @@ describe("routeRuleProblem", () => {
   const base = () => emptyRuleForm("10");
 
   it("accepts a full tcp rule of each family and an empty one", () => {
-    const route = fullForm("route");
+    // A valid full rule: one of asn/country-code per side, vrf without table.
+    const valid = (form: RouteRuleForm) => {
+      form.source_geoip_asn = [];
+      form.destination_geoip_asn = [];
+      form.set_table = "";
+      return form;
+    };
+    const route = valid(fullForm("route"));
     route.icmp_code = "";
     route.icmp_type = "";
     route.icmp_type_name = "";
     assert.equal(key(route), null);
-    const route6 = fullForm("route6");
+    const route6 = valid(fullForm("route6"));
     route6.icmpv6_type = "";
     assert.equal(key(route6, CAPS15, "route6"), null);
     assert.equal(key(base()), null);
@@ -690,21 +734,112 @@ describe("routeRuleProblem", () => {
     assert.equal(key(f), "tcpNeedsProtocolTcp");
   });
 
-  it("lab 3: a port or port group needs a protocol", () => {
+  it("lab 3: a port or port group needs protocol tcp, udp or tcp_udp", () => {
     for (const field of ["source_port", "destination_port", "source_group_port", "destination_group_port"] as const) {
-      const f = base();
-      f[field] = "80";
-      assert.equal(key(f), "portNeedsProtocol", field);
-      f.protocol = "udp";
-      assert.equal(key(f), null, field);
+      for (const protocol of ["", "icmp", "all", "!tcp", "gre"]) {
+        const f = base();
+        f[field] = "80";
+        f.protocol = protocol;
+        assert.equal(key(f), "portNeedsProtocol", `${field} ${protocol}`);
+      }
+      for (const protocol of ["tcp", "udp", "tcp_udp", " udp "]) {
+        const f = base();
+        f[field] = "80";
+        f.protocol = protocol;
+        assert.equal(key(f), null, `${field} ${protocol}`);
+      }
     }
   });
 
-  it("lab 4: icmp leaves need protocol icmp, icmpv6 type needs icmpv6", () => {
-    for (const field of ["icmp_code", "icmp_type", "icmp_type_name"] as const) {
+  it("lab: tcp flags, tcp mss and set tcp-mss need exactly tcp, not !tcp", () => {
+    for (const edit of [
+      (f: RouteRuleForm) => { f.tcp_flags = ["syn"]; },
+      (f: RouteRuleForm) => { f.tcp_flags_not = ["rst"]; },
+      (f: RouteRuleForm) => { f.tcp_mss = "1400"; },
+      (f: RouteRuleForm) => { f.tcp_flags = ["syn"]; f.set_tcp_mss = "1400"; },
+    ]) {
       const f = base();
-      f[field] = field === "icmp_type_name" ? "echo-request" : "8";
+      edit(f);
+      f.protocol = "!tcp";
+      assert.equal(key(f), "tcpNeedsProtocolTcp");
+    }
+    const ok = base();
+    ok.protocol = "!udp";
+    assert.equal(key(ok), null);
+  });
+
+  it("lab: icmp type-name cannot be combined with type or code", () => {
+    for (const edit of [
+      (f: RouteRuleForm) => { f.icmp_type = "8"; },
+      (f: RouteRuleForm) => { f.icmp_type = "8"; f.icmp_code = "0"; },
+      (f: RouteRuleForm) => { f.icmp_code = "0"; },
+    ]) {
+      const f = base();
+      f.protocol = "icmp";
+      f.icmp_type_name = "echo-request";
+      edit(f);
+      assert.equal(key(f), "icmpTypeNameConflict");
+    }
+  });
+
+  it("lab: icmp code needs icmp type", () => {
+    const f = base();
+    f.protocol = "icmp";
+    f.icmp_code = "0";
+    assert.equal(key(f), "icmpCodeNeedsType");
+    f.icmp_type = "3";
+    assert.equal(key(f), null);
+  });
+
+  it("lab: icmpv6 type is a name from the list or a number 0-255", () => {
+    const f = base();
+    f.protocol = "icmpv6";
+    for (const value of ["135", "0", "255", "echo-request"]) {
+      f.icmpv6_type = value;
+      assert.equal(key(f, CAPS15, "route6"), null, value);
+    }
+    for (const value of ["256", "-1", "1.5"]) {
+      f.icmpv6_type = value;
+      assert.deepEqual(problem(f, CAPS15, "route6"), { key: "icmpv6TypeRange", min: 0, max: 255, value: undefined }, value);
+    }
+  });
+
+  it("lab (1.5): set vrf and set table cannot both be set", () => {
+    for (const table of ["main", "100"]) {
+      const f = base();
+      f.set_vrf = "BLUE";
+      f.set_table = table;
+      assert.equal(key(f), "setVrfTableConflict", table);
+    }
+    const vrf = base();
+    vrf.set_vrf = "default";
+    assert.equal(key(vrf), null);
+  });
+
+  it("lab (1.5): per side, geoip asn and country-code cannot both be set", () => {
+    for (const side of ["source", "destination"] as const) {
+      const f = base();
+      f[`${side}_geoip_asn`] = ["64512"];
+      f[`${side}_geoip_country_code`] = ["de"];
+      assert.equal(key(f), "geoipAsnCountryConflict", side);
+    }
+    const split = base();
+    split.source_geoip_asn = ["64512"];
+    split.destination_geoip_country_code = ["de"];
+    assert.equal(key(split), null);
+  });
+
+  it("lab 4: icmp leaves need protocol icmp, icmpv6 type needs icmpv6", () => {
+    for (const edit of [
+      (f: RouteRuleForm) => { f.icmp_type = "8"; f.icmp_code = "0"; },
+      (f: RouteRuleForm) => { f.icmp_type = "8"; },
+      (f: RouteRuleForm) => { f.icmp_type_name = "echo-request"; },
+    ]) {
+      const f = base();
+      edit(f);
       f.protocol = "tcp";
+      assert.equal(key(f), "icmpNeedsProtocolIcmp");
+      f.protocol = "!icmp";
       assert.equal(key(f), "icmpNeedsProtocolIcmp");
       f.protocol = "icmp";
       assert.equal(key(f), null);
@@ -773,7 +908,7 @@ describe("routeRuleProblem", () => {
 
   it("checks every capability range with {min}/{max}", () => {
     const cases: [(f: RouteRuleForm) => void, string, number, number, "route" | "route6"][] = [
-      [(f) => { f.protocol = "icmp"; f.icmp_code = "256"; }, "icmpCodeRange", 0, 255, "route"],
+      [(f) => { f.protocol = "icmp"; f.icmp_type = "3"; f.icmp_code = "256"; }, "icmpCodeRange", 0, 255, "route"],
       [(f) => { f.protocol = "icmp"; f.icmp_type = "x"; }, "icmpTypeRange", 0, 255, "route"],
       [(f) => { f.ttl_gt = "256"; }, "ttlRange", 0, 255, "route"],
       [(f) => { f.hop_limit_lt = "1.5"; }, "hopLimitRange", 0, 255, "route6"],
@@ -914,6 +1049,12 @@ describe("policy ops", () => {
     const form = (name: string, description = "") => ({ name, description, default_log: false, interfaces: [] });
     assert.equal(policyProblem(form("  "), [], CAPS15)?.key, "nameRequired");
     assert.equal(policyProblem(form("a b"), [], CAPS15)?.key, "nameInvalid");
+    for (const bad of ["-P", "_P", ".P", "P Q", "P/Q"]) {
+      assert.equal(policyProblem(form(bad), [], CAPS15)?.key, "nameInvalid", bad);
+    }
+    for (const good of ["P", "1", "a.b-c_d", "P-", "9_x."]) {
+      assert.equal(policyProblem(form(good), [], CAPS15), null, good);
+    }
     assert.equal(policyProblem(form(" PBR "), ["PBR"], CAPS15)?.key, "nameTaken");
     assert.equal(policyProblem(form("pbr"), ["PBR"], CAPS15), null);
     assert.deepEqual(policyProblem(form("P", "x".repeat(256)), null, CAPS15), { key: "descriptionTooLong", max: 255 });

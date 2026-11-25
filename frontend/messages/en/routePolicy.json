@@ -36,6 +36,8 @@
       "sourceMac": "Src MAC",
       "sourceGeoip": "Src GeoIP",
       "destinationGeoip": "Dst GeoIP",
+      "geoipCountries": "countries {codes}",
+      "geoipAsn": "ASN {asn}",
       "sourceGroupAddress": "Src Group Addr",
       "sourceGroupDomain": "Src Group Domain",
       "sourceGroupMac": "Src Group MAC",
@@ -132,8 +134,13 @@
   },
   "policyErrors": {
     "nameRequired": "Policy name is required",
-    "nameInvalid": "Policy name may contain only letters, digits, hyphens, underscores and dots",
+    "nameInvalid": "Policy name must start with a letter or digit and contain only letters, digits, hyphens, underscores and dots",
     "nameTaken": "A policy with this name already exists",
     "descriptionTooLong": "Description must be at most {max} characters"
+  },
+  "interfacesField": {
+    "pattern": "Interface pattern",
+    "patternPlaceholder": "Pattern, e.g. {example}",
+    "add": "Add"
   }
 }

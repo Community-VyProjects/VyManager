@@ -10,8 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { PolicyInterfacesField } from "./PolicyInterfacesField";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { routeService, type PolicyRoute } from "@/lib/api/route";
 import { policyFormFrom, policyUpdateOps } from "@/lib/api/route-save-ops";
@@ -74,15 +73,13 @@ export function ManagePolicyInterfacesModal({
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="route-policy-manage-interfaces">{t("interfaces")}</Label>
-          <InterfaceMultiSelect
-            id="route-policy-manage-interfaces"
-            values={interfaces}
-            onChange={setInterfaces}
-            disabled={loading}
-          />
-        </div>
+        <PolicyInterfacesField
+          id="route-policy-manage-interfaces"
+          label={t("interfaces")}
+          values={interfaces}
+          onChange={setInterfaces}
+          disabled={loading}
+        />
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>

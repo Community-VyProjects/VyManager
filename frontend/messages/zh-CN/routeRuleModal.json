@@ -19,14 +19,17 @@
     "descriptionTooLong": "描述最多 {max} 个字符",
     "sourceGroupConflict": "源只能使用地址组、网络组和域名组中的一个",
     "destinationGroupConflict": "目标只能使用地址组、网络组和域名组中的一个",
-    "portNeedsProtocol": "端口或端口组需要指定协议",
+    "portNeedsProtocol": "端口或端口组需要协议为 tcp、udp 或 tcp_udp",
     "tcpNeedsProtocolTcp": "TCP 标志和 TCP MSS 需要协议为 tcp",
     "tcpFlagConflict": "TCP 标志 {value} 不能同时匹配和取反",
     "setTcpMssNeedsSyn": "设置 TCP MSS 需要 TCP 标志 syn",
     "icmpNeedsProtocolIcmp": "ICMP 匹配需要协议为 icmp",
     "icmpv6NeedsProtocolIcmpv6": "ICMPv6 类型需要协议为 icmpv6",
+    "icmpv6TypeRange": "ICMPv6 类型必须是列表中的名称或 {min} 到 {max} 之间的数字",
     "icmpCodeRange": "ICMP 代码必须在 {min} 到 {max} 之间",
     "icmpTypeRange": "ICMP 类型必须在 {min} 到 {max} 之间",
+    "icmpTypeNameConflict": "ICMP 类型名称不能与 ICMP 类型或代码同时使用",
+    "icmpCodeNeedsType": "ICMP 代码需要指定 ICMP 类型",
     "ttlRange": "TTL 必须在 {min} 到 {max} 之间",
     "hopLimitRange": "跳数限制必须在 {min} 到 {max} 之间",
     "tcpMssRange": "TCP MSS 必须是 {min} 到 {max} 之间的数字或范围",
@@ -40,12 +43,14 @@
     "limitRateUnsupported": "此设备无法设置速率限制",
     "geoipCountryUnknown": "未知的 GeoIP 国家代码 {value}",
     "geoipAsnRange": "GeoIP ASN {value} 必须在 {min} 到 {max} 之间",
+    "geoipAsnCountryConflict": "每一侧只能使用 GeoIP ASN 或国家代码之一，不能同时使用",
     "weekdayInvalid": "未知的星期 {value}",
     "setConnectionMarkRange": "设置的连接标记必须在 {min} 到 {max} 之间",
     "setDscpRange": "设置的 DSCP 必须在 {min} 到 {max} 之间",
     "setMarkRange": "设置的标记必须在 {min} 到 {max} 之间",
     "setTableRange": "路由表必须是 main 或 {min} 到 {max} 之间的数字",
-    "setTcpMssRange": "设置的 TCP MSS 必须在 {min} 到 {max} 之间"
+    "setTcpMssRange": "设置的 TCP MSS 必须在 {min} 到 {max} 之间",
+    "setVrfTableConflict": "只能设置路由表或 VRF 之一，不能同时设置"
   },
   "tabs": {
     "basic": "基本",
@@ -96,7 +101,8 @@
     "code": "ICMP 代码",
     "typeName": "ICMP 类型名称",
     "v6Title": "ICMPv6 匹配",
-    "v6Type": "ICMPv6 类型"
+    "v6Type": "ICMPv6 类型",
+    "v6ByNumber": "以数字输入类型"
   },
   "compare": {
     "ttlTitle": "TTL",
@@ -145,6 +151,8 @@
     "burst": "突发限制",
     "rate": "速率限制",
     "unit": "单位",
+    "rateReadOnly": "速率限制：{rate}（此设备无法修改）",
+    "removeRate": "移除速率限制",
     "recent": "最近匹配：次数 {count}，时间 {time}",
     "removeRecent": "移除最近匹配"
   },
