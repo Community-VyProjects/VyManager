@@ -7,6 +7,7 @@ Version differences:
 - 1.4: encryption/ncp-ciphers (single list, no fallback)
 - 1.5: encryption/data-ciphers + encryption/data-ciphers-fallback
 - 1.5: ipv6/address/interface-identifier (1.5 only)
+- 1.5: ip-version (1.5 only, not mapped yet)
 """
 
 from ..openvpn import OpenvpnInterfaceMapper

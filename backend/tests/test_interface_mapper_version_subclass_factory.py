@@ -4,7 +4,8 @@
 ``VyOS 2026.09.23-0027-rolling`` and the 1.4 lab (100.64.64.4) reports
 ``VyOS 1.4.3``. Only a string that contains ``1.4`` is 1.4.
 
-The lab template trees differ on these leaves:
+The lab template trees differ on more leaves; these are the ones the tests
+use:
 
 - openvpn: 1.4 has ``encryption ncp-ciphers``; 1.5 has ``encryption
   data-ciphers`` and ``encryption data-ciphers-fallback``.
