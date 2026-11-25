@@ -25,7 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Terminal } from "lucide-react";
-import { pkiService, PKIOpenSSH } from "@/lib/api/pki";
+import { pkiService, PKICapabilities, PKIOpenSSH } from "@/lib/api/pki";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { KEEP, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
 interface OpenSSHModalProps {
@@ -33,9 +36,10 @@ interface OpenSSHModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingKey: PKIOpenSSH | null;
+  capabilities: PKICapabilities | null;
 }
 
-export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: OpenSSHModalProps) {
+export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capabilities }: OpenSSHModalProps) {
   const t = useTranslations("pki");
   const tc = useTranslations("common");
   const isEdit = !!existingKey;
@@ -44,8 +48,8 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
 
   // Import fields
   const [name, setName] = useState("");
-  const [privateKey, setPrivateKey] = useState("");
-  const [publicKey, setPublicKey] = useState("");
+  const [privateKey, setPrivateKey] = useState<StoredValue>(KEEP);
+  const [publicKey, setPublicKey] = useState<StoredValue>(KEEP);
   const [publicType, setPublicType] = useState("");
   const [passwordProtected, setPasswordProtected] = useState(false);
 
@@ -57,21 +61,22 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
   const [error, setError] = useState<string | null>(null);
 
   const rsaKeySizes = ["2048", "3072", "4096"];
+  const publicTypes = capabilities ? capabilities.features.openssh.public_types : [];
 
   useEffect(() => {
     if (open) {
       if (existingKey) {
         setMode("import");
         setName(existingKey.name);
-        setPrivateKey("");
-        setPublicKey("");
+        setPrivateKey(KEEP);
+        setPublicKey(KEEP);
         setPublicType(existingKey.public_type || "");
         setPasswordProtected(existingKey.password_protected);
       } else {
         setMode("import");
         setName("");
-        setPrivateKey("");
-        setPublicKey("");
+        setPrivateKey(KEEP);
+        setPublicKey(KEEP);
         setPublicType("");
         setPasswordProtected(false);
         setGenName("");
@@ -88,21 +93,12 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
     setError(null);
 
     try {
+      const form = { privateKey, publicKey, publicType, passwordProtected };
       let result;
       if (isEdit) {
-        result = await pkiService.updateOpenSSH(name.trim(), existingKey!, {
-          private_key: privateKey || undefined,
-          public_key: publicKey || undefined,
-          public_type: publicType,
-          password_protected: passwordProtected,
-        });
+        result = await pkiService.updateOpenSSH(name.trim(), existingKey!, form);
       } else {
-        result = await pkiService.createOpenSSH(name.trim(), {
-          private_key: privateKey || undefined,
-          public_key: publicKey || undefined,
-          public_type: publicType || undefined,
-          password_protected: passwordProtected || undefined,
-        });
+        result = await pkiService.createOpenSSH(name.trim(), form);
       }
 
       if (result.success) {
@@ -143,10 +139,16 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
     }
   };
 
+  // Esc or an overlay click must not close the dialog mid-save and lose its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   const handleSubmit = mode === "generate" && !isEdit ? handleGenerateSubmit : handleImportSubmit;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -177,8 +179,8 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
                     <Label htmlFor="ssh-privkey">{t("shared.privateKeyPem")}</Label>
                     <Textarea
                       id="ssh-privkey"
-                      value={privateKey}
-                      onChange={(e) => setPrivateKey(e.target.value)}
+                      value={privateKey.text}
+                      onChange={(e) => setPrivateKey(typed(e.target.value))}
                       placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
                       className="font-mono text-xs"
                       rows={4}
@@ -189,8 +191,8 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
                     <Label htmlFor="ssh-pubkey">{t("shared.publicKey")}</Label>
                     <Textarea
                       id="ssh-pubkey"
-                      value={publicKey}
-                      onChange={(e) => setPublicKey(e.target.value)}
+                      value={publicKey.text}
+                      onChange={(e) => setPublicKey(typed(e.target.value))}
                       // eslint-disable-next-line vymanager/no-untranslated-text -- example value
                       placeholder="ssh-rsa AAAA..."
                       className="font-mono text-xs"
@@ -200,14 +202,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
 
                   <div className="space-y-2">
                     <Label htmlFor="ssh-type">{t("shared.publicKeyType")}</Label>
-                    <Select value={publicType} onValueChange={setPublicType}>
-                      <SelectTrigger id="ssh-type">
-                        <SelectValue placeholder={t("shared.selectType")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ssh-rsa">ssh-rsa</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <NamedListSelect id="ssh-type" value={publicType} names={publicTypes} onValueChange={setPublicType} />
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -245,40 +240,27 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey }: Ope
               </Tabs>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="ssh-privkey-edit">{t("shared.privateKeyPem")}</Label>
-                  <Textarea
-                    id="ssh-privkey-edit"
-                    value={privateKey}
-                    onChange={(e) => setPrivateKey(e.target.value)}
-                    placeholder={t("shared.leaveEmpty")}
-                    className="font-mono text-xs"
-                    rows={4}
-                  />
-                </div>
+                <PKIStoredValueField
+                  id="ssh-privkey-edit"
+                  label={t("shared.privateKeyPem")}
+                  value={privateKey}
+                  onChange={setPrivateKey}
+                  stored={!!existingKey?.private_key}
+                  rows={4}
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="ssh-pubkey-edit">{t("shared.publicKey")}</Label>
-                  <Textarea
-                    id="ssh-pubkey-edit"
-                    value={publicKey}
-                    onChange={(e) => setPublicKey(e.target.value)}
-                    placeholder={t("shared.leaveEmpty")}
-                    className="font-mono text-xs"
-                    rows={3}
-                  />
-                </div>
+                <PKIStoredValueField
+                  id="ssh-pubkey-edit"
+                  label={t("shared.publicKey")}
+                  value={publicKey}
+                  onChange={setPublicKey}
+                  stored={!!existingKey?.public_key}
+                  rows={3}
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="ssh-type-edit">{t("shared.publicKeyType")}</Label>
-                  <Select value={publicType} onValueChange={setPublicType}>
-                    <SelectTrigger id="ssh-type-edit">
-                      <SelectValue placeholder={t("shared.selectType")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ssh-rsa">ssh-rsa</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NamedListSelect id="ssh-type-edit" value={publicType} names={publicTypes} onValueChange={setPublicType} />
                 </div>
 
                 <div className="flex items-center space-x-2">

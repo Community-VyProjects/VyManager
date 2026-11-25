@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, ShieldCheck, Info } from "lucide-react";
 import { pkiService, PKICA, PKIX509Defaults } from "@/lib/api/pki";
+import { KEEP, splitList, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
 interface CAModalProps {
@@ -46,9 +48,9 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
 
   // Import fields
   const [name, setName] = useState("");
-  const [certificate, setCertificate] = useState("");
+  const [certificate, setCertificate] = useState<StoredValue>(KEEP);
   const [description, setDescription] = useState("");
-  const [privateKey, setPrivateKey] = useState("");
+  const [privateKey, setPrivateKey] = useState<StoredValue>(KEEP);
   const [passwordProtected, setPasswordProtected] = useState(false);
   const [crl, setCrl] = useState("");
 
@@ -80,9 +82,9 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
       if (existingCA) {
         setMode("import");
         setName(existingCA.name);
-        setCertificate("");
+        setCertificate(KEEP);
         setDescription(existingCA.description || "");
-        setPrivateKey("");
+        setPrivateKey(KEEP);
         setPasswordProtected(existingCA.password_protected);
         setCrl(existingCA.crl?.join("\n") || "");
         setRevoke(existingCA.revoke);
@@ -90,9 +92,9 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
       } else {
         setMode("import");
         setName("");
-        setCertificate("");
+        setCertificate(KEEP);
         setDescription("");
-        setPrivateKey("");
+        setPrivateKey(KEEP);
         setPasswordProtected(false);
         setCrl("");
         setGenName("");
@@ -131,29 +133,18 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
     setError(null);
 
     try {
-      const crlList = crl.split("\n").map(s => s.trim()).filter(Boolean);
-      let result;
-      if (isEdit) {
-        result = await pkiService.updateCA(name.trim(), existingCA!, {
-          certificate: certificate || undefined,
-          description,
-          private_key: privateKey || undefined,
-          password_protected: passwordProtected,
-          crl: crlList.length > 0 ? crlList : undefined,
-          revoke,
-          system_install: systemInstall,
-        });
-      } else {
-        result = await pkiService.createCA(name.trim(), {
-          certificate: certificate || undefined,
-          description: description || undefined,
-          private_key: privateKey || undefined,
-          password_protected: passwordProtected || undefined,
-          crl: crlList.length > 0 ? crlList : undefined,
-          revoke: revoke || undefined,
-          system_install: systemInstall || undefined,
-        });
-      }
+      const form = {
+        certificate,
+        description,
+        privateKey,
+        passwordProtected,
+        crl: splitList(crl),
+        revoke,
+        systemInstall,
+      };
+      const result = isEdit
+        ? await pkiService.updateCA(name.trim(), existingCA!, form)
+        : await pkiService.createCA(name.trim(), form);
 
       if (result.success) {
         onOpenChange(false);
@@ -209,10 +200,16 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
     }
   };
 
+  // Esc or an overlay click must not close the dialog mid-save and lose its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   const handleSubmit = mode === "generate" ? handleGenerateSubmit : handleImportSubmit;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -243,8 +240,8 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                     <Label htmlFor="ca-cert">{t("shared.certificatePem")}</Label>
                     <Textarea
                       id="ca-cert"
-                      value={certificate}
-                      onChange={(e) => setCertificate(e.target.value)}
+                      value={certificate.text}
+                      onChange={(e) => setCertificate(typed(e.target.value))}
                       placeholder="-----BEGIN CERTIFICATE-----"
                       className="font-mono text-xs"
                       rows={4}
@@ -260,8 +257,8 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                     <Label htmlFor="ca-key">{t("shared.privateKeyPem")}</Label>
                     <Textarea
                       id="ca-key"
-                      value={privateKey}
-                      onChange={(e) => setPrivateKey(e.target.value)}
+                      value={privateKey.text}
+                      onChange={(e) => setPrivateKey(typed(e.target.value))}
                       placeholder="-----BEGIN PRIVATE KEY-----"
                       className="font-mono text-xs"
                       rows={4}
@@ -388,34 +385,28 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
             {/* Edit mode - import fields only */}
             {isEdit && (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="ca-cert-edit">{t("shared.certificatePem")}</Label>
-                  <Textarea
-                    id="ca-cert-edit"
-                    value={certificate}
-                    onChange={(e) => setCertificate(e.target.value)}
-                    placeholder={t("shared.leaveEmpty")}
-                    className="font-mono text-xs"
-                    rows={4}
-                  />
-                </div>
+                <PKIStoredValueField
+                  id="ca-cert-edit"
+                  label={t("shared.certificatePem")}
+                  value={certificate}
+                  onChange={setCertificate}
+                  stored={!!existingCA?.certificate}
+                  rows={4}
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="ca-desc-edit">{tc("description")}</Label>
                   <Input id="ca-desc-edit" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="ca-key-edit">{t("shared.privateKeyPem")}</Label>
-                  <Textarea
-                    id="ca-key-edit"
-                    value={privateKey}
-                    onChange={(e) => setPrivateKey(e.target.value)}
-                    placeholder={t("shared.leaveEmpty")}
-                    className="font-mono text-xs"
-                    rows={4}
-                  />
-                </div>
+                <PKIStoredValueField
+                  id="ca-key-edit"
+                  label={t("shared.privateKeyPem")}
+                  value={privateKey}
+                  onChange={setPrivateKey}
+                  stored={!!existingCA?.private_key}
+                  rows={4}
+                />
 
                 <div className="flex items-center space-x-2">
                   <Checkbox id="ca-pwd-edit" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />

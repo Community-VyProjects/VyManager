@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Key, Info } from "lucide-react";
 import { pkiService, PKIDH } from "@/lib/api/pki";
+import { KEEP, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
 interface DHModalProps {
@@ -42,7 +44,7 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
 
   // Import fields
   const [name, setName] = useState("");
-  const [parameters, setParameters] = useState("");
+  const [parameters, setParameters] = useState<StoredValue>(KEEP);
 
   // Generate fields
   const [genName, setGenName] = useState("");
@@ -58,11 +60,11 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
       if (existingDH) {
         setMode("import");
         setName(existingDH.name);
-        setParameters("");
+        setParameters(KEEP);
       } else {
         setMode("import");
         setName("");
-        setParameters("");
+        setParameters(KEEP);
         setGenName("");
         setKeySize("2048");
       }
@@ -79,13 +81,9 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
     try {
       let result;
       if (isEdit) {
-        result = await pkiService.updateDH(name.trim(), existingDH!, {
-          parameters: parameters || undefined,
-        });
+        result = await pkiService.updateDH(name.trim(), existingDH!, { parameters });
       } else {
-        result = await pkiService.createDH(name.trim(), {
-          parameters: parameters || undefined,
-        });
+        result = await pkiService.createDH(name.trim(), { parameters });
       }
 
       if (result.success) {
@@ -126,10 +124,16 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
     }
   };
 
+  // Esc or an overlay click must not close the dialog mid-save and lose its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   const handleSubmit = mode === "generate" && !isEdit ? handleGenerateSubmit : handleImportSubmit;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -159,8 +163,8 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
                   <Label htmlFor="dh-params">{t("shared.parametersPem")}</Label>
                   <Textarea
                     id="dh-params"
-                    value={parameters}
-                    onChange={(e) => setParameters(e.target.value)}
+                    value={parameters.text}
+                    onChange={(e) => setParameters(typed(e.target.value))}
                     placeholder="-----BEGIN DH PARAMETERS-----"
                     className="font-mono text-xs"
                     rows={6}
@@ -200,17 +204,14 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
             </Tabs>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="dh-params-edit">{t("shared.parametersPem")}</Label>
-                <Textarea
-                  id="dh-params-edit"
-                  value={parameters}
-                  onChange={(e) => setParameters(e.target.value)}
-                  placeholder={t("shared.leaveEmpty")}
-                  className="font-mono text-xs"
-                  rows={6}
-                />
-              </div>
+              <PKIStoredValueField
+                id="dh-params-edit"
+                label={t("shared.parametersPem")}
+                value={parameters}
+                onChange={setParameters}
+                stored={!!existingDH?.parameters}
+                rows={6}
+              />
             </>
           )}
         </div>

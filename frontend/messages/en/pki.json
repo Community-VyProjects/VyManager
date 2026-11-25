@@ -7,6 +7,7 @@
     "generationFailed": "Generation failed",
     "generating": "Generating...",
     "leaveEmpty": "Leave empty to keep current",
+    "removeStoredValue": "Remove the stored value",
     "bits": "{size} bits",
     "present": "Present",
     "protected": "Protected",
@@ -22,7 +23,6 @@
     "privateKeyPem": "Private Key (PEM)",
     "parametersPem": "Parameters (PEM)",
     "publicKeyType": "Public Key Type",
-    "selectType": "Select type",
     "keySize": "Key Size",
     "rsaKeySize": "RSA Key Size",
     "key": "Key",
@@ -63,7 +63,16 @@
     "noKeyPairs": "No key pairs configured",
     "noDH": "No DH parameters configured",
     "noOpenSSH": "No OpenSSH keys configured",
-    "noOpenVPN": "No OpenVPN shared secrets configured"
+    "noOpenVPN": "No OpenVPN shared secrets configured",
+    "apply": "Apply",
+    "deleteAll": "Delete All PKI",
+    "deleteAllTitle": "Delete all PKI configuration?",
+    "deleteAllConfirm": "This deletes every CA, certificate, key, DH parameter set, OpenSSH key, OpenVPN shared secret and the x509 defaults from the router. Services that use them may fail to commit.",
+    "deleteAllFailed": "Failed to delete the PKI configuration",
+    "clearDefaults": "Clear Defaults",
+    "clearX509Title": "Clear the x509 defaults?",
+    "clearX509Confirm": "This deletes the default country, state, locality and organization.",
+    "clearX509Failed": "Failed to clear the x509 defaults"
   },
   "itemTypes": {
     "certificate": "Certificate",

@@ -11,21 +11,32 @@ API endpoints for managing VyOS PKI configuration including:
 - X509 defaults
 
 Uses session-based architecture - VyOS instance comes from user's active session.
+The mapper owns the config shape: GET /config returns its parse unchanged.
 """
 
+import datetime
+import inspect
+import ipaddress
+import logging
+import re
+import textwrap
+from typing import Any, Dict, List, Literal, Optional, cast
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import dh, ec, rsa
+from cryptography.x509.oid import NameOID
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, Literal
-from session_vyos_service import get_session_vyos_service
-from vyos_builders.pki import PKIBatchBuilder
-from vyos_mappers.pki import PKIMapper
+
+from batch_dispatch import call_comma_batch_op, call_item_batch_op, resolve_batch_method
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
-import logging
-import datetime
-from batch_dispatch import resolve_batch_method
+from session_vyos_service import get_session_vyos_service
+from vyos_builders.pki import PKIBatchBuilder
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.pki.pki import PKIMapper
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +52,8 @@ _PEM_VALUE_OPS = frozenset({
     "set_openvpn_shared_secret_key",
 })
 
+_PEM_ARMOR = re.compile(r"-----[A-Z0-9 ]+-----")
+
 
 def _normalize_pem(value: str) -> str:
     """Strip PEM headers/footers and newlines so VyOS gets a single-line base64 value.
@@ -50,13 +63,15 @@ def _normalize_pem(value: str) -> str:
     and all remaining whitespace is collapsed, yielding a continuous base64 string.
     Non-PEM values are returned unchanged.
     """
-    import re
     stripped = value.strip()
     if stripped.startswith("-----BEGIN "):
-        # Remove header and footer lines, then collapse whitespace
-        stripped = re.sub(r"-----[A-Z0-9 ]+-----", "", stripped)
+        stripped = _PEM_ARMOR.sub("", stripped)
         return stripped.replace("\n", "").replace("\r", "").replace(" ", "")
     return stripped
+
+
+def _mapper(version: str) -> PKIMapper:
+    return cast(PKIMapper, CommandMapperRegistry.get_mapper("pki", version))
 
 
 # ========================================================================
@@ -71,8 +86,19 @@ class PKIBatchOperation(BaseModel):
 
 class PKIBatchRequest(BaseModel):
     """Batch request for PKI configuration changes."""
-    item_name: str = Field(..., description="Primary item name (e.g., CA name, cert name, or placeholder for global ops)")
+    item_name: Optional[str] = Field(
+        None,
+        description="Object name (CA, certificate, ...) for item ops; omitted for the global ops "
+                    "(x509 defaults, delete_pki)",
+    )
     operations: List[PKIBatchOperation]
+
+    @field_validator("item_name")
+    @classmethod
+    def _item_name_not_blank(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and not value.strip():
+            raise ValueError("item_name must not be blank")
+        return value
 
 
 class VyOSResponse(BaseModel):
@@ -80,6 +106,16 @@ class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+
+
+def _commit_response(response: Any, message: str) -> VyOSResponse:
+    """A commit is done only with status 200 and no error text."""
+    ok = response.status == 200 and not response.error
+    return VyOSResponse(
+        success=ok,
+        data={"message": message} if ok else None,
+        error=None if ok else (response.error or "Commit failed"),
+    )
 
 
 # ========================================================================
@@ -96,9 +132,7 @@ async def get_pki_capabilities(request: Request):
     await require_read_permission(request, FeatureGroup.PKI)
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-
-        builder = PKIBatchBuilder(version=version)
+        builder = PKIBatchBuilder(version=service.get_version())
         return builder.get_capabilities()
     except HTTPException:
         raise
@@ -116,92 +150,16 @@ async def get_pki_config(request: Request, refresh: bool = False):
     """
     Get PKI configuration from VyOS.
 
-    Returns generalized PKI configuration data including:
-    - Certificate Authorities
-    - Certificates (with ACME info)
-    - Diffie-Hellman parameters
-    - Key Pairs
-    - OpenSSH keys
-    - OpenVPN shared secrets
-    - X509 defaults
+    Returns every CA, certificate (with ACME info), DH parameter set, key
+    pair, OpenSSH key and OpenVPN shared secret as lists with secrets masked,
+    the x509 defaults, and per-collection totals.
     """
     await require_read_permission(request, FeatureGroup.PKI)
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-
+        mapper = _mapper(service.get_version())
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        mapper = PKIMapper(version)
-        config = mapper.parse_config(full_config)
-
-        # Convert CA dict to list for frontend
-        ca_list = []
-        for name, data in config.get("ca", {}).items():
-            # Mask private keys
-            masked = {**data}
-            if masked.get("private_key"):
-                masked["private_key"] = "***"
-            ca_list.append(masked)
-
-        # Convert certificates dict to list
-        cert_list = []
-        for name, data in config.get("certificates", {}).items():
-            masked = {**data}
-            if masked.get("private_key"):
-                masked["private_key"] = "***"
-            cert_list.append(masked)
-
-        # Convert DH dict to list
-        dh_list = []
-        for name, data in config.get("dh", {}).items():
-            masked = {**data}
-            if masked.get("parameters"):
-                masked["parameters"] = "***"
-            dh_list.append(masked)
-
-        # Convert key pairs dict to list
-        key_pair_list = []
-        for name, data in config.get("key_pairs", {}).items():
-            masked = {**data}
-            if masked.get("private_key"):
-                masked["private_key"] = "***"
-            key_pair_list.append(masked)
-
-        # Convert OpenSSH dict to list
-        openssh_list = []
-        for name, data in config.get("openssh", {}).items():
-            masked = {**data}
-            if masked.get("private_key"):
-                masked["private_key"] = "***"
-            openssh_list.append(masked)
-
-        # Convert OpenVPN shared secrets dict to list
-        openvpn_list = []
-        for name, data in config.get("openvpn_shared_secrets", {}).items():
-            masked = {**data}
-            if masked.get("key"):
-                masked["key"] = "***"
-            openvpn_list.append(masked)
-
-        return {
-            "configured": config.get("configured", False),
-            "ca": ca_list,
-            "certificates": cert_list,
-            "dh": dh_list,
-            "key_pairs": key_pair_list,
-            "openssh": openssh_list,
-            "openvpn_shared_secrets": openvpn_list,
-            "x509_defaults": config.get("x509_defaults", {}),
-            "totals": {
-                "ca": len(ca_list),
-                "certificates": len(cert_list),
-                "dh": len(dh_list),
-                "key_pairs": len(key_pair_list),
-                "openssh": len(openssh_list),
-                "openvpn_shared_secrets": len(openvpn_list),
-            },
-        }
+        return mapper.parse_config(full_config)
     except HTTPException:
         raise
     except Exception:
@@ -230,47 +188,20 @@ async def reveal_pki_value(http_request: Request, request: PKIRevealRequest):
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        mapper = _mapper(service.get_version())
 
-        mapper = PKIMapper(version)
-        config = mapper.parse_config(full_config)
-
-        # Map item_type to config section
-        type_map = {
-            "ca": "ca",
-            "certificate": "certificates",
-            "dh": "dh",
-            "key_pair": "key_pairs",
-            "openssh": "openssh",
-            "openvpn": "openvpn_shared_secrets",
-        }
-
-        section = type_map.get(request.item_type)
-        if not section:
+        fields = mapper.reveal_kinds().get(request.item_type)
+        if fields is None:
             raise HTTPException(status_code=400, detail=f"Invalid item type: {request.item_type}")
-
-        items = config.get(section, {})
-        item = items.get(request.item_name)
-        if not item:
-            raise HTTPException(status_code=404, detail=f"Item '{request.item_name}' not found")
-
-        # Allowed fields per type
-        allowed_fields = {
-            "ca": ["certificate", "private_key", "crl"],
-            "certificate": ["certificate", "private_key"],
-            "dh": ["parameters"],
-            "key_pair": ["private_key", "public_key"],
-            "openssh": ["private_key", "public_key"],
-            "openvpn": ["key"],
-        }
-
-        if request.field not in allowed_fields.get(request.item_type, []):
+        if request.field not in fields:
             raise HTTPException(status_code=400, detail=f"Invalid field '{request.field}' for type '{request.item_type}'")
 
-        value = item.get(request.field)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        item = mapper.raw_item(full_config, request.item_type, request.item_name)
+        if item is None:
+            raise HTTPException(status_code=404, detail=f"Item '{request.item_name}' not found")
 
-        return {"value": value}
+        return {"value": item.get(request.field)}
     except HTTPException:
         raise
     except Exception:
@@ -282,50 +213,45 @@ async def reveal_pki_value(http_request: Request, request: PKIRevealRequest):
 # Endpoint 3: Batch Operations
 # ========================================================================
 
+def _call_batch_op(builder: PKIBatchBuilder, op: str, item_name: Optional[str], value: Optional[str]) -> None:
+    """Run one op: an op whose first parameter is ``name`` binds item_name; a global op takes none."""
+    method = resolve_batch_method(builder, op)
+    params = list(inspect.signature(method).parameters)
+    if params and params[0] == "name":
+        if item_name is None:
+            raise HTTPException(status_code=400, detail=f"Operation {op} requires item_name")
+        call_item_batch_op(builder, op, item_name, value)
+        return
+    if item_name is not None:
+        raise HTTPException(status_code=400, detail=f"Operation {op} takes no item_name")
+    call_comma_batch_op(builder, op, value)
+
+
 @router.post("/batch", response_model=VyOSResponse)
 async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
     """
-    Execute a batch of PKI configuration operations.
+    Execute a batch of PKI configuration operations in a single commit.
 
-    All operations are executed in a single VyOS commit for atomicity.
-
-    The item_name field serves as the primary identifier for the operations
-    (e.g., CA name for CA ops, cert name for cert ops, or a
-    placeholder like "pki" for global settings like X509 defaults).
-
-    Each operation's `op` field maps to a method on PKIBatchBuilder.
-    The `value` field provides additional parameters when needed.
+    An op whose first builder parameter is ``name`` (every CA, certificate,
+    DH, key-pair, OpenSSH and OpenVPN op) is called with item_name and the
+    op's value. The global ops (x509 defaults, delete_x509_defaults,
+    delete_pki) are called with the value alone, and the request must not
+    send an item_name for them.
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
+        builder = PKIBatchBuilder(version=service.get_version())
 
-        builder = PKIBatchBuilder(version=version)
-
-        for operation in request.operations:
-
-            method = resolve_batch_method(builder, operation.op)
-
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            # Normalize PEM values (strip headers/newlines) for cert/key ops
-            op_value = operation.value
-            if op_value is not None and operation.op in _PEM_VALUE_OPS:
-                op_value = _normalize_pem(op_value)
-
-            args = []
-            if len(params) >= 1:
-                args.append(request.item_name)
-            if len(params) >= 2 and op_value is not None:
-                if len(params) >= 3:
-                    parts = op_value.split("|", len(params) - 2)
-                    args.extend(parts)
-                else:
-                    args.append(op_value)
-
-            method(*args)
+        try:
+            for operation in request.operations:
+                value = operation.value
+                if value is not None and operation.op in _PEM_VALUE_OPS:
+                    value = _normalize_pem(value)
+                _call_batch_op(builder, operation.op, request.item_name, value)
+        except ValueError as exc:
+            # The builder raises ValueError for a value this VyOS version rejects.
+            raise HTTPException(status_code=400, detail=str(exc))
 
         if builder.is_empty():
             return VyOSResponse(
@@ -334,12 +260,7 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
             )
 
         response = await run_in_threadpool(service.execute_batch, builder)
-
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": "PKI configuration updated"},
-            error=response.error if response.error else None,
-        )
+        return _commit_response(response, "PKI configuration updated")
     except HTTPException:
         raise
     except Exception:
@@ -378,11 +299,6 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        from cryptography import x509
-        from cryptography.x509.oid import NameOID
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa, ec
-
         # Validate
         if request.encrypt_key and not request.passphrase:
             raise HTTPException(status_code=400, detail="Passphrase required when encrypt_key is True")
@@ -452,7 +368,7 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
             key_pem = _normalize_pem(private_key.private_bytes(
                 serialization.Encoding.PEM,
                 serialization.PrivateFormat.PKCS8,
-                serialization.BestAvailableEncryption(request.passphrase.encode()),
+                serialization.BestAvailableEncryption((request.passphrase or "").encode()),
             ).decode("utf-8"))
         else:
             key_pem = _normalize_pem(private_key.private_bytes(
@@ -479,11 +395,7 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
 
         response = await run_in_threadpool(service.execute_batch, builder)
 
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": f"CA '{request.name}' generated and installed"},
-            error=response.error if response.error else None,
-        )
+        return _commit_response(response, f"CA '{request.name}' generated and installed")
     except HTTPException:
         raise
     except Exception:
@@ -509,9 +421,6 @@ async def generate_key_pair(http_request: Request, request: GenerateKeyPairReque
     """Generate a key pair and install it on the device."""
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa, ec
-
         if request.encrypt_key and not request.passphrase:
             raise HTTPException(status_code=400, detail="Passphrase required when encrypt_key is True")
         if request.key_type == "rsa" and request.key_size not in (2048, 3072, 4096):
@@ -531,7 +440,7 @@ async def generate_key_pair(http_request: Request, request: GenerateKeyPairReque
             priv_pem = _normalize_pem(private_key.private_bytes(
                 serialization.Encoding.PEM,
                 serialization.PrivateFormat.PKCS8,
-                serialization.BestAvailableEncryption(request.passphrase.encode()),
+                serialization.BestAvailableEncryption((request.passphrase or "").encode()),
             ).decode("utf-8"))
         else:
             priv_pem = _normalize_pem(private_key.private_bytes(
@@ -559,11 +468,7 @@ async def generate_key_pair(http_request: Request, request: GenerateKeyPairReque
 
         response = await run_in_threadpool(service.execute_batch, builder)
 
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": f"Key pair '{request.name}' generated and installed"},
-            error=response.error if response.error else None,
-        )
+        return _commit_response(response, f"Key pair '{request.name}' generated and installed")
     except HTTPException:
         raise
     except Exception:
@@ -591,14 +496,11 @@ async def generate_dh(http_request: Request, request: GenerateDHRequest):
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        from cryptography.hazmat.primitives.asymmetric import dh
-        from cryptography.hazmat.primitives import serialization
-
         if request.key_size not in (2048, 3072, 4096):
             raise HTTPException(status_code=400, detail="DH key size must be 2048, 3072, or 4096")
 
-        # Generate DH parameters (this is CPU-intensive)
-        parameters = dh.generate_parameters(generator=2, key_size=request.key_size)
+        # Generate DH parameters (CPU-intensive: keep it off the event loop)
+        parameters = await run_in_threadpool(dh.generate_parameters, generator=2, key_size=request.key_size)
 
         # Serialize to PEM and normalize
         params_pem = _normalize_pem(parameters.parameter_bytes(
@@ -616,11 +518,7 @@ async def generate_dh(http_request: Request, request: GenerateDHRequest):
 
         response = await run_in_threadpool(service.execute_batch, builder)
 
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": f"DH parameters '{request.name}' generated and installed"},
-            error=response.error if response.error else None,
-        )
+        return _commit_response(response, f"DH parameters '{request.name}' generated and installed")
     except HTTPException:
         raise
     except Exception:
@@ -660,12 +558,6 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        from cryptography import x509
-        from cryptography.x509.oid import NameOID
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa, ec
-        import ipaddress
-
         # Validate key params
         if request.encrypt_key and not request.passphrase:
             raise HTTPException(status_code=400, detail="Passphrase required when encrypt_key is True")
@@ -679,11 +571,9 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
         version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=False)
 
-        mapper = PKIMapper(version)
-        config = mapper.parse_config(full_config)
-
-        ca_data = config.get("ca", {}).get(request.ca_name)
-        if not ca_data:
+        # The parse masks the CA key; signing needs the raw value.
+        ca_data = _mapper(version).raw_item(full_config, "ca", request.ca_name)
+        if ca_data is None:
             raise HTTPException(status_code=404, detail=f"CA '{request.ca_name}' not found")
 
         ca_cert_raw = ca_data.get("certificate")
@@ -703,7 +593,6 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
         # Reconstruct valid PEM for the cryptography library.
         def _reconstruct_pem(raw: str, label: str) -> bytes:
             # Insert newlines every 64 chars for valid PEM
-            import textwrap
             b64 = raw.strip()
             wrapped = "\n".join(textwrap.wrap(b64, 64))
             return f"-----BEGIN {label}-----\n{wrapped}\n-----END {label}-----\n".encode()
@@ -798,7 +687,7 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
             key_pem = _normalize_pem(cert_private_key.private_bytes(
                 serialization.Encoding.PEM,
                 serialization.PrivateFormat.PKCS8,
-                serialization.BestAvailableEncryption(request.passphrase.encode()),
+                serialization.BestAvailableEncryption((request.passphrase or "").encode()),
             ).decode("utf-8"))
         else:
             key_pem = _normalize_pem(cert_private_key.private_bytes(
@@ -818,10 +707,8 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
 
         response = await run_in_threadpool(service.execute_batch, batch_builder)
 
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": f"Certificate '{request.name}' generated and signed by CA '{request.ca_name}'"},
-            error=response.error if response.error else None,
+        return _commit_response(
+            response, f"Certificate '{request.name}' generated and signed by CA '{request.ca_name}'",
         )
     except HTTPException:
         raise
@@ -856,7 +743,7 @@ async def generate_openvpn_shared_secret(http_request: Request, request: Generat
             path=["pki", "openvpn", "shared-secret", "install", request.name],
         )
 
-        if response.status != 200:
+        if response.status != 200 or response.error:
             return VyOSResponse(
                 success=False,
                 error=response.error or "Failed to generate OpenVPN shared secret",
@@ -894,9 +781,6 @@ async def generate_openssh(http_request: Request, request: GenerateOpenSSHReques
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa
-
         if request.key_size not in (2048, 3072, 4096):
             raise HTTPException(status_code=400, detail="RSA key size must be 2048, 3072, or 4096")
 
@@ -939,7 +823,7 @@ async def generate_openssh(http_request: Request, request: GenerateOpenSSHReques
 
             response = await run_in_threadpool(service.execute_batch, builder)
 
-            if response.status == 200:
+            if response.status == 200 and not response.error:
                 return VyOSResponse(
                     success=True,
                     data={"message": f"OpenSSH key '{request.name}' generated and installed (format: {fmt_name})"},
@@ -955,12 +839,6 @@ async def generate_openssh(http_request: Request, request: GenerateOpenSSHReques
         return VyOSResponse(
             success=False,
             error=response.error or "Failed to install OpenSSH key — both OpenSSH and PKCS8 formats were rejected by VyOS",
-        )
-
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": f"OpenSSH key '{request.name}' generated and installed"},
-            error=response.error if response.error else None,
         )
     except HTTPException:
         raise

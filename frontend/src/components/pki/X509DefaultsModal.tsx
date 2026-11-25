@@ -70,8 +70,14 @@ export function X509DefaultsModal({ open, onOpenChange, onSuccess, current }: X5
     }
   };
 
+  // Esc or an overlay click must not close the dialog mid-save and lose its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

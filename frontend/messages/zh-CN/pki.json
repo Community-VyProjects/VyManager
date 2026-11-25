@@ -7,6 +7,7 @@
     "generationFailed": "生成失败",
     "generating": "正在生成...",
     "leaveEmpty": "留空以保留当前值",
+    "removeStoredValue": "删除已保存的值",
     "bits": "{size} 位",
     "present": "已设置",
     "protected": "受保护",
@@ -22,7 +23,6 @@
     "privateKeyPem": "私钥 (PEM)",
     "parametersPem": "参数 (PEM)",
     "publicKeyType": "公钥类型",
-    "selectType": "选择类型",
     "keySize": "密钥长度",
     "rsaKeySize": "RSA 密钥长度",
     "key": "密钥",
@@ -63,7 +63,16 @@
     "noKeyPairs": "未配置密钥对",
     "noDH": "未配置 DH 参数",
     "noOpenSSH": "未配置 OpenSSH 密钥",
-    "noOpenVPN": "未配置 OpenVPN 共享密钥"
+    "noOpenVPN": "未配置 OpenVPN 共享密钥",
+    "apply": "应用",
+    "deleteAll": "删除全部 PKI",
+    "deleteAllTitle": "删除全部 PKI 配置？",
+    "deleteAllConfirm": "这会从路由器删除所有 CA、证书、密钥、DH 参数、OpenSSH 密钥、OpenVPN 共享密钥以及 x509 默认值。使用它们的服务可能无法提交。",
+    "deleteAllFailed": "删除 PKI 配置失败",
+    "clearDefaults": "清除默认值",
+    "clearX509Title": "清除 x509 默认值？",
+    "clearX509Confirm": "这会删除默认的国家、省/州、城市和组织。",
+    "clearX509Failed": "清除 x509 默认值失败"
   },
   "itemTypes": {
     "certificate": "证书",

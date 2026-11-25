@@ -63,7 +63,6 @@
     "listenIpv4or6": "IPv4 or IPv6 address",
     "listenIpv4": "IPv4 address",
     "rsaKeySize": "RSA Key Size",
-    "selectKeySize": "Select key size",
     "acmeUrl": "ACME URL",
     "signingCA": "Signing CA",
     "selectCA": "Select a CA",
@@ -74,6 +73,8 @@
     "orgPlaceholder": "My Org",
     "encryptWarning": "If you plan to use the generated certificate on this router, do not encrypt the private key.",
     "createAcmeButton": "Create ACME Certificate",
-    "importButton": "Import Certificate"
+    "importButton": "Import Certificate",
+    "acmeEnabled": "Issue with ACME",
+    "listenAddressIpv4Only": "This VyOS version takes an IPv4 listen address only"
   }
 }

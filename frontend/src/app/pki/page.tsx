@@ -19,7 +19,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ShieldCheck, Plus, RefreshCw, Loader2, AlertCircle, Pencil, Trash2, FileText, Key, Terminal, Lock, Eye } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ShieldCheck, Plus, RefreshCw, Loader2, AlertCircle, AlertTriangle, Pencil, Trash2, FileText, Key, Terminal, Lock, Eye, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   pkiService,
@@ -32,6 +40,8 @@ import {
   type PKIOpenSSH,
   type PKIOpenVPNSharedSecret,
 } from "@/lib/api/pki";
+import { x509DefaultsPresent } from "@/lib/api/pki-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import {
@@ -98,6 +108,13 @@ function PKIPageInner() {
   // Detail sheet
   const [viewingItem, setViewingItem] = useState<PKIViewingItem | null>(null);
 
+  // Page-level confirm (delete all PKI, clear x509 defaults). The action
+  // outlives close so the text does not flip during the close animation.
+  const [confirmAction, setConfirmAction] = useState<"deleteAll" | "clearX509">("deleteAll");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmSaving, setConfirmSaving] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+
   const fetchConfig = async (refresh = false) => {
     try {
       setLoading(true);
@@ -109,7 +126,7 @@ function PKIPageInner() {
       setConfig(configData);
       setCapabilities(capsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("page.failedToLoad"));
+      setError((err as ApiError).message || t("page.failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -125,6 +142,38 @@ function PKIPageInner() {
   }, [searchParams]);
 
   const onSuccess = () => fetchConfig(true);
+
+  const openConfirm = (action: "deleteAll" | "clearX509") => {
+    setConfirmAction(action);
+    setConfirmError(null);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmOpenChange = (next: boolean) => {
+    if (!next && confirmSaving) return;
+    setConfirmOpen(next);
+  };
+
+  const handleConfirm = async () => {
+    const failed = confirmAction === "deleteAll" ? t("page.deleteAllFailed") : t("page.clearX509Failed");
+    setConfirmSaving(true);
+    setConfirmError(null);
+    try {
+      const result = confirmAction === "deleteAll"
+        ? await pkiService.deleteAllPKI()
+        : await pkiService.clearX509Defaults();
+      if (result.success) {
+        setConfirmOpen(false);
+        void fetchConfig(true);
+      } else {
+        setConfirmError(result.error || failed);
+      }
+    } catch (err) {
+      setConfirmError((err as ApiError).message || failed);
+    } finally {
+      setConfirmSaving(false);
+    }
+  };
 
   // Loading state
   if (loading && !config) {
@@ -184,10 +233,18 @@ function PKIPageInner() {
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-              {tc("refresh")}
-            </Button>
+            <div className="flex items-center gap-2">
+              {hasWrite && config?.configured && (
+                <Button variant="outline" size="sm" onClick={() => openConfirm("deleteAll")} disabled={loading}>
+                  <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                  {t("page.deleteAll")}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
+                <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+                {tc("refresh")}
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}
@@ -723,9 +780,16 @@ function PKIPageInner() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">{t("page.x509Defaults")}</h2>
                 {hasWrite && (
-                  <Button size="sm" variant="outline" onClick={() => setShowX509Modal(true)}>
-                    <Pencil className="h-4 w-4 mr-2" /> {t("page.editDefaults")}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {config && x509DefaultsPresent(config.x509_defaults) && (
+                      <Button size="sm" variant="outline" onClick={() => openConfirm("clearX509")} disabled={loading}>
+                        <Eraser className="h-4 w-4 mr-2" /> {t("page.clearDefaults")}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => setShowX509Modal(true)}>
+                      <Pencil className="h-4 w-4 mr-2" /> {t("page.editDefaults")}
+                    </Button>
+                  </div>
                 )}
               </div>
               <Card className="p-6">
@@ -794,6 +858,7 @@ function PKIPageInner() {
         onOpenChange={(v) => { setShowOpenSSHModal(v); if (!v) setEditingOpenSSH(null); }}
         onSuccess={onSuccess}
         existingKey={editingOpenSSH}
+        capabilities={capabilities}
       />
 
       <OpenVPNSecretModal
@@ -809,6 +874,36 @@ function PKIPageInner() {
         onSuccess={onSuccess}
         current={config?.x509_defaults || {}}
       />
+
+      <AlertDialog open={confirmOpen} onOpenChange={handleConfirmOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              {confirmAction === "deleteAll" ? t("page.deleteAllTitle") : t("page.clearX509Title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === "deleteAll" ? t("page.deleteAllConfirm") : t("page.clearX509Confirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {confirmError && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+              <p className="text-sm text-destructive whitespace-pre-wrap">{confirmError}</p>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={confirmSaving}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleConfirm} disabled={confirmSaving}>
+              {confirmSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("page.apply")}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {deleteTarget && (
         <DeletePKIItemModal

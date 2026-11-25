@@ -26,6 +26,16 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, FileText, Info } from "lucide-react";
 import { pkiService, PKICA, PKICertificate, PKICapabilities, PKIX509Defaults } from "@/lib/api/pki";
+import {
+  KEEP,
+  certificateProblem,
+  splitList,
+  typed,
+  type CertificateForm,
+  type StoredValue,
+} from "@/lib/api/pki-save-ops";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
 interface CertificateModalProps {
@@ -51,19 +61,19 @@ export function CertificateModal({
   const tc = useTranslations("common");
   const tp = useTranslations("pki");
   const isEdit = !!existingCert;
-  const isAcme = !!existingCert?.acme;
 
   const [mode, setMode] = useState<"manual" | "acme" | "generate">("manual");
   const [name, setName] = useState("");
 
   // Manual fields
-  const [certificate, setCertificate] = useState("");
+  const [certificate, setCertificate] = useState<StoredValue>(KEEP);
   const [description, setDescription] = useState("");
-  const [privateKey, setPrivateKey] = useState("");
+  const [privateKey, setPrivateKey] = useState<StoredValue>(KEEP);
   const [passwordProtected, setPasswordProtected] = useState(false);
   const [revoke, setRevoke] = useState(false);
 
-  // ACME fields
+  // ACME fields (an edit can turn ACME on or off)
+  const [acmeEnabled, setAcmeEnabled] = useState(false);
   const [domainNames, setDomainNames] = useState("");
   const [email, setEmail] = useState("");
   const [listenAddress, setListenAddress] = useState("");
@@ -88,8 +98,8 @@ export function CertificateModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const rsaKeySizesAcme = capabilities?.features.acme.rsa_key_sizes || ["2048", "3072", "4096"];
-  const supportsIpv6 = capabilities?.features.acme.listen_address_ipv6;
+  const rsaKeySizesAcme = capabilities ? capabilities.features.acme.rsa_key_sizes : [];
+  const supportsIpv6 = capabilities ? capabilities.features.acme.listen_address_ipv6 : false;
 
   const rsaKeySizes = ["2048", "3072", "4096"];
   const ecKeySizes = ["256", "384", "521"];
@@ -97,30 +107,29 @@ export function CertificateModal({
   useEffect(() => {
     if (open) {
       if (existingCert) {
+        const acme = existingCert.acme;
         setName(existingCert.name);
-        if (existingCert.acme) {
-          setMode("acme");
-          setDomainNames(existingCert.acme.domain_names?.join(", ") || "");
-          setEmail(existingCert.acme.email || "");
-          setListenAddress(existingCert.acme.listen_address || "");
-          setRsaKeySize(existingCert.acme.rsa_key_size || "");
-          setUrl(existingCert.acme.url || "");
-        } else {
-          setMode("manual");
-          setCertificate("");
-          setDescription(existingCert.description || "");
-          setPrivateKey("");
-          setPasswordProtected(existingCert.password_protected);
-          setRevoke(existingCert.revoke);
-        }
+        setMode(acme ? "acme" : "manual");
+        setCertificate(KEEP);
+        setDescription(existingCert.description || "");
+        setPrivateKey(KEEP);
+        setPasswordProtected(existingCert.password_protected);
+        setRevoke(existingCert.revoke);
+        setAcmeEnabled(!!acme);
+        setDomainNames(acme?.domain_names?.join(", ") || "");
+        setEmail(acme?.email || "");
+        setListenAddress(acme?.listen_address || "");
+        setRsaKeySize(acme?.rsa_key_size || "");
+        setUrl(acme?.url || "");
       } else {
         setMode("manual");
         setName("");
-        setCertificate("");
+        setCertificate(KEEP);
         setDescription("");
-        setPrivateKey("");
+        setPrivateKey(KEEP);
         setPasswordProtected(false);
         setRevoke(false);
+        setAcmeEnabled(false);
         setDomainNames("");
         setEmail("");
         setListenAddress("");
@@ -154,71 +163,32 @@ export function CertificateModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reset key size only when the key type changes
   }, [keyType]);
 
-  const handleManualSubmit = async () => {
+  /** Import, ACME create, and every edit: one diff of the loaded certificate against the form. */
+  const handleSaveSubmit = async () => {
     if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    const form: CertificateForm = {
+      certificate,
+      description,
+      privateKey,
+      passwordProtected,
+      revoke,
+      acme: isEdit ? acmeEnabled : mode === "acme",
+      domainNames: splitList(domainNames),
+      email,
+      listenAddress,
+      rsaKeySize,
+      url,
+    };
+    const problem = certificateProblem(form, supportsIpv6);
+    if (problem) { setError(t(`cert.${problem}`)); return; }
 
     setLoading(true);
     setError(null);
 
     try {
-      let result;
-      const effectiveMode = isEdit ? (isAcme ? "acme" : "manual") : "manual";
-
-      if (effectiveMode === "acme") {
-        const domains = domainNames.split(",").map(s => s.trim()).filter(Boolean);
-        result = await pkiService.updateACMECertificate(name.trim(), existingCert!, {
-          domain_names: domains,
-          email,
-          listen_address: listenAddress,
-          rsa_key_size: rsaKeySize,
-          url,
-        });
-      } else if (isEdit) {
-        result = await pkiService.updateCertificate(name.trim(), existingCert!, {
-          certificate: certificate || undefined,
-          description,
-          private_key: privateKey || undefined,
-          password_protected: passwordProtected,
-          revoke,
-        });
-      } else {
-        result = await pkiService.createCertificate(name.trim(), {
-          certificate: certificate || undefined,
-          description: description || undefined,
-          private_key: privateKey || undefined,
-          password_protected: passwordProtected || undefined,
-          revoke: revoke || undefined,
-        });
-      }
-
-      if (result.success) {
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        setError(result.error || tc("operationFailed"));
-      }
-    } catch (err) {
-      setError((err as ApiError).message || tc("operationFailed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAcmeSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const domains = domainNames.split(",").map(s => s.trim()).filter(Boolean);
-      const result = await pkiService.createACMECertificate(name.trim(), {
-        domain_names: domains.length > 0 ? domains : undefined,
-        email: email || undefined,
-        listen_address: listenAddress || undefined,
-        rsa_key_size: rsaKeySize || undefined,
-        url: url || undefined,
-      });
+      const result = isEdit
+        ? await pkiService.updateCertificate(name.trim(), existingCert!, form)
+        : await pkiService.createCertificate(name.trim(), form);
 
       if (result.success) {
         onOpenChange(false);
@@ -274,50 +244,72 @@ export function CertificateModal({
     }
   };
 
-  const handleSubmit = () => {
-    if (isEdit) {
-      return handleManualSubmit();
-    }
-    if (mode === "generate") return handleGenerateSubmit();
-    if (mode === "acme") return handleAcmeSubmit();
-    return handleManualSubmit();
+  // Esc or an overlay click must not close the dialog mid-save and lose its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
-  const effectiveMode = isEdit ? (isAcme ? "acme" : "manual") : mode;
+  const handleSubmit = () => {
+    if (!isEdit && mode === "generate") return handleGenerateSubmit();
+    return handleSaveSubmit();
+  };
+
+  const effectiveMode = isEdit ? "manual" : mode;
 
   // CAs that have both a certificate and private key (needed for signing)
   const signableCAs = availableCAs.filter(ca => ca.certificate && ca.private_key && !ca.password_protected);
 
   const renderManualFields = () => (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="cert-pem">{t("shared.certificatePem")}</Label>
-        <Textarea
+      {isEdit ? (
+        <PKIStoredValueField
           id="cert-pem"
+          label={t("shared.certificatePem")}
           value={certificate}
-          onChange={(e) => setCertificate(e.target.value)}
-          placeholder={isEdit ? t("shared.leaveEmpty") : "-----BEGIN CERTIFICATE-----"}
-          className="font-mono text-xs"
-          rows={4}
+          onChange={setCertificate}
+          stored={!!existingCert?.certificate}
         />
-      </div>
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor="cert-pem">{t("shared.certificatePem")}</Label>
+          <Textarea
+            id="cert-pem"
+            value={certificate.text}
+            onChange={(e) => setCertificate(typed(e.target.value))}
+            placeholder="-----BEGIN CERTIFICATE-----"
+            className="font-mono text-xs"
+            rows={4}
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="cert-desc">{tc("description")}</Label>
         <Input id="cert-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optionalDescription")} />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="cert-key">{t("shared.privateKeyPem")}</Label>
-        <Textarea
+      {isEdit ? (
+        <PKIStoredValueField
           id="cert-key"
+          label={t("shared.privateKeyPem")}
           value={privateKey}
-          onChange={(e) => setPrivateKey(e.target.value)}
-          placeholder={isEdit ? t("shared.leaveEmpty") : "-----BEGIN PRIVATE KEY-----"}
-          className="font-mono text-xs"
-          rows={4}
+          onChange={setPrivateKey}
+          stored={!!existingCert?.private_key}
         />
-      </div>
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor="cert-key">{t("shared.privateKeyPem")}</Label>
+          <Textarea
+            id="cert-key"
+            value={privateKey.text}
+            onChange={(e) => setPrivateKey(typed(e.target.value))}
+            placeholder="-----BEGIN PRIVATE KEY-----"
+            className="font-mono text-xs"
+            rows={4}
+          />
+        </div>
+      )}
 
       <div className="flex items-center space-x-2">
         <Checkbox id="cert-pwd" checked={passwordProtected} onCheckedChange={(v) => setPasswordProtected(!!v)} />
@@ -367,16 +359,12 @@ export function CertificateModal({
 
       <div className="space-y-2">
         <Label htmlFor="acme-rsa">{t("cert.rsaKeySize")}</Label>
-        <Select value={rsaKeySize} onValueChange={setRsaKeySize}>
-          <SelectTrigger id="acme-rsa">
-            <SelectValue placeholder={t("cert.selectKeySize")} />
-          </SelectTrigger>
-          <SelectContent>
-            {rsaKeySizesAcme.map((size) => (
-              <SelectItem key={size} value={size}>{size}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <NamedListSelect
+          id="acme-rsa"
+          value={rsaKeySize}
+          names={rsaKeySizesAcme}
+          onValueChange={setRsaKeySize}
+        />
       </div>
 
       <div className="space-y-2">
@@ -537,7 +525,7 @@ export function CertificateModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -588,7 +576,14 @@ export function CertificateModal({
                 </TabsContent>
               </Tabs>
             ) : (
-              effectiveMode === "acme" ? renderAcmeFields() : renderManualFields()
+              <>
+                {renderManualFields()}
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="cert-acme-enabled" checked={acmeEnabled} onCheckedChange={(v) => setAcmeEnabled(!!v)} />
+                  <Label htmlFor="cert-acme-enabled">{t("cert.acmeEnabled")}</Label>
+                </div>
+                {acmeEnabled && renderAcmeFields()}
+              </>
             )}
           </div>
         </ScrollArea>
