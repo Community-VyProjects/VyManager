@@ -125,6 +125,8 @@ export function CountryMultiSelect({ value, onChange, label, id }: CountryMultiS
             <Badge key={code} variant="secondary" className="text-xs">
               {getCountryName(code)} ({code})
               <button
+                type="button"
+                aria-label={t("countrySelect.remove", { country: getCountryName(code) })}
                 onClick={() => removeCountry(code)}
                 className="ml-1 rounded-full hover:bg-muted"
               >

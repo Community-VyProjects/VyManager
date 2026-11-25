@@ -42,6 +42,7 @@
     "placeholderOne": "选择国家/地区...",
     "selected": "已选择 {count} 个国家/地区",
     "searchPlaceholder": "搜索国家/地区...",
-    "noResults": "未找到国家/地区"
+    "noResults": "未找到国家/地区",
+    "remove": "移除 {country}"
   }
 }
