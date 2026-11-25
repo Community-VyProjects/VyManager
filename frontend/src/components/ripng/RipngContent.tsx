@@ -43,8 +43,14 @@ import {
   RipNgRedistribute,
   RipNgDistributeListGlobal,
   RipNgDistributeListInterface,
-  RipNgTimers,
 } from "@/lib/api/ripng";
+import {
+  ripngListWithDraft,
+  ripngProblemArgs,
+  ripngRange,
+  ripngSettingsProblem,
+  type RipNgListKind,
+} from "@/lib/api/ripng-save-ops";
 import { routeMapService } from "@/lib/api/route-map";
 import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
@@ -52,9 +58,21 @@ import type { ApiError } from "@/lib/types/api";
 import { RipngInterfaceModal } from "./RipngInterfaceModal";
 import { RipngRedistributeModal } from "./RipngRedistributeModal";
 import { RipngDistributeListInterfaceModal } from "./RipngDistributeListInterfaceModal";
-import { DeleteRipngModal } from "./DeleteRipngModal";
+import { DeleteRipngModal, type RipNgDeleteKind } from "./DeleteRipngModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+
+/** The commit each delete dialog runs, by the kind of object it removes. */
+const DELETE_ACTIONS: Record<RipNgDeleteKind, (name: string) => Promise<unknown>> = {
+  interface: (name) => ripNgService.deleteInterface(name),
+  redistribution: (name) => ripNgService.deleteRedistribute(name),
+  interfaceFilter: (name) => ripNgService.deleteDistributeListInterface(name),
+  network: (name) => ripNgService.removeListItem("network", name),
+  aggregateAddress: (name) => ripNgService.removeListItem("aggregateAddress", name),
+  route: (name) => ripNgService.removeListItem("route", name),
+  passiveInterface: (name) => ripNgService.removeListItem("passiveInterface", name),
+  ripng: () => ripNgService.deleteRipng(),
+};
 
 export function RipngContent() {
   const t = useTranslations("ripng");
@@ -65,7 +83,11 @@ export function RipngContent() {
   const [config, setConfig] = useState<RipNgConfig | null>(null);
   const [capabilities, setCapabilities] = useState<RipNgCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
+  // A re-read after a save; the page stays mounted and every write control waits.
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Picker lists that failed to load (a 403 stays silent: the user may not read that feature).
+  const [listErrors, setListErrors] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
 
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
@@ -86,30 +108,31 @@ export function RipngContent() {
   const [ovTimerGc, setOvTimerGc] = useState("");
 
   // ============================================================
-  // Networks tab: inline add/remove state
+  // Networks tab: inline add state, keyed by list kind
   // ============================================================
-  const [newNetwork, setNewNetwork] = useState("");
-  const [networksError, setNetworksError] = useState<string | null>(null);
-  const [newAggregateAddress, setNewAggregateAddress] = useState("");
-  const [aggregateAddressesError, setAggregateAddressesError] = useState<string | null>(null);
-  const [newRoute, setNewRoute] = useState("");
-  const [routesError, setRoutesError] = useState<string | null>(null);
-  const [newPassiveIface, setNewPassiveIface] = useState("");
-  const [passiveIfaceError, setPassiveIfaceError] = useState<string | null>(null);
+  const [listDrafts, setListDrafts] = useState<Record<RipNgListKind, string>>({
+    network: "",
+    aggregateAddress: "",
+    route: "",
+    passiveInterface: "",
+  });
+  const [listErrorsByKind, setListErrorsByKind] = useState<Partial<Record<RipNgListKind, string>>>({});
+  // Kind of the list section whose add commit is running.
+  const [listBusy, setListBusy] = useState<RipNgListKind | null>(null);
 
   // ============================================================
-  // Interface modal state
+  // Modal state. The subject stays set after close so the dialog keeps its
+  // text while it animates out; modalKey remounts the modal on every open.
   // ============================================================
+  const [modalKey, setModalKey] = useState(0);
   const [ifaceModalOpen, setIfaceModalOpen] = useState(false);
   const [editingIface, setEditingIface] = useState<RipNgInterface | null>(null);
-  const [deletingIface, setDeletingIface] = useState<RipNgInterface | null>(null);
-
-  // ============================================================
-  // Redistribute modal state
-  // ============================================================
   const [redistModalOpen, setRedistModalOpen] = useState(false);
   const [editingRedist, setEditingRedist] = useState<RipNgRedistribute | null>(null);
-  const [deletingRedist, setDeletingRedist] = useState<RipNgRedistribute | null>(null);
+  const [dlIfaceModalOpen, setDlIfaceModalOpen] = useState(false);
+  const [editingDlIface, setEditingDlIface] = useState<RipNgDistributeListInterface | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: RipNgDeleteKind; name: string } | null>(null);
 
   // ============================================================
   // Distribute list global editing
@@ -120,43 +143,59 @@ export function RipngContent() {
   const [dlGlobalDraft, setDlGlobalDraft] = useState<RipNgDistributeListGlobal>({});
 
   // ============================================================
-  // Distribute list interface modal state
-  // ============================================================
-  const [dlIfaceModalOpen, setDlIfaceModalOpen] = useState(false);
-  const [editingDlIface, setEditingDlIface] = useState<RipNgDistributeListInterface | null>(null);
-  const [deletingDlIface, setDeletingDlIface] = useState<RipNgDistributeListInterface | null>(null);
-
-  // ============================================================
   // Load
   // ============================================================
 
-  const loadData = useCallback(async (refresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [configData, capData, routeMaps, accessLists, prefixLists] =
-        await Promise.all([
-          ripNgService.getConfig(refresh),
-          ripNgService.getCapabilities(),
-          routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => [] as string[]),
-          accessListService.getConfig().then((c) => c.ipv6_lists.map((al) => al.number)).catch(() => [] as string[]),
-          prefixListService.getConfig().then((c) => c.ipv6_lists.map((pl) => pl.name)).catch(() => [] as string[]),
-        ]);
-      setConfig(configData);
-      setCapabilities(capData);
-      setRouteMapNames(routeMaps);
-      setAccessListNames(accessLists);
-      setPrefixListNames(prefixLists);
-    } catch (err) {
-      setError((err as ApiError).message || t("errors.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
+  const fetchData = useCallback(async (refresh: boolean) => {
+    const [configData, capData] = await Promise.all([
+      ripNgService.getConfig(refresh),
+      ripNgService.getCapabilities(),
+    ]);
+    // Picker names come from features with their own permissions. A 403
+    // leaves the picker empty without a message; any other failure says so.
+    const failed: string[] = [];
+    const names = (load: Promise<string[]>, message: string) =>
+      load.catch((err: unknown) => {
+        if ((err as ApiError).status !== 403) failed.push(message);
+        return [] as string[];
+      });
+    const [routeMaps, accessLists, prefixLists] = await Promise.all([
+      names(routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)), t("errors.loadRouteMapsFailed")),
+      names(accessListService.getConfig().then((c) => c.ipv6_lists.map((al) => al.number)), t("errors.loadAccessListsFailed")),
+      names(prefixListService.getConfig().then((c) => c.ipv6_lists.map((pl) => pl.name)), t("errors.loadPrefixListsFailed")),
+    ]);
+    setConfig(configData);
+    setCapabilities(capData);
+    setRouteMapNames(routeMaps);
+    setAccessListNames(accessLists);
+    setPrefixListNames(prefixLists);
+    setListErrors(failed);
+    setError(null);
   }, [t]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchData(false)
+      .catch((err) => setError((err as ApiError).message || t("errors.loadFailed")))
+      .finally(() => setLoading(false));
+  }, [fetchData, t]);
+
+  const retry = () => {
+    setLoading(true);
+    fetchData(true)
+      .catch((err) => setError((err as ApiError).message || t("errors.loadFailed")))
+      .finally(() => setLoading(false));
+  };
+
+  const reload = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData(true);
+    } catch (err) {
+      setError((err as ApiError).message || t("errors.loadFailed"));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // ============================================================
   // Overview handlers
@@ -181,31 +220,26 @@ export function RipngContent() {
 
   const saveOverview = async () => {
     if (!config) return;
+    const draft = {
+      default_metric: ovDefaultMetric,
+      route_map: ovRouteMap,
+      default_information_originate: ovOriginate,
+      timers: { update: ovTimerUpdate, timeout: ovTimerTimeout, garbage_collection: ovTimerGc },
+    };
+    const problem = ripngSettingsProblem(draft, capabilities);
+    if (problem) {
+      setOverviewError(t(`validation.${problem.key}`, ripngProblemArgs(problem)));
+      return;
+    }
     try {
       setOverviewSaving(true);
       setOverviewError(null);
-
-      const updatedConfig: Partial<RipNgConfig> = {
-        default_metric: ovDefaultMetric.trim() ? parseInt(ovDefaultMetric.trim(), 10) : null,
-        route_map: ovRouteMap || null,
-        default_information_originate: ovOriginate,
-      };
-
-      const updatedTimers: RipNgTimers = {
-        update: ovTimerUpdate.trim() ? parseInt(ovTimerUpdate.trim(), 10) : null,
-        timeout: ovTimerTimeout.trim() ? parseInt(ovTimerTimeout.trim(), 10) : null,
-        garbage_collection: ovTimerGc.trim() ? parseInt(ovTimerGc.trim(), 10) : null,
-      };
-
-      await ripNgService.updateGlobalSettings(config, updatedConfig);
-      await ripNgService.updateTimers(config.timers, updatedTimers);
-      await loadData(true);
+      // Global settings and timers go to the router as one commit.
+      await ripNgService.updateSettings(config, draft);
+      await reload();
       setOverviewEditing(false);
     } catch (err) {
       setOverviewError((err as ApiError).message || t("errors.saveSettingsFailed"));
-      // Global settings and timers are two commits; re-read the device so a
-      // retry does not re-send the half that already applied.
-      await loadData(true);
     } finally {
       setOverviewSaving(false);
     }
@@ -215,136 +249,84 @@ export function RipngContent() {
   // Networks tab handlers
   // ============================================================
 
-  const handleAddNetwork = async () => {
-    if (!newNetwork.trim()) return;
-    try {
-      setNetworksError(null);
-      await ripNgService.addNetwork(newNetwork.trim());
-      setNewNetwork("");
-      await loadData(true);
-    } catch (err) {
-      setNetworksError((err as ApiError).message || t("errors.addNetworkFailed"));
-    }
+  const LIST_ADD_FAILED: Record<RipNgListKind, string> = {
+    network: t("errors.addNetworkFailed"),
+    aggregateAddress: t("errors.addAggregateFailed"),
+    route: t("errors.addRouteFailed"),
+    passiveInterface: t("errors.addPassiveIfaceFailed"),
   };
 
-  const handleRemoveNetwork = async (network: string) => {
-    try {
-      setNetworksError(null);
-      await ripNgService.removeNetwork(network);
-      await loadData(true);
-    } catch (err) {
-      setNetworksError((err as ApiError).message || t("errors.removeNetworkFailed"));
-    }
-  };
+  const setListError = (kind: RipNgListKind, message: string | null) =>
+    setListErrorsByKind((prev) => ({ ...prev, [kind]: message ?? undefined }));
 
-  const handleAddAggregateAddress = async () => {
-    if (!newAggregateAddress.trim()) return;
-    try {
-      setAggregateAddressesError(null);
-      await ripNgService.addAggregateAddress(newAggregateAddress.trim());
-      setNewAggregateAddress("");
-      await loadData(true);
-    } catch (err) {
-      setAggregateAddressesError((err as ApiError).message || t("errors.addAggregateFailed"));
+  const addListItem = async (kind: RipNgListKind, items: string[]) => {
+    // The typed value is checked and folded in the same way a save would.
+    const { items: next, problem } = ripngListWithDraft(kind, items, listDrafts[kind]);
+    if (problem) {
+      setListError(kind, t(`validation.${problem.key}`, ripngProblemArgs(problem)));
+      return;
     }
-  };
-
-  const handleRemoveAggregateAddress = async (prefix: string) => {
     try {
-      setAggregateAddressesError(null);
-      await ripNgService.removeAggregateAddress(prefix);
-      await loadData(true);
+      setListError(kind, null);
+      await ripNgService.updateList(kind, items, next);
+      setListDrafts((prev) => ({ ...prev, [kind]: "" }));
+      await reload();
     } catch (err) {
-      setAggregateAddressesError((err as ApiError).message || t("errors.removeAggregateFailed"));
-    }
-  };
-
-  const handleAddRoute = async () => {
-    if (!newRoute.trim()) return;
-    try {
-      setRoutesError(null);
-      await ripNgService.addRoute(newRoute.trim());
-      setNewRoute("");
-      await loadData(true);
-    } catch (err) {
-      setRoutesError((err as ApiError).message || t("errors.addRouteFailed"));
-    }
-  };
-
-  const handleRemoveRoute = async (prefix: string) => {
-    try {
-      setRoutesError(null);
-      await ripNgService.removeRoute(prefix);
-      await loadData(true);
-    } catch (err) {
-      setRoutesError((err as ApiError).message || t("errors.removeRouteFailed"));
-    }
-  };
-
-  const handleAddPassiveIface = async () => {
-    if (!newPassiveIface.trim()) return;
-    try {
-      setPassiveIfaceError(null);
-      await ripNgService.addPassiveInterface(newPassiveIface.trim());
-      setNewPassiveIface("");
-      await loadData(true);
-    } catch (err) {
-      setPassiveIfaceError((err as ApiError).message || t("errors.addPassiveIfaceFailed"));
-    }
-  };
-
-  const handleRemovePassiveIface = async (iface: string) => {
-    try {
-      setPassiveIfaceError(null);
-      await ripNgService.removePassiveInterface(iface);
-      await loadData(true);
-    } catch (err) {
-      setPassiveIfaceError((err as ApiError).message || t("errors.removePassiveIfaceFailed"));
+      setListError(kind, (err as ApiError).message || LIST_ADD_FAILED[kind]);
     }
   };
 
   // ============================================================
-  // Interface handlers
+  // Modal and delete handlers
   // ============================================================
 
-  const handleCreateIface = async (iface: RipNgInterface) => {
-    await ripNgService.createInterface(iface);
-    await loadData(true);
+  const openIfaceModal = (iface: RipNgInterface | null) => {
+    setEditingIface(iface);
+    setModalKey((k) => k + 1);
+    setIfaceModalOpen(true);
   };
 
-  const handleUpdateIface = async (iface: RipNgInterface) => {
-    if (!editingIface) return;
-    await ripNgService.updateInterface(editingIface, iface);
-    await loadData(true);
+  const submitIface = async (iface: RipNgInterface) => {
+    if (editingIface) await ripNgService.updateInterface(editingIface, iface);
+    else await ripNgService.createInterface(iface);
+    await reload();
   };
 
-  const handleDeleteIface = async () => {
-    if (!deletingIface) return;
-    await ripNgService.deleteInterface(deletingIface.name);
-    setDeletingIface(null);
-    await loadData(true);
+  const openRedistModal = (entry: RipNgRedistribute | null) => {
+    setEditingRedist(entry);
+    setModalKey((k) => k + 1);
+    setRedistModalOpen(true);
   };
 
-  // ============================================================
-  // Redistribute handlers
-  // ============================================================
-
-  const handleCreateRedist = async (entry: RipNgRedistribute) => {
-    await ripNgService.createRedistribute(entry);
-    await loadData(true);
+  const submitRedist = async (entry: RipNgRedistribute) => {
+    if (editingRedist) await ripNgService.updateRedistribute(editingRedist, entry);
+    else await ripNgService.createRedistribute(entry);
+    await reload();
   };
 
-  const handleUpdateRedist = async (entry: RipNgRedistribute) => {
-    if (!editingRedist) return;
-    await ripNgService.updateRedistribute(editingRedist, entry);
-    await loadData(true);
+  const openDlIfaceModal = (entry: RipNgDistributeListInterface | null) => {
+    setEditingDlIface(entry);
+    setModalKey((k) => k + 1);
+    setDlIfaceModalOpen(true);
   };
 
-  const handleDeleteRedist = async () => {
-    if (!deletingRedist) return;
-    await ripNgService.deleteRedistribute(deletingRedist.protocol);
-    setDeletingRedist(null);
-    await loadData(true);
+  const submitDlIface = async (entry: RipNgDistributeListInterface) => {
+    if (editingDlIface) await ripNgService.updateDistributeListInterface(editingDlIface, entry);
+    else await ripNgService.createDistributeListInterface(entry);
+    await reload();
+  };
+
+  const openDelete = (kind: RipNgDeleteKind, name: string) => {
+    setDeleteTarget({ kind, name });
+    setModalKey((k) => k + 1);
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await DELETE_ACTIONS[deleteTarget.kind](deleteTarget.name);
+    setDeleteOpen(false);
+    void reload();
   };
 
   // ============================================================
@@ -372,35 +354,13 @@ export function RipngContent() {
         config.distribute_list.global_filters,
         dlGlobalDraft
       );
-      await loadData(true);
+      await reload();
       setDlGlobalEditing(false);
     } catch (err) {
       setDlGlobalError((err as ApiError).message || t("errors.saveFiltersFailed"));
     } finally {
       setDlGlobalSaving(false);
     }
-  };
-
-  // ============================================================
-  // Distribute List Interface handlers
-  // ============================================================
-
-  const handleCreateDlIface = async (entry: RipNgDistributeListInterface) => {
-    await ripNgService.createDistributeListInterface(entry);
-    await loadData(true);
-  };
-
-  const handleUpdateDlIface = async (entry: RipNgDistributeListInterface) => {
-    if (!editingDlIface) return;
-    await ripNgService.updateDistributeListInterface(editingDlIface, entry);
-    await loadData(true);
-  };
-
-  const handleDeleteDlIface = async () => {
-    if (!deletingDlIface) return;
-    await ripNgService.deleteDistributeListInterface(deletingDlIface.interface);
-    setDeletingDlIface(null);
-    await loadData(true);
   };
 
   // ============================================================
@@ -412,30 +372,52 @@ export function RipngContent() {
   const ifaceCount = config?.interfaces.length ?? 0;
   const redistCount = config?.redistribute.length ?? 0;
 
-  const redistProtocols = capabilities?.features.redistribute.protocols ?? [
-    "babel", "bgp", "connected", "kernel", "ospfv3", "static",
-  ];
+  const metricRange = ripngRange(capabilities, "metric");
+  const timerRange = ripngRange(capabilities, "timer");
+
+  const splitHorizonLabel = (mode: string) =>
+    mode === "disable" ? t("interfaceModal.disable") : t("interfaceModal.poisonReverse");
 
   // ============================================================
   // Render helpers
   // ============================================================
 
+  const runListAction = async (kind: RipNgListKind, action: () => Promise<void>) => {
+    if (listBusy) return;
+    setListBusy(kind);
+    try {
+      await action();
+    } finally {
+      setListBusy(null);
+    }
+  };
+
   const renderListSection = (
     title: string,
-    inputId: string,
+    kind: RipNgListKind,
     items: string[],
-    inputValue: string,
-    onInputChange: (v: string) => void,
-    onAdd: () => Promise<void>,
-    onRemove: (item: string) => Promise<void>,
-    err: string | null,
     inputPlaceholder: string,
     isDropdown?: boolean,
-  ) => (
+  ) => {
+    const inputId = `ripng-list-${kind}`;
+    const inputValue = listDrafts[kind];
+    const onInputChange = (v: string) => setListDrafts((prev) => ({ ...prev, [kind]: v }));
+    const err = listErrorsByKind[kind] ?? null;
+    // Every section waits while any list commit or the re-read after it runs; only the running one spins.
+    const busy = listBusy !== null || refreshing;
+    const running = listBusy === kind;
+    const add = () => {
+      if (inputValue.trim() && !busy) runListAction(kind, () => addListItem(kind, items));
+    };
+    return (
     <Card>
       <CardContent className="p-4">
         <h3 className="font-semibold mb-3 text-sm">
-          <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+          {hasWritePermission ? (
+            <Label htmlFor={inputId} className="font-semibold text-sm">{title}</Label>
+          ) : (
+            title
+          )}
         </h3>
         {hasWritePermission && (
           <div className="flex gap-2 mb-3">
@@ -444,6 +426,7 @@ export function RipngContent() {
                 id={inputId}
                 value={inputValue}
                 onValueChange={onInputChange}
+                disabled={busy}
                 placeholder={inputPlaceholder}
                 className="flex-1"
                 filter={(item) => !items.includes(item.name)}
@@ -454,18 +437,19 @@ export function RipngContent() {
                 id={inputId}
                 placeholder={inputPlaceholder}
                 value={inputValue}
+                disabled={busy}
                 onChange={(e) => onInputChange(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") add(); }}
                 className="flex-1 font-mono text-sm"
               />
             )}
-            <Button size="sm" onClick={onAdd} disabled={!inputValue.trim()}>
-              <Plus className="h-4 w-4" />
+            <Button size="sm" onClick={add} disabled={busy || !inputValue.trim()} aria-label={tc("add")}>
+              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             </Button>
           </div>
         )}
         {err && (
-          <p className="text-sm text-destructive mb-2">{err}</p>
+          <p className="text-sm text-destructive mb-2 whitespace-pre-wrap">{err}</p>
         )}
         {items.length === 0 ? (
           <p className="text-xs text-muted-foreground">{t("networks.noneConfigured")}</p>
@@ -479,7 +463,9 @@ export function RipngContent() {
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={() => onRemove(item)}
+                    aria-label={tc("delete")}
+                    disabled={busy}
+                    onClick={() => openDelete(kind, item)}
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -490,13 +476,14 @@ export function RipngContent() {
         )}
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   // ============================================================
   // Loading / Error states
   // ============================================================
 
-  if (loading) {
+  if (loading && !config) {
     return (
       <div className="flex items-center justify-center h-full">
         <LoadingSpinner />
@@ -508,7 +495,7 @@ export function RipngContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>{tc("retry")}</Button>
+        <Button variant="outline" onClick={retry}>{tc("retry")}</Button>
       </div>
     );
   }
@@ -537,15 +524,37 @@ export function RipngContent() {
                 {t("header.subtitle")}
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {tc("refresh")}
-            </Button>
+            <div className="flex items-center gap-2">
+              {hasWritePermission && config?.configured && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => openDelete("ripng", "")}
+                  disabled={refreshing}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t("header.deleteRipng")}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => void reload()} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2${refreshing ? " animate-spin" : ""}`} />
+                {tc("refresh")}
+              </Button>
+            </div>
           </div>
 
           {error && (
             <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
               {error}
+            </div>
+          )}
+
+          {listErrors.length > 0 && (
+            <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+              {listErrors.map((message) => (
+                <p key={message}>{message}</p>
+              ))}
             </div>
           )}
 
@@ -636,13 +645,13 @@ export function RipngContent() {
                 <p className="text-sm text-muted-foreground">{t("overview.description")}</p>
                 {hasWritePermission && (
                   !overviewEditing ? (
-                    <Button size="sm" variant="outline" onClick={startEditOverview}>
+                    <Button size="sm" variant="outline" onClick={startEditOverview} disabled={refreshing}>
                       <Pencil className="h-4 w-4 mr-2" />
                       {tc("edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={cancelEditOverview}>{tc("cancel")}</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditOverview} disabled={overviewSaving}>{tc("cancel")}</Button>
                       <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         {tc("save")}
@@ -669,11 +678,11 @@ export function RipngContent() {
                         <Input
                           id="ripng-default-metric"
                           type="number"
-                          min={1}
-                          max={16}
-                          placeholder="1–16"
+                          min={metricRange?.min}
+                          max={metricRange?.max}
+                          placeholder={metricRange ? `${metricRange.min}–${metricRange.max}` : ""}
                           value={overviewEditing ? ovDefaultMetric : (config?.default_metric ?? "")}
-                          disabled={!overviewEditing}
+                          disabled={!overviewEditing || overviewSaving}
                           onChange={(e) => setOvDefaultMetric(e.target.value)}
                         />
                       </div>
@@ -685,7 +694,7 @@ export function RipngContent() {
                           id="ripng-route-map"
                           value={overviewEditing ? ovRouteMap : (config?.route_map ?? "")}
                           names={routeMapNames}
-                          disabled={!overviewEditing}
+                          disabled={!overviewEditing || overviewSaving}
                           onValueChange={setOvRouteMap}
                         />
                       </div>
@@ -695,7 +704,7 @@ export function RipngContent() {
                         <Checkbox
                           id="ripng-originate"
                           checked={overviewEditing ? ovOriginate : config?.default_information_originate}
-                          disabled={!overviewEditing}
+                          disabled={!overviewEditing || overviewSaving}
                           onCheckedChange={(checked) => setOvOriginate(!!checked)}
                         />
                         <Label htmlFor="ripng-originate" className="cursor-pointer">
@@ -715,11 +724,11 @@ export function RipngContent() {
                         <Input
                           id="ripng-update-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={timerRange?.min}
+                          max={timerRange?.max}
                           placeholder="30"
                           value={overviewEditing ? ovTimerUpdate : (config?.timers.update ?? "")}
-                          disabled={!overviewEditing}
+                          disabled={!overviewEditing || overviewSaving}
                           onChange={(e) => setOvTimerUpdate(e.target.value)}
                         />
                       </div>
@@ -728,11 +737,11 @@ export function RipngContent() {
                         <Input
                           id="ripng-timeout-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={timerRange?.min}
+                          max={timerRange?.max}
                           placeholder="180"
                           value={overviewEditing ? ovTimerTimeout : (config?.timers.timeout ?? "")}
-                          disabled={!overviewEditing}
+                          disabled={!overviewEditing || overviewSaving}
                           onChange={(e) => setOvTimerTimeout(e.target.value)}
                         />
                       </div>
@@ -741,11 +750,11 @@ export function RipngContent() {
                         <Input
                           id="ripng-gc-interval"
                           type="number"
-                          min={5}
-                          max={2147483647}
+                          min={timerRange?.min}
+                          max={timerRange?.max}
                           placeholder="120"
                           value={overviewEditing ? ovTimerGc : (config?.timers.garbage_collection ?? "")}
-                          disabled={!overviewEditing}
+                          disabled={!overviewEditing || overviewSaving}
                           onChange={(e) => setOvTimerGc(e.target.value)}
                         />
                       </div>
@@ -765,46 +774,26 @@ export function RipngContent() {
               <div className="grid grid-cols-2 gap-4">
                 {renderListSection(
                   t("networks.ripngNetworks"),
-                  "ripng-list-ripngNetworks",
+                  "network",
                   config?.networks ?? [],
-                  newNetwork,
-                  setNewNetwork,
-                  handleAddNetwork,
-                  handleRemoveNetwork,
-                  networksError,
                   "2001:db8::/32"
                 )}
                 {renderListSection(
                   t("networks.aggregateAddresses"),
-                  "ripng-list-aggregateAddresses",
+                  "aggregateAddress",
                   config?.aggregate_addresses ?? [],
-                  newAggregateAddress,
-                  setNewAggregateAddress,
-                  handleAddAggregateAddress,
-                  handleRemoveAggregateAddress,
-                  aggregateAddressesError,
                   "2001:db8::/48"
                 )}
                 {renderListSection(
                   t("networks.staticRoutes"),
-                  "ripng-list-staticRoutes",
+                  "route",
                   config?.routes ?? [],
-                  newRoute,
-                  setNewRoute,
-                  handleAddRoute,
-                  handleRemoveRoute,
-                  routesError,
                   "2001:db8::/32"
                 )}
                 {renderListSection(
                   t("networks.passiveInterfaces"),
-                  "ripng-list-passiveInterfaces",
+                  "passiveInterface",
                   config?.passive_interfaces ?? [],
-                  newPassiveIface,
-                  setNewPassiveIface,
-                  handleAddPassiveIface,
-                  handleRemovePassiveIface,
-                  passiveIfaceError,
                   tc("selectInterface"),
                   true,
                 )}
@@ -820,7 +809,7 @@ export function RipngContent() {
                   {t("interfaces.description")}
                 </p>
                 {hasWritePermission && (
-                  <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
+                  <Button size="sm" onClick={() => openIfaceModal(null)} disabled={refreshing}>
                     <Plus className="h-4 w-4 mr-2" />
                     {tc("addInterface")}
                   </Button>
@@ -836,7 +825,7 @@ export function RipngContent() {
                       {t("interfaces.emptyHint")}
                     </p>
                     {hasWritePermission && (
-                      <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
+                      <Button size="sm" onClick={() => openIfaceModal(null)} disabled={refreshing}>
                         <Plus className="h-4 w-4 mr-2" />
                         {tc("addInterface")}
                       </Button>
@@ -860,7 +849,7 @@ export function RipngContent() {
                             <TableCell className="font-medium font-mono">{iface.name}</TableCell>
                             <TableCell>
                               {iface.split_horizon ? (
-                                <Badge variant="outline">{iface.split_horizon}</Badge>
+                                <Badge variant="outline">{splitHorizonLabel(iface.split_horizon)}</Badge>
                               ) : (
                                 <span className="text-muted-foreground">—</span>
                               )}
@@ -869,14 +858,16 @@ export function RipngContent() {
                               {hasWritePermission && (
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8"
-                                    onClick={() => { setEditingIface(iface); setIfaceModalOpen(true); }}
+                                    variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
+                                    disabled={refreshing}
+                                    onClick={() => openIfaceModal(iface)}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => setDeletingIface(iface)}
+                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
+                                    disabled={refreshing}
+                                    onClick={() => openDelete("interface", iface.name)}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -901,7 +892,7 @@ export function RipngContent() {
                   {t("redistribute.description")}
                 </p>
                 {hasWritePermission && (
-                  <Button size="sm" onClick={() => { setEditingRedist(null); setRedistModalOpen(true); }}>
+                  <Button size="sm" onClick={() => openRedistModal(null)} disabled={refreshing}>
                     <Plus className="h-4 w-4 mr-2" />
                     {tc("add")}
                   </Button>
@@ -914,7 +905,7 @@ export function RipngContent() {
                     <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
                     <p className="text-sm text-muted-foreground mb-2">{t("redistribute.empty")}</p>
                     {hasWritePermission && (
-                      <Button size="sm" onClick={() => { setEditingRedist(null); setRedistModalOpen(true); }}>
+                      <Button size="sm" onClick={() => openRedistModal(null)} disabled={refreshing}>
                         <Plus className="h-4 w-4 mr-2" />
                         {tc("add")}
                       </Button>
@@ -951,14 +942,16 @@ export function RipngContent() {
                               {hasWritePermission && (
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8"
-                                    onClick={() => { setEditingRedist(r); setRedistModalOpen(true); }}
+                                    variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
+                                    disabled={refreshing}
+                                    onClick={() => openRedistModal(r)}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => setDeletingRedist(r)}
+                                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
+                                    disabled={refreshing}
+                                    onClick={() => openDelete("redistribution", r.protocol)}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -988,13 +981,13 @@ export function RipngContent() {
                       <h3 className="text-sm font-medium text-muted-foreground">{t("filters.globalFilters")}</h3>
                       {hasWritePermission && (
                         !dlGlobalEditing ? (
-                          <Button size="sm" variant="outline" onClick={startEditDlGlobal}>
+                          <Button size="sm" variant="outline" onClick={startEditDlGlobal} disabled={refreshing}>
                             <Pencil className="h-4 w-4 mr-2" />
                             {tc("edit")}
                           </Button>
                         ) : (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal}>{tc("cancel")}</Button>
+                            <Button size="sm" variant="outline" onClick={cancelEditDlGlobal} disabled={dlGlobalSaving}>{tc("cancel")}</Button>
                             <Button size="sm" onClick={saveDlGlobal} disabled={dlGlobalSaving}>
                               {dlGlobalSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                               {tc("save")}
@@ -1031,7 +1024,7 @@ export function RipngContent() {
                                   id={`ripng-dl-${field}`}
                                   value={currentVal}
                                   names={names}
-                                  disabled={!dlGlobalEditing}
+                                  disabled={!dlGlobalEditing || dlGlobalSaving}
                                   onValueChange={(v) => setDlGlobalDraft({ ...dlGlobalDraft, [field]: v || null })}
                                 />
                               </div>
@@ -1047,7 +1040,7 @@ export function RipngContent() {
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-medium text-muted-foreground">{t("filters.perInterfaceFilters")}</h3>
                       {hasWritePermission && (
-                        <Button size="sm" onClick={() => { setEditingDlIface(null); setDlIfaceModalOpen(true); }}>
+                        <Button size="sm" onClick={() => openDlIfaceModal(null)} disabled={refreshing}>
                           <Plus className="h-4 w-4 mr-2" />
                           {tc("add")}
                         </Button>
@@ -1086,14 +1079,16 @@ export function RipngContent() {
                                     {hasWritePermission && (
                                       <div className="flex items-center justify-end gap-1">
                                         <Button
-                                          variant="ghost" size="icon" className="h-8 w-8"
-                                          onClick={() => { setEditingDlIface(f); setDlIfaceModalOpen(true); }}
+                                          variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
+                                          disabled={refreshing}
+                                          onClick={() => openDlIfaceModal(f)}
                                         >
                                           <Pencil className="h-4 w-4" />
                                         </Button>
                                         <Button
-                                          variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                                          onClick={() => setDeletingDlIface(f)}
+                                          variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
+                                          disabled={refreshing}
+                                          onClick={() => openDelete("interfaceFilter", f.interface)}
                                         >
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -1117,63 +1112,44 @@ export function RipngContent() {
 
       {/* Modals */}
       <RipngInterfaceModal
+        key={`iface-${modalKey}`}
         open={ifaceModalOpen}
-        onOpenChange={(open) => {
-          setIfaceModalOpen(open);
-          if (!open) setEditingIface(null);
-        }}
+        onOpenChange={setIfaceModalOpen}
         existingInterface={editingIface}
-        onSubmit={editingIface ? handleUpdateIface : handleCreateIface}
-      />
-
-      <DeleteRipngModal
-        open={!!deletingIface}
-        onOpenChange={(open) => { if (!open) setDeletingIface(null); }}
-        itemType="interface"
-        itemName={deletingIface?.name ?? ""}
-        onConfirm={handleDeleteIface}
+        configuredInterfaces={config?.interfaces.map((i) => i.name) ?? []}
+        onSubmit={submitIface}
       />
 
       <RipngRedistributeModal
+        key={`redist-${modalKey}`}
         open={redistModalOpen}
-        onOpenChange={(open) => {
-          setRedistModalOpen(open);
-          if (!open) setEditingRedist(null);
-        }}
+        onOpenChange={setRedistModalOpen}
         existingEntry={editingRedist}
         existingProtocols={config?.redistribute.map((r) => r.protocol) ?? []}
         routeMapNames={routeMapNames}
-        protocols={redistProtocols}
-        onSubmit={editingRedist ? handleUpdateRedist : handleCreateRedist}
-      />
-
-      <DeleteRipngModal
-        open={!!deletingRedist}
-        onOpenChange={(open) => { if (!open) setDeletingRedist(null); }}
-        itemType="redistribution"
-        itemName={deletingRedist?.protocol ?? ""}
-        onConfirm={handleDeleteRedist}
+        protocols={capabilities?.features.redistribute.protocols || []}
+        capabilities={capabilities}
+        onSubmit={submitRedist}
       />
 
       <RipngDistributeListInterfaceModal
+        key={`dl-${modalKey}`}
         open={dlIfaceModalOpen}
-        onOpenChange={(open) => {
-          setDlIfaceModalOpen(open);
-          if (!open) setEditingDlIface(null);
-        }}
+        onOpenChange={setDlIfaceModalOpen}
         existingEntry={editingDlIface}
         existingInterfaces={config?.distribute_list.interface_filters.map((f) => f.interface) ?? []}
         accessListNames={accessListNames}
         prefixListNames={prefixListNames}
-        onSubmit={editingDlIface ? handleUpdateDlIface : handleCreateDlIface}
+        onSubmit={submitDlIface}
       />
 
       <DeleteRipngModal
-        open={!!deletingDlIface}
-        onOpenChange={(open) => { if (!open) setDeletingDlIface(null); }}
-        itemType="interfaceFilter"
-        itemName={deletingDlIface?.interface ?? ""}
-        onConfirm={handleDeleteDlIface}
+        key={`delete-${modalKey}`}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        itemType={deleteTarget?.kind ?? "interface"}
+        itemName={deleteTarget?.name ?? ""}
+        onConfirm={confirmDelete}
       />
     </>
   );

@@ -1,13 +1,24 @@
-"""RIPng Protocol Command Mapper."""
-from typing import List
+"""RIPng Protocol Command Mapper.
+
+The protocols ripng templates are the same on VyOS 1.4 and 1.5, so one class
+holds every command and the registry returns it for both.
+"""
+
+from typing import Any, Dict, List
+
 from ..base import BaseFeatureMapper
+from .config_parse import parse_config as parse_ripng_config
 
 
 class RipNgMapper(BaseFeatureMapper):
-    """Base mapper for RIPng protocol configuration paths."""
+    """All RIPng commands (identical on VyOS 1.4 and 1.5)."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        return parse_ripng_config(self, full_config)
+
+    def redistribute_protocol_list(self) -> List[str]:
+        """protocols ripng redistribute children (lab node.def list)."""
+        return ["babel", "bgp", "connected", "kernel", "ospfv3", "static"]
 
     def _ripng(self) -> List[str]:
         return ["protocols", "ripng"]
@@ -162,8 +173,14 @@ class RipNgMapper(BaseFeatureMapper):
     def get_redistribute_metric(self, protocol: str, value: str) -> List[str]:
         return self._ripng() + ["redistribute", protocol, "metric", value]
 
+    def get_redistribute_metric_delete(self, protocol: str) -> List[str]:
+        return self._ripng() + ["redistribute", protocol, "metric"]
+
     def get_redistribute_route_map(self, protocol: str, value: str) -> List[str]:
         return self._ripng() + ["redistribute", protocol, "route-map", value]
+
+    def get_redistribute_route_map_delete(self, protocol: str) -> List[str]:
+        return self._ripng() + ["redistribute", protocol, "route-map"]
 
     def get_redistribute_delete(self, protocol: str) -> List[str]:
         return self._ripng() + ["redistribute", protocol]
