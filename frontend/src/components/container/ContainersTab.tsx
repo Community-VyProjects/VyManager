@@ -30,7 +30,6 @@ import {
   Download,
   FolderOpen,
   ImageOff,
-  Loader2,
   Pencil,
   Plus,
   RefreshCw,
@@ -45,6 +44,7 @@ import {
   type ContainerInstance,
   type ContainerSSHResponse,
 } from "@/lib/api/container";
+import { removableVolumeDirs, VOLUME_BASE } from "@/lib/api/container-save-ops";
 import type { ApiError } from "@/lib/types/api";
 import { APP_CATALOG } from "@/lib/apps-catalog";
 import { isProtectedStackContainer } from "@/lib/appliance";
@@ -139,11 +139,17 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
     if (!deletingContainer) return;
     if (isProtectedStackContainer(appliance, deletingContainer.name)) throw new Error(t("tab.stackProtected"));
     await containerService.deleteContainer(deletingContainer.name);
-    // Best-effort: clean up the container directory tree after a successful commit.
-    try {
-      await containerService.removeContainerDir(`/config/containers/${deletingContainer.name}`);
-    } catch {
-      /* the VyOS config is already saved */
+    // Best-effort: remove the container's directory tree after a successful commit,
+    // unless another container mounts a path inside it (or a path containing it).
+    const otherSources = containers
+      .filter((c) => c.name !== deletingContainer.name)
+      .flatMap((c) => c.volumes.map((v) => v.source ?? ""));
+    for (const dir of removableVolumeDirs([`${VOLUME_BASE}${deletingContainer.name}`], otherSources)) {
+      try {
+        await containerService.removeContainerDir(dir);
+      } catch {
+        /* the VyOS config is already saved */
+      }
     }
     void onReload();
   };
@@ -471,13 +477,6 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
         error={ssh.error}
         busyLabel={ssh.busyLabel}
       />
-
-      {ssh.loading && (
-        <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-background border shadow-lg px-4 py-2 text-sm z-50">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {ssh.title}…
-        </div>
-      )}
     </>
   );
 }

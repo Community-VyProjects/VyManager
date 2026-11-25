@@ -16,6 +16,7 @@ import {
   registryDeleteOps,
   registryOps,
   registryProblem,
+  removableVolumeDirs,
   type ContainerProblemContext,
 } from "./container-save-ops";
 import {
@@ -574,5 +575,30 @@ describe("containerService", () => {
       [{ op: "set_registry_auth_username", value: "r,v" }],
       [{ op: "delete_container_root" }],
     ]);
+  });
+});
+
+describe("removableVolumeDirs", () => {
+  it("keeps a dropped path that equals, contains or sits inside an in-use path", () => {
+    assert.deepEqual(
+      removableVolumeDirs(
+        [
+          "/config/containers/web",
+          "/config/containers/db/",
+          "/config/containers/shared/data",
+          "/config/containers/old/",
+          "/config/containers/old",
+          "/config/containers/",
+          "/srv/data",
+        ],
+        ["/config/containers/web/cfg", "/config/containers/db", "/config/containers/shared/"],
+      ),
+      ["/config/containers/old"],
+    );
+  });
+
+  it("removes nothing when the in-use list covers every candidate", () => {
+    assert.deepEqual(removableVolumeDirs(["/config/containers/a"], [" /config/containers/a/ "]), []);
+    assert.deepEqual(removableVolumeDirs(["/config/containers/a"], ["/config/containers/ab"]), ["/config/containers/a"]);
   });
 });

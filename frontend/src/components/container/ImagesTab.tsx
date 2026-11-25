@@ -282,13 +282,6 @@ export function ImagesTab({ config, hasWritePermission, onReload }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {ssh.loading && (
-        <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-background border shadow-lg px-4 py-2 text-sm z-50">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {ssh.title}…
-        </div>
-      )}
     </>
   );
 }

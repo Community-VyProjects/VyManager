@@ -1265,3 +1265,28 @@ export function registryProblem(
   }
   return null;
 }
+
+/** Host directory the screen creates container volumes under. */
+export const VOLUME_BASE = "/config/containers/";
+
+function trimSlashes(path: string): string {
+  return path.trim().replace(/\/+$/, "");
+}
+
+/**
+ * Host directories under VOLUME_BASE that are safe to remove (`rm -rf`): a candidate is kept
+ * when any in-use path equals it, sits inside it, or contains it.
+ */
+export function removableVolumeDirs(candidates: string[], inUse: string[]): string[] {
+  const used = inUse.map(trimSlashes).filter(Boolean);
+  const overlaps = (dir: string) =>
+    used.some((path) => path === dir || path.startsWith(`${dir}/`) || dir.startsWith(`${path}/`));
+  const result: string[] = [];
+  for (const candidate of candidates) {
+    const dir = trimSlashes(candidate);
+    if (!dir.startsWith(VOLUME_BASE) || dir.length <= VOLUME_BASE.length) continue;
+    if (overlaps(dir) || result.includes(dir)) continue;
+    result.push(dir);
+  }
+  return result;
+}

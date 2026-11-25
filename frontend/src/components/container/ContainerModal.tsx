@@ -45,9 +45,11 @@ import {
   HEALTH_TIMEOUT_RANGE,
   ID_RANGE,
   MEMORY_RANGE,
+  removableVolumeDirs,
   SHARED_MEMORY_RANGE,
   STOP_TIMEOUT_RANGE,
   TMPFS_SIZE_RANGE,
+  VOLUME_BASE,
   type ContainerProblem,
 } from "@/lib/api/container-save-ops";
 import type { ApiError } from "@/lib/types/api";
@@ -72,7 +74,6 @@ interface Props {
 
 /** Select item for a typed interval in seconds. */
 const CUSTOM = "custom";
-const VOLUME_BASE = "/config/containers/";
 
 function seed(container: ContainerInstance | null): ContainerInstance {
   const c = container ?? emptyContainer();
@@ -171,16 +172,13 @@ export function ContainerModal({
       // Best-effort: remove a host path this edit stopped using, unless a kept
       // volume of this container or any volume of another container still uses it.
       if (container) {
-        const inUse = new Set<string>([
-          ...draft.volumes.map((v) => (v.source ?? "").trim()),
-          ...containers
-            .filter((c) => c.name !== container.name)
-            .flatMap((c) => c.volumes.map((v) => (v.source ?? "").trim())),
-        ]);
-        const dropped = new Set(
-          container.volumes
-            .map((v) => (v.source ?? "").trim())
-            .filter((source) => source.startsWith(VOLUME_BASE) && !inUse.has(source)),
+        const inUse = [
+          ...draft.volumes.map((v) => v.source ?? ""),
+          ...containers.filter((c) => c.name !== container.name).flatMap((c) => c.volumes.map((v) => v.source ?? "")),
+        ];
+        const dropped = removableVolumeDirs(
+          container.volumes.map((v) => v.source ?? ""),
+          inUse,
         );
         for (const source of dropped) {
           try {
