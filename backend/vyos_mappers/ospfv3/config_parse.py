@@ -42,9 +42,11 @@ def _to_list(value) -> List[str]:
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/ospfv3/config payload."""
-    ospfv3_config = full_config.get("protocols", {}).get("ospfv3", {})
-    if not ospfv3_config:
+    protocols = full_config.get("protocols", {}) or {}
+    if "ospfv3" not in protocols:
         return {}
+    # An empty `protocols ospfv3 {}` node still exists and can be deleted.
+    ospfv3_config = protocols["ospfv3"] or {}
 
     areas = parse_areas(ospfv3_config.get("area", {}))
     interfaces = parse_interfaces(ospfv3_config.get("interface", {}))
@@ -52,10 +54,12 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     # Interface-based area assignment (`set protocols ospfv3 interface <name> area <id>`)
     # does not create a `protocols ospfv3 area <id>` node. Surface those areas so
     # they still appear in the Areas tab even with no explicit area block.
+    # configured=False marks them: there is no area node to delete, and the
+    # first save from the screen has to create one.
     known_area_ids = {area["area_id"] for area in areas}
     for iface in interfaces:
         if iface.get("area") and iface["area"] not in known_area_ids:
-            areas.append({"area_id": iface["area"]})
+            areas.append({"area_id": iface["area"], "configured": False})
             known_area_ids.add(iface["area"])
 
     log_adj = ospfv3_config.get("log-adjacency-changes")
@@ -66,18 +70,14 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
         "interfaces": interfaces,
         "redistribute": parse_redistribute(ospfv3_config.get("redistribute", {})),
         "default_information": parse_default_information(
-            ospfv3_config.get("default-information", {})
+            ospfv3_config.get("default-information")
         ),
         "distance": parse_distance(ospfv3_config),
-        "graceful_restart": parse_graceful_restart(
-            ospfv3_config.get("graceful-restart", {})
-        ),
+        "graceful_restart": parse_graceful_restart(ospfv3_config),
         "auto_cost_reference_bandwidth": _safe_int(
             _deep_get(ospfv3_config, "auto-cost", "reference-bandwidth")
         ),
-        "log_adjacency_changes": (
-            "log-adjacency-changes" in ospfv3_config if ospfv3_config else None
-        ),
+        "log_adjacency_changes": "log-adjacency-changes" in ospfv3_config,
         "log_adjacency_changes_detail": (
             "detail" in (ospfv3_config.get("log-adjacency-changes", {}) or {})
             if isinstance(log_adj, dict)
@@ -140,6 +140,7 @@ def parse_areas(raw: dict) -> List[Dict[str, Any]]:
         areas.append(
             {
                 "area_id": area_id,
+                "configured": True,
                 "area_type": area_type,
                 "area_type_no_summary": area_type_no_summary,
                 "nssa_default_information_originate": nssa_default_information_originate,
@@ -216,13 +217,12 @@ def parse_redistribute(raw: dict) -> List[Dict[str, Any]]:
     return redistribute
 
 
-def parse_default_information(raw: dict) -> Dict[str, Any]:
-    if not raw:
+def parse_default_information(raw: Any) -> Dict[str, Any]:
+    # A bare ``default-information originate`` commits and parses as {}.
+    if not isinstance(raw, dict) or "originate" not in raw:
         return {}
 
-    originate = raw.get("originate", {})
-    if not originate:
-        return {}
+    originate = raw.get("originate")
 
     if not isinstance(originate, dict):
         return {"enabled": True}
@@ -252,10 +252,13 @@ def parse_distance(ospfv3_config: dict) -> Dict[str, Any]:
     }
 
 
-def parse_graceful_restart(raw: dict) -> Dict[str, Any]:
-    if not raw:
+def parse_graceful_restart(ospfv3_config: dict) -> Dict[str, Any]:
+    # A bare ``graceful-restart`` (or a bare ``helper`` under it) commits and
+    # parses as {}; the node is still there.
+    if "graceful-restart" not in ospfv3_config:
         return {}
 
+    raw = ospfv3_config.get("graceful-restart") or {}
     helper_raw = raw.get("helper", {}) or {}
 
     # helper enable is a node; router-id under it is a multi leaf.
@@ -271,7 +274,7 @@ def parse_graceful_restart(raw: dict) -> Dict[str, Any]:
                 router_ids = _to_list(rid_raw)
 
     return {
-        "enabled": bool(raw),
+        "enabled": True,
         "grace_period": _safe_int(raw.get("grace-period")),
         "helper": {
             "enable": helper_enable,

@@ -28,6 +28,8 @@ export interface Ospfv3AreaRange {
 
 export interface Ospfv3Area {
   area_id: string;
+  /** False when only `interface <if> area` names it: no area node exists yet. */
+  configured?: boolean;
   /** stub or nssa; null is a normal area (no area-type node). */
   area_type?: string | null;
   area_type_no_summary: boolean;

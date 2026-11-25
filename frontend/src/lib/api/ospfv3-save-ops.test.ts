@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
+  isIpv4,
   isIpv6Prefix,
   ospfv3AreaOps,
   ospfv3AreaProblem,
@@ -17,8 +21,10 @@ import {
   ospfv3ParametersOps,
   ospfv3ParametersProblem,
   ospfv3RangeMode,
+  ospfv3RangesWithDraft,
   ospfv3RedistributeOps,
   ospfv3RedistributeProblem,
+  ospfv3RouterIdsWithDraft,
 } from "./ospfv3-save-ops";
 import { apiClient } from "./client";
 import {
@@ -89,6 +95,15 @@ function config(partial: Partial<Ospfv3Config> = {}): Ospfv3Config {
     ...partial,
   };
 }
+
+describe("isIpv4", () => {
+  it("matches Python ipaddress, leading zeros included", () => {
+    for (const ok of ["0.0.0.0", "10.0.0.1", "192.168.1.1", "255.255.255.255"]) assert.ok(isIpv4(ok), ok);
+    for (const bad of ["010.0.0.1", "192.168.001.1", "00.0.0.0", "256.0.0.1", "1.2.3", "1.2.3.4.5", "a.b.c.d", ""]) {
+      assert.ok(!isIpv4(bad), bad);
+    }
+  });
+});
 
 describe("global parameters", () => {
   const loaded = config({
@@ -175,7 +190,6 @@ describe("default information", () => {
     assert.deepEqual(ospfv3DefaultInformationProblem({ ...loaded, metric: 16777215 }, CAPS), {
       key: "metricRange", min: 0, max: 16777214,
     });
-    assert.equal(ospfv3DefaultInformationProblem({ ...loaded, metric_type: 3 }, CAPS)?.key, "metricTypeRange");
     assert.equal(ospfv3DefaultInformationProblem({ ...loaded, enabled: false, metric: 99999999 }, CAPS), null);
   });
 });
@@ -255,6 +269,19 @@ describe("graceful restart", () => {
       { op: "set_graceful_restart_helper_planned_only" },
       { op: "set_graceful_restart_helper_supported_grace_time", value: "300" },
     ]);
+  });
+
+  it("folds a pending helper router ID in, or returns its keyed problem", () => {
+    assert.deepEqual(ospfv3RouterIdsWithDraft(["192.0.2.1"], ""), { ids: ["192.0.2.1"], problem: null });
+    assert.deepEqual(ospfv3RouterIdsWithDraft(["192.0.2.1"], " 192.0.2.2 "), {
+      ids: ["192.0.2.1", "192.0.2.2"], problem: null,
+    });
+    assert.deepEqual(ospfv3RouterIdsWithDraft(["192.0.2.1"], "192.0.2"), {
+      ids: ["192.0.2.1"], problem: { key: "helperRouterIdInvalid" },
+    });
+    assert.deepEqual(ospfv3RouterIdsWithDraft(["192.0.2.1"], "192.0.2.1"), {
+      ids: ["192.0.2.1"], problem: { key: "helperRouterIdDuplicate" },
+    });
   });
 
   it("checks grace times and router IDs", () => {
@@ -338,6 +365,39 @@ describe("areas", () => {
     assert.ok(!ops.some((o) => o.op.includes("normal") || o.op.includes("default_cost")));
   });
 
+  it("an area named only by an interface is created on its first save and never deleted", () => {
+    const synthesized = area({ area_id: "0.0.0.2", configured: false });
+    assert.deepEqual(ospfv3AreaOps(synthesized, { ...synthesized, configured: undefined }), [
+      { op: "set_area", value: "0.0.0.2" },
+    ]);
+    const ops = ospfv3AreaOps(synthesized, { ...synthesized, area_type: "stub" });
+    assert.deepEqual(ops, [
+      { op: "set_area", value: "0.0.0.2" },
+      { op: "set_area_type_stub", value: "0.0.0.2" },
+    ]);
+    assert.ok(!ops.some((o) => o.op === "delete_area"));
+    // A configured area does not get set_area again.
+    assert.deepEqual(ospfv3AreaOps(area({ configured: true }), area()), []);
+  });
+
+  it("folds a pending range prefix in, or returns its keyed problem", () => {
+    const rows = [{ prefix: "2001:db8::/32", advertise: true, not_advertise: false }];
+    assert.deepEqual(ospfv3RangesWithDraft(rows, "  ", "advertise"), { ranges: rows, problem: null });
+    assert.deepEqual(ospfv3RangesWithDraft(rows, " 2001:db8:1::/48 ", "not-advertise"), {
+      ranges: [...rows, { prefix: "2001:db8:1::/48", advertise: false, not_advertise: true }],
+      problem: null,
+    });
+    assert.deepEqual(ospfv3RangesWithDraft([], "2001:db8:1::/48", "").ranges, [
+      { prefix: "2001:db8:1::/48", advertise: false, not_advertise: false },
+    ]);
+    assert.deepEqual(ospfv3RangesWithDraft(rows, "2001:db8::1/48", "advertise"), {
+      ranges: rows, problem: { key: "rangePrefixInvalid" },
+    });
+    assert.deepEqual(ospfv3RangesWithDraft(rows, "2001:db8::/32", "advertise"), {
+      ranges: rows, problem: { key: "rangeDuplicate" },
+    });
+  });
+
   it("deletes a removed range only", () => {
     assert.deepEqual(ospfv3AreaOps(nssa, { ...nssa, ranges: [] }), [
       { op: "delete_area_range", value: "1,2001:db8::/32" },
@@ -348,7 +408,9 @@ describe("areas", () => {
     assert.equal(ospfv3AreaProblem(nssa, CAPS), null);
     assert.equal(ospfv3AreaProblem(area({ area_id: "0.0.0.1" }), CAPS), null);
     assert.equal(ospfv3AreaProblem(area({ area_id: "" }), CAPS)?.key, "areaIdRequired");
-    assert.equal(ospfv3AreaProblem(area({ area_id: "4294967296" }), CAPS)?.key, "areaIdInvalid");
+    assert.deepEqual(ospfv3AreaProblem(area({ area_id: "4294967296" }), CAPS), {
+      key: "areaIdInvalid", min: 0, max: 4294967295,
+    });
     assert.equal(ospfv3AreaProblem(area({ area_id: "backbone" }), CAPS)?.key, "areaIdInvalid");
     assert.equal(ospfv3AreaProblem(area(), CAPS, { existingIds: ["1"] })?.key, "areaIdExists");
     assert.equal(ospfv3AreaProblem(area({ ranges: [{ prefix: "10.0.0.0/8", advertise: false, not_advertise: false }] }), CAPS)?.key,
@@ -438,7 +500,9 @@ describe("interfaces", () => {
   it("checks served ranges and the area format", () => {
     assert.equal(ospfv3InterfaceProblem(full, CAPS), null);
     assert.equal(ospfv3InterfaceProblem(iface({ name: "" }), CAPS)?.key, "interfaceRequired");
-    assert.equal(ospfv3InterfaceProblem(iface({ area: "x" }), CAPS)?.key, "interfaceAreaInvalid");
+    assert.deepEqual(ospfv3InterfaceProblem(iface({ area: "x" }), CAPS), {
+      key: "interfaceAreaInvalid", min: 0, max: 4294967295,
+    });
     assert.deepEqual(ospfv3InterfaceProblem(iface({ cost: 0 }), CAPS), { key: "costRange", min: 1, max: 65535 });
     assert.deepEqual(ospfv3InterfaceProblem(iface({ priority: 256 }), CAPS), { key: "priorityRange", min: 0, max: 255 });
     assert.equal(ospfv3InterfaceProblem(iface({ hello_interval: 0 }), CAPS)?.key, "helloIntervalRange");
@@ -532,5 +596,41 @@ describe("batchConfigure", () => {
     } finally {
       apiClient.post = original;
     }
+  });
+});
+
+describe("screens", () => {
+  const FRONTEND = fileURLToPath(new URL("../../..", import.meta.url));
+  const read = (file: string) => readFileSync(join(FRONTEND, "src/components/ospfv3", file), "utf8");
+
+  it("the interface modal offers only unconfigured interfaces on Add and picks area and BFD profile", () => {
+    const modal = read("Ospfv3InterfaceModal.tsx");
+    assert.match(modal, /availableInterfaces\.filter\(\(i\) => !configuredInterfaces\.includes\(i\.name\)\)/);
+    assert.match(modal, /<NamedListSelect id="ospfv3-iface-area" value=\{area\} names=\{areaIds\}/);
+    assert.match(modal, /id="ospfv3-iface-bfd-profile"\s+value=\{bfdProfile\}\s+names=\{bfdProfileNames\}/);
+    assert.doesNotMatch(modal, /id="ospfv3-iface-(area|bfd-profile)"[^>]*onChange=/);
+    const page = read("Ospfv3Content.tsx");
+    assert.match(page, /configuredInterfaces=\{\(config\?\.interfaces \?\? \[\]\)\.map\(\(i\) => i\.name\)\}/);
+    assert.match(page, /bfdProfileNames=\{bfdProfileNames\}/);
+  });
+
+  it("dialogs cannot close mid-save and scroll inside an 85vh frame", () => {
+    for (const file of ["Ospfv3InterfaceModal.tsx", "DeleteOspfv3Modal.tsx", "Ospfv3AreaModal.tsx", "Ospfv3RedistributeModal.tsx"]) {
+      const src = read(file);
+      assert.match(src, /onOpenChange=\{handleOpenChange\}/, file);
+      assert.match(src, /loading\)/, file);
+    }
+    for (const file of ["Ospfv3InterfaceModal.tsx", "Ospfv3AreaModal.tsx"]) {
+      const src = read(file);
+      assert.match(src, /DialogContent className="[^"]*max-h-\[85vh\] flex flex-col overflow-hidden"/, file);
+      assert.match(src, /ScrollArea className="flex-1 min-h-0/, file);
+    }
+  });
+
+  it("disables the child controls while Enabled is unchecked", () => {
+    const page = read("Ospfv3Content.tsx");
+    assert.equal(page.match(/disabled=\{!diEditing \|\| !diEnabled\}/g)?.length, 4);
+    assert.equal(page.match(/disabled=\{!advancedEditing \|\| !grEnabled\}/g)?.length, 5);
+    assert.match(page, /area\.configured !== false && \(/);
   });
 });

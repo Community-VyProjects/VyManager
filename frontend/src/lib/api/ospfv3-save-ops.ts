@@ -84,7 +84,6 @@ export type Ospfv3ProblemKey =
   | "routerIdInvalid"
   | "referenceBandwidthRange"
   | "metricRange"
-  | "metricTypeRange"
   | "distanceRange"
   | "gracePeriodRange"
   | "supportedGraceTimeRange"
@@ -93,7 +92,6 @@ export type Ospfv3ProblemKey =
   | "areaIdRequired"
   | "areaIdInvalid"
   | "areaIdExists"
-  | "rangePrefixRequired"
   | "rangePrefixInvalid"
   | "rangeDuplicate"
   | "interfaceRequired"
@@ -143,9 +141,16 @@ function first(...problems: (Ospfv3Problem | null)[]): Ospfv3Problem | null {
   return problems.find((p) => p !== null) ?? null;
 }
 
+/** Dotted IPv4 as Python ipaddress takes it: four 0-255 octets, no leading zeros. */
 export function isIpv4(value: string): boolean {
   const parts = value.split(".");
-  return parts.length === 4 && parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255);
+  return parts.length === 4 && parts.every((p) => /^(0|[1-9]\d{0,2})$/.test(p) && Number(p) <= 255);
+}
+
+/** The area ID problem with the served bounds, for the keyed message. */
+function areaIdProblem(caps: Caps, key: "areaIdInvalid" | "interfaceAreaInvalid"): Ospfv3Problem {
+  const range = ospfv3Range(caps, "area_id");
+  return { key, min: range?.min, max: range?.max };
 }
 
 /** Area ID as the lab takes it: a decimal in range or an IPv4 address. */
@@ -234,10 +239,7 @@ export function ospfv3ParametersOps(original: Ospfv3Config, updated: Ospfv3Param
 
 export function ospfv3DefaultInformationProblem(updated: Ospfv3DefaultInformation, caps: Caps): Ospfv3Problem | null {
   if (!updated.enabled) return null;
-  return first(
-    rangeProblem(caps, "metric", "metricRange", updated.metric),
-    rangeProblem(caps, "metric_type", "metricTypeRange", updated.metric_type),
-  );
+  return rangeProblem(caps, "metric", "metricRange", updated.metric);
 }
 
 export function ospfv3DefaultInformationOps(original: Ospfv3DefaultInformation, updated: Ospfv3DefaultInformation): Op[] {
@@ -295,6 +297,21 @@ export function ospfv3GracefulRestartProblem(updated: Ospfv3GracefulRestart, cap
     rangeProblem(caps, "grace_period", "gracePeriodRange", updated.grace_period),
     rangeProblem(caps, "supported_grace_time", "supportedGraceTimeRange", updated.helper.supported_grace_time),
   );
+}
+
+/**
+ * Fold a typed-but-not-added helper router ID into the list. A blank draft
+ * leaves the list as is; a bad or duplicate ID returns the keyed problem.
+ */
+export function ospfv3RouterIdsWithDraft(
+  ids: string[],
+  draft: string,
+): { ids: string[]; problem: Ospfv3Problem | null } {
+  const id = draft.trim();
+  if (!id) return { ids, problem: null };
+  if (!isIpv4(id)) return { ids, problem: { key: "helperRouterIdInvalid" } };
+  if (ids.includes(id)) return { ids, problem: { key: "helperRouterIdDuplicate" } };
+  return { ids: [...ids, id], problem: null };
 }
 
 export function ospfv3GracefulRestartOps(original: Ospfv3GracefulRestart, updated: Ospfv3GracefulRestart): Op[] {
@@ -358,12 +375,11 @@ export function ospfv3AreaProblem(
 ): Ospfv3Problem | null {
   const id = ospfv3Text(updated.area_id);
   if (!id) return { key: "areaIdRequired" };
-  if (!areaIdOk(caps, id)) return { key: "areaIdInvalid" };
+  if (!areaIdOk(caps, id)) return areaIdProblem(caps, "areaIdInvalid");
   if (opts.existingIds?.includes(id)) return { key: "areaIdExists" };
   const seen = new Set<string>();
   for (const range of updated.ranges) {
     const prefix = ospfv3Text(range.prefix);
-    if (!prefix) return { key: "rangePrefixRequired" };
     if (!isIpv6Prefix(prefix)) return { key: "rangePrefixInvalid" };
     if (seen.has(prefix)) return { key: "rangeDuplicate" };
     seen.add(prefix);
@@ -386,13 +402,33 @@ function rangeOps(ops: Op[], id: string, original: Ospfv3AreaRange | null, updat
 }
 
 /**
+ * Fold a typed-but-not-added range into the list. A blank draft leaves the
+ * list as is; a bad or duplicate prefix returns the keyed problem instead.
+ */
+export function ospfv3RangesWithDraft(
+  ranges: Ospfv3AreaRange[],
+  draft: string,
+  mode: Ospfv3RangeMode,
+): { ranges: Ospfv3AreaRange[]; problem: Ospfv3Problem | null } {
+  const prefix = draft.trim();
+  if (!prefix) return { ranges, problem: null };
+  if (!isIpv6Prefix(prefix)) return { ranges, problem: { key: "rangePrefixInvalid" } };
+  if (ranges.some((r) => ospfv3Text(r.prefix) === prefix)) return { ranges, problem: { key: "rangeDuplicate" } };
+  return {
+    ranges: [...ranges, { prefix, advertise: mode === "advertise", not_advertise: mode === "not-advertise" }],
+    problem: null,
+  };
+}
+
+/**
  * Ops for one area. An area-type change deletes the old type first (the lab
  * allows one area-type per area); "normal" is no area-type at all.
  */
 export function ospfv3AreaOps(original: Ospfv3Area | null, updated: Ospfv3Area): Op[] {
   const ops: Op[] = [];
   const id = ospfv3Text(original?.area_id ?? updated.area_id);
-  if (!original) ops.push({ op: "set_area", value: id });
+  // An area named only by `interface <if> area` has no area node yet.
+  if (!original || original.configured === false) ops.push({ op: "set_area", value: id });
 
   const typeBefore = ospfv3Text(original?.area_type);
   const typeAfter = ospfv3Text(updated.area_type);
@@ -453,7 +489,7 @@ const INTERFACE_RANGES: [keyof Ospfv3Interface, Ospfv3RangeKey, Ospfv3ProblemKey
 export function ospfv3InterfaceProblem(updated: Ospfv3Interface, caps: Caps): Ospfv3Problem | null {
   if (!ospfv3Text(updated.name)) return { key: "interfaceRequired" };
   const area = ospfv3Text(updated.area);
-  if (area && !areaIdOk(caps, area)) return { key: "interfaceAreaInvalid" };
+  if (area && !areaIdOk(caps, area)) return areaIdProblem(caps, "interfaceAreaInvalid");
   return first(...INTERFACE_RANGES.map(([field, key, problem]) =>
     rangeProblem(caps, key, problem, updated[field] as Scalar)));
 }
@@ -484,10 +520,7 @@ export function ospfv3InterfaceOps(original: Ospfv3Interface | null, updated: Os
 
 export function ospfv3RedistributeProblem(updated: Ospfv3Redistribute, caps: Caps): Ospfv3Problem | null {
   if (!ospfv3Text(updated.protocol)) return { key: "protocolRequired" };
-  return first(
-    rangeProblem(caps, "metric", "metricRange", updated.metric),
-    rangeProblem(caps, "metric_type", "metricTypeRange", updated.metric_type),
-  );
+  return rangeProblem(caps, "metric", "metricRange", updated.metric);
 }
 
 export function ospfv3RedistributeOps(original: Ospfv3Redistribute | null, updated: Ospfv3Redistribute): Op[] {

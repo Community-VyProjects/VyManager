@@ -42,6 +42,9 @@ class Ospfv3AreaRange(BaseModel):
 class Ospfv3Area(BaseModel):
     """OSPFv3 area configuration."""
     area_id: str
+    # False when only `interface <if> area <id>` names the area: there is no
+    # `protocols ospfv3 area <id>` node yet.
+    configured: bool = True
     area_type: Optional[str] = None
     area_type_no_summary: bool = False
     nssa_default_information_originate: bool = False

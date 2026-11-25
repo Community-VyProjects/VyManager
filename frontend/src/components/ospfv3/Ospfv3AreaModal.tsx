@@ -29,6 +29,8 @@ import {
   ospfv3AreaProblem,
   ospfv3ProblemArgs,
   ospfv3RangeMode,
+  ospfv3RangesWithDraft,
+  type Ospfv3Problem,
   type Ospfv3RangeMode,
 } from "@/lib/api/ospfv3-save-ops";
 import type { ApiError } from "@/lib/types/api";
@@ -102,10 +104,18 @@ export function Ospfv3AreaModal({
     if (!next && !loading) handleClose();
   };
 
+  const problemText = (problem: Ospfv3Problem) => t(`validation.${problem.key}`, ospfv3ProblemArgs(problem));
+
+  /** The rows plus the typed-but-not-added prefix, or the keyed problem with it. */
+  const rangesWithDraft = () => ospfv3RangesWithDraft(ranges.map(toRange), newRangePrefix, newRangeMode);
+
   const addRange = () => {
-    const prefix = newRangePrefix.trim();
-    if (!prefix) return;
-    setRanges([...ranges, { prefix, mode: newRangeMode }]);
+    const pending = rangesWithDraft();
+    if (pending.problem) {
+      setError(problemText(pending.problem));
+      return;
+    }
+    setRanges(pending.ranges.map((r) => ({ prefix: r.prefix, mode: ospfv3RangeMode(r) })));
     setNewRangePrefix("");
     setNewRangeMode("advertise");
     setError(null);
@@ -113,21 +123,25 @@ export function Ospfv3AreaModal({
 
   const subTyped = areaType === "stub" || areaType === "nssa";
 
-  const buildArea = (): Ospfv3Area => ({
-    area_id: areaId.trim(),
-    area_type: areaType || null,
-    area_type_no_summary: subTyped && noSummary,
-    nssa_default_information_originate: areaType === "nssa" && nssaDefaultOriginate,
-    ranges: ranges.map(toRange),
-    export_list: exportList || null,
-    import_list: importList || null,
-  });
-
   const handleSubmit = async () => {
-    const area = buildArea();
+    // A prefix typed but not added is saved too, or blocks the save.
+    const pending = rangesWithDraft();
+    if (pending.problem) {
+      setError(problemText(pending.problem));
+      return;
+    }
+    const area: Ospfv3Area = {
+      area_id: areaId.trim(),
+      area_type: areaType || null,
+      area_type_no_summary: subTyped && noSummary,
+      nssa_default_information_originate: areaType === "nssa" && nssaDefaultOriginate,
+      ranges: pending.ranges,
+      export_list: exportList || null,
+      import_list: importList || null,
+    };
     const problem = ospfv3AreaProblem(area, capabilities, { existingIds: isEditMode ? [] : existingAreaIds });
     if (problem) {
-      setError(t(`validation.${problem.key}`, ospfv3ProblemArgs(problem)));
+      setError(problemText(problem));
       return;
     }
     setLoading(true);
@@ -157,7 +171,7 @@ export function Ospfv3AreaModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("areaModal.titleEdit") : t("areaModal.titleAdd")}
@@ -169,7 +183,7 @@ export function Ospfv3AreaModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-4 pb-2">
             <div className="space-y-2">
               <Label htmlFor="ospfv3-area-id">{t("fields.areaId")}</Label>
@@ -187,7 +201,7 @@ export function Ospfv3AreaModal({
               <Label htmlFor="ospfv3-area-type">{t("areaModal.areaType")}</Label>
               <Select value={areaType || NONE_SENTINEL} onValueChange={(v) => setAreaType(v === NONE_SENTINEL ? "" : v)}>
                 <SelectTrigger id="ospfv3-area-type">
-                  <SelectValue placeholder={t("areaModal.areaTypePlaceholder")} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE_SENTINEL}>{t("areaModal.normal")}</SelectItem>

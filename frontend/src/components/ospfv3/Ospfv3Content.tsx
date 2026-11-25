@@ -49,7 +49,6 @@ import {
   Ospfv3Redistribute,
 } from "@/lib/api/ospfv3";
 import {
-  isIpv4,
   ospfv3DefaultInformationProblem,
   ospfv3DistanceProblem,
   ospfv3GracefulRestartProblem,
@@ -57,6 +56,7 @@ import {
   ospfv3ParametersProblem,
   ospfv3ProblemArgs,
   ospfv3Range,
+  ospfv3RouterIdsWithDraft,
   type Ospfv3Problem,
 } from "@/lib/api/ospfv3-save-ops";
 import { routeMapService } from "@/lib/api/route-map";
@@ -377,6 +377,17 @@ export function Ospfv3Content() {
 
   const saveAdvanced = async () => {
     if (!config) return;
+    // A helper router ID typed but not added is saved too, or blocks the save.
+    let helperRouterIds = grHelperRouterIds;
+    if (grEnabled && grHelperEnable) {
+      const pending = ospfv3RouterIdsWithDraft(grHelperRouterIds, grHelperRouterIdDraft);
+      if (pending.problem) {
+        setGrHelperRouterIdError(problemText(pending.problem));
+        setAdvancedError(problemText(pending.problem));
+        return;
+      }
+      helperRouterIds = pending.ids;
+    }
     const distance = {
       global_value: ospfv3Int(distGlobal),
       ospfv3: {
@@ -390,7 +401,7 @@ export function Ospfv3Content() {
       grace_period: ospfv3Int(grPeriod),
       helper: {
         enable: grHelperEnable,
-        router_ids: grHelperEnable ? grHelperRouterIds : [],
+        router_ids: grHelperEnable ? helperRouterIds : [],
         lsa_check_disable: grHelperLsaCheck,
         planned_only: grHelperPlannedOnly,
         supported_grace_time: ospfv3Int(grHelperGraceTime),
@@ -703,7 +714,7 @@ export function Ospfv3Content() {
                         <Checkbox
                           id="ospfv3-di-always"
                           checked={diEditing ? diAlways : config?.default_information.always}
-                          disabled={!diEditing}
+                          disabled={!diEditing || !diEnabled}
                           onCheckedChange={(checked) => setDiAlways(!!checked)}
                         />
                         <Label htmlFor="ospfv3-di-always">{t("overview.always")}</Label>
@@ -714,7 +725,7 @@ export function Ospfv3Content() {
                           id="ospfv3-di-metric"
                           type="number"
                           value={diEditing ? diMetric : (config?.default_information.metric != null ? String(config.default_information.metric) : "")}
-                          disabled={!diEditing}
+                          disabled={!diEditing || !diEnabled}
                           onChange={(e) => setDiMetric(e.target.value)}
                           {...rangeProps("metric")}
                           placeholder={tc("default")}
@@ -725,7 +736,7 @@ export function Ospfv3Content() {
                         <Select
                           value={(diEditing ? diMetricType : (config?.default_information.metric_type != null ? String(config.default_information.metric_type) : "")) || NONE_SENTINEL}
                           onValueChange={(v) => setDiMetricType(v === NONE_SENTINEL ? "" : v)}
-                          disabled={!diEditing}
+                          disabled={!diEditing || !diEnabled}
                         >
                           <SelectTrigger id="ospfv3-di-metric-type">
                             <SelectValue placeholder={tc("default")} />
@@ -744,7 +755,7 @@ export function Ospfv3Content() {
                           id="ospfv3-di-route-map"
                           value={diEditing ? diRouteMap : (config?.default_information.route_map ?? "")}
                           names={routeMapNames}
-                          disabled={!diEditing}
+                          disabled={!diEditing || !diEnabled}
                           onValueChange={setDiRouteMap}
                         />
                       </div>
@@ -868,14 +879,17 @@ export function Ospfv3Content() {
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => setDeletingArea(area.area_id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {/* No area node to delete when only an interface names the area. */}
+                                  {area.configured !== false && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={() => setDeletingArea(area.area_id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </TableCell>
                             )}
@@ -1239,7 +1253,7 @@ export function Ospfv3Content() {
                           id="ospfv3-gr-period"
                           type="number"
                           value={advancedEditing ? grPeriod : (config?.graceful_restart.grace_period != null ? String(config.graceful_restart.grace_period) : "")}
-                          disabled={!advancedEditing}
+                          disabled={!advancedEditing || !grEnabled}
                           onChange={(e) => setGrPeriod(e.target.value)}
                           {...rangeProps("grace_period")}
                           placeholder={t("advanced.gracePeriodPlaceholder")}
@@ -1249,7 +1263,7 @@ export function Ospfv3Content() {
                         <Checkbox
                           id="ospfv3-gr-helper"
                           checked={advancedEditing ? grHelperEnable : config?.graceful_restart.helper.enable}
-                          disabled={!advancedEditing}
+                          disabled={!advancedEditing || !grEnabled}
                           onCheckedChange={(checked) => setGrHelperEnable(!!checked)}
                         />
                         <Label htmlFor="ospfv3-gr-helper">{t("advanced.enableHelper")}</Label>
@@ -1260,7 +1274,7 @@ export function Ospfv3Content() {
                           {(advancedEditing ? grHelperRouterIds : (config?.graceful_restart.helper.router_ids || [])).map((id) => (
                             <div key={id} className="flex items-center gap-2">
                               <span className="text-sm font-mono">{id}</span>
-                              {advancedEditing && grHelperEnable && (
+                              {advancedEditing && grEnabled && grHelperEnable && (
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -1272,7 +1286,7 @@ export function Ospfv3Content() {
                               )}
                             </div>
                           ))}
-                          {advancedEditing && grHelperEnable && (
+                          {advancedEditing && grEnabled && grHelperEnable && (
                             <div className="flex items-center gap-2">
                               <Input
                                 id="ospfv3-gr-helper-router-id"
@@ -1285,16 +1299,12 @@ export function Ospfv3Content() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  const id = grHelperRouterIdDraft.trim();
-                                  if (!isIpv4(id)) {
-                                    setGrHelperRouterIdError(t("validation.helperRouterIdInvalid"));
+                                  const { ids, problem } = ospfv3RouterIdsWithDraft(grHelperRouterIds, grHelperRouterIdDraft);
+                                  if (problem) {
+                                    setGrHelperRouterIdError(problemText(problem));
                                     return;
                                   }
-                                  if (grHelperRouterIds.includes(id)) {
-                                    setGrHelperRouterIdError(t("validation.helperRouterIdDuplicate"));
-                                    return;
-                                  }
-                                  setGrHelperRouterIds([...grHelperRouterIds, id]);
+                                  setGrHelperRouterIds(ids);
                                   setGrHelperRouterIdDraft("");
                                   setGrHelperRouterIdError(null);
                                 }}
@@ -1312,7 +1322,7 @@ export function Ospfv3Content() {
                         <Checkbox
                           id="ospfv3-gr-lsa-check"
                           checked={advancedEditing ? grHelperLsaCheck : config?.graceful_restart.helper.lsa_check_disable}
-                          disabled={!advancedEditing}
+                          disabled={!advancedEditing || !grEnabled}
                           onCheckedChange={(checked) => setGrHelperLsaCheck(!!checked)}
                         />
                         <Label htmlFor="ospfv3-gr-lsa-check">{t("advanced.disableLsaCheck")}</Label>
@@ -1321,7 +1331,7 @@ export function Ospfv3Content() {
                         <Checkbox
                           id="ospfv3-gr-planned"
                           checked={advancedEditing ? grHelperPlannedOnly : config?.graceful_restart.helper.planned_only}
-                          disabled={!advancedEditing}
+                          disabled={!advancedEditing || !grEnabled}
                           onCheckedChange={(checked) => setGrHelperPlannedOnly(!!checked)}
                         />
                         <Label htmlFor="ospfv3-gr-planned">{t("advanced.plannedOnly")}</Label>
@@ -1332,7 +1342,7 @@ export function Ospfv3Content() {
                           id="ospfv3-gr-grace-time"
                           type="number"
                           value={advancedEditing ? grHelperGraceTime : (config?.graceful_restart.helper.supported_grace_time != null ? String(config.graceful_restart.helper.supported_grace_time) : "")}
-                          disabled={!advancedEditing}
+                          disabled={!advancedEditing || !grEnabled}
                           onChange={(e) => setGrHelperGraceTime(e.target.value)}
                           {...rangeProps("supported_grace_time")}
                           placeholder={tc("default")}

@@ -3,6 +3,7 @@
 Parse does not branch on version. Both 1.4 and 1.5 are asserted.
 """
 
+import pytest
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.ospfv3 import Ospfv3Mapper
 
@@ -24,7 +25,10 @@ def _tree():
                                 "default-information-originate": {},
                             }
                         },
-                        "range": {"2001:db8::/32": {"advertise": {}, "not-advertise": {}}},
+                        "range": {
+                            "2001:db8::/32": {"advertise": {}},
+                            "2001:db8:1::/48": {"not-advertise": {}},
+                        },
                         "export-list": "OUT",
                     }
                 },
@@ -59,15 +63,68 @@ def _tree():
 
 def test_empty_tree_leaves_absent_flags_unset():
     assert get_ospfv3_mapper("1.5").parse_config({}) == {}
-    assert get_ospfv3_mapper("1.4").parse_config({"protocols": {"ospfv3": {}}}) == {}
+    assert get_ospfv3_mapper("1.4").parse_config({"protocols": {}}) == {}
+
+
+@pytest.mark.parametrize("node", [{}, None])
+def test_bare_ospfv3_node_is_configured(node):
+    parsed = get_ospfv3_mapper("1.4").parse_config({"protocols": {"ospfv3": node}})
+    assert parsed["configured"] is True
+    assert parsed["areas"] == []
+    assert parsed["default_information"] == {}
+    assert parsed["graceful_restart"] == {}
+    assert parsed["log_adjacency_changes"] is False
+
+
+@pytest.mark.parametrize("originate", [{}, None])
+def test_bare_default_information_originate_is_enabled(originate):
+    parsed = get_ospfv3_mapper("1.5").parse_config(
+        {"protocols": {"ospfv3": {"default-information": {"originate": originate}}}}
+    )
+    assert parsed["default_information"]["enabled"] is True
+
+
+@pytest.mark.parametrize("gr", [{}, None])
+def test_bare_graceful_restart_is_enabled(gr):
+    parsed = get_ospfv3_mapper("1.5").parse_config({"protocols": {"ospfv3": {"graceful-restart": gr}}})
+    assert parsed["graceful_restart"]["enabled"] is True
+    assert parsed["graceful_restart"]["grace_period"] is None
+    assert parsed["graceful_restart"]["helper"]["enable"] is False
+
+
+def test_bare_helper_parses_with_every_flag_off():
+    parsed = get_ospfv3_mapper("1.4").parse_config(
+        {"protocols": {"ospfv3": {"graceful-restart": {"helper": {}}}}}
+    )
+    gr = parsed["graceful_restart"]
+    assert gr["enabled"] is True
+    assert gr["helper"] == {
+        "enable": False, "router_ids": [], "lsa_check_disable": False,
+        "planned_only": False, "supported_grace_time": None,
+    }
+
+
+def test_interface_only_area_is_not_configured():
+    parsed = get_ospfv3_mapper("1.5").parse_config({"protocols": {"ospfv3": {
+        "area": {"0": {}},
+        "interface": {"eth0": {"area": "0"}, "eth1": {"area": "0.0.0.2"}},
+    }}})
+    areas = {a["area_id"]: a for a in parsed["areas"]}
+    assert areas["0"]["configured"] is True
+    assert areas["0.0.0.2"] == {"area_id": "0.0.0.2", "configured": False}
+
+    from routers.ospfv3.ospfv3 import Ospfv3Config
+
+    model = Ospfv3Config(**parsed)
+    assert [a.configured for a in model.areas] == [True, False]
 
 
 def test_present_node_without_log_flag_is_false():
     parsed = get_ospfv3_mapper("1.4").parse_config(
-        {"protocols": {"ospfv3": {"parameters": {"router-id": "2001:db8::1"}}}}
+        {"protocols": {"ospfv3": {"parameters": {"router-id": "192.0.2.1"}}}}
     )
     assert parsed["log_adjacency_changes"] is False
-    assert parsed["parameters"]["router_id"] == "2001:db8::1"
+    assert parsed["parameters"]["router_id"] == "192.0.2.1"
 
 
 def test_parse_nested_ospfv3_config_both_versions():
@@ -81,11 +138,14 @@ def test_parse_nested_ospfv3_config_both_versions():
     assert area0["area_type_no_summary"] is True
     assert "area_type_default_cost" not in area0
     assert area0["nssa_default_information_originate"] is True
-    assert area0["ranges"][0]["advertise"] is True
-    assert area0["ranges"][0]["not_advertise"] is True
+    assert area0["ranges"] == [
+        {"prefix": "2001:db8::/32", "advertise": True, "not_advertise": False},
+        {"prefix": "2001:db8:1::/48", "advertise": False, "not_advertise": True},
+    ]
+    assert area0["configured"] is True
     assert area0["export_list"] == "OUT"
     synthesized = next(area for area in parsed["areas"] if area["area_id"] == "1")
-    assert set(synthesized) == {"area_id"}
+    assert synthesized == {"area_id": "1", "configured": False}
     iface = parsed["interfaces"][0]
     assert iface["name"] == "eth0"
     assert iface["cost"] == 20

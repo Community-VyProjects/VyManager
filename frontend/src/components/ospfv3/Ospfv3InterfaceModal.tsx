@@ -85,7 +85,10 @@ export function Ospfv3InterfaceModal({
     if (!open) return;
     showService.getAllInterfaces()
       .then((response) => setAvailableInterfaces(response.interfaces))
-      .catch(() => setAvailableInterfaces([]));
+      .catch(() => {
+        setAvailableInterfaces([]);
+        setError(t("interfaceModal.loadInterfacesFailed"));
+      });
     const src = existingInterface;
     setName(src?.name ?? "");
     setArea(src?.area ?? "");
@@ -106,6 +109,11 @@ export function Ospfv3InterfaceModal({
   }, [open, existingInterface]);
 
   const handleClose = () => onOpenChange(false);
+
+  // Closing mid-save would drop the commit result; wait for it.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
+  };
 
   const buildConfig = (): Ospfv3Interface => ({
     name: name.trim(),
@@ -170,8 +178,8 @@ export function Ospfv3InterfaceModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("interfaceModal.titleEdit") : t("interfaceModal.titleAdd")}
@@ -183,7 +191,7 @@ export function Ospfv3InterfaceModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-6 pb-2">
             <div className="space-y-4">
               <div className="space-y-2">

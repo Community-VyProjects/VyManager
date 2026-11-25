@@ -52,8 +52,15 @@ export function DeleteOspfv3Modal({
     }
   };
 
+  // Closing mid-delete would drop the commit result; wait for it.
+  const handleOpenChange = (next: boolean) => {
+    if (next || loading) return;
+    setError(null);
+    onOpenChange(false);
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
