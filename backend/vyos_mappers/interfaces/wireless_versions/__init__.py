@@ -10,7 +10,13 @@ from .v1_5 import WirelessMapper_v1_5
 
 
 def get_wireless_mapper(version: str) -> WirelessInterfaceMapper:
-    """Get version-specific wireless interface mapper."""
-    if "1.5" in version or "latest" in version:
-        return WirelessMapper_v1_5(version)
-    return WirelessMapper_v1_4(version)
+    """Return the wireless interface mapper for this device.
+
+    A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+    """
+    if "1.4" in version:
+        return WirelessMapper_v1_4(version)
+    return WirelessMapper_v1_5(version)
+
+
+__all__ = ["WirelessMapper_v1_4", "WirelessMapper_v1_5", "get_wireless_mapper"]

@@ -12,9 +12,6 @@ from ..wireless import WirelessInterfaceMapper
 class WirelessMapper_v1_4(WirelessInterfaceMapper):
     """VyOS 1.4 wireless interface mapper."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     def get_country_code(self, interface: str, code: str) -> List[str]:
         return self._base(interface) + ["country-code", code]
 

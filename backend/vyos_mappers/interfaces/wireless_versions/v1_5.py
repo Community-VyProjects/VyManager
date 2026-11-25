@@ -15,9 +15,6 @@ from ..wireless import WirelessInterfaceMapper
 class WirelessMapper_v1_5(WirelessInterfaceMapper):
     """VyOS 1.5 wireless interface mapper."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     def get_bssid(self, interface: str, bssid: str) -> List[str]:
         return self._base(interface) + ["bssid", bssid]
 

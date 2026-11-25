@@ -12,9 +12,6 @@ from ..openvpn import OpenvpnInterfaceMapper
 class OpenvpnMapper_v1_4(OpenvpnInterfaceMapper):
     """VyOS 1.4 OpenVPN interface mapper."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     # --- Data cipher negotiation (1.4 syntax: ncp-ciphers) ---
     def get_encryption_data_cipher(self, interface: str, cipher: str) -> List[str]:
         return self._base(interface) + ["encryption", "ncp-ciphers", cipher]
