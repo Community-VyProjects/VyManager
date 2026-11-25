@@ -297,7 +297,7 @@ function RoutePageInner() {
                 onClick={() => openModal("createPolicy")}
                 className="w-full"
                 size="sm"
-                disabled={writeDisabled}
+                disabled={writeDisabled || hasReorder}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 {t("createPolicy")}
@@ -363,7 +363,7 @@ function RoutePageInner() {
                           size="sm"
                           className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                           aria-label={tc("delete")}
-                          disabled={writeDisabled}
+                          disabled={writeDisabled || hasReorder}
                           onClick={(e) => {
                             e.stopPropagation();
                             openModal("deletePolicy", policy);

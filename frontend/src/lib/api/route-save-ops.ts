@@ -552,8 +552,7 @@ export type PolicyProblemKey =
   | "nameRequired"
   | "nameInvalid"
   | "nameTaken"
-  | "descriptionTooLong"
-  | "interfacePatternInvalid";
+  | "descriptionTooLong";
 
 export interface PolicyProblem {
   key: PolicyProblemKey;
@@ -754,7 +753,6 @@ export function routeRuleProblem(
   return null;
 }
 
-/** A policy create or edit the lab would reject, or null. `existingNames` is null on edit. */
 /** A typed interface pattern: non-empty, no whitespace. */
 export function interfacePatternValid(pattern: string): boolean {
   const trimmed = pattern.trim();
@@ -772,6 +770,7 @@ export function interfacesWithPending(interfaces: string[], pending: string): st
   return interfaces.includes(trimmed) ? interfaces : [...interfaces, trimmed];
 }
 
+/** A policy create or edit the lab would reject, or null. `existingNames` is null on edit. */
 export function policyProblem(
   form: PolicyForm,
   existingNames: string[] | null,
