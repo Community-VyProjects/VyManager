@@ -5,18 +5,41 @@ Handles command path generation for OSPFv3 (IPv6 OSPF) configuration.
 Covers: parameters, areas, interfaces, redistribute, default-information,
 distance, auto-cost, log-adjacency-changes, graceful-restart.
 
-No version-specific differences between VyOS 1.4 and 1.5.
+The protocols ospfv3 templates are the same on VyOS 1.4 and 1.5, so one
+class holds every command and the registry returns it for both.
 """
 
-from typing import List
+from typing import Any, Dict, List
 from ..base import BaseFeatureMapper
+from .config_parse import parse_config as parse_ospfv3_config
 
 
 class Ospfv3Mapper(BaseFeatureMapper):
-    """Base mapper with all OSPFv3 operations (identical across VyOS versions)."""
+    """All OSPFv3 commands (identical on VyOS 1.4 and 1.5)."""
 
     def __init__(self, version: str):
         super().__init__(version)
+
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        return parse_ospfv3_config(self, full_config)
+
+    # ========================================================================
+    # Allowed values (lab node.def lines, identical on 1.4 and 1.5)
+    # ========================================================================
+
+    def redistribute_protocol_list(self) -> List[str]:
+        return ["babel", "bgp", "connected", "isis", "kernel", "ripng", "static"]
+
+    def network_types(self) -> List[str]:
+        return ["broadcast", "point-to-point"]
+
+    def metric_types(self) -> List[str]:
+        """External metric-type (1-2) for redistribute and originate."""
+        return ["1", "2"]
+
+    def area_types(self) -> List[str]:
+        """area-type children. A normal area has no area-type node."""
+        return ["stub", "nssa"]
 
     # ========================================================================
     # Helper base paths
@@ -60,23 +83,23 @@ class Ospfv3Mapper(BaseFeatureMapper):
     def get_area_type_stub_no_summary(self, area_id: str) -> List[str]:
         return self._area(area_id) + ["area-type", "stub", "no-summary"]
 
-    def get_area_type_stub_default_cost(self, area_id: str, value: str) -> List[str]:
-        return self._area(area_id) + ["area-type", "stub", "default-cost", value]
-
     def get_area_type_nssa(self, area_id: str) -> List[str]:
         return self._area(area_id) + ["area-type", "nssa"]
 
     def get_area_type_nssa_no_summary(self, area_id: str) -> List[str]:
         return self._area(area_id) + ["area-type", "nssa", "no-summary"]
 
-    def get_area_type_nssa_default_cost(self, area_id: str, value: str) -> List[str]:
-        return self._area(area_id) + ["area-type", "nssa", "default-cost", value]
-
     def get_area_type_nssa_default_information_originate(self, area_id: str) -> List[str]:
         return self._area(area_id) + ["area-type", "nssa", "default-information-originate"]
 
-    def get_area_type_normal(self, area_id: str) -> List[str]:
-        return self._area(area_id) + ["area-type", "normal"]
+    def get_area_type_stub_no_summary_delete(self, area_id: str) -> List[str]:
+        return self._area(area_id) + ["area-type", "stub", "no-summary"]
+
+    def get_area_type_nssa_no_summary_delete(self, area_id: str) -> List[str]:
+        return self._area(area_id) + ["area-type", "nssa", "no-summary"]
+
+    def get_area_type_nssa_default_information_originate_delete(self, area_id: str) -> List[str]:
+        return self._area(area_id) + ["area-type", "nssa", "default-information-originate"]
 
     def get_area_type_delete(self, area_id: str) -> List[str]:
         return self._area(area_id) + ["area-type"]
@@ -88,6 +111,12 @@ class Ospfv3Mapper(BaseFeatureMapper):
         return self._area(area_id) + ["range", prefix, "advertise"]
 
     def get_area_range_not_advertise(self, area_id: str, prefix: str) -> List[str]:
+        return self._area(area_id) + ["range", prefix, "not-advertise"]
+
+    def get_area_range_advertise_delete(self, area_id: str, prefix: str) -> List[str]:
+        return self._area(area_id) + ["range", prefix, "advertise"]
+
+    def get_area_range_not_advertise_delete(self, area_id: str, prefix: str) -> List[str]:
         return self._area(area_id) + ["range", prefix, "not-advertise"]
 
     def get_area_range_delete(self, area_id: str, prefix: str) -> List[str]:
@@ -215,6 +244,15 @@ class Ospfv3Mapper(BaseFeatureMapper):
     def get_redistribute_route_map(self, protocol: str, value: str) -> List[str]:
         return self._redistribute(protocol) + ["route-map", value]
 
+    def get_redistribute_metric_delete(self, protocol: str) -> List[str]:
+        return self._redistribute(protocol) + ["metric"]
+
+    def get_redistribute_metric_type_delete(self, protocol: str) -> List[str]:
+        return self._redistribute(protocol) + ["metric-type"]
+
+    def get_redistribute_route_map_delete(self, protocol: str) -> List[str]:
+        return self._redistribute(protocol) + ["route-map"]
+
     def get_redistribute_delete(self, protocol: str) -> List[str]:
         return self._redistribute(protocol)
 
@@ -236,6 +274,18 @@ class Ospfv3Mapper(BaseFeatureMapper):
 
     def get_default_information_originate_route_map(self, value: str) -> List[str]:
         return self._ospfv3() + ["default-information", "originate", "route-map", value]
+
+    def get_default_information_originate_always_delete(self) -> List[str]:
+        return self._ospfv3() + ["default-information", "originate", "always"]
+
+    def get_default_information_originate_metric_delete(self) -> List[str]:
+        return self._ospfv3() + ["default-information", "originate", "metric"]
+
+    def get_default_information_originate_metric_type_delete(self) -> List[str]:
+        return self._ospfv3() + ["default-information", "originate", "metric-type"]
+
+    def get_default_information_originate_route_map_delete(self) -> List[str]:
+        return self._ospfv3() + ["default-information", "originate", "route-map"]
 
     def get_default_information_originate_delete(self) -> List[str]:
         return self._ospfv3() + ["default-information", "originate"]
@@ -259,6 +309,15 @@ class Ospfv3Mapper(BaseFeatureMapper):
     def get_distance_ospfv3_intra_area(self, value: str) -> List[str]:
         return self._ospfv3() + ["distance", "ospfv3", "intra-area", value]
 
+    def get_distance_ospfv3_external_delete(self) -> List[str]:
+        return self._ospfv3() + ["distance", "ospfv3", "external"]
+
+    def get_distance_ospfv3_inter_area_delete(self) -> List[str]:
+        return self._ospfv3() + ["distance", "ospfv3", "inter-area"]
+
+    def get_distance_ospfv3_intra_area_delete(self) -> List[str]:
+        return self._ospfv3() + ["distance", "ospfv3", "intra-area"]
+
     def get_distance_ospfv3_delete(self) -> List[str]:
         return self._ospfv3() + ["distance", "ospfv3"]
 
@@ -280,6 +339,9 @@ class Ospfv3Mapper(BaseFeatureMapper):
         return self._ospfv3() + ["log-adjacency-changes"]
 
     def get_log_adjacency_changes_detail(self) -> List[str]:
+        return self._ospfv3() + ["log-adjacency-changes", "detail"]
+
+    def get_log_adjacency_changes_detail_delete(self) -> List[str]:
         return self._ospfv3() + ["log-adjacency-changes", "detail"]
 
     def get_log_adjacency_changes_delete(self) -> List[str]:
@@ -312,6 +374,24 @@ class Ospfv3Mapper(BaseFeatureMapper):
 
     def get_graceful_restart_helper_supported_grace_time(self, value: str) -> List[str]:
         return self._ospfv3() + ["graceful-restart", "helper", "supported-grace-time", value]
+
+    def get_graceful_restart_grace_period_delete(self) -> List[str]:
+        return self._ospfv3() + ["graceful-restart", "grace-period"]
+
+    def get_graceful_restart_helper_enable_delete(self) -> List[str]:
+        return self._ospfv3() + ["graceful-restart", "helper", "enable"]
+
+    def get_graceful_restart_helper_lsa_check_disable_delete(self) -> List[str]:
+        return self._ospfv3() + ["graceful-restart", "helper", "lsa-check-disable"]
+
+    def get_graceful_restart_helper_planned_only_delete(self) -> List[str]:
+        return self._ospfv3() + ["graceful-restart", "helper", "planned-only"]
+
+    def get_graceful_restart_helper_supported_grace_time_delete(self) -> List[str]:
+        return self._ospfv3() + ["graceful-restart", "helper", "supported-grace-time"]
+
+    def get_graceful_restart_helper_delete(self) -> List[str]:
+        return self._ospfv3() + ["graceful-restart", "helper"]
 
     def get_graceful_restart_delete(self) -> List[str]:
         return self._ospfv3() + ["graceful-restart"]

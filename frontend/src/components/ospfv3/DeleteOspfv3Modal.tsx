@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ApiError } from "@/lib/types/api";
 
 interface DeleteOspfv3ModalProps {
   open: boolean;
@@ -20,6 +21,8 @@ interface DeleteOspfv3ModalProps {
   itemType: string;
   itemName: string;
   onConfirm: () => Promise<void>;
+  /** Removes every OSPFv3 leaf instead of one named item. */
+  wholeProtocol?: boolean;
 }
 
 export function DeleteOspfv3Modal({
@@ -28,37 +31,49 @@ export function DeleteOspfv3Modal({
   itemType,
   itemName,
   onConfirm,
+  wholeProtocol = false,
 }: DeleteOspfv3ModalProps) {
   const t = useTranslations("ospfv3");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  // The caller closes the dialog after a successful commit; a rejected one stays open with its error.
+  const handleConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
     try {
       await onConfirm();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("delete.failed");
-      setError(message);
+      setError((err as ApiError).message || t("delete.failed"));
+    } finally {
       setLoading(false);
-      return;
     }
-    setLoading(false);
+  };
+
+  // Closing mid-delete would drop the commit result; wait for it.
+  const handleOpenChange = (next: boolean) => {
+    if (next || loading) return;
+    setError(null);
+    onOpenChange(false);
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("delete.title", { itemType })}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {wholeProtocol ? t("overview.deleteOspfv3") : t("delete.title", { itemType })}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            {t.rich("delete.description", {
-              itemType: itemType.toLowerCase(),
-              name: itemName,
-              mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
-            })}
+            {wholeProtocol
+              ? t("delete.allDescription")
+              : t.rich("delete.description", {
+                  itemType: itemType.toLowerCase(),
+                  name: itemName,
+                  mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+                })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -81,6 +96,8 @@ export function DeleteOspfv3Modal({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {tc("deleting")}
               </>
+            ) : wholeProtocol ? (
+              t("overview.deleteOspfv3")
             ) : (
               t("delete.confirm", { itemType })
             )}

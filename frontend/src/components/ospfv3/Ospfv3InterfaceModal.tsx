@@ -1,5 +1,6 @@
 "use client";
 
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -21,8 +22,11 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { Ospfv3Interface, Ospfv3Capabilities } from "@/lib/api/ospfv3";
+import type { Ospfv3Interface, Ospfv3Capabilities, Ospfv3RangeKey } from "@/lib/api/ospfv3";
+import { ospfv3Int, ospfv3InterfaceProblem, ospfv3ProblemArgs, ospfv3Range } from "@/lib/api/ospfv3-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { useTranslations } from "next-intl";
@@ -33,7 +37,14 @@ interface Ospfv3InterfaceModalProps {
   onSubmit: (config: Ospfv3Interface) => Promise<void>;
   existingInterface?: Ospfv3Interface | null;
   capabilities?: Ospfv3Capabilities | null;
+  bfdProfileNames: string[];
+  /** Area IDs the area leaf can name (protocols ospfv3 area). */
+  areaIds: string[];
+  /** Interfaces already under protocols ospfv3; Add does not offer them. */
+  configuredInterfaces: string[];
 }
+
+const toText = (value: number | string | null | undefined) => (value == null ? "" : String(value));
 
 export function Ospfv3InterfaceModal({
   open,
@@ -41,10 +52,14 @@ export function Ospfv3InterfaceModal({
   onSubmit,
   existingInterface,
   capabilities,
+  bfdProfileNames,
+  areaIds,
+  configuredInterfaces,
 }: Ospfv3InterfaceModalProps) {
   const t = useTranslations("ospfv3");
   const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
+  const networkTypes = capabilities?.features?.interfaces?.network_types || [];
 
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
@@ -66,125 +81,105 @@ export function Ospfv3InterfaceModal({
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
-  const loadInterfaces = async () => {
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
-    }
-  };
-
   useEffect(() => {
-    if (open) {
-      loadInterfaces();
-      if (existingInterface) {
-        setName(existingInterface.name);
-        setArea(existingInterface.area || "");
-        setCost(existingInterface.cost != null ? String(existingInterface.cost) : "");
-        setPriority(existingInterface.priority != null ? String(existingInterface.priority) : "");
-        setHelloInterval(existingInterface.hello_interval != null ? String(existingInterface.hello_interval) : "");
-        setDeadInterval(existingInterface.dead_interval != null ? String(existingInterface.dead_interval) : "");
-        setRetransmitInterval(existingInterface.retransmit_interval != null ? String(existingInterface.retransmit_interval) : "");
-        setTransmitDelay(existingInterface.transmit_delay != null ? String(existingInterface.transmit_delay) : "");
-        setNetwork(existingInterface.network || "");
-        setPassive(existingInterface.passive);
-        setBfd(existingInterface.bfd);
-        setBfdProfile(existingInterface.bfd_profile || "");
-        setMtuIgnore(existingInterface.mtu_ignore);
-        setIfmtu(existingInterface.ifmtu != null ? String(existingInterface.ifmtu) : "");
-        setInstanceId(existingInterface.instance_id != null ? String(existingInterface.instance_id) : "");
-      } else {
-        resetForm();
-      }
-    }
-  }, [open, existingInterface]);
-
-  const resetForm = () => {
-    setName("");
-    setArea("");
-    setCost("");
-    setPriority("");
-    setHelloInterval("");
-    setDeadInterval("");
-    setRetransmitInterval("");
-    setTransmitDelay("");
-    setNetwork("");
-    setPassive(false);
-    setBfd(false);
-    setBfdProfile("");
-    setMtuIgnore(false);
-    setIfmtu("");
-    setInstanceId("");
+    if (!open) return;
+    showService.getAllInterfaces()
+      .then((response) => setAvailableInterfaces(response.interfaces))
+      .catch(() => {
+        setAvailableInterfaces([]);
+        setError(t("interfaceModal.loadInterfacesFailed"));
+      });
+    const src = existingInterface;
+    setName(src?.name ?? "");
+    setArea(src?.area ?? "");
+    setCost(toText(src?.cost));
+    setPriority(toText(src?.priority));
+    setHelloInterval(toText(src?.hello_interval));
+    setDeadInterval(toText(src?.dead_interval));
+    setRetransmitInterval(toText(src?.retransmit_interval));
+    setTransmitDelay(toText(src?.transmit_delay));
+    setNetwork(src?.network ?? "");
+    setPassive(src?.passive ?? false);
+    setBfd(src?.bfd ?? false);
+    setBfdProfile(src?.bfd_profile ?? "");
+    setMtuIgnore(src?.mtu_ignore ?? false);
+    setIfmtu(toText(src?.ifmtu));
+    setInstanceId(toText(src?.instance_id));
     setError(null);
+  }, [open, existingInterface, t]);
+
+  const handleClose = () => onOpenChange(false);
+
+  // Closing mid-save would drop the commit result; wait for it.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !loading) handleClose();
   };
 
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
-  const validateForm = (): string | null => {
-    if (!name) return t("interfaceModal.selectInterface");
-    if (cost.trim()) {
-      const val = parseInt(cost.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65535) return t("interfaceModal.costRange");
-    }
-    if (priority.trim()) {
-      const val = parseInt(priority.trim(), 10);
-      if (isNaN(val) || val < 0 || val > 255) return t("interfaceModal.priorityRange");
-    }
-    if (instanceId.trim()) {
-      const val = parseInt(instanceId.trim(), 10);
-      if (isNaN(val) || val < 0 || val > 255) return t("interfaceModal.instanceIdRange");
-    }
-    return null;
-  };
+  const buildConfig = (): Ospfv3Interface => ({
+    name: name.trim(),
+    area: area.trim() || null,
+    cost: ospfv3Int(cost),
+    priority: ospfv3Int(priority),
+    hello_interval: ospfv3Int(helloInterval),
+    dead_interval: ospfv3Int(deadInterval),
+    retransmit_interval: ospfv3Int(retransmitInterval),
+    transmit_delay: ospfv3Int(transmitDelay),
+    network: network || null,
+    passive,
+    bfd,
+    bfd_profile: bfd ? bfdProfile || null : null,
+    mtu_ignore: mtuIgnore,
+    ifmtu: ospfv3Int(ifmtu),
+    instance_id: ospfv3Int(instanceId),
+  });
 
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const config = buildConfig();
+    const problem = ospfv3InterfaceProblem(config, capabilities);
+    if (problem) {
+      setError(t(`validation.${problem.key}`, ospfv3ProblemArgs(problem)));
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      const config: Ospfv3Interface = {
-        name: name.trim(),
-        area: area.trim() || null,
-        cost: cost.trim() ? parseInt(cost.trim(), 10) : null,
-        priority: priority.trim() ? parseInt(priority.trim(), 10) : null,
-        hello_interval: helloInterval.trim() ? parseInt(helloInterval.trim(), 10) : null,
-        dead_interval: deadInterval.trim() ? parseInt(deadInterval.trim(), 10) : null,
-        retransmit_interval: retransmitInterval.trim() ? parseInt(retransmitInterval.trim(), 10) : null,
-        transmit_delay: transmitDelay.trim() ? parseInt(transmitDelay.trim(), 10) : null,
-        network: network || null,
-        passive,
-        bfd,
-        bfd_profile: bfdProfile.trim() || null,
-        mtu_ignore: mtuIgnore,
-        ifmtu: ifmtu.trim() ? parseInt(ifmtu.trim(), 10) : null,
-        instance_id: instanceId.trim() ? parseInt(instanceId.trim(), 10) : null,
-      };
-
       await onSubmit(config);
       handleClose();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const networkTypes = capabilities?.network_types || ["broadcast", "point-to-point"];
+  const numberField = (
+    id: string,
+    label: string,
+    value: string,
+    setValue: (v: string) => void,
+    rangeKey: Ospfv3RangeKey,
+    placeholder?: string,
+  ) => {
+    const range = ospfv3Range(capabilities, rangeKey);
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={id}>{label}</Label>
+        <Input
+          id={id}
+          type="number"
+          min={range?.min}
+          max={range?.max}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder ?? (range ? `${range.min}-${range.max}` : undefined)}
+        />
+      </div>
+    );
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("interfaceModal.titleEdit") : t("interfaceModal.titleAdd")}
@@ -196,9 +191,8 @@ export function Ospfv3InterfaceModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-6 pb-2">
-            {/* Basic Settings */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="ospfv3-iface-name">{t("fields.interface")}</Label>
@@ -208,30 +202,27 @@ export function Ospfv3InterfaceModal({
                   disabled={isEditMode}
                   id="ospfv3-iface-name"
                   className={isEditMode ? "bg-muted" : ""}
-                  interfaces={availableInterfaces}
+                  interfaces={
+                    isEditMode
+                      ? availableInterfaces
+                      : availableInterfaces.filter((i) => !configuredInterfaces.includes(i.name))
+                  }
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="ospfv3-iface-area">{t("fields.area")}</Label>
-                <Input
-                  id="ospfv3-iface-area"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  placeholder={t("interfaceModal.areaPlaceholder")}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("interfaceModal.areaHelp")}
-                </p>
+                <NamedListSelect id="ospfv3-iface-area" value={area} names={areaIds} onValueChange={setArea} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="ospfv3-iface-network">{t("fields.networkType")}</Label>
-                <Select value={network} onValueChange={setNetwork}>
+                <Select value={network || NONE_SENTINEL} onValueChange={(v) => setNetwork(v === NONE_SENTINEL ? "" : v)}>
                   <SelectTrigger id="ospfv3-iface-network">
                     <SelectValue placeholder={tc("default")} />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                     {networkTypes.map((nt) => (
                       <SelectItem key={nt} value={nt}>{nt}</SelectItem>
                     ))}
@@ -240,107 +231,31 @@ export function Ospfv3InterfaceModal({
               </div>
             </div>
 
-            {/* Cost & Priority */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t("interfaceModal.costAndPriority")}</h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-cost">{t("fields.cost")}</Label>
-                  <Input
-                    id="ospfv3-iface-cost"
-                    type="number"
-                    value={cost}
-                    onChange={(e) => setCost(e.target.value)}
-                    placeholder="1-65535"
-                    min={1}
-                    max={65535}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-priority">{t("fields.priority")}</Label>
-                  <Input
-                    id="ospfv3-iface-priority"
-                    type="number"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    placeholder="0-255"
-                    min={0}
-                    max={255}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-ifmtu">{t("interfaceModal.interfaceMtu")}</Label>
-                  <Input
-                    id="ospfv3-iface-ifmtu"
-                    type="number"
-                    value={ifmtu}
-                    onChange={(e) => setIfmtu(e.target.value)}
-                    placeholder={t("interfaceModal.interfaceMtuPlaceholder")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-instance-id">{t("fields.instanceId")}</Label>
-                  <Input
-                    id="ospfv3-iface-instance-id"
-                    type="number"
-                    value={instanceId}
-                    onChange={(e) => setInstanceId(e.target.value)}
-                    placeholder="0-255"
-                    min={0}
-                    max={255}
-                  />
-                </div>
+                {numberField("ospfv3-iface-cost", t("fields.cost"), cost, setCost, "cost")}
+                {numberField("ospfv3-iface-priority", t("fields.priority"), priority, setPriority, "priority")}
+                {numberField("ospfv3-iface-ifmtu", t("interfaceModal.interfaceMtu"), ifmtu, setIfmtu, "ifmtu",
+                  t("interfaceModal.interfaceMtuPlaceholder"))}
+                {numberField("ospfv3-iface-instance-id", t("fields.instanceId"), instanceId, setInstanceId, "instance_id")}
               </div>
             </div>
 
-            {/* Timers */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t("interfaceModal.timers")}</h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-hello">{t("interfaceModal.helloInterval")}</Label>
-                  <Input
-                    id="ospfv3-iface-hello"
-                    type="number"
-                    value={helloInterval}
-                    onChange={(e) => setHelloInterval(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-dead">{t("interfaceModal.deadInterval")}</Label>
-                  <Input
-                    id="ospfv3-iface-dead"
-                    type="number"
-                    value={deadInterval}
-                    onChange={(e) => setDeadInterval(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-retransmit">{t("interfaceModal.retransmitInterval")}</Label>
-                  <Input
-                    id="ospfv3-iface-retransmit"
-                    type="number"
-                    value={retransmitInterval}
-                    onChange={(e) => setRetransmitInterval(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ospfv3-iface-transmit-delay">{t("interfaceModal.transmitDelay")}</Label>
-                  <Input
-                    id="ospfv3-iface-transmit-delay"
-                    type="number"
-                    value={transmitDelay}
-                    onChange={(e) => setTransmitDelay(e.target.value)}
-                    placeholder={t("interfaceModal.seconds")}
-                  />
-                </div>
+                {numberField("ospfv3-iface-hello", t("interfaceModal.helloInterval"), helloInterval, setHelloInterval,
+                  "hello_interval", t("interfaceModal.seconds"))}
+                {numberField("ospfv3-iface-dead", t("interfaceModal.deadInterval"), deadInterval, setDeadInterval,
+                  "dead_interval", t("interfaceModal.seconds"))}
+                {numberField("ospfv3-iface-retransmit", t("interfaceModal.retransmitInterval"), retransmitInterval,
+                  setRetransmitInterval, "retransmit_interval", t("interfaceModal.seconds"))}
+                {numberField("ospfv3-iface-transmit-delay", t("interfaceModal.transmitDelay"), transmitDelay,
+                  setTransmitDelay, "transmit_delay", t("interfaceModal.seconds"))}
               </div>
             </div>
 
-            {/* Options */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t("fields.options")}</h4>
               <div className="grid grid-cols-2 gap-3">
@@ -367,7 +282,6 @@ export function Ospfv3InterfaceModal({
               </div>
             </div>
 
-            {/* BFD */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t("interfaceModal.bfdTitle")}</h4>
               <div className="flex items-center space-x-3 rounded-lg border p-3">
@@ -383,11 +297,11 @@ export function Ospfv3InterfaceModal({
               {bfd && (
                 <div className="space-y-2 pl-4 border-l-2 border-muted">
                   <Label htmlFor="ospfv3-iface-bfd-profile">{t("interfaceModal.bfdProfile")}</Label>
-                  <Input
+                  <NamedListSelect
                     id="ospfv3-iface-bfd-profile"
                     value={bfdProfile}
-                    onChange={(e) => setBfdProfile(e.target.value)}
-                    placeholder={t("interfaceModal.bfdProfilePlaceholder")}
+                    names={bfdProfileNames}
+                    onValueChange={setBfdProfile}
                   />
                 </div>
               )}

@@ -18,8 +18,6 @@
     "options": "Options",
     "passive": "Passive",
     "defaultInformation": "Default Information Originate",
-    "type1": "Type 1",
-    "type2": "Type 2",
     "addArea": "Add Area",
     "addRedistribute": "Add Redistribute",
     "adding": "Adding..."
@@ -37,7 +35,10 @@
     "loadFailed": "Failed to load OSPFv3 configuration",
     "saveParametersFailed": "Failed to save parameters",
     "saveDefaultInfoFailed": "Failed to save default information",
-    "saveAdvancedFailed": "Failed to save advanced settings"
+    "saveAdvancedFailed": "Failed to save advanced settings",
+    "loadRouteMapsFailed": "Failed to load route maps",
+    "loadAccessListsFailed": "Failed to load IPv6 access lists",
+    "loadBfdProfilesFailed": "Failed to load BFD profiles"
   },
   "stats": {
     "areas": "Areas",
@@ -61,7 +62,8 @@
     "referenceBandwidthPlaceholder": "Default (100 Mbps)",
     "logAdjacencyChanges": "Log Adjacency Changes",
     "logAdjacencyChangesDetail": "Log Adjacency Changes (Detail)",
-    "always": "Always"
+    "always": "Always",
+    "deleteOspfv3": "Delete OSPFv3"
   },
   "areas": {
     "description": "OSPFv3 area configuration",
@@ -95,8 +97,6 @@
     "gracePeriodPlaceholder": "Default (120)",
     "enableHelper": "Enable Helper",
     "helperRouterIds": "Helper Router IDs",
-    "helperRouterIdInvalid": "Enter a router ID in IPv4 format",
-    "helperRouterIdExists": "This router ID is already listed",
     "disableLsaCheck": "Disable LSA Check",
     "plannedOnly": "Planned Only",
     "supportedGraceTime": "Supported Grace Time (seconds)"
@@ -108,7 +108,8 @@
     "failed": "Delete failed",
     "itemArea": "Area",
     "itemInterface": "Interface",
-    "itemRedistribute": "Redistribute"
+    "itemRedistribute": "Redistribute",
+    "allDescription": "This removes all OSPFv3 configuration from the router."
   },
   "areaModal": {
     "titleEdit": "Edit OSPFv3 Area",
@@ -117,29 +118,19 @@
     "descriptionAdd": "Configure a new OSPFv3 area for IPv6 routing.",
     "areaIdPlaceholder": "0.0.0.0 or integer",
     "areaType": "Area Type",
-    "areaTypePlaceholder": "Normal (default)",
     "normal": "Normal",
     "stub": "Stub",
     "noSummaryStub": "No Summary (Totally Stubby)",
     "noSummaryNssa": "No Summary (Totally NSSA)",
-    "defaultCost": "Default Cost",
-    "defaultCostPlaceholder": "Default cost for injected default route",
     "rangePlaceholder": "e.g. 2001:db8::/32",
     "advertise": "Advertise",
-    "notAdvertise": "Not Advertise",
-    "advertised": "advertised",
-    "notAdvertised": "not advertised",
-    "rangeExists": "Range prefix already exists",
-    "areaIdRequired": "Area ID is required",
-    "areaIdExists": "This area already exists"
+    "notAdvertise": "Not Advertise"
   },
   "interfaceModal": {
     "titleEdit": "Edit OSPFv3 Interface",
     "titleAdd": "Add OSPFv3 Interface",
     "descriptionEdit": "Modify OSPFv3 settings for {name}.",
     "descriptionAdd": "Configure OSPFv3 on a network interface for IPv6 routing.",
-    "areaPlaceholder": "e.g. 0.0.0.0 or 0",
-    "areaHelp": "Assign this interface to an OSPFv3 area.",
     "costAndPriority": "Cost & Priority",
     "interfaceMtu": "Interface MTU",
     "interfaceMtuPlaceholder": "IPv6 MTU (bytes)",
@@ -153,17 +144,39 @@
     "bfdTitle": "BFD (Bidirectional Forwarding Detection)",
     "enableBfd": "Enable BFD",
     "bfdProfile": "BFD Profile",
-    "bfdProfilePlaceholder": "Profile name (optional)",
-    "selectInterface": "Please select an interface",
-    "costRange": "Cost must be between 1 and 65535",
-    "priorityRange": "Priority must be between 0 and 255",
-    "instanceIdRange": "Instance ID must be between 0 and 255"
+    "loadInterfacesFailed": "Failed to load interfaces"
   },
   "redistributeModal": {
     "title": "Add Route Redistribution",
     "description": "Redistribute routes from another protocol into OSPFv3.",
     "selectProtocol": "Select protocol",
     "metricPlaceholder": "Metric value",
-    "selectProtocolError": "Please select a protocol"
+    "titleEdit": "Edit Route Redistribution"
+  },
+  "validation": {
+    "routerIdInvalid": "Enter a router ID in IPv4 dotted form",
+    "referenceBandwidthRange": "Reference bandwidth must be between {min} and {max}",
+    "metricRange": "Metric must be between {min} and {max}",
+    "distanceRange": "Distance must be between {min} and {max}",
+    "gracePeriodRange": "Grace period must be between {min} and {max}",
+    "supportedGraceTimeRange": "Supported grace time must be between {min} and {max}",
+    "helperRouterIdInvalid": "Enter a helper router ID in IPv4 dotted form",
+    "helperRouterIdDuplicate": "This router ID is already listed",
+    "areaIdRequired": "Area ID is required",
+    "areaIdInvalid": "Area ID must be a number from {min} to {max} or an IPv4 address",
+    "areaIdExists": "This area already exists",
+    "rangePrefixInvalid": "Range must be an IPv6 prefix",
+    "rangeDuplicate": "Range prefix already exists",
+    "interfaceRequired": "Please select an interface",
+    "interfaceAreaInvalid": "Area must be a number from {min} to {max} or an IPv4 address",
+    "costRange": "Cost must be between {min} and {max}",
+    "priorityRange": "Priority must be between {min} and {max}",
+    "helloIntervalRange": "Hello interval must be between {min} and {max}",
+    "deadIntervalRange": "Dead interval must be between {min} and {max}",
+    "retransmitIntervalRange": "Retransmit interval must be between {min} and {max}",
+    "transmitDelayRange": "Transmit delay must be between {min} and {max}",
+    "ifmtuRange": "Interface MTU must be between {min} and {max}",
+    "instanceIdRange": "Instance ID must be between {min} and {max}",
+    "protocolRequired": "Please select a protocol"
   }
 }

@@ -8,15 +8,15 @@ OSPFv3 is identical between VyOS 1.4 and 1.5.
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.ospfv3 import Ospfv3BatchBuilder
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.ospfv3 import Ospfv3Mapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/ospfv3", tags=["ospfv3"])
@@ -42,9 +42,11 @@ class Ospfv3AreaRange(BaseModel):
 class Ospfv3Area(BaseModel):
     """OSPFv3 area configuration."""
     area_id: str
+    # False when only `interface <if> area <id>` names the area: there is no
+    # `protocols ospfv3 area <id>` node yet.
+    configured: bool = True
     area_type: Optional[str] = None
     area_type_no_summary: bool = False
-    area_type_default_cost: Optional[int] = None
     nssa_default_information_originate: bool = False
     ranges: List[Ospfv3AreaRange] = []
     export_list: Optional[str] = None
@@ -118,6 +120,7 @@ class Ospfv3GracefulRestart(BaseModel):
 
 class Ospfv3Config(BaseModel):
     """Complete OSPFv3 configuration."""
+    configured: bool = False
     parameters: Ospfv3Parameters = Ospfv3Parameters()
     areas: List[Ospfv3Area] = []
     interfaces: List[Ospfv3Interface] = []
@@ -133,7 +136,14 @@ class Ospfv3Config(BaseModel):
 class Ospfv3BatchOperation(BaseModel):
     """Single operation in a batch request."""
     op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Operation value")
+    value: Optional[str] = Field(
+        None,
+        description=(
+            "Argument(s) for the operation. "
+            "Single-arg methods: plain string. "
+            "Multi-arg methods: comma-separated; the last argument keeps any commas."
+        ),
+    )
 
 
 class Ospfv3BatchRequest(BaseModel):
@@ -160,16 +170,17 @@ async def get_ospfv3_capabilities(request: Request):
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = Ospfv3BatchBuilder(version=version)
+        builder = Ospfv3BatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in get_ospfv3_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -186,10 +197,15 @@ async def get_ospfv3_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("ospfv3", service.get_version())
+        mapper = cast(
+            Ospfv3Mapper,
+            CommandMapperRegistry.get_mapper("ospfv3", service.get_version()),
+        )
         return Ospfv3Config(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Unhandled error")
+        logger.exception("Unhandled error in get_ospfv3_config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -205,40 +221,23 @@ async def ospfv3_batch_configure(http_request: Request, body: Ospfv3BatchRequest
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = Ospfv3BatchBuilder(version=version)
+        builder = Ospfv3BatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                call_comma_batch_op(builder, operation.op, operation.value)
+        except ValueError as exc:
+            # The builder raises ValueError for a value the lab would reject.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1 and operation.value:
-                method(operation.value)
-            elif len(params) == 2 and operation.value:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value)
-            elif len(params) == 3 and operation.value:
-                values = operation.value.split(",", 2)
-                if len(values) == 3:
-                    method(values[0], values[1], values[2])
-                elif len(values) == 2:
-                    method(values[0], values[1])
-
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "OSPFv3 configuration updated"},
-            error=response.error if response.error else None
+            data={"message": "OSPFv3 configuration updated"} if response.status == 200 else None,
+            error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in ospfv3_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
