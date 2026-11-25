@@ -78,6 +78,8 @@ export interface VxlanInterface {
   ipv6: VxlanIpv6Settings;
   mac: string | null;
   mirror: VxlanMirror;
+  /** True when the `mirror` node exists, even with no leaf under it. */
+  mirror_configured: boolean;
   mtu: string | null;
   parameters: VxlanParameters;
   port: string | null;

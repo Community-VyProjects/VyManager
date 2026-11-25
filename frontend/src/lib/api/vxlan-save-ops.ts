@@ -23,7 +23,11 @@ export interface NumericRange {
 }
 
 export const MTU_RANGE = { min: 1200, max: 16000 } satisfies NumericRange;
+/** Below this MTU the device rejects the interface unless IPv6 is off on it. */
+export const IPV6_MIN_MTU = 1280;
 export const PORT_RANGE = { min: 1, max: 65535 } satisfies NumericRange;
+/** The UDP port the device uses when `port` is unset. */
+export const DEFAULT_PORT = "4789";
 export const VNI_RANGE = { min: 0, max: 16777214 } satisfies NumericRange;
 export const VLAN_ID_RANGE = { min: 0, max: 4094 } satisfies NumericRange;
 export const ARP_CACHE_TIMEOUT_RANGE = { min: 1, max: 86400 } satisfies NumericRange;
@@ -422,7 +426,21 @@ function vlanOps(ops: VxlanBatchOperation[], before: Norm["vlans"], after: Norm[
   }
 }
 
-function diffOps(before: Norm, after: Norm): VxlanBatchOperation[] {
+/** Diff the mirror leaves; `mirrorNode` is true when the device holds a `mirror` node (maybe bare). */
+function mirrorOps(ops: VxlanBatchOperation[], before: Norm, after: Norm, mirrorNode: boolean): void {
+  const leavesBefore = Boolean(before.mirror_ingress || before.mirror_egress);
+  const leavesAfter = Boolean(after.mirror_ingress || after.mirror_egress);
+  // Deleting both leaves leaves a bare `mirror {}` that still blocks redirect,
+  // so a mirror that ends empty is removed as one node.
+  if (mirrorNode && !leavesAfter && (leavesBefore || after.redirect)) {
+    ops.push(op("delete_mirror"));
+    return;
+  }
+  leaf(ops, "set_mirror_ingress", "delete_mirror_ingress", before.mirror_ingress, after.mirror_ingress);
+  leaf(ops, "set_mirror_egress", "delete_mirror_egress", before.mirror_egress, after.mirror_egress);
+}
+
+function diffOps(before: Norm, after: Norm, mirrorNode: boolean): VxlanBatchOperation[] {
   const ops: VxlanBatchOperation[] = [];
   leaf(ops, "set_vni", "delete_vni", before.vni, after.vni);
   leaf(ops, "set_description", "delete_description", before.description, after.description);
@@ -438,8 +456,7 @@ function diffOps(before: Norm, after: Norm): VxlanBatchOperation[] {
   flag(ops, "set_disable", "delete_disable", before.disabled, after.disabled);
   flag(ops, "set_gpe", "delete_gpe", before.gpe, after.gpe);
   parameterOps(ops, before.parameters, after.parameters);
-  leaf(ops, "set_mirror_ingress", "delete_mirror_ingress", before.mirror_ingress, after.mirror_ingress);
-  leaf(ops, "set_mirror_egress", "delete_mirror_egress", before.mirror_egress, after.mirror_egress);
+  mirrorOps(ops, before, after, mirrorNode);
   leaf(ops, "set_redirect", "delete_redirect", before.redirect, after.redirect);
   ipOps(ops, before.ip, after.ip);
   ipv6Ops(ops, before.ipv6, after.ipv6);
@@ -449,12 +466,12 @@ function diffOps(before: Norm, after: Norm): VxlanBatchOperation[] {
 
 /** Ops that create the interface from the form. Run `vxlanProblem` first. */
 export function vxlanCreateOps(form: VxlanForm, caps: Caps): VxlanBatchOperation[] {
-  return [op("set_interface"), ...diffOps(normalize(vxlanForm(null), caps), normalize(form, caps))];
+  return [op("set_interface"), ...diffOps(normalize(vxlanForm(null), caps), normalize(form, caps), false)];
 }
 
 /** Ops that turn the loaded interface into the form. Run `vxlanProblem` first. */
 export function vxlanUpdateOps(original: VxlanInterface, form: VxlanForm, caps: Caps): VxlanBatchOperation[] {
-  return diffOps(normalize(vxlanForm(original), caps), normalize(form, caps));
+  return diffOps(normalize(vxlanForm(original), caps), normalize(form, caps), original.mirror_configured);
 }
 
 export function vxlanDeleteOps(): VxlanBatchOperation[] {
@@ -477,14 +494,24 @@ export type VxlanProblemKey =
   | "remoteInvalid"
   | "portRange"
   | "mtuRange"
+  | "mtuNeedsIpv6Off"
   | "macInvalid"
   | "vniOrExternal"
   | "vniWithExternal"
+  | "externalNeedsVniFilter"
+  | "externalOthersNeedVniFilter"
+  | "vniFilterNeedsExternal"
+  | "externalPortInUse"
   | "gpeNeedsExternal"
   | "endpointRequired"
   | "groupNeedsSourceInterface"
   | "groupWithRemote"
   | "addressFamilyMixed"
+  | "mirrorWithRedirect"
+  | "vlanToVniNeedsBridge"
+  | "neighborSuppressNeedsBridge"
+  | "bridgeMemberVrf"
+  | "bridgeMemberAddress"
   | "tosRange"
   | "ttlRange"
   | "flowlabelInvalid"
@@ -548,9 +575,25 @@ function idOrRange(value: string, range: NumericRange): [number, number] | null 
   return lo <= hi ? [lo, hi] : null;
 }
 
+/** Dotted IPv4 to its 32-bit value. */
+function ipv4Number(ip: string): number {
+  return ip.split(".").reduce((acc, octet) => acc * 256 + Number(octet), 0);
+}
+
+/**
+ * An interface address with prefix length. An IPv4 network address (host
+ * bits all zero) is not a host below /31; IPv6 network addresses are left to
+ * the device (1.5 accepts them, 1.4 does not).
+ */
 function isAddress(value: string): boolean {
   if (!CIDR_LENGTH_RE.test(value)) return false;
-  return value.includes(":") ? isValidIPv6CIDR(value) : isValidIPv4CIDR(value);
+  if (value.includes(":")) return isValidIPv6CIDR(value);
+  if (!isValidIPv4CIDR(value)) return false;
+  const [ip, length] = value.split("/");
+  const prefix = Number(length);
+  if (prefix >= 31) return true;
+  const hostBits = 2 ** (32 - prefix);
+  return ipv4Number(ip) % hostBits !== 0;
 }
 
 function isIp(value: string): boolean {
@@ -607,11 +650,32 @@ function vlanProblem(form: VxlanForm, caps: Caps): VxlanProblem | null {
   return null;
 }
 
-/** The verify rules of `interfaces vxlan` (vni vs external, endpoints, families). */
-function verifyProblem(n: Norm): VxlanProblem | null {
+/** The device state a save is checked against, beyond the interface itself. */
+export interface VxlanSaveContext {
+  /** The other configured VXLAN interfaces (all of them on create). */
+  others?: VxlanInterface[];
+  /** True when the interface is a member of a bridge (false on create). */
+  bridgeMember?: boolean;
+}
+
+/** The verify rules of `interfaces vxlan` (vni vs external, endpoints, families, bridge). */
+function verifyProblem(n: Norm, ctx: VxlanSaveContext): VxlanProblem | null {
   const p = n.parameters;
+  const others = ctx.others ?? [];
   if (!n.vni && !p.external) return problem("vniOrExternal");
   if (n.vni && p.external) return problem("vniWithExternal");
+  if (p.vni_filter && !p.external) return problem("vniFilterNeedsExternal");
+  // More than one VXLAN with external needs vni-filter on every one of them.
+  if (p.external && others.length > 0) {
+    if (!p.vni_filter) return problem("externalNeedsVniFilter");
+    if (!others.every((o) => o.parameters.vni_filter)) return problem("externalOthersNeedVniFilter");
+  }
+  // A tunnel without external cannot share its UDP port with an external one.
+  if (!p.external) {
+    const port = Number(n.port || DEFAULT_PORT);
+    const taken = others.find((o) => o.parameters.external && Number(o.port?.trim() || DEFAULT_PORT) === port);
+    if (taken) return problem("externalPortInUse", { port: String(port), name: taken.name });
+  }
   if (n.gpe && !p.external) return problem("gpeNeedsExternal");
   if (!n.group && n.remotes.length === 0 && !n.source_address && !n.source_interface) return problem("endpointRequired");
   if (n.group && !n.source_interface) return problem("groupNeedsSourceInterface");
@@ -619,24 +683,45 @@ function verifyProblem(n: Norm): VxlanProblem | null {
   // The underlay is one family: the source address and every remote.
   const families = new Set([n.source_address, ...n.remotes].filter(Boolean).map((a) => a.includes(":")));
   if (families.size > 1) return problem("addressFamilyMixed");
+  if ((n.mirror_ingress || n.mirror_egress) && n.redirect) return problem("mirrorWithRedirect");
+  if (ctx.bridgeMember) {
+    if (n.vrf) return problem("bridgeMemberVrf");
+    if (n.addresses.length > 0) return problem("bridgeMemberAddress");
+  } else {
+    if (n.vlans.size > 0) return problem("vlanToVniNeedsBridge");
+    if (p.neighbor_suppress) return problem("neighborSuppressNeedsBridge");
+  }
   return null;
 }
 
 /**
- * The first reason the lab would reject this save, or null. `existingNames`
- * are the configured interfaces a create may not reuse.
+ * An MTU below the IPv6 minimum is accepted only with IPv6 off: no default
+ * link-local, and no IPv6 address, SLAAC, EUI-64 or interface identifier.
  */
+function mtuIpv6Problem(n: Norm): VxlanProblem | null {
+  if (!n.mtu || Number(n.mtu) >= IPV6_MIN_MTU) return null;
+  const v6 = n.ipv6;
+  const ipv6On =
+    !v6.address_no_default_link_local ||
+    n.addresses.some((a) => a.includes(":")) ||
+    v6.address_autoconf ||
+    v6.address_eui64.length > 0 ||
+    Boolean(v6.address_interface_identifier);
+  return ipv6On ? problem("mtuNeedsIpv6Off", { min: IPV6_MIN_MTU }) : null;
+}
+
+/** The first reason the lab would reject this save, or null. */
 export function vxlanProblem(
   original: VxlanInterface | null,
   form: VxlanForm,
   caps: Caps,
-  existingNames: string[] = [],
+  ctx: VxlanSaveContext = {},
 ): VxlanProblem | null {
   const n = normalize(form, caps);
   if (!original) {
     if (!n.name) return problem("nameRequired");
     if (!INTERFACE_NAME_RE.test(n.name)) return problem("nameFormat");
-    if (existingNames.includes(n.name)) return problem("nameExists", { name: n.name });
+    if ((ctx.others ?? []).some((o) => o.name === n.name)) return problem("nameExists", { name: n.name });
   }
   const basic = rangeProblem(n.vni, VNI_RANGE, "vniRange");
   if (basic) return basic;
@@ -652,7 +737,7 @@ export function vxlanProblem(
   if (numbers) return numbers;
   if (n.mac && !MAC_RE.test(n.mac)) return problem("macInvalid");
 
-  const verify = verifyProblem(n);
+  const verify = verifyProblem(n, ctx);
   if (verify) return verify;
 
   const p = n.parameters;
@@ -677,5 +762,7 @@ export function vxlanProblem(
   if (n.ipv6.address_interface_identifier && !INTERFACE_IDENTIFIER_RE.test(n.ipv6.address_interface_identifier)) {
     return problem("interfaceIdentifierInvalid");
   }
+  const mtu = mtuIpv6Problem(n);
+  if (mtu) return mtu;
   return vlanProblem(form, caps);
 }

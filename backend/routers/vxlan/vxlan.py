@@ -121,6 +121,7 @@ class VxlanInterface(BaseModel):
     ipv6: VxlanIpv6Settings = VxlanIpv6Settings()
     mac: Optional[str] = None
     mirror: VxlanMirror = VxlanMirror()
+    mirror_configured: bool = False
     mtu: Optional[str] = None
     parameters: VxlanParameters = VxlanParameters()
     port: Optional[str] = None

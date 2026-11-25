@@ -68,7 +68,10 @@ interface VxlanModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: VxlanCapabilities | null;
-  existingInterfaces: string[];
+  /** The other configured VXLAN interfaces (all of them on create). */
+  others: VxlanInterface[];
+  /** True when the edited interface is a bridge member (false on create). */
+  bridgeMember: boolean;
   existing?: VxlanInterface | null;
 }
 
@@ -78,7 +81,8 @@ export function VxlanModal({
   onOpenChange,
   onSuccess,
   capabilities,
-  existingInterfaces,
+  others,
+  bridgeMember,
   existing,
 }: VxlanModalProps) {
   const t = useTranslations("vxlan");
@@ -86,7 +90,7 @@ export function VxlanModal({
   const isEdit = modalIsEdit(existing);
   const original = existing ?? null;
 
-  const [form, setForm] = useState<VxlanForm>(() => vxlanForm(original, existingInterfaces));
+  const [form, setForm] = useState<VxlanForm>(() => vxlanForm(original, others.map((i) => i.name)));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // "Custom" with a still-empty value would read back as "none" without these.
@@ -98,6 +102,9 @@ export function VxlanModal({
 
   const name = form.name;
   const lockedName = lockedIdentity(existing, (i) => i.name, name);
+  // An interface cannot mirror to itself.
+  const ownName = lockedName.value.trim();
+  const notSelf = (iface: { name: string }) => iface.name !== ownName;
 
   const update = (patch: Partial<VxlanForm>) => setForm((f) => ({ ...f, ...patch }));
   const updateParams = (patch: Partial<VxlanParametersForm>) =>
@@ -123,7 +130,7 @@ export function VxlanModal({
     p.key === "nameRequired" ? tc("interfaceNameRequired") : t(`modal.errors.${p.key}`, p.values);
 
   const handleSubmit = async () => {
-    const issue = vxlanProblem(original, form, capabilities, existingInterfaces);
+    const issue = vxlanProblem(original, form, capabilities, { others, bridgeMember });
     if (issue) {
       setError(problemText(issue));
       return;
@@ -400,7 +407,7 @@ export function VxlanModal({
                   <SelectTrigger id="vxlan-ipv6Flowlabel" className="h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{tc("default")}</SelectItem>
-                    <SelectItem value="keyword">{t("modal.advanced.flowlabelInherit")}</SelectItem>
+                    <SelectItem value="keyword">{t("modal.advanced.flowLabelInherit")}</SelectItem>
                     <SelectItem value="custom">{t("modal.advanced.flowLabelCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -423,11 +430,11 @@ export function VxlanModal({
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vxlan-mirrorIngress" className="text-xs">{t("modal.advanced.ingressInterface")}</Label>
-                <InterfaceSelect id="vxlan-mirrorIngress" value={form.mirror_ingress} onValueChange={(mirror_ingress) => update({ mirror_ingress })} noneOption={none} className="h-8 text-sm" />
+                <InterfaceSelect id="vxlan-mirrorIngress" value={form.mirror_ingress} onValueChange={(mirror_ingress) => update({ mirror_ingress })} filter={notSelf} noneOption={none} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vxlan-mirrorEgress" className="text-xs">{t("modal.advanced.egressInterface")}</Label>
-                <InterfaceSelect id="vxlan-mirrorEgress" value={form.mirror_egress} onValueChange={(mirror_egress) => update({ mirror_egress })} noneOption={none} className="h-8 text-sm" />
+                <InterfaceSelect id="vxlan-mirrorEgress" value={form.mirror_egress} onValueChange={(mirror_egress) => update({ mirror_egress })} filter={notSelf} noneOption={none} className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vxlan-redirect" className="text-xs">{t("modal.advanced.redirectInterface")}</Label>

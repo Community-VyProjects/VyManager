@@ -284,6 +284,10 @@ class VxlanBatchBuilder(BatchBuilder):
     # Mirror Operations
     # ========================================================================
 
+    def delete_mirror(self, name: str) -> "VxlanBatchBuilder":
+        """Delete the mirror node; deleting both leaves leaves a bare ``mirror`` that blocks redirect."""
+        return self.add_delete(self._mapper().get_mirror_path(name))
+
     def set_mirror_egress(self, name: str, value: str) -> "VxlanBatchBuilder":
         return self.add_set(self._mapper().get_mirror_egress(name, value))
 

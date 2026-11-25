@@ -4218,7 +4218,8 @@ function InterfacesPageInner() {
         onOpenChange={setVxlanModalOpen}
         onSuccess={loadData}
         capabilities={vxlanCapabilities}
-        existingInterfaces={vxlanInterfaces.map((i) => i.name)}
+        others={vxlanInterfaces.filter((i) => i.name !== editingVxlan?.name)}
+        bridgeMember={!!editingVxlan && bridgeInterfaces.some((b) => b.members.some((m) => m.name === editingVxlan.name))}
         existing={editingVxlan}
       />
       <DeleteVxlanModal

@@ -42,7 +42,7 @@ def test_modal_uses_shared_mode_helpers():
     # The update target name comes from the stored record, not form state.
     assert "modalWriteKind(existing)" in modal
     # Both saves check, then emit a diff through vxlan-save-ops.ts.
-    assert "vxlanProblem(original, form, capabilities, existingInterfaces)" in modal
+    assert "vxlanProblem(original, form, capabilities, { others, bridgeMember })" in modal
     assert "vxlanService.updateInterface(original, form, capabilities)" in modal
     assert "vxlanService.createInterface(form, capabilities)" in modal
 

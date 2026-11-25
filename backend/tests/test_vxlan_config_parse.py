@@ -70,6 +70,7 @@ def test_parse_config_distinctive_fields():
     assert iface["ipv6"]["address"]["no_default_link_local"] is True
     assert iface["mac"] == "00:11:22:33:44:55"
     assert iface["mirror"] == {"egress": None, "ingress": "eth1"}
+    assert iface["mirror_configured"] is True
     # port, mtu, and vni stay strings.
     assert iface["mtu"] == "1450"
     assert iface["port"] == "4789"
@@ -89,6 +90,17 @@ def test_parse_config_distinctive_fields():
         {"vlan_id": "20", "vni": None, "description": None},
     ]
     assert iface["vrf"] == "blue"
+
+
+def test_bare_mirror_node_is_reported():
+    """Deleting both mirror leaves leaves `mirror {}`; the screen needs to see it to delete it."""
+    parsed = get_vxlan_mapper("1.5").parse_config(
+        {"interfaces": {"vxlan": {"vxlan1": {"vni": "1", "mirror": {}}, "vxlan2": {"vni": "2"}}}}
+    )
+    by_name = {row["name"]: row for row in parsed["interfaces"]}
+    assert by_name["vxlan1"]["mirror_configured"] is True
+    assert by_name["vxlan1"]["mirror"] == {"egress": None, "ingress": None}
+    assert by_name["vxlan2"]["mirror_configured"] is False
 
 
 def test_remote_dict_is_not_expanded():

@@ -10,6 +10,7 @@ import {
   vxlanUpdateOps,
   type VxlanForm,
   type VxlanProblemKey,
+  type VxlanSaveContext,
 } from "./vxlan-save-ops";
 import {
   vxlanService,
@@ -68,6 +69,7 @@ function bare(over: Partial<VxlanInterface> = {}): VxlanInterface {
     },
     mac: null,
     mirror: { egress: null, ingress: null },
+    mirror_configured: false,
     mtu: null,
     parameters: {
       external: false,
@@ -122,6 +124,7 @@ function full(): VxlanInterface {
     },
     mac: "00:11:22:33:44:55",
     mirror: { egress: "eth2", ingress: "eth1" },
+    mirror_configured: true,
     mtu: "1450",
     parameters: {
       external: true,
@@ -224,8 +227,7 @@ const FULL_DELETES: VxlanBatchOperation[] = [
   { op: "delete_parameters_ip_tos" },
   { op: "delete_parameters_ip_ttl" },
   { op: "delete_parameters_ipv6_flowlabel" },
-  { op: "delete_mirror_ingress" },
-  { op: "delete_mirror_egress" },
+  { op: "delete_mirror" },
   { op: "delete_redirect" },
   { op: "delete_ip_adjust_mss" },
   { op: "delete_ip_arp_cache_timeout" },
@@ -269,6 +271,12 @@ function edit(original: VxlanInterface, change: (f: VxlanForm) => void): VxlanFo
 function validCreate(): VxlanForm {
   return { ...vxlanForm(null, ["vxlan0"]), vni: "100", remotes: ["192.0.2.2"], source_address: "192.0.2.1" };
 }
+
+/**
+ * Device state for the save checks: one other VXLAN (`vxlan0`), and this
+ * interface a bridge member so mapping rows reach their own checks.
+ */
+const CTX: VxlanSaveContext = { others: [bare()], bridgeMember: true };
 
 describe("create", () => {
   it("sets every field on 1.5", () => {
@@ -322,6 +330,44 @@ describe("edit", () => {
       assert.deepEqual(vxlanUpdateOps(full(), off, c), []);
       assert.ok(!vxlanCreateOps(fullForm(), c).some((o) => o.op.endsWith("_gpe")));
     }
+  });
+
+  it("removes a mirror that ends empty as one node", () => {
+    const both = edit(full(), (d) => {
+      d.mirror_ingress = "";
+      d.mirror_egress = "";
+    });
+    assert.deepEqual(vxlanUpdateOps(full(), both, CAPS15), [{ op: "delete_mirror" }]);
+    const one = edit(full(), (d) => {
+      d.mirror_ingress = "";
+    });
+    assert.deepEqual(vxlanUpdateOps(full(), one, CAPS15), [{ op: "delete_mirror_ingress" }]);
+    const swapped = edit(full(), (d) => {
+      d.mirror_egress = "";
+      d.mirror_ingress = "eth9";
+    });
+    assert.deepEqual(vxlanUpdateOps(full(), swapped, CAPS15), [
+      { op: "set_mirror_ingress", value: "eth9" },
+      { op: "delete_mirror_egress" },
+    ]);
+  });
+
+  it("leaves a bare mirror node alone until redirect needs it gone", () => {
+    const bareMirror = bare({ mirror_configured: true });
+    assert.deepEqual(vxlanUpdateOps(bareMirror, vxlanForm(bareMirror), CAPS15), []);
+    const redirect = { ...vxlanForm(bareMirror), redirect: "eth3" };
+    assert.deepEqual(vxlanUpdateOps(bareMirror, redirect, CAPS15), [
+      { op: "delete_mirror" },
+      { op: "set_redirect", value: "eth3" },
+    ]);
+    // Without a mirror node, redirect is set on its own.
+    assert.deepEqual(vxlanUpdateOps(bare(), { ...vxlanForm(bare()), redirect: "eth3" }, CAPS15), [
+      { op: "set_redirect", value: "eth3" },
+    ]);
+    // Re-filling a bare node sets the leaf, never deletes the node.
+    assert.deepEqual(vxlanUpdateOps(bareMirror, { ...vxlanForm(bareMirror), mirror_egress: "eth2" }, CAPS15), [
+      { op: "set_mirror_egress", value: "eth2" },
+    ]);
   });
 
   it("sets every field of an emptied interface", () => {
@@ -589,15 +635,16 @@ describe("vlan-to-vni diff", () => {
 });
 
 describe("save checks", () => {
-  const key = (original: VxlanInterface | null, f: VxlanForm, c: VxlanCapabilities = CAPS15) =>
-    vxlanProblem(original, f, c, ["vxlan0"])?.key ?? null;
+  const key = (original: VxlanInterface | null, f: VxlanForm, c: VxlanCapabilities = CAPS15, ctx: VxlanSaveContext = CTX) =>
+    vxlanProblem(original, f, c, ctx)?.key ?? null;
 
   it("passes a valid create and an untouched edit", () => {
     assert.equal(key(null, validCreate()), null);
     assert.equal(key(bare(), vxlanForm(bare())), null);
   });
 
-  const cases: [VxlanProblemKey, (f: VxlanForm) => void][] = [
+  const NOT_MEMBER: VxlanSaveContext = { ...CTX, bridgeMember: false };
+  const cases: [VxlanProblemKey, (f: VxlanForm) => void, VxlanSaveContext?][] = [
     ["nameRequired", (f) => { f.name = " "; }],
     ["nameFormat", (f) => { f.name = "vx1"; }],
     ["nameExists", (f) => { f.name = " vxlan0 "; }],
@@ -639,14 +686,24 @@ describe("save checks", () => {
       f.vlan_to_vni = [{ vlan_id: "10", vni: "100", description: "" }, { vlan_id: "11", vni: "100", description: "" }];
     }],
     ["vlanDescriptionTooLong", (f) => { f.vlan_to_vni = [{ vlan_id: "10", vni: "10", description: "x".repeat(256) }]; }],
+    ["mtuNeedsIpv6Off", (f) => { f.mtu = "1250"; }],
+    ["externalNeedsVniFilter", (f) => { f.vni = ""; f.parameters.external = true; }],
+    ["externalOthersNeedVniFilter", (f) => { f.vni = ""; f.parameters.external = true; f.parameters.vni_filter = true; }],
+    ["vniFilterNeedsExternal", (f) => { f.parameters.vni_filter = true; }],
+    ["externalPortInUse", () => {}, { ...CTX, others: [bare({ parameters: { ...bare().parameters, external: true } })] }],
+    ["mirrorWithRedirect", (f) => { f.mirror_ingress = "eth1"; f.redirect = "eth2"; }],
+    ["bridgeMemberVrf", (f) => { f.vrf = "red"; }],
+    ["bridgeMemberAddress", (f) => { f.addresses = ["10.0.0.1/24"]; }],
+    ["vlanToVniNeedsBridge", (f) => { f.vlan_to_vni = [{ vlan_id: "10", vni: "10", description: "" }]; }, NOT_MEMBER],
+    ["neighborSuppressNeedsBridge", (f) => { f.parameters.neighbor_suppress = true; }, NOT_MEMBER],
   ];
 
   it("returns every keyed problem, each with a message in both locales", () => {
     const seen = new Set<VxlanProblemKey>();
-    for (const [expected, change] of cases) {
+    for (const [expected, change, ctx] of cases) {
       const f = structuredClone(validCreate());
       change(f);
-      assert.equal(key(null, f), expected, expected);
+      assert.equal(key(null, f, CAPS15, ctx ?? CTX), expected, expected);
       seen.add(expected);
     }
     for (const locale of ["en", "zh-CN"]) {
@@ -702,9 +759,9 @@ describe("save checks", () => {
     const f = structuredClone(validCreate());
     const rows = (...r: [string, string][]) => r.map(([vlan_id, vni]) => ({ vlan_id, vni, description: "" }));
     f.vlan_to_vni = rows(["10", "100"], ["5-15", "200-210"]);
-    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vlanIdOverlap", values: { vlan: "10" } });
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, CTX), { key: "vlanIdOverlap", values: { vlan: "10" } });
     f.vlan_to_vni = rows(["10", "100"], ["010", "101"]);
-    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vlanIdOverlap", values: { vlan: "10" } });
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, CTX), { key: "vlanIdOverlap", values: { vlan: "10" } });
     f.vlan_to_vni = rows(["5-9", "100-104"], ["10-15", "105-110"]);
     assert.equal(key(null, f), null);
   });
@@ -713,9 +770,9 @@ describe("save checks", () => {
     const f = structuredClone(validCreate());
     const rows = (...r: [string, string][]) => r.map(([vlan_id, vni]) => ({ vlan_id, vni, description: "" }));
     f.vlan_to_vni = rows(["10", "100"], ["11", "100"]);
-    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vniReused", values: { vni: "100" } });
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, CTX), { key: "vniReused", values: { vni: "100" } });
     f.vlan_to_vni = rows(["10-12", "100-102"], ["20", "0101"]);
-    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vniReused", values: { vni: "101" } });
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, CTX), { key: "vniReused", values: { vni: "101" } });
     f.vlan_to_vni = rows(["10-12", "100-102"], ["20", "103"]);
     assert.equal(key(null, f), null);
   });
@@ -723,7 +780,7 @@ describe("save checks", () => {
   it("limits a mapping description on 1.5 and ignores it on 1.4", () => {
     const f = structuredClone(validCreate());
     f.vlan_to_vni = [{ vlan_id: "10", vni: "10", description: "x".repeat(256) }];
-    assert.deepEqual(vxlanProblem(null, f, CAPS15), {
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, CTX), {
       key: "vlanDescriptionTooLong",
       values: { vlan: "10", max: 255 },
     });
@@ -738,6 +795,109 @@ describe("save checks", () => {
     assert.equal(key(null, f, CAPS14), null);
   });
 
+  it("allows an MTU below 1280 only with IPv6 off", () => {
+    const off = (): VxlanForm => {
+      const f = structuredClone(validCreate());
+      f.mtu = "1250";
+      f.ipv6.address_no_default_link_local = true;
+      return f;
+    };
+    assert.equal(key(null, off()), null);
+    assert.equal(key(null, { ...off(), mtu: "1280" }), null);
+    const triggers: [string, (f: VxlanForm) => void][] = [
+      ["link-local", (f) => { f.ipv6.address_no_default_link_local = false; }],
+      ["ipv6 address", (f) => { f.addresses = ["2001:db8::1/64"]; }],
+      ["autoconf", (f) => { f.ipv6.address_autoconf = true; }],
+      ["eui64", (f) => { f.ipv6.address_eui64 = ["2001:db8::/64"]; }],
+      ["interface identifier", (f) => { f.ipv6.address_interface_identifier = "::1"; }],
+    ];
+    const notMember = { ...CTX, bridgeMember: false };
+    for (const [label, change] of triggers) {
+      const f = off();
+      change(f);
+      assert.deepEqual(vxlanProblem(null, f, CAPS15, notMember), { key: "mtuNeedsIpv6Off", values: { min: 1280 } }, label);
+    }
+    // An IPv4 address alone keeps IPv6 off; the 1.4 interface identifier is never read.
+    assert.equal(key(null, { ...off(), addresses: ["10.0.0.1/24"] }, CAPS15, notMember), null);
+    const iid = off();
+    iid.ipv6.address_interface_identifier = "::1";
+    assert.equal(key(null, iid, CAPS14), null);
+  });
+
+  it("rejects mirror with redirect", () => {
+    for (const side of ["mirror_ingress", "mirror_egress"] as const) {
+      const f = { ...structuredClone(validCreate()), [side]: "eth1", redirect: "eth2" };
+      assert.equal(key(null, f), "mirrorWithRedirect", side);
+    }
+  });
+
+  it("checks external with other VXLAN interfaces for vni-filter here and on every other", () => {
+    const f = structuredClone(validCreate());
+    f.vni = "";
+    f.parameters.external = true;
+    // Alone on the device, external needs no vni-filter.
+    assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [] }), null);
+    assert.equal(key(null, f), "externalNeedsVniFilter");
+    f.parameters.vni_filter = true;
+    assert.equal(key(null, f), "externalOthersNeedVniFilter");
+    const filtered = bare({ name: "vxlan5", parameters: { ...bare().parameters, external: true, vni_filter: true } });
+    assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [filtered] }), null);
+    // One other tunnel without vni-filter is enough for the device to reject it.
+    assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [bare(), filtered] }), "externalOthersNeedVniFilter");
+  });
+
+  it("rejects vni-filter without external", () => {
+    const f = structuredClone(validCreate());
+    f.parameters.vni_filter = true;
+    assert.equal(key(null, f, CAPS15, { bridgeMember: true, others: [] }), "vniFilterNeedsExternal");
+  });
+
+  it("rejects a tunnel without external on the UDP port of an external one", () => {
+    const external = (port: string | null) =>
+      bare({ name: "vxlan7", port, parameters: { ...bare().parameters, external: true } });
+    const ctx = (port: string | null) => ({ bridgeMember: true, others: [external(port)] });
+    const f = structuredClone(validCreate());
+    // Both unset: both on the default port.
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, ctx(null)), {
+      key: "externalPortInUse",
+      values: { port: "4789", name: "vxlan7" },
+    });
+    assert.equal(key(null, f, CAPS15, ctx("4789")), "externalPortInUse");
+    assert.equal(key(null, f, CAPS15, ctx("4790")), null);
+    f.port = "4790";
+    assert.equal(key(null, f, CAPS15, ctx("4790")), "externalPortInUse");
+    assert.equal(key(null, f, CAPS15, ctx(null)), null);
+  });
+
+  it("checks bridge membership rules", () => {
+    const member = { ...CTX, bridgeMember: true };
+    const notMember = { ...CTX, bridgeMember: false };
+    const f = structuredClone(validCreate());
+    f.vlan_to_vni = [{ vlan_id: "10", vni: "10", description: "" }];
+    f.parameters.neighbor_suppress = true;
+    assert.equal(key(null, f, CAPS15, member), null);
+    assert.equal(key(null, f, CAPS15, notMember), "vlanToVniNeedsBridge");
+    f.vlan_to_vni = [];
+    assert.equal(key(null, f, CAPS15, notMember), "neighborSuppressNeedsBridge");
+    // A non-member may hold a VRF and addresses.
+    assert.equal(key(null, { ...validCreate(), vrf: "red", addresses: ["10.0.0.1/24"] }, CAPS15, notMember), null);
+    assert.equal(key(null, { ...validCreate(), vrf: "red" }, CAPS15, member), "bridgeMemberVrf");
+    assert.equal(key(null, { ...validCreate(), addresses: ["2001:db8::1/64"] }, CAPS15, member), "bridgeMemberAddress");
+  });
+
+  it("rejects an IPv4 network address below /31, never an IPv6 one", () => {
+    const notMember = { ...CTX, bridgeMember: false };
+    const check = (address: string) => key(null, { ...validCreate(), addresses: [address] }, CAPS15, notMember);
+    assert.equal(check("192.0.2.0/24"), "addressInvalid");
+    assert.equal(check("10.0.0.0/8"), "addressInvalid");
+    assert.equal(check("192.0.2.64/26"), "addressInvalid");
+    assert.equal(check("192.0.2.1/24"), null);
+    assert.equal(check("192.0.2.65/26"), null);
+    assert.equal(check("192.0.2.0/31"), null);
+    assert.equal(check("192.0.2.0/32"), null);
+    assert.equal(check("2001:db8:9::/64"), null);
+  });
+
   it("names the bounds and the row in the problem values", () => {
     assert.deepEqual(vxlanProblem(null, { ...validCreate(), mtu: "1.5" }, CAPS15), {
       key: "mtuRange",
@@ -749,9 +909,9 @@ describe("save checks", () => {
       { vlan_id: "", vni: "", description: "" },
       { vlan_id: "", vni: "20", description: "" },
     ];
-    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vlanIdRequired", values: { n: 3 } });
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, CTX), { key: "vlanIdRequired", values: { n: 3 } });
     f.vlan_to_vni = [{ vlan_id: "10", vni: " ", description: "" }];
-    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vlanVniRequired", values: { vlan: "10" } });
+    assert.deepEqual(vxlanProblem(null, f, CAPS15, CTX), { key: "vlanVniRequired", values: { vlan: "10" } });
   });
 
   it("ignores a description-only row on 1.4, where the leaf is hidden", () => {
@@ -763,7 +923,7 @@ describe("save checks", () => {
 
   it("checks the name only on create", () => {
     const loaded = bare();
-    assert.equal(vxlanProblem(loaded, vxlanForm(loaded), CAPS15, ["vxlan0"]), null);
+    assert.equal(vxlanProblem(loaded, vxlanForm(loaded), CAPS15, CTX), null);
   });
 });
 

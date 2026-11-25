@@ -125,6 +125,7 @@ COMMON_CASES = [
     _value("set_ipv6_source_validation", "loose", "ipv6", "source-validation"),
     _value("delete_ipv6_source_validation", "loose", "ipv6", "source-validation"),
     # mirror
+    _flag("delete_mirror", "mirror"),
     _value("set_mirror_egress", "eth1", "mirror", "egress"),
     _value("delete_mirror_egress", "eth1", "mirror", "egress"),
     _value("set_mirror_ingress", "eth1", "mirror", "ingress"),

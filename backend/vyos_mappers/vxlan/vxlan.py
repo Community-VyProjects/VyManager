@@ -269,6 +269,9 @@ class VxlanMapper(BaseFeatureMapper):
     # Mirror Paths
     # ========================================================================
 
+    def get_mirror_path(self, name: str) -> List[str]:
+        return self._base(name) + ["mirror"]
+
     def get_mirror_egress(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["mirror", "egress", value]
 
