@@ -33,8 +33,11 @@ import {
   typed,
   type CertificateForm,
   type StoredValue,
+  acmeCreateForm,
+  nameProblem,
 } from "@/lib/api/pki-save-ops";
 import { NamedListSelect } from "@/components/ui/named-list-select";
+import { CountrySelect } from "@/components/firewall/CountrySelect";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
@@ -45,7 +48,8 @@ interface CertificateModalProps {
   existingCert: PKICertificate | null;
   capabilities: PKICapabilities | null;
   availableCAs: PKICA[];
-  x509Defaults: PKIX509Defaults;
+  x509Defaults: PKIX509Defaults;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
 export function CertificateModal({
@@ -56,6 +60,7 @@ export function CertificateModal({
   capabilities,
   availableCAs,
   x509Defaults,
+  existingNames,
 }: CertificateModalProps) {
   const t = useTranslations("pkiCerts");
   const tc = useTranslations("common");
@@ -109,7 +114,6 @@ export function CertificateModal({
       if (existingCert) {
         const acme = existingCert.acme;
         setName(existingCert.name);
-        setMode(acme ? "acme" : "manual");
         setCertificate(KEEP);
         setDescription(existingCert.description || "");
         setPrivateKey(KEEP);
@@ -165,8 +169,11 @@ export function CertificateModal({
 
   /** Import, ACME create, and every edit: one diff of the loaded certificate against the form. */
   const handleSaveSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
-    const form: CertificateForm = {
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
+    const entered: CertificateForm = {
       certificate,
       description,
       privateKey,
@@ -179,6 +186,7 @@ export function CertificateModal({
       rsaKeySize,
       url,
     };
+    const form = !isEdit && mode === "acme" ? acmeCreateForm(entered) : entered;
     const problem = certificateProblem(form, supportsIpv6);
     if (problem) { setError(t(`cert.${problem}`)); return; }
 
@@ -204,10 +212,14 @@ export function CertificateModal({
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
     if (!caName) { setError(t("cert.selectCARequired")); return; }
     if (!commonName.trim()) { setError(t("shared.commonNameRequired")); return; }
     if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
+
+    const daysNum = parseInt(days, 10);
+    if (isNaN(daysNum) || daysNum < 1) { setError(t("ca.daysPositive")); return; }
 
     setLoading(true);
     setError(null);
@@ -225,7 +237,7 @@ export function CertificateModal({
         locality: locality || undefined,
         organization: organization || undefined,
         common_name: commonName.trim(),
-        days: parseInt(days, 10) || 365,
+        days: daysNum,
         subject_alt_names: sanList.length > 0 ? sanList : undefined,
         encrypt_key: encryptKey,
         passphrase: encryptKey ? passphrase : undefined,
@@ -254,8 +266,6 @@ export function CertificateModal({
     if (!isEdit && mode === "generate") return handleGenerateSubmit();
     return handleSaveSubmit();
   };
-
-  const effectiveMode = isEdit ? "manual" : mode;
 
   // CAs that have both a certificate and private key (needed for signing)
   const signableCAs = availableCAs.filter(ca => ca.certificate && ca.private_key && !ca.password_protected);
@@ -463,10 +473,13 @@ export function CertificateModal({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="gen-cert-country">{t("shared.country")}</Label>
-          <Input id="gen-cert-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="US" maxLength={2} />
-        </div>
+        <CountrySelect
+          id="gen-cert-country"
+          label={t("shared.country")}
+          value={country}
+          onChange={setCountry}
+          noneLabel={tc("none")}
+        />
         <div className="space-y-2">
           <Label htmlFor="gen-cert-state">{t("shared.state")}</Label>
           <Input id="gen-cert-state" value={state} onChange={(e) => setState(e.target.value)} placeholder={tp("x509.statePlaceholder")} />
@@ -515,7 +528,7 @@ export function CertificateModal({
 
   const getButtonLabel = () => {
     if (loading) {
-      const loadingText = effectiveMode === "generate" ? t("shared.generating") : tc("saving");
+      const loadingText = !isEdit && mode === "generate" ? t("shared.generating") : tc("saving");
       return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{loadingText}</>;
     }
     if (isEdit) return tc("saveChanges");

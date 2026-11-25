@@ -23,6 +23,7 @@ import textwrap
 from typing import Any, Dict, List, Literal, Optional, cast
 
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import dh, ec, rsa
 from cryptography.x509.oid import NameOID
@@ -52,7 +53,22 @@ _PEM_VALUE_OPS = frozenset({
     "set_openvpn_shared_secret_key",
 })
 
-_PEM_ARMOR = re.compile(r"-----[A-Z0-9 ]+-----")
+# Any armor line, including the mixed-case "OpenVPN Static key V1".
+_PEM_ARMOR = re.compile(r"-----(?:BEGIN|END) [^\n]*?-----")
+
+# Lab tag syntax for every `pki <kind> <name>` node (same on 1.4 and 1.5).
+NAME_PATTERN = re.compile(r"[-_a-zA-Z0-9][\w\-\.\+]*", re.ASCII)
+
+_OPENVPN_BLOCK = re.compile(
+    r"-----BEGIN OpenVPN Static key V(?P<version>\d+)-----.*?-----END OpenVPN Static key V(?P=version)-----",
+    re.DOTALL,
+)
+
+_RSA_SIZES = (2048, 3072, 4096)
+_EC_CURVES = {256: ec.SECP256R1, 384: ec.SECP384R1, 521: ec.SECP521R1}
+_COUNTRY = re.compile(r"[A-Za-z]{2}")
+MAX_DAYS = 36500
+MAX_COMMON_NAME = 64
 
 
 def _normalize_pem(value: str) -> str:
@@ -60,18 +76,96 @@ def _normalize_pem(value: str) -> str:
 
     VyOS config values cannot contain newlines.  If *value* looks like PEM-encoded
     data, the ``-----BEGIN …-----`` / ``-----END …-----`` wrapper lines are removed
-    and all remaining whitespace is collapsed, yielding a continuous base64 string.
-    Non-PEM values are returned unchanged.
+    and all remaining whitespace is collapsed, yielding a continuous base64 string
+    (hex for an OpenVPN static key). Non-PEM values are returned unchanged.
     """
     stripped = value.strip()
     if stripped.startswith("-----BEGIN "):
         stripped = _PEM_ARMOR.sub("", stripped)
-        return stripped.replace("\n", "").replace("\r", "").replace(" ", "")
+        return "".join(stripped.split())
     return stripped
+
+
+def _openssh_public_key_data(value: str) -> str:
+    """VyOS stores only the base64 part of ``ssh-rsa <b64> [comment]``."""
+    parts = value.split()
+    if len(parts) >= 2 and parts[0].startswith("ssh-"):
+        return parts[1]
+    return value.strip()
+
+
+def _check_name(value: str) -> str:
+    if not value.strip():
+        raise ValueError("name must not be blank")
+    if not NAME_PATTERN.fullmatch(value):
+        raise ValueError(
+            "name must start with a letter, digit, '-' or '_' and contain only "
+            "letters, digits, '_', '-', '.' or '+'"
+        )
+    return value
 
 
 def _mapper(version: str) -> PKIMapper:
     return cast(PKIMapper, CommandMapperRegistry.get_mapper("pki", version))
+
+
+def _reject_existing(mapper: PKIMapper, full_config: Any, kind: str, name: str) -> None:
+    """409 when ``pki <kind> <name>`` is already configured."""
+    if mapper.raw_item(full_config, kind, name) is not None:
+        raise HTTPException(status_code=409, detail=f"'{name}' already exists")
+
+
+def _check_key(key_type: str, key_size: int, encrypt_key: bool, passphrase: Optional[str]) -> None:
+    if encrypt_key and not passphrase:
+        raise HTTPException(status_code=400, detail="Passphrase required when encrypt_key is True")
+    if key_type == "rsa" and key_size not in _RSA_SIZES:
+        raise HTTPException(status_code=400, detail="RSA key size must be 2048, 3072, or 4096")
+    if key_type == "ec" and key_size not in _EC_CURVES:
+        raise HTTPException(status_code=400, detail="EC key size must be 256, 384, or 521")
+
+
+def _check_subject(country: Optional[str], common_name: str, days: int) -> None:
+    if not 1 <= days <= MAX_DAYS:
+        raise HTTPException(status_code=400, detail=f"days must be between 1 and {MAX_DAYS}")
+    if country and not _COUNTRY.fullmatch(country):
+        raise HTTPException(status_code=400, detail="country must be a 2-letter code")
+    if not common_name.strip() or len(common_name) > MAX_COMMON_NAME:
+        raise HTTPException(status_code=400, detail=f"common_name must be 1 to {MAX_COMMON_NAME} characters")
+
+
+def _subject(request: Any) -> x509.Name:
+    attrs = []
+    if request.country:
+        attrs.append(x509.NameAttribute(NameOID.COUNTRY_NAME, request.country.upper()))
+    if request.state:
+        attrs.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, request.state))
+    if request.locality:
+        attrs.append(x509.NameAttribute(NameOID.LOCALITY_NAME, request.locality))
+    if request.organization:
+        attrs.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, request.organization))
+    attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, request.common_name))
+    return x509.Name(attrs)
+
+
+def _private_pem(private_key: Any, encrypt_key: bool, passphrase: Optional[str],
+                 fmt: serialization.PrivateFormat = serialization.PrivateFormat.PKCS8) -> str:
+    encryption: serialization.KeySerializationEncryption = (
+        serialization.BestAvailableEncryption((passphrase or "").encode())
+        if encrypt_key else serialization.NoEncryption()
+    )
+    return _normalize_pem(private_key.private_bytes(serialization.Encoding.PEM, fmt, encryption).decode("utf-8"))
+
+
+def _parse_openvpn_key(output: Any) -> Optional[str]:
+    """The key of the first ``OpenVPN Static key`` block, as the key leaf stores it."""
+    if not isinstance(output, str):
+        return None
+    match = _OPENVPN_BLOCK.search(output)
+    if match is None:
+        return None
+    body = "\n".join(line for line in match.group(0).splitlines() if not line.lstrip().startswith("#"))
+    key = _normalize_pem(body)
+    return key or None
 
 
 # ========================================================================
@@ -95,10 +189,18 @@ class PKIBatchRequest(BaseModel):
 
     @field_validator("item_name")
     @classmethod
-    def _item_name_not_blank(cls, value: Optional[str]) -> Optional[str]:
-        if value is not None and not value.strip():
-            raise ValueError("item_name must not be blank")
-        return value
+    def _item_name_valid(cls, value: Optional[str]) -> Optional[str]:
+        return None if value is None else _check_name(value)
+
+
+class _NamedRequest(BaseModel):
+    """A generate request: the new object's name must be a valid lab tag."""
+    name: str = Field(..., description="Name of the new object")
+
+    @field_validator("name")
+    @classmethod
+    def _name_valid(cls, value: str) -> str:
+        return _check_name(value)
 
 
 class VyOSResponse(BaseModel):
@@ -224,6 +326,8 @@ def _call_batch_op(builder: PKIBatchBuilder, op: str, item_name: Optional[str], 
         return
     if item_name is not None:
         raise HTTPException(status_code=400, detail=f"Operation {op} takes no item_name")
+    if params and value is not None and not value.strip():
+        raise HTTPException(status_code=400, detail=f"Operation {op} requires a value")
     call_comma_batch_op(builder, op, value)
 
 
@@ -236,7 +340,8 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
     DH, key-pair, OpenSSH and OpenVPN op) is called with item_name and the
     op's value. The global ops (x509 defaults, delete_x509_defaults,
     delete_pki) are called with the value alone, and the request must not
-    send an item_name for them.
+    send an item_name for them. A full ``ssh-rsa <b64> [comment]`` line for
+    set_openssh_public_key is stored as its base64 part.
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
@@ -248,6 +353,8 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
                 value = operation.value
                 if value is not None and operation.op in _PEM_VALUE_OPS:
                     value = _normalize_pem(value)
+                if value is not None and operation.op == "set_openssh_public_key":
+                    value = _openssh_public_key_data(value)
                 _call_batch_op(builder, operation.op, request.item_name, value)
         except ValueError as exc:
             # The builder raises ValueError for a value this VyOS version rejects.
@@ -269,20 +376,23 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
 
 
 # ========================================================================
-# Endpoint 4: Generate CA
+# Generate routes
+#
+# Each resolves the session first, validates, reads the config once
+# (refresh=True) to return 409 for an existing name, and runs key generation
+# and VyOS I/O through run_in_threadpool.
 # ========================================================================
 
-class GenerateCARequest(BaseModel):
+class GenerateCARequest(_NamedRequest):
     """Request to generate a self-signed Certificate Authority."""
-    name: str = Field(..., description="CA name")
     key_type: Literal["rsa", "ec"] = Field("rsa", description="Key type: rsa or ec")
     key_size: int = Field(2048, description="Key size in bits (RSA: 2048/3072/4096, EC: 256/384/521)")
     country: Optional[str] = Field(None, description="Country code (2 letters)")
     state: Optional[str] = Field(None, description="State or province")
     locality: Optional[str] = Field(None, description="Locality or city")
     organization: Optional[str] = Field(None, description="Organization name")
-    common_name: str = Field(..., description="Common Name (CN)")
-    days: int = Field(3650, description="Validity period in days")
+    common_name: str = Field(..., description="Common Name (CN), 1 to 64 characters")
+    days: int = Field(3650, description="Validity period in days (1 to 36500)")
     encrypt_key: bool = Field(False, description="Encrypt the private key with a passphrase")
     passphrase: Optional[str] = Field(None, description="Passphrase for key encryption (required if encrypt_key is True)")
     revoke: bool = Field(False, description="Mark as revoked")
@@ -291,48 +401,25 @@ class GenerateCARequest(BaseModel):
 
 @router.post("/generate-ca", response_model=VyOSResponse)
 async def generate_ca(http_request: Request, request: GenerateCARequest):
-    """
-    Generate a self-signed CA certificate and install it on the device.
-
-    Uses Python's cryptography library to generate the CA cert+key,
-    then installs via the normal batch config API.
-    """
+    """Generate a self-signed CA certificate and key, and commit them as ``pki ca <name>``."""
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        # Validate
-        if request.encrypt_key and not request.passphrase:
-            raise HTTPException(status_code=400, detail="Passphrase required when encrypt_key is True")
+        service = get_session_vyos_service(http_request)
+        _check_key(request.key_type, request.key_size, request.encrypt_key, request.passphrase)
+        _check_subject(request.country, request.common_name, request.days)
 
-        if request.key_type == "rsa" and request.key_size not in (2048, 3072, 4096):
-            raise HTTPException(status_code=400, detail="RSA key size must be 2048, 3072, or 4096")
+        version = service.get_version()
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        _reject_existing(_mapper(version), full_config, "ca", request.name)
 
-        if request.key_type == "ec" and request.key_size not in (256, 384, 521):
-            raise HTTPException(status_code=400, detail="EC key size must be 256, 384, or 521")
-
-        # Generate private key
         if request.key_type == "rsa":
-            private_key = rsa.generate_private_key(
-                public_exponent=65537,
-                key_size=request.key_size,
+            private_key = await run_in_threadpool(
+                rsa.generate_private_key, public_exponent=65537, key_size=request.key_size,
             )
         else:
-            curve_map = {256: ec.SECP256R1(), 384: ec.SECP384R1(), 521: ec.SECP521R1()}
-            private_key = ec.generate_private_key(curve_map[request.key_size])
+            private_key = await run_in_threadpool(ec.generate_private_key, _EC_CURVES[request.key_size]())
 
-        # Build subject
-        name_attrs = []
-        if request.country:
-            name_attrs.append(x509.NameAttribute(NameOID.COUNTRY_NAME, request.country[:2]))
-        if request.state:
-            name_attrs.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, request.state))
-        if request.locality:
-            name_attrs.append(x509.NameAttribute(NameOID.LOCALITY_NAME, request.locality))
-        if request.organization:
-            name_attrs.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, request.organization))
-        name_attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, request.common_name))
-        subject = issuer = x509.Name(name_attrs)
-
-        # Build certificate
+        subject = issuer = _subject(request)
         now = datetime.datetime.now(datetime.timezone.utc)
         cert = (
             x509.CertificateBuilder()
@@ -359,33 +446,13 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
             .sign(private_key, hashes.SHA256())
         )
 
-        # Serialize and strip PEM headers/newlines for VyOS config
-        cert_pem = _normalize_pem(
-            cert.public_bytes(serialization.Encoding.PEM).decode("utf-8")
-        )
+        cert_pem = _normalize_pem(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
+        key_pem = _private_pem(private_key, request.encrypt_key, request.passphrase)
 
-        if request.encrypt_key:
-            key_pem = _normalize_pem(private_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.BestAvailableEncryption((request.passphrase or "").encode()),
-            ).decode("utf-8"))
-        else:
-            key_pem = _normalize_pem(private_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.NoEncryption(),
-            ).decode("utf-8"))
-
-        # Install on device via batch operations
-        service = get_session_vyos_service(http_request)
-        version = service.get_version()
         builder = PKIBatchBuilder(version=version)
-
         builder.create_ca(request.name)
         builder.set_ca_certificate(request.name, cert_pem)
         builder.set_ca_private_key(request.name, key_pem)
-
         if request.encrypt_key:
             builder.set_ca_private_password_protected(request.name)
         if request.revoke:
@@ -394,7 +461,6 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
             builder.set_ca_system_install(request.name)
 
         response = await run_in_threadpool(service.execute_batch, builder)
-
         return _commit_response(response, f"CA '{request.name}' generated and installed")
     except HTTPException:
         raise
@@ -403,13 +469,8 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ========================================================================
-# Endpoint 5: Generate Key Pair
-# ========================================================================
-
-class GenerateKeyPairRequest(BaseModel):
+class GenerateKeyPairRequest(_NamedRequest):
     """Request to generate a public/private key pair."""
-    name: str = Field(..., description="Key pair name")
     key_type: Literal["rsa", "ec"] = Field("rsa", description="Key type: rsa or ec")
     key_size: int = Field(2048, description="Key size (RSA: 2048/3072/4096, EC: 256/384/521)")
     encrypt_key: bool = Field(False, description="Encrypt the private key")
@@ -418,48 +479,30 @@ class GenerateKeyPairRequest(BaseModel):
 
 @router.post("/generate-key-pair", response_model=VyOSResponse)
 async def generate_key_pair(http_request: Request, request: GenerateKeyPairRequest):
-    """Generate a key pair and install it on the device."""
+    """Generate a key pair and commit it as ``pki key-pair <name>``."""
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        if request.encrypt_key and not request.passphrase:
-            raise HTTPException(status_code=400, detail="Passphrase required when encrypt_key is True")
-        if request.key_type == "rsa" and request.key_size not in (2048, 3072, 4096):
-            raise HTTPException(status_code=400, detail="RSA key size must be 2048, 3072, or 4096")
-        if request.key_type == "ec" and request.key_size not in (256, 384, 521):
-            raise HTTPException(status_code=400, detail="EC key size must be 256, 384, or 521")
+        service = get_session_vyos_service(http_request)
+        _check_key(request.key_type, request.key_size, request.encrypt_key, request.passphrase)
 
-        # Generate private key
+        version = service.get_version()
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        _reject_existing(_mapper(version), full_config, "key_pair", request.name)
+
         if request.key_type == "rsa":
-            private_key = rsa.generate_private_key(public_exponent=65537, key_size=request.key_size)
+            private_key = await run_in_threadpool(
+                rsa.generate_private_key, public_exponent=65537, key_size=request.key_size,
+            )
         else:
-            curve_map = {256: ec.SECP256R1(), 384: ec.SECP384R1(), 521: ec.SECP521R1()}
-            private_key = ec.generate_private_key(curve_map[request.key_size])
+            private_key = await run_in_threadpool(ec.generate_private_key, _EC_CURVES[request.key_size]())
 
-        # Serialize private key
-        if request.encrypt_key:
-            priv_pem = _normalize_pem(private_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.BestAvailableEncryption((request.passphrase or "").encode()),
-            ).decode("utf-8"))
-        else:
-            priv_pem = _normalize_pem(private_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.NoEncryption(),
-            ).decode("utf-8"))
-
-        # Serialize public key
+        priv_pem = _private_pem(private_key, request.encrypt_key, request.passphrase)
         pub_pem = _normalize_pem(private_key.public_key().public_bytes(
             serialization.Encoding.PEM,
             serialization.PublicFormat.SubjectPublicKeyInfo,
         ).decode("utf-8"))
 
-        # Install on device
-        service = get_session_vyos_service(http_request)
-        version = service.get_version()
         builder = PKIBatchBuilder(version=version)
-
         builder.create_key_pair(request.name)
         builder.set_key_pair_private_key(request.name, priv_pem)
         builder.set_key_pair_public_key(request.name, pub_pem)
@@ -467,7 +510,6 @@ async def generate_key_pair(http_request: Request, request: GenerateKeyPairReque
             builder.set_key_pair_private_password_protected(request.name)
 
         response = await run_in_threadpool(service.execute_batch, builder)
-
         return _commit_response(response, f"Key pair '{request.name}' generated and installed")
     except HTTPException:
         raise
@@ -476,48 +518,39 @@ async def generate_key_pair(http_request: Request, request: GenerateKeyPairReque
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ========================================================================
-# Endpoint 6: Generate DH Parameters
-# ========================================================================
-
-class GenerateDHRequest(BaseModel):
+class GenerateDHRequest(_NamedRequest):
     """Request to generate Diffie-Hellman parameters."""
-    name: str = Field(..., description="DH parameters name")
     key_size: int = Field(2048, description="Key size in bits (2048, 3072, or 4096)")
 
 
 @router.post("/generate-dh", response_model=VyOSResponse)
 async def generate_dh(http_request: Request, request: GenerateDHRequest):
     """
-    Generate DH parameters and install them on the device.
+    Generate DH parameters and commit them as ``pki dh <name>``.
 
-    Note: DH parameter generation is computationally expensive and may take
-    30 seconds or more depending on key size.
+    DH parameter generation takes 30 seconds or more depending on key size.
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        if request.key_size not in (2048, 3072, 4096):
+        service = get_session_vyos_service(http_request)
+        if request.key_size not in _RSA_SIZES:
             raise HTTPException(status_code=400, detail="DH key size must be 2048, 3072, or 4096")
 
-        # Generate DH parameters (CPU-intensive: keep it off the event loop)
-        parameters = await run_in_threadpool(dh.generate_parameters, generator=2, key_size=request.key_size)
+        version = service.get_version()
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        _reject_existing(_mapper(version), full_config, "dh", request.name)
 
-        # Serialize to PEM and normalize
+        parameters = await run_in_threadpool(dh.generate_parameters, generator=2, key_size=request.key_size)
         params_pem = _normalize_pem(parameters.parameter_bytes(
             serialization.Encoding.PEM,
             serialization.ParameterFormat.PKCS3,
         ).decode("utf-8"))
 
-        # Install on device
-        service = get_session_vyos_service(http_request)
-        version = service.get_version()
         builder = PKIBatchBuilder(version=version)
-
         builder.create_dh(request.name)
         builder.set_dh_parameters(request.name, params_pem)
 
         response = await run_in_threadpool(service.execute_batch, builder)
-
         return _commit_response(response, f"DH parameters '{request.name}' generated and installed")
     except HTTPException:
         raise
@@ -526,13 +559,8 @@ async def generate_dh(http_request: Request, request: GenerateDHRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ========================================================================
-# Endpoint 7: Generate Certificate (signed by a CA)
-# ========================================================================
-
-class GenerateCertificateRequest(BaseModel):
+class GenerateCertificateRequest(_NamedRequest):
     """Request to generate a certificate signed by an existing CA."""
-    name: str = Field(..., description="Certificate name")
     ca_name: str = Field(..., description="Name of the CA to sign with")
     key_type: Literal["rsa", "ec"] = Field("rsa", description="Key type: rsa or ec")
     key_size: int = Field(2048, description="Key size (RSA: 2048/3072/4096, EC: 256/384/521)")
@@ -540,11 +568,44 @@ class GenerateCertificateRequest(BaseModel):
     state: Optional[str] = Field(None, description="State or province")
     locality: Optional[str] = Field(None, description="Locality or city")
     organization: Optional[str] = Field(None, description="Organization name")
-    common_name: str = Field(..., description="Common Name (CN)")
-    days: int = Field(365, description="Validity period in days")
+    common_name: str = Field(..., description="Common Name (CN), 1 to 64 characters")
+    days: int = Field(365, description="Validity period in days (1 to 36500)")
     subject_alt_names: Optional[List[str]] = Field(None, description="Subject Alternative Names (DNS names or IPs)")
     encrypt_key: bool = Field(False, description="Encrypt the private key with a passphrase")
     passphrase: Optional[str] = Field(None, description="Passphrase for key encryption")
+
+
+def _reconstruct_pem(raw: str, label: str) -> bytes:
+    """VyOS stores single-line base64; cryptography needs wrapped PEM."""
+    wrapped = "\n".join(textwrap.wrap(raw.strip(), 64))
+    return f"-----BEGIN {label}-----\n{wrapped}\n-----END {label}-----\n".encode()
+
+
+def _load_signing_ca(ca_name: str, ca_data: Dict[str, Any]) -> tuple[x509.Certificate, Any]:
+    """The CA's certificate and signing key, or 400 naming the CA."""
+    ca_cert_raw = ca_data.get("certificate")
+    ca_key_raw = ca_data.get("private_key")
+    if not ca_cert_raw:
+        raise HTTPException(status_code=400, detail=f"CA '{ca_name}' has no certificate")
+    if not ca_key_raw:
+        raise HTTPException(status_code=400, detail=f"CA '{ca_name}' has no private key")
+    if ca_data.get("password_protected"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"CA '{ca_name}' has an encrypted private key. "
+                   "Cannot use password-protected CAs for signing.",
+        )
+    try:
+        ca_cert = x509.load_pem_x509_certificate(_reconstruct_pem(ca_cert_raw, "CERTIFICATE"))
+    except (ValueError, TypeError, UnsupportedAlgorithm):
+        raise HTTPException(status_code=400, detail=f"CA '{ca_name}' certificate cannot be loaded")
+    try:
+        ca_key = serialization.load_pem_private_key(_reconstruct_pem(ca_key_raw, "PRIVATE KEY"), password=None)
+    except (ValueError, TypeError, UnsupportedAlgorithm):
+        raise HTTPException(status_code=400, detail=f"CA '{ca_name}' private key cannot be loaded")
+    if not isinstance(ca_key, (rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey)):
+        raise HTTPException(status_code=400, detail=f"CA '{ca_name}' private key cannot sign certificates")
+    return ca_cert, ca_key
 
 
 @router.post("/generate-certificate", response_model=VyOSResponse)
@@ -553,83 +614,37 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
     Generate a certificate signed by an existing CA on the device.
 
     Reads the CA's certificate and private key from VyOS config,
-    generates a new key pair, builds a certificate, signs it with the CA,
-    and installs everything on the device.
+    generates a new key, builds a certificate, signs it with the CA,
+    and commits it as ``pki certificate <name>``.
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        # Validate key params
-        if request.encrypt_key and not request.passphrase:
-            raise HTTPException(status_code=400, detail="Passphrase required when encrypt_key is True")
-        if request.key_type == "rsa" and request.key_size not in (2048, 3072, 4096):
-            raise HTTPException(status_code=400, detail="RSA key size must be 2048, 3072, or 4096")
-        if request.key_type == "ec" and request.key_size not in (256, 384, 521):
-            raise HTTPException(status_code=400, detail="EC key size must be 256, 384, or 521")
-
-        # Get VyOS config to read CA cert and private key
         service = get_session_vyos_service(http_request)
+        _check_key(request.key_type, request.key_size, request.encrypt_key, request.passphrase)
+        _check_subject(request.country, request.common_name, request.days)
+
         version = service.get_version()
-        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        mapper = _mapper(version)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        _reject_existing(mapper, full_config, "certificate", request.name)
 
         # The parse masks the CA key; signing needs the raw value.
-        ca_data = _mapper(version).raw_item(full_config, "ca", request.ca_name)
+        ca_data = mapper.raw_item(full_config, "ca", request.ca_name)
         if ca_data is None:
             raise HTTPException(status_code=404, detail=f"CA '{request.ca_name}' not found")
+        ca_cert, ca_private_key = _load_signing_ca(request.ca_name, ca_data)
 
-        ca_cert_raw = ca_data.get("certificate")
-        ca_key_raw = ca_data.get("private_key")
-        if not ca_cert_raw:
-            raise HTTPException(status_code=400, detail=f"CA '{request.ca_name}' has no certificate")
-        if not ca_key_raw:
-            raise HTTPException(status_code=400, detail=f"CA '{request.ca_name}' has no private key")
-        if ca_data.get("password_protected"):
-            raise HTTPException(
-                status_code=400,
-                detail=f"CA '{request.ca_name}' has an encrypted private key. "
-                       "Cannot use password-protected CAs for signing.",
-            )
-
-        # VyOS stores certs/keys as single-line base64 without PEM headers.
-        # Reconstruct valid PEM for the cryptography library.
-        def _reconstruct_pem(raw: str, label: str) -> bytes:
-            # Insert newlines every 64 chars for valid PEM
-            b64 = raw.strip()
-            wrapped = "\n".join(textwrap.wrap(b64, 64))
-            return f"-----BEGIN {label}-----\n{wrapped}\n-----END {label}-----\n".encode()
-
-        ca_cert = x509.load_pem_x509_certificate(_reconstruct_pem(ca_cert_raw, "CERTIFICATE"))
-        ca_private_key = serialization.load_pem_private_key(
-            _reconstruct_pem(ca_key_raw, "PRIVATE KEY"),
-            password=None,
-        )
-
-        # Generate the certificate's private key
         if request.key_type == "rsa":
-            cert_private_key = rsa.generate_private_key(
-                public_exponent=65537, key_size=request.key_size,
+            cert_private_key = await run_in_threadpool(
+                rsa.generate_private_key, public_exponent=65537, key_size=request.key_size,
             )
         else:
-            curve_map = {256: ec.SECP256R1(), 384: ec.SECP384R1(), 521: ec.SECP521R1()}
-            cert_private_key = ec.generate_private_key(curve_map[request.key_size])
+            cert_private_key = await run_in_threadpool(ec.generate_private_key, _EC_CURVES[request.key_size]())
 
-        # Build subject
-        name_attrs = []
-        if request.country:
-            name_attrs.append(x509.NameAttribute(NameOID.COUNTRY_NAME, request.country[:2]))
-        if request.state:
-            name_attrs.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, request.state))
-        if request.locality:
-            name_attrs.append(x509.NameAttribute(NameOID.LOCALITY_NAME, request.locality))
-        if request.organization:
-            name_attrs.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, request.organization))
-        name_attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, request.common_name))
-        subject = x509.Name(name_attrs)
-
-        # Build certificate
         now = datetime.datetime.now(datetime.timezone.utc)
         builder = (
             x509.CertificateBuilder()
-            .subject_name(subject)
+            .subject_name(_subject(request))
             .issuer_name(ca_cert.subject)
             .public_key(cert_private_key.public_key())
             .serial_number(x509.random_serial_number())
@@ -655,50 +670,24 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
             )
         )
 
-        # Add Subject Alternative Names if provided
         if request.subject_alt_names:
             san_entries: list = []
             for san in request.subject_alt_names:
                 san = san.strip()
                 if not san:
                     continue
-                # Try to parse as IP address first
                 try:
-                    ip = ipaddress.ip_address(san)
-                    san_entries.append(x509.IPAddress(ip))
+                    san_entries.append(x509.IPAddress(ipaddress.ip_address(san)))
                 except ValueError:
                     san_entries.append(x509.DNSName(san))
-
             if san_entries:
-                builder = builder.add_extension(
-                    x509.SubjectAlternativeName(san_entries),
-                    critical=False,
-                )
+                builder = builder.add_extension(x509.SubjectAlternativeName(san_entries), critical=False)
 
-        # Sign with CA key
         cert = builder.sign(ca_private_key, hashes.SHA256())
+        cert_pem = _normalize_pem(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
+        key_pem = _private_pem(cert_private_key, request.encrypt_key, request.passphrase)
 
-        # Serialize
-        cert_pem = _normalize_pem(
-            cert.public_bytes(serialization.Encoding.PEM).decode("utf-8")
-        )
-
-        if request.encrypt_key:
-            key_pem = _normalize_pem(cert_private_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.BestAvailableEncryption((request.passphrase or "").encode()),
-            ).decode("utf-8"))
-        else:
-            key_pem = _normalize_pem(cert_private_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.NoEncryption(),
-            ).decode("utf-8"))
-
-        # Install on device via batch operations
         batch_builder = PKIBatchBuilder(version=version)
-
         batch_builder.create_certificate(request.name)
         batch_builder.set_certificate_cert(request.name, cert_pem)
         batch_builder.set_certificate_private_key(request.name, key_pem)
@@ -706,7 +695,6 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
             batch_builder.set_certificate_private_password_protected(request.name)
 
         response = await run_in_threadpool(service.execute_batch, batch_builder)
-
         return _commit_response(
             response, f"Certificate '{request.name}' generated and signed by CA '{request.ca_name}'",
         )
@@ -717,42 +705,48 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ========================================================================
-# Endpoint 8: Generate OpenVPN Shared Secret
-# ========================================================================
-
-class GenerateOpenVPNSecretRequest(BaseModel):
+class GenerateOpenVPNSecretRequest(_NamedRequest):
     """Request to generate an OpenVPN shared secret."""
-    name: str = Field(..., description="Shared secret name")
+    version: Optional[str] = Field(None, description="Key version leaf, set only when given")
 
 
 @router.post("/generate-openvpn-shared-secret", response_model=VyOSResponse)
 async def generate_openvpn_shared_secret(http_request: Request, request: GenerateOpenVPNSecretRequest):
     """
-    Generate an OpenVPN shared secret using VyOS's built-in generate command.
+    Generate an OpenVPN static key and commit it as ``pki openvpn shared-secret <name>``.
 
-    Uses: generate pki openvpn shared-secret install <name>
-    This generates the secret and commits it to the config automatically.
+    Runs ``generate pki openvpn shared-secret`` without ``install`` (that form
+    never commits, and would pass the name to a router shell), reads the
+    printed ``OpenVPN Static key`` block, and writes it in one batch.
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
         service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        mapper = _mapper(version)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        _reject_existing(mapper, full_config, "openvpn", request.name)
 
-        response = await run_in_threadpool(
-            service.device.generate,
-            path=["pki", "openvpn", "shared-secret", "install", request.name],
+        generated = await run_in_threadpool(
+            service.device.generate, path=mapper.openvpn_shared_secret_generate_path(),
         )
-
-        if response.status != 200 or response.error:
+        if generated.status != 200 or generated.error:
             return VyOSResponse(
                 success=False,
-                error=response.error or "Failed to generate OpenVPN shared secret",
+                error=generated.error or "Failed to generate OpenVPN shared secret",
             )
+        key = _parse_openvpn_key(generated.result)
+        if key is None:
+            return VyOSResponse(success=False, error="VyOS returned no OpenVPN static key")
 
-        return VyOSResponse(
-            success=True,
-            data={"message": f"OpenVPN shared secret '{request.name}' generated and installed"},
-        )
+        builder = PKIBatchBuilder(version=version)
+        builder.create_openvpn_shared_secret(request.name)
+        builder.set_openvpn_shared_secret_key(request.name, key)
+        if request.version is not None and request.version.strip():
+            builder.set_openvpn_shared_secret_version(request.name, request.version.strip())
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return _commit_response(response, f"OpenVPN shared secret '{request.name}' generated and installed")
     except HTTPException:
         raise
     except Exception:
@@ -760,86 +754,47 @@ async def generate_openvpn_shared_secret(http_request: Request, request: Generat
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ========================================================================
-# Endpoint 9: Generate OpenSSH Key
-# ========================================================================
-
-class GenerateOpenSSHRequest(BaseModel):
+class GenerateOpenSSHRequest(_NamedRequest):
     """Request to generate an OpenSSH key pair."""
-    name: str = Field(..., description="OpenSSH key name")
     key_size: int = Field(2048, description="RSA key size in bits (2048/3072/4096)")
 
 
 @router.post("/generate-openssh", response_model=VyOSResponse)
 async def generate_openssh(http_request: Request, request: GenerateOpenSSHRequest):
     """
-    Generate an OpenSSH RSA key pair and install it on the device.
+    Generate an OpenSSH RSA key pair and commit it as ``pki openssh <name>``.
 
-    Generates an RSA key, serialises the private key in both OpenSSH and PKCS8
-    formats, then attempts to install using the OpenSSH format first (matching
-    VyOS's own generate command) and falls back to PKCS8 if that fails.
+    The private key is in OpenSSH format, as VyOS's own generate command
+    writes it. A failed commit returns its error.
     """
     await require_write_permission(http_request, FeatureGroup.PKI)
     try:
-        if request.key_size not in (2048, 3072, 4096):
+        service = get_session_vyos_service(http_request)
+        if request.key_size not in _RSA_SIZES:
             raise HTTPException(status_code=400, detail="RSA key size must be 2048, 3072, or 4096")
 
-        # Generate RSA key (VyOS openssh only supports ssh-rsa)
-        private_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=request.key_size,
+        version = service.get_version()
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        _reject_existing(_mapper(version), full_config, "openssh", request.name)
+
+        # VyOS openssh supports ssh-rsa only.
+        private_key = await run_in_threadpool(
+            rsa.generate_private_key, public_exponent=65537, key_size=request.key_size,
         )
-
-        # Prepare both private key formats to try
-        priv_openssh = _normalize_pem(private_key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.OpenSSH,
-            serialization.NoEncryption(),
-        ).decode("utf-8"))
-
-        priv_pkcs8 = _normalize_pem(private_key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.PKCS8,
-            serialization.NoEncryption(),
-        ).decode("utf-8"))
-
-        # Serialize public key in OpenSSH format and extract just the base64 part
-        pub_ssh = private_key.public_key().public_bytes(
+        priv_pem = _private_pem(private_key, False, None, serialization.PrivateFormat.OpenSSH)
+        pub_key_data = _openssh_public_key_data(private_key.public_key().public_bytes(
             serialization.Encoding.OpenSSH,
             serialization.PublicFormat.OpenSSH,
-        ).decode("utf-8")
-        pub_parts = pub_ssh.split(" ", 2)
-        pub_key_data = pub_parts[1] if len(pub_parts) >= 2 else pub_ssh
+        ).decode("utf-8"))
 
-        service = get_session_vyos_service(http_request)
-        version = service.get_version()
+        builder = PKIBatchBuilder(version=version)
+        builder.create_openssh(request.name)
+        builder.set_openssh_public_type(request.name, "ssh-rsa")
+        builder.set_openssh_public_key(request.name, pub_key_data)
+        builder.set_openssh_private_key(request.name, priv_pem)
 
-        # Try OpenSSH format first (matches VyOS's own generate output)
-        for fmt_name, priv_pem in [("OpenSSH", priv_openssh), ("PKCS8", priv_pkcs8)]:
-            builder = PKIBatchBuilder(version=version)
-            builder.create_openssh(request.name)
-            builder.set_openssh_public_type(request.name, "ssh-rsa")
-            builder.set_openssh_public_key(request.name, pub_key_data)
-            builder.set_openssh_private_key(request.name, priv_pem)
-
-            response = await run_in_threadpool(service.execute_batch, builder)
-
-            if response.status == 200 and not response.error:
-                return VyOSResponse(
-                    success=True,
-                    data={"message": f"OpenSSH key '{request.name}' generated and installed (format: {fmt_name})"},
-                )
-
-            # If first format failed, delete the partial node before retrying
-            if fmt_name == "OpenSSH":
-                cleanup = PKIBatchBuilder(version=version)
-                cleanup.delete_openssh(request.name)
-                await run_in_threadpool(service.execute_batch, cleanup)
-
-        # Both formats failed
-        return VyOSResponse(
-            success=False,
-            error=response.error or "Failed to install OpenSSH key — both OpenSSH and PKCS8 formats were rejected by VyOS",
-        )
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return _commit_response(response, f"OpenSSH key '{request.name}' generated and installed")
     except HTTPException:
         raise
     except Exception:

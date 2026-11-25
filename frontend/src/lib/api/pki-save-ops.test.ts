@@ -3,6 +3,12 @@ import { describe, it } from "node:test";
 import {
   KEEP,
   MASKED_SECRET,
+  acmeCreateForm,
+  defaultPublicType,
+  nameProblem,
+  openSSHProblem,
+  pemBody,
+  splitCrlList,
   caCreateOps,
   caUpdateOps,
   certificateCreateOps,
@@ -380,5 +386,78 @@ describe("pkiService batch requests", () => {
         operations: [{ op: "delete_certificate_acme_domain_name", value: "b.example.com" }] as BatchOperation[],
       },
     ]);
+  });
+});
+
+describe("Add-dialog name check", () => {
+  it("follows the lab tag syntax and rejects an existing name", () => {
+    assert.equal(nameProblem("  ", []), "nameRequired");
+    for (const bad of [".x", "a b", "a/b", "a;b", "été", "+x"]) assert.equal(nameProblem(bad, []), "nameInvalid", bad);
+    for (const good of ["a", "-a", "_a", "9", "a.b+c-d_e"]) assert.equal(nameProblem(good, []), null, good);
+    assert.equal(nameProblem("CA1", ["CA1", "CA2"]), "nameExists");
+    assert.equal(nameProblem(" CA1 ", ["CA1"]), "nameExists");
+    assert.equal(nameProblem("ca1", ["CA1"]), null);
+  });
+});
+
+describe("ACME create form", () => {
+  it("drops text typed on the Import tab", () => {
+    const form = acmeForm({
+      certificate: typed("CERT"), privateKey: typed("KEY"), description: "web", passwordProtected: true, revoke: true,
+      domainNames: ["a.example.com"], email: "", listenAddress: "", rsaKeySize: "", url: "",
+    });
+    assert.deepEqual(certificateCreateOps(acmeCreateForm(form)), [
+      { op: "create_certificate" },
+      { op: "set_certificate_acme" },
+      { op: "set_certificate_acme_domain_name", value: "a.example.com" },
+    ]);
+  });
+});
+
+describe("CA CRL text box", () => {
+  const pem = [
+    "-----BEGIN X509 CRL-----",
+    "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADA",
+    "SMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx",
+    "-----END X509 CRL-----",
+  ].join("\n");
+
+  it("a pasted PEM block is one value without armor or line breaks", () => {
+    assert.deepEqual(splitCrlList(pem), ["MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx"]);
+    assert.equal(pemBody(pem), "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx");
+  });
+
+  it("blocks first, then bare lines and commas are separate values", () => {
+    const text = `CRLA\n${pem}\nCRLB, CRLC\n\n${pem.replace("SMRA", "XXXX")}\nCRLA`;
+    assert.deepEqual(splitCrlList(text), [
+      "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx",
+      "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADAXXXXwDgYDVQQDDAdsYWItY2EwHhcNMjYx",
+      "CRLA",
+      "CRLB",
+      "CRLC",
+    ]);
+  });
+
+  it("the stored one-per-line seed round-trips to no ops", () => {
+    assert.deepEqual(caUpdateOps(CA, caForm({ crl: splitCrlList(CA.crl.join("\n")) })), []);
+  });
+});
+
+describe("OpenSSH save check", () => {
+  const form = { privateKey: KEEP, publicKey: KEEP, publicType: "", passwordProtected: false };
+  const current = { name: "SSH", public_key: "PUB", password_protected: false };
+
+  it("a public key set or kept needs a type", () => {
+    assert.equal(openSSHProblem(null, { ...form, publicKey: typed("AAAA") }), "publicTypeRequired");
+    assert.equal(openSSHProblem(current, form), "publicTypeRequired");
+    assert.equal(openSSHProblem(current, { ...form, publicType: "ssh-rsa" }), null);
+    assert.equal(openSSHProblem(current, { ...form, publicKey: { text: "", remove: true } }), null);
+    assert.equal(openSSHProblem(null, form), null);
+  });
+
+  it("defaults the type to the only capability value", () => {
+    assert.equal(defaultPublicType(["ssh-rsa"]), "ssh-rsa");
+    assert.equal(defaultPublicType([]), "");
+    assert.equal(defaultPublicType(["ssh-rsa", "ssh-ed25519"]), "");
   });
 });

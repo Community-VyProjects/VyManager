@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Loader2, Lock } from "lucide-react";
 import { pkiService, PKIOpenVPNSharedSecret } from "@/lib/api/pki";
-import { KEEP, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { KEEP, typed, type StoredValue, nameProblem } from "@/lib/api/pki-save-ops";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
@@ -25,10 +25,11 @@ interface OpenVPNSecretModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  existingSecret: PKIOpenVPNSharedSecret | null;
+  existingSecret: PKIOpenVPNSharedSecret | null;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
-export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecret }: OpenVPNSecretModalProps) {
+export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecret, existingNames }: OpenVPNSecretModalProps) {
   const t = useTranslations("pki");
   const tc = useTranslations("common");
   const isEdit = !!existingSecret;
@@ -65,7 +66,10 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
   }, [open, existingSecret]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
 
     setLoading(true);
     setError(null);
@@ -92,7 +96,8 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
 
     setLoading(true);
     setError(null);

@@ -80,8 +80,28 @@ FULL_TREE = {
 }
 
 
+OPENVPN_LINES = [
+    "e4b8f6a1c2d3e4f5a6b7c8d9e0f1a2b3",
+    "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "1234567890abcdef1234567890abcdef",
+]
+OPENVPN_OUTPUT = "\n".join([
+    "#",
+    "# 2048 bit OpenVPN static key",
+    "#",
+    "-----BEGIN OpenVPN Static key V1-----",
+    *OPENVPN_LINES,
+    "-----END OpenVPN Static key V1-----",
+    "",
+])
+
+
 def pki_client(monkeypatch, version, commit, full_config=None):
-    """Return (client, executed, generated); executed holds one [(op, path), ...] per commit."""
+    """Return (client, executed, generated); executed holds one [(op, path), ...] per commit.
+
+    ``commit`` may carry ``generate_result`` (the op-mode text) and
+    ``generate_status`` / ``generate_error`` for the op-mode reply.
+    """
     executed = []
     generated = []
 
@@ -91,7 +111,11 @@ def pki_client(monkeypatch, version, commit, full_config=None):
     class Device:
         def generate(self, path):
             generated.append(path)
-            return SimpleNamespace(status=commit["status"], result="", error=commit["error"])
+            return SimpleNamespace(
+                status=commit.get("generate_status", 200),
+                result=commit.get("generate_result", OPENVPN_OUTPUT),
+                error=commit.get("generate_error"),
+            )
 
     class Service:
         device = Device()
@@ -203,11 +227,9 @@ def test_bare_pki_root_is_configured(monkeypatch, commit):
     "item_type,item_name,field,value",
     [
         ("ca", "CA1", "private_key", CA_KEY),
-        ("ca", "CA1", "crl", ["CRLA", "CRLB"]),
         ("certificate", "WEB", "private_key", "WEBKEY"),
         ("dh", "DH1", "parameters", "DHPARAMS"),
         ("key_pair", "KP1", "private_key", "KPPRIV"),
-        ("openssh", "SSH1", "public_key", "SSHPUB"),
         ("openvpn", "OVPN1", "key", "OVPNKEY"),
         ("certificate", "LE", "private_key", None),
     ],
@@ -225,6 +247,11 @@ def test_reveal_returns_the_raw_value(client, item_type, item_name, field, value
         ({"item_type": "x509", "item_name": "CA1", "field": "key"}, 400),
         ({"item_type": "dh", "item_name": "DH1", "field": "private_key"}, 400),
         ({"item_type": "ca", "item_name": "NOPE", "field": "private_key"}, 404),
+        # Only masked fields are revealable; these are in GET /config already.
+        ({"item_type": "ca", "item_name": "CA1", "field": "crl"}, 400),
+        ({"item_type": "ca", "item_name": "CA1", "field": "certificate"}, 400),
+        ({"item_type": "key_pair", "item_name": "KP1", "field": "public_key"}, 400),
+        ({"item_type": "openssh", "item_name": "SSH1", "field": "public_key"}, 400),
     ],
 )
 def test_reveal_rejects_unknown_kind_field_or_item(client, body, status):
@@ -311,6 +338,7 @@ def test_global_ops_take_no_item_name(client):
         ([{"op": "set_ca_description", "value": "   "}], "CA1", 400),
         ([{"op": "set_x509_default_country"}], None, 400),
         ([{"op": "set_x509_default_country", "value": ""}], None, 400),
+        ([{"op": "set_x509_default_country", "value": "   "}], None, 400),
         # value on a valueless op
         ([{"op": "delete_ca", "value": "x"}], "CA1", 400),
         ([{"op": "delete_pki", "value": "x"}], None, 400),
@@ -401,12 +429,186 @@ def test_generate_certificate_needs_a_usable_ca(client, ca_name, status):
     assert executed == []
 
 
-def test_generate_openvpn_secret_failure(client, commit):
-    test_client, _executed, generated = client
-    commit.update(status=400, error="generate failed")
+def test_generate_openvpn_secret_writes_the_parsed_key(client):
+    """No `install`, no name on the op-mode path; the key is committed through the builder."""
+    test_client, executed, generated = client
+    resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2", "version": "1"})
+    assert resp.json()["success"] is True, resp.text
+    assert generated == [["pki", "openvpn", "shared-secret"]]
+    base = ["pki", "openvpn", "shared-secret", "OV2"]
+    assert executed == [[
+        ("set", base),
+        ("set", base + ["key", "".join(OPENVPN_LINES)]),
+        ("set", base + ["version", "1"]),
+    ]]
+
+
+def test_generate_openvpn_secret_without_version_sets_no_version(client):
+    test_client, executed, _generated = client
+    resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2"})
+    assert resp.json()["success"] is True
+    assert [path[-2] for _op, path in executed[0][1:]] == ["key"]
+
+
+@pytest.mark.parametrize("result", ["", "no key here", None, "-----BEGIN OpenVPN Static key V1-----\n"])
+def test_generate_openvpn_secret_without_a_key_block_fails(client, commit, result):
+    test_client, executed, _generated = client
+    commit["generate_result"] = result
+    resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2"})
+    assert resp.json() == {"success": False, "data": None, "error": "VyOS returned no OpenVPN static key"}
+    assert executed == []
+
+
+def test_generate_openvpn_secret_op_mode_failure(client, commit):
+    test_client, executed, _generated = client
+    commit.update(generate_status=400, generate_error="generate failed")
     resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2"})
     assert resp.json() == {"success": False, "data": None, "error": "generate failed"}
-    assert generated == [["pki", "openvpn", "shared-secret", "install", "OV2"]]
+    assert executed == []
+
+
+def test_generate_openvpn_secret_failed_commit(client, commit):
+    test_client, _executed, _generated = client
+    commit.update(status=400, error="Commit failed")
+    resp = test_client.post("/vyos/pki/generate-openvpn-shared-secret", json={"name": "OV2"})
+    assert resp.json() == {"success": False, "data": None, "error": "Commit failed"}
+
+
+# Fast, valid bodies for every generate route (name filled in per test).
+GENERATE = {
+    "/vyos/pki/generate-ca": ("ca", {"common_name": "ca", "key_type": "ec", "key_size": 256}),
+    "/vyos/pki/generate-key-pair": ("key_pair", {"key_type": "ec", "key_size": 256}),
+    "/vyos/pki/generate-dh": ("dh", {"key_size": 2048}),
+    "/vyos/pki/generate-certificate": ("certificate", {"ca_name": "CA1", "common_name": "c", "key_type": "ec", "key_size": 256}),
+    "/vyos/pki/generate-openvpn-shared-secret": ("openvpn", {}),
+    "/vyos/pki/generate-openssh": ("openssh", {}),
+}
+EXISTING = {"ca": "CA1", "key_pair": "KP1", "dh": "DH1", "certificate": "WEB", "openvpn": "OVPN1", "openssh": "SSH1"}
+
+
+@pytest.mark.parametrize("path", list(GENERATE))
+def test_generate_existing_name_is_409(client, path):
+    test_client, executed, generated = client
+    kind, body = GENERATE[path]
+    resp = test_client.post(path, json={**body, "name": EXISTING[kind]})
+    assert resp.status_code == 409, resp.text
+    assert executed == [] and generated == []
+
+
+@pytest.mark.parametrize("path", list(GENERATE))
+@pytest.mark.parametrize("name", ["", "   ", ".dot", "a b", "a/b", "a;rm", "\u00e9t\u00e9"])
+def test_generate_invalid_name_is_422(client, path, name):
+    test_client, executed, generated = client
+    resp = test_client.post(path, json={**GENERATE[path][1], "name": name})
+    assert resp.status_code == 422
+    assert executed == [] and generated == []
+
+
+@pytest.mark.parametrize("name", ["a", "-a", "_a", "9", "a.b+c-d_e"])
+def test_lab_tag_names_are_accepted(client, name):
+    test_client, executed, _generated = client
+    resp = test_client.post("/vyos/pki/generate-key-pair", json={"name": name, "key_type": "ec", "key_size": 256})
+    assert resp.json()["success"] is True
+    assert executed[0][0] == ("set", ["pki", "key-pair", name])
+
+
+@pytest.mark.parametrize("item_name", [".x", "a b", "a,b"])
+def test_batch_item_name_follows_the_lab_tag(client, item_name):
+    test_client, executed, _generated = client
+    resp = test_client.post("/vyos/pki/batch", json={"item_name": item_name, "operations": [{"op": "create_ca"}]})
+    assert resp.status_code == 422
+    assert executed == []
+
+
+@pytest.mark.parametrize("path", ["/vyos/pki/generate-ca", "/vyos/pki/generate-certificate"])
+@pytest.mark.parametrize(
+    "overrides,detail",
+    [
+        ({"days": 0}, "days must be between 1 and 36500"),
+        ({"days": 36501}, "days must be between 1 and 36500"),
+        ({"country": "USA"}, "country must be a 2-letter code"),
+        ({"country": "U1"}, "country must be a 2-letter code"),
+        ({"common_name": ""}, "common_name must be 1 to 64 characters"),
+        ({"common_name": "   "}, "common_name must be 1 to 64 characters"),
+        ({"common_name": "x" * 65}, "common_name must be 1 to 64 characters"),
+    ],
+)
+def test_subject_is_validated_up_front(client, path, overrides, detail):
+    test_client, executed, _generated = client
+    resp = test_client.post(path, json={**GENERATE[path][1], "name": "NEW", **overrides})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == detail
+    assert executed == []
+
+
+def test_subject_edges_are_accepted(client):
+    test_client, executed, _generated = client
+    resp = test_client.post("/vyos/pki/generate-ca", json={
+        **GENERATE["/vyos/pki/generate-ca"][1], "name": "NEW", "days": 36500, "country": "de", "common_name": "x" * 64,
+    })
+    assert resp.json()["success"] is True, resp.text
+    assert len(executed) == 1
+
+
+@pytest.mark.parametrize(
+    "ca,detail",
+    [
+        ({"certificate": "bm90IGEgY2VydA==", "private": {"key": CA_KEY}}, "CA 'BAD' certificate cannot be loaded"),
+        ({"certificate": CA_CERT, "private": {"key": "bm90IGEga2V5"}}, "CA 'BAD' private key cannot be loaded"),
+    ],
+)
+def test_unloadable_ca_is_400_naming_the_ca(monkeypatch, commit, ca, detail):
+    tree = {"pki": {**FULL_TREE["pki"], "ca": {**FULL_TREE["pki"]["ca"], "BAD": ca}}}
+    test_client, executed, _generated = pki_client(monkeypatch, ROLLING, commit, full_config=tree)
+    resp = test_client.post("/vyos/pki/generate-certificate", json={
+        **GENERATE["/vyos/pki/generate-certificate"][1], "name": "NEW", "ca_name": "BAD",
+    })
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == detail
+    assert executed == []
+
+
+def test_generate_openssh_failed_commit_returns_its_error_without_cleanup(client, commit):
+    test_client, executed, _generated = client
+    commit.update(status=400, error="Commit failed: bad key")
+    resp = test_client.post("/vyos/pki/generate-openssh", json={"name": "SSH9"})
+    assert resp.json() == {"success": False, "data": None, "error": "Commit failed: bad key"}
+    # One commit attempt; no delete_openssh afterwards.
+    assert len(executed) == 1
+    assert all(op == "set" for op, _path in executed[0])
+
+
+def test_generate_openssh_stores_the_base64_public_key(client):
+    test_client, executed, _generated = client
+    resp = test_client.post("/vyos/pki/generate-openssh", json={"name": "SSH9"})
+    assert resp.json()["success"] is True
+    by_leaf = {tuple(path[3:5]): path for _op, path in executed[0] if len(path) > 5}
+    assert by_leaf[("public", "type")][-1] == "ssh-rsa"
+    public = by_leaf[("public", "key")][-1]
+    assert " " not in public and public.startswith("AAAAB3NzaC1yc2E")
+
+
+@pytest.mark.parametrize(
+    "value,stored",
+    [
+        ("ssh-rsa AAAAB3NzaC1yc2EAAAADAQAB user@host", "AAAAB3NzaC1yc2EAAAADAQAB"),
+        ("ssh-rsa AAAAB3NzaC1yc2EAAAADAQAB", "AAAAB3NzaC1yc2EAAAADAQAB"),
+        ("  AAAAB3NzaC1yc2EAAAADAQAB  ", "AAAAB3NzaC1yc2EAAAADAQAB"),
+    ],
+)
+def test_openssh_public_key_line_is_stored_as_its_base64(client, value, stored):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_openssh_public_key", "value": value}], item_name="SSH1")
+    assert resp.json()["success"] is True
+    assert executed == [[("set", ["pki", "openssh", "SSH1", "public", "key", stored])]]
+
+
+def test_openvpn_key_import_strips_the_mixed_case_armor(client):
+    test_client, executed, _generated = client
+    block = OPENVPN_OUTPUT[OPENVPN_OUTPUT.index("-----BEGIN"):]
+    resp = _batch(test_client, [{"op": "set_openvpn_shared_secret_key", "value": block}], item_name="OVPN2")
+    assert resp.json()["success"] is True
+    assert executed == [[("set", ["pki", "openvpn", "shared-secret", "OVPN2", "key", "".join(OPENVPN_LINES)])]]
 
 
 # ---------------------------------------------------------------- passthrough
@@ -438,16 +640,15 @@ def test_session_http_exception_passes_through(monkeypatch, client, method, path
     def deny(_req):
         raise HTTPException(status_code=400, detail="No active VyOS session")
 
+    # The session resolves before any key generation: a slow generator never runs.
+    monkeypatch.setattr(f"{MODULE}.dh.generate_parameters", _must_not_run)
+    monkeypatch.setattr(f"{MODULE}.rsa.generate_private_key", _must_not_run)
     monkeypatch.setattr(f"{MODULE}.get_session_vyos_service", deny)
-    if path.endswith("/generate-dh"):
-        # Skip the slow DH math; the session lookup comes after it.
-        monkeypatch.setattr(f"{MODULE}.dh.generate_parameters", lambda **_kwargs: _FakeParams())
     kwargs = {"json": body} if body is not None else {}
     resp = getattr(test_client, method)(path, **kwargs)
     assert resp.status_code == 400
     assert resp.json()["detail"] == "No active VyOS session"
 
 
-class _FakeParams:
-    def parameter_bytes(self, *_args):
-        return b"-----BEGIN DH PARAMETERS-----\nAAAA\n-----END DH PARAMETERS-----\n"
+def _must_not_run(*_args, **_kwargs):
+    raise AssertionError("key generation ran before the session lookup")

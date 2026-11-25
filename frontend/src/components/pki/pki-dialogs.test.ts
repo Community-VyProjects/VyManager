@@ -49,6 +49,32 @@ describe("PKI dialogs", () => {
     assert.ok(page.includes("pkiService.clearX509Defaults()"));
   });
 
+  it("every Add dialog gets the existing names of its kind", () => {
+    for (const file of ["CAModal.tsx", "CertificateModal.tsx", "DHModal.tsx", "KeyPairModal.tsx", "OpenSSHModal.tsx", "OpenVPNSecretModal.tsx"]) {
+      const source = readFileSync(join(here, file), "utf8");
+      assert.equal((source.match(/nameProblem\(/g) ?? []).length, 2, file);
+    }
+    for (const kind of ["ca", "certificates", "dh", "key_pairs", "openssh", "openvpn_shared_secrets"]) {
+      assert.ok(page.includes(`existingNames={(config?.${kind} || []).map((item) => item.name)}`), kind);
+    }
+  });
+
+  it("country is the shared country picker", () => {
+    for (const file of ["CAModal.tsx", "CertificateModal.tsx", "X509DefaultsModal.tsx"]) {
+      const source = readFileSync(join(here, file), "utf8");
+      assert.ok(source.includes("<CountrySelect"), file);
+      assert.ok(!/country-?\w*" value=\{country\} onChange=\{\(e\)/.test(source), file);
+    }
+  });
+
+  it("the certificate dialog has no edit-mode tab leftovers and checks days", () => {
+    const cert = readFileSync(join(here, "CertificateModal.tsx"), "utf8");
+    assert.ok(!cert.includes("effectiveMode"));
+    assert.ok(!cert.includes('setMode(acme ? "acme" : "manual")'));
+    assert.ok(cert.includes("acmeCreateForm(entered)"));
+    assert.ok(cert.includes('setError(t("ca.daysPositive"))'));
+  });
+
   it("value lists come from capabilities with no hardcoded fallback", () => {
     const cert = readFileSync(join(here, "CertificateModal.tsx"), "utf8");
     const ssh = readFileSync(join(here, "OpenSSHModal.tsx"), "utf8");

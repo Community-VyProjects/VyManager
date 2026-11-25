@@ -10,6 +10,7 @@ that through ``acme_listen_address_ipv6``.
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..base import BaseFeatureMapper
+from . import config_parse
 
 # Lab `allowed:` lines, the same on 1.4 and 1.5.
 ACME_RSA_KEY_SIZES = ("2048", "3072", "4096")
@@ -298,18 +299,20 @@ class PKIMapper(BaseFeatureMapper):
 
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         """GET /config shape: lists of items with secrets masked, plus totals."""
-        from .config_parse import parse_config as parse_pki_config
-
-        return parse_pki_config(self, full_config)
+        return config_parse.parse_config(full_config)
 
     def reveal_kinds(self) -> Dict[str, Tuple[str, ...]]:
-        """Item kinds /reveal accepts, each with the fields it may return."""
-        from .config_parse import REVEAL_FIELDS
-
-        return REVEAL_FIELDS
+        """Item kinds /reveal accepts, each with the masked fields it may return."""
+        return config_parse.REVEAL_FIELDS
 
     def raw_item(self, full_config: Dict[str, Any], kind: str, name: str) -> Optional[Dict[str, Any]]:
         """One parsed item with secrets unmasked, or None when it is absent."""
-        from .config_parse import raw_item
+        return config_parse.raw_item(full_config, kind, name)
 
-        return raw_item(self, full_config, kind, name)
+    # ========================================================================
+    # Op-mode paths
+    # ========================================================================
+
+    def openvpn_shared_secret_generate_path(self) -> List[str]:
+        """``generate pki openvpn shared-secret``: prints a static key, installs nothing."""
+        return ["pki", "openvpn", "shared-secret"]

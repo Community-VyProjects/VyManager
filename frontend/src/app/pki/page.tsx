@@ -827,6 +827,7 @@ function PKIPageInner() {
         onSuccess={onSuccess}
         existingCA={editingCA}
         x509Defaults={config?.x509_defaults || {}}
+        existingNames={(config?.ca || []).map((item) => item.name)}
       />
 
       <CertificateModal
@@ -836,6 +837,7 @@ function PKIPageInner() {
         existingCert={editingCert}
         capabilities={capabilities}
         availableCAs={config?.ca || []}
+        existingNames={(config?.certificates || []).map((item) => item.name)}
         x509Defaults={config?.x509_defaults || {}}
       />
 
@@ -844,6 +846,7 @@ function PKIPageInner() {
         onOpenChange={(v) => { setShowDHModal(v); if (!v) setEditingDH(null); }}
         onSuccess={onSuccess}
         existingDH={editingDH}
+        existingNames={(config?.dh || []).map((item) => item.name)}
       />
 
       <KeyPairModal
@@ -851,6 +854,7 @@ function PKIPageInner() {
         onOpenChange={(v) => { setShowKeyPairModal(v); if (!v) setEditingKeyPair(null); }}
         onSuccess={onSuccess}
         existingKeyPair={editingKeyPair}
+        existingNames={(config?.key_pairs || []).map((item) => item.name)}
       />
 
       <OpenSSHModal
@@ -858,6 +862,7 @@ function PKIPageInner() {
         onOpenChange={(v) => { setShowOpenSSHModal(v); if (!v) setEditingOpenSSH(null); }}
         onSuccess={onSuccess}
         existingKey={editingOpenSSH}
+        existingNames={(config?.openssh || []).map((item) => item.name)}
         capabilities={capabilities}
       />
 
@@ -866,6 +871,7 @@ function PKIPageInner() {
         onOpenChange={(v) => { setShowOpenVPNModal(v); if (!v) setEditingOpenVPN(null); }}
         onSuccess={onSuccess}
         existingSecret={editingOpenVPN}
+        existingNames={(config?.openvpn_shared_secrets || []).map((item) => item.name)}
       />
 
       <X509DefaultsModal

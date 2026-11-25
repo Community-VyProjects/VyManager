@@ -3,7 +3,8 @@
 Mappers own VyOS tree shape. ``parse_config`` returns the GET /config
 response the client reads: each collection as a list, private keys, DH
 parameters and OpenVPN keys masked as ``***``, and per-collection totals.
-``raw_item`` reads one item unmasked for /reveal and for signing with a CA.
+``raw_item`` reads one item unmasked for /reveal and for signing with a CA;
+/reveal serves only the masked fields (``REVEAL_FIELDS``).
 A ``multi:`` leaf (CA ``crl``, ACME ``domain-name``) is a list whether the
 device returned one value or several.
 """
@@ -11,17 +12,6 @@ device returned one value or several.
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 MASK = "***"
-
-# Kind (as /reveal names it) -> fields /reveal may return.
-REVEAL_FIELDS: Dict[str, Tuple[str, ...]] = {
-    "ca": ("certificate", "private_key", "crl"),
-    "certificate": ("certificate", "private_key"),
-    "dh": ("parameters",),
-    "key_pair": ("private_key", "public_key"),
-    "openssh": ("private_key", "public_key"),
-    "openvpn": ("key",),
-}
-
 
 def _dict(value: Any) -> Dict[str, Any]:
     return value if isinstance(value, dict) else {}
@@ -123,6 +113,10 @@ _KINDS: Dict[str, Tuple[str, Callable[[Dict[str, Any]], Any], Callable[[str, Dic
 }
 
 
+# /reveal serves exactly the fields the parse masks.
+REVEAL_FIELDS: Dict[str, Tuple[str, ...]] = {kind: spec[3] for kind, spec in _KINDS.items()}
+
+
 def _rows(pki: Dict[str, Any], kind: str) -> Dict[str, Dict[str, Any]]:
     _key, read, parse, _masked = _KINDS[kind]
     return {
@@ -149,7 +143,7 @@ def _x509_defaults(pki: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def parse_config(_mapper: Any, full_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def parse_config(full_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """GET /config response. ``configured`` is key membership of ``pki``."""
     full_config = full_config or {}
     pki = _dict(full_config.get("pki"))
@@ -164,7 +158,7 @@ def parse_config(_mapper: Any, full_config: Optional[Dict[str, Any]]) -> Dict[st
     return result
 
 
-def raw_item(_mapper: Any, full_config: Optional[Dict[str, Any]], kind: str, name: str) -> Optional[Dict[str, Any]]:
+def raw_item(full_config: Optional[Dict[str, Any]], kind: str, name: str) -> Optional[Dict[str, Any]]:
     """One item of ``kind`` with its secrets unmasked, or None."""
     if kind not in _KINDS:
         return None

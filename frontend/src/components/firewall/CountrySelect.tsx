@@ -17,7 +17,11 @@ interface CountrySelectProps {
   onChange: (value: string) => void;
   label: string;
   id: string;
+  /** When set, a first item with this label clears the value (onChange("")). */
+  noneLabel?: string;
 }
+
+const NONE = "__none__";
 
 // ISO 3166-1 alpha-2 country codes with names
 const COUNTRIES = [
@@ -272,7 +276,7 @@ const COUNTRIES = [
   { code: "ZW", name: "Zimbabwe" },
 ];
 
-export function CountrySelect({ value, onChange, label, id }: CountrySelectProps) {
+export function CountrySelect({ value, onChange, label, id, noneLabel }: CountrySelectProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Filter countries based on search query
@@ -295,10 +299,15 @@ export function CountrySelect({ value, onChange, label, id }: CountrySelectProps
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value.toUpperCase()} onValueChange={onChange}>
+      <Select
+        value={value ? value.toUpperCase() : noneLabel ? NONE : ""}
+        onValueChange={(next) => onChange(next === NONE ? "" : next)}
+      >
         <SelectTrigger id={id}>
           <SelectValue placeholder="Select country">
-            {selectedCountry ? `${selectedCountry.name} (${selectedCountry.code})` : "Select country"}
+            {selectedCountry
+              ? `${selectedCountry.name} (${selectedCountry.code})`
+              : !value && noneLabel ? noneLabel : value ? value.toUpperCase() : "Select country"}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -316,6 +325,7 @@ export function CountrySelect({ value, onChange, label, id }: CountrySelectProps
             </div>
           </div>
           <div className="max-h-[300px] overflow-y-auto">
+            {noneLabel && <SelectItem value={NONE}>{noneLabel}</SelectItem>}
             {filteredCountries.length > 0 ? (
               filteredCountries.map((country) => (
                 <SelectItem key={country.code} value={country.code}>

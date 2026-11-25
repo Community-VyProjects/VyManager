@@ -64,3 +64,21 @@ def test_capabilities_carry_the_lab_value_lists():
     assert caps["features"]["openssh"]["public_types"] == ["ssh-rsa"]
     assert PKIMapper("1.4").rsa_key_size_values() == ("2048", "3072", "4096")
     assert PKIMapper("1.4").openssh_public_type_values() == ("ssh-rsa",)
+
+
+@pytest.mark.parametrize("version", ["1.4.3", "2026.09.23-0027-rolling"])
+def test_openvpn_generate_path_has_no_install_and_no_name(version):
+    mapper = CommandMapperRegistry.get_mapper("pki", version)
+    assert mapper.openvpn_shared_secret_generate_path() == ["pki", "openvpn", "shared-secret"]
+
+
+def test_reveal_fields_are_the_masked_fields():
+    from vyos_mappers.pki import config_parse
+
+    assert PKIMapper("1.4").reveal_kinds() == {
+        kind: spec[3] for kind, spec in config_parse._KINDS.items()
+    }
+    assert PKIMapper("1.4").reveal_kinds() == {
+        "ca": ("private_key",), "certificate": ("private_key",), "dh": ("parameters",),
+        "key_pair": ("private_key",), "openssh": ("private_key",), "openvpn": ("key",),
+    }

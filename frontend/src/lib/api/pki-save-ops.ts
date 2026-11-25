@@ -31,6 +31,21 @@ import type {
 
 export const MASKED_SECRET = "***";
 
+/** Lab tag syntax for every `pki <kind> <name>` node (same on 1.4 and 1.5). */
+export const PKI_NAME_PATTERN = /^[-_a-zA-Z0-9][\w\-.+]*$/;
+
+/** Add-dialog name check; a key in the `shared` namespace of `pki` and `pkiCerts`. */
+export function nameProblem(
+  name: string,
+  existingNames: readonly string[],
+): "nameRequired" | "nameInvalid" | "nameExists" | null {
+  const value = name.trim();
+  if (!value) return "nameRequired";
+  if (!PKI_NAME_PATTERN.test(value)) return "nameInvalid";
+  if (existingNames.includes(value)) return "nameExists";
+  return null;
+}
+
 /** A value the edit form does not show (empty = keep, or remove the stored one). */
 export interface StoredValue {
   text: string;
@@ -211,6 +226,22 @@ export function certificateCreateOps(form: CertificateForm): BatchOperation[] {
   return [{ op: "create_certificate" }, ...certificateUpdateOps(EMPTY_CERTIFICATE, form)];
 }
 
+/**
+ * ACME create: only the ACME fields. Text typed on the Import tab of the
+ * same dialog is not sent.
+ */
+export function acmeCreateForm(form: CertificateForm): CertificateForm {
+  return {
+    ...form,
+    certificate: KEEP,
+    description: "",
+    privateKey: KEEP,
+    passwordProtected: false,
+    revoke: false,
+    acme: true,
+  };
+}
+
 /** Save check for the certificate form; a key in the `pkiCerts` `cert` namespace. */
 export function certificateProblem(
   form: CertificateForm,
@@ -223,6 +254,25 @@ export function certificateProblem(
 /** Split a comma- or newline-separated text box into list values. */
 export function splitList(text: string): string[] {
   return normalizeList(text.split(/[,\n]/));
+}
+
+const PEM_BLOCK = /-----BEGIN [^\n]*?-----[\s\S]*?-----END [^\n]*?-----/g;
+const PEM_ARMOR = /-----(?:BEGIN|END) [^\n]*?-----/g;
+
+/** A PEM block as VyOS stores it: armor and whitespace removed. */
+export function pemBody(block: string): string {
+  return block.replace(PEM_ARMOR, "").replace(/\s+/g, "");
+}
+
+/**
+ * CA CRL text box: each pasted PEM block (BEGIN/END armor, many lines) is one
+ * value; the remaining bare lines or comma-separated parts are each a
+ * base64 value.
+ */
+export function splitCrlList(text: string): string[] {
+  const blocks = (text.match(PEM_BLOCK) ?? []).map(pemBody);
+  const rest = text.replace(PEM_BLOCK, "\n");
+  return normalizeList([...blocks, ...rest.split(/[,\n]/)]);
 }
 
 // ============================================================================
@@ -281,6 +331,22 @@ export function openSSHUpdateOps(current: PKIOpenSSH, form: OpenSSHForm): BatchO
     current.password_protected, form.passwordProtected,
   );
   return ops;
+}
+
+/**
+ * OpenSSH save check: a public key that will be set or kept needs a type;
+ * a key in the `pki` `openssh` namespace.
+ */
+export function openSSHProblem(current: PKIOpenSSH | null, form: OpenSSHForm): "publicTypeRequired" | null {
+  const typedKey = !!form.publicKey.text.trim() && form.publicKey.text.trim() !== MASKED_SECRET;
+  const keptKey = !!current?.public_key && !form.publicKey.remove;
+  if ((typedKey || keptKey) && !form.publicType.trim()) return "publicTypeRequired";
+  return null;
+}
+
+/** The only public type the version offers, else empty (the user picks). */
+export function defaultPublicType(publicTypes: readonly string[]): string {
+  return publicTypes.length === 1 ? publicTypes[0] : "";
 }
 
 export function openSSHCreateOps(form: OpenSSHForm): BatchOperation[] {

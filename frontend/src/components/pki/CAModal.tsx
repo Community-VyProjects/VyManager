@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, ShieldCheck, Info } from "lucide-react";
 import { pkiService, PKICA, PKIX509Defaults } from "@/lib/api/pki";
-import { KEEP, splitList, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { KEEP, splitCrlList, typed, type StoredValue, nameProblem } from "@/lib/api/pki-save-ops";
+import { CountrySelect } from "@/components/firewall/CountrySelect";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
@@ -35,10 +36,11 @@ interface CAModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingCA: PKICA | null;
-  x509Defaults: PKIX509Defaults;
+  x509Defaults: PKIX509Defaults;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
-export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Defaults }: CAModalProps) {
+export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Defaults, existingNames }: CAModalProps) {
   const t = useTranslations("pkiCerts");
   const tc = useTranslations("common");
   const tp = useTranslations("pki");
@@ -127,7 +129,10 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
   }, [keyType]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
 
     setLoading(true);
     setError(null);
@@ -138,7 +143,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
         description,
         privateKey,
         passwordProtected,
-        crl: splitList(crl),
+        crl: splitCrlList(crl),
         revoke,
         systemInstall,
       };
@@ -160,7 +165,8 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
     if (!commonName.trim()) { setError(t("shared.commonNameRequired")); return; }
     if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
@@ -326,10 +332,13 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="gen-country">{t("shared.country")}</Label>
-                      <Input id="gen-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="US" maxLength={2} />
-                    </div>
+                    <CountrySelect
+                      id="gen-country"
+                      label={t("shared.country")}
+                      value={country}
+                      onChange={setCountry}
+                      noneLabel={tc("none")}
+                    />
                     <div className="space-y-2">
                       <Label htmlFor="gen-state">{t("shared.state")}</Label>
                       <Input id="gen-state" value={state} onChange={(e) => setState(e.target.value)} placeholder={tp("x509.statePlaceholder")} />

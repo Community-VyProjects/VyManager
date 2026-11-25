@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Settings } from "lucide-react";
 import { pkiService, PKIX509Defaults } from "@/lib/api/pki";
+import { CountrySelect } from "@/components/firewall/CountrySelect";
 import { ApiError } from "@/lib/types/api";
 
 interface X509DefaultsModalProps {
@@ -90,10 +91,13 @@ export function X509DefaultsModal({ open, onOpenChange, onSuccess, current }: X5
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="x509-country">{t("shared.country")}</Label>
-            <Input id="x509-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder={t("x509.countryPlaceholder")} maxLength={2} />
-          </div>
+          <CountrySelect
+            id="x509-country"
+            label={t("shared.country")}
+            value={country}
+            onChange={setCountry}
+            noneLabel={tc("none")}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="x509-state">{t("shared.state")}</Label>

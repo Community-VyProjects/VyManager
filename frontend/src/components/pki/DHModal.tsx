@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Key, Info } from "lucide-react";
 import { pkiService, PKIDH } from "@/lib/api/pki";
-import { KEEP, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { KEEP, typed, type StoredValue, nameProblem } from "@/lib/api/pki-save-ops";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
@@ -32,10 +32,11 @@ interface DHModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  existingDH: PKIDH | null;
+  existingDH: PKIDH | null;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
-export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalProps) {
+export function DHModal({ open, onOpenChange, onSuccess, existingDH, existingNames }: DHModalProps) {
   const t = useTranslations("pki");
   const tc = useTranslations("common");
   const isEdit = !!existingDH;
@@ -73,7 +74,10 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
   }, [open, existingDH]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
 
     setLoading(true);
     setError(null);
@@ -100,7 +104,8 @@ export function DHModal({ open, onOpenChange, onSuccess, existingDH }: DHModalPr
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
 
     setLoading(true);
     setError(null);

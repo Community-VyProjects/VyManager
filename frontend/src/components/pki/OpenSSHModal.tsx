@@ -27,7 +27,7 @@ import {
 import { AlertCircle, Loader2, Terminal } from "lucide-react";
 import { pkiService, PKICapabilities, PKIOpenSSH } from "@/lib/api/pki";
 import { NamedListSelect } from "@/components/ui/named-list-select";
-import { KEEP, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { KEEP, defaultPublicType, nameProblem, openSSHProblem, typed, type StoredValue } from "@/lib/api/pki-save-ops";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
@@ -36,10 +36,11 @@ interface OpenSSHModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingKey: PKIOpenSSH | null;
-  capabilities: PKICapabilities | null;
+  capabilities: PKICapabilities | null;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
-export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capabilities }: OpenSSHModalProps) {
+export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capabilities, existingNames }: OpenSSHModalProps) {
   const t = useTranslations("pki");
   const tc = useTranslations("common");
   const isEdit = !!existingKey;
@@ -70,30 +71,37 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
         setName(existingKey.name);
         setPrivateKey(KEEP);
         setPublicKey(KEEP);
-        setPublicType(existingKey.public_type || "");
+        setPublicType(existingKey.public_type || defaultPublicType(publicTypes));
         setPasswordProtected(existingKey.password_protected);
       } else {
         setMode("import");
         setName("");
         setPrivateKey(KEEP);
         setPublicKey(KEEP);
-        setPublicType("");
+        setPublicType(defaultPublicType(publicTypes));
         setPasswordProtected(false);
         setGenName("");
         setKeySize("2048");
       }
       setError(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form fields when the modal opens
   }, [open, existingKey]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
+
+    const form = { privateKey, publicKey, publicType, passwordProtected };
+    const problem = openSSHProblem(existingKey, form);
+    if (problem) { setError(t(`openssh.${problem}`)); return; }
 
     setLoading(true);
     setError(null);
 
     try {
-      const form = { privateKey, publicKey, publicType, passwordProtected };
       let result;
       if (isEdit) {
         result = await pkiService.updateOpenSSH(name.trim(), existingKey!, form);
@@ -115,7 +123,8 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
 
     setLoading(true);
     setError(null);
@@ -194,7 +203,7 @@ export function OpenSSHModal({ open, onOpenChange, onSuccess, existingKey, capab
                       value={publicKey.text}
                       onChange={(e) => setPublicKey(typed(e.target.value))}
                       // eslint-disable-next-line vymanager/no-untranslated-text -- example value
-                      placeholder="ssh-rsa AAAA..."
+                      placeholder="ssh-rsa AAAAB3NzaC1yc2E... user@host"
                       className="font-mono text-xs"
                       rows={3}
                     />

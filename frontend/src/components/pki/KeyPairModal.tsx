@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Key, Info } from "lucide-react";
 import { pkiService, PKIKeyPair } from "@/lib/api/pki";
-import { KEEP, typed, type StoredValue } from "@/lib/api/pki-save-ops";
+import { KEEP, typed, type StoredValue, nameProblem } from "@/lib/api/pki-save-ops";
 import { PKIStoredValueField } from "./PKIStoredValueField";
 import { ApiError } from "@/lib/types/api";
 
@@ -34,10 +34,11 @@ interface KeyPairModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  existingKeyPair: PKIKeyPair | null;
+  existingKeyPair: PKIKeyPair | null;  /** Names of this kind already configured (Add rejects them). */
+  existingNames: string[];
 }
 
-export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }: KeyPairModalProps) {
+export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair, existingNames }: KeyPairModalProps) {
   const t = useTranslations("pkiCerts");
   const tc = useTranslations("common");
   const isEdit = !!existingKeyPair;
@@ -97,7 +98,10 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
   }, [keyType]);
 
   const handleImportSubmit = async () => {
-    if (!name.trim()) { setError(t("shared.nameRequired")); return; }
+    if (!isEdit) {
+      const nameError = nameProblem(name, existingNames);
+      if (nameError) { setError(t(`shared.${nameError}`)); return; }
+    }
 
     setLoading(true);
     setError(null);
@@ -125,7 +129,8 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
   };
 
   const handleGenerateSubmit = async () => {
-    if (!genName.trim()) { setError(t("shared.nameRequired")); return; }
+    const nameError = nameProblem(genName, existingNames);
+    if (nameError) { setError(t(`shared.${nameError}`)); return; }
     if (encryptKey && !passphrase) { setError(t("shared.passphraseRequired")); return; }
 
     setLoading(true);

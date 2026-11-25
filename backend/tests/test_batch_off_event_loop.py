@@ -222,18 +222,29 @@ ROUTE_POLICY_OFFLOADED = [
 ]
 
 PKI_OFFLOADED = [
+    # Each generate route reads the config once (409 check), runs key or DH
+    # generation off the loop (RSA and EC branches count twice) and commits once.
     ("get_pki_config", "routers/pki/pki.py", "get_full_config", 1),
     ("reveal_pki_value", "routers/pki/pki.py", "get_full_config", 1),
     ("pki_batch_configure", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_ca", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_ca", "routers/pki/pki.py", "generate_private_key", 2),
     ("generate_ca", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_key_pair", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_key_pair", "routers/pki/pki.py", "generate_private_key", 2),
     ("generate_key_pair", "routers/pki/pki.py", "execute_batch", 1),
-    ("generate_dh", "routers/pki/pki.py", "execute_batch", 1),
-    # DH parameter generation takes tens of seconds of CPU.
+    ("generate_dh", "routers/pki/pki.py", "get_full_config", 1),
     ("generate_dh", "routers/pki/pki.py", "generate_parameters", 1),
+    ("generate_dh", "routers/pki/pki.py", "execute_batch", 1),
     ("generate_certificate", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_certificate", "routers/pki/pki.py", "generate_private_key", 2),
     ("generate_certificate", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_openvpn_shared_secret", "routers/pki/pki.py", "get_full_config", 1),
     ("generate_openvpn_shared_secret", "routers/pki/pki.py", "generate", 1),
-    ("generate_openssh", "routers/pki/pki.py", "execute_batch", 2),
+    ("generate_openvpn_shared_secret", "routers/pki/pki.py", "execute_batch", 1),
+    ("generate_openssh", "routers/pki/pki.py", "get_full_config", 1),
+    ("generate_openssh", "routers/pki/pki.py", "generate_private_key", 1),
+    ("generate_openssh", "routers/pki/pki.py", "execute_batch", 1),
 ]
 
 CONTAINER_OFFLOADED = [
