@@ -259,6 +259,7 @@ function InterfacesPageInner() {
   const [macsecModalKey, setMacsecModalKey] = useState(0);
   const [editingMacsec, setEditingMacsec] = useState<MacsecInterface | null>(null);
   const [deleteMacsecOpen, setDeleteMacsecOpen] = useState(false);
+  const [deleteMacsecKey, setDeleteMacsecKey] = useState(0);
   const [deletingMacsec, setDeletingMacsec] = useState<MacsecInterface | null>(null);
   const openMacsecModal = (iface: MacsecInterface | null) => {
     setEditingMacsec(iface);
@@ -2875,7 +2876,7 @@ function InterfacesPageInner() {
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMacsecModal(iface)}>
                                         <Pencil className="h-3.5 w-3.5" />
                                       </Button>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { setDeletingMacsec(iface); setDeleteMacsecOpen(true); }}>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { setDeletingMacsec(iface); setDeleteMacsecKey((key) => key + 1); setDeleteMacsecOpen(true); }}>
                                         <Trash2 className="h-3.5 w-3.5" />
                                       </Button>
                                     </>
@@ -4387,6 +4388,7 @@ function InterfacesPageInner() {
         existing={editingMacsec}
       />
       <DeleteMacsecModal
+        key={deleteMacsecKey}
         open={deleteMacsecOpen}
         onOpenChange={setDeleteMacsecOpen}
         onSuccess={loadData}

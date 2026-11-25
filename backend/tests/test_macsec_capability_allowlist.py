@@ -29,6 +29,9 @@ V15_METHODS = [
 ]
 
 
+ROLLING = "2026.09.23-0027-rolling"
+
+
 def _ops(builder):
     return [(item["op"], item["path"]) for item in builder.get_operations()]
 
@@ -48,7 +51,9 @@ def test_v15_mapper_has_every_versioned_path():
     assert "__init__" not in vars(MacsecMapper_v1_5)
 
 
-@pytest.mark.parametrize("version, supported", [("1.4", False), ("1.5", True)])
+@pytest.mark.parametrize("version, supported", [
+    ("1.4", False), ("1.4.3", False), ("1.5", True), (ROLLING, True),
+])
 def test_capabilities_follow_the_allowlist(version, supported):
     caps = MacsecInterfaceBuilderMixin(version=version).get_capabilities()
     for node in NODES:
@@ -106,12 +111,17 @@ def test_parse_reads_bare_sections_by_key_membership():
         "security": {"cipher": "gcm-aes-128", "mka": {}, "static": {}},
         "dhcp-options": {},
         "dhcpv6-options": {},
+        "mirror": {},
     }}
     iface = get_macsec_mapper("1.5").parse_interfaces_of_type(raw)["interfaces"][0]
     assert iface["security"]["mka"] == {"cak": None, "ckn": None, "priority": None}
     assert iface["security"]["static"] == {"key": None, "peers": []}
     assert iface["dhcp_options"]["reject"] == []
     assert iface["dhcpv6_options"]["pd"] == {}
+    assert iface["mirror_configured"] is True
+    assert (iface["mirror_ingress"], iface["mirror_egress"]) == (None, None)
+    iface = get_macsec_mapper("1.5").parse_interfaces_of_type({IFACE: {}})["interfaces"][0]
+    assert iface["mirror_configured"] is False
 
 
 class _FakeService:
@@ -123,9 +133,10 @@ class _FakeService:
         return type("R", (), {"status": 200, "result": None, "error": None})()
 
 
-def test_batch_writes_versioned_leaf_on_1_5():
+@pytest.mark.parametrize("version", ["1.5", ROLLING])
+def test_batch_writes_versioned_leaf_on_1_5(version):
     service = _FakeService()
-    builder = MacsecInterfaceBuilderMixin(version="1.5")
+    builder = MacsecInterfaceBuilderMixin(version=version)
     req = BatchRequest(
         interface=IFACE,
         operations=[BatchOperation(op="set_ipv6_address_interface_identifier", value="::1")],
@@ -136,9 +147,10 @@ def test_batch_writes_versioned_leaf_on_1_5():
     ]
 
 
-def test_batch_rejects_versioned_leaf_on_1_4_without_commit():
+@pytest.mark.parametrize("version", ["1.4", "1.4.3"])
+def test_batch_rejects_versioned_leaf_on_1_4_without_commit(version):
     service = _FakeService()
-    builder = MacsecInterfaceBuilderMixin(version="1.4")
+    builder = MacsecInterfaceBuilderMixin(version=version)
     req = BatchRequest(
         interface=IFACE,
         operations=[

@@ -495,6 +495,7 @@ class MacsecInterfaceMapper(BaseFeatureMapper):
                 "temporary": "temporary" in dhcpv6_options,
                 "pd": dhcpv6_pd,
             } if "dhcpv6-options" in config else None,
+            "mirror_configured": "mirror" in config,
             "mirror_ingress": mirror_config.get("ingress"),
             "mirror_egress": mirror_config.get("egress"),
             "redirect": config.get("redirect"),

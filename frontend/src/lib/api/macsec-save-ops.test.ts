@@ -97,6 +97,7 @@ function iface(over: Partial<MacsecInterface> = {}): MacsecInterface {
     dhcpv6_options: null,
     mirror_ingress: null,
     mirror_egress: null,
+    mirror_configured: false,
     redirect: null,
     ...over,
   };
@@ -256,6 +257,7 @@ function fullIface(): MacsecInterface {
       pd: { "0": { length: "56", interfaces: { eth2: { address: "1", sla_id: "0" } } } },
     },
     mirror_ingress: "eth3",
+    mirror_configured: true,
   });
 }
 
@@ -499,6 +501,50 @@ describe("edit", () => {
     assert.deepEqual(macsecSaveOps(r, edit(r, (x) => { x.redirect = ""; }), CAPS15), [{ op: "delete_redirect" }]);
   });
 
+  it("deletes a bare mirror node, and never a missing one", () => {
+    const bare = iface({ mirror_configured: true });
+    const d = edit(bare, (x) => { x.redirect = "eth5"; });
+    assert.equal(macsecSaveProblem(bare, d, CAPS15), null);
+    assert.deepEqual(macsecSaveOps(bare, d, CAPS15), [{ op: "delete_mirror" }, { op: "set_redirect", value: "eth5" }]);
+    assert.deepEqual(macsecSaveOps(iface(), edit(iface(), (x) => { x.redirect = "eth5"; }), CAPS15), [
+      { op: "set_redirect", value: "eth5" },
+    ]);
+    // a kept mirror leaf keeps the node and diffs the leaves
+    const f = fullIface();
+    assert.deepEqual(macsecSaveOps(f, edit(f, (x) => { x.mirror_ingress = ""; x.mirror_egress = "eth4"; }), CAPS15), [
+      { op: "delete_mirror_ingress" },
+      { op: "set_mirror_egress", value: "eth4" },
+    ]);
+  });
+
+  it("drops the other mode's node whenever the device has both", () => {
+    const both = iface({
+      security: {
+        cipher: "gcm-aes-128",
+        encrypt: false,
+        replay_window: null,
+        mka: { cak: MASKED_SECRET, ckn: "abcd", priority: null },
+        static: { key: MASKED_SECRET, peers: [{ name: "p1", key: MASKED_SECRET, mac: "00:11:22:33:44:55", disable: false }] },
+      },
+    });
+    // the draft opens in static mode: an untouched save still drops mka
+    const asStatic = macsecDraft(both, CAPS15);
+    assert.equal(asStatic.mode, "static");
+    assert.equal(macsecSaveProblem(both, asStatic, CAPS15), null);
+    assert.deepEqual(macsecSaveOps(both, asStatic, CAPS15), [{ op: "delete_security_mka" }]);
+    assert.deepEqual(
+      macsecSaveOps(both, edit(both, (x) => { x.static_key = K128B; }), CAPS15),
+      [{ op: "delete_security_mka" }, { op: "set_security_static_key", value: K128B }],
+    );
+    // in MKA mode the stored mka leaves are kept and static is dropped first
+    const asMka = edit(both, (x) => { x.mode = "mka"; x.mka_priority = "5"; });
+    assert.equal(macsecSaveProblem(both, asMka, CAPS15), null);
+    assert.deepEqual(macsecSaveOps(both, asMka, CAPS15), [
+      { op: "delete_security_static" },
+      { op: "set_security_mka_priority", value: "5" },
+    ]);
+  });
+
   it("switches mka to static and back in one batch", () => {
     const toStatic = edit(iface(), (d) => {
       d.mode = "static";
@@ -563,6 +609,66 @@ describe("edit", () => {
       }), CAPS15)?.key,
       "staticKeyMask",
     );
+  });
+
+  it("needs every masked key typed again for a new cipher or for encrypt turned on", () => {
+    const mka = iface();
+    const newCipher = edit(mka, (x) => { x.cipher = "gcm-aes-256"; });
+    assert.equal(macsecSaveProblem(mka, newCipher, CAPS15)?.key, "cakMask");
+    const typed = edit(mka, (x) => { x.cipher = "gcm-aes-256"; x.mka_cak = K256; });
+    assert.equal(macsecSaveProblem(mka, typed, CAPS15), null);
+    assert.deepEqual(macsecSaveOps(mka, typed, CAPS15), [
+      { op: "set_security_cipher", value: "gcm-aes-256" },
+      { op: "set_security_mka_cak", value: K256 },
+    ]);
+    // encrypt turned on, same cipher
+    const off = iface({ security: { ...iface().security!, encrypt: false } });
+    assert.equal(macsecSaveProblem(off, edit(off, (x) => { x.encrypt = true; }), CAPS15)?.key, "cakMask");
+    // a new cipher with encrypt off checks nothing against the cipher
+    assert.equal(macsecSaveProblem(off, edit(off, (x) => { x.cipher = "gcm-aes-256"; }), CAPS15), null);
+
+    const st = staticIface();
+    assert.equal(macsecSaveProblem(st, edit(st, (x) => { x.encrypt = true; }), CAPS15)?.key, "staticKeyMask");
+    const peerMasked = edit(st, (x) => { x.encrypt = true; x.static_key = K128B; x.peers[0].key = K128; });
+    // the disabled peer p2 still holds the mask
+    assert.deepEqual(macsecSaveProblem(st, peerMasked, CAPS15), { key: "peerKeyMask", values: { name: "p2" } });
+    const enc = staticIface({}, true);
+    const encNewCipher = edit(enc, (x) => { x.cipher = "gcm-aes-256"; x.static_key = K256; x.peers[1].key = K256; });
+    assert.deepEqual(macsecSaveProblem(enc, encNewCipher, CAPS15), { key: "peerKeyMask", values: { name: "p1" } });
+    const allTyped = edit(st, (x) => { x.encrypt = true; x.static_key = K128B; x.peers[0].key = K128; x.peers[1].key = K128B; });
+    assert.equal(macsecSaveProblem(st, allTyped, CAPS15), null);
+  });
+
+  it("keeps the masks when encrypt was already on and the cipher is unchanged", () => {
+    const mka = iface();
+    const d = edit(mka, (x) => { x.mka_priority = "7"; });
+    assert.equal(macsecSaveProblem(mka, d, CAPS15), null);
+    assert.deepEqual(macsecSaveOps(mka, d, CAPS15), [{ op: "set_security_mka_priority", value: "7" }]);
+    const enc = staticIface({}, true);
+    const e = edit(enc, (x) => { x.description = "x"; x.peers[1].key = MASKED_SECRET; });
+    assert.equal(macsecSaveProblem(enc, e, CAPS15), null);
+    assert.deepEqual(macsecSaveOps(enc, e, CAPS15), [{ op: "set_interface_description", value: "x" }]);
+  });
+
+  it("numbers a row by its place on screen", () => {
+    const st = staticIface();
+    const d = edit(st, (x) => {
+      x.peers = [
+        { name: "", key: "", mac: "", disable: false },
+        { name: "p1", key: MASKED_SECRET, mac: "00:11:22:33:44:55", disable: false },
+        { name: "", key: K128, mac: "", disable: false },
+      ];
+    });
+    assert.deepEqual(macsecSaveProblem(st, d, CAPS15), { key: "peerNameRequired", values: { n: 3 } });
+    const f = fullIface();
+    const pd = edit(f, (x) => {
+      x.dhcpv6_options.pd = [
+        { id: "", length: "", interfaces: [] },
+        { id: "0", length: "56", interfaces: [] },
+        { id: "", length: "60", interfaces: [] },
+      ];
+    });
+    assert.deepEqual(macsecSaveProblem(f, pd, CAPS15), { key: "pdIdRequired", values: { n: 3 } });
   });
 
   it("trims padded values and ignores blank ones", () => {

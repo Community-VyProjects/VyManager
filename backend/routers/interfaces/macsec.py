@@ -154,6 +154,7 @@ class MacsecInterfaceConfig(BaseModel):
     ipv6: Optional[MacsecIpv6Config] = None
     dhcp_options: Optional[MacsecDhcpOptions] = None
     dhcpv6_options: Optional[MacsecDhcpv6Options] = None
+    mirror_configured: bool = False
     mirror_ingress: Optional[str] = None
     mirror_egress: Optional[str] = None
     redirect: Optional[str] = None

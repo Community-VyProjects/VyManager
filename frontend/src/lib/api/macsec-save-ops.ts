@@ -408,6 +408,8 @@ function list(values: string[]): string[] {
 }
 
 interface PeerRow {
+  /** Position of the row in the draft (what the screen numbers). */
+  index: number;
   name: string;
   key: string;
   mac: string;
@@ -421,6 +423,8 @@ interface PdInterfaceRow {
 }
 
 interface PdRow {
+  /** Position of the row in the draft (what the screen numbers). */
+  index: number;
   id: string;
   length: string;
   interfaces: PdInterfaceRow[];
@@ -429,7 +433,7 @@ interface PdRow {
 /** Trimmed peer rows; a row the user added and never filled is dropped. */
 function peerRows(peers: MacsecPeerDraft[]): PeerRow[] {
   return peers
-    .map((p) => ({ name: text(p.name), key: text(p.key), mac: text(p.mac), disable: p.disable }))
+    .map((p, index) => ({ index, name: text(p.name), key: text(p.key), mac: text(p.mac), disable: p.disable }))
     .filter((p) => p.name || p.key || p.mac || p.disable);
 }
 
@@ -441,7 +445,7 @@ function pdInterfaceRows(rows: MacsecPdInterfaceDraft[]): PdInterfaceRow[] {
 
 function pdRows(rows: MacsecPdDraft[]): PdRow[] {
   return rows
-    .map((r) => ({ id: text(r.id), length: text(r.length), interfaces: pdInterfaceRows(r.interfaces) }))
+    .map((r, index) => ({ index, id: text(r.id), length: text(r.length), interfaces: pdInterfaceRows(r.interfaces) }))
     .filter((r) => r.id || r.length || r.interfaces.length > 0);
 }
 
@@ -457,13 +461,12 @@ interface Norm {
   cipher: string;
   encrypt: boolean;
   replay: string;
-  /** Null when neither `mka` nor `static` exists (only a loaded interface). */
-  mode: MacsecMode | null;
+  mode: MacsecMode;
   cak: string;
   ckn: string;
   priority: string;
   staticKey: string;
-  peers: Map<string, Omit<PeerRow, "name">>;
+  peers: Map<string, Omit<PeerRow, "name" | "index">>;
   ip: MacsecIpDraft;
   ipv6: MacsecIpv6Draft;
   dhcpOptions: MacsecDhcpDraft;
@@ -474,11 +477,11 @@ interface Norm {
   redirect: string;
 }
 
-function normalize(d: MacsecDraft, mode: MacsecMode | null, caps: Caps): Norm {
+function normalize(d: MacsecDraft, caps: Caps): Norm {
   const addresses = list(d.addresses).filter((a) => a !== "dhcp" && a !== "dhcpv6");
   if (d.dhcp) addresses.push("dhcp");
   if (d.dhcpv6) addresses.push("dhcpv6");
-  const peers = new Map<string, Omit<PeerRow, "name">>();
+  const peers = new Map<string, Omit<PeerRow, "name" | "index">>();
   for (const row of peerRows(d.peers)) {
     if (row.name) peers.set(row.name, { key: row.key, mac: row.mac, disable: row.disable });
   }
@@ -505,7 +508,7 @@ function normalize(d: MacsecDraft, mode: MacsecMode | null, caps: Caps): Norm {
     cipher: text(d.cipher),
     encrypt: d.encrypt,
     replay: text(d.replay_window),
-    mode,
+    mode: d.mode,
     cak: text(d.mka_cak),
     ckn: text(d.mka_ckn),
     priority: text(d.mka_priority),
@@ -556,18 +559,12 @@ function normalize(d: MacsecDraft, mode: MacsecMode | null, caps: Caps): Norm {
   };
 }
 
-function originalMode(original: MacsecInterface): MacsecMode | null {
-  if (original.security?.static) return "static";
-  if (original.security?.mka) return "mka";
-  return null;
-}
-
 function normalizedOriginal(original: MacsecInterface | null, caps: Caps): Norm {
   if (!original) {
     const blank = macsecDraft(null, caps);
-    return normalize({ ...blank, cipher: "", encrypt: false }, null, caps);
+    return normalize({ ...blank, cipher: "", encrypt: false }, caps);
   }
-  return normalize(macsecDraft(original, caps), originalMode(original), caps);
+  return normalize(macsecDraft(original, caps), caps);
 }
 
 // ============================================================================
@@ -758,14 +755,15 @@ function peerOps(ops: MacsecBatchOperation[], before: Norm["peers"], after: Norm
   }
 }
 
-function securityOps(ops: MacsecBatchOperation[], before: Norm, after: Norm): void {
+function securityOps(ops: MacsecBatchOperation[], original: MacsecInterface | null, before: Norm, after: Norm): void {
   required(ops, "set_security_cipher", before.cipher, after.cipher);
   flag(ops, "set_security_encrypt", "delete_security_encrypt", [], before.encrypt, after.encrypt);
   leaf(ops, "set_security_replay_window", "delete_security_replay_window", [], before.replay, after.replay);
   // Switching mode drops the old mode's whole node in the same commit.
-  if (before.mode && before.mode !== after.mode) {
-    ops.push(op(before.mode === "mka" ? "delete_security_mka" : "delete_security_static"));
-  }
+  // The other mode's node is dropped in the same commit, before the new sets,
+  // whenever the device has it (a device may hold both).
+  if (after.mode === "static" && original?.security?.mka) ops.push(op("delete_security_mka"));
+  if (after.mode === "mka" && original?.security?.static) ops.push(op("delete_security_static"));
   // The new mode diffs against its own loaded node (blank when it is absent).
   if (after.mode === "mka") {
     secret(ops, "set_security_mka_cak", "delete_security_mka_cak", [], before.cak, after.cak);
@@ -784,7 +782,7 @@ function securityOps(ops: MacsecBatchOperation[], before: Norm, after: Norm): vo
  */
 export function macsecSaveOps(original: MacsecInterface | null, draft: MacsecDraft, caps: Caps): MacsecBatchOperation[] {
   const before = normalizedOriginal(original, caps);
-  const after = normalize(draft, draft.mode, caps);
+  const after = normalize(draft, caps);
   const ops: MacsecBatchOperation[] = [];
 
   required(ops, "set_source_interface", before.source, after.source);
@@ -794,7 +792,7 @@ export function macsecSaveOps(original: MacsecInterface | null, draft: MacsecDra
   flag(ops, "set_interface_disable", "delete_interface_disable", [], before.disabled, after.disabled);
   multi(ops, "set_interface_address", "delete_interface_address", before.addresses, after.addresses);
 
-  securityOps(ops, before, after);
+  securityOps(ops, original, before, after);
 
   section(ops, ipOps(before.ip, after.ip), "delete_ip_settings", ipEmpty(before.ip), ipEmpty(after.ip));
   section(ops, ipv6Ops(before.ipv6, after.ipv6), "delete_ipv6_settings", ipv6Empty(before.ipv6), ipv6Empty(after.ipv6));
@@ -814,12 +812,14 @@ export function macsecSaveOps(original: MacsecInterface | null, draft: MacsecDra
     ops.push(op("delete_dhcpv6_options"));
   }
 
-  // Deleting both mirror leaves keeps a bare `mirror {}` that still blocks
-  // redirect, so an edit that leaves no mirror leaf deletes the node.
-  const mirrorOps: MacsecBatchOperation[] = [];
-  leaf(mirrorOps, "set_mirror_ingress", "delete_mirror_ingress", [], before.mirrorIngress, after.mirrorIngress);
-  leaf(mirrorOps, "set_mirror_egress", "delete_mirror_egress", [], before.mirrorEgress, after.mirrorEgress);
-  section(ops, mirrorOps, "delete_mirror", !before.mirrorIngress && !before.mirrorEgress, !after.mirrorIngress && !after.mirrorEgress);
+  // A bare `mirror {}` (left by deleting both leaves) still blocks redirect, so
+  // a draft without a mirror leaf deletes the node whenever the device has it.
+  if (!after.mirrorIngress && !after.mirrorEgress && original?.mirror_configured) {
+    ops.push(op("delete_mirror"));
+  } else {
+    leaf(ops, "set_mirror_ingress", "delete_mirror_ingress", [], before.mirrorIngress, after.mirrorIngress);
+    leaf(ops, "set_mirror_egress", "delete_mirror_egress", [], before.mirrorEgress, after.mirrorEgress);
+  }
   leaf(ops, "set_redirect", "delete_redirect", [], before.redirect, after.redirect);
 
   return ops;
@@ -946,8 +946,17 @@ function first(...checks: (MacsecProblem | null)[]): MacsecProblem | null {
   return checks.find((c) => c !== null) ?? null;
 }
 
+/**
+ * With encrypt on the device checks every key length against the cipher, but
+ * a masked key cannot be checked here. A save that turns encrypt on or changes
+ * the cipher while encrypt is on needs every key typed again.
+ */
+function rekeyed(before: Norm, after: Norm): boolean {
+  return after.encrypt && (after.cipher !== before.cipher || !before.encrypt);
+}
+
 function mkaProblem(before: Norm, after: Norm): MacsecProblem | null {
-  if (after.cak === MASKED_SECRET && before.cak !== MASKED_SECRET) return problem("cakMask");
+  if (after.cak === MASKED_SECRET && (before.cak !== MASKED_SECRET || rekeyed(before, after))) return problem("cakMask");
   if (after.encrypt && !after.cak) return problem("cakRequired");
   if (after.encrypt && !after.ckn) return problem("cknRequired");
   if (after.cak && after.cak !== MASKED_SECRET) {
@@ -959,7 +968,8 @@ function mkaProblem(before: Norm, after: Norm): MacsecProblem | null {
 }
 
 function staticProblem(before: Norm, draft: MacsecDraft, after: Norm): MacsecProblem | null {
-  if (after.staticKey === MASKED_SECRET && before.staticKey !== MASKED_SECRET) return problem("staticKeyMask");
+  const rekey = rekeyed(before, after);
+  if (after.staticKey === MASKED_SECRET && (before.staticKey !== MASKED_SECRET || rekey)) return problem("staticKeyMask");
   if (!after.staticKey) return problem("staticKeyRequired");
   if (after.staticKey !== MASKED_SECRET) {
     const issue = keyProblem(after.staticKey, after.encrypt, after.cipher, "staticKeyInvalid", "staticKeyLength");
@@ -968,14 +978,14 @@ function staticProblem(before: Norm, draft: MacsecDraft, after: Norm): MacsecPro
   const rows = peerRows(draft.peers);
   if (rows.length === 0) return problem("peerRequired");
   const seen = new Set<string>();
-  for (const [index, row] of rows.entries()) {
-    if (!row.name) return problem("peerNameRequired", { n: index + 1 });
+  for (const row of rows) {
+    if (!row.name) return problem("peerNameRequired", { n: row.index + 1 });
     if (!PEER_NAME_RE.test(row.name)) return problem("peerNameInvalid", { name: row.name, max: PEER_NAME_MAX });
     if (seen.has(row.name)) return problem("peerNameDuplicate", { name: row.name });
     seen.add(row.name);
     const storedPeerKey = before.peers.get(row.name)?.key ?? "";
     // The mask stands for the stored key of this peer only; a renamed or new peer needs a typed key.
-    if (row.key === MASKED_SECRET && storedPeerKey !== MASKED_SECRET) return problem("peerKeyMask", { name: row.name });
+    if (row.key === MASKED_SECRET && (storedPeerKey !== MASKED_SECRET || rekey)) return problem("peerKeyMask", { name: row.name });
     if (!row.key && (after.encrypt || !row.disable)) return problem("peerKeyRequired", { name: row.name });
     if (row.key && row.key !== MASKED_SECRET) {
       const issue = keyProblem(row.key, after.encrypt, after.cipher, "peerKeyInvalid", "peerKeyLength", { name: row.name });
@@ -1015,8 +1025,8 @@ function dhcpProblem(o: MacsecDhcpDraft): MacsecProblem | null {
 function dhcpv6Problem(draft: MacsecDraft, after: Norm): MacsecProblem | null {
   if (after.dhcpv6Options.duid && !DUID_RE.test(after.dhcpv6Options.duid)) return problem("duidInvalid");
   const ids = new Set<string>();
-  for (const [index, row] of pdRows(draft.dhcpv6_options.pd).entries()) {
-    if (!row.id) return problem("pdIdRequired", { n: index + 1 });
+  for (const row of pdRows(draft.dhcpv6_options.pd)) {
+    if (!row.id) return problem("pdIdRequired", { n: row.index + 1 });
     if (!inRange(row.id, PD_ID_RANGE)) return problem("pdIdRange", { id: row.id, ...bounds(PD_ID_RANGE) });
     if (ids.has(row.id)) return problem("pdIdDuplicate", { id: row.id });
     ids.add(row.id);
@@ -1048,7 +1058,7 @@ export function macsecSaveProblem(
   existingNames: string[] = [],
 ): MacsecProblem | null {
   const before = normalizedOriginal(original, caps);
-  const after = normalize(draft, draft.mode, caps);
+  const after = normalize(draft, caps);
 
   if (!original) {
     const name = text(draft.name);

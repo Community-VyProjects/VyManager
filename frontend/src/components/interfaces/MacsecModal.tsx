@@ -32,8 +32,10 @@ import { Lock, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { macsecService, type MacsecInterface, type MacsecCapabilities } from "@/lib/api/macsec";
 import {
   ACCEPT_DAD_VALUES,
+  ADJUST_MSS_RANGE,
   ARP_CACHE_TIMEOUT_RANGE,
   BASE_REACHABLE_TIME_RANGE,
+  CLAMP_MSS_TO_PMTU,
   DAD_TRANSMITS_RANGE,
   DEFAULT_ROUTE_DISTANCE_RANGE,
   DESCRIPTION_MAX,
@@ -46,8 +48,6 @@ import {
   PEER_NAME_MAX,
   REPLAY_WINDOW_RANGE,
   SOURCE_INTERFACE_TYPE,
-  emptyMacsecDhcp,
-  emptyMacsecDhcpv6,
   macsecCipherValues,
   macsecDraft,
   macsecKeyHexLength,
@@ -69,6 +69,9 @@ import {
   type NumericRange,
 } from "@/lib/api/macsec-save-ops";
 import type { ApiError } from "@/lib/types/api";
+
+/** Copy of the module-local helper in VtiModal and WwanModal (not exported anywhere). */
+const getMssMode = (v: string) => (!v ? "none" : v === "clamp-mss-to-pmtu" ? "clamp" : "custom");
 
 interface MacsecModalProps {
   open: boolean;
@@ -95,6 +98,11 @@ export function MacsecModal({
 
   const [draft, setDraft] = useState<MacsecDraft>(() => macsecDraft(original, capabilities, existingInterfaces));
   const [loading, setLoading] = useState(false);
+  // "Custom" with a still-empty value would read back as "none" without these.
+  const [ipMssCustom, setIpMssCustom] = useState(() => getMssMode(draft.ip.adjust_mss) === "custom");
+  const [ipv6MssCustom, setIpv6MssCustom] = useState(() => getMssMode(draft.ipv6.adjust_mss) === "custom");
+  const ipMssMode = ipMssCustom ? "custom" : getMssMode(draft.ip.adjust_mss.trim());
+  const ipv6MssMode = ipv6MssCustom ? "custom" : getMssMode(draft.ipv6.adjust_mss.trim());
   const [error, setError] = useState<string | null>(null);
 
   const update = (patch: Partial<MacsecDraft>) => setDraft((d) => ({ ...d, ...patch }));
@@ -461,11 +469,11 @@ export function MacsecModal({
 
             <div className="flex gap-6">
               <div className="flex items-center space-x-2">
-                <Checkbox id="useDhcp" checked={draft.dhcp} onCheckedChange={(checked) => update(checked === true ? { dhcp: true } : { dhcp: false, dhcp_options: emptyMacsecDhcp() })} />
+                <Checkbox id="useDhcp" checked={draft.dhcp} onCheckedChange={(checked) => update({ dhcp: checked === true })} />
                 <Label htmlFor="useDhcp" className="text-sm font-normal">{t("modal.addresses.enableDhcp")}</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox id="useDhcpv6" checked={draft.dhcpv6} onCheckedChange={(checked) => update(checked === true ? { dhcpv6: true } : { dhcpv6: false, dhcpv6_options: emptyMacsecDhcpv6() })} />
+                <Checkbox id="useDhcpv6" checked={draft.dhcpv6} onCheckedChange={(checked) => update({ dhcpv6: checked === true })} />
                 <Label htmlFor="useDhcpv6" className="text-sm font-normal">{t("modal.addresses.enableDhcpv6")}</Label>
               </div>
             </div>
@@ -623,13 +631,33 @@ export function MacsecModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ipAdjustMss" className="text-xs">{t("modal.advanced.adjustMss")}</Label>
-                <Input
-                  id="ipAdjustMss"
-                  value={draft.ip.adjust_mss}
-                  onChange={(e) => updateIp({ adjust_mss: e.target.value })}
-                  placeholder={t("modal.advanced.adjustMssPlaceholder")}
-                  className="h-8 text-sm"
-                />
+                <Select
+                  value={ipMssMode}
+                  onValueChange={(v) => {
+                    setIpMssCustom(v === "custom");
+                    updateIp({ adjust_mss: v === "clamp" ? CLAMP_MSS_TO_PMTU : "" });
+                  }}
+                >
+                  <SelectTrigger id="ipAdjustMss" className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("modal.advanced.mssNone")}</SelectItem>
+                    <SelectItem value="clamp">{t("modal.advanced.mssClamp")}</SelectItem>
+                    <SelectItem value="custom">{t("modal.advanced.mssCustom")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {ipMssMode === "custom" && (
+                  <Input
+                    id="ipAdjustMssValue"
+                    aria-label={t("modal.advanced.mssCustom")}
+                    value={draft.ip.adjust_mss}
+                    onChange={(e) => updateIp({ adjust_mss: e.target.value })}
+                    placeholder={t("modal.advanced.adjustMssPlaceholder")}
+                    className="h-8 text-sm"
+                    type="number"
+                    min={ADJUST_MSS_RANGE.min}
+                    max={ADJUST_MSS_RANGE.max}
+                  />
+                )}
               </div>
               {numberField(
                 "ipArpCacheTimeout",
@@ -695,13 +723,33 @@ export function MacsecModal({
               )}
               <div className="space-y-2">
                 <Label htmlFor="ipv6AdjustMss" className="text-xs">{t("modal.advanced.adjustMss")}</Label>
-                <Input
-                  id="ipv6AdjustMss"
-                  value={draft.ipv6.adjust_mss}
-                  onChange={(e) => updateIpv6({ adjust_mss: e.target.value })}
-                  placeholder={t("modal.advanced.adjustMssPlaceholder")}
-                  className="h-8 text-sm"
-                />
+                <Select
+                  value={ipv6MssMode}
+                  onValueChange={(v) => {
+                    setIpv6MssCustom(v === "custom");
+                    updateIpv6({ adjust_mss: v === "clamp" ? CLAMP_MSS_TO_PMTU : "" });
+                  }}
+                >
+                  <SelectTrigger id="ipv6AdjustMss" className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("modal.advanced.mssNone")}</SelectItem>
+                    <SelectItem value="clamp">{t("modal.advanced.mssClamp")}</SelectItem>
+                    <SelectItem value="custom">{t("modal.advanced.mssCustom")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {ipv6MssMode === "custom" && (
+                  <Input
+                    id="ipv6AdjustMssValue"
+                    aria-label={t("modal.advanced.mssCustom")}
+                    value={draft.ipv6.adjust_mss}
+                    onChange={(e) => updateIpv6({ adjust_mss: e.target.value })}
+                    placeholder={t("modal.advanced.adjustMssPlaceholder")}
+                    className="h-8 text-sm"
+                    type="number"
+                    min={ADJUST_MSS_RANGE.min}
+                    max={ADJUST_MSS_RANGE.max}
+                  />
+                )}
               </div>
               {numberField(
                 "ipv6BaseReachableTime",

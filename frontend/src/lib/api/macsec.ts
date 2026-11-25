@@ -114,6 +114,8 @@ export interface MacsecInterface {
   dhcpv6_options: MacsecDhcpv6Options | null;
   mirror_ingress: string | null;
   mirror_egress: string | null;
+  /** True when the `mirror` node exists, even with no leaf under it. */
+  mirror_configured: boolean;
   redirect: string | null;
 }
 
