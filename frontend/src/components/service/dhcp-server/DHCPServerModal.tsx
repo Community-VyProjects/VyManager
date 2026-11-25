@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, Plus, X } from "lucide-react";
 import { dhcpServerService, type DHCPCapabilitiesResponse, type DHCPRange, type DHCPSubnet } from "@/lib/api/dhcp-server";
 
@@ -443,30 +445,20 @@ export function DHCPServerModal({
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium">{t("create.mode")}</Label>
-              <div className="flex gap-4 mt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="mode"
-                    value="new"
-                    checked={mode === "new"}
-                    onChange={(e) => setMode(e.target.value as "new")}
-                    className="text-primary"
-                  />
-                  <span className="text-sm">{t("create.modeNew")}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="mode"
-                    value="existing"
-                    checked={mode === "existing"}
-                    onChange={(e) => setMode(e.target.value as "existing")}
-                    className="text-primary"
-                  />
-                  <span className="text-sm">{t("create.modeExisting")}</span>
-                </label>
-              </div>
+              <RadioGroup
+                value={mode}
+                onValueChange={(value) => setMode(value as "new" | "existing")}
+                className="flex gap-4 mt-2"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="new" id="dhcp-mode-new" />
+                  <Label htmlFor="dhcp-mode-new" className="font-normal cursor-pointer">{t("create.modeNew")}</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="existing" id="dhcp-mode-existing" />
+                  <Label htmlFor="dhcp-mode-existing" className="font-normal cursor-pointer">{t("create.modeExisting")}</Label>
+                </div>
+              </RadioGroup>
             </div>
           </div>
         )}
@@ -497,18 +489,12 @@ export function DHCPServerModal({
                       placeholder={t("examplePlaceholder", { example: "LAN" })}
                     />
                   ) : (
-                    <select
+                    <NamedListSelect
                       value={selectedNetwork}
-                      onChange={(e) => setSelectedNetwork(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="">{t("create.selectExistingNetwork")}</option>
-                      {existingNetworks.map((network) => (
-                        <option key={network} value={network}>
-                          {network}
-                        </option>
-                      ))}
-                    </select>
+                      names={existingNetworks}
+                      onValueChange={setSelectedNetwork}
+                      noneLabel={t("create.selectExistingNetwork")}
+                    />
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {isEdit

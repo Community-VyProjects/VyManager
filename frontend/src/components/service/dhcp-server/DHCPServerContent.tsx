@@ -48,6 +48,7 @@ import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { DHCPServerModal } from "./DHCPServerModal";
 import { DeleteDHCPModal } from "./DeleteDHCPModal";
 import { failedSaveMessage } from "./dhcp-save";
+import { isIpInSubnet } from "./dhcp-form";
 import { DeleteStaticMappingModal } from "./DeleteStaticMappingModal";
 import { AddLeaseToStaticMappingModal } from "./AddLeaseToStaticMappingModal";
 import { RangeModal } from "./RangeModal";
@@ -72,25 +73,6 @@ function formatLease(
   if (days > 0) return format("days", days);
   if (hours > 0) return format("hours", hours);
   return format("minutes", Math.floor(secs / 60));
-}
-
-// Helper function to check if an IP address is within a CIDR subnet
-function isIpInSubnet(ip: string, cidr: string): boolean {
-  const [subnetIp, maskBits] = cidr.split("/");
-  const mask = parseInt(maskBits);
-
-  const ipParts = ip.split(".").map(Number);
-  const subnetParts = subnetIp.split(".").map(Number);
-
-  // Convert to 32-bit integers
-  const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
-  const subnetInt = (subnetParts[0] << 24) | (subnetParts[1] << 16) | (subnetParts[2] << 8) | subnetParts[3];
-
-  // Create mask
-  const maskInt = mask === 0 ? 0 : (~0 << (32 - mask)) >>> 0;
-
-  // Check if IP is in subnet
-  return ((ipInt >>> 0) & maskInt) === ((subnetInt >>> 0) & maskInt);
 }
 
 export function DHCPServerContent() {
@@ -313,7 +295,6 @@ export function DHCPServerContent() {
       setError(
         (err as ApiError).message || t("page.errors.loadFailed")
       );
-      console.error("Error fetching DHCP config:", err);
     } finally {
       setLoading(false);
     }
@@ -630,7 +611,7 @@ export function DHCPServerContent() {
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-emerald-500" />
                 <span className="text-muted-foreground">{t("page.stats.leases")}</span>
-                <span className="font-medium">{leasesError ? "–" : totalActiveLeases}</span>
+                <span className="font-medium">{leasesError ? "—" : totalActiveLeases}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-purple-500" />
@@ -860,7 +841,7 @@ export function DHCPServerContent() {
                                           activeCount > 0 && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                                         )}
                                       >
-                                        {leasesError ? "–" : activeCount}
+                                        {leasesError ? "—" : activeCount}
                                       </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -1011,14 +992,10 @@ export function DHCPServerContent() {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8"
-                                            onClick={() => setEditingRange({
-                                              subnet: range.subnet,
-                                              range: {
-                                                range_id: range.range_id,
-                                                start: range.start,
-                                                stop: range.stop,
-                                              },
-                                            })}
+                                            onClick={() => {
+                                              const { subnet: rangeSubnet, ...stored } = range;
+                                              setEditingRange({ subnet: rangeSubnet, range: stored });
+                                            }}
                                           >
                                             <Pencil className="h-4 w-4" />
                                           </Button>
@@ -1177,15 +1154,11 @@ export function DHCPServerContent() {
                                           size="icon"
                                           className="h-8 w-8"
                                           onClick={() => {
+                                            const { subnet: mappingSubnet, ...stored } = mapping;
                                             setEditingStaticMapping({
                                               network: currentNetwork.name,
-                                              subnet: mapping.subnet,
-                                              mapping: {
-                                                name: mapping.name,
-                                                ip_address: mapping.ip_address,
-                                                mac_address: mapping.mac_address,
-                                                disable: mapping.disable,
-                                              },
+                                              subnet: mappingSubnet,
+                                              mapping: stored,
                                             });
                                           }}
                                         >

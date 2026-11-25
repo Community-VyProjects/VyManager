@@ -22,8 +22,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Network, Plus } from "lucide-react";
-import { dhcpServerService, type DHCPLease, type DHCPSharedNetwork } from "@/lib/api/dhcp-server";
+import type { DHCPLease, DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 import { failedSaveMessage } from "./dhcp-save";
+import {
+  emptyMappingDraft,
+  isIpInSubnet,
+  submitMappingCreate,
+  validateMappingCreate,
+  type MappingDraft,
+} from "./dhcp-form";
 import type { ApiError } from "@/lib/types/api";
 
 interface AddLeaseToStaticMappingModalProps {
@@ -67,110 +74,38 @@ export function AddLeaseToStaticMappingModal({
         setSelectedSubnet(network.subnets[0].subnet);
       } else if (network.subnets.length > 1) {
         // Try to find a matching subnet based on IP address
-        const matchingSubnet = findMatchingSubnet(lease.ip_address, network.subnets);
-        setSelectedSubnet(matchingSubnet || network.subnets[0].subnet);
+        const matchingSubnet = network.subnets.find((subnet) => isIpInSubnet(lease.ip_address, subnet.subnet));
+        setSelectedSubnet(matchingSubnet?.subnet ?? network.subnets[0].subnet);
       }
     }
   }, [open, lease, network]);
-
-  // Helper function to find matching subnet for an IP
-  const findMatchingSubnet = (ip: string, subnets: { subnet: string }[]): string | null => {
-    const ipParts = ip.split(".").map(Number);
-
-    for (const subnet of subnets) {
-      const [subnetIp, maskBits] = subnet.subnet.split("/");
-      const subnetParts = subnetIp.split(".").map(Number);
-      const mask = parseInt(maskBits);
-
-      // Simple check for /24 networks (most common)
-      if (mask === 24) {
-        if (ipParts[0] === subnetParts[0] &&
-            ipParts[1] === subnetParts[1] &&
-            ipParts[2] === subnetParts[2]) {
-          return subnet.subnet;
-        }
-      } else if (mask === 16) {
-        if (ipParts[0] === subnetParts[0] &&
-            ipParts[1] === subnetParts[1]) {
-          return subnet.subnet;
-        }
-      } else if (mask === 8) {
-        if (ipParts[0] === subnetParts[0]) {
-          return subnet.subnet;
-        }
-      }
-    }
-    return null;
-  };
 
   const handleClose = () => {
     setError(null);
     onOpenChange(false);
   };
 
-  const validateForm = (): boolean => {
-    // Validate mapping name
-    if (!mappingName.trim()) {
-      setError(t("validation.mappingNameRequired"));
-      return false;
-    }
-
-    // Check for invalid characters in mapping name (VyOS node names)
-    if (!/^[a-zA-Z0-9_-]+$/.test(mappingName.trim())) {
-      setError(t("validation.mappingNameInvalid"));
-      return false;
-    }
-
-    // Validate IP address format
-    if (!ipAddress.trim()) {
-      setError(t("validation.ipRequired"));
-      return false;
-    }
-    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipPattern.test(ipAddress.trim())) {
-      setError(t("validation.ipInvalid"));
-      return false;
-    }
-    const parts = ipAddress.trim().split(".").map(Number);
-    if (parts.some((p) => p < 0 || p > 255)) {
-      setError(t("validation.ipOctets"));
-      return false;
-    }
-
-    // Validate MAC address format
-    if (!macAddress.trim()) {
-      setError(t("validation.macRequired"));
-      return false;
-    }
-    const macPattern = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-    if (!macPattern.test(macAddress.trim())) {
-      setError(t("validation.macInvalidUse"));
-      return false;
-    }
-
-    // Validate subnet selection
-    if (!selectedSubnet) {
-      setError(t("validation.selectSubnet"));
-      return false;
-    }
-
-    return true;
-  };
+  const draft = (): MappingDraft => ({
+    ...emptyMappingDraft(),
+    subnet: selectedSubnet,
+    name: mappingName,
+    ipAddress,
+    macAddress: macAddress.trim().toLowerCase(),
+  });
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    const next = draft();
+    const validationError = validateMappingCreate(next, false);
+    if (validationError) {
+      setError(t(validationError));
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const result = await dhcpServerService.createStaticMapping(
-        network.name,
-        selectedSubnet,
-        mappingName.trim(),
-        ipAddress.trim(),
-        macAddress.trim().toLowerCase()
-      );
+      const result = await submitMappingCreate(network.name, next);
       const createError = failedSaveMessage(result, t("mapping.createFailed"));
       if (createError) {
         setError(createError);

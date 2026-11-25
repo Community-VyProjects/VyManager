@@ -14,8 +14,7 @@
     "mappingNameInvalid": "Mapping name can only contain letters, numbers, hyphens, and underscores",
     "ipRequired": "IP address is required",
     "macOrDuidRequired": "MAC address or DUID is required",
-    "macRequired": "MAC address is required",
-    "macInvalidUse": "Invalid MAC address format (use XX:XX:XX:XX:XX:XX)"
+    "macRequired": "MAC address is required"
   },
   "networkLabel": "Network:",
   "subnet": "Subnet",

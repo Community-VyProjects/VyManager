@@ -14,8 +14,7 @@
     "mappingNameInvalid": "映射名称只能包含字母、数字、连字符和下划线",
     "ipRequired": "IP 地址为必填项",
     "macOrDuidRequired": "MAC 地址或 DUID 为必填项",
-    "macRequired": "MAC 地址为必填项",
-    "macInvalidUse": "MAC 地址格式无效（请使用 XX:XX:XX:XX:XX:XX）"
+    "macRequired": "MAC 地址为必填项"
   },
   "networkLabel": "网络：",
   "subnet": "子网",

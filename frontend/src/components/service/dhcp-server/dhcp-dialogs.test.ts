@@ -74,4 +74,23 @@ describe("DHCP server dialogs", () => {
     assert.ok(toggle < source.indexOf("{/* Network List */}"));
     assert.equal(source.split("onClick={requestToggleGlobalDisable}").length, 2);
   });
+
+  it("range and static mapping edits pass the full stored row", () => {
+    const source = read("DHCPServerContent.tsx");
+    assert.match(source, /const \{ subnet: rangeSubnet, \.\.\.stored \} = range;\s*setEditingRange\(\{ subnet: rangeSubnet, range: stored \}\);/);
+    assert.match(source, /const \{ subnet: mappingSubnet, \.\.\.stored \} = mapping;/);
+  });
+
+  it("add-lease-to-static uses the shared mapping validate and submit", () => {
+    const source = read("AddLeaseToStaticMappingModal.tsx");
+    assert.match(source, /validateMappingCreate\(/);
+    assert.match(source, /submitMappingCreate\(/);
+    assert.match(source, /isIpInSubnet\(/);
+  });
+
+  it("existing-network pick uses the shared select", () => {
+    const source = read("DHCPServerModal.tsx");
+    assert.doesNotMatch(source, /<select|type="radio"/);
+    assert.match(source, /<NamedListSelect/);
+  });
 });

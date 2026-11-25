@@ -11,6 +11,7 @@ import { failedSaveMessage } from "./dhcp-save";
 import {
   emptyMappingDraft,
   emptyRangeDraft,
+  isIpInSubnet,
   mappingDraftFrom,
   nextRangeId,
   rangeDraftFrom,
@@ -438,5 +439,15 @@ describe("mapping update", () => {
     draft.disabled = true;
     await submitMappingUpdate(stored, draft, service);
     assert.deepEqual(service.updatedMappings[0].config, { disable: true });
+  });
+});
+
+describe("isIpInSubnet", () => {
+  it("matches any prefix length, not only /8, /16 and /24", () => {
+    assert.equal(isIpInSubnet("10.0.1.200", "10.0.0.0/23"), true);
+    assert.equal(isIpInSubnet("10.0.2.1", "10.0.0.0/23"), false);
+    assert.equal(isIpInSubnet("192.168.1.14", "192.168.1.0/28"), true);
+    assert.equal(isIpInSubnet("192.168.1.16", "192.168.1.0/28"), false);
+    assert.equal(isIpInSubnet("172.16.5.5", "0.0.0.0/0"), true);
   });
 });
