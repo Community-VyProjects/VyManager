@@ -2,7 +2,8 @@
 OpenVPN Interface Mapper - VyOS 1.4
 
 Uses `encryption/ncp-ciphers` for the data-cipher negotiation list.
-No `data-ciphers-fallback` and no `ipv6/address/interface-identifier`.
+No `data-ciphers-fallback`, no `ipv6/address/interface-identifier`, and no
+`ip-version`.
 """
 
 from typing import List
