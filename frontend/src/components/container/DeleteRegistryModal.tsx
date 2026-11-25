@@ -80,7 +80,7 @@ export function DeleteRegistryModal({ open, onOpenChange, registry, onConfirm }:
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("deleteRegistry.deleting")}
+                {tc("deleting")}
               </>
             ) : (
               t("deleteRegistry.title")

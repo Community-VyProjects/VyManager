@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { MultiValueInput } from "@/components/service/webproxy/MultiValueInput";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { ContainerCapabilities, ContainerNetworkConfig } from "@/lib/api/container";
+import type { ContainerCapabilities, ContainerInstance, ContainerNetworkConfig } from "@/lib/api/container";
 import {
   DESCRIPTION_MAX,
   MACVLAN_PARENT_RE,
@@ -38,6 +38,8 @@ interface Props {
   capabilities: ContainerCapabilities;
   /** Every configured network name (an Add may not reuse one). */
   existingNames: string[];
+  /** Every configured container: an edit may not break the ones attached to this network. */
+  containers: ContainerInstance[];
   onSubmit: (draft: ContainerNetworkConfig) => Promise<void>;
 }
 
@@ -54,7 +56,7 @@ const EMPTY_NETWORK: ContainerNetworkConfig = {
   vrf: null,
 };
 
-export function NetworkModal({ open, onOpenChange, network, capabilities, existingNames, onSubmit }: Props) {
+export function NetworkModal({ open, onOpenChange, network, capabilities, existingNames, containers, onSubmit }: Props) {
   const t = useTranslations("containerResources");
   const tm = useTranslations("containers");
   const tc = useTranslations("common");
@@ -77,7 +79,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, existi
   };
 
   const handleSubmit = async () => {
-    const issue = networkProblem(network, draft, { features, existingNames });
+    const issue = networkProblem(network, draft, { features, existingNames, rules: capabilities, containers });
     if (issue) {
       setError(t(`networkProblems.${issue.key}`, issue.values));
       return;
@@ -226,7 +228,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, existi
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : t("networkModal.adding")}</>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : tm("modal.adding")}</>
             ) : isEditMode ? tc("saveChanges") : t("networks.addNetwork")}
           </Button>
         </DialogFooter>

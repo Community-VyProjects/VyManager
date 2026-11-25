@@ -18,6 +18,7 @@ import type {
   ContainerNetworkConfig,
   ContainerRegistry,
   ContainerValues,
+  ContainerVerifyRules,
 } from "./container";
 import { isIPv4Prefix } from "../validators/ipv4-prefix";
 
@@ -43,8 +44,12 @@ export const HOST_NAME_RE = /^[A-Za-z0-9][-.A-Za-z0-9]*[A-Za-z0-9]$/;
 export const COMMAND_RE = /^[ !#-%&(-~]+$/;
 export const CPU_QUOTA_RE = /^(0|[1-9]\d*)(\.\d{1,3})?$/;
 export const MACVLAN_PARENT_RE = /^(bond|br|eth)[0-9]+(\.[0-9]+)?$/;
-/** `list_interfaces --type ethernet --type bonding --type bridge`. */
-export const MACVLAN_PARENT_TYPES = ["ethernet", "bonding", "bridge"];
+/**
+ * `list_interfaces --type ethernet --type bonding --type bridge`, plus their
+ * VLAN sub-interfaces (the interface list types those `vif`); the regex above
+ * keeps only eth/bond/br parents and one VLAN level.
+ */
+export const MACVLAN_PARENT_TYPES = ["ethernet", "bonding", "bridge", "vif"];
 const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$/;
 /** registry mirror host-name validator. */
 const MIRROR_HOST_NAME_RE = /^[A-Za-z0-9][-.A-Za-z0-9]*$/;
@@ -261,6 +266,45 @@ function parsePrefix(value: string): IpPrefix | null {
 
 function prefixContains(prefix: IpPrefix, ip: IpValue): boolean {
   return prefix.family === ip.family && bitsMatch(prefix.bytes, ip.bytes, prefix.length);
+}
+
+/** `ip_network(prefix)[1]`: the address podman keeps for the network's own gateway. */
+function isFirstHost(prefix: IpPrefix, ip: IpValue): boolean {
+  const first = [...prefix.bytes];
+  for (let i = first.length - 1; i >= 0; i--) {
+    if (first[i] < 255) {
+      first[i] += 1;
+      break;
+    }
+    first[i] = 0;
+  }
+  return ip.family === prefix.family && first.every((byte, i) => byte === ip.bytes[i]);
+}
+
+/** The network's first prefix of each family (the lab verify reads the first one). */
+function prefixesByFamily(net: ContainerNetworkConfig): Map<number, { value: string; prefix: IpPrefix }> {
+  const out = new Map<number, { value: string; prefix: IpPrefix }>();
+  for (const value of list(net.prefixes)) {
+    const prefix = parsePrefix(value);
+    if (prefix && !out.has(prefix.family)) out.set(prefix.family, { value, prefix });
+  }
+  return out;
+}
+
+type AttachmentAddressIssue =
+  | { key: "networkAddressNoPrefix"; values: { address: string; network: string } }
+  | { key: "networkAddressOutsidePrefix"; values: { address: string; prefix: string } }
+  | { key: "networkAddressReserved"; values: { address: string } };
+
+/** Where an attachment address breaks the network's prefixes (both labs). */
+function attachmentAddressIssue(address: string, ip: IpValue, net: ContainerNetworkConfig): AttachmentAddressIssue | null {
+  const own = prefixesByFamily(net).get(ip.family);
+  if (!own) return { key: "networkAddressNoPrefix", values: { address, network: text(net.name) } };
+  if (!prefixContains(own.prefix, ip)) {
+    return { key: "networkAddressOutsidePrefix", values: { address, prefix: own.value } };
+  }
+  if (isFirstHost(own.prefix, ip)) return { key: "networkAddressReserved", values: { address } };
+  return null;
 }
 
 /** ip-address, plus a link-local IPv6 address with a zone (listen-address, mirror address). */
@@ -687,7 +731,12 @@ export type ContainerProblemKey =
   | "networkAndHost"
   | "networkAddressInvalid"
   | "networkAddressFamily"
+  | "networkAddressNoPrefix"
+  | "networkAddressOutsidePrefix"
+  | "networkAddressReserved"
+  | "networkAddressInUse"
   | "macInvalid"
+  | "macInUse"
   | "nameServerInvalid"
   | "nameServerNeedsNoNameServer"
   | "healthIntervalRange"
@@ -723,6 +772,10 @@ export interface ContainerProblemContext {
   networks: ContainerNetworkConfig[];
   /** Keyword values the MAC and health-check interval accept besides an address or a number. */
   values: Pick<ContainerValues, "network_mac_keywords" | "health_check_interval_keywords">;
+  /** Verify rules that differ by version (capabilities). */
+  rules: ContainerVerifyRules;
+  /** Every configured container (the one being edited is skipped by name). */
+  containers: ContainerInstance[];
 }
 
 /** Name check shared by the container modal and the app wizard. */
@@ -791,21 +844,36 @@ export function containerProblem(
   if (!c.network && !c.allowHostNetworks) return problem("networkRequired");
   if (c.network && c.allowHostNetworks) return problem("networkAndHost");
   if (c.network) {
+    const attached = c.network.name;
+    const net = context.networks.find((item) => item.name === attached);
+    const self = text(original ? original.name : draft.name);
+    const others = context.containers.filter((other) => text(other.name) !== self);
     const families = new Set<number>();
     for (const address of c.network.addresses) {
       const ip = parseIp(address);
       if (!ip) return problem("networkAddressInvalid", { address });
       if (families.has(ip.family)) return problem("networkAddressFamily");
       families.add(ip.family);
+      const issue = net ? attachmentAddressIssue(address, ip, net) : null;
+      if (issue) return problem(issue.key, issue.values);
+      if (context.rules.unique_attachment_addresses) {
+        const user = others.find((other) => other.networks.some((a) => list(a.addresses).includes(address)));
+        if (user) return problem("networkAddressInUse", { address, name: user.name });
+      }
     }
-    if (features.network_mac && c.network.mac && !macKeywords.includes(c.network.mac) && !MAC_RE.test(c.network.mac)) {
-      return problem("macInvalid");
+    const mac = c.network.mac;
+    if (features.network_mac && mac && !macKeywords.includes(mac)) {
+      if (!MAC_RE.test(mac)) return problem("macInvalid");
+      if (context.rules.unique_attachment_addresses) {
+        const user = others.find((other) => other.networks.some((a) => text(a.mac) === mac));
+        if (user) return problem("macInUse", { mac, name: user.name });
+      }
     }
   }
   for (const address of c.nameServers) {
     if (!parseIp(address)) return problem("nameServerInvalid", { address });
   }
-  if (c.nameServers.length > 0 && c.network) {
+  if (context.rules.name_server_needs_no_name_server && c.nameServers.length > 0 && c.network) {
     const attached = c.network.name;
     const net = context.networks.find((item) => item.name === attached);
     if (net && !net.no_name_server) return problem("nameServerNeedsNoNameServer", { network: attached });
@@ -969,13 +1037,19 @@ export type NetworkProblemKey =
   | "macvlanModeRequired"
   | "macvlanParentRequired"
   | "macvlanParentInvalid"
-  | "macvlanVrf";
+  | "macvlanVrf"
+  | "noNameServerInUse"
+  | "prefixInUse";
 
 export type NetworkProblem = SaveProblem<NetworkProblemKey>;
 
 export interface NetworkProblemContext {
   features: ContainerFeatures;
   existingNames: string[];
+  /** Verify rules that differ by version (capabilities). */
+  rules: Pick<ContainerVerifyRules, "name_server_needs_no_name_server">;
+  /** Every configured container: an edit may not break the ones attached to this network. */
+  containers: ContainerInstance[];
 }
 
 /** Name check shared by the network modal and the app wizard. */
@@ -1026,6 +1100,26 @@ export function networkProblem(
     if (!net.macvlanParent) return problem("macvlanParentRequired");
     if (!MACVLAN_PARENT_RE.test(net.macvlanParent)) return problem("macvlanParentInvalid");
     if (net.vrf) return problem("macvlanVrf");
+  }
+  if (original) {
+    const name = text(original.name);
+    const attached = context.containers.filter((c) => c.networks.some((a) => text(a.name) === name));
+    if (context.rules.name_server_needs_no_name_server && original.no_name_server && !net.noNameServer) {
+      const user = attached.find((c) => list(c.name_servers).length > 0);
+      if (user) return problem("noNameServerInUse", { name: user.name });
+    }
+    // The verify re-checks every attached address against the new prefixes.
+    const edited = { ...draft, name, prefixes: net.prefixes };
+    for (const c of attached) {
+      for (const a of c.networks.filter((item) => text(item.name) === name)) {
+        for (const address of list(a.addresses)) {
+          const ip = parseIp(address);
+          if (ip && attachmentAddressIssue(address, ip, edited)) {
+            return problem("prefixInUse", { name: c.name, address });
+          }
+        }
+      }
+    }
   }
   return null;
 }

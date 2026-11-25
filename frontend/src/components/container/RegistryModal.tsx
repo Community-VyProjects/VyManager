@@ -35,6 +35,7 @@ const EMPTY_MIRROR: ContainerRegistryMirror = { address: null, host_name: null, 
 
 export function RegistryModal({ open, onOpenChange, registry, capabilities, existingNames, onSubmit }: Props) {
   const t = useTranslations("containerResources");
+  const tm = useTranslations("containers");
   const tc = useTranslations("common");
   const isEditMode = !!registry;
   const { features, values } = capabilities;
@@ -137,7 +138,6 @@ export function RegistryModal({ open, onOpenChange, registry, capabilities, exis
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   maxLength={REGISTRY_USERNAME_MAX}
-                  placeholder={t("registryModal.usernamePlaceholder")}
                   className="font-mono"
                   autoComplete="off"
                 />
@@ -150,7 +150,6 @@ export function RegistryModal({ open, onOpenChange, registry, capabilities, exis
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   maxLength={values.registry_password_max_length}
-                  placeholder={t("registryModal.passwordPlaceholder")}
                   autoComplete="new-password"
                 />
               </div>
@@ -169,7 +168,7 @@ export function RegistryModal({ open, onOpenChange, registry, capabilities, exis
                       <Input id="mir-addr" value={mirror.address ?? ""} onChange={(e) => setMirrorField({ address: e.target.value })} placeholder={t("registryModal.addressPlaceholder")} className="font-mono" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="mir-host">{t("registryModal.hostname")}</Label>
+                      <Label htmlFor="mir-host">{tm("modal.hostname")}</Label>
                       <Input id="mir-host" value={mirror.host_name ?? ""} onChange={(e) => setMirrorField({ host_name: e.target.value })} placeholder="mirror.example.com" className="font-mono" />
                     </div>
                     <div className="space-y-2">
@@ -198,7 +197,7 @@ export function RegistryModal({ open, onOpenChange, registry, capabilities, exis
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>{tc("cancel")}</Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : t("registryModal.adding")}</>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : tm("modal.adding")}</>
             ) : isEditMode ? tc("saveChanges") : t("registries.addRegistry")}
           </Button>
         </DialogFooter>

@@ -35,6 +35,8 @@ import {
 interface Props {
   config: ContainerConfig;
   hasWritePermission: boolean;
+  /** Re-reads the config (container update badges) after a pull or update. */
+  onReload: () => Promise<void>;
 }
 
 interface SshState {
@@ -61,7 +63,7 @@ function imagesMatch(pulled: string, configured: string): boolean {
   return false;
 }
 
-export function ImagesTab({ config, hasWritePermission }: Props) {
+export function ImagesTab({ config, hasWritePermission, onReload }: Props) {
   const t = useTranslations("containerResources");
   const tm = useTranslations("containers");
   const tc = useTranslations("common");
@@ -97,12 +99,16 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
     void fetchImages();
   };
 
-  const runSsh = async (title: string, fn: () => Promise<ContainerSSHResponse>) => {
+  /** `reload`: the action changed an image, so the container update badges are re-read after a success. */
+  const runSsh = async (title: string, fn: () => Promise<ContainerSSHResponse>, reload = false) => {
     setSsh({ open: true, title, loading: true, success: null });
     try {
       const result = await fn();
       setSsh({ open: true, title, loading: false, success: result.success, output: result.output, error: result.error });
-      if (result.success) reloadImages();
+      if (result.success) {
+        reloadImages();
+        if (reload) void onReload();
+      }
     } catch (err: unknown) {
       setSsh({ open: true, title, loading: false, success: false, error: (err as ApiError).message || tm("sshOutput.failed") });
     }
@@ -162,7 +168,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("images.image")}</TableHead>
+                    <TableHead>{tm("modal.image")}</TableHead>
                     <TableHead>{t("images.usedBy")}</TableHead>
                     {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                   </TableRow>
@@ -197,7 +203,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                                 title={t("images.updateImage")}
                                 aria-label={t("images.updateImage")}
                                 disabled={ssh.loading}
-                                onClick={() => runSsh(t("images.updateImageTitle", { image: img }), () => containerService.updateImageRef(img))}
+                                onClick={() => runSsh(t("images.updateImageTitle", { image: img }), () => containerService.updateImageRef(img), true)}
                               >
                                 <RefreshCw className="h-4 w-4" />
                               </Button>
@@ -208,9 +214,9 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                                     ? t("images.cannotDeleteStack")
                                     : inUse
                                       ? t("images.cannotDeleteInUse", { containers: users.join(", ") })
-                                      : t("images.deleteImageTooltip")
+                                      : t("images.deleteImage")
                                 }
-                                aria-label={t("images.deleteImageTooltip")}
+                                aria-label={t("images.deleteImage")}
                                 disabled={deleteBlocked || ssh.loading}
                                 onClick={() => {
                                   setDeleteConfirm(img);
@@ -236,7 +242,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
         key={addModalKey}
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
-        onSubmit={(ref) => runSsh(t("images.addImageTitle", { image: ref }), () => containerService.pullImage(ref))}
+        onSubmit={(ref) => runSsh(t("images.addImageTitle", { image: ref }), () => containerService.pullImage(ref), true)}
       />
 
       <SshOutputModal

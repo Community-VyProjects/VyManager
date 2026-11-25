@@ -33,6 +33,7 @@ import type { ApiError } from "@/lib/types/api";
 import type { WizardProps } from "@/lib/apps-catalog";
 import { useAppsCatalogText, useLocalizedInstallConfig } from "@/lib/apps-catalog-i18n";
 import { cn } from "@/lib/utils";
+import { AttachmentMacSelect } from "./AttachmentMacSelect";
 import { SECTION_LABEL_KEYS } from "./container-form";
 
 type NetworkMode = "host" | "existing" | "new";
@@ -96,7 +97,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   const appName = useAppsCatalogText().appName(app);
   const netCfg = ic.network;
   const hasNetwork = !!netCfg;
-  const features = capabilities?.features;
+  const { features } = capabilities;
 
   const availableModes = useMemo((): NetworkMode[] => {
     if (!netCfg) return [];
@@ -108,8 +109,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   }, [netCfg]);
 
   const steps = hasNetwork
-    ? [t("wizard.steps.basic"), t("wizard.steps.network"), t("wizard.steps.deploy")]
-    : [t("wizard.steps.basic"), t("wizard.steps.deploy")];
+    ? [t("wizard.steps.basic"), t("wizard.network"), t("wizard.deploy")]
+    : [t("wizard.steps.basic"), t("wizard.deploy")];
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -168,10 +169,12 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState(false);
   const [deployError, setDeployError] = useState<string | null>(null);
+  // Something reached the router (the network or the container): closing reloads the page config.
+  const [committed, setCommitted] = useState(false);
 
   const existingContainerNames = config.containers.map(c => c.name);
   const existingNetNames = config.networks.map(n => n.name);
-  const showMac = !!netCfg?.allowMac && !!features?.network_mac;
+  const showMac = !!netCfg?.allowMac && features.network_mac;
 
   // ── Validation ─────────────────────────────────────────────────────────────
 
@@ -210,7 +213,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
   const buildNetwork = (): ContainerNetworkConfig => ({
     name: newNetName.trim(),
-    description: `Created by ${app.name} wizard`,
+    description: null,
     gateways: [],
     mtu: null,
     no_name_server: false,
@@ -222,7 +225,6 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   });
 
   const buildContainer = (): ContainerInstance => {
-    const supports = features ?? null;
     const networks: ContainerInstance["networks"] = [];
     if (hasNetwork && networkMode !== "host") {
       networks.push({
@@ -238,7 +240,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       protocol: p.protocol ?? "tcp",
       listen_addresses: p.listenAddresses ?? [],
     }));
-    const supportedCapabilities = capabilities?.values.capabilities || [];
+    const supportedCapabilities = capabilities.values.capabilities || [];
     const health = ic.healthCheck;
     return {
       ...emptyContainer(name),
@@ -257,8 +259,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       uid: ic.uid ? resolve(ic.uid, resolvedValues) : null,
       gid: ic.gid ? resolve(ic.gid, resolvedValues) : null,
       host_name: ic.hostname ? resolve(ic.hostname, resolvedValues) : null,
-      log_driver: ic.logDriver && supports?.log_driver ? ic.logDriver : null,
-      health_check: health && supports?.health_check
+      log_driver: ic.logDriver && features.log_driver ? ic.logDriver : null,
+      health_check: health && features.health_check
         ? {
             command: health.command ?? null,
             interval: health.interval ?? null,
@@ -271,7 +273,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       devices: (ic.devices ?? []).map(d => ({ name: d.name, source: d.source, destination: d.destination })),
       labels: (ic.labels ?? []).map(l => ({ name: l.name, value: resolve(l.value, resolvedValues) })),
       sysctl_params: (ic.sysctl ?? []).map(s => ({ name: s.name, value: s.value })),
-      tmpfs_mounts: supports?.tmpfs && ic.tmpfs
+      tmpfs_mounts: features.tmpfs && ic.tmpfs
         ? ic.tmpfs.map(m => ({ name: m.name, destination: m.destination, size: m.size ?? null }))
         : [],
       environments: (ic.environment ?? []).map(e => ({ name: e.name, value: resolve(e.value, resolvedValues) })),
@@ -297,14 +299,18 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   };
 
   const deploy = async () => {
-    if (!capabilities) return;
     const creatingNetwork = hasNetwork && networkMode === "new";
     const net = buildNetwork();
     const draft = buildContainer();
 
     // Check both objects before anything changes on the router.
     if (creatingNetwork) {
-      const netIssue = networkProblem(null, net, { features: capabilities.features, existingNames: existingNetNames });
+      const netIssue = networkProblem(null, net, {
+        features,
+        existingNames: existingNetNames,
+        rules: capabilities,
+        containers: config.containers,
+      });
       if (netIssue) {
         setDeployError(t(`networkProblems.${netIssue.key}`, netIssue.values));
         return;
@@ -315,6 +321,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       existingNames: existingContainerNames,
       networks: creatingNetwork ? [...config.networks, net] : config.networks,
       values: capabilities.values,
+      rules: capabilities,
+      containers: config.containers,
     });
     if (issue) {
       setDeployError(tm(`problems.${issue.key}`, {
@@ -338,7 +346,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
     try {
       if (creatingNetwork) {
         running(idx);
-        await containerService.saveNetwork(null, net, capabilities.features);
+        await containerService.saveNetwork(null, net, features);
+        setCommitted(true);
         done(idx++);
       }
 
@@ -376,7 +385,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       done(idx++);
 
       running(idx);
-      await containerService.saveContainer(null, draft, capabilities.features);
+      await containerService.saveContainer(null, draft, features);
+      setCommitted(true);
       done(idx++);
       setDeployed(true);
     } catch (err: unknown) {
@@ -389,8 +399,13 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   };
 
   // The parent unmounts the wizard on close, so the next install starts fresh.
+  // After a commit the close goes through onComplete, which also reloads the config.
   const handleOpenChange = (o: boolean) => {
     if (deploying) return;
+    if (!o && committed) {
+      onComplete();
+      return;
+    }
     onOpenChange(o);
   };
 
@@ -424,7 +439,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         {step === 0 && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="wiz-name">{t("wizard.containerName")}</Label>
+              <Label htmlFor="wiz-name">{tm("modal.containerName")}</Label>
               <Input
                 id="wiz-name"
                 value={containerName}
@@ -432,11 +447,6 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                 className="font-mono"
                 placeholder={app.defaultContainerName}
               />
-              {containerName && existingContainerNames.includes(containerName.trim()) && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />{t("wizard.nameInUse")}
-                </p>
-              )}
             </div>
 
             {(ic.fields ?? []).map(f => (
@@ -564,6 +574,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                 <IpMacFields
                   allowStaticIp={netCfg?.allowStaticIp}
                   showMac={showMac}
+                  macKeywords={capabilities.values.network_mac_keywords || []}
                   netAddress={netAddress}
                   setNetAddress={setNetAddress}
                   netMac={netMac}
@@ -575,7 +586,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             {networkMode === "new" && (
               <div className="space-y-3 pt-1">
                 <div className="space-y-1.5">
-                  <Label htmlFor="wiz-new-net">{t("wizard.networkName")}</Label>
+                  <Label htmlFor="wiz-new-net">{t("networkModal.networkName")}</Label>
                   <Input
                     id="wiz-new-net"
                     value={newNetName}
@@ -584,11 +595,6 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                     className="font-mono"
                     placeholder={app.defaultContainerName.slice(0, 11)}
                   />
-                  {newNetName && existingNetNames.includes(newNetName.trim()) && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />{t("wizard.nameInUse")}
-                    </p>
-                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="wiz-new-prefix">{t("wizard.subnetPrefix")}</Label>
@@ -603,6 +609,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                 <IpMacFields
                   allowStaticIp={netCfg?.allowStaticIp}
                   showMac={showMac}
+                  macKeywords={capabilities.values.network_mac_keywords || []}
                   netAddress={netAddress}
                   setNetAddress={setNetAddress}
                   netMac={netMac}
@@ -625,7 +632,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                     <span className="font-mono text-foreground">{name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>{t("wizard.image")}</span>
+                    <span>{tm("modal.image")}</span>
                     <span className="font-mono text-foreground text-xs truncate max-w-[55%]">{app.dockerImage}</span>
                   </div>
                   {(ic.fields ?? []).map(f => (
@@ -676,6 +683,12 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
           </div>
         )}
 
+        {!isLastStep && err && (
+          <p className="mt-3 text-xs text-destructive flex items-center gap-1">
+            <AlertCircle className="h-3 w-3 shrink-0" />{err}
+          </p>
+        )}
+
         </div>{/* end scrollable area */}
 
         {/* ── Footer ── */}
@@ -683,7 +696,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
           <Button
             variant="outline"
             onClick={() => {
-              if (deployed) { handleOpenChange(false); onComplete(); return; }
+              if (deployed) { handleOpenChange(false); return; }
               if (step === 0) handleOpenChange(false);
               else setStep(s => s - 1);
             }}
@@ -698,7 +711,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                 {t("wizard.next")}
               </Button>
             ) : (
-              <Button onClick={deploy} disabled={deploying || !capabilities}>
+              <Button onClick={deploy} disabled={deploying}>
                 {deploying
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("wizard.deploying")}</>
                   : t("wizard.deploy")}
@@ -714,6 +727,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 interface IpMacFieldsProps {
   allowStaticIp?: boolean;
   showMac: boolean;
+  macKeywords: string[];
   netAddress: string;
   setNetAddress: (v: string) => void;
   netMac: string;
@@ -721,7 +735,7 @@ interface IpMacFieldsProps {
 }
 
 /** The optional static address and MAC of the attachment, shared by the existing and new network branches. */
-function IpMacFields({ allowStaticIp, showMac, netAddress, setNetAddress, netMac, setNetMac }: IpMacFieldsProps) {
+function IpMacFields({ allowStaticIp, showMac, macKeywords, netAddress, setNetAddress, netMac, setNetMac }: IpMacFieldsProps) {
   const t = useTranslations("containerResources");
   if (!allowStaticIp && !showMac) return null;
 
@@ -740,16 +754,13 @@ function IpMacFields({ allowStaticIp, showMac, netAddress, setNetAddress, netMac
         </div>
       )}
       {showMac && (
-        <div className="space-y-1.5">
-          <Label htmlFor="wiz-mac">{t("wizard.macAddress")} <span className="text-muted-foreground font-normal">{t("wizard.optionalSuffix")}</span></Label>
-          <Input
-            id="wiz-mac"
-            value={netMac}
-            onChange={e => setNetMac(e.target.value)}
-            className="font-mono"
-            placeholder="02:00:00:00:00:01"
-          />
-        </div>
+        <AttachmentMacSelect
+          id="wiz-mac"
+          label={<>{t("wizard.macAddress")} <span className="text-muted-foreground font-normal">{t("wizard.optionalSuffix")}</span></>}
+          value={netMac}
+          onChange={setNetMac}
+          keywords={macKeywords}
+        />
       )}
     </div>
   );

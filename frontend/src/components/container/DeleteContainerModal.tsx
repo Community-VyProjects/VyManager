@@ -87,7 +87,7 @@ export function DeleteContainerModal({ open, onOpenChange, container, onConfirm 
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("deleteModal.deleting")}
+                {tc("deleting")}
               </>
             ) : (
               t("deleteModal.title")

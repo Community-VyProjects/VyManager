@@ -7,6 +7,7 @@ import {
   containerProblem,
   containerRootDeleteOps,
   emptyContainer,
+  MACVLAN_PARENT_TYPES,
   MASKED_SECRET,
   networkDeleteOps,
   networkNameProblem,
@@ -55,6 +56,8 @@ const VALUES: ContainerValues = {
   network_mac_keywords: ["auto"],
   health_check_interval_keywords: ["disable"],
 };
+const RULES_15 = { name_server_needs_no_name_server: true, unique_attachment_addresses: true };
+const RULES_14 = { name_server_needs_no_name_server: false, unique_attachment_addresses: false };
 const NO_KEYWORDS: ContainerValues = { ...VALUES, network_mac_keywords: [], health_check_interval_keywords: [] };
 
 const NET: ContainerNetworkConfig = {
@@ -84,6 +87,8 @@ const ctx = (overrides: Partial<ContainerProblemContext> = {}): ContainerProblem
   existingNames: [],
   networks: [NET],
   values: VALUES,
+  rules: RULES_15,
+  containers: [],
   ...overrides,
 });
 
@@ -290,7 +295,8 @@ describe("containerProblem", () => {
     const net = (addresses: string[], mac = "") => [{ name: "net1", addresses, mac }];
     assert.equal(containerProblem(null, web({ networks: net(["10.0.0.300"]) }), ctx())?.key, "networkAddressInvalid");
     assert.equal(containerProblem(null, web({ networks: net(["10.0.0.2", "10.0.0.3"]) }), ctx())?.key, "networkAddressFamily");
-    assert.equal(containerProblem(null, web({ networks: net(["10.0.0.2", "fd00::2"]) }), ctx()), null);
+    const dual = [{ ...NET, prefixes: ["10.0.0.0/24", "fd00::/64"] }];
+    assert.equal(containerProblem(null, web({ networks: net(["10.0.0.2", "fd00::2"]) }), ctx({ networks: dual })), null);
     assert.equal(containerProblem(null, web({ networks: net([], "zz") }), ctx())?.key, "macInvalid");
     assert.equal(containerProblem(null, web({ networks: net([], "auto") }), ctx()), null);
     assert.equal(containerProblem(null, web({ networks: net([], "02:00:00:00:00:01") }), ctx()), null);
@@ -304,6 +310,47 @@ describe("containerProblem", () => {
       containerProblem(null, web({ name_servers: ["1.1.1.1"] }), ctx({ networks: [{ ...NET, no_name_server: true }] })),
       null,
     );
+    // 1.4 commits a name-server on a network that keeps DNS on.
+    assert.equal(containerProblem(null, web({ name_servers: ["1.1.1.1"] }), ctx({ rules: RULES_14 })), null);
+  });
+
+  it("keeps attachment addresses inside the network prefix of their family, off the first host", () => {
+    const at = (addresses: string[], networks = [NET]) =>
+      containerProblem(null, web({ networks: [{ name: "net1", addresses, mac: "" }] }), ctx({ networks, rules: RULES_14 }));
+    assert.deepEqual(at(["10.0.1.5"]), {
+      key: "networkAddressOutsidePrefix", values: { address: "10.0.1.5", prefix: "10.0.0.0/24" }, section: undefined,
+    });
+    assert.deepEqual(at(["fd00::5"]), {
+      key: "networkAddressNoPrefix", values: { address: "fd00::5", network: "net1" }, section: undefined,
+    });
+    assert.equal(at(["10.0.0.1"])?.key, "networkAddressReserved");
+    assert.equal(at(["10.0.0.0"]), null);
+    assert.equal(at(["10.0.0.2"]), null);
+    const v6 = [{ ...NET, prefixes: ["fd00:1::/64"] }];
+    assert.equal(at(["fd00:1::1"], v6)?.key, "networkAddressReserved");
+    assert.equal(at(["fd00:1::2"], v6), null);
+    assert.equal(at(["fd00:2::2"], v6)?.key, "networkAddressOutsidePrefix");
+    const wide = [{ ...NET, prefixes: ["172.31.0.0/16"] }];
+    assert.equal(at(["172.31.0.1"], wide)?.key, "networkAddressReserved");
+    assert.equal(at(["172.31.250.1"], wide), null);
+  });
+
+  it("rejects an attachment IP or MAC another container uses where the lab does", () => {
+    const other = web({ name: "db", networks: [{ name: "net1", addresses: ["10.0.0.5"], mac: "02:00:00:00:00:05" }] });
+    const keyword = web({ name: "cache", networks: [{ name: "net1", addresses: [], mac: "auto" }] });
+    const draft = (addresses: string[], mac = "") => web({ networks: [{ name: "net1", addresses, mac }] });
+    const containers = [other, keyword];
+    assert.deepEqual(containerProblem(null, draft(["10.0.0.5"]), ctx({ containers })), {
+      key: "networkAddressInUse", values: { address: "10.0.0.5", name: "db" }, section: undefined,
+    });
+    assert.deepEqual(containerProblem(null, draft([], "02:00:00:00:00:05"), ctx({ containers })), {
+      key: "macInUse", values: { mac: "02:00:00:00:00:05", name: "db" }, section: undefined,
+    });
+    // A keyword MAC is never unique; 1.4 allows both duplicates.
+    assert.equal(containerProblem(null, draft([], "auto"), ctx({ containers })), null);
+    assert.equal(containerProblem(null, draft(["10.0.0.5"], "02:00:00:00:00:05"), ctx({ containers, rules: RULES_14 })), null);
+    // Editing the container that owns the address is not a clash with itself.
+    assert.equal(containerProblem(other, structuredClone(other), ctx({ containers })), null);
   });
 
   it("accepts the port-range forms the lab accepts", () => {
@@ -403,7 +450,9 @@ describe("networkOps / networkProblem", () => {
 
   it("checks the lab name regex, prefixes, gateways and MACVLAN", () => {
     const p = (draft: Partial<ContainerNetworkConfig>, original: ContainerNetworkConfig | null = null) =>
-      networkProblem(original, { ...NET, ...draft }, { features: ON, existingNames: ["used"] })?.key ?? null;
+      networkProblem(original, { ...NET, ...draft }, {
+        features: ON, existingNames: ["used"], rules: RULES_15, containers: [],
+      })?.key ?? null;
     assert.equal(networkNameProblem("twelve-chars", [])?.key, "nameInvalid");
     assert.equal(networkNameProblem("a_b-1", []), null);
     assert.equal(p({ name: "used" }), "nameExists");
@@ -417,8 +466,30 @@ describe("networkOps / networkProblem", () => {
     assert.equal(p({ mtu: "67" }), "mtuRange");
     assert.equal(p({ network_type: "macvlan", macvlan_parent: "eth0" }), "macvlanModeRequired");
     assert.equal(p({ network_type: "macvlan", macvlan_mode: "bridge", macvlan_parent: "lo" }), "macvlanParentInvalid");
+    for (const parent of ["eth0", "bond0.10", "br0.10", "eth1.4094"]) {
+      assert.equal(p({ network_type: "macvlan", macvlan_mode: "bridge", macvlan_parent: parent }), null, parent);
+    }
+    assert.equal(p({ network_type: "macvlan", macvlan_mode: "bridge", macvlan_parent: "eth0.10.20" }), "macvlanParentInvalid");
+    assert.ok(MACVLAN_PARENT_TYPES.includes("vif"));
     assert.equal(p({ network_type: "macvlan", macvlan_mode: "bridge", macvlan_parent: "eth0.10", vrf: "red" }), "macvlanVrf");
     assert.deepEqual(networkDeleteOps("net1"), [{ op: "delete_network", value: "net1" }]);
+  });
+
+  it("keeps an edit from breaking the containers attached to the network", () => {
+    const loaded = { ...NET, no_name_server: true };
+    const dns = web({ name: "dns", name_servers: ["1.1.1.1"], networks: [{ name: "net1", addresses: ["10.0.0.5"], mac: null }] });
+    const elsewhere = web({ name: "x", name_servers: ["1.1.1.1"], networks: [{ name: "net2", addresses: [], mac: null }] });
+    const check = (draft: Partial<ContainerNetworkConfig>, rules = RULES_15, containers = [dns, elsewhere]) =>
+      networkProblem(loaded, { ...loaded, ...draft }, { features: ON, existingNames: [], rules, containers });
+    assert.deepEqual(check({ no_name_server: false }), {
+      key: "noNameServerInUse", values: { name: "dns" }, section: undefined,
+    });
+    assert.equal(check({ no_name_server: false }, RULES_14), null);
+    assert.equal(check({ no_name_server: false }, RULES_15, [elsewhere]), null);
+    assert.deepEqual(check({ prefixes: ["10.1.0.0/24"] }), {
+      key: "prefixInUse", values: { name: "dns", address: "10.0.0.5" }, section: undefined,
+    });
+    assert.equal(check({ prefixes: ["10.0.0.0/16"] }), null);
   });
 });
 

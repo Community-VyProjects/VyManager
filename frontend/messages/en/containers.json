@@ -3,8 +3,6 @@
     "loadFailed": "Failed to load container configuration",
     "title": "Containers",
     "subtitle": "Manage container instances, networks, and registries",
-    "containers": "Containers",
-    "networks": "Networks",
     "registries": "Registries",
     "images": "Images",
     "apps": "Apps",
@@ -30,7 +28,6 @@
     "addContainer": "Add Container",
     "stackNotice": "The VyManager stack cannot be deleted or edited here. Pull and restart, or re-run the installer. This page may disconnect during an update.",
     "noContainers": "No containers configured",
-    "image": "Image",
     "networks": "Networks",
     "ports": "Ports",
     "active": "Active",
@@ -38,22 +35,21 @@
     "editFiles": "Edit Files",
     "pullImage": "Pull image",
     "pullImageTitle": "Pull Image — {name}",
-    "updateImage": "Update image",
     "updateImageTitle": "Update Image — {name}",
     "restart": "Restart",
     "restartTitle": "Restart Container — {name}",
-    "restartConfirm": "Restart container {name}? It stops and starts again.",
+    "restartConfirm": "Restart container {name}?",
     "deleteImageConfirm": "Delete the image {image} that container {name} runs? The container cannot start until the image is pulled again.",
     "updateStackConfirm": "Pull the latest VyManager images and restart the stack? This page may disconnect during the update.",
     "apply": "Apply",
     "viewLogs": "View Logs",
     "logsTitle": "Logs — {name}",
-    "updateInProgress": "Update in progress..."
+    "updateInProgress": "Update in progress...",
+    "stackProtected": "This belongs to the VyManager stack and cannot be deleted here."
   },
   "modal": {
     "createDirsFailed": "Failed to create container directories.",
     "editTitle": "Edit Container — {name}",
-    "addTitle": "Add Container",
     "editDescription": "Modify this container's configuration.",
     "addDescription": "Configure a new VyOS container.",
     "tabs": {
@@ -167,7 +163,12 @@
     "networkAndHost": "A container cannot use a network and host networks at the same time.",
     "networkAddressInvalid": "\"{address}\" is not an IP address.",
     "networkAddressFamily": "Use at most one IPv4 and one IPv6 address.",
+    "networkAddressNoPrefix": "Network \"{network}\" has no prefix for address \"{address}\".",
+    "networkAddressOutsidePrefix": "Address \"{address}\" is not inside the network prefix {prefix}.",
+    "networkAddressReserved": "Address \"{address}\" is the first host of the prefix, which the container engine keeps.",
+    "networkAddressInUse": "Address \"{address}\" is already used by container \"{name}\".",
     "macInvalid": "The MAC address must look like 02:00:00:00:00:01.",
+    "macInUse": "MAC address \"{mac}\" is already used by container \"{name}\".",
     "nameServerInvalid": "Name server \"{address}\" is not an IP address.",
     "nameServerNeedsNoNameServer": "Name servers need no-name-server on network \"{network}\".",
     "healthIntervalRange": "Health check interval must be between {min} and {max} seconds.",
@@ -198,8 +199,7 @@
     "title": "Delete Container",
     "confirm": "Are you sure you want to delete container <mono>{name}</mono>?",
     "image": " (image: <mono>{image}</mono>)",
-    "irreversible": "This action cannot be undone.",
-    "deleting": "Deleting…"
+    "irreversible": "This action cannot be undone."
   },
   "filesModal": {
     "readFailed": "Failed to read file.",
@@ -208,15 +208,13 @@
     "title": "Files — {name}",
     "editFile": "Edit File",
     "noFiles": "No editable files defined for this app.",
-    "saved": "Saved. A backup was written to <mono>{path}</mono>",
-    "back": "Back"
+    "saved": "Saved. A backup was written to <mono>{path}</mono>"
   },
   "sshOutput": {
     "running": "Running command, please wait…",
     "success": "Command completed successfully.",
     "failed": "Command failed.",
     "progress": "Progress",
-    "output": "Output",
     "pleaseWait": "Please wait…"
   },
   "setupDir": {

@@ -3,8 +3,6 @@
     "loadFailed": "加载容器配置失败",
     "title": "容器",
     "subtitle": "管理容器实例、网络和镜像仓库",
-    "containers": "容器",
-    "networks": "网络",
     "registries": "镜像仓库",
     "images": "镜像",
     "apps": "应用",
@@ -30,7 +28,6 @@
     "addContainer": "添加容器",
     "stackNotice": "无法在此删除或编辑 VyManager 组件栈。请拉取并重启，或重新运行安装程序。更新期间此页面可能会断开连接。",
     "noContainers": "未配置容器",
-    "image": "镜像",
     "networks": "网络",
     "ports": "端口",
     "active": "运行中",
@@ -38,22 +35,21 @@
     "editFiles": "编辑文件",
     "pullImage": "拉取镜像",
     "pullImageTitle": "拉取镜像 — {name}",
-    "updateImage": "更新镜像",
     "updateImageTitle": "更新镜像 — {name}",
     "restart": "重启",
     "restartTitle": "重启容器 — {name}",
-    "restartConfirm": "要重启容器 {name} 吗？它将停止并重新启动。",
+    "restartConfirm": "要重启容器 {name} 吗？",
     "deleteImageConfirm": "要删除容器 {name} 使用的镜像 {image} 吗？重新拉取该镜像之前，容器无法启动。",
     "updateStackConfirm": "要拉取最新的 VyManager 镜像并重启组件栈吗？更新期间此页面可能会断开连接。",
-    "apply": "应用",
+    "apply": "确定",
     "viewLogs": "查看日志",
     "logsTitle": "日志 — {name}",
-    "updateInProgress": "正在更新..."
+    "updateInProgress": "正在更新...",
+    "stackProtected": "此项属于 VyManager 组件栈，无法在此删除。"
   },
   "modal": {
     "createDirsFailed": "创建容器目录失败。",
     "editTitle": "编辑容器 — {name}",
-    "addTitle": "添加容器",
     "editDescription": "修改此容器的配置。",
     "addDescription": "配置新的 VyOS 容器。",
     "tabs": {
@@ -167,7 +163,12 @@
     "networkAndHost": "容器不能同时使用网络和主机网络。",
     "networkAddressInvalid": "“{address}”不是 IP 地址。",
     "networkAddressFamily": "每种地址族最多使用一个地址（一个 IPv4、一个 IPv6）。",
+    "networkAddressNoPrefix": "网络“{network}”没有与地址“{address}”同族的前缀。",
+    "networkAddressOutsidePrefix": "地址“{address}”不在网络前缀 {prefix} 内。",
+    "networkAddressReserved": "地址“{address}”是前缀的第一个主机地址，由容器引擎保留。",
+    "networkAddressInUse": "地址“{address}”已被容器“{name}”使用。",
     "macInvalid": "MAC 地址格式应类似 02:00:00:00:00:01。",
+    "macInUse": "MAC 地址“{mac}”已被容器“{name}”使用。",
     "nameServerInvalid": "域名服务器“{address}”不是 IP 地址。",
     "nameServerNeedsNoNameServer": "设置域名服务器需要网络“{network}”启用 no-name-server。",
     "healthIntervalRange": "健康检查间隔必须在 {min} 到 {max} 秒之间。",
@@ -198,8 +199,7 @@
     "title": "删除容器",
     "confirm": "确定要删除容器 <mono>{name}</mono> 吗？",
     "image": "（镜像：<mono>{image}</mono>）",
-    "irreversible": "此操作无法撤销。",
-    "deleting": "正在删除…"
+    "irreversible": "此操作无法撤销。"
   },
   "filesModal": {
     "readFailed": "读取文件失败。",
@@ -208,15 +208,13 @@
     "title": "文件 — {name}",
     "editFile": "编辑文件",
     "noFiles": "此应用未定义可编辑的文件。",
-    "saved": "已保存。备份已写入 <mono>{path}</mono>",
-    "back": "返回"
+    "saved": "已保存。备份已写入 <mono>{path}</mono>"
   },
   "sshOutput": {
     "running": "正在执行命令，请稍候…",
     "success": "命令执行成功。",
     "failed": "命令执行失败。",
     "progress": "进度",
-    "output": "输出",
     "pleaseWait": "请稍候…"
   },
   "setupDir": {

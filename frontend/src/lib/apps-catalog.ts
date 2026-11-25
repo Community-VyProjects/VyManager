@@ -239,7 +239,7 @@ export interface WizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   config: ContainerConfig;
-  capabilities: ContainerCapabilities | null;
+  capabilities: ContainerCapabilities;
   onComplete: () => void;
   app: AppDef;
 }

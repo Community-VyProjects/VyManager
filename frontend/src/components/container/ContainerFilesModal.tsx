@@ -30,6 +30,7 @@ function resolvePath(template: string, containerName: string): string {
 /** The parent mounts this only while open, so every open starts on the file list. */
 export function ContainerFilesModal({ open, onOpenChange, containerName, app }: Props) {
   const t = useTranslations("containers");
+  const tr = useTranslations("containerResources");
   const tc = useTranslations("common");
   const editableFiles = app.installConfig?.editableFiles ?? [];
 
@@ -191,7 +192,7 @@ export function ContainerFilesModal({ open, onOpenChange, containerName, app }: 
         {/* ── Footer ── */}
         {view === "editor" && !loading && (
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={backToList} disabled={saving}>{t("filesModal.back")}</Button>
+            <Button variant="outline" onClick={backToList} disabled={saving}>{tr("wizard.back")}</Button>
             <Button onClick={save} disabled={saving}>
               {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{tc("saving")}</> : tc("save")}
             </Button>

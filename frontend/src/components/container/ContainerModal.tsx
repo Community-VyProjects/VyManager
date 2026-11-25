@@ -51,6 +51,7 @@ import {
   type ContainerProblem,
 } from "@/lib/api/container-save-ops";
 import type { ApiError } from "@/lib/types/api";
+import { AttachmentMacSelect } from "./AttachmentMacSelect";
 import { RowList } from "./RowList";
 import { SECTION_LABEL_KEYS } from "./container-form";
 
@@ -61,15 +62,15 @@ interface Props {
   container: ContainerInstance | null;
   capabilities: ContainerCapabilities;
   availableNetworks: ContainerNetworkConfig[];
-  /** Every configured container name (an Add may not reuse one). */
-  existingNames: string[];
+  /** Every configured container (name reuse, attachment uniqueness, shared volume paths). */
+  containers: ContainerInstance[];
   availableImages: string[];
   imagesLoading: boolean;
   imagesError: string | null;
   onSubmit: (draft: ContainerInstance) => Promise<void>;
 }
 
-/** Select item for a typed value (a MAC address, an interval in seconds). */
+/** Select item for a typed interval in seconds. */
 const CUSTOM = "custom";
 const VOLUME_BASE = "/config/containers/";
 
@@ -96,7 +97,7 @@ export function ContainerModal({
   container,
   capabilities,
   availableNetworks,
-  existingNames,
+  containers,
   availableImages,
   imagesLoading,
   imagesError,
@@ -113,10 +114,6 @@ export function ContainerModal({
   const health: ContainerHealthCheck = draft.health_check ?? {};
   const macKeywords = values.network_mac_keywords || [];
   const intervalKeywords = values.health_check_interval_keywords || [];
-  const [macCustom, setMacCustom] = useState(() => {
-    const mac = container?.networks[0]?.mac;
-    return !!mac && !macKeywords.includes(mac);
-  });
   const [intervalSeconds, setIntervalSeconds] = useState(() => {
     const interval = container?.health_check?.interval;
     return !!interval && !intervalKeywords.includes(interval);
@@ -144,9 +141,11 @@ export function ContainerModal({
   const handleSubmit = async () => {
     const issue = containerProblem(container, draft, {
       features,
-      existingNames,
+      existingNames: containers.map((c) => c.name),
       networks: availableNetworks,
       values,
+      rules: capabilities,
+      containers,
     });
     if (issue) {
       setError(problemText(issue));
@@ -169,16 +168,25 @@ export function ContainerModal({
 
       await onSubmit(draft);
 
-      // Best-effort: remove the directories of volumes this edit dropped.
+      // Best-effort: remove a host path this edit stopped using, unless a kept
+      // volume of this container or any volume of another container still uses it.
       if (container) {
-        const kept = new Set(draft.volumes.map((v) => v.name.trim()));
-        for (const vol of container.volumes) {
-          if (!kept.has(vol.name) && vol.source?.startsWith(VOLUME_BASE)) {
-            try {
-              await containerService.removeContainerDir(vol.source);
-            } catch {
-              /* the config is already saved */
-            }
+        const inUse = new Set<string>([
+          ...draft.volumes.map((v) => (v.source ?? "").trim()),
+          ...containers
+            .filter((c) => c.name !== container.name)
+            .flatMap((c) => c.volumes.map((v) => (v.source ?? "").trim())),
+        ]);
+        const dropped = new Set(
+          container.volumes
+            .map((v) => (v.source ?? "").trim())
+            .filter((source) => source.startsWith(VOLUME_BASE) && !inUse.has(source)),
+        );
+        for (const source of dropped) {
+          try {
+            await containerService.removeContainerDir(source);
+          } catch {
+            /* the config is already saved */
           }
         }
       }
@@ -209,9 +217,6 @@ export function ContainerModal({
   );
   const image = draft.image ?? "";
 
-  const macMode = macCustom
-    ? CUSTOM
-    : attachment?.mac && macKeywords.includes(attachment.mac) ? attachment.mac : NONE_SENTINEL;
   const intervalMode = intervalSeconds
     ? CUSTOM
     : health.interval && intervalKeywords.includes(health.interval) ? health.interval : NONE_SENTINEL;
@@ -224,7 +229,7 @@ export function ContainerModal({
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? t("modal.editTitle", { name: container?.name ?? "" }) : t("modal.addTitle")}
+            {isEditMode ? t("modal.editTitle", { name: container?.name ?? "" }) : t("tab.addContainer")}
           </DialogTitle>
           <DialogDescription>{isEditMode ? t("modal.editDescription") : t("modal.addDescription")}</DialogDescription>
         </DialogHeader>
@@ -507,10 +512,7 @@ export function ContainerModal({
                         id="c-net"
                         value={attachment?.name ?? ""}
                         names={availableNetworks.map((n) => n.name)}
-                        onValueChange={(name) => {
-                          setMacCustom(false);
-                          pickNetwork(name);
-                        }}
+                        onValueChange={pickNetwork}
                       />
                     </div>
                     {attachment && (
@@ -522,33 +524,15 @@ export function ContainerModal({
                           placeholder={t("modal.addressPlaceholder")}
                         />
                         {features.network_mac && (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label htmlFor="c-mac">{tr("wizard.macAddress")}</Label>
-                              <Select
-                                value={macMode}
-                                onValueChange={(mode) => {
-                                  setMacCustom(mode === CUSTOM);
-                                  setAttachment({ mac: macKeywords.includes(mode) ? mode : "" });
-                                }}
-                              >
-                                <SelectTrigger id="c-mac"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={NONE_SENTINEL}>{t("modal.defaultOption")}</SelectItem>
-                                  {macKeywords.map((keyword) => (
-                                    <SelectItem key={keyword} value={keyword} className="font-mono">{keyword}</SelectItem>
-                                  ))}
-                                  <SelectItem value={CUSTOM}>{t("modal.macCustom")}</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            {macCustom && (
-                              <div className="space-y-2">
-                                <Label htmlFor="c-mac-value">{t("modal.macCustom")}</Label>
-                                <Input id="c-mac-value" value={attachment.mac ?? ""} onChange={(e) => setAttachment({ mac: e.target.value })} placeholder="02:00:00:00:00:01" className="font-mono" />
-                              </div>
-                            )}
-                          </div>
+                          <AttachmentMacSelect
+                            key={attachment.name}
+                            id="c-mac"
+                            label={tr("wizard.macAddress")}
+                            value={attachment.mac ?? ""}
+                            onChange={(mac) => setAttachment({ mac })}
+                            keywords={macKeywords}
+                            disabled={saving}
+                          />
                         )}
                       </>
                     )}
@@ -562,6 +546,7 @@ export function ContainerModal({
                   newRow={() => ({ name: "", source: "", destination: "", protocol: "", listen_addresses: [] })}
                   addLabel={t("modal.addPort")}
                   removeLabel={t("modal.removeRow")}
+                  disabled={saving}
                 >
                   {(row, index, update) => (
                     <>
@@ -609,6 +594,7 @@ export function ContainerModal({
                   newRow={() => ({ name: "", source: "", destination: "", mode: "", propagation: "" })}
                   addLabel={t("modal.addVolume")}
                   removeLabel={t("modal.removeRow")}
+                  disabled={saving}
                 >
                   {(row, index, update) => (
                     <>
@@ -658,6 +644,7 @@ export function ContainerModal({
                     newRow={() => ({ name: "", destination: "", size: "" })}
                     addLabel={t("modal.addTmpfs")}
                     removeLabel={t("modal.removeRow")}
+                    disabled={saving}
                   >
                     {(row, _index, update) => (
                       <>
@@ -676,6 +663,7 @@ export function ContainerModal({
                   newRow={() => ({ name: "", source: "", destination: "" })}
                   addLabel={t("modal.addDevice")}
                   removeLabel={t("modal.removeRow")}
+                  disabled={saving}
                 >
                   {(row, _index, update) => (
                     <>
@@ -698,6 +686,7 @@ export function ContainerModal({
                   newRow={() => ({ name: "", value: "" })}
                   addLabel={t("modal.addVariable")}
                   removeLabel={t("modal.removeRow")}
+                  disabled={saving}
                 >
                   {(row, _index, update) => (
                     <>
@@ -714,6 +703,7 @@ export function ContainerModal({
                   newRow={() => ({ name: "", value: "" })}
                   addLabel={t("modal.addLabel")}
                   removeLabel={t("modal.removeRow")}
+                  disabled={saving}
                 >
                   {(row, _index, update) => (
                     <>
@@ -773,6 +763,7 @@ export function ContainerModal({
                   newRow={() => ({ name: "", value: "" })}
                   addLabel={t("modal.addParameter")}
                   removeLabel={t("modal.removeRow")}
+                  disabled={saving}
                 >
                   {(row, _index, update) => (
                     <>
@@ -798,7 +789,7 @@ export function ContainerModal({
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? tc("saving") : t("modal.adding")}</>
-            ) : isEditMode ? tc("saveChanges") : t("modal.addTitle")}
+            ) : isEditMode ? tc("saveChanges") : t("tab.addContainer")}
           </Button>
         </DialogFooter>
       </DialogContent>

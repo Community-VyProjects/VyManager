@@ -190,7 +190,7 @@ export function ContainerContent() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{totalContainers}</p>
-                  <p className="text-xs text-muted-foreground">{t("content.containers")}</p>
+                  <p className="text-xs text-muted-foreground">{t("content.title")}</p>
                 </div>
               </div>
             </CardContent>
@@ -203,7 +203,7 @@ export function ContainerContent() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{totalNetworks}</p>
-                  <p className="text-xs text-muted-foreground">{t("content.networks")}</p>
+                  <p className="text-xs text-muted-foreground">{t("tab.networks")}</p>
                 </div>
               </div>
             </CardContent>
@@ -228,8 +228,8 @@ export function ContainerContent() {
       <div className="flex-1 p-6 pt-4 overflow-auto">
         <Tabs value={selectedTab} onValueChange={(value) => setPickedTab({ search: searchKey, tab: value as ContainerTab })}>
           <TabsList>
-            <TabsTrigger value="containers">{t("content.containers")}</TabsTrigger>
-            <TabsTrigger value="networks">{t("content.networks")}</TabsTrigger>
+            <TabsTrigger value="containers">{t("content.title")}</TabsTrigger>
+            <TabsTrigger value="networks">{t("tab.networks")}</TabsTrigger>
             <TabsTrigger value="registries">{t("content.registries")}</TabsTrigger>
             <TabsTrigger value="images">{t("content.images")}</TabsTrigger>
             <TabsTrigger value="apps">{t("content.apps")}</TabsTrigger>
@@ -266,7 +266,7 @@ export function ContainerContent() {
           </TabsContent>
 
           <TabsContent value="images" className="mt-4">
-            <ImagesTab config={config} hasWritePermission={hasWritePermission} />
+            <ImagesTab config={config} hasWritePermission={hasWritePermission} onReload={reload} />
           </TabsContent>
 
           <TabsContent value="apps" className="mt-4">

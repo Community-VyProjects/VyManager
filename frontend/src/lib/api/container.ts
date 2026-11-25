@@ -188,7 +188,15 @@ export interface ContainerValues {
   health_check_interval_keywords: string[];
 }
 
-export interface ContainerCapabilities {
+/** Verify rules that differ by version; the screen checks them before a save. */
+export interface ContainerVerifyRules {
+  /** A container name-server needs no-name-server on its attached network. */
+  name_server_needs_no_name_server: boolean;
+  /** An attachment IP or a non-keyword MAC may not be used by two containers. */
+  unique_attachment_addresses: boolean;
+}
+
+export interface ContainerCapabilities extends ContainerVerifyRules {
   version: string;
   instance_name?: string | null;
   instance_id?: string | null;

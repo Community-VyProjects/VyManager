@@ -80,7 +80,7 @@ export function DeleteNetworkModal({ open, onOpenChange, network, onConfirm }: P
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("deleteNetwork.deleting")}
+                {tc("deleting")}
               </>
             ) : (
               t("deleteNetwork.title")

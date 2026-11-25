@@ -71,6 +71,8 @@ interface SshState {
   success: boolean | null;
   output?: string | null;
   error?: string | null;
+  /** Progress text; only the stack update sets it. */
+  busyLabel?: string;
 }
 
 /** A row or page action that changes the router, confirmed before it runs. */
@@ -134,7 +136,8 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
   };
 
   const handleDelete = async () => {
-    if (!deletingContainer || isProtectedStackContainer(appliance, deletingContainer.name)) return;
+    if (!deletingContainer) return;
+    if (isProtectedStackContainer(appliance, deletingContainer.name)) throw new Error(t("tab.stackProtected"));
     await containerService.deleteContainer(deletingContainer.name);
     // Best-effort: clean up the container directory tree after a successful commit.
     try {
@@ -145,11 +148,13 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
     void onReload();
   };
 
-  const runSsh = async (title: string, fn: () => Promise<ContainerSSHResponse>) => {
+  /** `reload`: the action changed the image, so the update badge is re-read after a success. */
+  const runSsh = async (title: string, fn: () => Promise<ContainerSSHResponse>, reload = false) => {
     setSsh({ open: true, title, loading: true, success: null });
     try {
       const result = await fn();
       setSsh({ open: true, title, loading: false, success: result.success, output: result.output, error: result.error });
+      if (result.success && reload) void onReload();
     } catch (err: unknown) {
       setSsh({ open: true, title, loading: false, success: false, error: (err as ApiError).message || t("sshOutput.failed") });
     }
@@ -171,6 +176,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
           success: extra?.success ?? (loading ? null : true),
           output: lines.join("\n") || null,
           error: extra?.error ?? null,
+          busyLabel: t("tab.updateInProgress"),
         });
       };
       show(true);
@@ -305,11 +311,11 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
               <TableHeader>
                 <TableRow>
                   <TableHead>{tc("name")}</TableHead>
-                  <TableHead>{t("tab.image")}</TableHead>
+                  <TableHead>{t("modal.image")}</TableHead>
                   <TableHead>{tc("status")}</TableHead>
                   <TableHead>{t("tab.networks")}</TableHead>
                   <TableHead>{t("tab.ports")}</TableHead>
-                  {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
+                  <TableHead className="text-right">{tc("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -363,44 +369,46 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
                           </div>
                         ) : <span className="text-muted-foreground">—</span>}
                       </TableCell>
-                      {hasWritePermission && (
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {app?.installConfig?.editableFiles?.length ? (
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.editFiles")} aria-label={t("tab.editFiles")} disabled={writeDisabled} onClick={() => setFilesContainer(c)}>
-                                <FolderOpen className="h-4 w-4" />
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {hasWritePermission && (
+                            <>
+                              {app?.installConfig?.editableFiles?.length ? (
+                                <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.editFiles")} aria-label={t("tab.editFiles")} disabled={writeDisabled} onClick={() => setFilesContainer(c)}>
+                                  <FolderOpen className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                              {!stack && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")} aria-label={tc("edit")} disabled={writeDisabled} onClick={() => openModal(c)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.pullImage")} aria-label={t("tab.pullImage")} disabled={writeDisabled} onClick={() => runSsh(t("tab.pullImageTitle", { name: c.name }), () => containerService.addImage(c.name), true)}>
+                                <Download className="h-4 w-4" />
                               </Button>
-                            ) : null}
-                            {!stack && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")} aria-label={tc("edit")} disabled={writeDisabled} onClick={() => openModal(c)}>
-                                <Pencil className="h-4 w-4" />
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("images.updateImage")} aria-label={tr("images.updateImage")} disabled={writeDisabled} onClick={() => runSsh(t("tab.updateImageTitle", { name: c.name }), () => containerService.updateImage(c.name), true)}>
+                                <RefreshCw className="h-4 w-4" />
                               </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.pullImage")} aria-label={t("tab.pullImage")} disabled={writeDisabled} onClick={() => runSsh(t("tab.pullImageTitle", { name: c.name }), () => containerService.addImage(c.name))}>
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.updateImage")} aria-label={t("tab.updateImage")} disabled={writeDisabled} onClick={() => runSsh(t("tab.updateImageTitle", { name: c.name }), () => containerService.updateImage(c.name))}>
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                            {!stack && c.image && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("images.deleteImageTooltip")} aria-label={tr("images.deleteImageTooltip")} disabled={writeDisabled} onClick={() => confirmAction({ kind: "deleteImage", name: c.name, image: c.image ?? "" })}>
-                                <ImageOff className="h-4 w-4" />
+                              {!stack && c.image && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("images.deleteImage")} aria-label={tr("images.deleteImage")} disabled={writeDisabled} onClick={() => confirmAction({ kind: "deleteImage", name: c.name, image: c.image ?? "" })}>
+                                  <ImageOff className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.restart")} aria-label={t("tab.restart")} disabled={writeDisabled} onClick={() => confirmAction({ kind: "restart", name: c.name })}>
+                                <RotateCw className="h-4 w-4" />
                               </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.restart")} aria-label={t("tab.restart")} disabled={writeDisabled} onClick={() => confirmAction({ kind: "restart", name: c.name })}>
-                              <RotateCw className="h-4 w-4" />
+                            </>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.viewLogs")} aria-label={t("tab.viewLogs")} disabled={ssh.loading} onClick={() => runSsh(t("tab.logsTitle", { name: c.name }), () => containerService.getContainerLog(c.name))}>
+                            <ScrollText className="h-4 w-4" />
+                          </Button>
+                          {hasWritePermission && !stack && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title={tc("delete")} aria-label={tc("delete")} disabled={writeDisabled} onClick={() => openDelete(c)}>
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title={t("tab.viewLogs")} aria-label={t("tab.viewLogs")} onClick={() => runSsh(t("tab.logsTitle", { name: c.name }), () => containerService.getContainerLog(c.name))}>
-                              <ScrollText className="h-4 w-4" />
-                            </Button>
-                            {!stack && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title={tc("delete")} aria-label={tc("delete")} disabled={writeDisabled} onClick={() => openDelete(c)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -417,7 +425,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
         container={editingContainer}
         capabilities={capabilities}
         availableNetworks={config.networks}
-        existingNames={containers.map((c) => c.name)}
+        containers={containers}
         availableImages={pulledImages}
         imagesLoading={imagesLoading}
         imagesError={imagesError}
@@ -461,7 +469,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, refres
         success={ssh.success}
         output={ssh.output}
         error={ssh.error}
-        busyLabel={t("tab.updateInProgress")}
+        busyLabel={ssh.busyLabel}
       />
 
       {ssh.loading && (

@@ -23,6 +23,7 @@ interface Props {
 
 export function AddImageModal({ open, onOpenChange, onSubmit }: Props) {
   const t = useTranslations("containerResources");
+  const tm = useTranslations("containers");
   const tc = useTranslations("common");
   const [imageRef, setImageRef] = useState("");
 
@@ -42,7 +43,7 @@ export function AddImageModal({ open, onOpenChange, onSubmit }: Props) {
         </DialogHeader>
 
         <div className="space-y-2 py-2">
-          <Label htmlFor="image-ref">{t("images.image")}</Label>
+          <Label htmlFor="image-ref">{tm("modal.image")}</Label>
           <Input
             id="image-ref"
             value={imageRef}

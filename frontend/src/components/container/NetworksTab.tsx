@@ -37,6 +37,7 @@ interface Props {
 
 export function NetworksTab({ config, capabilities, hasWritePermission, refreshing, onReload }: Props) {
   const t = useTranslations("containerResources");
+  const tm = useTranslations("containers");
   const tc = useTranslations("common");
   const appliance = useSessionStore((s) => s.appliance);
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,7 +65,8 @@ export function NetworksTab({ config, capabilities, hasWritePermission, refreshi
   };
 
   const handleDelete = async () => {
-    if (!deletingNetwork || isProtectedStackNetwork(appliance, deletingNetwork.name)) return;
+    if (!deletingNetwork) return;
+    if (isProtectedStackNetwork(appliance, deletingNetwork.name)) throw new Error(tm("tab.stackProtected"));
     await containerService.deleteNetwork(deletingNetwork.name);
     void onReload();
   };
@@ -182,6 +184,7 @@ export function NetworksTab({ config, capabilities, hasWritePermission, refreshi
         network={editingNetwork}
         capabilities={capabilities}
         existingNames={networks.map((n) => n.name)}
+        containers={config.containers}
         onSubmit={handleSubmit}
       />
 
