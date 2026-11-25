@@ -651,7 +651,7 @@ export function MacsecModal({
                     aria-label={t("modal.advanced.mssCustom")}
                     value={draft.ip.adjust_mss}
                     onChange={(e) => updateIp({ adjust_mss: e.target.value })}
-                    placeholder={t("modal.advanced.adjustMssPlaceholder")}
+                    placeholder={t("modal.advanced.adjustMssPlaceholder", { min: ADJUST_MSS_RANGE.min, max: ADJUST_MSS_RANGE.max })}
                     className="h-8 text-sm"
                     type="number"
                     min={ADJUST_MSS_RANGE.min}
@@ -743,7 +743,7 @@ export function MacsecModal({
                     aria-label={t("modal.advanced.mssCustom")}
                     value={draft.ipv6.adjust_mss}
                     onChange={(e) => updateIpv6({ adjust_mss: e.target.value })}
-                    placeholder={t("modal.advanced.adjustMssPlaceholder")}
+                    placeholder={t("modal.advanced.adjustMssPlaceholder", { min: ADJUST_MSS_RANGE.min, max: ADJUST_MSS_RANGE.max })}
                     className="h-8 text-sm"
                     type="number"
                     min={ADJUST_MSS_RANGE.min}

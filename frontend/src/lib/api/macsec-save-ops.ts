@@ -32,18 +32,18 @@ export interface NumericRange {
   max?: number;
 }
 
-export const MTU_RANGE: NumericRange = { min: 68, max: 16000 };
-export const REPLAY_WINDOW_RANGE: NumericRange = { min: 0, max: 4294967295 };
-export const MKA_PRIORITY_RANGE: NumericRange = { min: 0, max: 255 };
-export const ADJUST_MSS_RANGE: NumericRange = { min: 536, max: 65535 };
-export const ARP_CACHE_TIMEOUT_RANGE: NumericRange = { min: 1, max: 86400 };
-export const BASE_REACHABLE_TIME_RANGE: NumericRange = { min: 1, max: 86400 };
+export const MTU_RANGE = { min: 68, max: 16000 } satisfies NumericRange;
+export const REPLAY_WINDOW_RANGE = { min: 0, max: 4294967295 } satisfies NumericRange;
+export const MKA_PRIORITY_RANGE = { min: 0, max: 255 } satisfies NumericRange;
+export const ADJUST_MSS_RANGE = { min: 536, max: 65535 } satisfies NumericRange;
+export const ARP_CACHE_TIMEOUT_RANGE = { min: 1, max: 86400 } satisfies NumericRange;
+export const BASE_REACHABLE_TIME_RANGE = { min: 1, max: 86400 } satisfies NumericRange;
 export const DAD_TRANSMITS_RANGE: NumericRange = { min: 0 };
-export const DEFAULT_ROUTE_DISTANCE_RANGE: NumericRange = { min: 1, max: 255 };
+export const DEFAULT_ROUTE_DISTANCE_RANGE = { min: 1, max: 255 } satisfies NumericRange;
 export const PD_ID_RANGE: NumericRange = { min: 0 };
-export const PD_LENGTH_RANGE: NumericRange = { min: 32, max: 64 };
+export const PD_LENGTH_RANGE = { min: 32, max: 64 } satisfies NumericRange;
 export const PD_ADDRESS_RANGE: NumericRange = { min: 0 };
-export const PD_SLA_ID_RANGE: NumericRange = { min: 0, max: 65535 };
+export const PD_SLA_ID_RANGE = { min: 0, max: 65535 } satisfies NumericRange;
 export const DESCRIPTION_MAX = 255;
 export const PEER_NAME_MAX = 100;
 
@@ -759,7 +759,6 @@ function securityOps(ops: MacsecBatchOperation[], original: MacsecInterface | nu
   required(ops, "set_security_cipher", before.cipher, after.cipher);
   flag(ops, "set_security_encrypt", "delete_security_encrypt", [], before.encrypt, after.encrypt);
   leaf(ops, "set_security_replay_window", "delete_security_replay_window", [], before.replay, after.replay);
-  // Switching mode drops the old mode's whole node in the same commit.
   // The other mode's node is dropped in the same commit, before the new sets,
   // whenever the device has it (a device may hold both).
   if (after.mode === "static" && original?.security?.mka) ops.push(op("delete_security_mka"));
