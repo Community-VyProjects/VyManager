@@ -6,23 +6,19 @@ This keeps the codebase organized and maintainable as it grows.
 """
 
 from .base import BaseFeatureMapper, CommandMapperRegistry
-from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper, L2TPv3InterfaceMapper, LoopbackInterfaceMapper, MacsecInterfaceMapper, OpenvpnInterfaceMapper, PppoeInterfaceMapper
+from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper, L2TPv3InterfaceMapper, LoopbackInterfaceMapper, MacsecInterfaceMapper, OpenvpnInterfaceMapper, PppoeInterfaceMapper, SstpcInterfaceMapper, VtiInterfaceMapper
 from .interfaces.ethernet_versions import get_ethernet_mapper
 from .interfaces.dummy_versions import get_dummy_mapper
 from .interfaces.bonding_versions import get_bonding_mapper
 from .interfaces.bridge_versions import get_bridge_mapper
 from .interfaces.geneve_versions import get_geneve_mapper
-from .interfaces.input_versions import get_input_mapper
 from .interfaces.l2tpv3_versions import get_l2tpv3_mapper
-from .interfaces.loopback_versions import get_loopback_mapper
 from .interfaces.macsec_versions import get_macsec_mapper
 from .interfaces.openvpn_versions import get_openvpn_mapper
 from .interfaces.pppoe_versions import get_pppoe_mapper
 from .interfaces.pseudo_ethernet_versions import get_pseudo_ethernet_mapper
-from .interfaces.sstpc_versions import get_sstpc_mapper
 from .interfaces.virtual_ethernet_versions import get_virtual_ethernet_mapper
 from .interfaces.vpp_versions import get_vpp_mapper
-from .interfaces.vti_versions import get_vti_mapper
 from .interfaces.wireless_versions import get_wireless_mapper
 from .interfaces.wwan_versions import get_wwan_mapper
 from .interfaces.catalog_versions import get_interface_catalog_mapper
@@ -175,12 +171,12 @@ CommandMapperRegistry.register_feature("interface_bonding", get_bonding_mapper)
 CommandMapperRegistry.register_feature("interface_bridge", get_bridge_mapper)
 # Geneve uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_geneve", get_geneve_mapper)
-# Input (IFB) uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("interface_input", get_input_mapper)
+# Input (IFB) uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("interface_input", InputInterfaceMapper)
 # L2TPv3 uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_l2tpv3", get_l2tpv3_mapper)
-# Loopback uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("interface_loopback", get_loopback_mapper)
+# Loopback uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("interface_loopback", LoopbackInterfaceMapper)
 # MACsec uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_macsec", get_macsec_mapper)
 # OpenVPN uses factory for version-specific mappers
@@ -189,13 +185,13 @@ CommandMapperRegistry.register_feature("interface_openvpn", get_openvpn_mapper)
 CommandMapperRegistry.register_feature("interface_pppoe", get_pppoe_mapper)
 # Pseudo-ethernet uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_pseudo_ethernet", get_pseudo_ethernet_mapper)
-# SSTPC uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("interface_sstpc", get_sstpc_mapper)
+# SSTPC uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("interface_sstpc", SstpcInterfaceMapper)
 # Virtual-ethernet uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_virtual_ethernet", get_virtual_ethernet_mapper)
 CommandMapperRegistry.register_feature("interface_vpp", get_vpp_mapper)
-# VTI uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("interface_vti", get_vti_mapper)
+# VTI uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("interface_vti", VtiInterfaceMapper)
 # Wireless uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_wireless", get_wireless_mapper)
 # WWAN uses factory for version-specific mappers

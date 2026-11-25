@@ -9,6 +9,10 @@ connectivity through firewalls that block other VPN protocols.
 from typing import List, Dict, Any
 from ..base import BaseFeatureMapper
 
+# The config response never carries the stored password; the screen treats a
+# blank field as "keep", so nothing reads the value back.
+MASKED_SECRET = "***"
+
 
 class SstpcInterfaceMapper(BaseFeatureMapper):
     """Base SSTPC interface mapper - common paths across all versions."""
@@ -143,7 +147,7 @@ class SstpcInterfaceMapper(BaseFeatureMapper):
             "vrf": config.get("vrf"),
             "authentication": {
                 "username": auth_config.get("username"),
-                "password": auth_config.get("password"),
+                "password": MASKED_SECRET if auth_config.get("password") else None,
             } if auth_config else None,
             "ssl": {
                 "ca_certificate": ssl_config.get("ca-certificate"),

@@ -16,6 +16,7 @@ from .macsec import MacsecInterfaceMapper
 from .openvpn import OpenvpnInterfaceMapper
 from .pppoe import PppoeInterfaceMapper
 from .pseudo_ethernet import PseudoEthernetInterfaceMapper
+from .sstpc import SstpcInterfaceMapper
 from .virtual_ethernet import VirtualEthernetInterfaceMapper
 from .vpp import VppInterfaceMapper
 from .vti import VtiInterfaceMapper
@@ -35,6 +36,7 @@ __all__ = [
     "OpenvpnInterfaceMapper",
     "PppoeInterfaceMapper",
     "PseudoEthernetInterfaceMapper",
+    "SstpcInterfaceMapper",
     "VirtualEthernetInterfaceMapper",
     "VppInterfaceMapper",
     "VtiInterfaceMapper",

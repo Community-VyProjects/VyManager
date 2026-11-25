@@ -7,7 +7,7 @@ through firewalls that permit only HTTPS (port 443) traffic.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ConfigDict
@@ -16,6 +16,9 @@ from starlette.concurrency import run_in_threadpool
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
+from vyos_builders.interfaces.sstpc import SstpcInterfaceBuilderMixin
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.interfaces.sstpc import SstpcInterfaceMapper
 from routers.interfaces.interface_batch import (
     BatchRequest,
     VyOSResponse,
@@ -78,7 +81,6 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for SSTPC interfaces."""
     await require_read_permission(request, FeatureGroup.SSTPC)
     service = get_session_vyos_service(request)
-    from vyos_builders.interfaces.sstpc import SstpcInterfaceBuilderMixin
     builder = SstpcInterfaceBuilderMixin(version=service.get_version())
     return builder.get_capabilities()
 
@@ -92,10 +94,14 @@ async def get_config(http_request: Request, refresh: bool = False) -> SstpcInter
         full_config = await run_in_threadpool(service.get_full_config, refresh)
         raw_config = full_config.get("interfaces", {}).get("sstpc", {})
 
-        from vyos_mappers.interfaces.sstpc_versions import get_sstpc_mapper
-        mapper = get_sstpc_mapper(service.get_version())
+        mapper = cast(
+            SstpcInterfaceMapper,
+            CommandMapperRegistry.get_mapper("interface_sstpc", service.get_version()),
+        )
         parsed = mapper.parse_interfaces_of_type(raw_config)
         return SstpcInterfacesConfigResponse(**parsed)
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -107,6 +113,5 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     await require_write_permission(http_request, FeatureGroup.SSTPC)
 
     service = get_session_vyos_service(http_request)
-    from vyos_builders.interfaces.sstpc import SstpcInterfaceBuilderMixin
     batch = SstpcInterfaceBuilderMixin(version=service.get_version())
-    return run_interface_batch(service, batch, request)
+    return await run_in_threadpool(run_interface_batch, service, batch, request)

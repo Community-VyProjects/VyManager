@@ -21,15 +21,19 @@ from vyos_mappers.interfaces.bridge_versions.v1_5 import BridgeMapper_v1_5
 from vyos_mappers.interfaces.geneve import GeneveInterfaceMapper
 from vyos_mappers.interfaces.geneve_versions import get_geneve_mapper
 from vyos_mappers.interfaces.geneve_versions.v1_5 import GeneveMapper_v1_5
+from vyos_mappers.interfaces.input import InputInterfaceMapper
+from vyos_mappers.interfaces.loopback import LoopbackInterfaceMapper
 from vyos_mappers.interfaces.pppoe import PppoeInterfaceMapper
 from vyos_mappers.interfaces.pppoe_versions import get_pppoe_mapper
 from vyos_mappers.interfaces.pppoe_versions.v1_5 import PppoeMapper_v1_5
 from vyos_mappers.interfaces.pseudo_ethernet import PseudoEthernetInterfaceMapper
 from vyos_mappers.interfaces.pseudo_ethernet_versions import get_pseudo_ethernet_mapper
 from vyos_mappers.interfaces.pseudo_ethernet_versions.v1_5 import PseudoEthernetMapper_v1_5
+from vyos_mappers.interfaces.sstpc import SstpcInterfaceMapper
 from vyos_mappers.interfaces.virtual_ethernet import VirtualEthernetInterfaceMapper
 from vyos_mappers.interfaces.virtual_ethernet_versions import get_virtual_ethernet_mapper
 from vyos_mappers.interfaces.virtual_ethernet_versions.v1_5 import VirtualEthernetMapper_v1_5
+from vyos_mappers.interfaces.vti import VtiInterfaceMapper
 from vyos_mappers.interfaces.wwan import WwanInterfaceMapper
 from vyos_mappers.interfaces.wwan_versions import get_wwan_mapper
 from vyos_mappers.interfaces.wwan_versions.v1_5 import WwanMapper_v1_5
@@ -127,6 +131,33 @@ def test_no_v14_version_file(package, key, factory, shared, v15, method, args, p
     assert (versions / "__init__.py").is_file()
     assert (versions / "v1_5.py").is_file()
     assert not (versions / "v1_4.py").exists()
+
+
+# Both labs have the same input, loopback, sstpc and vti trees, so the registry
+# returns the shared class for every version and there is no versions package.
+# (package, registry key, shared class)
+SHARED = [
+    ("input", "interface_input", InputInterfaceMapper),
+    ("loopback", "interface_loopback", LoopbackInterfaceMapper),
+    ("sstpc", "interface_sstpc", SstpcInterfaceMapper),
+    ("vti", "interface_vti", VtiInterfaceMapper),
+]
+SHARED_IDS = [row[0] for row in SHARED]
+
+
+@pytest.mark.parametrize("version", V14_STRINGS + V15_STRINGS)
+@pytest.mark.parametrize("package, key, shared", SHARED, ids=SHARED_IDS)
+def test_shared_only_types_get_the_shared_class(package, key, shared, version):
+    mapper = CommandMapperRegistry.get_mapper(key, version)
+    assert type(mapper) is shared
+    assert mapper.version == version
+
+
+@pytest.mark.parametrize("package, key, shared", SHARED, ids=SHARED_IDS)
+def test_shared_only_types_have_no_versions_package(package, key, shared):
+    versions = MAPPERS_DIR / f"{package}_versions"
+    for name in ("__init__.py", "v1_4.py", "v1_5.py"):
+        assert not (versions / name).exists()
 
 
 def test_rolling_geneve_capabilities_advertise_interface_identifier():
