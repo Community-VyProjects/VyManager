@@ -80,3 +80,5 @@ def test_capabilities_carry_every_value_list():
     assert caps["features"]["ipsec_matching"]["values"] == list(mapper.ipsec_values())
     assert caps["features"]["limit_rate"]["units"] == list(mapper.limit_rate_units())
     assert "version_info" not in caps
+    # icmpv6 type takes a list name or a number in this range (lab syntax).
+    assert caps["ranges"]["icmpv6_type"] == {"min": 0, "max": 255}

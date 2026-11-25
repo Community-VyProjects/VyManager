@@ -25,7 +25,7 @@
     "setTcpMssNeedsSyn": "Setting TCP MSS needs the TCP flag syn",
     "icmpNeedsProtocolIcmp": "ICMP matching needs protocol icmp",
     "icmpv6NeedsProtocolIcmpv6": "ICMPv6 type needs protocol icmpv6",
-    "icmpv6TypeRange": "ICMPv6 type must be a name from the list or a number from {min} to {max}",
+    "icmpv6TypeInvalid": "ICMPv6 type must be a name from the list or a whole number from {min} to {max}",
     "icmpCodeRange": "ICMP code must be from {min} to {max}",
     "icmpTypeRange": "ICMP type must be from {min} to {max}",
     "icmpTypeNameConflict": "ICMP type name cannot be combined with ICMP type or code",

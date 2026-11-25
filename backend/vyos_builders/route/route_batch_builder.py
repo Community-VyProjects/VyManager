@@ -21,6 +21,7 @@ RANGES: Dict[str, Dict[str, int]] = {
     "ttl": {"min": 0, "max": 255},
     "icmp_code": {"min": 0, "max": 255},
     "icmp_type": {"min": 0, "max": 255},
+    "icmpv6_type": {"min": 0, "max": 255},
     "packet_length": {"min": 1, "max": 65535},
     "dscp": {"min": 0, "max": 63},
     "mark": {"min": 0, "max": 2147483647},

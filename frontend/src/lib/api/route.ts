@@ -123,6 +123,29 @@ export interface RouteRange {
   max: number;
 }
 
+/** The val_help bounds the capabilities carry. */
+export type RouteRangeKey =
+  | "rule"
+  | "ttl"
+  | "icmp_code"
+  | "icmp_type"
+  | "icmpv6_type"
+  | "packet_length"
+  | "dscp"
+  | "mark"
+  | "connection_mark"
+  | "limit_burst"
+  | "limit_rate"
+  | "recent_count"
+  | "recent_time"
+  | "tcp_mss"
+  | "geoip_asn"
+  | "set_connection_mark"
+  | "set_dscp"
+  | "set_mark"
+  | "set_table"
+  | "set_tcp_mss";
+
 export interface RouteCapabilitiesResponse {
   version: string;
   features: {
@@ -146,7 +169,7 @@ export interface RouteCapabilitiesResponse {
     icmp_type_names: string[];
     icmpv6_types: string[];
   };
-  ranges: Record<string, RouteRange>;
+  ranges: Partial<Record<RouteRangeKey, RouteRange>>;
   description_max_length: number;
   instance_name?: string;
   instance_id?: string;

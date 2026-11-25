@@ -5,14 +5,13 @@ import type {
   RouteCapabilitiesResponse,
   RoutePolicyType,
   RouteRange,
+  RouteRangeKey,
 } from "./route";
 
 /** Lab `description` bound, used when capabilities have not loaded. */
 export const DESCRIPTION_MAX_LENGTH = 255;
 /** Lab tag syntax of a policy route / route6 name. */
 export const POLICY_NAME_PATTERN = /^[a-zA-Z0-9][-_a-zA-Z0-9.]*$/;
-/** Lab bound of a numeric `icmpv6 type`, used when capabilities carry none. */
-export const ICMPV6_TYPE_RANGE: RouteRange = { min: 0, max: 255 };
 
 // ============================================================================
 // Forms
@@ -514,7 +513,7 @@ export type RouteRuleProblemKey =
   | "icmpNeedsProtocolIcmp"
   | "icmpTypeNameConflict"
   | "icmpCodeNeedsType"
-  | "icmpv6TypeRange"
+  | "icmpv6TypeInvalid"
   | "setVrfTableConflict"
   | "geoipAsnCountryConflict"
   | "icmpv6NeedsProtocolIcmpv6"
@@ -554,7 +553,7 @@ export interface PolicyProblem {
   max?: number;
 }
 
-export function routeRange(caps: RouteCapabilitiesResponse | null, key: string): RouteRange | null {
+export function routeRange(caps: RouteCapabilitiesResponse | null, key: RouteRangeKey): RouteRange | null {
   const range = caps?.ranges?.[key];
   return range && typeof range.min === "number" && typeof range.max === "number" ? range : null;
 }
@@ -641,10 +640,11 @@ export function routeRuleProblem(
     }
   } else {
     if (f.icmpv6_type && f.protocol !== "icmpv6") return { key: "icmpv6NeedsProtocolIcmpv6" };
-    // A name from the list or a number (lab: `icmpv6 type 135` commits).
-    const icmpv6Range = routeRange(caps, "icmpv6_type") ?? ICMPV6_TYPE_RANGE;
-    if (/^[-+.\d]+$/.test(f.icmpv6_type) && !inRange(f.icmpv6_type, icmpv6Range)) {
-      return rangeProblem("icmpv6TypeRange", icmpv6Range);
+    // A name from the list or a digits-only number in range (lab: `icmpv6 type 135` commits).
+    const icmpv6Range = routeRange(caps, "icmpv6_type");
+    const icmpv6Names = caps?.values?.icmpv6_types || [];
+    if (f.icmpv6_type && !icmpv6Names.includes(f.icmpv6_type) && !inRange(f.icmpv6_type, icmpv6Range)) {
+      return rangeProblem("icmpv6TypeInvalid", icmpv6Range);
     }
     const hop = routeRange(caps, "ttl");
     for (const cmp of COMPARE) {
@@ -713,7 +713,7 @@ export function routeRuleProblem(
     }
   }
 
-  const setChecks: [SingleKey, string, RouteRuleProblemKey][] = [
+  const setChecks: [SingleKey, RouteRangeKey, RouteRuleProblemKey][] = [
     ["set_connection_mark", "set_connection_mark", "setConnectionMarkRange"],
     ["set_dscp", "set_dscp", "setDscpRange"],
     ["set_mark", "set_mark", "setMarkRange"],

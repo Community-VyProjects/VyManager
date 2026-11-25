@@ -26,6 +26,7 @@ const RANGES = {
   ttl: { min: 0, max: 255 },
   icmp_code: { min: 0, max: 255 },
   icmp_type: { min: 0, max: 255 },
+  icmpv6_type: { min: 0, max: 255 },
   packet_length: { min: 1, max: 65535 },
   dscp: { min: 0, max: 63 },
   mark: { min: 0, max: 2147483647 },
@@ -798,9 +799,9 @@ describe("routeRuleProblem", () => {
       f.icmpv6_type = value;
       assert.equal(key(f, CAPS15, "route6"), null, value);
     }
-    for (const value of ["256", "-1", "1.5"]) {
+    for (const value of ["256", "-1", "1.5", "abc", "1e3", "+5", "echo"]) {
       f.icmpv6_type = value;
-      assert.deepEqual(problem(f, CAPS15, "route6"), { key: "icmpv6TypeRange", min: 0, max: 255, value: undefined }, value);
+      assert.deepEqual(problem(f, CAPS15, "route6"), { key: "icmpv6TypeInvalid", min: 0, max: 255, value: undefined }, value);
     }
   });
 

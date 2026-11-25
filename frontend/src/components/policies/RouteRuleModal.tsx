@@ -20,11 +20,11 @@ import {
   type PolicyRouteRule,
   type RouteCapabilitiesResponse,
   type RoutePolicyType,
+  type RouteRangeKey,
 } from "@/lib/api/route";
 import {
   descriptionMaxLength,
   emptyRuleForm,
-  ICMPV6_TYPE_RANGE,
   routeRange,
   routeRuleProblem,
   ruleFormFrom,
@@ -189,12 +189,12 @@ export function RouteRuleModal({
     onOpenChange(next);
   };
 
-  const rangeHint = (key: string): string | undefined => {
+  const rangeHint = (key: RouteRangeKey): string | undefined => {
     const range = routeRange(caps, key);
     return range ? t("rangePlaceholder", { min: range.min, max: range.max }) : undefined;
   };
 
-  const textField = (key: SingleKey, label: string, placeholder?: string, rangeKey?: string) => (
+  const textField = (key: SingleKey, label: string, placeholder?: string, rangeKey?: RouteRangeKey) => (
     <div className="space-y-2">
       <Label htmlFor={`rr-${key}`}>{label}</Label>
       <Input
@@ -209,13 +209,12 @@ export function RouteRuleModal({
     </div>
   );
 
-  const listField = (key: ListKey, label: string, rangeKey?: string, suggestions?: string[]) => (
+  const listField = (key: ListKey, label: string, rangeKey?: RouteRangeKey) => (
     <MultiValueInput
       label={label}
       values={form[key]}
       onChange={(next) => set(key, next)}
       placeholder={rangeKey ? rangeHint(rangeKey) : undefined}
-      suggestions={suggestions}
     />
   );
 
@@ -517,10 +516,7 @@ export function RouteRuleModal({
                         id="rr-icmpv6-type"
                         value={form.icmpv6_type}
                         inputMode="numeric"
-                        placeholder={t("rangePlaceholder", {
-                          min: (routeRange(caps, "icmpv6_type") ?? ICMPV6_TYPE_RANGE).min,
-                          max: (routeRange(caps, "icmpv6_type") ?? ICMPV6_TYPE_RANGE).max,
-                        })}
+                        placeholder={rangeHint("icmpv6_type")}
                         onChange={(e) => set("icmpv6_type", e.target.value)}
                         disabled={loading}
                         className="font-mono"
