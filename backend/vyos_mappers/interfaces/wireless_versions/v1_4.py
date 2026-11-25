@@ -1,8 +1,11 @@
 """
 Wireless Interface Mapper - VyOS 1.4
 
-VyOS 1.4 supports country-code but does NOT support:
-- bssid (station mode BSSID targeting)
+Paths this mapper adds on 1.4:
+- country-code (per-interface regulatory code)
+
+1.4 has none of the 1.5-only wireless leaves (bssid, dhcpv6-options,
+ipv6 address interface-identifier, security wpa username).
 """
 
 from typing import List, Dict, Any
@@ -11,9 +14,6 @@ from ..wireless import WirelessInterfaceMapper
 
 class WirelessMapper_v1_4(WirelessInterfaceMapper):
     """VyOS 1.4 wireless interface mapper."""
-
-    def __init__(self, version: str):
-        super().__init__(version)
 
     def get_country_code(self, interface: str, code: str) -> List[str]:
         return self._base(interface) + ["country-code", code]
