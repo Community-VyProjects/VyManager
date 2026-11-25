@@ -31,6 +31,7 @@ import {
   draftFromConfig,
   globalOptionsProblem,
   globalOptionsRange,
+  globalOptionsSaveOps,
   STATES,
   TCP_TIMEOUT_KEYS,
   UDP_TIMEOUT_KEYS,
@@ -115,18 +116,20 @@ function FirewallGlobalOptionsPageInner() {
     loadData();
   }, [loadData]);
 
+  const loaded = draft !== null;
   useEffect(() => {
-    const field = searchParams.get("field");
-    const section = searchParams.get("section");
-    const targetId = field || section;
-    if (targetId) {
-      requestAnimationFrame(() => {
-        document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    }
-  }, [searchParams]);
+    // The cards render only after the first load; a field id the page does
+    // not have falls back to its section.
+    if (!loaded) return;
+    const ids = [searchParams.get("field"), searchParams.get("section")].filter((id): id is string => !!id);
+    if (ids.length === 0) return;
+    requestAnimationFrame(() => {
+      const target = ids.map((id) => document.getElementById(id)).find((element) => element !== null);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [searchParams, loaded]);
 
-  const hasChanges = original !== null && draft !== null && JSON.stringify(original) !== JSON.stringify(draft);
+  const hasChanges = original !== null && draft !== null && globalOptionsSaveOps(original, draft).length > 0;
   const resolverRange = globalOptionsRange(capabilities, "resolver_interval");
   const timeoutRange = globalOptionsRange(capabilities, "timeouts");
 

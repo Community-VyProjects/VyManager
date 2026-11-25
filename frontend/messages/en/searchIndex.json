@@ -346,6 +346,7 @@
     "frrProfile": "FRR Profile",
     "fullName": "Full Name",
     "general": "General",
+    "geoip": "GeoIP",
     "globalOptions": "Global Options",
     "globalSettings": "Global Settings",
     "group": "Group",

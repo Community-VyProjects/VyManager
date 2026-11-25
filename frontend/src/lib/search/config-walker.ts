@@ -61,10 +61,8 @@ const SETTINGS_SEGMENT_LABELS: Record<string, string> = {
   global_parameters: "Global Settings",
   global_config: "Global Settings",
   timeouts: "Connection Timeouts",
-  state_policy_established: "State Policy · Established",
-  state_policy_invalid: "State Policy · Invalid",
-  state_policy_related: "State Policy · Related",
   bridged_traffic: "Bridged Traffic",
+  geoip: "GeoIP",
   snmp: "SNMP",
   failover: "Failover",
   login: "Users & Login",
@@ -162,16 +160,30 @@ const FIELD_TITLE_OVERRIDES: Record<string, string> = {
   twa_hazards_protection: "TWA Hazards Protection",
 };
 
+// Firewall global options: page element ids for nested config paths.
 const FIELD_ID_OVERRIDES: Record<string, string> = {
-  "state_policy_established.action": "established-action",
-  "state_policy_established.log": "est-log",
-  "state_policy_established.log_level": "established-log-level",
-  "state_policy_invalid.action": "invalid-action",
-  "state_policy_invalid.log": "inv-log",
-  "state_policy_invalid.log_level": "invalid-log-level",
-  "state_policy_related.action": "related-action",
-  "state_policy_related.log": "rel-log",
-  "state_policy_related.log_level": "related-log-level",
+  ...Object.fromEntries(
+    ["established", "invalid", "related"].flatMap((state) => [
+      [`state_policy.${state}.action`, `${state}-action`],
+      [`state_policy.${state}.log`, `${state}-log`],
+      [`state_policy.${state}.log_level`, `${state}-log-level`],
+    ])
+  ),
+  "state_policy.offload_target": "offload-target",
+  "bridged_traffic.ipv4": "bridged-ipv4",
+  "bridged_traffic.ipv6": "bridged-ipv6",
+  "geoip.provider": "geoip-provider",
+  "geoip.maxmind_account_id": "geoip-account-id",
+  "geoip.maxmind_license_key": "geoip-license-key",
+  "geoip.maxmind_lite": "geoip-lite",
+  "geoip.source_address": "geoip-source-address",
+  "geoip.vrf": "geoip-vrf",
+  ...Object.fromEntries(
+    [
+      "icmp", "other", "tcp_close", "tcp_close_wait", "tcp_established", "tcp_fin_wait",
+      "tcp_last_ack", "tcp_syn_recv", "tcp_syn_sent", "tcp_time_wait", "udp_other", "udp_stream",
+    ].map((key) => [`timeouts.${key}`, `timeout-${key.replace(/_/g, "-")}`])
+  ),
 };
 
 const BOOLEAN_TRUE_LABELS: Record<string, string> = {
@@ -191,13 +203,9 @@ function formulaicFieldTitle(path: string[], key: string): string {
   if (FIELD_TITLE_OVERRIDES[fullPath]) return FIELD_TITLE_OVERRIDES[fullPath];
   if (FIELD_TITLE_OVERRIDES[key]) return FIELD_TITLE_OVERRIDES[key];
 
-  for (const segment of path) {
-    if (segment.startsWith("state_policy_")) {
-      const prefix = humanizeToken(segment.replace("state_policy_", ""));
-      if (["action", "log", "log_level"].includes(key)) {
-        return `${prefix} ${humanize(key)}`;
-      }
-    }
+  const statePolicy = path.indexOf("state_policy");
+  if (statePolicy >= 0 && path[statePolicy + 1] && ["action", "log", "log_level"].includes(key)) {
+    return `${humanizeToken(path[statePolicy + 1])} ${humanize(key)}`;
   }
 
   return humanize(key);

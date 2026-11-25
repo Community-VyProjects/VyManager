@@ -185,7 +185,7 @@ async def firewall_global_options_batch_configure(http_request: Request, body: G
         service = get_session_vyos_service(http_request)
         builder = FirewallGlobalOptionsBatchBuilder(version=service.get_version())
         try:
-            # Every op takes no value or one (test_firewall_global_options_batch_router
+            # Every op takes no value or one (test_firewall_global_options_builder_paths
             # locks the arity).
             for operation in body.operations:
                 call_comma_batch_op(builder, operation.op, operation.value)
