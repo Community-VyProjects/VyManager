@@ -601,4 +601,13 @@ describe("removableVolumeDirs", () => {
     assert.deepEqual(removableVolumeDirs(["/config/containers/a"], [" /config/containers/a/ "]), []);
     assert.deepEqual(removableVolumeDirs(["/config/containers/a"], ["/config/containers/ab"]), ["/config/containers/a"]);
   });
+
+  it("treats the host root and unnormalized spellings as overlapping", () => {
+    assert.deepEqual(removableVolumeDirs(["/config/containers/a"], ["/"]), []);
+    assert.deepEqual(removableVolumeDirs(["/config/containers/web"], ["/config//containers/web/data"]), []);
+    assert.deepEqual(removableVolumeDirs(["/config/containers/web"], ["/config/containers/./web"]), []);
+    assert.deepEqual(removableVolumeDirs(["/config/containers/web"], ["/config/containers/x/../web/db"]), []);
+    assert.deepEqual(removableVolumeDirs(["/config/containers/../web"], []), []);
+    assert.deepEqual(removableVolumeDirs(["/config//containers/old/"], [""]), ["/config/containers/old"]);
+  });
 });

@@ -1269,8 +1269,19 @@ export function registryProblem(
 /** Host directory the screen creates container volumes under. */
 export const VOLUME_BASE = "/config/containers/";
 
-function trimSlashes(path: string): string {
-  return path.trim().replace(/\/+$/, "");
+/** Absolute path with repeated slashes collapsed, `.`/`..` resolved and no trailing slash (`/` for the root). */
+function normalizePath(path: string): string {
+  const parts: string[] = [];
+  for (const segment of path.trim().split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") parts.pop();
+    else parts.push(segment);
+  }
+  return `/${parts.join("/")}`;
+}
+
+function isInside(path: string, dir: string): boolean {
+  return dir === "/" ? path !== "/" : path.startsWith(`${dir}/`);
 }
 
 /**
@@ -1278,13 +1289,14 @@ function trimSlashes(path: string): string {
  * when any in-use path equals it, sits inside it, or contains it.
  */
 export function removableVolumeDirs(candidates: string[], inUse: string[]): string[] {
-  const used = inUse.map(trimSlashes).filter(Boolean);
-  const overlaps = (dir: string) =>
-    used.some((path) => path === dir || path.startsWith(`${dir}/`) || dir.startsWith(`${path}/`));
+  const used = inUse.filter((path) => path.trim()).map(normalizePath);
+  const overlaps = (dir: string) => used.some((path) => path === dir || isInside(path, dir) || isInside(dir, path));
+  const base = normalizePath(VOLUME_BASE);
   const result: string[] = [];
   for (const candidate of candidates) {
-    const dir = trimSlashes(candidate);
-    if (!dir.startsWith(VOLUME_BASE) || dir.length <= VOLUME_BASE.length) continue;
+    if (!candidate.trim()) continue;
+    const dir = normalizePath(candidate);
+    if (!isInside(dir, base)) continue;
     if (overlaps(dir) || result.includes(dir)) continue;
     result.push(dir);
   }
