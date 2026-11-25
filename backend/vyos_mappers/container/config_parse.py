@@ -25,14 +25,16 @@ def _parse_multi(raw) -> List[str]:
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/container/config payload."""
-    container_raw = full_config.get("container", {})
-    if not container_raw:
-        return {"containers": [], "networks": [], "registries": []}
+    configured = "container" in full_config
+    container_raw = full_config.get("container") or {}
+    if not isinstance(container_raw, dict):
+        container_raw = {}
 
     containers = _parse_container_names(container_raw.get("name", {}))
     networks = _parse_container_networks(container_raw.get("network", {}))
     registries = _parse_container_registries(container_raw.get("registry", {}))
     return {
+        "configured": configured,
         "containers": sorted(containers, key=lambda c: c["name"]),
         "networks": sorted(networks, key=lambda n: n["name"]),
         "registries": sorted(registries, key=lambda r: r["name"]),
@@ -87,8 +89,22 @@ def _parse_container_instance(name: str, cfg: dict) -> Dict[str, Any]:
         if net_cfg is None:
             net_cfg = {}
         networks.append(
-            {"name": net_name, "addresses": _parse_multi(net_cfg.get("address"))}
+            {
+                "name": net_name,
+                "addresses": _parse_multi(net_cfg.get("address")),
+                "mac": net_cfg.get("mac"),
+            }
         )
+
+    health_check = None
+    if "health-check" in cfg:
+        hc_cfg = cfg.get("health-check") or {}
+        health_check = {
+            "command": hc_cfg.get("command"),
+            "interval": hc_cfg.get("interval"),
+            "retry": hc_cfg.get("retry"),
+            "timeout": hc_cfg.get("timeout"),
+        }
 
     ports = []
     for port_name, port_cfg in (cfg.get("port") or {}).items():
@@ -144,6 +160,7 @@ def _parse_container_instance(name: str, cfg: dict) -> Dict[str, Any]:
         "description": cfg.get("description"),
         "disabled": "disable" in cfg,
         "allow_host_networks": "allow-host-networks" in cfg,
+        "allow_host_cgroups": "allow-host-cgroups" in cfg,
         "allow_host_pid": "allow-host-pid" in cfg,
         "privileged": "privileged" in cfg,
         "arguments": cfg.get("arguments"),
@@ -157,6 +174,8 @@ def _parse_container_instance(name: str, cfg: dict) -> Dict[str, Any]:
         "host_name": cfg.get("host-name"),
         "log_driver": cfg.get("log-driver"),
         "restart": cfg.get("restart"),
+        "stop_timeout": cfg.get("stop-timeout"),
+        "health_check": health_check,
         "capabilities": _parse_multi(cfg.get("capability")),
         "name_servers": _parse_multi(cfg.get("name-server")),
         "devices": sorted(devices, key=lambda d: d["name"]),
@@ -218,16 +237,16 @@ def _parse_container_registries(registries_raw: dict) -> List[Dict[str, Any]]:
             cfg = {}
 
         auth = None
-        auth_raw = cfg.get("authentication")
-        if auth_raw and isinstance(auth_raw, dict):
+        if "authentication" in cfg:
+            auth_raw = cfg.get("authentication") or {}
             auth = {
                 "username": auth_raw.get("username"),
                 "password": MASKED_SECRET if auth_raw.get("password") else None,
             }
 
         mirror = None
-        mirror_raw = cfg.get("mirror")
-        if mirror_raw and isinstance(mirror_raw, dict):
+        if "mirror" in cfg:
+            mirror_raw = cfg.get("mirror") or {}
             mirror = {
                 "address": mirror_raw.get("address"),
                 "host_name": mirror_raw.get("host-name"),

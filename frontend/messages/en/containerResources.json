@@ -3,14 +3,13 @@
     "pulledImages": "Pulled Images",
     "addImage": "Add Image",
     "loading": "Loading…",
+    "loadFailed": "Failed to load images",
     "noImages": "No images found on this device",
-    "image": "Image",
     "usedBy": "Used By",
     "updateImage": "Update image",
     "updateImageTitle": "Update Image — {image}",
     "cannotDeleteStack": "Cannot delete the VyManager stack image",
     "cannotDeleteInUse": "Cannot delete: in use by {containers}",
-    "deleteImageTooltip": "Delete image",
     "addImageTitle": "Add Image — {image}",
     "deleteImage": "Delete Image",
     "deleteConfirm": "Are you sure you want to delete <mono>{image}</mono>? This action cannot be undone.",
@@ -28,32 +27,42 @@
     "gateways": "Gateways"
   },
   "networkModal": {
-    "nameRequired": "Network name is required.",
-    "nameInvalid": "Network name must start with a letter or digit, may contain hyphens, and be at most 63 characters.",
-    "typeBridge": "Bridge",
     "editTitle": "Edit Network — {name}",
     "editDescription": "Modify this container network.",
     "addDescription": "Configure a new container network.",
     "networkName": "Network Name",
     "namePlaceholder": "e.g. my-net",
-    "nameImmutable": "Network name cannot be changed after creation.",
     "networkType": "Network Type",
-    "selectType": "Select type",
-    "noneOption": "— None —",
     "macvlanMode": "MACVLAN Mode",
-    "selectMode": "Select mode",
     "parentInterface": "Parent Interface",
     "mtuPlaceholder": "e.g. 1500",
     "noNameServer": "Disable name server (no-name-server)",
     "prefixPlaceholder": "e.g. 10.0.0.0/24",
-    "gatewayPlaceholder": "e.g. 10.0.0.1",
-    "adding": "Adding…"
+    "gatewayPlaceholder": "e.g. 10.0.0.1"
+  },
+  "networkProblems": {
+    "nameRequired": "Network name is required.",
+    "nameInvalid": "Network name may contain letters, digits, hyphens and underscores, up to 11 characters.",
+    "nameExists": "Network \"{name}\" already exists.",
+    "descriptionTooLong": "Network description must be at most {max} characters.",
+    "prefixRequired": "Add at least one prefix.",
+    "prefixInvalid": "\"{prefix}\" is not a network prefix (host bits must be zero).",
+    "prefixFamily": "Use at most one IPv4 and one IPv6 prefix.",
+    "gatewayInvalid": "Gateway \"{gateway}\" is not an IP address.",
+    "gatewayFamily": "Use at most one IPv4 and one IPv6 gateway.",
+    "gatewayNotInPrefix": "Gateway \"{gateway}\" is not inside a prefix of its address family.",
+    "mtuRange": "MTU must be between {min} and {max}.",
+    "macvlanModeRequired": "A MACVLAN network needs a mode.",
+    "macvlanParentRequired": "A MACVLAN network needs a parent interface.",
+    "macvlanParentInvalid": "The parent must be an ethernet, bonding or bridge interface.",
+    "macvlanVrf": "A MACVLAN network cannot have a VRF.",
+    "noNameServerInUse": "Container \"{name}\" sets name servers on this network, so no-name-server must stay on.",
+    "prefixInUse": "Container \"{name}\" uses address \"{address}\", which these prefixes no longer allow."
   },
   "deleteNetwork": {
     "failed": "Failed to delete network",
     "title": "Delete Network",
-    "confirm": "Are you sure you want to delete network <mono>{name}</mono>? This action cannot be undone.",
-    "deleting": "Deleting…"
+    "confirm": "Are you sure you want to delete network <mono>{name}</mono>? This action cannot be undone."
   },
   "registries": {
     "addRegistry": "Add Registry",
@@ -64,34 +73,40 @@
     "mirror": "Mirror"
   },
   "registryModal": {
-    "nameRequired": "Registry name is required.",
     "editTitle": "Edit Registry — {name}",
     "editDescription": "Modify this container registry.",
     "addDescription": "Configure a container image registry.",
     "namePlaceholder": "e.g. docker.io",
-    "nameImmutable": "Registry name cannot be changed after creation.",
     "disableRegistry": "Disable this registry",
     "allowInsecure": "Allow insecure connections (HTTP)",
     "insecureWarning": "Insecure mode allows unencrypted HTTP connections. Only use on trusted networks.",
     "authentication": "Authentication",
     "username": "Username",
-    "usernamePlaceholder": "Registry username (optional)",
     "password": "Password",
-    "passwordPlaceholder": "Registry password (optional)",
-    "mirrorHelp": "Configure a mirror to redirect pulls for this registry.",
     "address": "Address",
     "addressPlaceholder": "e.g. 192.168.1.100",
-    "hostname": "Hostname",
     "path": "Path",
     "port": "Port",
-    "portPlaceholder": "e.g. 5000",
-    "adding": "Adding…"
+    "portPlaceholder": "e.g. 5000"
+  },
+  "registryProblems": {
+    "nameRequired": "Registry name is required.",
+    "nameInvalid": "Registry name must be a host name, optionally with :port.",
+    "nameExists": "Registry \"{name}\" already exists.",
+    "authBoth": "Set both username and password, or clear both.",
+    "usernameInvalid": "Username must be ASCII and at most {max} characters.",
+    "passwordInvalid": "Password must be ASCII and at most {max} characters.",
+    "passwordMask": "Type the password itself, not ***.",
+    "mirrorExclusive": "Set a mirror address or a host name, not both.",
+    "mirrorAddressInvalid": "Mirror address must be an IP address.",
+    "mirrorHostNameInvalid": "Mirror host name must start with a letter or digit and contain only letters, digits, dots and hyphens.",
+    "mirrorPathInvalid": "Mirror path must start with /.",
+    "mirrorPortRange": "Mirror port must be between {min} and {max}."
   },
   "deleteRegistry": {
     "failed": "Failed to delete registry",
     "title": "Delete Registry",
-    "confirm": "Are you sure you want to delete registry <mono>{name}</mono>? This action cannot be undone.",
-    "deleting": "Deleting…"
+    "confirm": "Are you sure you want to delete registry <mono>{name}</mono>? This action cannot be undone."
   },
   "apps": {
     "iconAlt": "{name} icon",
@@ -104,19 +119,11 @@
   },
   "wizard": {
     "steps": {
-      "basic": "Basic",
-      "network": "Network",
-      "deploy": "Deploy"
+      "basic": "Basic"
     },
-    "containerNameRequired": "Container name is required.",
-    "nameInvalid": "Name must start with a letter or digit, may contain hyphens, and be at most 63 characters.",
-    "containerExists": "Container \"{name}\" already exists.",
     "fieldRequired": "{label} is required.",
     "fieldNumber": "{label} must be a number.",
     "selectNetwork": "Select a network.",
-    "networkNameRequired": "Network name is required.",
-    "networkNameInvalid": "Network name must start with a letter or digit, may contain hyphens, and be at most 63 characters.",
-    "networkExists": "Network \"{name}\" already exists.",
     "subnetRequired": "Subnet prefix is required.",
     "taskCreateNetwork": "Create network \"{name}\"",
     "taskCreateDirs": "Create directories for \"{name}\"",
@@ -130,8 +137,6 @@
     "pullFailedSeeAbove": "Image pull failed — see above.",
     "unexpectedError": "Unexpected error",
     "title": "Install {name}",
-    "containerName": "Container Name",
-    "nameInUse": "Name already in use.",
     "selectOption": "— Select —",
     "fixedConfig": "Fixed configuration",
     "fixedImage": "Image: {image}",
@@ -146,11 +151,9 @@
     "network": "Network",
     "chooseNetwork": "— Choose a network —",
     "noNetworksYet": "No networks configured yet.",
-    "networkName": "Network Name",
     "subnetPrefix": "Subnet Prefix",
     "review": "Review",
     "container": "Container",
-    "image": "Image",
     "host": "Host",
     "newNetwork": "New — {name}",
     "deployed": "{name} deployed successfully!",
@@ -159,6 +162,7 @@
     "deploying": "Deploying…",
     "deploy": "Deploy",
     "ipAddress": "IP Address",
+    "macAddress": "MAC Address",
     "optionalSuffix": "(optional)"
   }
 }

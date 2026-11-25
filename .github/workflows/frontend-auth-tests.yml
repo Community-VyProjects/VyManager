@@ -102,6 +102,10 @@ jobs:
         working-directory: frontend
         run: npm run test:pppoe-server-save
 
+      - name: Run container save op tests
+        working-directory: frontend
+        run: npm run test:container-save
+
       - name: Run WireGuard form tests
         working-directory: frontend
         run: npm run test:wireguard-form

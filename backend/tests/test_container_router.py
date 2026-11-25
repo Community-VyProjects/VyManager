@@ -13,8 +13,11 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 import appliance_mode
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.container.container import ContainerMapper
 
 ROUTER = "routers.container.container"
 NAME = ["container", "name"]
@@ -27,13 +30,29 @@ def commit():
 
 
 @pytest.fixture
+def show():
+    """What the stub device's show returns per path, and the paths it was asked for."""
+    return {
+        "replies": {
+            ("container", "image"): SimpleNamespace(
+                status=200,
+                result="REPOSITORY TAG\ndocker.io/library/nginx 1.27\n",
+                error=None,
+            ),
+        },
+        "default": SimpleNamespace(status=200, result="T-log\n", error=None),
+        "paths": [],
+    }
+
+
+@pytest.fixture
 def shell():
     """What the stub SSH connection returns, and the commands it ran."""
     return {"stdout": "", "stderr": "", "exit_status": 0, "raise": None, "commands": []}
 
 
 @pytest.fixture
-def client(monkeypatch, commit, shell):
+def client(monkeypatch, commit, show, shell):
     executed = []
     loop_threads = set()
     device_threads = []
@@ -48,13 +67,11 @@ def client(monkeypatch, commit, shell):
     class Device:
         def show(self, path):
             device_threads.append(threading.current_thread())
-            if path == ["container", "image"]:
-                return SimpleNamespace(
-                    status=200,
-                    result="REPOSITORY TAG\ndocker.io/library/nginx 1.27\n",
-                    error=None,
-                )
-            return SimpleNamespace(status=200, result="T-log\n", error=None)
+            show["paths"].append(path)
+            reply = show["replies"].get(tuple(path), show["default"])
+            if isinstance(reply, Exception):
+                raise reply
+            return reply
 
     class Service:
         device = Device()
@@ -182,6 +199,7 @@ def test_config_masks_the_registry_password(client):
     ({"op": "set_name_image"}, "Operation set_name_image requires a value"),
     ({"op": "set_registry_insecure", "value": ""}, "Operation set_registry_insecure requires a value"),
     ({"op": "set_name_image", "value": "web,"}, "Operation set_name_image requires 2 values"),
+    ({"op": "set_name_label_value", "value": "web,app,"}, "Operation set_name_label_value requires 3 values"),
     ({"op": "set_name_disable", "value": "web,"}, "Invalid name in operation 'set_name_disable'."),
 ])
 def test_batch_missing_value_is_400(client, operation, detail):
@@ -241,8 +259,46 @@ def test_batch_version_gate_is_400(client, commit):
         {"op": "set_name_log_driver", "value": "web,journald"},
     ])
     assert resp.status_code == 400, resp.text
-    assert resp.json()["detail"] == "log-driver is not supported on this device"
+    assert resp.json()["detail"] == "container log_driver is not supported on this device"
     assert client.executed == []
+
+
+@pytest.mark.parametrize("op, value, node", [
+    ("set_name_allow_host_cgroups", "web", "allow_host_cgroups"),
+    ("set_name_stop_timeout", "web,30", "stop_timeout"),
+    ("set_name_health_check_command", "web,true", "health_check"),
+    ("delete_name_health_check", "web", "health_check"),
+    ("set_name_network_mac", "web,lan,00:53:00:00:00:01", "network_mac"),
+    ("delete_name_tmpfs", "web,cache", "tmpfs"),
+    ("delete_network_gateway", "lan,192.0.2.1", "network_gateway"),
+    ("delete_registry_mirror", "ghcr.io", "registry_mirror"),
+])
+def test_batch_15_only_ops_are_400_on_14(client, commit, op, value, node):
+    """Deletes of 1.5-only leaves are gated as well as sets."""
+    commit["version"] = "1.4.3"
+    resp = _post(client, [{"op": "set_name", "value": "web"}, {"op": op, "value": value}])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == f"container {node} is not supported on this device"
+    assert client.executed == []
+
+
+def test_batch_15_only_ops_reach_the_device_on_15(client, commit):
+    commit["version"] = "2026.09.23-0027-rolling"
+    resp = _post(client, [
+        {"op": "set_name_allow_host_cgroups", "value": "web"},
+        {"op": "set_name_stop_timeout", "value": "web,30"},
+        {"op": "set_name_health_check_interval", "value": "web,disable"},
+        {"op": "set_name_network_mac", "value": "web,lan,00:53:00:00:00:01"},
+        {"op": "delete_name_network_mac", "value": "web,lan"},
+    ])
+    assert resp.status_code == 200, resp.text
+    assert client.executed == [[
+        {"op": "set", "path": NAME + ["web", "allow-host-cgroups"]},
+        {"op": "set", "path": NAME + ["web", "stop-timeout", "30"]},
+        {"op": "set", "path": NAME + ["web", "health-check", "interval", "disable"]},
+        {"op": "set", "path": NAME + ["web", "network", "lan", "mac", "00:53:00:00:00:01"]},
+        {"op": "delete", "path": NAME + ["web", "network", "lan", "mac"]},
+    ]]
 
 
 @pytest.mark.parametrize("op, detail", [
@@ -258,8 +314,10 @@ def test_batch_unknown_op_is_400(client, op, detail):
     assert client.executed == []
 
 
-def test_failed_commit_reports_the_error(client, commit):
-    commit.update(status=400, error="Commit failed: T-err")
+@pytest.mark.parametrize("status, error", [(400, "Commit failed: T-err"), (200, "Commit failed: T-err")])
+def test_failed_commit_reports_the_error(client, commit, status, error):
+    """A refused commit is a failure even when the device answers HTTP 200 with an error."""
+    commit.update(status=status, error=error)
     resp = _post(client, [{"op": "delete_name", "value": "web"}])
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"success": False, "data": None, "error": "Commit failed: T-err"}
@@ -289,32 +347,72 @@ def test_session_400_passes_through(client, monkeypatch, method, path, body):
     assert resp.json()["detail"] == "No active session"
 
 
-@pytest.mark.parametrize("path", [
-    "/vyos/container/capabilities",
-    "/vyos/container/config",
-    "/vyos/container/images",
+@pytest.mark.parametrize("method, path, body", [
+    ("get", "/vyos/container/capabilities", None),
+    ("get", "/vyos/container/config", None),
+    ("get", "/vyos/container/images", None),
+    ("post", "/vyos/container/log", {"container_name": "web"}),
 ])
-def test_unexpected_error_is_500(client, monkeypatch, path):
-    """A backend fault is a 500, not an empty images list that reads as nothing pulled."""
+def test_unexpected_error_is_500(client, monkeypatch, method, path, body):
+    """A backend fault is a 500, not an empty images list or log that reads as nothing there."""
     def boom(*_a, **_k):
         raise RuntimeError("T-boom")
 
-    service = SimpleNamespace(get_version=boom, get_full_config=boom, device=SimpleNamespace(show=boom))
+    service = SimpleNamespace(get_version=lambda: "1.5", get_full_config=boom, device=SimpleNamespace(show=boom))
+    if path.endswith("capabilities"):
+        service.get_version = boom
     monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: service)
-    resp = client.http.get(path)
+    resp = getattr(client.http, method)(path, **({"json": body} if body is not None else {}))
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
+    assert "T-boom" not in resp.text
 
 
-def test_log_unexpected_error_is_a_failed_reply(client, monkeypatch):
-    def boom(*_a, **_k):
-        raise RuntimeError("T-boom")
-
-    service = SimpleNamespace(device=SimpleNamespace(show=boom))
-    monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: service)
+@pytest.mark.parametrize("version", ["1.4.3", "2026.09.23-0027-rolling"])
+def test_show_routes_send_the_mapper_paths(client, commit, show, version):
+    commit["version"] = version
+    assert client.http.get("/vyos/container/images").json() == {"images": ["docker.io/library/nginx:1.27"]}
     resp = client.http.post("/vyos/container/log", json={"container_name": "web"})
-    assert resp.status_code == 200, resp.text
-    assert resp.json() == {"success": False, "output": None, "error": "Failed to retrieve container log."}
+    assert resp.json() == {"success": True, "output": "T-log", "error": None}
+    assert show["paths"] == [["container", "image"], ["container", "log", "web"]]
+    assert client.permissions == [("read", "CONTAINER"), ("read", "CONTAINER")]
+
+
+def test_show_paths_come_from_the_registry_mapper(client, monkeypatch, show):
+    class Tagged(ContainerMapper):
+        def get_image_show_path(self):
+            return ["tagged", "image"]
+
+        def get_log_show_path(self, name):
+            return ["tagged", "log", name]
+
+    monkeypatch.setitem(CommandMapperRegistry._features, "container", Tagged)
+    client.http.get("/vyos/container/images")
+    client.http.post("/vyos/container/log", json={"container_name": "web"})
+    assert show["paths"] == [["tagged", "image"], ["tagged", "log", "web"]]
+
+
+@pytest.mark.parametrize("reply, shown", [
+    (SimpleNamespace(status=400, result="", error=None), None),
+    (SimpleNamespace(status=200, result="", error="T-device-error"), "T-device-error"),
+    (SimpleNamespace(status=500, result="", error="T-device-error"), "T-device-error"),
+    (RequestsConnectionError("T-unreachable"), None),
+])
+@pytest.mark.parametrize("method, path, body, detail", [
+    ("get", "/vyos/container/images", None, "Failed to list container images"),
+    ("post", "/vyos/container/log", {"container_name": "web"}, "Failed to retrieve container log"),
+])
+def test_failed_show_is_502(client, show, reply, shown, method, path, body, detail):
+    """A failed show is a 502 with the device's error, not an empty image list or log.
+
+    A transport failure keeps the fixed detail; its exception text is only logged.
+    """
+    show["replies"].clear()
+    show["default"] = reply
+    resp = getattr(client.http, method)(path, **({"json": body} if body is not None else {}))
+    assert resp.status_code == 502, resp.text
+    assert resp.json()["detail"] == (shown or detail)
+    assert "T-unreachable" not in resp.text
 
 
 @pytest.mark.parametrize("op, value", [

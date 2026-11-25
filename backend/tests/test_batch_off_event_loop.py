@@ -209,8 +209,7 @@ PPPOE_SERVER_OFFLOADED = [
 CONTAINER_OFFLOADED = [
     ("get_container_config", "routers/container/container.py", "get_full_config", 1),
     ("_configured_container_image", "routers/container/container.py", "get_full_config", 1),
-    ("get_container_images", "routers/container/container.py", "show", 1),
-    ("get_container_log", "routers/container/container.py", "show", 1),
+    ("_show_output", "routers/container/container.py", "show", 1),
 ]
 
 # reboot_system and poweroff_system send through _run_power_action.

@@ -7,132 +7,73 @@ Configuration lives under: container
   container network <name> — user-defined networks
   container registry <name> — image registries
 
-1.5 adds log-driver, tmpfs, registry insecure/mirror, and network
-gateway/mtu/type. Those paths raise on 1.4.
+The 1.5-only leaves go through ``_versioned_path``: the mapper allowlist
+decides, and a leaf this device lacks raises ``ValueError``.
 Multi-argument batch operations encode compound values as "arg1,arg2"
 (comma-separated), matching the project's standard batch dispatch pattern.
 """
 
-from typing import Dict, Any
-from vyos_mappers import CommandMapperRegistry
+from typing import Any, Dict, List, cast
+
 from vyos_builders.base import BatchBuilder
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.container.container import ContainerMapper
 
 
 class ContainerBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("container", version)
+        self.mapper_key = "container"
+        self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     # -----------------------------------------------------------------------
-    # Capabilities
+    # Core infrastructure
     # -----------------------------------------------------------------------
+
+    @property
+    def m(self) -> ContainerMapper:
+        return cast(ContainerMapper, self.mappers[self.mapper_key])
+
+    def _versioned_path(self, node: str, method: str, *args: Any) -> List[str]:
+        """Path for a leaf only one VyOS version has; ValueError elsewhere."""
+        mapper = self.m
+        mapper.require_node(node)
+        return getattr(mapper, method)(*args)
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
+        """Feature flags and value lists, read from the mapper allowlist."""
         m = self.m
-
+        nodes = m.versioned_nodes()
         return {
             "version": self.version,
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
-            },
+            # Verify rules only 1.5 enforces; the screen checks them before a save.
+            "name_server_needs_no_name_server": m.name_server_needs_no_name_server(),
+            "unique_attachment_addresses": m.unique_attachment_addresses(),
             "features": {
-                "container_names": {
-                    "supported": True,
-                    "description": "Named container instances",
-                },
-                "container_networks": {
-                    "supported": True,
-                    "description": "User-defined container networks",
-                },
-                "container_registries": {
-                    "supported": True,
-                    "description": "Container image registries",
-                },
-                "allow_host_networks": {
-                    "supported": True,
-                    "description": "Share host networking with container",
-                },
-                "allow_host_pid": {
-                    "supported": True,
-                    "description": "Share host process namespace with container",
-                },
-                "privileged": {
-                    "supported": True,
-                    "description": "Grant root capabilities to container",
-                },
-                "capabilities": {
-                    "supported": True,
-                    "description": "Grant individual Linux capabilities",
-                    "values": [
-                        "net-admin",
-                        "net-bind-service",
-                        "net-raw",
-                        "mknod",
-                        "setpcap",
-                        "sys-admin",
-                        "sys-module",
-                        "sys-nice",
-                        "sys-time",
-                    ],
-                },
-                "log_driver": {
-                    "supported": m.supports_log_driver(),
-                    "description": "Container log driver",
-                    "values": ["k8s-file", "journald", "none"],
-                },
-                "restart_policy": {
-                    "supported": True,
-                    "description": "Container restart policy",
-                    "values": ["no", "on-failure", "always"],
-                },
-                "volume_propagation": {
-                    "supported": True,
-                    "description": "Volume bind propagation modes",
-                    "values": [
-                        "shared",
-                        "slave",
-                        "private",
-                        "rshared",
-                        "rslave",
-                        "rprivate",
-                    ],
-                },
-                "network_gateway": {
-                    "supported": m.supports_network_gateway(),
-                    "description": "Gateway address on container network",
-                },
-                "network_mtu": {
-                    "supported": m.supports_network_mtu(),
-                    "description": "MTU on container network",
-                },
-                "network_type_bridge": {
-                    "supported": m.supports_network_type(),
-                    "description": "Bridge network type",
-                },
-                "network_type_macvlan": {
-                    "supported": m.supports_network_type(),
-                    "description": "MACVLAN network type",
-                    "macvlan_modes": ["bridge", "private", "vepa"],
-                },
-                "registry_insecure": {
-                    "supported": m.supports_registry_insecure(),
-                    "description": "Allow insecure (HTTP) registry connections",
-                },
-                "registry_mirror": {
-                    "supported": m.supports_registry_mirror(),
-                    "description": "Registry mirror support",
-                },
-                "sysctl": {
-                    "supported": True,
-                    "description": "Namespaced kernel parameter configuration",
-                },
-                "tmpfs": {
-                    "supported": m.supports_tmpfs(),
-                    "description": "Tmpfs filesystem mounts",
-                },
+                "allow_host_cgroups": "allow_host_cgroups" in nodes,
+                "health_check": "health_check" in nodes,
+                "log_driver": "log_driver" in nodes,
+                "stop_timeout": "stop_timeout" in nodes,
+                "network_mac": "network_mac" in nodes,
+                "tmpfs": "tmpfs" in nodes,
+                "network_gateway": "network_gateway" in nodes,
+                "network_mtu": "network_mtu" in nodes,
+                "network_type": "network_type" in nodes,
+                "registry_insecure": "registry_insecure" in nodes,
+                "registry_mirror": "registry_mirror" in nodes,
+            },
+            "values": {
+                "capabilities": m.capability_values(),
+                "restart_policies": m.restart_values(),
+                "log_drivers": m.log_driver_values(),
+                "port_protocols": m.port_protocols(),
+                "volume_modes": m.volume_modes(),
+                "volume_propagations": m.volume_propagations(),
+                "network_types": m.network_types(),
+                "macvlan_modes": m.macvlan_modes(),
+                "network_mac_keywords": m.network_mac_keywords(),
+                "health_check_interval_keywords": m.health_check_interval_keywords(),
+                "registry_password_max_length": m.registry_password_max_length(),
             },
         }
 
@@ -247,16 +188,59 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_name_host_name_delete(name))
 
     def set_name_log_driver(self, name: str, driver: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_log_driver(name, driver))
+        return self.add_set(self._versioned_path("log_driver", "get_name_log_driver", name, driver))
 
     def delete_name_log_driver(self, name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_log_driver_delete(name))
+        return self.add_delete(self._versioned_path("log_driver", "get_name_log_driver_delete", name))
 
     def set_name_restart(self, name: str, policy: str) -> "ContainerBatchBuilder":
         return self.add_set(self.m.get_name_restart(name, policy))
 
     def delete_name_restart(self, name: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_restart_delete(name))
+
+    def set_name_allow_host_cgroups(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_set(self._versioned_path("allow_host_cgroups", "get_name_allow_host_cgroups", name))
+
+    def delete_name_allow_host_cgroups(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("allow_host_cgroups", "get_name_allow_host_cgroups", name))
+
+    def set_name_stop_timeout(self, name: str, seconds: str) -> "ContainerBatchBuilder":
+        return self.add_set(self._versioned_path("stop_timeout", "get_name_stop_timeout", name, seconds))
+
+    def delete_name_stop_timeout(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("stop_timeout", "get_name_stop_timeout_delete", name))
+
+    # -----------------------------------------------------------------------
+    # Container name: health-check
+    # -----------------------------------------------------------------------
+
+    def delete_name_health_check(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("health_check", "get_name_health_check", name))
+
+    def set_name_health_check_command(self, name: str, command: str) -> "ContainerBatchBuilder":
+        return self.add_set(self._versioned_path("health_check", "get_name_health_check_command", name, command))
+
+    def delete_name_health_check_command(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("health_check", "get_name_health_check_command_delete", name))
+
+    def set_name_health_check_interval(self, name: str, interval: str) -> "ContainerBatchBuilder":
+        return self.add_set(self._versioned_path("health_check", "get_name_health_check_interval", name, interval))
+
+    def delete_name_health_check_interval(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("health_check", "get_name_health_check_interval_delete", name))
+
+    def set_name_health_check_retry(self, name: str, retry: str) -> "ContainerBatchBuilder":
+        return self.add_set(self._versioned_path("health_check", "get_name_health_check_retry", name, retry))
+
+    def delete_name_health_check_retry(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("health_check", "get_name_health_check_retry_delete", name))
+
+    def set_name_health_check_timeout(self, name: str, timeout: str) -> "ContainerBatchBuilder":
+        return self.add_set(self._versioned_path("health_check", "get_name_health_check_timeout", name, timeout))
+
+    def delete_name_health_check_timeout(self, name: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("health_check", "get_name_health_check_timeout_delete", name))
 
     # -----------------------------------------------------------------------
     # Container name: capability
@@ -266,7 +250,7 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_name_capability(name, capability))
 
     def delete_name_capability(self, name: str, capability: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_capability_delete(name, capability))
+        return self.add_delete(self.m.get_name_capability(name, capability))
 
     def delete_name_capabilities(self, name: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_capabilities_delete(name))
@@ -279,7 +263,7 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_name_name_server(name, address))
 
     def delete_name_name_server(self, name: str, address: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_name_server_delete(name, address))
+        return self.add_delete(self.m.get_name_name_server(name, address))
 
     def delete_name_name_servers(self, name: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_name_servers_delete(name))
@@ -335,8 +319,9 @@ class ContainerBatchBuilder(BatchBuilder):
     def delete_name_label(self, name: str, label: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_label(name, label))
 
-    def set_name_label_value(self, name: str, label: str, value: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_label_value(name, label, value))
+    def set_name_label_value(self, name: str, label: str, label_value: str) -> "ContainerBatchBuilder":
+        # Not named ``value``: the router lets only environment and sysctl values be empty.
+        return self.add_set(self.m.get_name_label_value(name, label, label_value))
 
     def delete_name_label_value(self, name: str, label: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_label_value_delete(name, label))
@@ -358,10 +343,16 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_name_network_address(name, network, address))
 
     def delete_name_network_address(self, name: str, network: str, address: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_network_address_delete(name, network, address))
+        return self.add_delete(self.m.get_name_network_address(name, network, address))
 
     def delete_name_network_addresses(self, name: str, network: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_network_addresses_delete(name, network))
+
+    def set_name_network_mac(self, name: str, network: str, mac: str) -> "ContainerBatchBuilder":
+        return self.add_set(self._versioned_path("network_mac", "get_name_network_mac", name, network, mac))
+
+    def delete_name_network_mac(self, name: str, network: str) -> "ContainerBatchBuilder":
+        return self.add_delete(self._versioned_path("network_mac", "get_name_network_mac_delete", name, network))
 
     # -----------------------------------------------------------------------
     # Container name: port
@@ -395,7 +386,7 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_name_port_listen_address(name, port_name, address))
 
     def delete_name_port_listen_address(self, name: str, port_name: str, address: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_port_listen_address_delete(name, port_name, address))
+        return self.add_delete(self.m.get_name_port_listen_address(name, port_name, address))
 
     def delete_name_port_listen_addresses(self, name: str, port_name: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_port_listen_addresses_delete(name, port_name))
@@ -424,22 +415,22 @@ class ContainerBatchBuilder(BatchBuilder):
     # -----------------------------------------------------------------------
 
     def set_name_tmpfs(self, name: str, tmpfs_name: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_tmpfs(name, tmpfs_name))
+        return self.add_set(self._versioned_path("tmpfs", "get_name_tmpfs", name, tmpfs_name))
 
     def delete_name_tmpfs(self, name: str, tmpfs_name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_tmpfs_delete(name, tmpfs_name))
+        return self.add_delete(self._versioned_path("tmpfs", "get_name_tmpfs", name, tmpfs_name))
 
     def set_name_tmpfs_destination(self, name: str, tmpfs_name: str, destination: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_tmpfs_destination(name, tmpfs_name, destination))
+        return self.add_set(self._versioned_path("tmpfs", "get_name_tmpfs_destination", name, tmpfs_name, destination))
 
     def delete_name_tmpfs_destination(self, name: str, tmpfs_name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_tmpfs_destination_delete(name, tmpfs_name))
+        return self.add_delete(self._versioned_path("tmpfs", "get_name_tmpfs_destination_delete", name, tmpfs_name))
 
     def set_name_tmpfs_size(self, name: str, tmpfs_name: str, size: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_tmpfs_size(name, tmpfs_name, size))
+        return self.add_set(self._versioned_path("tmpfs", "get_name_tmpfs_size", name, tmpfs_name, size))
 
     def delete_name_tmpfs_size(self, name: str, tmpfs_name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_tmpfs_size_delete(name, tmpfs_name))
+        return self.add_delete(self._versioned_path("tmpfs", "get_name_tmpfs_size_delete", name, tmpfs_name))
 
     # -----------------------------------------------------------------------
     # Container name: volume
@@ -492,19 +483,19 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_network_description_delete(network))
 
     def set_network_gateway(self, network: str, gateway: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_network_gateway(network, gateway))
+        return self.add_set(self._versioned_path("network_gateway", "get_network_gateway", network, gateway))
 
     def delete_network_gateway(self, network: str, gateway: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_network_gateway_delete(network, gateway))
+        return self.add_delete(self._versioned_path("network_gateway", "get_network_gateway", network, gateway))
 
     def delete_network_gateways(self, network: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_network_gateways_delete(network))
+        return self.add_delete(self._versioned_path("network_gateway", "get_network_gateways_delete", network))
 
     def set_network_mtu(self, network: str, mtu: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_network_mtu(network, mtu))
+        return self.add_set(self._versioned_path("network_mtu", "get_network_mtu", network, mtu))
 
     def delete_network_mtu(self, network: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_network_mtu_delete(network))
+        return self.add_delete(self._versioned_path("network_mtu", "get_network_mtu_delete", network))
 
     def set_network_no_name_server(self, network: str) -> "ContainerBatchBuilder":
         return self.add_set(self.m.get_network_no_name_server(network))
@@ -516,31 +507,31 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_network_prefix(network, prefix))
 
     def delete_network_prefix(self, network: str, prefix: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_network_prefix_delete(network, prefix))
+        return self.add_delete(self.m.get_network_prefix(network, prefix))
 
     def delete_network_prefixes(self, network: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_network_prefixes_delete(network))
 
     def set_network_type_bridge(self, network: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_network_type_bridge(network))
+        return self.add_set(self._versioned_path("network_type", "get_network_type_bridge", network))
 
     def set_network_type_macvlan(self, network: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_network_type_macvlan(network))
+        return self.add_set(self._versioned_path("network_type", "get_network_type_macvlan", network))
 
     def set_network_type_macvlan_mode(self, network: str, mode: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_network_type_macvlan_mode(network, mode))
+        return self.add_set(self._versioned_path("network_type", "get_network_type_macvlan_mode", network, mode))
 
     def delete_network_type_macvlan_mode(self, network: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_network_type_macvlan_mode_delete(network))
+        return self.add_delete(self._versioned_path("network_type", "get_network_type_macvlan_mode_delete", network))
 
     def set_network_type_macvlan_parent(self, network: str, parent: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_network_type_macvlan_parent(network, parent))
+        return self.add_set(self._versioned_path("network_type", "get_network_type_macvlan_parent", network, parent))
 
     def delete_network_type_macvlan_parent(self, network: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_network_type_macvlan_parent_delete(network))
+        return self.add_delete(self._versioned_path("network_type", "get_network_type_macvlan_parent_delete", network))
 
     def delete_network_type(self, network: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_network_type_delete(network))
+        return self.add_delete(self._versioned_path("network_type", "get_network_type_delete", network))
 
     def set_network_vrf(self, network: str, vrf: str) -> "ContainerBatchBuilder":
         return self.add_set(self.m.get_network_vrf(network, vrf))
@@ -565,10 +556,10 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_registry_disable(registry))
 
     def set_registry_insecure(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_registry_insecure(registry))
+        return self.add_set(self._versioned_path("registry_insecure", "get_registry_insecure", registry))
 
     def delete_registry_insecure(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_insecure_delete(registry))
+        return self.add_delete(self._versioned_path("registry_insecure", "get_registry_insecure", registry))
 
     def set_registry_auth_username(self, registry: str, username: str) -> "ContainerBatchBuilder":
         return self.add_set(self.m.get_registry_auth_username(registry, username))
@@ -586,31 +577,31 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_registry_auth_delete(registry))
 
     def set_registry_mirror(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_registry_mirror(registry))
+        return self.add_set(self._versioned_path("registry_mirror", "get_registry_mirror", registry))
 
     def delete_registry_mirror(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_mirror_delete(registry))
+        return self.add_delete(self._versioned_path("registry_mirror", "get_registry_mirror", registry))
 
     def set_registry_mirror_address(self, registry: str, address: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_registry_mirror_address(registry, address))
+        return self.add_set(self._versioned_path("registry_mirror", "get_registry_mirror_address", registry, address))
 
     def delete_registry_mirror_address(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_mirror_address_delete(registry))
+        return self.add_delete(self._versioned_path("registry_mirror", "get_registry_mirror_address_delete", registry))
 
     def set_registry_mirror_host_name(self, registry: str, hostname: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_registry_mirror_host_name(registry, hostname))
+        return self.add_set(self._versioned_path("registry_mirror", "get_registry_mirror_host_name", registry, hostname))
 
     def delete_registry_mirror_host_name(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_mirror_host_name_delete(registry))
+        return self.add_delete(self._versioned_path("registry_mirror", "get_registry_mirror_host_name_delete", registry))
 
     def set_registry_mirror_path(self, registry: str, path: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_registry_mirror_path(registry, path))
+        return self.add_set(self._versioned_path("registry_mirror", "get_registry_mirror_path", registry, path))
 
     def delete_registry_mirror_path(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_mirror_path_delete(registry))
+        return self.add_delete(self._versioned_path("registry_mirror", "get_registry_mirror_path_delete", registry))
 
     def set_registry_mirror_port(self, registry: str, port: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_registry_mirror_port(registry, port))
+        return self.add_set(self._versioned_path("registry_mirror", "get_registry_mirror_port", registry, port))
 
     def delete_registry_mirror_port(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_mirror_port_delete(registry))
+        return self.add_delete(self._versioned_path("registry_mirror", "get_registry_mirror_port_delete", registry))

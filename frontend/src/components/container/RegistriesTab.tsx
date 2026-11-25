@@ -17,50 +17,61 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle2, Database, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   containerService,
-  type ContainerRegistry,
-  type ContainerConfig,
   type ContainerCapabilities,
+  type ContainerConfig,
+  type ContainerRegistry,
 } from "@/lib/api/container";
 import { RegistryModal } from "./RegistryModal";
 import { DeleteRegistryModal } from "./DeleteRegistryModal";
 
 interface Props {
   config: ContainerConfig;
-  capabilities: ContainerCapabilities | null;
+  capabilities: ContainerCapabilities;
   hasWritePermission: boolean;
+  /** A post-save reload is running; the config shown may be stale. */
+  refreshing: boolean;
   onReload: () => Promise<void>;
 }
 
-export function RegistriesTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+export function RegistriesTab({ config, capabilities, hasWritePermission, refreshing, onReload }: Props) {
   const t = useTranslations("containerResources");
   const tc = useTranslations("common");
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalKey, setModalKey] = useState(0);
   const [editingRegistry, setEditingRegistry] = useState<ContainerRegistry | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingRegistry, setDeletingRegistry] = useState<ContainerRegistry | null>(null);
 
   const registries = config.registries;
+  const { features } = capabilities;
 
-  const handleSubmit = async (data: ContainerRegistry) => {
-    if (editingRegistry) {
-      await containerService.updateRegistry(editingRegistry, data);
-    } else {
-      await containerService.createRegistry(data);
-    }
-    await onReload();
+  const openModal = (registry: ContainerRegistry | null) => {
+    setEditingRegistry(registry);
+    setModalKey((k) => k + 1);
+    setModalOpen(true);
+  };
+
+  const openDelete = (registry: ContainerRegistry) => {
+    setDeletingRegistry(registry);
+    setDeleteOpen(true);
+  };
+
+  const handleSubmit = async (draft: ContainerRegistry) => {
+    await containerService.saveRegistry(editingRegistry, draft, features);
+    void onReload();
   };
 
   const handleDelete = async () => {
     if (!deletingRegistry) return;
     await containerService.deleteRegistry(deletingRegistry.name);
-    setDeletingRegistry(null);
-    await onReload();
+    void onReload();
   };
 
   return (
     <>
       {registries.length > 0 && hasWritePermission && (
         <div className="flex justify-end mb-4">
-          <Button size="sm" onClick={() => { setEditingRegistry(null); setModalOpen(true); }}>
+          <Button size="sm" disabled={refreshing} onClick={() => openModal(null)}>
             <Plus className="h-4 w-4 mr-2" />{t("registries.addRegistry")}
           </Button>
         </div>
@@ -72,7 +83,7 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
             <Database className="h-12 w-12 text-muted-foreground/30 mb-4" />
             <p className="text-sm text-muted-foreground mb-4">{t("registries.noRegistries")}</p>
             {hasWritePermission && (
-              <Button size="sm" onClick={() => { setEditingRegistry(null); setModalOpen(true); }}>
+              <Button size="sm" disabled={refreshing} onClick={() => openModal(null)}>
                 <Plus className="h-4 w-4 mr-2" />{t("registries.addRegistry")}
               </Button>
             )}
@@ -86,14 +97,14 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
                 <TableRow>
                   <TableHead>{t("registries.registry")}</TableHead>
                   <TableHead>{tc("status")}</TableHead>
-                  <TableHead>{t("registries.insecure")}</TableHead>
+                  {features.registry_insecure && <TableHead>{t("registries.insecure")}</TableHead>}
                   <TableHead>{t("registries.auth")}</TableHead>
-                  <TableHead>{t("registries.mirror")}</TableHead>
+                  {features.registry_mirror && <TableHead>{t("registries.mirror")}</TableHead>}
                   {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {registries.map(reg => (
+                {registries.map((reg) => (
                   <TableRow key={reg.name}>
                     <TableCell>
                       <Badge variant="outline" className="font-mono">{reg.name}</Badge>
@@ -103,28 +114,32 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
                         ? <Badge variant="secondary" className="bg-muted text-muted-foreground">{tc("disabled")}</Badge>
                         : <Badge variant="secondary" className="bg-green-500/10 text-green-600">{tc("enabled")}</Badge>}
                     </TableCell>
-                    <TableCell>
-                      {reg.insecure
-                        ? <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">{t("registries.insecure")}</Badge>
-                        : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
+                    {features.registry_insecure && (
+                      <TableCell>
+                        {reg.insecure
+                          ? <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">{t("registries.insecure")}</Badge>
+                          : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {reg.authentication?.username
                         ? <span className="flex items-center gap-1 text-sm"><CheckCircle2 className="h-4 w-4 text-green-500" /><span className="font-mono text-xs">{reg.authentication.username}</span></span>
                         : <span className="text-muted-foreground">—</span>}
                     </TableCell>
-                    <TableCell>
-                      {reg.mirror?.address || reg.mirror?.host_name
-                        ? <span className="font-mono text-xs">{reg.mirror.address || reg.mirror.host_name}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
+                    {features.registry_mirror && (
+                      <TableCell>
+                        {reg.mirror?.address || reg.mirror?.host_name
+                          ? <span className="font-mono text-xs">{reg.mirror.address || reg.mirror.host_name}</span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                    )}
                     {hasWritePermission && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingRegistry(reg); setModalOpen(true); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")} aria-label={tc("edit")} disabled={refreshing} onClick={() => openModal(reg)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingRegistry(reg)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title={tc("delete")} aria-label={tc("delete")} disabled={refreshing} onClick={() => openDelete(reg)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -139,16 +154,18 @@ export function RegistriesTab({ config, capabilities, hasWritePermission, onRelo
       )}
 
       <RegistryModal
+        key={modalKey}
         open={modalOpen}
-        onOpenChange={open => { setModalOpen(open); if (!open) setEditingRegistry(null); }}
+        onOpenChange={setModalOpen}
         registry={editingRegistry}
         capabilities={capabilities}
+        existingNames={registries.map((r) => r.name)}
         onSubmit={handleSubmit}
       />
 
       <DeleteRegistryModal
-        open={!!deletingRegistry}
-        onOpenChange={open => { if (!open) setDeletingRegistry(null); }}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
         registry={deletingRegistry}
         onConfirm={handleDelete}
       />

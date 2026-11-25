@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,34 +13,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (imageRef: string) => Promise<void>;
+  /** Starts the pull; its progress and result show in the command output dialog. */
+  onSubmit: (imageRef: string) => void;
 }
 
 export function AddImageModal({ open, onOpenChange, onSubmit }: Props) {
   const t = useTranslations("containerResources");
+  const tm = useTranslations("containers");
   const tc = useTranslations("common");
   const [imageRef, setImageRef] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!open) { setImageRef(""); setLoading(false); }
-  }, [open]);
-
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const ref = imageRef.trim();
     if (!ref) return;
-    setLoading(true);
-    try {
-      await onSubmit(ref);
-      onOpenChange(false);
-    } finally {
-      setLoading(false);
-    }
+    onOpenChange(false);
+    onSubmit(ref);
   };
 
   return (
@@ -48,30 +39,27 @@ export function AddImageModal({ open, onOpenChange, onSubmit }: Props) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("images.addImage")}</DialogTitle>
-          <DialogDescription>
-            {t("addImage.description")}
-          </DialogDescription>
+          <DialogDescription>{t("addImage.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 py-2">
-          <Label htmlFor="image-ref">{t("images.image")}</Label>
+          <Label htmlFor="image-ref">{tm("modal.image")}</Label>
           <Input
             id="image-ref"
             value={imageRef}
-            onChange={e => setImageRef(e.target.value)}
+            onChange={(e) => setImageRef(e.target.value)}
             placeholder={t("addImage.placeholder")}
             className="font-mono"
             autoFocus
-            onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
           />
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={!imageRef.trim() || loading}>
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <Button onClick={handleSubmit} disabled={!imageRef.trim()}>
             {t("images.addImage")}
           </Button>
         </DialogFooter>

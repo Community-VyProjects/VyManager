@@ -17,9 +17,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Network, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   containerService,
-  type ContainerNetworkConfig,
-  type ContainerConfig,
   type ContainerCapabilities,
+  type ContainerConfig,
+  type ContainerNetworkConfig,
 } from "@/lib/api/container";
 import { isProtectedStackNetwork } from "@/lib/appliance";
 import { useSessionStore } from "@/store/session-store";
@@ -28,43 +28,54 @@ import { DeleteNetworkModal } from "./DeleteNetworkModal";
 
 interface Props {
   config: ContainerConfig;
-  capabilities: ContainerCapabilities | null;
+  capabilities: ContainerCapabilities;
   hasWritePermission: boolean;
+  /** A post-save reload is running; the config shown may be stale. */
+  refreshing: boolean;
   onReload: () => Promise<void>;
 }
 
-export function NetworksTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+export function NetworksTab({ config, capabilities, hasWritePermission, refreshing, onReload }: Props) {
   const t = useTranslations("containerResources");
+  const tm = useTranslations("containers");
   const tc = useTranslations("common");
   const appliance = useSessionStore((s) => s.appliance);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalKey, setModalKey] = useState(0);
   const [editingNetwork, setEditingNetwork] = useState<ContainerNetworkConfig | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingNetwork, setDeletingNetwork] = useState<ContainerNetworkConfig | null>(null);
 
   const networks = config.networks;
 
-  const handleSubmit = async (data: ContainerNetworkConfig) => {
-    if (editingNetwork) {
-      await containerService.updateNetwork(editingNetwork, data);
-    } else {
-      await containerService.createNetwork(data);
-    }
-    await onReload();
+  const openModal = (network: ContainerNetworkConfig | null) => {
+    setEditingNetwork(network);
+    setModalKey((k) => k + 1);
+    setModalOpen(true);
+  };
+
+  const openDelete = (network: ContainerNetworkConfig) => {
+    setDeletingNetwork(network);
+    setDeleteOpen(true);
+  };
+
+  const handleSubmit = async (draft: ContainerNetworkConfig) => {
+    await containerService.saveNetwork(editingNetwork, draft, capabilities.features);
+    void onReload();
   };
 
   const handleDelete = async () => {
     if (!deletingNetwork) return;
-    if (isProtectedStackNetwork(appliance, deletingNetwork.name)) return;
+    if (isProtectedStackNetwork(appliance, deletingNetwork.name)) throw new Error(tm("tab.stackProtected"));
     await containerService.deleteNetwork(deletingNetwork.name);
-    setDeletingNetwork(null);
-    await onReload();
+    void onReload();
   };
 
   return (
     <>
       {networks.length > 0 && hasWritePermission && (
         <div className="flex justify-end mb-4">
-          <Button size="sm" onClick={() => { setEditingNetwork(null); setModalOpen(true); }}>
+          <Button size="sm" disabled={refreshing} onClick={() => openModal(null)}>
             <Plus className="h-4 w-4 mr-2" />{t("networks.addNetwork")}
           </Button>
         </div>
@@ -76,7 +87,7 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
             <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
             <p className="text-sm text-muted-foreground mb-4">{t("networks.noNetworks")}</p>
             {hasWritePermission && (
-              <Button size="sm" onClick={() => { setEditingNetwork(null); setModalOpen(true); }}>
+              <Button size="sm" disabled={refreshing} onClick={() => openModal(null)}>
                 <Plus className="h-4 w-4 mr-2" />{t("networks.addNetwork")}
               </Button>
             )}
@@ -89,54 +100,54 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
               <TableHeader>
                 <TableRow>
                   <TableHead>{tc("name")}</TableHead>
-                  <TableHead>{t("networks.type")}</TableHead>
+                  {capabilities.features.network_type && <TableHead>{t("networks.type")}</TableHead>}
                   <TableHead>{t("networks.prefixes")}</TableHead>
-                  <TableHead>{t("networks.gateways")}</TableHead>
-                  <TableHead>MTU</TableHead>
+                  {capabilities.features.network_gateway && <TableHead>{t("networks.gateways")}</TableHead>}
+                  {capabilities.features.network_mtu && <TableHead>MTU</TableHead>}
                   <TableHead>{tc("description")}</TableHead>
                   {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {networks.map(net => (
+                {networks.map((net) => (
                   <TableRow key={net.name}>
                     <TableCell>
                       <Badge variant="outline" className="font-mono">{net.name}</Badge>
                     </TableCell>
-                    <TableCell>
-                      {net.network_type
-                        ? <Badge variant="secondary" className="font-mono text-xs">{net.network_type}</Badge>
-                        : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
+                    {capabilities.features.network_type && (
+                      <TableCell>
+                        {net.network_type
+                          ? <Badge variant="secondary" className="font-mono text-xs">{net.network_type}</Badge>
+                          : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {net.prefixes.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {net.prefixes.slice(0, 2).map(p => (
+                          {net.prefixes.map((p) => (
                             <Badge key={p} variant="secondary" className="font-mono text-xs">{p}</Badge>
                           ))}
-                          {net.prefixes.length > 2 && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">+{net.prefixes.length - 2}</Badge>
-                          )}
                         </div>
                       ) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
-                    <TableCell>
-                      {net.gateways.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {net.gateways.slice(0, 2).map(g => (
-                            <span key={g} className="font-mono text-xs">{g}</span>
-                          ))}
-                          {net.gateways.length > 2 && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">+{net.gateways.length - 2}</Badge>
-                          )}
-                        </div>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell>
-                      {net.mtu
-                        ? <span className="font-mono text-sm">{net.mtu}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
+                    {capabilities.features.network_gateway && (
+                      <TableCell>
+                        {net.gateways.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {net.gateways.map((g) => (
+                              <span key={g} className="font-mono text-xs">{g}</span>
+                            ))}
+                          </div>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                    )}
+                    {capabilities.features.network_mtu && (
+                      <TableCell>
+                        {net.mtu
+                          ? <span className="font-mono text-sm">{net.mtu}</span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {net.description
                         ? <span className="text-sm">{net.description}</span>
@@ -147,10 +158,10 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
                         <div className="flex items-center justify-end gap-1">
                           {!isProtectedStackNetwork(appliance, net.name) && (
                             <>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingNetwork(net); setModalOpen(true); }}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")} aria-label={tc("edit")} disabled={refreshing} onClick={() => openModal(net)}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingNetwork(net)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title={tc("delete")} aria-label={tc("delete")} disabled={refreshing} onClick={() => openDelete(net)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </>
@@ -167,16 +178,19 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
       )}
 
       <NetworkModal
+        key={modalKey}
         open={modalOpen}
-        onOpenChange={open => { setModalOpen(open); if (!open) setEditingNetwork(null); }}
+        onOpenChange={setModalOpen}
         network={editingNetwork}
         capabilities={capabilities}
+        existingNames={networks.map((n) => n.name)}
+        containers={config.containers}
         onSubmit={handleSubmit}
       />
 
       <DeleteNetworkModal
-        open={!!deletingNetwork}
-        onOpenChange={open => { if (!open) setDeletingNetwork(null); }}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
         network={deletingNetwork}
         onConfirm={handleDelete}
       />

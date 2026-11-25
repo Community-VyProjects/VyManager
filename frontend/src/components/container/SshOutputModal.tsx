@@ -35,8 +35,13 @@ export function SshOutputModal({
 }: Props) {
   const t = useTranslations("containers");
   const tc = useTranslations("common");
+  // X, Escape and the overlay do nothing while the command runs.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -67,7 +72,7 @@ export function SshOutputModal({
           {(output || (!loading && error)) && (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground font-medium">
-                {loading ? t("sshOutput.progress") : t("sshOutput.output")}
+                {loading ? t("sshOutput.progress") : tc("shown.output")}
               </p>
               <ScrollArea className="h-[50vh] rounded-md border bg-muted/50">
                 <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-all">
@@ -79,7 +84,7 @@ export function SshOutputModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {loading ? t("sshOutput.pleaseWait") : tc("close")}
           </Button>
         </DialogFooter>
