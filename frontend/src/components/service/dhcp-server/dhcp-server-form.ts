@@ -181,15 +181,17 @@ function isValidDomain(domain: string): boolean {
   return DOMAIN.test(domain) && domain.length <= 253;
 }
 
-function ipToNumber(ip: string): number {
+/** IPv4 address as an unsigned 32-bit number. */
+export function ipToNumber(ip: string): number {
   return ip.split(".").reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
 }
 
-function isIPInSubnet(ip: string, subnet: string): boolean {
+/** True when a valid IPv4 address falls inside a valid CIDR. */
+export function isIPInSubnet(ip: string, subnet: string): boolean {
   if (!isValidIPv4(ip) || !isValidCIDR(subnet)) return false;
   const [subnetIP, prefixStr] = subnet.split("/");
   const prefix = parseInt(prefixStr, 10);
-  const mask = (0xffffffff << (32 - prefix)) >>> 0;
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
   return (ipToNumber(ip) & mask) === (ipToNumber(subnetIP) & mask);
 }
 

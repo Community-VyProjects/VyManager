@@ -48,7 +48,7 @@ import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { DHCPServerModal } from "./DHCPServerModal";
 import { DeleteDHCPModal } from "./DeleteDHCPModal";
 import { failedSaveMessage } from "./dhcp-save";
-import { isIpInSubnet } from "./dhcp-form";
+import { ipToNumber, isIPInSubnet } from "./dhcp-server-form";
 import { DeleteStaticMappingModal } from "./DeleteStaticMappingModal";
 import { AddLeaseToStaticMappingModal } from "./AddLeaseToStaticMappingModal";
 import { RangeModal } from "./RangeModal";
@@ -317,7 +317,7 @@ export function DHCPServerContent() {
 
   // Get lease count for a subnet by checking if lease IP falls within subnet CIDR
   const getSubnetLeaseCount = (subnet: string): number => {
-    return leases.filter((l) => l.state === "active" && isIpInSubnet(l.ip_address, subnet)).length;
+    return leases.filter((l) => l.state === "active" && isIPInSubnet(l.ip_address, subnet)).length;
   };
 
   // Get total active leases for a network
@@ -967,11 +967,7 @@ export function DHCPServerContent() {
                                 // Calculate pool size
                                 let poolSize = "—";
                                 if (range.start && range.stop) {
-                                  const startParts = range.start.split(".").map(Number);
-                                  const stopParts = range.stop.split(".").map(Number);
-                                  const startNum = (startParts[0] << 24) + (startParts[1] << 16) + (startParts[2] << 8) + startParts[3];
-                                  const stopNum = (stopParts[0] << 24) + (stopParts[1] << 16) + (stopParts[2] << 8) + stopParts[3];
-                                  poolSize = String((stopNum - startNum + 1) >>> 0);
+                                  poolSize = String(ipToNumber(range.stop) - ipToNumber(range.start) + 1);
                                 }
 
                                 return (

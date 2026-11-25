@@ -85,7 +85,13 @@ describe("DHCP server dialogs", () => {
     const source = read("AddLeaseToStaticMappingModal.tsx");
     assert.match(source, /validateMappingCreate\(/);
     assert.match(source, /submitMappingCreate\(/);
-    assert.match(source, /isIpInSubnet\(/);
+    assert.match(source, /isIPInSubnet\(/);
+  });
+
+  it("the page uses the shared IPv4 helpers", () => {
+    const source = read("DHCPServerContent.tsx");
+    assert.match(source, /import \{ ipToNumber, isIPInSubnet \} from "\.\/dhcp-server-form";/);
+    assert.doesNotMatch(source, /function isIpInSubnet|<< 24/);
   });
 
   it("existing-network pick uses the shared select", () => {

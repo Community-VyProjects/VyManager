@@ -334,22 +334,3 @@ export async function submitMappingUpdate(
     extra.length === 0 ? config! : { ...(config ?? {}), extra },
   );
 }
-
-/** True when an IPv4 address falls inside the CIDR. */
-export function isIpInSubnet(ip: string, cidr: string): boolean {
-  const [subnetIp, maskBits] = cidr.split("/");
-  const mask = parseInt(maskBits);
-
-  const ipParts = ip.split(".").map(Number);
-  const subnetParts = subnetIp.split(".").map(Number);
-
-  // Convert to 32-bit integers
-  const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
-  const subnetInt = (subnetParts[0] << 24) | (subnetParts[1] << 16) | (subnetParts[2] << 8) | subnetParts[3];
-
-  // Create mask
-  const maskInt = mask === 0 ? 0 : (~0 << (32 - mask)) >>> 0;
-
-  // Check if IP is in subnet
-  return ((ipInt >>> 0) & maskInt) === ((subnetInt >>> 0) & maskInt);
-}

@@ -26,11 +26,11 @@ import type { DHCPLease, DHCPSharedNetwork } from "@/lib/api/dhcp-server";
 import { failedSaveMessage } from "./dhcp-save";
 import {
   emptyMappingDraft,
-  isIpInSubnet,
   submitMappingCreate,
   validateMappingCreate,
   type MappingDraft,
 } from "./dhcp-form";
+import { isIPInSubnet } from "./dhcp-server-form";
 import type { ApiError } from "@/lib/types/api";
 
 interface AddLeaseToStaticMappingModalProps {
@@ -74,7 +74,7 @@ export function AddLeaseToStaticMappingModal({
         setSelectedSubnet(network.subnets[0].subnet);
       } else if (network.subnets.length > 1) {
         // Try to find a matching subnet based on IP address
-        const matchingSubnet = network.subnets.find((subnet) => isIpInSubnet(lease.ip_address, subnet.subnet));
+        const matchingSubnet = network.subnets.find((subnet) => isIPInSubnet(lease.ip_address, subnet.subnet));
         setSelectedSubnet(matchingSubnet?.subnet ?? network.subnets[0].subnet);
       }
     }

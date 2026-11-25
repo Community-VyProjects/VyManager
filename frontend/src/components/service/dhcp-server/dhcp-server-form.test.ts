@@ -10,6 +10,8 @@ import type { VyOSResponse } from "@/lib/types/api";
 import {
   buildServerCreate,
   emptyServerDraft,
+  ipToNumber,
+  isIPInSubnet,
   serverDraftFrom,
   submitServerCreate,
   submitServerUpdate,
@@ -290,5 +292,21 @@ describe("dhcp server form", () => {
     assert.deepEqual(service.calls[0].operations, [
       { op: "set_subnet_default_router", value: "192.168.1.2" },
     ]);
+  });
+});
+
+describe("isIPInSubnet", () => {
+  it("matches any prefix length, not only /8, /16 and /24", () => {
+    assert.equal(isIPInSubnet("10.0.1.200", "10.0.0.0/23"), true);
+    assert.equal(isIPInSubnet("10.0.2.1", "10.0.0.0/23"), false);
+    assert.equal(isIPInSubnet("192.168.1.14", "192.168.1.0/28"), true);
+    assert.equal(isIPInSubnet("192.168.1.16", "192.168.1.0/28"), false);
+    assert.equal(isIPInSubnet("172.16.5.5", "0.0.0.0/0"), true);
+    assert.equal(isIPInSubnet("not-an-ip", "10.0.0.0/8"), false);
+  });
+
+  it("converts an address to an unsigned number", () => {
+    assert.equal(ipToNumber("192.168.1.10") - ipToNumber("192.168.1.1"), 9);
+    assert.equal(ipToNumber("255.255.255.255"), 0xffffffff);
   });
 });
