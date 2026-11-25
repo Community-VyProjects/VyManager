@@ -1,8 +1,10 @@
 """Golden (method, args, op, expected_path) cases for L2TPv3InterfaceBuilderMixin.
 
-Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+Paths checked with validateTmplPath on 1.4 (100.64.64.4) and 1.5 (100.64.64.5).
 Generated for issue #721; edit the tables directly if the mapper changes.
 """
+
+import inspect
 
 import pytest
 
@@ -19,7 +21,7 @@ COMMON_CASES = [
     ('delete_destination_port', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'destination-port']),
     ('delete_encapsulation', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'encapsulation']),
     ('delete_interface', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0']),
-    ('delete_interface_address', ('l2tpeth0', '192.0.2.1'), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'address', '192.0.2.1']),
+    ('delete_interface_address', ('l2tpeth0', '192.0.2.1/24'), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'address', '192.0.2.1/24']),
     ('delete_interface_description', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'description']),
     ('delete_interface_disable', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'disable']),
     ('delete_interface_mtu', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'mtu']),
@@ -37,7 +39,7 @@ COMMON_CASES = [
     ('delete_ip_source_validation', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'source-validation']),
     ('delete_ipv6_accept_dad', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'accept-dad']),
     ('delete_ipv6_address_autoconf', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'autoconf']),
-    ('delete_ipv6_address_eui64', ('l2tpeth0', '2001:db8::/32'), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'eui64', '2001:db8::/32']),
+    ('delete_ipv6_address_eui64', ('l2tpeth0', '2001:db8::/64'), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'eui64', '2001:db8::/64']),
     ('delete_ipv6_address_no_default_link_local', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'no-default-link-local']),
     ('delete_ipv6_adjust_mss', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'adjust-mss']),
     ('delete_ipv6_base_reachable_time', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'base-reachable-time']),
@@ -54,13 +56,13 @@ COMMON_CASES = [
     ('delete_source_port', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'source-port']),
     ('delete_tunnel_id', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'tunnel-id']),
     ('set_destination_port', ('l2tpeth0', '8080'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'destination-port', '8080']),
-    ('set_encapsulation', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'encapsulation', '5']),
-    ('set_interface_address', ('l2tpeth0', '192.0.2.1'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'address', '192.0.2.1']),
+    ('set_encapsulation', ('l2tpeth0', 'udp'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'encapsulation', 'udp']),
+    ('set_interface_address', ('l2tpeth0', '192.0.2.1/24'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'address', '192.0.2.1/24']),
     ('set_interface_description', ('l2tpeth0', 'lab'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'description', 'lab']),
     ('set_interface_disable', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'disable']),
-    ('set_interface_mtu', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'mtu', '5']),
+    ('set_interface_mtu', ('l2tpeth0', '1488'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'mtu', '1488']),
     ('set_interface_vrf', ('l2tpeth0', 'red'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'vrf', 'red']),
-    ('set_ip_adjust_mss', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'adjust-mss', '5']),
+    ('set_ip_adjust_mss', ('l2tpeth0', '1400'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'adjust-mss', '1400']),
     ('set_ip_arp_cache_timeout', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'arp-cache-timeout', '5']),
     ('set_ip_disable_arp_filter', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'disable-arp-filter']),
     ('set_ip_disable_forwarding', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'disable-forwarding']),
@@ -70,18 +72,18 @@ COMMON_CASES = [
     ('set_ip_enable_directed_broadcast', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'enable-directed-broadcast']),
     ('set_ip_enable_proxy_arp', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'enable-proxy-arp']),
     ('set_ip_proxy_arp_pvlan', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'proxy-arp-pvlan']),
-    ('set_ip_source_validation', ('l2tpeth0', 'nat'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'source-validation', 'nat']),
-    ('set_ipv6_accept_dad', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'accept-dad', '5']),
+    ('set_ip_source_validation', ('l2tpeth0', 'strict'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ip', 'source-validation', 'strict']),
+    ('set_ipv6_accept_dad', ('l2tpeth0', '1'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'accept-dad', '1']),
     ('set_ipv6_address_autoconf', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'autoconf']),
-    ('set_ipv6_address_eui64', ('l2tpeth0', '2001:db8::/32'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'eui64', '2001:db8::/32']),
+    ('set_ipv6_address_eui64', ('l2tpeth0', '2001:db8::/64'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'eui64', '2001:db8::/64']),
     ('set_ipv6_address_no_default_link_local', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'no-default-link-local']),
-    ('set_ipv6_adjust_mss', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'adjust-mss', '5']),
+    ('set_ipv6_adjust_mss', ('l2tpeth0', '1400'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'adjust-mss', '1400']),
     ('set_ipv6_base_reachable_time', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'base-reachable-time', '5']),
     ('set_ipv6_disable_forwarding', ('l2tpeth0',), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'disable-forwarding']),
     ('set_ipv6_dup_addr_detect_transmits', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'dup-addr-detect-transmits', '5']),
-    ('set_ipv6_source_validation', ('l2tpeth0', 'nat'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'source-validation', 'nat']),
-    ('set_mirror_egress', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'mirror', 'egress', '5']),
-    ('set_mirror_ingress', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'mirror', 'ingress', '5']),
+    ('set_ipv6_source_validation', ('l2tpeth0', 'strict'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'source-validation', 'strict']),
+    ('set_mirror_egress', ('l2tpeth0', 'eth1'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'mirror', 'egress', 'eth1']),
+    ('set_mirror_ingress', ('l2tpeth0', 'eth1'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'mirror', 'ingress', 'eth1']),
     ('set_peer_session_id', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'peer-session-id', '5']),
     ('set_peer_tunnel_id', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'peer-tunnel-id', '5']),
     ('set_remote', ('l2tpeth0', '192.0.2.1'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'remote', '192.0.2.1']),
@@ -99,10 +101,21 @@ def test_l2tpv3_common_paths(method, args, op, expected_path, version):
 
 V15_ONLY_CASES = [
     ('delete_ipv6_address_interface_identifier', ('l2tpeth0',), 'delete', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'interface-identifier']),
-    ('set_ipv6_address_interface_identifier', ('l2tpeth0', '5'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'interface-identifier', '5']),
+    ('set_ipv6_address_interface_identifier', ('l2tpeth0', '::1'), 'set', ['interfaces', 'l2tpv3', 'l2tpeth0', 'ipv6', 'address', 'interface-identifier', '::1']),
 ]
 
 
 @pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
 def test_l2tpv3_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
+
+
+def test_every_builder_op_has_a_golden_row():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(L2TPv3InterfaceBuilderMixin, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    rows = {row[0] for row in COMMON_CASES + V15_ONLY_CASES}
+    assert ops - rows == set()
+    assert rows - ops == set()

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from vyos_builders.interfaces.geneve import GeneveInterfaceBuilderMixin
+from vyos_builders.interfaces.l2tpv3 import L2TPv3InterfaceBuilderMixin
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.interfaces.bonding import BondingInterfaceMapper
 from vyos_mappers.interfaces.bonding_versions import get_bonding_mapper
@@ -22,6 +23,9 @@ from vyos_mappers.interfaces.geneve import GeneveInterfaceMapper
 from vyos_mappers.interfaces.geneve_versions import get_geneve_mapper
 from vyos_mappers.interfaces.geneve_versions.v1_5 import GeneveMapper_v1_5
 from vyos_mappers.interfaces.input import InputInterfaceMapper
+from vyos_mappers.interfaces.l2tpv3 import L2TPv3InterfaceMapper
+from vyos_mappers.interfaces.l2tpv3_versions import get_l2tpv3_mapper
+from vyos_mappers.interfaces.l2tpv3_versions.v1_5 import L2TPv3Mapper_v1_5
 from vyos_mappers.interfaces.loopback import LoopbackInterfaceMapper
 from vyos_mappers.interfaces.pppoe import PppoeInterfaceMapper
 from vyos_mappers.interfaces.pppoe_versions import get_pppoe_mapper
@@ -64,6 +68,12 @@ FACTORIES = [
         GeneveInterfaceMapper, GeneveMapper_v1_5,
         "get_ipv6_address_interface_identifier", ("gnv0", "::1"),
         ["interfaces", "geneve", "gnv0", "ipv6", "address", "interface-identifier", "::1"],
+    ),
+    (
+        "l2tpv3", "interface_l2tpv3", get_l2tpv3_mapper,
+        L2TPv3InterfaceMapper, L2TPv3Mapper_v1_5,
+        "get_ipv6_address_interface_identifier", ("l2tpeth0", "::1"),
+        ["interfaces", "l2tpv3", "l2tpeth0", "ipv6", "address", "interface-identifier", "::1"],
     ),
     (
         "pppoe", "interface_pppoe", get_pppoe_mapper,
@@ -164,4 +174,11 @@ def test_rolling_geneve_capabilities_advertise_interface_identifier():
     caps = GeneveInterfaceBuilderMixin(version=ROLLING).get_capabilities()
     assert caps["features"]["ipv6_address_interface_identifier"]["supported"] is True
     caps = GeneveInterfaceBuilderMixin(version="1.4.3").get_capabilities()
+    assert caps["features"]["ipv6_address_interface_identifier"]["supported"] is False
+
+
+def test_rolling_l2tpv3_capabilities_advertise_interface_identifier():
+    caps = L2TPv3InterfaceBuilderMixin(version=ROLLING).get_capabilities()
+    assert caps["features"]["ipv6_address_interface_identifier"]["supported"] is True
+    caps = L2TPv3InterfaceBuilderMixin(version="1.4.3").get_capabilities()
     assert caps["features"]["ipv6_address_interface_identifier"]["supported"] is False

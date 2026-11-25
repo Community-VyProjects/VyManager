@@ -5,7 +5,7 @@ Handles L2TPv3 (Layer 2 Tunnel Protocol Version 3) interface commands.
 Provides both command path generation (for writes) and config parsing (for reads).
 """
 
-from typing import List, Dict, Any
+from typing import FrozenSet, List, Dict, Any
 from ..base import BaseFeatureMapper
 
 
@@ -15,6 +15,22 @@ class L2TPv3InterfaceMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
         self.interface_type = "l2tpv3"
+
+    def versioned_interface_nodes(self) -> FrozenSet[str]:
+        """1.5-only l2tpv3 leaves this device has.
+
+        IPv6 address interface-identifier lives on the 1.5 subclass as a
+        path method. Capabilities and builders read this set instead of the
+        version string.
+        """
+        nodes = []
+        if callable(getattr(self, "get_ipv6_address_interface_identifier", None)):
+            nodes.append("ipv6_address_interface_identifier")
+        return frozenset(nodes)
+
+    def _require_interface_node(self, node: str) -> None:
+        if node not in self.versioned_interface_nodes():
+            raise ValueError(f"l2tpv3 {node} is not supported on this device")
 
     # ========================================================================
     # Internal helpers
@@ -170,12 +186,6 @@ class L2TPv3InterfaceMapper(BaseFeatureMapper):
 
     def get_ipv6_address_eui64_path(self, interface: str) -> List[str]:
         return self._base(interface) + ["ipv6", "address", "eui64"]
-
-    def get_ipv6_address_interface_identifier(self, interface: str, identifier: str) -> List[str]:
-        return self._base(interface) + ["ipv6", "address", "interface-identifier", identifier]
-
-    def get_ipv6_address_interface_identifier_path(self, interface: str) -> List[str]:
-        return self._base(interface) + ["ipv6", "address", "interface-identifier"]
 
     def get_ipv6_address_no_default_link_local(self, interface: str) -> List[str]:
         return self._base(interface) + ["ipv6", "address", "no-default-link-local"]
