@@ -12,9 +12,6 @@ from ..pppoe import PppoeInterfaceMapper
 class PppoeMapper_v1_5(PppoeInterfaceMapper):
     """VyOS 1.5 PPPoE interface mapper."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     # --- Interface `address` (1.5: multi-value, allowed: dhcpv6) ---
     def get_address(self, interface: str, address: str) -> List[str]:
         return self._base(interface) + ["address", address]

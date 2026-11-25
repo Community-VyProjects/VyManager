@@ -14,9 +14,6 @@ from ..wwan import WwanInterfaceMapper
 class WwanMapper_v1_5(WwanInterfaceMapper):
     """VyOS 1.5 WWAN interface mapper."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
-
     def get_dhcpv6_no_request_dns(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options", "no-request-dns"]
 

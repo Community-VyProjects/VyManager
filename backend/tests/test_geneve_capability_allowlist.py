@@ -14,7 +14,6 @@ from routers.interfaces.interface_batch import BatchOperation, BatchRequest, run
 from vyos_builders.interfaces.geneve import GeneveInterfaceBuilderMixin
 from vyos_mappers.interfaces.geneve import GeneveInterfaceMapper
 from vyos_mappers.interfaces.geneve_versions import get_geneve_mapper
-from vyos_mappers.interfaces.geneve_versions.v1_4 import GeneveMapper_v1_4
 from vyos_mappers.interfaces.geneve_versions.v1_5 import GeneveMapper_v1_5
 
 REPO = Path(__file__).resolve().parents[2]
@@ -45,7 +44,7 @@ def _ops(builder):
 
 def test_v14_mapper_has_no_interface_identifier_path():
     mapper = get_geneve_mapper("1.4")
-    assert isinstance(mapper, GeneveMapper_v1_4)
+    assert type(mapper) is GeneveInterfaceMapper
     assert mapper.versioned_interface_nodes() == frozenset()
     assert not hasattr(mapper, "get_ipv6_address_interface_identifier")
 

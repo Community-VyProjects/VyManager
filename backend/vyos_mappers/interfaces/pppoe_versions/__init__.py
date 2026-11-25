@@ -12,12 +12,17 @@ Version differences:
 """
 
 from ..pppoe import PppoeInterfaceMapper
-from .v1_4 import PppoeMapper_v1_4
 from .v1_5 import PppoeMapper_v1_5
 
 
 def get_pppoe_mapper(version: str) -> PppoeInterfaceMapper:
-    """Get version-specific PPPoE interface mapper."""
-    if "1.5" in version or "latest" in version:
-        return PppoeMapper_v1_5(version)
-    return PppoeMapper_v1_4(version)
+    """Return the PPPoE interface mapper for this device.
+
+    A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+    """
+    if "1.4" in version:
+        return PppoeInterfaceMapper(version)
+    return PppoeMapper_v1_5(version)
+
+
+__all__ = ["PppoeMapper_v1_5", "get_pppoe_mapper"]
