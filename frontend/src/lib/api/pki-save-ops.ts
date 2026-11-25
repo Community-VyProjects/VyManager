@@ -148,7 +148,8 @@ export function caUpdateOps(current: PKICA, form: CAForm): BatchOperation[] {
     ops, "set_ca_private_password_protected", "delete_ca_private_password_protected",
     current.password_protected, form.passwordProtected,
   );
-  multiLeaf(ops, "set_ca_crl", "delete_ca_crl", "delete_ca_crl_all", current.crl ?? [], form.crl);
+  const storedCrl = current.crl ?? [];
+  multiLeaf(ops, "set_ca_crl", "delete_ca_crl", "delete_ca_crl_all", storedCrl, crlValues(storedCrl, form.crl));
   flagLeaf(ops, "set_ca_revoke", "delete_ca_revoke", current.revoke, form.revoke);
   flagLeaf(ops, "set_ca_system_install", "delete_ca_system_install", current.system_install, form.systemInstall);
   return ops;
@@ -236,7 +237,8 @@ export function generateSubjectProblem(
   days: string,
 ): "shared.commonNameRequired" | "shared.commonNameTooLong" | "ca.daysPositive" | "ca.daysTooMany" | null {
   if (!commonName.trim()) return "shared.commonNameRequired";
-  if (commonName.length > MAX_COMMON_NAME) return "shared.commonNameTooLong";
+  // Code points, not UTF-16 units, so an emoji or CJK extension character counts once.
+  if ([...commonName.trim()].length > MAX_COMMON_NAME) return "shared.commonNameTooLong";
   if (!/^\d+$/.test(days.trim()) || parseInt(days, 10) < 1) return "ca.daysPositive";
   if (parseInt(days, 10) > MAX_DAYS) return "ca.daysTooMany";
   return null;
@@ -272,23 +274,47 @@ export function splitList(text: string): string[] {
   return normalizeList(text.split(/[,\n]/));
 }
 
-const PEM_BLOCK = /-----BEGIN [^\n]*?-----[\s\S]*?-----END [^\n]*?-----/g;
+// A whole armored block; the END label matches BEGIN (as the backend checks).
+const PEM_BLOCK = /-----BEGIN ([^\n]*?)-----[\s\S]*?-----END \1-----/g;
 const PEM_ARMOR = /-----(?:BEGIN|END) [^\n]*?-----/g;
+const BASE64 = /^[A-Za-z0-9+/=]+$/;
 
-/** A PEM block as VyOS stores it: armor and whitespace removed. */
+/** A PEM block's body as the backend stores it: armor, `#` lines and whitespace removed. */
 export function pemBody(block: string): string {
-  return block.replace(PEM_ARMOR, "").replace(/\s+/g, "");
+  return block
+    .replace(PEM_ARMOR, "\n")
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith("#"))
+    .join("")
+    .replace(/\s+/g, "");
 }
 
 /**
- * CA CRL text box: each pasted PEM block (BEGIN/END armor, many lines) is one
- * value; the remaining bare lines or comma-separated parts are each a
- * base64 value.
+ * CA CRL text box. Each pasted PEM block is one value, sent whole with its
+ * armor (the backend picks the `X509 CRL` block and normalizes it). The other
+ * lines, or comma-separated parts, are each a bare base64 value. Text around a
+ * pasted block that is not base64 (openssl `subject=` headers, `#` comments)
+ * is dropped. A BEGIN with no matching END stays as text, and the backend
+ * rejects it.
  */
 export function splitCrlList(text: string): string[] {
-  const blocks = (text.match(PEM_BLOCK) ?? []).map(pemBody);
-  const rest = text.replace(PEM_BLOCK, "\n");
-  return normalizeList([...blocks, ...rest.split(/[,\n]/)]);
+  const blocks = (text.match(PEM_BLOCK) ?? []).map((block) => block.trim());
+  const rest = text
+    .replace(PEM_BLOCK, "\n")
+    .split(/[,\n]/)
+    .map((part) => part.trim())
+    .filter((part) => !part.startsWith("#"))
+    .filter((part) => blocks.length === 0 || BASE64.test(part));
+  return normalizeList([...blocks, ...rest]);
+}
+
+/** A pasted CRL block whose body is already stored counts as that stored value. */
+function crlValues(before: string[], after: string[]): string[] {
+  return after.map((value) => {
+    if (!value.includes("-----BEGIN ")) return value;
+    const body = pemBody(value);
+    return before.includes(body) ? body : value;
+  });
 }
 
 // ============================================================================

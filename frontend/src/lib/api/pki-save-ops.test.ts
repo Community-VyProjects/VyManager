@@ -422,25 +422,55 @@ describe("CA CRL text box", () => {
     "SMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx",
     "-----END X509 CRL-----",
   ].join("\n");
+  const body = "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx";
 
-  it("a pasted PEM block is one value without armor or line breaks", () => {
-    assert.deepEqual(splitCrlList(pem), ["MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx"]);
-    assert.equal(pemBody(pem), "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx");
+  it("a pasted PEM block is one value, sent whole with its armor", () => {
+    assert.deepEqual(splitCrlList(pem), [pem]);
+    assert.equal(pemBody(pem), body);
   });
 
-  it("blocks first, then bare lines and commas are separate values", () => {
-    const text = `CRLA\n${pem}\nCRLB, CRLC\n\n${pem.replace("SMRA", "XXXX")}\nCRLA`;
-    assert.deepEqual(splitCrlList(text), [
-      "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx",
-      "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADAXXXXwDgYDVQQDDAdsYWItY2EwHhcNMjYx",
-      "CRLA",
-      "CRLB",
-      "CRLC",
-    ]);
+  it("the openssl probe: subject= header dropped, the block with its # note sent whole", () => {
+    const block = [
+      "-----BEGIN X509 CRL-----",
+      "MIIBLDCB1gIBATANBgkqhkiG9w0BAQsFADA",
+      "# note",
+      "SMRAwDgYDVQQDDAdsYWItY2EwHhcNMjYx",
+      "-----END X509 CRL-----",
+    ].join("\n");
+    assert.deepEqual(splitCrlList(`subject=CN = ca\n${block}\n`), [block]);
+    assert.equal(pemBody(block), body);
+  });
+
+  it("blocks first, then plain base64 lines and commas are separate values", () => {
+    const other = pem.replace("SMRA", "XXXX");
+    const text = `CRLA\n${pem}\nCRLB, CRLC\n\n${other}\nCRLA`;
+    assert.deepEqual(splitCrlList(text), [pem, other, "CRLA", "CRLB", "CRLC"]);
+  });
+
+  it("without a block every line is kept, for the backend to check", () => {
+    assert.deepEqual(splitCrlList("CRLA\nnot base64 here, CRLB\n# comment"), ["CRLA", "not base64 here", "CRLB"]);
+  });
+
+  it("a BEGIN with no matching END is left as lines the backend rejects", () => {
+    const broken = "-----BEGIN X509 CRL-----\nMIIB\n-----END CERTIFICATE-----";
+    assert.deepEqual(splitCrlList(broken), broken.split("\n"));
   });
 
   it("the stored one-per-line seed round-trips to no ops", () => {
     assert.deepEqual(caUpdateOps(CA, caForm({ crl: splitCrlList(CA.crl.join("\n")) })), []);
+  });
+
+  it("a pasted block whose body is stored sends nothing; a new block is sent armored", () => {
+    const current = { ...CA, crl: [body] };
+    assert.deepEqual(caUpdateOps(current, caForm({ crl: splitCrlList(pem) })), []);
+    const other = pem.replace("SMRA", "XXXX");
+    assert.deepEqual(caUpdateOps(current, caForm({ crl: splitCrlList(`${pem}\n${other}`) })), [
+      { op: "set_ca_crl", value: other },
+    ]);
+    assert.deepEqual(caUpdateOps(current, caForm({ crl: splitCrlList(other) })), [
+      { op: "delete_ca_crl", value: body },
+      { op: "set_ca_crl", value: other },
+    ]);
   });
 });
 
@@ -488,5 +518,9 @@ describe("generate subject check", () => {
     assert.equal(generateSubjectProblem("cn", "1"), null);
     for (const bad of ["0", "-5", "", "abc", "1.5"]) assert.equal(generateSubjectProblem("cn", bad), "ca.daysPositive", bad);
     assert.equal(generateSubjectProblem("cn", "36501"), "ca.daysTooMany");
+    // Trimmed, counted in code points: 64 emoji are 128 UTF-16 units but fit.
+    assert.equal(generateSubjectProblem(`  ${"x".repeat(64)}  `, "365"), null);
+    assert.equal(generateSubjectProblem("😀".repeat(64), "365"), null);
+    assert.equal(generateSubjectProblem("😀".repeat(65), "365"), "shared.commonNameTooLong");
   });
 });

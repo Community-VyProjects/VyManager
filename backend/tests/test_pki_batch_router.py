@@ -674,54 +674,93 @@ def _must_not_run(*_args, **_kwargs):
 
 
 PEM_BODY = "MIIBkTCCATegAwIBAgIUQ"
-PEM_WRAPPED = "-----BEGIN CERTIFICATE-----\nMIIBkTCC\nATegAwIBAgIUQ\n-----END CERTIFICATE-----"
 
 
-@pytest.mark.parametrize(
-    "value",
-    [
-        PEM_WRAPPED,
-        f"\n  {PEM_WRAPPED}\n\n",
+def _armored(label, body_lines=("MIIBkTCC", "ATegAwIBAgIUQ"), eol="\n"):
+    return eol.join([f"-----BEGIN {label}-----", *body_lines, f"-----END {label}-----"])
+
+
+# op -> (an accepted label, leaf path for item X); labels are the vyos/pki.py wrappers.
+PEM_OPS = {
+    "set_ca_certificate": ("CERTIFICATE", ["pki", "ca", "X", "certificate"]),
+    "set_certificate_cert": ("CERTIFICATE", ["pki", "certificate", "X", "certificate"]),
+    "set_ca_crl": ("X509 CRL", ["pki", "ca", "X", "crl"]),
+    "set_ca_private_key": ("PRIVATE KEY", ["pki", "ca", "X", "private", "key"]),
+    "set_certificate_private_key": ("ENCRYPTED PRIVATE KEY", ["pki", "certificate", "X", "private", "key"]),
+    "set_key_pair_private_key": ("PRIVATE KEY", ["pki", "key-pair", "X", "private", "key"]),
+    "set_dh_parameters": ("DH PARAMETERS", ["pki", "dh", "X", "parameters"]),
+    "set_key_pair_public_key": ("PUBLIC KEY", ["pki", "key-pair", "X", "public", "key"]),
+    "set_openssh_private_key": ("OPENSSH PRIVATE KEY", ["pki", "openssh", "X", "private", "key"]),
+}
+
+
+def _wrappings(label):
+    block = _armored(label)
+    other = "CERTIFICATE" if label != "CERTIFICATE" else "PUBLIC KEY"
+    return [
+        block,
+        f"\n  {block}\n\n",
         # openssl pkcs12 output
-        f"Bag Attributes\n    localKeyID: 01 02\nsubject=CN = srv\nissuer=CN = ca\n{PEM_WRAPPED}\n",
-        f"# exported by a tool\n{PEM_WRAPPED}\n# trailing note\nsubject=CN = other\n",
-        # a second block after the first is dropped
-        f"{PEM_WRAPPED}\n-----BEGIN CERTIFICATE-----\nOTHER\n-----END CERTIFICATE-----\n",
-        "-----BEGIN CERTIFICATE-----\r\nMIIBkTCC ATegAw\r\n\tIBAgIUQ\r\n-----END CERTIFICATE-----\r\n",
-    ],
-)
-@pytest.mark.parametrize(
-    "op,leaf",
-    [
-        ("set_ca_certificate", ["pki", "ca", "X", "certificate"]),
-        ("set_ca_private_key", ["pki", "ca", "X", "private", "key"]),
-        ("set_ca_crl", ["pki", "ca", "X", "crl"]),
-        ("set_certificate_cert", ["pki", "certificate", "X", "certificate"]),
-        ("set_certificate_private_key", ["pki", "certificate", "X", "private", "key"]),
-        ("set_dh_parameters", ["pki", "dh", "X", "parameters"]),
-        ("set_key_pair_private_key", ["pki", "key-pair", "X", "private", "key"]),
-        ("set_key_pair_public_key", ["pki", "key-pair", "X", "public", "key"]),
-        ("set_openssh_private_key", ["pki", "openssh", "X", "private", "key"]),
-    ],
-)
-def test_pem_block_is_found_anywhere_and_its_body_kept(client, value, op, leaf):
+        f"Bag Attributes\n    localKeyID: 01 02\nsubject=CN = srv\nissuer=CN = ca\n{block}\n",
+        f"# exported by a tool\n{block}\n# trailing note\nsubject=CN = other\n",
+        # a block with another label first is skipped; a later matching block is not used
+        f"{_armored(other, ('OTHER',))}\n{block}\n{_armored(label, ('LATER',))}\n",
+        # a comment line inside the block, CRLF and tabs
+        _armored(label, ("MIIBkTCC", "# note", "ATeg\tAwIBAgIUQ"), eol="\r\n"),
+    ]
+
+
+@pytest.mark.parametrize("op", list(PEM_OPS))
+@pytest.mark.parametrize("index", range(6))
+def test_the_block_whose_label_fits_the_op_is_kept(client, op, index):
     test_client, executed, _generated = client
-    resp = _batch(test_client, [{"op": op, "value": value}], item_name="X")
+    label, leaf = PEM_OPS[op]
+    resp = _batch(test_client, [{"op": op, "value": _wrappings(label)[index]}], item_name="X")
     assert resp.json()["success"] is True, resp.text
     assert executed == [[("set", leaf + [PEM_BODY])]]
 
 
-def test_every_pem_op_is_covered():
-    from routers.pki.pki import _PEM_VALUE_OPS
+@pytest.mark.parametrize(
+    "op,label,expected",
+    [
+        ("set_ca_certificate", "PUBLIC KEY", "Expected a -----BEGIN CERTIFICATE----- block"),
+        ("set_ca_crl", "CERTIFICATE", "Expected a -----BEGIN X509 CRL----- block"),
+        ("set_dh_parameters", "PRIVATE KEY", "Expected a -----BEGIN DH PARAMETERS----- block"),
+        ("set_key_pair_public_key", "CERTIFICATE", "Expected a -----BEGIN PUBLIC KEY----- block"),
+        ("set_openssh_private_key", "PRIVATE KEY", "Expected a -----BEGIN OPENSSH PRIVATE KEY----- block"),
+        (
+            "set_ca_private_key", "CERTIFICATE",
+            "Expected a -----BEGIN PRIVATE KEY----- or -----BEGIN ENCRYPTED PRIVATE KEY----- block",
+        ),
+    ],
+)
+def test_no_block_with_the_op_label_is_400_naming_it(client, op, label, expected):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": op, "value": _armored(label)}], item_name="X")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == expected
+    assert executed == []
 
-    tested = {
-        "set_ca_certificate", "set_ca_private_key", "set_ca_crl", "set_certificate_cert",
-        "set_certificate_private_key", "set_dh_parameters", "set_key_pair_private_key",
-        "set_key_pair_public_key", "set_openssh_private_key",
-        # Own parse paths, tested below and above.
-        "set_openssh_public_key", "set_openvpn_shared_secret_key",
-    }
-    assert set(_PEM_VALUE_OPS) == tested
+
+@pytest.mark.parametrize(
+    "value,detail",
+    [
+        ("-----BEGIN CERTIFICATE-----\nMIIB\n", "PEM block 'CERTIFICATE' has no matching END line"),
+        ("-----BEGIN CERTIFICATE-----\nMIIB\n-----END X509 CRL-----", "PEM block BEGIN 'CERTIFICATE' ends with a different label 'X509 CRL'"),
+        ("MIIB\n-----END CERTIFICATE-----", "PEM END line 'CERTIFICATE' has no matching BEGIN line"),
+        (
+            "-----BEGIN CERTIFICATE-----\nMIIB\n-----BEGIN CERTIFICATE-----\nMIIC\n-----END CERTIFICATE-----",
+            "PEM block 'CERTIFICATE' has no matching END line",
+        ),
+        (f"{_armored('CERTIFICATE')}\n-----BEGIN CERTIFICATE-----\nMIIC", "PEM block 'CERTIFICATE' has no matching END line"),
+    ],
+)
+def test_broken_armor_is_400(client, value, detail):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_ca_certificate", "value": value}], item_name="X")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == detail
+    assert executed == []
 
 
 def test_bare_base64_is_only_trimmed(client):
@@ -729,6 +768,99 @@ def test_bare_base64_is_only_trimmed(client):
     resp = _batch(test_client, [{"op": "set_ca_certificate", "value": "  MIIBkTCC  "}], item_name="X")
     assert resp.json()["success"] is True
     assert executed == [[("set", ["pki", "ca", "X", "certificate", "MIIBkTCC"])]]
+
+
+@pytest.mark.parametrize("value", ["MIIB kTCC", "MIIB\nkTCC", "MIIB\tkTCC", "MIIB\r\nkTCC"])
+def test_bare_value_with_inner_whitespace_is_400(client, value):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_ca_crl", "value": value}], item_name="X")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "A value without PEM armor must be a single line of base64 with no spaces"
+    assert executed == []
+
+
+@pytest.mark.parametrize("op", ["set_ca_description", "set_x509_default_organization"])
+def test_any_multi_line_value_is_400(client, op):
+    test_client, executed, _generated = client
+    item = None if op.startswith("set_x509") else "X"
+    resp = _batch(test_client, [{"op": op, "value": "line one\nline two"}], item_name=item)
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == f"Operation {op} value must be a single line"
+    assert executed == []
+
+
+def _legacy_key_pem(fmt):
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048) if fmt == "pkcs1" else None
+    if fmt == "pkcs1":
+        return key, key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption(),
+        ).decode()
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    ec_key = ec.generate_private_key(ec.SECP256R1())
+    return ec_key, ec_key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption(),
+    ).decode()
+
+
+@pytest.mark.parametrize("fmt,label", [("pkcs1", "RSA PRIVATE KEY"), ("sec1", "EC PRIVATE KEY")])
+@pytest.mark.parametrize("op", ["set_ca_private_key", "set_certificate_private_key", "set_key_pair_private_key"])
+def test_pkcs1_and_sec1_keys_are_stored_as_pkcs8(client, fmt, label, op):
+    test_client, executed, _generated = client
+    key, pem = _legacy_key_pem(fmt)
+    assert f"-----BEGIN {label}-----" in pem
+    # `openssl ecparam -genkey` prints an EC PARAMETERS block first.
+    value = f"-----BEGIN EC PARAMETERS-----\nBggqhkjOPQMBBw==\n-----END EC PARAMETERS-----\n{pem}" if fmt == "sec1" else pem
+    resp = _batch(test_client, [{"op": op, "value": value}], item_name="X")
+    assert resp.json()["success"] is True, resp.text
+    stored = executed[0][0][1][-1]
+    expected = _b64(key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption(),
+    ))
+    assert stored == expected
+
+
+def test_pkcs1_key_is_not_accepted_for_a_non_key_op(client):
+    _key, pem = _legacy_key_pem("pkcs1")
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_ca_certificate", "value": pem}], item_name="X")
+    assert resp.status_code == 400
+    assert executed == []
+
+
+def test_unreadable_pkcs1_block_is_400(client):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_ca_private_key", "value": _armored("RSA PRIVATE KEY", ("bm90IGEga2V5",))}], item_name="X")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "The RSA PRIVATE KEY block cannot be read"
+    assert executed == []
+
+
+@pytest.mark.parametrize("label", ["RSA PRIVATE KEY", "EC PRIVATE KEY", "PRIVATE KEY"])
+def test_legacy_encrypted_pem_is_400(client, label):
+    test_client, executed, _generated = client
+    value = _armored(label, ("Proc-Type: 4,ENCRYPTED", "DEK-Info: AES-128-CBC,0123456789ABCDEF", "", "MIIB"))
+    resp = _batch(test_client, [{"op": "set_ca_private_key", "value": value}], item_name="X")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == (
+        f"The {label} block uses legacy PEM encryption; convert it to PKCS8 (openssl pkcs8 -topk8) and import that"
+    )
+    assert executed == []
+
+
+def test_every_pem_op_is_covered():
+    from routers.pki.pki import _PEM_OP_LABELS, _PEM_VALUE_OPS
+
+    assert set(_PEM_OP_LABELS) == set(PEM_OPS)
+    # Own parse paths, tested elsewhere in this file.
+    assert set(_PEM_VALUE_OPS) == set(PEM_OPS) | {"set_openssh_public_key", "set_openvpn_shared_secret_key"}
+
+
+def test_openssh_public_key_bare_value_with_spaces_is_400(client):
+    test_client, executed, _generated = client
+    resp = _batch(test_client, [{"op": "set_openssh_public_key", "value": "AAAA BBBB"}], item_name="SSH1")
+    assert resp.status_code == 400
+    assert executed == []
 
 
 def test_openvpn_import_uses_the_generate_parse(client):
@@ -750,32 +882,55 @@ def test_openvpn_import_bare_key_is_trimmed(client):
     assert executed == [[("set", ["pki", "openvpn", "shared-secret", "OVPN2", "key", "abcdef01"])]]
 
 
-@pytest.mark.parametrize("value", [PEM_WRAPPED, "-----BEGIN OpenVPN Static key V1-----\nabcd\n-----END OpenVPN Static key V2-----"])
-def test_openvpn_import_of_other_armor_is_400(client, value):
+@pytest.mark.parametrize(
+    "value,detail",
+    [
+        (_armored("CERTIFICATE"), "Not an OpenVPN static key block"),
+        (
+            "-----BEGIN OpenVPN Static key V1-----\nabcd\n-----END OpenVPN Static key V2-----",
+            "PEM block BEGIN 'OpenVPN Static key V1' ends with a different label 'OpenVPN Static key V2'",
+        ),
+        ("-----BEGIN OpenVPN Static key V1-----\nabcd\n", "PEM block 'OpenVPN Static key V1' has no matching END line"),
+        ("abcd\nef01", "A value without PEM armor must be a single line of base64 with no spaces"),
+    ],
+)
+def test_openvpn_import_of_other_or_broken_armor_is_400(client, value, detail):
     test_client, executed, _generated = client
     resp = _batch(test_client, [{"op": "set_openvpn_shared_secret_key", "value": value}], item_name="OVPN2")
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Not an OpenVPN static key block"
+    assert resp.json()["detail"] == detail
     assert executed == []
 
 
-@pytest.mark.parametrize("san", ["bücher.de", "exämple.com"])
-def test_non_ascii_dns_san_is_400_naming_the_entry(client, san):
+# ---------------------------------------------------------------- SANs
+
+
+@pytest.mark.parametrize(
+    "san",
+    ["bücher.de", "exämple.com", "foo bar", "a/b", "http://x.example", "-bad-.com", "bad-.com", "a..b",
+     "*.", "a.*.example.com", "x" * 64 + ".com", ".example.com", "example.com.", "under_score.com",
+     ".".join(["a" * 63] * 4) + ".com"],
+)
+def test_non_hostname_san_is_400_naming_the_entry(client, san):
     test_client, executed, _generated = client
     resp = test_client.post("/vyos/pki/generate-certificate", json={
         **GENERATE["/vyos/pki/generate-certificate"][1], "name": "NEW",
         "subject_alt_names": ["192.0.2.1", san, "ok.example.com"],
     })
     assert resp.status_code == 400
-    assert resp.json()["detail"] == f"Subject alternative name '{san}' is not an IP address or an ASCII DNS name"
+    assert resp.json()["detail"] == f"Subject alternative name '{san}' is not an IP address or a DNS hostname"
     assert executed == []
 
 
 def test_valid_sans_are_accepted(client):
     test_client, executed, _generated = client
+    longest = ".".join(["a" * 63, "b" * 63, "c" * 63, "d" * 61])
+    assert len(longest) == 253
     resp = test_client.post("/vyos/pki/generate-certificate", json={
         **GENERATE["/vyos/pki/generate-certificate"][1], "name": "NEW",
-        "subject_alt_names": ["192.0.2.1", "2001:db8::1", "*.example.com", "xn--bcher-kva.de", "  "],
+        "subject_alt_names": [
+            "192.0.2.1", "2001:db8::1", "*.example.com", "xn--bcher-kva.de", "localhost", "a-b.c1", longest, "  ",
+        ],
     })
     assert resp.json()["success"] is True, resp.text
     assert len(executed) == 1

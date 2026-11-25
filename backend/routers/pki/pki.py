@@ -43,19 +43,29 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/pki", tags=["pki"])
 
-# Operations whose values contain PEM/key data that must be newline-stripped
-_PEM_VALUE_OPS = frozenset({
-    "set_ca_certificate", "set_ca_private_key", "set_ca_crl",
-    "set_certificate_cert", "set_certificate_private_key",
-    "set_dh_parameters",
-    "set_key_pair_private_key", "set_key_pair_public_key",
-    "set_openssh_private_key", "set_openssh_public_key",
-    "set_openvpn_shared_secret_key",
-})
+# Armor labels each PEM op accepts: the wrappers vyos/pki.py uses on 1.4 and
+# 1.5. Stored private keys are PKCS8 bodies on both versions.
+_PRIVATE_KEY_LABELS = ("PRIVATE KEY", "ENCRYPTED PRIVATE KEY")
+_PEM_OP_LABELS: Dict[str, tuple[str, ...]] = {
+    "set_ca_certificate": ("CERTIFICATE",),
+    "set_certificate_cert": ("CERTIFICATE",),
+    "set_ca_crl": ("X509 CRL",),
+    "set_ca_private_key": _PRIVATE_KEY_LABELS,
+    "set_certificate_private_key": _PRIVATE_KEY_LABELS,
+    "set_key_pair_private_key": _PRIVATE_KEY_LABELS,
+    "set_dh_parameters": ("DH PARAMETERS",),
+    "set_key_pair_public_key": ("PUBLIC KEY",),
+    "set_openssh_private_key": ("OPENSSH PRIVATE KEY",),
+}
+# Unencrypted PKCS1 / SEC1 keys are converted to unencrypted PKCS8.
+_CONVERTIBLE_KEY_LABELS = ("RSA PRIVATE KEY", "EC PRIVATE KEY")
 
-# The first armored block anywhere in a value; the END label matches BEGIN
-# (this also covers the mixed-case "OpenVPN Static key V1").
-_PEM_BLOCK = re.compile(r"-----BEGIN (?P<label>[^\n]*?)-----(?P<body>.*?)-----END (?P=label)-----", re.DOTALL)
+# Ops whose value is key material with its own parse: the labelled PEM ops,
+# the OpenSSH public key line and the OpenVPN static key block.
+_PEM_VALUE_OPS = frozenset({*_PEM_OP_LABELS, "set_openssh_public_key", "set_openvpn_shared_secret_key"})
+
+# One armor line; the label is anything up to the closing dashes.
+_ARMOR_LINE = re.compile(r"-----(?P<kind>BEGIN|END) (?P<label>[^\n]*?)-----")
 
 # Lab tag syntax for every `pki <kind> <name>` node (same on 1.4 and 1.5).
 NAME_PATTERN = re.compile(r"[-_a-zA-Z0-9][\w\-\.\+]*", re.ASCII)
@@ -78,18 +88,87 @@ def _block_body(body: str) -> str:
     return "".join("".join(lines).split())
 
 
-def _normalize_pem(value: str) -> str:
-    """Single-line value for a PEM leaf (VyOS config values cannot hold newlines).
+def _armor_blocks(value: str) -> List[tuple[str, str]]:
+    """Every ``(label, body)`` block in *value*, in order.
 
-    The first ``-----BEGIN X-----`` … ``-----END X-----`` block is found
-    anywhere in *value*; text before or after it (openssl ``Bag Attributes`` /
-    ``subject=`` headers, ``#`` comment lines) is dropped and the body's
-    whitespace removed. A value with no armor is bare base64 and only trimmed.
+    Text outside the blocks (openssl ``Bag Attributes`` / ``subject=`` headers,
+    ``#`` comments) is ignored. A BEGIN with no END, an END with no BEGIN, a
+    BEGIN inside a block, or an END whose label differs is a ValueError.
     """
-    match = _PEM_BLOCK.search(value)
-    if match is None:
-        return value.strip()
-    return _block_body(match.group("body"))
+    blocks: List[tuple[str, str]] = []
+    open_label: Optional[str] = None
+    body_start = 0
+    for match in _ARMOR_LINE.finditer(value):
+        kind, label = match.group("kind"), match.group("label")
+        if kind == "BEGIN":
+            if open_label is not None:
+                raise ValueError(f"PEM block '{open_label}' has no matching END line")
+            open_label, body_start = label, match.end()
+            continue
+        if open_label is None:
+            raise ValueError(f"PEM END line '{label}' has no matching BEGIN line")
+        if label != open_label:
+            raise ValueError(f"PEM block BEGIN '{open_label}' ends with a different label '{label}'")
+        blocks.append((open_label, value[body_start:match.start()]))
+        open_label = None
+    if open_label is not None:
+        raise ValueError(f"PEM block '{open_label}' has no matching END line")
+    return blocks
+
+
+def _bare_value(value: str) -> str:
+    """A value with no armor: one token of base64 (or hex), trimmed."""
+    bare = value.strip()
+    if any(ch.isspace() for ch in bare):
+        raise ValueError("A value without PEM armor must be a single line of base64 with no spaces")
+    return bare
+
+
+def _pkcs8_body(label: str, body: str) -> str:
+    """An unencrypted PKCS1 / SEC1 key converted to an unencrypted PKCS8 body."""
+    pem = f"-----BEGIN {label}-----\n{body.strip()}\n-----END {label}-----\n".encode()
+    try:
+        key = serialization.load_pem_private_key(pem, password=None)
+    except (ValueError, TypeError, UnsupportedAlgorithm):
+        raise ValueError(f"The {label} block cannot be read")
+    return _pem_body(key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption(),
+    ).decode("utf-8"))
+
+
+def _normalize_pem(op: str, value: str) -> str:
+    """Single-line leaf value for a labelled PEM op, else ValueError (HTTP 400).
+
+    The first block whose label the op accepts is used and the rest of the
+    value is dropped. A legacy encrypted PEM (``Proc-Type: 4,ENCRYPTED``) is
+    rejected; an unencrypted PKCS1 / SEC1 private key becomes PKCS8. A value
+    with no armor must be one token of base64.
+    """
+    labels = _PEM_OP_LABELS[op]
+    blocks = _armor_blocks(value)
+    if not blocks:
+        return _bare_value(value)
+    convertible = _CONVERTIBLE_KEY_LABELS if labels == _PRIVATE_KEY_LABELS else ()
+    for label, body in blocks:
+        if label not in labels and label not in convertible:
+            continue
+        if "Proc-Type:" in body:
+            raise ValueError(
+                f"The {label} block uses legacy PEM encryption; convert it to PKCS8 "
+                "(openssl pkcs8 -topk8) and import that"
+            )
+        stored = _pkcs8_body(label, body) if label in convertible else _block_body(body)
+        if not stored:
+            raise ValueError(f"The {label} block is empty")
+        return stored
+    expected = " or ".join(f"-----BEGIN {label}-----" for label in labels)
+    raise ValueError(f"Expected a {expected} block")
+
+
+def _pem_body(pem: str) -> str:
+    """Body of the one block in PEM text this router generated itself."""
+    ((_label, body),) = _armor_blocks(pem)
+    return _block_body(body)
 
 
 def _openssh_public_key_data(value: str) -> str:
@@ -97,7 +176,7 @@ def _openssh_public_key_data(value: str) -> str:
     parts = value.split()
     if len(parts) >= 2 and parts[0].startswith("ssh-"):
         return parts[1]
-    return value.strip()
+    return _bare_value(value)
 
 
 def _check_name(value: str) -> str:
@@ -139,8 +218,15 @@ def _check_subject(country: Optional[str], common_name: str, days: int) -> None:
         raise HTTPException(status_code=400, detail=f"common_name must be 1 to {MAX_COMMON_NAME} characters")
 
 
+# A DNS SAN: optional leading "*.", labels of 1-63 [A-Za-z0-9-] chars that do
+# not start or end with "-", 253 chars at most.
+_DNS_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+_DNS_NAME = re.compile(rf"(?:\*\.)?{_DNS_LABEL}(?:\.{_DNS_LABEL})*")
+MAX_DNS_NAME = 253
+
+
 def _san_entries(names: List[str]) -> List[x509.GeneralName]:
-    """Each SAN as an IP or an ASCII DNS name, else 400 naming the entry."""
+    """Each SAN as an IP or a DNS hostname, else 400 naming the entry."""
     entries: List[x509.GeneralName] = []
     for raw in names:
         san = raw.strip()
@@ -150,14 +236,13 @@ def _san_entries(names: List[str]) -> List[x509.GeneralName]:
             entries.append(x509.IPAddress(ipaddress.ip_address(san)))
             continue
         except ValueError:
-            pass  # Not an IP address: try it as a DNS name below.
-        try:
-            entries.append(x509.DNSName(san))
-        except ValueError:
+            pass  # Not an IP address: it must be a DNS hostname below.
+        if len(san) > MAX_DNS_NAME or not _DNS_NAME.fullmatch(san):
             raise HTTPException(
                 status_code=400,
-                detail=f"Subject alternative name '{san}' is not an IP address or an ASCII DNS name",
+                detail=f"Subject alternative name '{san}' is not an IP address or a DNS hostname",
             )
+        entries.append(x509.DNSName(san))
     return entries
 
 
@@ -181,7 +266,7 @@ def _private_pem(private_key: Any, encrypt_key: bool, passphrase: Optional[str],
         serialization.BestAvailableEncryption((passphrase or "").encode())
         if encrypt_key else serialization.NoEncryption()
     )
-    return _normalize_pem(private_key.private_bytes(serialization.Encoding.PEM, fmt, encryption).decode("utf-8"))
+    return _pem_body(private_key.private_bytes(serialization.Encoding.PEM, fmt, encryption).decode("utf-8"))
 
 
 def _parse_openvpn_key(output: Any) -> Optional[tuple[str, str]]:
@@ -199,18 +284,32 @@ def _parse_openvpn_key(output: Any) -> Optional[tuple[str, str]]:
     return (key, match.group("version")) if key else None
 
 
+def _import_value(op: str, value: str) -> str:
+    """A /batch value as the leaf stores it; ValueError (HTTP 400) for one VyOS cannot hold."""
+    if op == "set_openvpn_shared_secret_key":
+        value = _openvpn_key_value(value)
+    elif op == "set_openssh_public_key":
+        value = _openssh_public_key_data(value)
+    elif op in _PEM_OP_LABELS:
+        value = _normalize_pem(op, value)
+    if "\n" in value or "\r" in value:
+        raise ValueError(f"Operation {op} value must be a single line")
+    return value
+
+
 def _openvpn_key_value(value: str) -> str:
     """Key leaf value for an imported shared secret: the same block parse as generate.
 
     A value with no armor is the bare key; armor that is not an OpenVPN
     static key block is a ValueError (HTTP 400).
     """
+    blocks = _armor_blocks(value)
+    if not blocks:
+        return _bare_value(value)
     parsed = _parse_openvpn_key(value)
-    if parsed is not None:
-        return parsed[0]
-    if "-----BEGIN " in value:
+    if parsed is None:
         raise ValueError("Not an OpenVPN static key block")
-    return value.strip()
+    return parsed[0]
 
 
 # ========================================================================
@@ -396,12 +495,8 @@ async def pki_batch_configure(http_request: Request, request: PKIBatchRequest):
         try:
             for operation in request.operations:
                 value = operation.value
-                if value is not None and operation.op == "set_openvpn_shared_secret_key":
-                    value = _openvpn_key_value(value)
-                elif value is not None and operation.op in _PEM_VALUE_OPS:
-                    value = _normalize_pem(value)
-                if value is not None and operation.op == "set_openssh_public_key":
-                    value = _openssh_public_key_data(value)
+                if value is not None:
+                    value = _import_value(operation.op, value)
                 _call_batch_op(builder, operation.op, request.item_name, value)
         except ValueError as exc:
             # The builder raises ValueError for a value this VyOS version rejects.
@@ -493,7 +588,7 @@ async def generate_ca(http_request: Request, request: GenerateCARequest):
             .sign(private_key, hashes.SHA256())
         )
 
-        cert_pem = _normalize_pem(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
+        cert_pem = _pem_body(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
         key_pem = _private_pem(private_key, request.encrypt_key, request.passphrase)
 
         builder = PKIBatchBuilder(version=version)
@@ -544,7 +639,7 @@ async def generate_key_pair(http_request: Request, request: GenerateKeyPairReque
             private_key = await run_in_threadpool(ec.generate_private_key, _EC_CURVES[request.key_size]())
 
         priv_pem = _private_pem(private_key, request.encrypt_key, request.passphrase)
-        pub_pem = _normalize_pem(private_key.public_key().public_bytes(
+        pub_pem = _pem_body(private_key.public_key().public_bytes(
             serialization.Encoding.PEM,
             serialization.PublicFormat.SubjectPublicKeyInfo,
         ).decode("utf-8"))
@@ -588,7 +683,7 @@ async def generate_dh(http_request: Request, request: GenerateDHRequest):
         _reject_existing(_mapper(version), full_config, "dh", request.name)
 
         parameters = await run_in_threadpool(dh.generate_parameters, generator=2, key_size=request.key_size)
-        params_pem = _normalize_pem(parameters.parameter_bytes(
+        params_pem = _pem_body(parameters.parameter_bytes(
             serialization.Encoding.PEM,
             serialization.ParameterFormat.PKCS3,
         ).decode("utf-8"))
@@ -722,7 +817,7 @@ async def generate_certificate(http_request: Request, request: GenerateCertifica
             builder = builder.add_extension(x509.SubjectAlternativeName(san_entries), critical=False)
 
         cert = builder.sign(ca_private_key, hashes.SHA256())
-        cert_pem = _normalize_pem(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
+        cert_pem = _pem_body(cert.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
         key_pem = _private_pem(cert_private_key, request.encrypt_key, request.passphrase)
 
         batch_builder = PKIBatchBuilder(version=version)
