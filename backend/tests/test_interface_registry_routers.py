@@ -24,13 +24,14 @@ from vyos_builders.interfaces.vti import VtiInterfaceBuilderMixin
 BACKEND = Path(__file__).resolve().parents[1]
 ROLLING = "2026.09.23-0027-rolling"
 
-# (module, url prefix, CLI type, sample name, service factory, builder, feature group)
+# (module, url prefix, CLI type, sample name, service batch factory or None when
+#  the router builds the mixin itself, builder, feature group)
 ROUTERS = [
     ("input", "/vyos/input", "input", "ifb0", "create_input_batch",
      InputInterfaceBuilderMixin, "INPUT_IFACE"),
     ("loopback", "/vyos/loopback", "loopback", "lo", "create_loopback_batch",
      LoopbackInterfaceBuilderMixin, "LOOPBACK"),
-    ("sstpc", "/vyos/sstpc", "sstpc", "sstpc0", "create_sstpc_batch",
+    ("sstpc", "/vyos/sstpc", "sstpc", "sstpc0", None,
      SstpcInterfaceBuilderMixin, "SSTPC"),
     ("vti", "/vyos/vti", "vti", "vti0", "create_vti_batch",
      VtiInterfaceBuilderMixin, "VTI"),
@@ -69,7 +70,8 @@ def _client(monkeypatch, commit, row, session=None, iface=None):
             state.executed.append(batch.get_operations())
             return SimpleNamespace(status=commit["status"], result=None, error=commit["error"])
 
-    setattr(Service, factory, lambda self: builder_cls(version=commit["version"]))
+    if factory:
+        setattr(Service, factory, lambda self: builder_cls(version=commit["version"]))
 
     monkeypatch.setattr(f"{target}.require_read_permission", read)
     monkeypatch.setattr(f"{target}.require_write_permission", write)
@@ -142,9 +144,10 @@ def test_failed_commit_reports_the_error(monkeypatch, commit, row):
 def test_empty_batch_stays_a_500(monkeypatch, commit, row):
     app, _state = _client(monkeypatch, commit, row)
     _module, prefix, _cli, name, *_rest = row
-    with TestClient(app, raise_server_exceptions=False) as http:
+    with TestClient(app) as http:
         resp = http.post(f"{prefix}/batch", json={"interface": name, "operations": []})
     assert resp.status_code == 500
+    assert resp.json() == {"detail": "Internal server error"}
 
 
 @pytest.mark.parametrize("method, route", [

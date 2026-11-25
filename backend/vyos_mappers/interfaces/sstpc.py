@@ -9,13 +9,14 @@ connectivity through firewalls that block other VPN protocols.
 from typing import List, Dict, Any
 from ..base import BaseFeatureMapper
 
-# The config response never carries the stored password; the screen treats a
-# blank field as "keep", so nothing reads the value back.
+# The config response never carries the stored password. The screen starts the
+# password field blank (blank means keep) and only tests the loaded value for
+# presence, so the mask is never sent back.
 MASKED_SECRET = "***"
 
 
 class SstpcInterfaceMapper(BaseFeatureMapper):
-    """Base SSTPC interface mapper - common paths across all versions."""
+    """SSTPC interface mapper with all SSTP client interface operations."""
 
     def __init__(self, version: str):
         super().__init__(version)

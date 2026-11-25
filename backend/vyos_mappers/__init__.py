@@ -423,6 +423,8 @@ __all__ = [
     "MacsecInterfaceMapper",
     "OpenvpnInterfaceMapper",
     "PppoeInterfaceMapper",
+    "SstpcInterfaceMapper",
+    "VtiInterfaceMapper",
     "ContainerMapper",
     "ConfigSyncMapper",
     "ConntrackSyncMapper",
