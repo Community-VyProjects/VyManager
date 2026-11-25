@@ -1,105 +1,89 @@
 """
 Route Policy Router
 
-API endpoints for managing VyOS policy route and route6 configuration.
-Supports version-aware configuration for VyOS 1.4 and 1.5.
-Handles both IPv4 (route) and IPv6 (route6) policies.
+API endpoints for VyOS policy route and route6 configuration. The mapper
+decides which nodes this VyOS version has; capabilities report them, and the
+config read returns the mapper's parse unchanged.
 """
 
+import logging
+from typing import Any, Dict, List, Literal, Optional, cast
+
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
-from session_vyos_service import get_session_vyos_service
-from vyos_builders.route import RouteBatchBuilder
+
+from batch_dispatch import call_item_batch_op
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
-import logging
-from batch_dispatch import resolve_batch_method
+from session_vyos_service import get_session_vyos_service
+from vyos_builders.route import RouteBatchBuilder
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.route.route import RouteMapper
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/route", tags=["route"])
 
+PolicyType = Literal["route", "route6"]
+
 
 # ============================================================================
-# Pydantic Models - Match Conditions
+# Pydantic Models
 # ============================================================================
+
 
 class GeoIPMatch(BaseModel):
-    """GeoIP country match (source or destination)."""
-    country_code: Optional[List[str]] = None
+    """Source or destination geoip match (1.5 only; empty on 1.4)."""
+    country_code: List[str] = []
+    asn: List[str] = []
     inverse_match: bool = False
 
 
 class MatchConditions(BaseModel):
-    """Match conditions for a policy route rule."""
-    # Address
-    source_address: Optional[str] = None
+    """Rule match leaves. A ``multi:`` leaf is a list."""
+    connection_mark: List[str] = []
     destination_address: Optional[str] = None
-    source_mac_address: Optional[str] = None
-    destination_mac_address: Optional[str] = None
-    source_geoip: Optional[GeoIPMatch] = None
-    destination_geoip: Optional[GeoIPMatch] = None
-    
-    # Groups
-    source_group_address: Optional[str] = None
-    source_group_domain: Optional[str] = None
-    source_group_mac: Optional[str] = None
-    source_group_network: Optional[str] = None
-    source_group_port: Optional[str] = None
+    destination_geoip: GeoIPMatch = GeoIPMatch()
     destination_group_address: Optional[str] = None
     destination_group_domain: Optional[str] = None
     destination_group_mac: Optional[str] = None
     destination_group_network: Optional[str] = None
     destination_group_port: Optional[str] = None
-    
-    # Port
-    source_port: Optional[str] = None
     destination_port: Optional[str] = None
-    
-    # Protocol
-    protocol: Optional[str] = None
-    # TCP flags are valueless child nodes in VyOS (e.g. "syn", "not fin"),
-    # so this is a normalized list like ["syn", "not fin"], matching the firewall.
-    tcp_flags: Optional[List[str]] = None
-    tcp_mss: Optional[str] = None
-    
-    # ICMP (IPv4)
-    icmp_code: Optional[str] = None
-    icmp_type: Optional[str] = None
-    icmp_type_name: Optional[str] = None
-    
-    # ICMPv6 (IPv6)
-    icmpv6_code: Optional[str] = None
-    icmpv6_type: Optional[str] = None
-    icmpv6_type_name: Optional[str] = None
-    
-    # Packet characteristics
-    fragment: Optional[str] = None  # match-frag or match-non-frag
-    packet_type: Optional[str] = None  # broadcast, host, multicast, other
-    packet_length: Optional[str] = None
-    packet_length_exclude: Optional[str] = None
-    dscp: Optional[str] = None
-    dscp_exclude: Optional[str] = None
-    
-    # State & marks
-    state: Optional[str] = None  # established, invalid, new, related
-    ipsec: Optional[str] = None  # match-ipsec or match-none (1.4)
-    ipsec_in: Optional[str] = None  # match-ipsec-in or match-none-in (1.5)
-    ipsec_out: Optional[str] = None  # match-ipsec-out or match-none-out (1.5)
-    mark: Optional[str] = None
-    connection_mark: Optional[str] = None
-    
-    # TTL/Hop limit
-    ttl_eq: Optional[str] = None
-    ttl_gt: Optional[str] = None
-    ttl_lt: Optional[str] = None
+    dscp: List[str] = []
+    dscp_exclude: List[str] = []
+    fragment: List[str] = []
     hop_limit_eq: Optional[str] = None
     hop_limit_gt: Optional[str] = None
     hop_limit_lt: Optional[str] = None
-    
-    # Time-based
+    icmp_code: Optional[str] = None
+    icmp_type: Optional[str] = None
+    icmp_type_name: Optional[str] = None
+    icmpv6_type: Optional[str] = None
+    ipsec: List[str] = []
+    limit_burst: Optional[str] = None
+    limit_rate: Optional[str] = None
+    mark: Optional[str] = None
+    packet_length: List[str] = []
+    packet_length_exclude: List[str] = []
+    packet_type: Optional[str] = None
+    protocol: Optional[str] = None
+    recent_count: Optional[str] = None
+    recent_time: Optional[str] = None
+    source_address: Optional[str] = None
+    source_geoip: GeoIPMatch = GeoIPMatch()
+    source_group_address: Optional[str] = None
+    source_group_domain: Optional[str] = None
+    source_group_mac: Optional[str] = None
+    source_group_network: Optional[str] = None
+    source_group_port: Optional[str] = None
+    source_mac_address: Optional[str] = None
+    source_port: Optional[str] = None
+    state: List[str] = []
+    tcp_flags: List[str] = []
+    tcp_flags_not: List[str] = []
+    tcp_mss: Optional[str] = None
     time_monthdays: Optional[str] = None
     time_startdate: Optional[str] = None
     time_starttime: Optional[str] = None
@@ -107,1182 +91,214 @@ class MatchConditions(BaseModel):
     time_stoptime: Optional[str] = None
     time_utc: bool = False
     time_weekdays: Optional[str] = None
-    
-    # Rate limiting
-    limit_burst: Optional[str] = None
-    limit_rate: Optional[str] = None
-    recent_count: Optional[str] = None
-    recent_time: Optional[str] = None
+    ttl_eq: Optional[str] = None
+    ttl_gt: Optional[str] = None
+    ttl_lt: Optional[str] = None
 
 
 class SetActions(BaseModel):
-    """Set actions for a policy route rule."""
-    action_drop: bool = False
     connection_mark: Optional[str] = None
     dscp: Optional[str] = None
     mark: Optional[str] = None
     table: Optional[str] = None
     tcp_mss: Optional[str] = None
-    vrf: Optional[str] = None  # 1.5+ only
+    vrf: Optional[str] = None
 
-
-# ============================================================================
-# Pydantic Models - Rule
-# ============================================================================
 
 class PolicyRouteRule(BaseModel):
-    """A single rule in a policy route."""
     rule_number: int
     description: Optional[str] = None
     disable: bool = False
-    log: Optional[str] = None  # enable or disable
-    match: MatchConditions
-    set: SetActions
+    log: bool = False
+    action: Optional[str] = None
+    match: MatchConditions = MatchConditions()
+    set: SetActions = SetActions()
 
-
-# ============================================================================
-# Pydantic Models - Policy
-# ============================================================================
 
 class PolicyRoute(BaseModel):
-    """A policy route (IPv4 or IPv6)."""
     name: str
-    policy_type: str  # "route" or "route6"
+    policy_type: PolicyType
     description: Optional[str] = None
     default_log: bool = False
+    interfaces: List[str] = []
     rules: List[PolicyRouteRule] = []
-    interfaces: List[Dict[str, str]] = []
-
-
-# ============================================================================
-# Pydantic Models - Requests/Responses
-# ============================================================================
-
-class RouteBatchOperation(BaseModel):
-    """Single operation in a batch request."""
-    op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Operation value")
-
-
-class RouteBatchRequest(BaseModel):
-    """Model for batch configuration."""
-    policy_type: str = Field(..., description="Policy type (route or route6)")
-    name: str = Field(..., description="Policy name")
-    rule_number: Optional[int] = Field(None, description="Rule number if applicable")
-    operations: List[RouteBatchOperation]
 
 
 class RouteConfigResponse(BaseModel):
-    """Response containing configuration data."""
     ipv4_policies: List[PolicyRoute] = []
     ipv6_policies: List[PolicyRoute] = []
     total_ipv4: int = 0
     total_ipv6: int = 0
 
 
+class RouteBatchOperation(BaseModel):
+    op: str = Field(..., description="Builder operation name")
+    value: Optional[str] = Field(None, description="Value; '|' separates the parts of a two-value op")
+
+
+class RouteBatchRequest(BaseModel):
+    """One commit on one policy. Rule ops need rule_number; policy ops take none."""
+    policy_type: PolicyType
+    name: str = Field(..., min_length=1)
+    rule_number: Optional[int] = Field(None, ge=1, le=999999)
+    operations: List[RouteBatchOperation]
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("name must not be blank")
+        return value
+
+
+class ReorderRequest(BaseModel):
+    """New order of a policy's rules; each listed number takes the next sorted slot."""
+    policy_type: PolicyType
+    policy_name: str = Field(..., min_length=1)
+    rule_numbers: List[int] = Field(..., min_length=1)
+
+    @field_validator("rule_numbers")
+    @classmethod
+    def no_duplicates(cls, value: List[int]) -> List[int]:
+        if len(set(value)) != len(value):
+            raise ValueError("rule_numbers must not repeat")
+        return value
+
+
 class VyOSResponse(BaseModel):
-    """Standard response from VyOS operations."""
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
+def _mapper(version: str) -> RouteMapper:
+    return cast(RouteMapper, CommandMapperRegistry.get_mapper("route", version))
+
+
 # ============================================================================
-# Endpoint 1: Capabilities
+# Endpoints
 # ============================================================================
+
 
 @router.get("/capabilities")
 async def get_route_capabilities(request: Request):
-    """
-    Get feature capabilities based on device VyOS version.
-
-    Returns feature flags indicating which operations are supported.
-    """
-    # Check RBAC permission
+    """Feature flags and value lists for this device's VyOS version."""
     await require_read_permission(request, FeatureGroup.ROUTE_POLICY)
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = RouteBatchBuilder(version=version)
+        builder = RouteBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
-        # Add instance info
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in route capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ============================================================================
-# Endpoint 2: Config (Generalized Data)
-# ============================================================================
-
 @router.get("/config", response_model=RouteConfigResponse)
 async def get_route_config(http_request: Request, refresh: bool = False):
-    """
-    Get all policy route configurations from VyOS.
-
-    Args:
-        refresh: If True, force refresh from VyOS. If False, use cache.
-
-    Returns:
-        Both IPv4 (route) and IPv6 (route6) policies
-    """
-    # Check RBAC permission
+    """Every policy route and route6 policy."""
     await require_read_permission(http_request, FeatureGroup.ROUTE_POLICY)
 
     try:
         service = get_session_vyos_service(http_request)
+        mapper = _mapper(service.get_version())
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        ipv4_policies = []
-        ipv6_policies = []
-
-        # Parse IPv4 policies (route)
-        if "policy" in full_config and "route" in full_config["policy"]:
-            for policy_name, policy_data in full_config["policy"]["route"].items():
-                policy = parse_policy("route", policy_name, policy_data, full_config)
-                ipv4_policies.append(policy)
-
-        # Parse IPv6 policies (route6)
-        if "policy" in full_config and "route6" in full_config["policy"]:
-            for policy_name, policy_data in full_config["policy"]["route6"].items():
-                policy = parse_policy("route6", policy_name, policy_data, full_config)
-                ipv6_policies.append(policy)
-
-        return RouteConfigResponse(
-            ipv4_policies=ipv4_policies,
-            ipv6_policies=ipv6_policies,
-            total_ipv4=len(ipv4_policies),
-            total_ipv6=len(ipv6_policies)
-        )
-    except Exception as e:
-        logger.exception("Unhandled error")
+        return RouteConfigResponse(**mapper.parse_config(full_config or {}))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in route config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-def parse_policy(policy_type: str, policy_name: str, policy_data: dict, full_config: dict = None) -> PolicyRoute:
-    """Parse a policy from VyOS config."""
-    policy = PolicyRoute(
-        name=policy_name,
-        policy_type=policy_type,
-        description=policy_data.get("description"),
-        default_log="default-log" in policy_data,
-        rules=[],
-        interfaces=[]
-    )
-
-    if "rule" in policy_data:
-        for rule_num, rule_data in policy_data["rule"].items():
-            rule = parse_rule(int(rule_num), rule_data)
-            policy.rules.append(rule)
-
-    # Sort rules by rule number
-    policy.rules.sort(key=lambda r: r.rule_number)
-
-    # Find interfaces that use this policy
-    # In VyOS, interfaces are listed in: policy route <name> interface <interface>
-    if policy_data and "interface" in policy_data:
-        interfaces = policy_data["interface"]
-        # Can be a single string or a list
-        if isinstance(interfaces, str):
-            interfaces = [interfaces]
-        elif isinstance(interfaces, list):
-            pass
-        else:
-            interfaces = []
-
-        for interface_name in interfaces:
-            # Determine interface type from name
-            if interface_name.startswith("eth"):
-                interface_type = "ethernet"
-            elif interface_name.startswith("bond"):
-                interface_type = "bonding"
-            elif interface_name.startswith("dum"):
-                interface_type = "dummy"
-            elif interface_name.startswith("br"):
-                interface_type = "bridge"
-            else:
-                interface_type = "unknown"
-
-            policy.interfaces.append({
-                "name": interface_name,
-                "type": interface_type
-            })
-
-    return policy
-
-
-def parse_rule(rule_number: int, rule_data: dict) -> PolicyRouteRule:
-    """Parse a single rule from VyOS config."""
-    match = MatchConditions()
-    set_actions = SetActions()
-
-    # Basic rule properties
-    description = rule_data.get("description")
-    disable = "disable" in rule_data
-    log = rule_data.get("log")
-
-    # Parse match conditions
-    parse_match_conditions(rule_data, match)
-
-    # Parse set actions
-    if "set" in rule_data:
-        parse_set_actions(rule_data["set"], set_actions)
-    if "action" in rule_data and rule_data["action"] == "drop":
-        set_actions.action_drop = True
-
-    return PolicyRouteRule(
-        rule_number=rule_number,
-        description=description,
-        disable=disable,
-        log=log,
-        match=match,
-        set=set_actions
-    )
-
-
-def parse_match_conditions(rule_data: dict, match: MatchConditions):
-    """Parse match conditions from rule data."""
-    # Helper function to handle list or string values
-    def get_value(data, key):
-        value = data.get(key)
-        if isinstance(value, list):
-            return value[0] if value else None
-        return value
-
-    # Source
-    if "source" in rule_data:
-        src = rule_data["source"]
-        match.source_address = get_value(src, "address")
-        match.source_mac_address = get_value(src, "mac-address")
-        match.source_port = get_value(src, "port")
-
-        if "group" in src:
-            grp = src["group"]
-            match.source_group_address = get_value(grp, "address-group")
-            match.source_group_domain = get_value(grp, "domain-group")
-            match.source_group_mac = get_value(grp, "mac-group")
-            match.source_group_network = get_value(grp, "network-group")
-            match.source_group_port = get_value(grp, "port-group")
-
-        match.source_geoip = _geoip_match(src.get("geoip"))
-
-    # Destination
-    if "destination" in rule_data:
-        dst = rule_data["destination"]
-        match.destination_address = get_value(dst, "address")
-        match.destination_mac_address = get_value(dst, "mac-address")
-        match.destination_port = get_value(dst, "port")
-
-        if "group" in dst:
-            grp = dst["group"]
-            match.destination_group_address = get_value(grp, "address-group")
-            match.destination_group_domain = get_value(grp, "domain-group")
-            match.destination_group_mac = get_value(grp, "mac-group")
-            match.destination_group_network = get_value(grp, "network-group")
-            match.destination_group_port = get_value(grp, "port-group")
-
-        match.destination_geoip = _geoip_match(dst.get("geoip"))
-
-    # Protocol (can be string or list)
-    protocol_value = rule_data.get("protocol")
-    if isinstance(protocol_value, list):
-        match.protocol = protocol_value[0] if protocol_value else None
-    else:
-        match.protocol = protocol_value
-
-    # TCP flags (valueless child nodes: {"syn": {}, "not": {"fin": {}, "rst": {}}})
-    if "tcp" in rule_data:
-        flags_data = rule_data["tcp"].get("flags")
-        tcp_flags: List[str] = []
-        if isinstance(flags_data, dict):
-            for flag_key, flag_value in flags_data.items():
-                if flag_key == "not":
-                    if isinstance(flag_value, dict):
-                        for inverted_flag in flag_value.keys():
-                            tcp_flags.append(f"not {inverted_flag}")
-                else:
-                    tcp_flags.append(flag_key)
-        elif isinstance(flags_data, list):
-            tcp_flags = flags_data
-        elif isinstance(flags_data, str):
-            tcp_flags = [flags_data]
-        match.tcp_flags = tcp_flags if tcp_flags else None
-        match.tcp_mss = get_value(rule_data["tcp"], "mss")
-
-    # ICMP (IPv4)
-    if "icmp" in rule_data:
-        icmp = rule_data["icmp"]
-        icmp_code_value = icmp.get("code")
-        if isinstance(icmp_code_value, list):
-            match.icmp_code = icmp_code_value[0] if icmp_code_value else None
-        else:
-            match.icmp_code = icmp_code_value
-
-        icmp_type_value = icmp.get("type")
-        if isinstance(icmp_type_value, list):
-            match.icmp_type = icmp_type_value[0] if icmp_type_value else None
-        else:
-            match.icmp_type = icmp_type_value
-
-        icmp_type_name_value = icmp.get("type-name")
-        if isinstance(icmp_type_name_value, list):
-            match.icmp_type_name = icmp_type_name_value[0] if icmp_type_name_value else None
-        else:
-            match.icmp_type_name = icmp_type_name_value
-
-    # ICMPv6 (IPv6)
-    if "icmpv6" in rule_data:
-        icmpv6 = rule_data["icmpv6"]
-        icmpv6_code_value = icmpv6.get("code")
-        if isinstance(icmpv6_code_value, list):
-            match.icmpv6_code = icmpv6_code_value[0] if icmpv6_code_value else None
-        else:
-            match.icmpv6_code = icmpv6_code_value
-
-        icmpv6_type_value = icmpv6.get("type")
-        if isinstance(icmpv6_type_value, list):
-            match.icmpv6_type = icmpv6_type_value[0] if icmpv6_type_value else None
-        else:
-            match.icmpv6_type = icmpv6_type_value
-
-        icmpv6_type_name_value = icmpv6.get("type-name")
-        if isinstance(icmpv6_type_name_value, list):
-            match.icmpv6_type_name = icmpv6_type_name_value[0] if icmpv6_type_name_value else None
-        else:
-            match.icmpv6_type_name = icmpv6_type_name_value
-
-    # Packet characteristics
-    # Fragment can be: string, list, or dict with keys like "match-frag": {}
-    fragment_value = rule_data.get("fragment")
-    if isinstance(fragment_value, dict):
-        # Extract which fragment option is set
-        # Note: VyOS may show both keys, but we prioritize match-frag over match-non-frag
-        if "match-frag" in fragment_value:
-            match.fragment = "match-frag"
-        elif "match-non-frag" in fragment_value:
-            match.fragment = "match-non-frag"
-        else:
-            match.fragment = None
-    elif isinstance(fragment_value, list):
-        frag_val = fragment_value[0] if fragment_value else None
-        if isinstance(frag_val, dict):
-            # Handle list of dicts
-            if "match-frag" in frag_val:
-                match.fragment = "match-frag"
-            elif "match-non-frag" in frag_val:
-                match.fragment = "match-non-frag"
-            else:
-                match.fragment = None
-        else:
-            match.fragment = frag_val
-    else:
-        match.fragment = fragment_value
-
-    packet_type_value = rule_data.get("packet-type")
-    if isinstance(packet_type_value, list):
-        match.packet_type = packet_type_value[0] if packet_type_value else None
-    else:
-        match.packet_type = packet_type_value
-
-    packet_length_value = rule_data.get("packet-length")
-    if isinstance(packet_length_value, list):
-        match.packet_length = packet_length_value[0] if packet_length_value else None
-    else:
-        match.packet_length = packet_length_value
-
-    packet_length_exclude_value = rule_data.get("packet-length-exclude")
-    if isinstance(packet_length_exclude_value, list):
-        match.packet_length_exclude = packet_length_exclude_value[0] if packet_length_exclude_value else None
-    else:
-        match.packet_length_exclude = packet_length_exclude_value
-
-    dscp_value = rule_data.get("dscp")
-    if isinstance(dscp_value, list):
-        match.dscp = dscp_value[0] if dscp_value else None
-    else:
-        match.dscp = dscp_value
-
-    dscp_exclude_value = rule_data.get("dscp-exclude")
-    if isinstance(dscp_exclude_value, list):
-        match.dscp_exclude = dscp_exclude_value[0] if dscp_exclude_value else None
-    else:
-        match.dscp_exclude = dscp_exclude_value
-
-    # State & marks
-    # Handle state (can be string or list)
-    state_value = rule_data.get("state")
-    if isinstance(state_value, list):
-        match.state = ",".join(state_value) if state_value else None
-    else:
-        match.state = state_value
-
-    _parse_ipsec(rule_data.get("ipsec"), match)
-
-    # Handle mark (can be string or list)
-    mark_value = rule_data.get("mark")
-    if isinstance(mark_value, list):
-        match.mark = mark_value[0] if mark_value else None
-    else:
-        match.mark = mark_value
-
-    # Handle connection-mark (can be string or list)
-    conn_mark_value = rule_data.get("connection-mark")
-    if isinstance(conn_mark_value, list):
-        match.connection_mark = conn_mark_value[0] if conn_mark_value else None
-    else:
-        match.connection_mark = conn_mark_value
-
-    # TTL/Hop limit (can be string or list)
-    if "ttl" in rule_data:
-        ttl = rule_data["ttl"]
-        ttl_eq_value = ttl.get("eq")
-        match.ttl_eq = ttl_eq_value[0] if isinstance(ttl_eq_value, list) and ttl_eq_value else ttl_eq_value
-
-        ttl_gt_value = ttl.get("gt")
-        match.ttl_gt = ttl_gt_value[0] if isinstance(ttl_gt_value, list) and ttl_gt_value else ttl_gt_value
-
-        ttl_lt_value = ttl.get("lt")
-        match.ttl_lt = ttl_lt_value[0] if isinstance(ttl_lt_value, list) and ttl_lt_value else ttl_lt_value
-
-    if "hop-limit" in rule_data:
-        hop = rule_data["hop-limit"]
-        hop_eq_value = hop.get("eq")
-        match.hop_limit_eq = hop_eq_value[0] if isinstance(hop_eq_value, list) and hop_eq_value else hop_eq_value
-
-        hop_gt_value = hop.get("gt")
-        match.hop_limit_gt = hop_gt_value[0] if isinstance(hop_gt_value, list) and hop_gt_value else hop_gt_value
-
-        hop_lt_value = hop.get("lt")
-        match.hop_limit_lt = hop_lt_value[0] if isinstance(hop_lt_value, list) and hop_lt_value else hop_lt_value
-
-    # Time-based (can be string or list)
-    if "time" in rule_data:
-        time = rule_data["time"]
-        monthdays_value = time.get("monthdays")
-        match.time_monthdays = monthdays_value[0] if isinstance(monthdays_value, list) and monthdays_value else monthdays_value
-
-        startdate_value = time.get("startdate")
-        match.time_startdate = startdate_value[0] if isinstance(startdate_value, list) and startdate_value else startdate_value
-
-        starttime_value = time.get("starttime")
-        match.time_starttime = starttime_value[0] if isinstance(starttime_value, list) and starttime_value else starttime_value
-
-        stopdate_value = time.get("stopdate")
-        match.time_stopdate = stopdate_value[0] if isinstance(stopdate_value, list) and stopdate_value else stopdate_value
-
-        stoptime_value = time.get("stoptime")
-        match.time_stoptime = stoptime_value[0] if isinstance(stoptime_value, list) and stoptime_value else stoptime_value
-
-        match.time_utc = "utc" in time
-
-        weekdays_value = time.get("weekdays")
-        match.time_weekdays = weekdays_value[0] if isinstance(weekdays_value, list) and weekdays_value else weekdays_value
-
-    # Rate limiting (can be string or list)
-    if "limit" in rule_data:
-        limit = rule_data["limit"]
-        burst_value = limit.get("burst")
-        match.limit_burst = burst_value[0] if isinstance(burst_value, list) and burst_value else burst_value
-
-        rate_value = limit.get("rate")
-        match.limit_rate = rate_value[0] if isinstance(rate_value, list) and rate_value else rate_value
-
-    if "recent" in rule_data:
-        recent = rule_data["recent"]
-        count_value = recent.get("count")
-        match.recent_count = count_value[0] if isinstance(count_value, list) and count_value else count_value
-
-        time_value = recent.get("time")
-        match.recent_time = time_value[0] if isinstance(time_value, list) and time_value else time_value
-
-
-def parse_set_actions(set_data: dict, set_actions: SetActions):
-    """Parse set actions from rule data."""
-    # Handle connection-mark (can be string or list)
-    conn_mark_value = set_data.get("connection-mark")
-    if isinstance(conn_mark_value, list):
-        set_actions.connection_mark = conn_mark_value[0] if conn_mark_value else None
-    else:
-        set_actions.connection_mark = conn_mark_value
-
-    # Handle dscp (can be string or list)
-    dscp_value = set_data.get("dscp")
-    if isinstance(dscp_value, list):
-        set_actions.dscp = dscp_value[0] if dscp_value else None
-    else:
-        set_actions.dscp = dscp_value
-
-    # Handle mark (can be string or list)
-    mark_value = set_data.get("mark")
-    if isinstance(mark_value, list):
-        set_actions.mark = mark_value[0] if mark_value else None
-    else:
-        set_actions.mark = mark_value
-
-    # Handle table (can be string or list)
-    table_value = set_data.get("table")
-    if isinstance(table_value, list):
-        set_actions.table = table_value[0] if table_value else None
-    else:
-        set_actions.table = table_value
-
-    # Handle tcp-mss (can be string or list)
-    tcp_mss_value = set_data.get("tcp-mss")
-    if isinstance(tcp_mss_value, list):
-        set_actions.tcp_mss = tcp_mss_value[0] if tcp_mss_value else None
-    else:
-        set_actions.tcp_mss = tcp_mss_value
-
-    # Handle vrf (can be string or list)
-    vrf_value = set_data.get("vrf")
-    if isinstance(vrf_value, list):
-        set_actions.vrf = vrf_value[0] if vrf_value else None
-    else:
-        set_actions.vrf = vrf_value
-
-
-# ============================================================================
-# Endpoint 3: Batch Operations
-# ============================================================================
-
-@router.post("/batch")
+@router.post("/batch", response_model=VyOSResponse)
 async def route_batch_configure(http_request: Request, body: RouteBatchRequest):
-    """
-    Execute a batch of configuration operations.
+    """Run a batch of builder ops on one policy in a single commit.
 
-    Allows multiple changes in a single VyOS commit for efficiency.
+    Every op takes policy_type and name; an op with a ``rule`` parameter needs
+    rule_number and an op without one rejects it. The value fills the rest,
+    split on '|' (ttl / hop-limit take ``<eq|gt|lt>|<n>``).
     """
-    # Check RBAC permission
     await require_write_permission(http_request, FeatureGroup.ROUTE_POLICY)
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = RouteBatchBuilder(version=version)
+        builder = RouteBatchBuilder(version=service.get_version())
+        rule = str(body.rule_number) if body.rule_number else None
 
-        # Process operations using inspect for dynamic method calls
-        for operation in body.operations:
-            # Special handling for interface policy operations
-            if operation.op in ["set_interface_policy", "delete_interface_policy"]:
-                if operation.value:
-                    # Interface name can be eth0, eth1.7 (VLAN), dum0, etc.
-                    # VyOS command: set policy route <name> interface <interface>
-                    interface_name = operation.value
+        try:
+            for operation in body.operations:
+                call_item_batch_op(
+                    builder,
+                    operation.op,
+                    body.policy_type,
+                    operation.value,
+                    bound={"name": body.name, "rule": rule},
+                )
+        except ValueError as exc:
+            # The mapper raises ValueError for a node or value this VyOS version lacks.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-                    if operation.op == "set_interface_policy":
-                        builder.set_interface_policy(body.policy_type, body.name, interface_name)
-                    else:
-                        builder.delete_interface_policy(body.policy_type, body.name, interface_name)
-                continue
-
-            # Special handling for TTL and hop-limit operations (format: "op value" e.g., "eq 10")
-            if operation.op in ["set_match_ttl", "set_match_hop_limit"]:
-                if operation.value and " " in operation.value:
-                    parts = operation.value.split(" ", 1)
-                    op_type = parts[0]  # eq, gt, or lt
-                    op_value = parts[1]
-                    if operation.op == "set_match_ttl":
-                        builder.set_match_ttl(body.policy_type, body.name, str(body.rule_number), op_type, op_value)
-                    else:
-                        builder.set_match_hop_limit(body.policy_type, body.name, str(body.rule_number), op_type, op_value)
-                continue
-
-            # Special handling for state operation (format: comma-separated "established,related")
-            if operation.op == "set_match_state":
-                if operation.value:
-                    # Split comma-separated states and set each one individually
-                    states = [s.strip() for s in operation.value.split(",")]
-                    for state in states:
-                        if state:  # Only add if not empty
-                            builder.set_match_state(body.policy_type, body.name, str(body.rule_number), state)
-                continue
-
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
-
-            # Build arguments dynamically
-            args = []
-
-            # Add policy_type
-            if "policy_type" in params:
-                args.append(body.policy_type)
-
-            # Add name
-            if "name" in params:
-                args.append(body.name)
-
-            # Add rule number if specified
-            if body.rule_number and "rule" in params:
-                args.append(str(body.rule_number))
-
-            # Add operation value if provided
-            if operation.value and len(params) > len(args):
-                remaining_params = params[len(args):]
-                for param in remaining_params:
-                    if param != "self":
-                        args.append(operation.value)
-                        break
-
-            method(*args)
-
-        # Execute batch
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Configuration updated"},
-            error=response.error if response.error else None
+            data={"message": "Configuration updated"} if response.status == 200 else None,
+            error=response.error or None,
         )
     except HTTPException:
         raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except Exception:
+        logger.exception("Unhandled error in route batch")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ========================================================================
-# Endpoint 4: Reorder Rules - Helper Functions
-# ========================================================================
-
-def _get_value(data, key):
-    """Helper to get value from dict, handling both strings and single-element arrays."""
-    value = data.get(key)
-    if isinstance(value, list):
-        return value[0] if value else None
-    return value
-
-
-def _geoip_country_codes(geoip_data) -> List[str]:
-    """Normalize country-code from list, dict keys, or a single string."""
-    if not isinstance(geoip_data, dict):
-        return []
-    raw = geoip_data.get("country-code")
-    if isinstance(raw, dict):
-        return [str(code) for code in raw.keys()]
-    if isinstance(raw, list):
-        return [str(code) for code in raw if code]
-    if raw:
-        return [str(raw)]
-    return []
-
-
-def _geoip_inverse(geoip_data) -> bool:
-    if not isinstance(geoip_data, dict):
-        return False
-    return "inverse-match" in geoip_data or geoip_data.get("inverse-match") == ""
-
-
-def _geoip_match(geoip_data) -> Optional[GeoIPMatch]:
-    codes = _geoip_country_codes(geoip_data)
-    inverse = _geoip_inverse(geoip_data)
-    if not codes and not inverse:
-        return None
-    return GeoIPMatch(country_code=codes or None, inverse_match=inverse)
-
-
-def _recreate_geoip(builder, policy_type: str, policy_name: str, rule_num: str, side: str, geoip_data):
-    """Recreate source or destination GeoIP leaves during reorder."""
-    codes = _geoip_country_codes(geoip_data)
-    inverse = _geoip_inverse(geoip_data)
-    if side == "source":
-        for code in codes:
-            builder.set_match_source_geoip_country(policy_type, policy_name, rule_num, code)
-        if inverse:
-            builder.set_match_source_geoip_inverse(policy_type, policy_name, rule_num)
-    else:
-        for code in codes:
-            builder.set_match_destination_geoip_country(policy_type, policy_name, rule_num, code)
-        if inverse:
-            builder.set_match_destination_geoip_inverse(policy_type, policy_name, rule_num)
-
-
-def _parse_ipsec(ipsec_data, match: MatchConditions) -> None:
-    """Parse classic and directional IPsec match leaves from VyOS config."""
-    if isinstance(ipsec_data, dict):
-        if "match-ipsec" in ipsec_data:
-            match.ipsec = "match-ipsec"
-        elif "match-none" in ipsec_data:
-            match.ipsec = "match-none"
-        if "match-ipsec-in" in ipsec_data:
-            match.ipsec_in = "match-ipsec-in"
-        elif "match-none-in" in ipsec_data:
-            match.ipsec_in = "match-none-in"
-        if "match-ipsec-out" in ipsec_data:
-            match.ipsec_out = "match-ipsec-out"
-        elif "match-none-out" in ipsec_data:
-            match.ipsec_out = "match-none-out"
-        return
-    if isinstance(ipsec_data, str) and ipsec_data:
-        match.ipsec = ipsec_data
-
-
-def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule_num: str, rule_data: dict):
-    """Recreate all match conditions for a rule during reorder.
-
-    Note: In VyOS config, match conditions are at the root level of rule_data,
-    not under a 'match' key.
-    """
-
-    # Source conditions
-    if "source" in rule_data:
-        src = rule_data["source"]
-        if "address" in src:
-            addr = _get_value(src, "address")
-            if addr:
-                builder.set_match_source_address(policy_type, policy_name, rule_num, addr)
-        if "mac-address" in src:
-            mac = _get_value(src, "mac-address")
-            if mac:
-                builder.set_match_source_mac_address(policy_type, policy_name, rule_num, mac)
-        if "port" in src:
-            port = _get_value(src, "port")
-            if port:
-                builder.set_match_source_port(policy_type, policy_name, rule_num, port)
-        if "group" in src:
-            grp = src["group"]
-            if "address-group" in grp:
-                g = _get_value(grp, "address-group")
-                if g:
-                    builder.set_match_source_group_address(policy_type, policy_name, rule_num, g)
-            if "domain-group" in grp:
-                g = _get_value(grp, "domain-group")
-                if g:
-                    builder.set_match_source_group_domain(policy_type, policy_name, rule_num, g)
-            if "mac-group" in grp:
-                g = _get_value(grp, "mac-group")
-                if g:
-                    builder.set_match_source_group_mac(policy_type, policy_name, rule_num, g)
-            if "network-group" in grp:
-                g = _get_value(grp, "network-group")
-                if g:
-                    builder.set_match_source_group_network(policy_type, policy_name, rule_num, g)
-            if "port-group" in grp:
-                g = _get_value(grp, "port-group")
-                if g:
-                    builder.set_match_source_group_port(policy_type, policy_name, rule_num, g)
-        if "geoip" in src:
-            _recreate_geoip(builder, policy_type, policy_name, rule_num, "source", src["geoip"])
-
-    # Destination conditions
-    if "destination" in rule_data:
-        dst = rule_data["destination"]
-        if "address" in dst:
-            addr = _get_value(dst, "address")
-            if addr:
-                builder.set_match_destination_address(policy_type, policy_name, rule_num, addr)
-        if "mac-address" in dst:
-            mac = _get_value(dst, "mac-address")
-            if mac:
-                builder.set_match_destination_mac_address(policy_type, policy_name, rule_num, mac)
-        if "port" in dst:
-            port = _get_value(dst, "port")
-            if port:
-                builder.set_match_destination_port(policy_type, policy_name, rule_num, port)
-        if "group" in dst:
-            grp = dst["group"]
-            if "address-group" in grp:
-                g = _get_value(grp, "address-group")
-                if g:
-                    builder.set_match_destination_group_address(policy_type, policy_name, rule_num, g)
-            if "domain-group" in grp:
-                g = _get_value(grp, "domain-group")
-                if g:
-                    builder.set_match_destination_group_domain(policy_type, policy_name, rule_num, g)
-            if "mac-group" in grp:
-                g = _get_value(grp, "mac-group")
-                if g:
-                    builder.set_match_destination_group_mac(policy_type, policy_name, rule_num, g)
-            if "network-group" in grp:
-                g = _get_value(grp, "network-group")
-                if g:
-                    builder.set_match_destination_group_network(policy_type, policy_name, rule_num, g)
-            if "port-group" in grp:
-                g = _get_value(grp, "port-group")
-                if g:
-                    builder.set_match_destination_group_port(policy_type, policy_name, rule_num, g)
-        if "geoip" in dst:
-            _recreate_geoip(builder, policy_type, policy_name, rule_num, "destination", dst["geoip"])
-
-    # Protocol
-    if "protocol" in rule_data:
-        proto = _get_value(rule_data, "protocol")
-        if proto:
-            builder.set_match_protocol(policy_type, policy_name, rule_num, proto)
-
-    # TCP flags (valueless child nodes; recreate each flag individually)
-    if "tcp" in rule_data and "flags" in rule_data["tcp"]:
-        flags_data = rule_data["tcp"]["flags"]
-        if isinstance(flags_data, dict):
-            for flag_key, flag_value in flags_data.items():
-                if flag_key == "not" and isinstance(flag_value, dict):
-                    for inverted_flag in flag_value.keys():
-                        builder.set_match_tcp_flags(policy_type, policy_name, rule_num, f"not {inverted_flag}")
-                else:
-                    builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flag_key)
-        elif isinstance(flags_data, str) and flags_data:
-            builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flags_data)
-    if "tcp" in rule_data and "mss" in rule_data["tcp"]:
-        mss = _get_value(rule_data["tcp"], "mss")
-        if mss:
-            builder.set_match_tcp_mss(policy_type, policy_name, rule_num, mss)
-
-    # ICMP
-    if "icmp" in rule_data:
-        icmp = rule_data["icmp"]
-        if "code" in icmp:
-            code = _get_value(icmp, "code")
-            if code:
-                builder.set_match_icmp_code(policy_type, policy_name, rule_num, code)
-        if "type" in icmp:
-            icmp_type = _get_value(icmp, "type")
-            if icmp_type:
-                builder.set_match_icmp_type(policy_type, policy_name, rule_num, icmp_type)
-        if "type-name" in icmp:
-            type_name = _get_value(icmp, "type-name")
-            if type_name:
-                builder.set_match_icmp_type_name(policy_type, policy_name, rule_num, type_name)
-
-    # ICMPv6
-    if "icmpv6" in rule_data:
-        icmpv6 = rule_data["icmpv6"]
-        if "code" in icmpv6:
-            code = _get_value(icmpv6, "code")
-            if code:
-                builder.set_match_icmpv6_code(policy_type, policy_name, rule_num, code)
-        if "type" in icmpv6:
-            icmpv6_type = _get_value(icmpv6, "type")
-            if icmpv6_type:
-                builder.set_match_icmpv6_type(policy_type, policy_name, rule_num, icmpv6_type)
-        if "type-name" in icmpv6:
-            type_name = _get_value(icmpv6, "type-name")
-            if type_name:
-                builder.set_match_icmpv6_type_name(policy_type, policy_name, rule_num, type_name)
-
-    # Packet characteristics
-    if "fragment" in rule_data:
-        frag = rule_data.get("fragment")
-        if frag:
-            # Fragment can be a string or an object with keys like "match-frag": {}
-            if isinstance(frag, dict):
-                # Extract the key name (match-frag or match-non-frag)
-                if "match-frag" in frag:
-                    builder.set_match_fragment(policy_type, policy_name, rule_num, "match-frag")
-                elif "match-non-frag" in frag:
-                    builder.set_match_fragment(policy_type, policy_name, rule_num, "match-non-frag")
-            elif isinstance(frag, str):
-                builder.set_match_fragment(policy_type, policy_name, rule_num, frag)
-            elif isinstance(frag, list) and frag:
-                # Handle array case
-                frag_val = frag[0]
-                if isinstance(frag_val, dict):
-                    if "match-frag" in frag_val:
-                        builder.set_match_fragment(policy_type, policy_name, rule_num, "match-frag")
-                    elif "match-non-frag" in frag_val:
-                        builder.set_match_fragment(policy_type, policy_name, rule_num, "match-non-frag")
-                else:
-                    builder.set_match_fragment(policy_type, policy_name, rule_num, frag_val)
-
-    if "packet-type" in rule_data:
-        pkt_type = _get_value(rule_data, "packet-type")
-        if pkt_type:
-            builder.set_match_packet_type(policy_type, policy_name, rule_num, pkt_type)
-
-    if "packet-length" in rule_data:
-        pkt_len = _get_value(rule_data, "packet-length")
-        if pkt_len:
-            builder.set_match_packet_length(policy_type, policy_name, rule_num, pkt_len)
-
-    if "packet-length-exclude" in rule_data:
-        pkt_len_exc = _get_value(rule_data, "packet-length-exclude")
-        if pkt_len_exc:
-            builder.set_match_packet_length_exclude(policy_type, policy_name, rule_num, pkt_len_exc)
-
-    if "dscp" in rule_data:
-        dscp = _get_value(rule_data, "dscp")
-        if dscp:
-            builder.set_match_dscp(policy_type, policy_name, rule_num, dscp)
-
-    if "dscp-exclude" in rule_data:
-        dscp_exc = _get_value(rule_data, "dscp-exclude")
-        if dscp_exc:
-            builder.set_match_dscp_exclude(policy_type, policy_name, rule_num, dscp_exc)
-
-    # State
-    if "state" in rule_data:
-        state_value = rule_data["state"]
-        if isinstance(state_value, list):
-            # Send each state individually
-            for s in state_value:
-                if s:
-                    builder.set_match_state(policy_type, policy_name, rule_num, s)
-        elif isinstance(state_value, str):
-            # Already comma-separated or single value
-            if "," in state_value:
-                for s in state_value.split(","):
-                    s = s.strip()
-                    if s:
-                        builder.set_match_state(policy_type, policy_name, rule_num, s)
-            else:
-                builder.set_match_state(policy_type, policy_name, rule_num, state_value)
-
-    # IPsec
-    if "ipsec" in rule_data:
-        ipsec = rule_data["ipsec"]
-        tokens = []
-        if isinstance(ipsec, dict):
-            tokens = [str(key) for key in ipsec.keys()]
-        elif isinstance(ipsec, str) and ipsec:
-            tokens = [ipsec]
-        for token in tokens:
-            builder.set_match_ipsec(policy_type, policy_name, rule_num, token)
-
-    # Marks
-    if "mark" in rule_data:
-        mark = _get_value(rule_data, "mark")
-        if mark:
-            builder.set_match_mark(policy_type, policy_name, rule_num, mark)
-
-    if "connection-mark" in rule_data:
-        conn_mark = _get_value(rule_data, "connection-mark")
-        if conn_mark:
-            builder.set_match_connection_mark(policy_type, policy_name, rule_num, conn_mark)
-
-    # TTL
-    if "ttl" in rule_data:
-        ttl = rule_data["ttl"]
-        if "eq" in ttl:
-            val = _get_value(ttl, "eq")
-            if val:
-                builder.set_match_ttl(policy_type, policy_name, rule_num, "eq", val)
-        if "gt" in ttl:
-            val = _get_value(ttl, "gt")
-            if val:
-                builder.set_match_ttl(policy_type, policy_name, rule_num, "gt", val)
-        if "lt" in ttl:
-            val = _get_value(ttl, "lt")
-            if val:
-                builder.set_match_ttl(policy_type, policy_name, rule_num, "lt", val)
-
-    # Hop limit (IPv6 TTL)
-    if "hop-limit" in rule_data:
-        hop = rule_data["hop-limit"]
-        if "eq" in hop:
-            val = _get_value(hop, "eq")
-            if val:
-                builder.set_match_hop_limit(policy_type, policy_name, rule_num, "eq", val)
-        if "gt" in hop:
-            val = _get_value(hop, "gt")
-            if val:
-                builder.set_match_hop_limit(policy_type, policy_name, rule_num, "gt", val)
-        if "lt" in hop:
-            val = _get_value(hop, "lt")
-            if val:
-                builder.set_match_hop_limit(policy_type, policy_name, rule_num, "lt", val)
-
-    # Time-based
-    if "time" in rule_data:
-        time = rule_data["time"]
-        if "monthdays" in time:
-            val = _get_value(time, "monthdays")
-            if val:
-                builder.set_match_time_monthdays(policy_type, policy_name, rule_num, val)
-        if "startdate" in time:
-            val = _get_value(time, "startdate")
-            if val:
-                builder.set_match_time_startdate(policy_type, policy_name, rule_num, val)
-        if "starttime" in time:
-            val = _get_value(time, "starttime")
-            if val:
-                builder.set_match_time_starttime(policy_type, policy_name, rule_num, val)
-        if "stopdate" in time:
-            val = _get_value(time, "stopdate")
-            if val:
-                builder.set_match_time_stopdate(policy_type, policy_name, rule_num, val)
-        if "stoptime" in time:
-            val = _get_value(time, "stoptime")
-            if val:
-                builder.set_match_time_stoptime(policy_type, policy_name, rule_num, val)
-        if "utc" in time:
-            builder.set_match_time_utc(policy_type, policy_name, rule_num)
-        if "weekdays" in time:
-            val = _get_value(time, "weekdays")
-            if val:
-                builder.set_match_time_weekdays(policy_type, policy_name, rule_num, val)
-
-    # Rate limiting
-    if "limit" in rule_data:
-        limit = rule_data["limit"]
-        if "burst" in limit:
-            val = _get_value(limit, "burst")
-            if val:
-                builder.set_match_limit_burst(policy_type, policy_name, rule_num, val)
-        if "rate" in limit:
-            val = _get_value(limit, "rate")
-            if val:
-                builder.set_match_limit_rate(policy_type, policy_name, rule_num, val)
-
-    if "recent" in rule_data:
-        recent = rule_data["recent"]
-        if "count" in recent:
-            val = _get_value(recent, "count")
-            if val:
-                builder.set_match_recent_count(policy_type, policy_name, rule_num, val)
-        if "time" in recent:
-            val = _get_value(recent, "time")
-            if val:
-                builder.set_match_recent_time(policy_type, policy_name, rule_num, val)
-
-
-def _recreate_set_actions(builder, policy_type: str, policy_name: str, rule_num: str, set_data: dict):
-    """Recreate all set actions for a rule during reorder."""
-
-    # Connection mark
-    if "connection-mark" in set_data:
-        val = _get_value(set_data, "connection-mark")
-        if val:
-            builder.set_connection_mark(policy_type, policy_name, rule_num, val)
-
-    # Mark
-    if "mark" in set_data:
-        val = _get_value(set_data, "mark")
-        if val:
-            builder.set_mark(policy_type, policy_name, rule_num, val)
-
-    # DSCP
-    if "dscp" in set_data:
-        val = _get_value(set_data, "dscp")
-        if val:
-            builder.set_dscp(policy_type, policy_name, rule_num, val)
-
-    # Table
-    if "table" in set_data:
-        val = _get_value(set_data, "table")
-        if val:
-            builder.set_table(policy_type, policy_name, rule_num, val)
-
-    # TCP MSS
-    if "tcp-mss" in set_data:
-        val = _get_value(set_data, "tcp-mss")
-        if val:
-            builder.set_tcp_mss(policy_type, policy_name, rule_num, val)
-
-    # VRF
-    if "vrf" in set_data:
-        val = _get_value(set_data, "vrf")
-        if val:
-            builder.set_vrf(policy_type, policy_name, rule_num, val)
-
-
-# ========================================================================
-# Endpoint 4: Reorder Rules
-# ========================================================================
-
-class ReorderRequest(BaseModel):
-    """Request model for reordering rules."""
-    policy_type: str = Field(..., description="Policy type (route or route6)")
-    policy_name: str = Field(..., description="Policy name")
-    rule_numbers: List[int] = Field(..., description="New order of rule numbers")
-
-
-@router.post("/reorder")
+@router.post("/reorder", response_model=VyOSResponse)
 async def reorder_rules(http_request: Request, body: ReorderRequest):
-    """
-    Reorder rules within a policy.
+    """Renumber a policy's rules in one commit.
 
-    Deletes all rules and recreates them in the new order using batch operations.
+    The listed rules must be exactly the policy's rules. Each is deleted and
+    recreated from its own config subtree under its new number, so no leaf
+    is dropped.
     """
-    # Check RBAC permission
     await require_write_permission(http_request, FeatureGroup.ROUTE_POLICY)
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = RouteBatchBuilder(version=version)
+        mapper = _mapper(service.get_version())
+        builder = RouteBatchBuilder(version=service.get_version())
 
-        # Get current configuration to retrieve full rule data
         full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        trees = mapper.rule_trees(full_config or {}, body.policy_type, body.policy_name)
+        if trees is None:
+            raise HTTPException(status_code=404, detail=f"Policy {body.policy_name} not found")
+        if set(trees) != set(body.rule_numbers):
+            raise HTTPException(status_code=400, detail="rule_numbers must list every rule of the policy")
 
-        # Navigate to the policy
-        policy_path = ["policy", body.policy_type, body.policy_name]
-        policy_config = full_config
-        for key in policy_path:
-            if key in policy_config:
-                policy_config = policy_config[key]
-            else:
-                raise HTTPException(status_code=404, detail=f"Policy {body.policy_name} not found")
+        targets = sorted(body.rule_numbers)
+        moves = [(old, new) for old, new in zip(body.rule_numbers, targets) if old != new]
+        if not moves:
+            return VyOSResponse(success=True, data={"message": "Rules reordered"})
 
-        # Get all rules
-        rules_config = policy_config.get("rule", {})
+        for old, _ in moves:
+            builder.delete_rule(body.policy_type, body.policy_name, str(old))
+        for old, new in moves:
+            builder.restore_rule(body.policy_type, body.policy_name, str(new), trees[old])
 
-        # Build rule data map
-        rules_map = {}
-        for rule_num_str, rule_data in rules_config.items():
-            rule_num = int(rule_num_str)
-            rules_map[rule_num] = rule_data
-
-        # Get the sorted list of rule numbers (this is the target numbering)
-        sorted_rule_numbers = sorted(body.rule_numbers)
-
-        # Delete all rules in reverse order
-        for rule_num in reversed(body.rule_numbers):
-            builder.delete_rule(body.policy_type, body.policy_name, str(rule_num))
-
-        # Recreate rules with NEW numbers based on desired order
-        # The rule at position 0 in the request should get the lowest number
-        # The rule at position 1 should get the next number, etc.
-        for index, old_rule_num in enumerate(body.rule_numbers):
-            new_rule_num = sorted_rule_numbers[index]
-            if old_rule_num not in rules_map:
-                continue
-
-            rule_data = rules_map[old_rule_num]
-
-            # Create rule with NEW number
-            builder.create_rule(body.policy_type, body.policy_name, str(new_rule_num))
-
-            # Add description if exists
-            if "description" in rule_data:
-                builder.set_rule_description(body.policy_type, body.policy_name, str(new_rule_num), rule_data["description"])
-
-            # Add disable if exists
-            if "disable" in rule_data:
-                builder.set_rule_disable(body.policy_type, body.policy_name, str(new_rule_num))
-
-            # Add log if exists
-            if "log" in rule_data:
-                builder.set_rule_log(body.policy_type, body.policy_name, str(new_rule_num))
-
-            # Recreate match conditions (they are at root level, not under 'match' key)
-            _recreate_match_conditions(builder, body.policy_type, body.policy_name, str(new_rule_num), rule_data)
-
-            # Recreate set actions
-            if "set" in rule_data:
-                _recreate_set_actions(builder, body.policy_type, body.policy_name, str(new_rule_num), rule_data["set"])
-
-            # Handle action drop (can be at root level)
-            if "action" in rule_data and rule_data["action"] == "drop":
-                builder.set_action_drop(body.policy_type, body.policy_name, str(new_rule_num))
-
-        # Execute batch
-        response = service.execute_batch(builder)
-
-        # Refresh config cache
-        await run_in_threadpool(service.get_full_config, refresh=True)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Rules reordered successfully"},
-            error=response.error if response.error else None
+            data={"message": "Rules reordered"} if response.status == 200 else None,
+            error=response.error or None,
         )
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in route reorder")
         raise HTTPException(status_code=500, detail="Internal server error")

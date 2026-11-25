@@ -7,121 +7,136 @@
     "edit": "更新 {family} 策略规则",
     "create": "向 {family} 策略添加新规则"
   },
+  "examplePlaceholder": "例如 {example}",
+  "rangePlaceholder": "{min}-{max}",
   "errors": {
-    "ruleNumberRequired": "规则编号为必填项",
     "updateFailed": "更新规则失败",
-    "createFailed": "创建规则失败"
+    "createFailed": "创建规则失败",
+    "groupsLoadFailed": "加载防火墙组失败",
+    "ruleNumberRequired": "规则编号为必填项",
+    "ruleNumberRange": "规则编号必须是 {min} 到 {max} 之间的整数",
+    "ruleNumberTaken": "该规则编号已在此策略中使用",
+    "descriptionTooLong": "描述最多 {max} 个字符",
+    "sourceGroupConflict": "源只能使用地址组、网络组和域名组中的一个",
+    "destinationGroupConflict": "目标只能使用地址组、网络组和域名组中的一个",
+    "protocolInvalid": "协议必须是列表中的名称或 {min} 到 {max} 之间的整数",
+    "protocolNumberNegated": "协议编号不能用 ! 取反",
+    "portNeedsProtocol": "端口或端口组需要协议为 tcp、udp 或 tcp_udp",
+    "tcpNeedsProtocolTcp": "TCP 标志和 TCP MSS 需要协议为 tcp",
+    "tcpFlagConflict": "TCP 标志 {value} 不能同时匹配和取反",
+    "setTcpMssNeedsSyn": "设置 TCP MSS 需要 TCP 标志 syn",
+    "icmpNeedsProtocolIcmp": "ICMP 匹配需要协议为 icmp",
+    "icmpv6NeedsProtocolIcmpv6": "ICMPv6 类型需要协议为 icmpv6",
+    "icmpv6TypeInvalid": "ICMPv6 类型必须是列表中的名称或 {min} 到 {max} 之间的整数",
+    "icmpCodeRange": "ICMP 代码必须在 {min} 到 {max} 之间",
+    "icmpTypeRange": "ICMP 类型必须在 {min} 到 {max} 之间",
+    "icmpTypeNameConflict": "ICMP 类型名称不能与 ICMP 类型或代码同时使用",
+    "icmpCodeNeedsType": "ICMP 代码需要指定 ICMP 类型",
+    "ttlRange": "TTL 必须在 {min} 到 {max} 之间",
+    "hopLimitRange": "跳数限制必须在 {min} 到 {max} 之间",
+    "tcpMssRange": "TCP MSS 必须是 {min} 到 {max} 之间的数字或范围",
+    "packetLengthRange": "数据包长度 {value} 必须是 {min} 到 {max} 之间的数字或范围",
+    "dscpRange": "DSCP {value} 必须是 {min} 到 {max} 之间的数字或范围",
+    "markRange": "标记必须是 {min} 到 {max} 之间的数字或范围",
+    "connectionMarkRange": "连接标记 {value} 必须是 {min} 到 {max} 之间的单个数字（不支持范围）",
+    "negationNotAllowed": "{value}：此匹配项不支持前导 !",
+    "limitBurstRange": "突发限制必须在 {min} 到 {max} 之间",
+    "limitRateInvalid": "速率限制需要 {min} 到 {max} 之间的数字和单位",
+    "limitRateUnsupported": "此设备无法设置速率限制",
+    "geoipCountryUnknown": "未知的 GeoIP 国家代码 {value}",
+    "geoipAsnRange": "GeoIP ASN {value} 必须在 {min} 到 {max} 之间",
+    "geoipAsnCountryConflict": "每一侧只能使用 GeoIP ASN 或国家代码之一，不能同时使用",
+    "weekdayInvalid": "未知的星期 {value}",
+    "setConnectionMarkRange": "设置的连接标记必须在 {min} 到 {max} 之间",
+    "setDscpRange": "设置的 DSCP 必须在 {min} 到 {max} 之间",
+    "setMarkRange": "设置的标记必须在 {min} 到 {max} 之间",
+    "setTableRange": "路由表必须是 main 或 {min} 到 {max} 之间的数字",
+    "setTcpMssRange": "设置的 TCP MSS 必须在 {min} 到 {max} 之间",
+    "setVrfTableConflict": "只能设置路由表或 VRF 之一，不能同时设置"
   },
   "tabs": {
     "basic": "基本",
     "match": "匹配条件",
+    "advanced": "高级匹配",
     "set": "设置动作"
   },
   "basic": {
     "ruleNumber": "规则编号 *",
-    "ruleNumberLocked": "规则编号不可更改",
     "descriptionPlaceholder": "规则描述",
+    "action": "动作",
     "disable": "禁用此规则",
     "log": "为此规则启用日志"
   },
   "invertMatch": "反向匹配",
-  "address": {
-    "title": "地址匹配",
-    "source": "源地址",
-    "destination": "目标地址",
-    "sourceMac": "源 MAC 地址",
-    "destinationMac": "目标 MAC 地址"
+  "side": {
+    "source": "源",
+    "destination": "目标"
   },
-  "geoip": {
-    "title": "GeoIP 匹配",
-    "source": "源 GeoIP 国家/地区",
-    "destination": "目标 GeoIP 国家/地区",
-    "exclude": "排除这些国家/地区（反向匹配）"
+  "address": {
+    "address": "地址",
+    "mac": "MAC 地址",
+    "port": "端口"
   },
   "groups": {
-    "title": "防火墙组",
-    "sourceAddressGroup": "源地址/网络/域名组（选择一个）",
-    "destinationAddressGroup": "目标地址/网络/域名组（选择一个）",
+    "addressGroupKind": "地址组、网络组或域名组",
     "addressGroup": "地址组",
     "networkGroup": "网络组",
     "domainGroup": "域名组",
-    "selectGroup": "选择组",
-    "sourceMacGroup": "源 MAC 组（可选）",
-    "sourcePortGroup": "源端口组（可选）",
-    "destinationMacGroup": "目标 MAC 组（可选）",
-    "destinationPortGroup": "目标端口组（可选）",
-    "protocolRestricted": "协议将被限制为 TCP/UDP"
+    "macGroup": "MAC 组",
+    "portGroup": "端口组"
   },
-  "portProtocol": {
-    "title": "端口与协议",
-    "sourcePort": "源端口",
-    "destinationPort": "目标端口",
-    "portPlaceholder": "80 或 80,443 或 8000-9000",
+  "geoip": {
+    "countryCodes": "GeoIP 国家代码",
+    "asn": "GeoIP ASN",
+    "inverse": "反向 GeoIP 匹配"
+  },
+  "protocol": {
+    "title": "协议",
     "protocol": "协议",
-    "allProtocols": "所有协议",
-    "restrictedWithPorts": "使用端口时协议限制为 TCP/UDP",
+    "tcpMss": "TCP MSS",
     "tcpFlags": "TCP 标志",
-    "tcpMssMatch": "TCP MSS 匹配",
-    "tcpMssPlaceholder": "1400 或 500-1460"
+    "tcpFlagsNot": "TCP 标志（取反）",
+    "byNumber": "以数字输入协议"
   },
   "icmp": {
-    "title": "ICMP 匹配（仅 IPv4）",
+    "title": "ICMP 匹配",
     "type": "ICMP 类型",
-    "typeName": "ICMP 类型名称",
     "code": "ICMP 代码",
-    "selectType": "选择类型",
-    "v6Title": "ICMPv6 匹配（仅 IPv6）",
+    "typeName": "ICMP 类型名称",
+    "v6Title": "ICMPv6 匹配",
     "v6Type": "ICMPv6 类型",
-    "v6TypeName": "ICMPv6 类型名称",
-    "v6Code": "ICMPv6 代码"
+    "v6ByNumber": "以数字输入类型"
   },
-  "packet": {
-    "title": "数据包特征",
-    "fragment": "分片匹配",
-    "matchFragments": "匹配分片",
-    "excludeFragments": "排除分片",
-    "type": "数据包类型",
-    "length": "数据包长度",
-    "lengthExclude": "数据包长度（排除）",
-    "lengthPlaceholder": "64 或 64-128",
-    "dscpExclude": "DSCP（排除）",
-    "dscpPlaceholder": "0-63 或范围 0-10"
-  },
-  "state": {
-    "title": "连接状态与标记",
-    "connectionState": "连接状态",
-    "states": {
-      "established": "已建立",
-      "invalid": "无效",
-      "new": "新建",
-      "related": "相关"
-    },
-    "ipsecStatus": "IPsec 状态",
-    "inbound": "入站",
-    "outbound": "出站",
-    "noMatch": "不匹配",
-    "matchIpsec": "匹配 IPsec",
-    "matchNonIpsec": "匹配非 IPsec",
-    "excludeIpsec": "排除 IPsec",
-    "connectionMark": "连接标记",
-    "mark": "标记"
-  },
-  "ttl": {
-    "title": "TTL（仅 IPv4）",
-    "operator": "TTL 运算符",
-    "value": "TTL 值",
-    "hopTitle": "跳数限制（仅 IPv6）",
-    "hopOperator": "跳数限制运算符",
-    "hopValue": "跳数限制值",
+  "compare": {
+    "ttlTitle": "TTL",
+    "hopLimitTitle": "跳数限制",
     "eq": "等于 (eq)",
     "gt": "大于 (gt)",
     "lt": "小于 (lt)"
   },
+  "packet": {
+    "title": "数据包特征",
+    "type": "数据包类型",
+    "fragment": "分片",
+    "length": "数据包长度",
+    "lengthExclude": "数据包长度（排除）",
+    "dscp": "DSCP",
+    "dscpExclude": "DSCP（排除）"
+  },
+  "state": {
+    "title": "连接状态与标记",
+    "connectionState": "连接状态",
+    "ipsec": "IPsec",
+    "mark": "标记",
+    "connectionMark": "连接标记"
+  },
   "time": {
     "title": "基于时间的匹配",
-    "monthDays": "每月日期",
-    "monthDaysPlaceholder": "1-31（逗号分隔）",
-    "monthDaysExample": "示例：1,15,30",
+    "monthDays": "月中日期",
+    "startDate": "开始日期",
+    "stopDate": "结束日期",
+    "startTime": "开始时间",
+    "stopTime": "结束时间",
     "weekdays": "星期",
     "days": {
       "mon": "周一",
@@ -132,38 +147,27 @@
       "sat": "周六",
       "sun": "周日"
     },
-    "startDate": "开始日期",
-    "stopDate": "结束日期",
-    "startTime": "开始时间",
-    "stopTime": "结束时间",
     "utc": "使用 UTC 时间"
   },
-  "rate": {
+  "limit": {
     "title": "速率限制",
-    "limitBurst": "突发限制",
-    "packetsPlaceholder": "数据包数量",
-    "limitBurstHelp": "速率限制生效前允许的最大突发量",
-    "limitRate": "速率限制",
-    "limitRatePlaceholder": "packets/second、packets/minute 等",
-    "limitRateExample": "示例：10/second, 100/minute",
-    "recentCount": "近期次数",
-    "recentTime": "近期时间",
-    "seconds": "秒"
+    "burst": "突发限制",
+    "rate": "速率限制",
+    "unit": "单位",
+    "rateReadOnly": "速率限制：{rate}（此设备无法修改）",
+    "removeRate": "移除速率限制",
+    "recent": "最近匹配：次数 {count}，时间 {time}",
+    "removeRecent": "移除最近匹配"
   },
   "actions": {
-    "drop": "丢弃匹配的数据包",
-    "marking": "数据包标记",
     "connectionMark": "连接标记",
     "mark": "标记",
-    "routing": "路由",
+    "dscp": "DSCP",
+    "tcpMss": "TCP MSS",
     "routingTable": "路由表",
-    "mainTable": "主路由表 (main)",
+    "mainTable": "主路由表",
     "customTable": "自定义路由表",
-    "tablePlaceholder": "路由表编号或名称",
-    "vrfHelp": "VRF 路由",
-    "tcpOptions": "TCP 选项",
-    "tcpMssPlaceholder": "500-1460 或 'clamp-mss-to-pmtu'",
-    "tcpMssHelp": "TCP 最大报文段长度"
+    "vrf": "VRF"
   },
   "buttons": {
     "createRule": "创建规则"

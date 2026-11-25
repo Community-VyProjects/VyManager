@@ -122,6 +122,14 @@ jobs:
         working-directory: frontend
         run: npm run test:firewall-global-options-save
 
+      - name: Run policy route save op tests
+        working-directory: frontend
+        run: npm run test:route-save
+
+      - name: Run policy screen tests
+        working-directory: frontend
+        run: npm run test:policies
+
       - name: Run WireGuard form tests
         working-directory: frontend
         run: npm run test:wireguard-form

@@ -1,26 +1,22 @@
-"""Factory for version-specific route mappers."""
+"""Factory for policy route mappers.
+
+The shared class is returned directly on 1.4. Source/destination ``geoip``,
+``tcp mss`` and ``set vrf`` exist only on 1.5, and its ``ipsec`` and
+``limit rate`` values differ, so that version gets the subclass. There is no
+merge proxy and no 1.4 file.
+"""
 from ..route import RouteMapper
-from .v1_4 import RouteMapperV1_4
 from .v1_5 import RouteMapperV1_5
 
 
-def get_route_mapper(version: str):
-    """Factory function to get appropriate mapper for version."""
-    base = RouteMapper(version)
+def get_route_mapper(version: str) -> RouteMapper:
+    """Return the shared mapper, or the 1.5 subclass.
 
+    A rolling string is 1.5. Only a string that contains ``1.4`` is 1.4.
+    """
     if "1.4" in version:
-        version_specific = RouteMapperV1_4()
-    elif "1.5" in version or "latest" in version:
-        version_specific = RouteMapperV1_5()
-    else:
-        version_specific = RouteMapperV1_5()  # Default to latest
+        return RouteMapper(version)
+    return RouteMapperV1_5(version)
 
-    # Merge base and version-specific mappers
-    class MergedMapper:
-        def __getattr__(self, name):
-            # Try version-specific first, fall back to base
-            if hasattr(version_specific, name):
-                return getattr(version_specific, name)
-            return getattr(base, name)
 
-    return MergedMapper()
+__all__ = ["RouteMapperV1_5", "get_route_mapper"]

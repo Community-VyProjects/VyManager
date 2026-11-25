@@ -25,11 +25,6 @@ import {
   type AccessListRule,
 } from "@/lib/api/access-list";
 import {
-  RouteService,
-  type PolicyRouteRule,
-  type RouteBatchRequest,
-} from "@/lib/api/route";
-import {
   RouteMapService,
   type RouteMapBatchRequest,
   type RouteMapRule,
@@ -61,13 +56,6 @@ import {
   submitAccessListUpdate,
   validateAccessListRule,
 } from "./access-list-rule-form";
-import {
-  emptyRouteRuleDraft,
-  routeRuleDraftFrom,
-  submitRouteRuleCreate,
-  submitRouteRuleUpdate,
-  validateRouteRuleCreate,
-} from "./route-rule-form";
 import {
   emptyRouteMapRuleDraft,
   routeMapRuleDraftFrom,
@@ -110,14 +98,6 @@ class RecordingPrefix extends PrefixListService {
 class RecordingAccess extends AccessListService {
   calls: AccessListBatchRequest[] = [];
   async batchConfigure(request: AccessListBatchRequest): Promise<VyOSResponse> {
-    this.calls.push(request);
-    return { success: true };
-  }
-}
-
-class RecordingRoute extends RouteService {
-  calls: RouteBatchRequest[] = [];
-  async batchConfigure(request: RouteBatchRequest): Promise<VyOSResponse> {
     this.calls.push(request);
     return { success: true };
   }
@@ -170,15 +150,6 @@ const storedAccess: AccessListRule = {
   destination_type: "any",
   destination_address: null,
   destination_mask: null,
-};
-
-const storedRoute: PolicyRouteRule = {
-  rule_number: 10,
-  description: "corp",
-  disable: false,
-  log: null,
-  match: { source_address: "10.0.0.1" },
-  set: { table: "main" },
 };
 
 const storedMap: RouteMapRule = {
@@ -390,63 +361,6 @@ describe("access-list rule", () => {
     );
     assert.equal(result, null);
     assert.equal(service.calls.length, 0);
-  });
-});
-
-describe("route rule create", () => {
-  it("rejects a missing rule number", () => {
-    const draft = emptyRouteRuleDraft();
-    draft.ruleNumber = 0;
-    assert.equal(validateRouteRuleCreate(draft), "ruleNumberRequired");
-  });
-
-  it("emits only filled match and set fields", async () => {
-    const service = new RecordingRoute();
-    const draft = emptyRouteRuleDraft();
-    draft.ruleNumber = 10;
-    draft.description = "corp";
-    draft.sourceAddress = "10.0.0.1";
-    draft.actionTableMode = "main";
-    await submitRouteRuleCreate("route", "FOO", draft, false, service);
-    assert.deepEqual(service.calls[0].operations, [
-      { op: "create_rule" },
-      { op: "set_rule_description", value: "corp" },
-      { op: "set_match_source_address", value: "10.0.0.1" },
-      { op: "set_table", value: "main" },
-    ]);
-  });
-});
-
-describe("route rule update", () => {
-  it("sends nothing when the operator changed nothing", async () => {
-    const service = new RecordingRoute();
-    const result = await submitRouteRuleUpdate(
-      "route",
-      "FOO",
-      storedRoute,
-      routeRuleDraftFrom(storedRoute),
-      false,
-      service,
-    );
-    assert.equal(result, null);
-    assert.equal(service.calls.length, 0);
-  });
-
-  it("deletes a cleared description", async () => {
-    const service = new RecordingRoute();
-    const draft = routeRuleDraftFrom(storedRoute);
-    draft.description = "";
-    await submitRouteRuleUpdate("route", "FOO", storedRoute, draft, false, service);
-    assert.ok(service.calls[0].operations.some((op) => op.op === "delete_rule_description"));
-  });
-
-  it("writes the stored rule number when the draft number was altered", async () => {
-    const service = new RecordingRoute();
-    const draft = routeRuleDraftFrom(storedRoute);
-    draft.ruleNumber = 999;
-    draft.description = "new";
-    await submitRouteRuleUpdate("route", "FOO", storedRoute, draft, false, service);
-    assert.equal(service.calls[0].rule_number, 10);
   });
 });
 

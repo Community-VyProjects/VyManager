@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,138 +10,49 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, Network, Loader2 } from "lucide-react";
-import { routeService } from "@/lib/api/route";
-import { apiClient } from "@/lib/api/client";
-import { ApiError } from "@/lib/types/api";
+import { PolicyInterfacesField } from "./PolicyInterfacesField";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { routeService, type PolicyRoute } from "@/lib/api/route";
+import { interfacesWithPending, policyFormFrom, policyUpdateOps } from "@/lib/api/route-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
 interface ManagePolicyInterfacesModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  policyType: string;
-  policyName: string;
+  policy: PolicyRoute;
   onSuccess: () => void;
-}
-
-interface InterfaceOption {
-  name: string;
-  type: string;
-  description?: string;
 }
 
 export function ManagePolicyInterfacesModal({
   open,
   onOpenChange,
-  policyType,
-  policyName,
+  policy,
   onSuccess,
 }: ManagePolicyInterfacesModalProps) {
   const t = useTranslations("routePolicy.manageInterfaces");
+  const tp = useTranslations("routePolicy.policyErrors");
   const tc = useTranslations("common");
+  const [interfaces, setInterfaces] = useState<string[]>(() => [...policy.interfaces]);
+  const [pattern, setPattern] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceOption[]>([]);
-  const [selectedInterfaces, setSelectedInterfaces] = useState<Set<string>>(new Set());
-  const [originalInterfaces, setOriginalInterfaces] = useState<Set<string>>(new Set());
-
-  const loadData = useCallback(async () => {
-    setLoadingData(true);
-    setError(null);
-    try {
-      // Load all available interfaces
-      const [ethernetResponse, dummyResponse] = await Promise.all([
-        apiClient.get<{interfaces: Array<{name: string, type: string, description?: string, vif?: Array<{vlan_id: string, description?: string}>}>}>("/vyos/ethernet/config"),
-        apiClient.get<{interfaces: Array<{name: string, type: string, description?: string}>}>("/vyos/dummy/config"),
-      ]);
-
-      const allInterfaces: InterfaceOption[] = [
-        ...ethernetResponse.interfaces.flatMap(i => {
-          const interfaces: InterfaceOption[] = [{name: i.name, type: "ethernet", description: i.description}];
-          // Add VLANs if they exist
-          if (i.vif && Array.isArray(i.vif)) {
-            i.vif.forEach(vlan => {
-              interfaces.push({
-                name: `${i.name}.${vlan.vlan_id}`,
-                type: "ethernet",
-                description: vlan.description || `VLAN ${vlan.vlan_id}`,
-              });
-            });
-          }
-          return interfaces;
-        }),
-        ...dummyResponse.interfaces.map(i => ({name: i.name, type: "dummy", description: i.description})),
-      ];
-      setAvailableInterfaces(allInterfaces);
-
-      // Load currently assigned interfaces
-      const config = await routeService.getConfig(true);
-      const policies = policyType === "route" ? config.ipv4_policies : config.ipv6_policies;
-      const policy = policies.find(p => p.name === policyName);
-
-      const assigned = new Set<string>();
-      if (policy && policy.interfaces) {
-        policy.interfaces.forEach(iface => assigned.add(iface.name));
-      }
-      setSelectedInterfaces(assigned);
-      setOriginalInterfaces(assigned);
-    } catch (err) {
-      setError((err as ApiError).message || t("loadFailed"));
-    } finally {
-      setLoadingData(false);
-    }
-  }, [policyType, policyName, t]);
-
-  useEffect(() => {
-    if (open) {
-      loadData();
-    }
-  }, [open, policyType, policyName, loadData]);
-
-
-  const handleToggleInterface = (interfaceName: string) => {
-    const newSelected = new Set(selectedInterfaces);
-    if (newSelected.has(interfaceName)) {
-      newSelected.delete(interfaceName);
-    } else {
-      newSelected.add(interfaceName);
-    }
-    setSelectedInterfaces(newSelected);
-  };
+  // A pattern still in the box counts as added, so Save sees it.
+  const submitted = interfacesWithPending(interfaces, pattern);
+  const form = { ...policyFormFrom(policy), interfaces: submitted ?? interfaces };
+  const hasChanges = submitted === null || policyUpdateOps(policy, form).length > 0;
 
   const handleSubmit = async () => {
+    if (submitted === null) {
+      setError(tp("interfacePatternInvalid"));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      // Determine which interfaces to add and remove
-      const toAdd = Array.from(selectedInterfaces).filter(i => !originalInterfaces.has(i));
-      const toRemove = Array.from(originalInterfaces).filter(i => !selectedInterfaces.has(i));
-
-      // Add interfaces
-      for (const interfaceName of toAdd) {
-        await routeService.addInterfaceToPolicy(
-          policyType,
-          policyName,
-          "", // type not needed anymore
-          interfaceName
-        );
-      }
-
-      // Remove interfaces
-      for (const interfaceName of toRemove) {
-        await routeService.removeInterfaceFromPolicy(
-          policyType,
-          policyName,
-          "", // type not needed anymore
-          interfaceName
-        );
-      }
-
-      handleClose();
+      await routeService.updatePolicy(policy, form);
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("updateFailed"));
@@ -150,95 +61,41 @@ export function ManagePolicyInterfacesModal({
     }
   };
 
-  const handleClose = () => {
-    if (!loading) {
-      setError(null);
-      setSelectedInterfaces(new Set());
-      setOriginalInterfaces(new Set());
-      setAvailableInterfaces([]);
-      onOpenChange(false);
-    }
-  };
-
-  const hasChanges = () => {
-    if (selectedInterfaces.size !== originalInterfaces.size) return true;
-    for (const iface of selectedInterfaces) {
-      if (!originalInterfaces.has(iface)) return true;
-    }
-    return false;
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>
-            {t("description", { policyName })}
-          </DialogDescription>
+          <DialogDescription>{t("description", { policyName: policy.name })}</DialogDescription>
         </DialogHeader>
 
         {error && (
           <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto">
-          {loadingData ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {availableInterfaces.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Network className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">{t("noInterfaces")}</p>
-                </div>
-              ) : (
-                availableInterfaces.map((iface) => (
-                  <div
-                    key={iface.name}
-                    className="flex items-center space-x-3 p-2 hover:bg-accent rounded-md"
-                  >
-                    <Checkbox
-                      id={`iface-${iface.name}`}
-                      checked={selectedInterfaces.has(iface.name)}
-                      onCheckedChange={() => handleToggleInterface(iface.name)}
-                      disabled={loading}
-                    />
-                    <Label
-                      htmlFor={`iface-${iface.name}`}
-                      className="flex-1 cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium">{iface.name}</span>
-                          <span className="text-xs text-muted-foreground ml-2">
-                            ({iface.type})
-                          </span>
-                        </div>
-                        {iface.description && (
-                          <span className="text-xs text-muted-foreground">
-                            {iface.description}
-                          </span>
-                        )}
-                      </div>
-                    </Label>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+        <PolicyInterfacesField
+          id="route-policy-manage-interfaces"
+          label={t("interfaces")}
+          values={interfaces}
+          onChange={setInterfaces}
+          pattern={pattern}
+          onPatternChange={setPattern}
+          disabled={loading}
+        />
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || loadingData || !hasChanges()}>
+          <Button onClick={handleSubmit} disabled={loading || !hasChanges}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading ? tc("saving") : tc("saveChanges")}
           </Button>

@@ -9,6 +9,8 @@ interface RouteReorderBannerProps {
   onCancel: () => void;
   saving: boolean;
   count: number;
+  /** The rejected reorder's device error, if any. */
+  error: string | null;
 }
 
 export function RouteReorderBanner({
@@ -16,6 +18,7 @@ export function RouteReorderBanner({
   onCancel,
   saving,
   count,
+  error,
 }: RouteReorderBannerProps) {
   const t = useTranslations("routePolicy.reorderBanner");
   const tc = useTranslations("common");
@@ -55,6 +58,7 @@ export function RouteReorderBanner({
           </Button>
         </div>
       </div>
+      {error && <p className="mt-2 text-sm text-destructive whitespace-pre-wrap">{error}</p>}
     </div>
   );
 }

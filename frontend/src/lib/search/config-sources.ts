@@ -151,11 +151,10 @@ export const configSources: ConfigSourceDefinition[] = [
     id: "route-policy",
     feature: "Policies",
     hrefBase: "/policies/route",
-    fetch: () => routeService.getConfig(),
-    hrefParams: (path) =>
-      path.join(".").includes("route6") || path.join(".").includes("ipv6")
-        ? { section: "route6" }
-        : { section: "route" },
+    // Only the policy lists are config; the totals are counts.
+    fetch: () =>
+      routeService.getConfig().then(({ ipv4_policies, ipv6_policies }) => ({ ipv4_policies, ipv6_policies })),
+    hrefParams: (path) => (path.includes("ipv6_policies") ? { section: "route6" } : { section: "route" }),
   },
   {
     id: "route-map",

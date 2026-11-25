@@ -30,14 +30,14 @@
   "ruleRow": {
     "conditions": "{count} 个条件",
     "actions": "{count} 个动作",
-    "drop": "丢弃",
     "match": {
       "sourceAddress": "源地址",
       "destinationAddress": "目标地址",
       "sourceMac": "源 MAC",
-      "destinationMac": "目标 MAC",
       "sourceGeoip": "源 GeoIP",
       "destinationGeoip": "目标 GeoIP",
+      "geoipCountries": "国家 {codes}",
+      "geoipAsn": "ASN {asn}",
       "sourceGroupAddress": "源地址组",
       "sourceGroupDomain": "源域名组",
       "sourceGroupMac": "源 MAC 组",
@@ -52,20 +52,17 @@
       "destinationPort": "目标端口",
       "protocol": "协议",
       "tcpFlags": "TCP 标志",
+      "tcpFlagsNot": "TCP 标志取反",
       "icmpCode": "ICMP 代码",
       "icmpType": "ICMP 类型",
       "icmpTypeName": "ICMP 名称",
-      "icmpv6Code": "ICMPv6 代码",
       "icmpv6Type": "ICMPv6 类型",
-      "icmpv6TypeName": "ICMPv6 名称",
       "fragment": "分片",
       "packetType": "包类型",
       "packetLength": "包长度",
       "packetLengthExclude": "排除包长度",
       "dscpExclude": "排除 DSCP",
       "state": "状态",
-      "ipsecIn": "IPsec 入站",
-      "ipsecOut": "IPsec 出站",
       "mark": "标记",
       "connectionMark": "连接标记",
       "hopLimitEq": "跳数限制 =",
@@ -96,10 +93,11 @@
   "createPolicy": {
     "title": "创建 {family} 策略",
     "description": "为 {family} 流量路由创建新的策略 {policyType}",
-    "nameRequired": "策略名称为必填项",
     "createFailed": "创建策略失败",
     "nameLabel": "策略名称 *",
+    "namePlaceholder": "例如 {example}",
     "descriptionPlaceholder": "策略描述",
+    "interfaces": "接口",
     "defaultLog": "为未匹配的数据包启用默认日志",
     "submit": "创建策略"
   },
@@ -129,10 +127,21 @@
     "submit": "删除规则"
   },
   "manageInterfaces": {
-    "loadFailed": "加载数据失败",
     "updateFailed": "更新接口失败",
     "title": "管理策略接口",
     "description": "选择要应用“{policyName}”策略的接口。",
-    "noInterfaces": "没有可用的接口"
+    "interfaces": "接口"
+  },
+  "policyErrors": {
+    "nameRequired": "策略名称为必填项",
+    "nameInvalid": "策略名称必须以字母或数字开头，且只能包含字母、数字、连字符、下划线和点",
+    "nameTaken": "已存在同名策略",
+    "descriptionTooLong": "描述最多 {max} 个字符",
+    "interfacePatternInvalid": "接口模式不能为空或包含空格"
+  },
+  "interfacesField": {
+    "pattern": "接口模式",
+    "patternPlaceholder": "模式，例如 {example}",
+    "add": "添加"
   }
 }

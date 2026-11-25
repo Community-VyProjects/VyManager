@@ -18,7 +18,16 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, RefreshCw, AlertCircle, Route as RouteIcon, Trash2, Pencil, Network } from "lucide-react";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { routeService, PolicyRoute, PolicyRouteRule, RouteCapabilitiesResponse } from "@/lib/api/route";
+import {
+  routeService,
+  type PolicyRoute,
+  type PolicyRouteRule,
+  type RouteCapabilitiesResponse,
+  type RoutePolicyType,
+} from "@/lib/api/route";
+import type { ApiError } from "@/lib/types/api";
+import { FeatureGroup } from "@/lib/api/user-management";
+import { usePermissions } from "@/hooks/usePermissions";
 import { CreateRoutePolicyModal } from "@/components/policies/CreateRoutePolicyModal";
 import { EditRoutePolicyModal } from "@/components/policies/EditRoutePolicyModal";
 import { DeleteRoutePolicyModal } from "@/components/policies/DeleteRoutePolicyModal";
@@ -27,50 +36,58 @@ import { DeleteRouteRuleModal } from "@/components/policies/DeleteRouteRuleModal
 import { RouteRuleRow } from "@/components/policies/RouteRuleRow";
 import { RouteReorderBanner } from "@/components/policies/RouteReorderBanner";
 import { ManagePolicyInterfacesModal } from "@/components/policies/ManagePolicyInterfacesModal";
+import { activeMatchEntries } from "@/components/policies/route-rule-form";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
+type ModalKind =
+  | "createPolicy"
+  | "editPolicy"
+  | "deletePolicy"
+  | "interfaces"
+  | "createRule"
+  | "editRule"
+  | "deleteRule";
+
+interface ModalState {
+  kind: ModalKind;
+  policy: PolicyRoute | null;
+  rule: PolicyRouteRule | null;
+}
 
 function RoutePageInner() {
   const t = useTranslations("routePolicy.page");
   const tr = useTranslations("routePolicy.ruleRow");
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
+  const { canWrite } = usePermissions();
+  const hasWrite = canWrite(FeatureGroup.ROUTE_POLICY);
+
   const [ipv4Policies, setIpv4Policies] = useState<PolicyRoute[]>([]);
   const [ipv6Policies, setIpv6Policies] = useState<PolicyRoute[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<RouteCapabilitiesResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectedPolicyType, setSelectedPolicyType] = useState<"route" | "route6">("route");
+  const [selectedPolicyType, setSelectedPolicyType] = useState<RoutePolicyType>(() =>
+    searchParams.get("section") === "route6" ? "route6" : "route",
+  );
   const [selectedPolicyName, setSelectedPolicyName] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [ruleSearchQuery, setRuleSearchQuery] = useState("");
 
-  // Modal states
-  const [showCreatePolicyModal, setShowCreatePolicyModal] = useState(false);
-  const [showEditPolicyModal, setShowEditPolicyModal] = useState(false);
-  const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
-  const [selectedPolicy, setSelectedPolicy] = useState<PolicyRoute | null>(null);
+  // One modal at a time; the subject stays set after close so the text does not flip.
+  const [modal, setModal] = useState<ModalState | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalKey, setModalKey] = useState(0);
 
-  const [showCreateRuleModal, setShowCreateRuleModal] = useState(false);
-  const [showEditRuleModal, setShowEditRuleModal] = useState(false);
-  const [showDeleteRuleModal, setShowDeleteRuleModal] = useState(false);
-  const [selectedRule, setSelectedRule] = useState<PolicyRouteRule | null>(null);
-
-  const [showManageInterfacesModal, setShowManageInterfacesModal] = useState(false);
-
-  // Drag and drop states
+  // Drag and drop
   const [reorderedRules, setReorderedRules] = useState<PolicyRouteRule[]>([]);
-  const [, setOriginalRules] = useState<PolicyRouteRule[]>([]);
-  const [hasChanges, setHasChanges] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
 
-  // Interface management states
-  const [policyInterfaces, setPolicyInterfaces] = useState<Array<{name: string, type: string}>>([]);
-
-  // Drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -79,79 +96,71 @@ function RoutePageInner() {
     })
   );
 
-  const fetchData = async (refresh: boolean = false, initialPolicyType: "route" | "route6" | null = null) => {
-    const activePolicyType = initialPolicyType || selectedPolicyType;
+  const applyConfig = useCallback(async (refresh: boolean) => {
+    const [config, caps] = await Promise.all([routeService.getConfig(refresh), routeService.getCapabilities()]);
+    setIpv4Policies(config.ipv4_policies);
+    setIpv6Policies(config.ipv6_policies);
+    setCapabilities(caps);
+    setReorderedRules([]);
+    setReorderError(null);
+    setError(null);
+  }, []);
 
+  const loadData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const [config, caps] = await Promise.all([
-        routeService.getConfig(refresh),
-        routeService.getCapabilities(),
-      ]);
-      setIpv4Policies(config.ipv4_policies);
-      setIpv6Policies(config.ipv6_policies);
-      setCapabilities(caps);
-
-      // Reset reorder state
-      setHasChanges(false);
-      setReorderedRules([]);
-      setOriginalRules([]);
-
-      // Auto-select first policy if none selected
-      if (!selectedPolicyName) {
-        const policies = activePolicyType === "route" ? config.ipv4_policies : config.ipv6_policies;
-        if (policies.length > 0) {
-          setSelectedPolicyName(policies[0].name);
-        }
-      }
+      await applyConfig(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("loadFailed"));
-      console.error("Error fetching route config:", err);
+      setError((err as ApiError).message || t("loadFailed"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [applyConfig, t]);
+
+  /** Re-read after a save without swapping the page (and open dialogs) for the spinner. */
+  const reload = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await applyConfig(true);
+    } catch (err) {
+      setError((err as ApiError).message || t("loadFailed"));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [applyConfig, t]);
 
   useEffect(() => {
-    const section = searchParams.get("section");
-    const initialPolicyType = section === "route6" ? "route6" : "route";
-    if (section === "route" || section === "route6") {
-      setSelectedPolicyType(section);
-    }
-    fetchData(false, initialPolicyType);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void loadData();
+  }, [loadData]);
 
   const policies = selectedPolicyType === "route" ? ipv4Policies : ipv6Policies;
-  const selectedPolicyData = policies.find((p) => p.name === selectedPolicyName);
+  const selectedPolicyData = policies.find((p) => p.name === selectedPolicyName) ?? policies[0];
+  const hasReorder = reorderedRules.length > 0;
+  const currentRules = hasReorder ? reorderedRules : selectedPolicyData?.rules || [];
+  const writeDisabled = refreshing || savingReorder;
 
-  // Get current rules (reordered or original)
-  const currentRules = hasChanges && reorderedRules.length > 0
-    ? reorderedRules
-    : selectedPolicyData?.rules || [];
-
-  // Filter policies based on search
   const filteredPolicies = policies.filter((p) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(query) ||
-      p.description?.toLowerCase().includes(query)
-    );
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return p.name.toLowerCase().includes(query) || (p.description ?? "").toLowerCase().includes(query);
   });
 
-  // Filter rules based on search
   const filteredRules = currentRules.filter((rule) => {
-    if (!ruleSearchQuery) return true;
-    const query = ruleSearchQuery.toLowerCase();
-    return (
-      rule.rule_number.toString().includes(query) ||
-      rule.description?.toLowerCase().includes(query)
-    );
+    const query = ruleSearchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return rule.rule_number.toString().includes(query) || (rule.description ?? "").toLowerCase().includes(query);
   });
 
-  // Drag and drop handlers
+  const openModal = (kind: ModalKind, policy: PolicyRoute | null = null, rule: PolicyRouteRule | null = null) => {
+    setModal({ kind, policy, rule });
+    setModalKey((key) => key + 1);
+    setModalOpen(true);
+  };
+
+  const resetReorder = () => {
+    setReorderedRules([]);
+    setReorderError(null);
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as number);
   };
@@ -159,137 +168,60 @@ function RoutePageInner() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
-
     if (!over || active.id === over.id) return;
-
     const oldIndex = currentRules.findIndex((r) => r.rule_number === active.id);
     const newIndex = currentRules.findIndex((r) => r.rule_number === over.id);
-
     if (oldIndex !== newIndex) {
-      const newOrder = arrayMove(currentRules, oldIndex, newIndex);
-
-      // Initialize states on first reorder
-      if (!hasChanges) {
-        setOriginalRules([...currentRules]);
-      }
-
-      setReorderedRules(newOrder);
-      setHasChanges(true);
+      setReorderedRules(arrayMove(currentRules, oldIndex, newIndex));
     }
   };
 
   const handleSaveReorder = async () => {
-    if (!selectedPolicyName || reorderedRules.length === 0) return;
-
+    if (!selectedPolicyData || !hasReorder) return;
     setSavingReorder(true);
+    setReorderError(null);
     try {
+      // Every rule of the policy, in the new order.
       await routeService.reorderRules(
         selectedPolicyType,
-        selectedPolicyName,
-        reorderedRules.map((r) => r.rule_number)
+        selectedPolicyData.name,
+        reorderedRules.map((r) => r.rule_number),
       );
-
-      setHasChanges(false);
-      setReorderedRules([]);
-      setOriginalRules([]);
-      await fetchData(true);
+      resetReorder();
+      void reload();
     } catch (err) {
-      console.error("Failed to save rule order:", err);
-      setError(err instanceof Error ? err.message : t("saveOrderFailed"));
+      setReorderError((err as ApiError).message || t("saveOrderFailed"));
     } finally {
       setSavingReorder(false);
     }
   };
 
-  const handleCancelReorder = () => {
-    setReorderedRules([]);
-    setHasChanges(false);
-    setOriginalRules([]);
-  };
-
-  const handlePolicyTypeChange = (type: "route" | "route6") => {
-    // Reset reorder state when changing policy type
-    if (hasChanges) {
-      setHasChanges(false);
-      setReorderedRules([]);
-      setOriginalRules([]);
-    }
+  const handlePolicyTypeChange = (type: RoutePolicyType) => {
+    resetReorder();
     setSelectedPolicyType(type);
+    setSelectedPolicyName(null);
     setSearchQuery("");
     setRuleSearchQuery("");
-
-    // Auto-select first policy of new type
-    const newPolicies = type === "route" ? ipv4Policies : ipv6Policies;
-    if (newPolicies.length > 0) {
-      setSelectedPolicyName(newPolicies[0].name);
-    } else {
-      setSelectedPolicyName(null);
-    }
   };
 
   const handlePolicySelect = (name: string) => {
-    // Reset reorder state when changing policies
-    if (hasChanges) {
-      setHasChanges(false);
-      setReorderedRules([]);
-      setOriginalRules([]);
-    }
+    resetReorder();
     setSelectedPolicyName(name);
     setRuleSearchQuery("");
   };
 
-  const handleDeletePolicy = (policy: PolicyRoute) => {
-    setSelectedPolicy(policy);
-    setShowDeletePolicyModal(true);
-  };
-
   const handlePolicyDeleted = () => {
-    // If deleted policy was selected, select another one
-    if (selectedPolicyName === selectedPolicy?.name) {
-      const remaining = policies.filter((p) => p.name !== selectedPolicy?.name);
-      setSelectedPolicyName(remaining.length > 0 ? remaining[0].name : null);
+    if (selectedPolicyData && modal?.policy?.name === selectedPolicyData.name) {
+      setSelectedPolicyName(null);
     }
-    fetchData(true);
+    resetReorder();
+    void reload();
   };
 
-  const handleEditRule = (rule: PolicyRouteRule) => {
-    setSelectedRule(rule);
-    setShowEditRuleModal(true);
+  const afterSave = () => {
+    resetReorder();
+    void reload();
   };
-
-  const handleDeleteRule = (rule: PolicyRouteRule) => {
-    setSelectedRule(rule);
-    setShowDeleteRuleModal(true);
-  };
-
-  // Interface management functions
-
-  // Load policy interfaces when selected policy changes
-  const loadPolicyInterfaces = useCallback(async () => {
-    if (!selectedPolicyName) {
-      setPolicyInterfaces([]);
-      return;
-    }
-
-    try {
-      const config = await routeService.getConfig(true);
-      const policies = selectedPolicyType === "route" ? config.ipv4_policies : config.ipv6_policies;
-      const policy = policies.find(p => p.name === selectedPolicyName);
-
-      if (policy && policy.interfaces) {
-        setPolicyInterfaces(policy.interfaces);
-      } else {
-        setPolicyInterfaces([]);
-      }
-    } catch (err) {
-      console.error("Failed to load policy interfaces:", err);
-      setPolicyInterfaces([]);
-    }
-  }, [selectedPolicyName, selectedPolicyType]);
-
-  useEffect(() => {
-    loadPolicyInterfaces();
-  }, [selectedPolicyName, selectedPolicyType, loadPolicyInterfaces]);
 
   const ruleIds = filteredRules.map((r) => r.rule_number);
   const totalRules = policies.reduce((sum, p) => sum + p.rules.length, 0);
@@ -311,9 +243,9 @@ function RoutePageInner() {
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <h2 className="text-xl font-semibold text-foreground">{t("errorTitle")}</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchData(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <p className="text-muted-foreground max-w-md whitespace-pre-wrap">{error}</p>
+            <Button onClick={() => void reload()} variant="outline" disabled={refreshing}>
+              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
               {tc("retry")}
             </Button>
           </div>
@@ -341,7 +273,7 @@ function RoutePageInner() {
             </div>
 
             {/* IPv4/IPv6 Tabs */}
-            <Tabs value={selectedPolicyType} onValueChange={(v) => handlePolicyTypeChange(v as "route" | "route6")} className="mb-4">
+            <Tabs value={selectedPolicyType} onValueChange={(v) => handlePolicyTypeChange(v as RoutePolicyType)} className="mb-4">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="route">IPv4</TabsTrigger>
                 <TabsTrigger value="route6">IPv6</TabsTrigger>
@@ -353,20 +285,24 @@ function RoutePageInner() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t("searchPolicies")}
+                aria-label={t("searchPolicies")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
 
-            <Button
-              onClick={() => setShowCreatePolicyModal(true)}
-              className="w-full"
-              size="sm"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t("createPolicy")}
-            </Button>
+            {hasWrite && (
+              <Button
+                onClick={() => openModal("createPolicy")}
+                className="w-full"
+                size="sm"
+                disabled={writeDisabled || hasReorder}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t("createPolicy")}
+              </Button>
+            )}
           </div>
 
           <Separator className="shrink-0" />
@@ -377,14 +313,15 @@ function RoutePageInner() {
               {filteredPolicies.length === 0 ? (
                 <div className="px-2 py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? t("noPoliciesMatch") : t("noPoliciesConfigured", { family: selectedPolicyType === "route" ? "IPv4" : "IPv6" })}
+                    {searchQuery.trim() ? t("noPoliciesMatch") : t("noPoliciesConfigured", { family: selectedPolicyType === "route" ? "IPv4" : "IPv6" })}
                   </p>
-                  {!searchQuery && (
+                  {!searchQuery.trim() && hasWrite && (
                     <Button
                       variant="link"
                       size="sm"
-                      onClick={() => setShowCreatePolicyModal(true)}
+                      onClick={() => openModal("createPolicy")}
                       className="mt-2"
+                      disabled={writeDisabled}
                     >
                       {t("createFirstPolicy")}
                     </Button>
@@ -396,7 +333,7 @@ function RoutePageInner() {
                     key={policy.name}
                     className={cn(
                       "group relative rounded-lg transition-all",
-                      selectedPolicyName === policy.name
+                      selectedPolicyData?.name === policy.name
                         ? "bg-accent text-accent-foreground shadow-sm"
                         : "hover:bg-accent/50"
                     )}
@@ -419,19 +356,23 @@ function RoutePageInner() {
                         </p>
                       )}
                     </button>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePolicy(policy);
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    {hasWrite && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          aria-label={tc("delete")}
+                          disabled={writeDisabled || hasReorder}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openModal("deletePolicy", policy);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -451,16 +392,17 @@ function RoutePageInner() {
                       <h2 className="text-2xl font-bold text-foreground font-mono">
                         {selectedPolicyData.name}
                       </h2>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedPolicy(selectedPolicyData);
-                          setShowEditPolicyModal(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      {hasWrite && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={tc("edit")}
+                          disabled={writeDisabled || hasReorder}
+                          onClick={() => openModal("editPolicy", selectedPolicyData)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                     {selectedPolicyData.description && (
                       <p className="text-sm text-muted-foreground mt-1">
@@ -469,14 +411,16 @@ function RoutePageInner() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button onClick={() => fetchData(true)} variant="outline" size="sm">
-                      <RefreshCw className="h-4 w-4 mr-2" />
+                    <Button onClick={() => void reload()} variant="outline" size="sm" disabled={refreshing || savingReorder}>
+                      <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
                       {tc("refresh")}
                     </Button>
-                    <Button onClick={() => setShowCreateRuleModal(true)} size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("addRule")}
-                    </Button>
+                    {hasWrite && (
+                      <Button onClick={() => openModal("createRule", selectedPolicyData)} size="sm" disabled={writeDisabled || hasReorder}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("addRule")}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -485,6 +429,7 @@ function RoutePageInner() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t("searchRules")}
+                    aria-label={t("searchRules")}
                     value={ruleSearchQuery}
                     onChange={(e) => setRuleSearchQuery(e.target.value)}
                     className="pl-10"
@@ -501,21 +446,23 @@ function RoutePageInner() {
                         <Network className="h-4 w-4 text-muted-foreground" />
                         <h3 className="font-semibold text-sm">{t("appliedInterfaces")}</h3>
                         <Badge variant="secondary" className="text-xs">
-                          {policyInterfaces.length}
+                          {selectedPolicyData.interfaces.length}
                         </Badge>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setShowManageInterfacesModal(true)}
-                        disabled={!selectedPolicyName}
-                      >
-                        <Network className="h-4 w-4 mr-2" />
-                        {t("manageInterfaces")}
-                      </Button>
+                      {hasWrite && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openModal("interfaces", selectedPolicyData)}
+                          disabled={writeDisabled || hasReorder}
+                        >
+                          <Network className="h-4 w-4 mr-2" />
+                          {t("manageInterfaces")}
+                        </Button>
+                      )}
                     </div>
 
-                    {policyInterfaces.length === 0 ? (
+                    {selectedPolicyData.interfaces.length === 0 ? (
                       <div className="text-center py-4">
                         <p className="text-sm text-muted-foreground">
                           {t("noInterfaces")}
@@ -523,15 +470,14 @@ function RoutePageInner() {
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {policyInterfaces.map((iface) => (
+                        {selectedPolicyData.interfaces.map((iface) => (
                           <Badge
-                            key={iface.name}
+                            key={iface}
                             variant="outline"
                             className="px-3 py-1.5 flex items-center gap-2 bg-background"
                           >
                             <Network className="h-3 w-3" />
-                            <span className="font-mono text-sm">{iface.name}</span>
-                            <span className="text-muted-foreground text-xs">({iface.type})</span>
+                            <span className="font-mono text-sm">{iface}</span>
                           </Badge>
                         ))}
                       </div>
@@ -541,12 +487,13 @@ function RoutePageInner() {
               </div>
 
               {/* Reorder Banner */}
-              {hasChanges && (
+              {hasReorder && (
                 <RouteReorderBanner
                   onSave={handleSaveReorder}
-                  onCancel={handleCancelReorder}
+                  onCancel={resetReorder}
                   saving={savingReorder}
                   count={reorderedRules.length}
+                  error={reorderError}
                 />
               )}
 
@@ -557,15 +504,15 @@ function RoutePageInner() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <RouteIcon className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {ruleSearchQuery ? t("noRulesMatch") : t("noRules")}
+                        {ruleSearchQuery.trim() ? t("noRulesMatch") : t("noRules")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {ruleSearchQuery
+                        {ruleSearchQuery.trim()
                           ? t("adjustSearch")
                           : t("addRulesHint")}
                       </p>
-                      {!ruleSearchQuery && (
-                        <Button onClick={() => setShowCreateRuleModal(true)}>
+                      {!ruleSearchQuery.trim() && hasWrite && (
+                        <Button onClick={() => openModal("createRule", selectedPolicyData)} disabled={writeDisabled}>
                           <Plus className="h-4 w-4 mr-2" />
                           {t("addFirstRule")}
                         </Button>
@@ -602,8 +549,11 @@ function RoutePageInner() {
                                 <RouteRuleRow
                                   key={rule.rule_number}
                                   rule={rule}
-                                  onEdit={handleEditRule}
-                                  onDelete={handleDeleteRule}
+                                  onEdit={(r) => openModal("editRule", selectedPolicyData, r)}
+                                  onDelete={(r) => openModal("deleteRule", selectedPolicyData, r)}
+                                  canWrite={hasWrite}
+                                  dragDisabled={writeDisabled}
+                                  disabled={writeDisabled || hasReorder}
                                 />
                               ))}
                             </SortableContext>
@@ -620,11 +570,7 @@ function RoutePageInner() {
                       {activeId !== null ? (() => {
                         const draggedRule = currentRules.find((r) => r.rule_number === activeId);
                         if (!draggedRule) return null;
-                        const matchCount = draggedRule.match
-                          ? Object.values(draggedRule.match).filter(
-                              (v) => v !== null && v !== undefined && v !== false && v !== ""
-                            ).length
-                          : 0;
+                        const matchCount = activeMatchEntries(draggedRule.match).length;
                         return (
                           <div className="bg-card border-2 border-primary shadow-2xl rounded-lg overflow-hidden opacity-95">
                             <Table>
@@ -676,8 +622,8 @@ function RoutePageInner() {
                     ? t("createToStart")
                     : t("selectFromSidebar")}
                 </p>
-                {policies.length === 0 && (
-                  <Button onClick={() => setShowCreatePolicyModal(true)}>
+                {policies.length === 0 && hasWrite && (
+                  <Button onClick={() => openModal("createPolicy")} disabled={writeDisabled}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("createPolicy")}
                   </Button>
@@ -688,74 +634,73 @@ function RoutePageInner() {
         </div>
       </div>
 
-      {/* Policy Modals */}
-      <CreateRoutePolicyModal
-        open={showCreatePolicyModal}
-        onOpenChange={setShowCreatePolicyModal}
-        onSuccess={() => fetchData(true)}
-        policyType={selectedPolicyType}
-      />
-
-      {selectedPolicy && (
-        <>
-          <EditRoutePolicyModal
-            open={showEditPolicyModal}
-            onOpenChange={setShowEditPolicyModal}
-            onSuccess={() => fetchData(true)}
-            policy={selectedPolicy}
-          />
-
-          <DeleteRoutePolicyModal
-            open={showDeletePolicyModal}
-            onOpenChange={setShowDeletePolicyModal}
-            onSuccess={handlePolicyDeleted}
-            policy={selectedPolicy}
-          />
-        </>
+      {modal?.kind === "createPolicy" && (
+        <CreateRoutePolicyModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          policyType={selectedPolicyType}
+          existingNames={policies.map((p) => p.name)}
+          capabilities={capabilities}
+        />
       )}
 
-      {/* Rule Modals */}
-      {selectedPolicyName && (
-        <>
-          <RouteRuleModal
-            open={showCreateRuleModal || (showEditRuleModal && !!selectedRule)}
-            onOpenChange={(open) => {
-              if (!open) {
-                setShowCreateRuleModal(false);
-                setShowEditRuleModal(false);
-              }
-            }}
-            onSuccess={() => fetchData(true)}
-            policyType={selectedPolicyType}
-            policyName={selectedPolicyName}
-            capabilities={capabilities}
-            existing={showEditRuleModal ? selectedRule : null}
-          />
+      {modal?.kind === "editPolicy" && modal.policy && (
+        <EditRoutePolicyModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          policy={modal.policy}
+          capabilities={capabilities}
+        />
+      )}
 
-          {selectedRule && (
-            <>
-              <DeleteRouteRuleModal
-                open={showDeleteRuleModal}
-                onOpenChange={setShowDeleteRuleModal}
-                onSuccess={() => fetchData(true)}
-                policyType={selectedPolicyType}
-                policyName={selectedPolicyName}
-                rule={selectedRule}
-              />
-            </>
-          )}
+      {modal?.kind === "deletePolicy" && modal.policy && (
+        <DeleteRoutePolicyModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={handlePolicyDeleted}
+          policy={modal.policy}
+        />
+      )}
 
-          <ManagePolicyInterfacesModal
-            open={showManageInterfacesModal}
-            onOpenChange={setShowManageInterfacesModal}
-            policyType={selectedPolicyType}
-            policyName={selectedPolicyName || ""}
-            onSuccess={() => {
-              loadPolicyInterfaces();
-              fetchData(true);
-            }}
-          />
-        </>
+      {modal?.kind === "interfaces" && modal.policy && (
+        <ManagePolicyInterfacesModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          policy={modal.policy}
+        />
+      )}
+
+      {(modal?.kind === "createRule" || modal?.kind === "editRule") && modal.policy && (
+        <RouteRuleModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          policyType={modal.policy.policy_type}
+          policyName={modal.policy.name}
+          capabilities={capabilities}
+          existing={modal.kind === "editRule" ? modal.rule : null}
+          existingRuleNumbers={modal.policy.rules.map((r) => r.rule_number)}
+        />
+      )}
+
+      {modal?.kind === "deleteRule" && modal.policy && modal.rule && (
+        <DeleteRouteRuleModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          policyType={modal.policy.policy_type}
+          policyName={modal.policy.name}
+          rule={modal.rule}
+        />
       )}
     </AppLayout>
   );

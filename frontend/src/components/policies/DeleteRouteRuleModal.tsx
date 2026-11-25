@@ -4,15 +4,15 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
-import { routeService, PolicyRouteRule } from "@/lib/api/route";
-import { ApiError } from "@/lib/types/api";
+import { routeService, type PolicyRouteRule, type RoutePolicyType } from "@/lib/api/route";
+import type { ApiError } from "@/lib/types/api";
 import { useTranslations } from "next-intl";
 
 interface DeleteRouteRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  policyType: string;
+  policyType: RoutePolicyType;
   policyName: string;
   rule: PolicyRouteRule | null;
 }
@@ -37,7 +37,7 @@ export function DeleteRouteRuleModal({
 
     try {
       await routeService.deleteRule(policyType, policyName, rule.rule_number);
-      handleClose();
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
       setError((err as ApiError).message || t("deleteFailed"));
@@ -46,13 +46,13 @@ export function DeleteRouteRuleModal({
     }
   };
 
-  const handleClose = () => {
-    setError(null);
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("title", { number: String(rule?.rule_number ?? "") })}</DialogTitle>
@@ -64,7 +64,7 @@ export function DeleteRouteRuleModal({
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 
@@ -85,7 +85,7 @@ export function DeleteRouteRuleModal({
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
