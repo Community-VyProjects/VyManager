@@ -921,6 +921,15 @@ describe("save checks", () => {
     assert.equal(seen.size, cases.length);
   });
 
+  it("follows the lab hex-colon form for DHCP option strings (three octets or more)", () => {
+    for (const [value, key] of [["aa:bb", "dhcpClientIdInvalid"], ["aa:bb:cc", null]] as const) {
+      const d = structuredClone(validCreate());
+      d.dhcp = true;
+      d.dhcp_options.client_id = value;
+      assert.equal(macsecSaveProblem(null, d, CAPS15)?.key ?? null, key, value);
+    }
+  });
+
   it("names the bounds and the row in the problem values", () => {
     assert.deepEqual(macsecSaveProblem(null, { ...validCreate(), mtu: "1.5" }, CAPS15), {
       key: "mtuRange",
