@@ -1,6 +1,28 @@
-"""Tunnel GET /config parse lives on the mapper (issue #966)."""
+"""Tunnel GET /config parse lives on the mapper (issue #966).
 
-from vyos_mappers.tunnel.tunnel_versions import get_tunnel_mapper
+interfaces tunnel has the same node.def tree on VyOS 1.4 (100.64.64.4) and
+1.5 (100.64.64.5), so the registry returns the shared TunnelMapper for every
+version string and there is no versions package (issue #1399).
+"""
+
+from pathlib import Path
+
+import pytest
+
+from routers.tunnel.tunnel import TunnelConfigResponse
+from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.tunnel import TunnelMapper
+
+ROLLING = "2026.09.23-0027-rolling"
+VERSIONS = ["1.4", "1.4.3", "VyOS 1.4.3", "1.5", ROLLING, "latest", "1.6", ""]
+
+TUNNEL_DIR = Path(__file__).resolve().parents[1] / "vyos_mappers" / "tunnel"
+
+
+def _mapper(version: str) -> TunnelMapper:
+    mapper = CommandMapperRegistry.get_mapper("tunnel", version)
+    assert isinstance(mapper, TunnelMapper)
+    return mapper
 
 
 def _tree():
@@ -18,23 +40,42 @@ def _tree():
                     "encapsulation": "gre",
                     "ip": {
                         "adjust-mss": "1400",
+                        "arp-cache-timeout": "30",
+                        "disable-arp-filter": {},
+                        "disable-forwarding": {},
+                        "enable-arp-accept": {},
+                        "enable-arp-announce": {},
+                        "enable-arp-ignore": {},
+                        "enable-directed-broadcast": {},
                         "enable-proxy-arp": {},
+                        "proxy-arp-pvlan": {},
                         "source-validation": "strict",
                     },
                     "ipv6": {
+                        "accept-dad": "1",
                         "address": {
                             "autoconf": {},
-                            "eui64": ["2001:db8::/64"],
+                            "eui64": ["2001:db8::/64", "2001:db8:1::/64"],
                             "no-default-link-local": {},
                         },
+                        "adjust-mss": "clamp-mss-to-pmtu",
+                        "base-reachable-time": "30",
                         "disable-forwarding": {},
+                        "dup-addr-detect-transmits": "0",
+                        "source-validation": "loose",
                     },
                     "mirror": {"egress": "eth1", "ingress": "eth2"},
                     "mtu": "1400",
                     "parameters": {
                         "erspan": {"direction": "ingress", "hw-id": "1", "index": "2", "version": "1"},
-                        "ip": {"ignore-df": {}, "key": "42", "ttl": "64"},
-                        "ipv6": {"encaplimit": "4", "flowlabel": "0", "hoplimit": "64", "tclass": "0"},
+                        "ip": {
+                            "ignore-df": {},
+                            "key": "42",
+                            "no-pmtu-discovery": {},
+                            "tos": "8",
+                            "ttl": "64",
+                        },
+                        "ipv6": {"encaplimit": "none", "flowlabel": "inherit", "hoplimit": "64", "tclass": "0x10"},
                     },
                     "redirect": "eth3",
                     "remote": "192.0.2.2",
@@ -48,63 +89,102 @@ def _tree():
     }
 
 
-def test_parse_config_distinctive_fields():
-    parsed = get_tunnel_mapper("1.5").parse_config(_tree())
+@pytest.mark.parametrize("version", VERSIONS)
+def test_registry_returns_the_shared_class(version):
+    mapper = CommandMapperRegistry.get_mapper("tunnel", version)
+    assert type(mapper) is TunnelMapper
+    assert mapper.version == version
+
+
+def test_no_versions_package():
+    versions = TUNNEL_DIR / "tunnel_versions"
+    for name in ("__init__.py", "v1_4.py", "v1_5.py"):
+        assert not (versions / name).exists()
+
+
+def test_parse_config_every_leaf():
+    parsed = _mapper(ROLLING).parse_config(_tree())
     assert parsed["total"] == 2
-    tun0 = parsed["interfaces"][0]
-    assert tun0["name"] == "tun0"
-    assert tun0["sixrd_prefix"] == "2001:db8::/32"
-    assert tun0["sixrd_relay_prefix"] == "192.0.2.0/24"
-    assert tun0["addresses"] == ["192.0.2.1/24"]
-    assert tun0["description"] == "edge"
-    assert tun0["disabled"] is True
-    assert tun0["disable_link_detect"] is True
-    assert tun0["enable_multicast"] is True
-    assert tun0["encapsulation"] == "gre"
-    assert tun0["ip"]["adjust_mss"] == "1400"
-    assert tun0["ip"]["enable_proxy_arp"] is True
-    assert tun0["ip"]["disable_arp_filter"] is False
-    assert tun0["ip"]["source_validation"] == "strict"
-    assert tun0["ipv6"]["address"]["autoconf"] is True
-    assert tun0["ipv6"]["address"]["eui64"] == ["2001:db8::/64"]
-    assert tun0["ipv6"]["address"]["no_default_link_local"] is True
-    assert tun0["ipv6"]["disable_forwarding"] is True
-    assert tun0["mirror"] == {"egress": "eth1", "ingress": "eth2"}
-    # mtu stays a string; do not coerce.
-    assert tun0["mtu"] == "1400"
-    assert tun0["parameters"]["erspan"]["hw_id"] == "1"
-    assert tun0["parameters"]["ip"]["ignore_df"] is True
-    assert tun0["parameters"]["ip"]["key"] == "42"
-    assert tun0["parameters"]["ip"]["no_pmtu_discovery"] is False
-    assert tun0["parameters"]["ipv6"]["encaplimit"] == "4"
-    assert tun0["redirect"] == "eth3"
-    assert tun0["remote"] == "192.0.2.2"
-    assert tun0["source_address"] == "192.0.2.1"
-    assert tun0["source_interface"] == "eth0"
-    assert tun0["vrf"] == "blue"
-    assert parsed["interfaces"][1]["name"] == "tun1"
-    assert parsed["interfaces"][1]["disabled"] is False
-    assert parsed["interfaces"][1]["addresses"] == []
+    assert parsed["interfaces"][0] == {
+        "name": "tun0",
+        "sixrd_prefix": "2001:db8::/32",
+        "sixrd_relay_prefix": "192.0.2.0/24",
+        "addresses": ["192.0.2.1/24"],
+        "description": "edge",
+        "disabled": True,
+        "disable_link_detect": True,
+        "enable_multicast": True,
+        "encapsulation": "gre",
+        "ip": {
+            "adjust_mss": "1400",
+            "arp_cache_timeout": "30",
+            "disable_arp_filter": True,
+            "disable_forwarding": True,
+            "enable_arp_accept": True,
+            "enable_arp_announce": True,
+            "enable_arp_ignore": True,
+            "enable_directed_broadcast": True,
+            "enable_proxy_arp": True,
+            "proxy_arp_pvlan": True,
+            "source_validation": "strict",
+        },
+        "ipv6": {
+            "accept_dad": "1",
+            "address": {
+                "autoconf": True,
+                "eui64": ["2001:db8::/64", "2001:db8:1::/64"],
+                "no_default_link_local": True,
+            },
+            "adjust_mss": "clamp-mss-to-pmtu",
+            "base_reachable_time": "30",
+            "disable_forwarding": True,
+            "dup_addr_detect_transmits": "0",
+            "source_validation": "loose",
+        },
+        "mirror": {"egress": "eth1", "ingress": "eth2"},
+        # mtu stays a string; do not coerce.
+        "mtu": "1400",
+        "parameters": {
+            "erspan": {"direction": "ingress", "hw_id": "1", "index": "2", "version": "1"},
+            "ip": {"ignore_df": True, "key": "42", "no_pmtu_discovery": True, "tos": "8", "ttl": "64"},
+            "ipv6": {"encaplimit": "none", "flowlabel": "inherit", "hoplimit": "64", "tclass": "0x10"},
+        },
+        "redirect": "eth3",
+        "remote": "192.0.2.2",
+        "source_address": "192.0.2.1",
+        "source_interface": "eth0",
+        "vrf": "blue",
+    }
+    tun1 = parsed["interfaces"][1]
+    assert tun1["name"] == "tun1"
+    assert tun1["disabled"] is False
+    assert tun1["addresses"] == []
+    assert tun1["ipv6"]["address"]["eui64"] == []
+
+
+@pytest.mark.parametrize("version", ["1.4", ROLLING])
+def test_parse_config_fits_the_response_model(version):
+    parsed = _mapper(version).parse_config(_tree())
+    assert TunnelConfigResponse(**parsed).model_dump() == parsed
 
 
 def test_empty_tree():
-    parsed = get_tunnel_mapper("1.4").parse_config({})
+    parsed = _mapper("1.4").parse_config({})
     assert parsed == {"interfaces": [], "total": 0}
-    assert parsed == get_tunnel_mapper("1.5").parse_config({"interfaces": {"tunnel": {}}})
-    assert parsed == get_tunnel_mapper("1.5").parse_config({"interfaces": {"tunnel": None}})
-
+    assert parsed == _mapper("1.5").parse_config({"interfaces": {"tunnel": {}}})
+    assert parsed == _mapper(ROLLING).parse_config({"interfaces": {"tunnel": None}})
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
     tree = _tree()
-    expected = get_tunnel_mapper("1.5").parse_config(tree)
+    expected = _mapper(ROLLING).parse_config(tree)
 
     async def allow(*_args, **_kwargs):
         return None
 
     class FakeService:
         def get_version(self):
-            return "1.5"
+            return ROLLING
 
         def get_full_config(self, refresh=False):
             return tree
@@ -124,9 +204,4 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     client = TestClient(app)
     response = client.get("/vyos/tunnel/config")
     assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["total"] == expected["total"]
-    assert body["interfaces"][0]["encapsulation"] == "gre"
-    assert body["interfaces"][0]["parameters"]["ip"]["key"] == "42"
-    assert body["interfaces"][0]["mtu"] == "1400"
-    assert body["interfaces"][1]["name"] == "tun1"
+    assert response.json() == expected

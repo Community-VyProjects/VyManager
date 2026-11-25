@@ -2,7 +2,7 @@
 Tunnel Interface Command Mapper
 
 Handles command path generation for interfaces tunnel configuration.
-Common paths shared between VyOS 1.4 and 1.5.
+interfaces tunnel is the same on VyOS 1.4 and 1.5. One class holds the commands.
 
 Config tree:
   interfaces tunnel/<NAME>/
@@ -29,15 +29,17 @@ Config tree:
     vrf                  (txt)
 """
 
-from typing import List
+from typing import Any, Dict, List
 from ..base import BaseFeatureMapper
 
 
 class TunnelMapper(BaseFeatureMapper):
-    """Base mapper for tunnel interface commands. Common paths for VyOS 1.4 and 1.5."""
+    """Mapper for interfaces tunnel. Identical on VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_tunnel_config
+
+        return parse_tunnel_config(self, full_config)
 
     def _base(self, name: str) -> List[str]:
         return ["interfaces", "tunnel", name]
