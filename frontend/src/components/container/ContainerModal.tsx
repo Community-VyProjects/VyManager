@@ -139,6 +139,12 @@ export function ContainerModal({
   const problemText = (p: ContainerProblem) =>
     t(`problems.${p.key}`, { ...p.values, section: p.section ? t(SECTION_LABEL_KEYS[p.section]) : "" });
 
+  /**
+   * Sources of the stored volumes: a loaded row's source never follows its name, and the save
+   * does not `mkdir -p` it (it may be a bind-mounted file).
+   */
+  const storedVolumeSources = new Set((container?.volumes ?? []).map((v) => (v.source ?? "").trim()));
+
   const handleSubmit = async () => {
     const issue = containerProblem(container, draft, {
       features,
@@ -159,7 +165,7 @@ export function ContainerModal({
       const dirs = new Set<string>([`${VOLUME_BASE}${containerName}`]);
       for (const vol of draft.volumes) {
         const source = (vol.source ?? "").trim();
-        if (source.startsWith(VOLUME_BASE)) dirs.add(source);
+        if (source.startsWith(VOLUME_BASE) && !storedVolumeSources.has(source)) dirs.add(source);
       }
       const mkdirResult = await containerService.createContainerDirs([...dirs]);
       if (!mkdirResult.success) {
@@ -601,8 +607,10 @@ export function ContainerModal({
                         value={row.name}
                         onChange={(e) => {
                           const name = e.target.value;
-                          // The source follows the name until the user edits it.
-                          const followName = !row.source || row.source === `${volumeBase}${row.name}`;
+                          // The source of a row added here follows the name until the user edits it.
+                          const source = (row.source ?? "").trim();
+                          const followName =
+                            !source || (source === `${volumeBase}${row.name}` && !storedVolumeSources.has(source));
                           update(followName ? { name, source: name ? `${volumeBase}${name}` : "" } : { name });
                         }}
                         placeholder={t("modal.volumeNamePlaceholder")}
