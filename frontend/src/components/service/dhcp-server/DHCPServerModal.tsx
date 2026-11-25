@@ -132,10 +132,9 @@ export function DHCPServerModal({
 
       setSubnetId(nextId.toString());
     } catch (err) {
-      console.error("Failed to calculate next subnet ID:", err);
-      setSubnetId("1");
+      setError((err as ApiError).message || t("page.errors.loadFailed"));
     }
-  }, [capabilities]);
+  }, [capabilities, t]);
 
   const applyDraft = (next: ServerDraft) => {
     setMode(next.mode);
@@ -193,6 +192,15 @@ export function DHCPServerModal({
     disabled,
   });
 
+  const loadExistingNetworks = useCallback(async () => {
+    try {
+      const config = await dhcpServerService.getConfig();
+      setExistingNetworks(config.shared_networks.map(n => n.name));
+    } catch (err) {
+      setError((err as ApiError).message || t("page.errors.loadFailed"));
+    }
+  }, [t]);
+
   useEffect(() => {
     if (!open) return;
     if (existing) {
@@ -214,16 +222,8 @@ export function DHCPServerModal({
       setCatalogOriginal(loaded);
     }
     setError(null);
-  }, [open, existing, existingNetwork, calculateNextSubnetId, subnetLeaves]);
+  }, [open, existing, existingNetwork, calculateNextSubnetId, loadExistingNetworks, subnetLeaves]);
 
-  const loadExistingNetworks = async () => {
-    try {
-      const config = await dhcpServerService.getConfig();
-      setExistingNetworks(config.shared_networks.map(n => n.name));
-    } catch (err) {
-      console.error("Failed to load existing networks:", err);
-    }
-  };
 
 
   const resetForm = () => {
@@ -571,7 +571,7 @@ export function DHCPServerModal({
                     id="defaultRouter"
                     value={defaultRouter}
                     onChange={(e) => setDefaultRouter(e.target.value)}
-                    placeholder="e.g., 192.168.1.1"
+                    placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                   />
                 </div>
 
@@ -615,7 +615,7 @@ export function DHCPServerModal({
                       <Input
                         value={ns}
                         onChange={(e) => updateNameServer(index, e.target.value)}
-                        placeholder="e.g., 8.8.8.8"
+                        placeholder={t("examplePlaceholder", { example: "8.8.8.8" })}
                       />
                       {nameServers.length > 1 && (
                         <Button
@@ -727,7 +727,7 @@ export function DHCPServerModal({
                       <Input
                         value={exclude}
                         onChange={(e) => updateExclude(index, e.target.value)}
-                        placeholder="e.g., 192.168.1.50"
+                        placeholder={t("examplePlaceholder", { example: "192.168.1.50" })}
                       />
                       <Button
                         type="button"
@@ -769,7 +769,7 @@ export function DHCPServerModal({
                       id="bootfileServer"
                       value={bootfileServer}
                       onChange={(e) => setBootfileServer(e.target.value)}
-                      placeholder="e.g., 192.168.1.10"
+                      placeholder={t("examplePlaceholder", { example: "192.168.1.10" })}
                     />
                   </div>
                 )}
@@ -795,7 +795,7 @@ export function DHCPServerModal({
                         <Input
                           value={ts}
                           onChange={(e) => updateTimeServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                         />
                         <Button
                           type="button"
@@ -829,7 +829,7 @@ export function DHCPServerModal({
                         <Input
                           value={ntp}
                           onChange={(e) => updateNtpServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.1"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.1" })}
                         />
                         <Button
                           type="button"
@@ -863,7 +863,7 @@ export function DHCPServerModal({
                         <Input
                           value={wins}
                           onChange={(e) => updateWinsServer(index, e.target.value)}
-                          placeholder="e.g., 192.168.1.2"
+                          placeholder={t("examplePlaceholder", { example: "192.168.1.2" })}
                         />
                         <Button
                           type="button"
@@ -907,7 +907,7 @@ export function DHCPServerModal({
                       id="clientPrefixLength"
                       value={clientPrefixLength}
                       onChange={(e) => setClientPrefixLength(e.target.value)}
-                      placeholder="e.g., 24"
+                      placeholder={t("examplePlaceholder", { example: "24" })}
                     />
                   </div>
                 )}

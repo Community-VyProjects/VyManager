@@ -109,7 +109,6 @@ export function DHCPServerSettingsModal({
       const saveError = failedSaveMessage(result, t("settings.saveFailed"));
       if (saveError) {
         setError(saveError);
-        setLoading(false);
         return;
       }
       onOpenChange(false);

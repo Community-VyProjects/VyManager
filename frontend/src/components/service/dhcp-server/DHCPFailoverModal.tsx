@@ -56,6 +56,7 @@ export function DHCPFailoverModal({
   capabilities,
 }: DHCPFailoverModalProps) {
   const t = useTranslations("dhcpServer");
+  const tp = useTranslations("pki");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,12 +87,13 @@ export function DHCPFailoverModal({
           setCerts(pki.certificates.map((c) => c.name));
           setCas(pki.ca.map((c) => c.name));
         })
-        .catch(() => {
+        .catch((err) => {
           setCerts([]);
           setCas([]);
+          setError((err as ApiError).message || tp("page.failedToLoad"));
         });
     }
-  }, [open, failover, canCert]);
+  }, [open, failover, canCert, tp]);
 
   const set = (field: keyof DHCPFailoverConfig, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value === "__none__" ? "" : value }));
@@ -123,7 +125,7 @@ export function DHCPFailoverModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("failover.title")}</DialogTitle>
           <DialogDescription>{t("failover.description")}</DialogDescription>

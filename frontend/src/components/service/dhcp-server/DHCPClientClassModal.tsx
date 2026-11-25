@@ -121,7 +121,7 @@ export function DHCPClientClassModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("clientClass.title")}</DialogTitle>
           <DialogDescription>

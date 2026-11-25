@@ -23,10 +23,43 @@ describe("DHCP server dialogs", () => {
     });
   }
 
-  it("network options dialog scrolls inside its height cap", () => {
-    const source = read("DHCPNetworkOptionsModal.tsx");
-    assert.match(source, /<DialogContent className="[^"]*max-h-\[85vh\] overflow-y-auto"/);
-    assert.doesNotMatch(source, /ScrollArea/);
+  for (const file of screens) {
+    it(`${file} keeps line breaks in device errors`, () => {
+      assert.doesNotMatch(read(file), /className="text-sm text-destructive">/);
+    });
+  }
+
+  for (const file of [
+    "DHCPNetworkOptionsModal.tsx",
+    "DHCPClientClassModal.tsx",
+    "DHCPFailoverModal.tsx",
+    "DHCPDdnsModal.tsx",
+    "DHCPServerSettingsModal.tsx",
+  ]) {
+    it(`${file} scrolls inside its height cap`, () => {
+      assert.match(read(file), /<DialogContent className="[^"]*max-h-\[85vh\] overflow-y-auto"/);
+    });
+  }
+
+  it("network options dialog has no unclipped ScrollArea", () => {
+    assert.doesNotMatch(read("DHCPNetworkOptionsModal.tsx"), /ScrollArea/);
+  });
+
+  it("sidebar network list can shrink and scroll", () => {
+    assert.match(read("DHCPServerContent.tsx"), /\{\/\* Network List \*\/\}\n\s*<ScrollArea className="flex-1 min-h-0">/);
+  });
+
+  it("a failed lease load shows the error instead of an empty list", () => {
+    const source = read("DHCPServerContent.tsx");
+    assert.match(source, /setLeasesError\(\(err as ApiError\)\.message \|\| t\("page\.errors\.loadLeasesFailed"\)\)/);
+    assert.ok(source.indexOf(") : leasesError ? (") < source.indexOf(") : filteredLeases.length === 0 ? ("));
+  });
+
+  it("write controls are hidden from read-only users", () => {
+    const source = read("DHCPServerContent.tsx");
+    assert.match(source, /const hasWrite = canWrite\(FeatureGroup\.DHCP\);/);
+    const toggle = source.indexOf("onClick={requestToggleGlobalDisable}");
+    assert.ok(source.lastIndexOf("{hasWrite && (", toggle) > source.lastIndexOf("</Button>", toggle));
   });
 
   it("global enable/disable sits with the server-wide sidebar buttons", () => {

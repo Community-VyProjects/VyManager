@@ -14,6 +14,11 @@ const modals = [
   "DHCPNetworkOptionsModal.tsx",
   "DHCPClientClassModal.tsx",
   "DHCPServerSettingsModal.tsx",
+  "DHCPDdnsModal.tsx",
+  "DHCPFailoverModal.tsx",
+  "DeleteDHCPModal.tsx",
+  "DeleteStaticMappingModal.tsx",
+  "AddLeaseToStaticMappingModal.tsx",
 ];
 
 describe("failedSaveMessage", () => {
