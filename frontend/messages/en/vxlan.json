@@ -46,10 +46,12 @@
       "interfaceIdentifierInvalid": "Interface identifier must look like ::h[:h[:h[:h]]]",
       "vlanIdRequired": "Mapping {n} needs a VLAN ID",
       "vlanIdInvalid": "VLAN {vlan} must be an ID or a range a-b between {min} and {max}",
-      "vlanIdDuplicate": "VLAN {vlan} is mapped more than once",
+      "vlanIdOverlap": "VLAN {vlan} is already in use by another mapping",
       "vlanVniRequired": "VLAN {vlan} needs a VNI",
       "vlanVniInvalid": "VNI of VLAN {vlan} must be a number or a range a-b between {min} and {max}",
-      "vlanVniRangeLength": "VNI range of VLAN {vlan} must be as long as the VLAN range"
+      "vlanVniRangeLength": "VNI range of VLAN {vlan} must be as long as the VLAN range",
+      "vniReused": "VNI {vni} is already assigned to a different VLAN",
+      "vlanDescriptionTooLong": "Description of VLAN {vlan} must be at most {max} characters"
     },
     "basic": {
       "interfaceName": "Interface Name",
@@ -74,6 +76,7 @@
       "ipv6Parameters": "IPv6 Parameters",
       "flowLabel": "Flow Label",
       "flowLabelCustom": "Custom flow label",
+      "flowlabelInherit": "Inherit from inner packet",
       "flowLabelPlaceholder": "0x0–0xfffff",
       "mirror": "Mirror",
       "ingressInterface": "Ingress Interface",
@@ -88,9 +91,6 @@
       "mssCustom": "Custom MSS value",
       "arpCacheTimeout": "ARP Cache Timeout",
       "sourceValidation": "Source Validation",
-      "strict": "Strict",
-      "loose": "Loose",
-      "disable": "Disable",
       "disableArpFilter": "Disable ARP Filter",
       "disableForwarding": "Disable Forwarding",
       "enableArpAccept": "Enable ARP Accept",

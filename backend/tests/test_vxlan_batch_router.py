@@ -84,6 +84,7 @@ def test_capabilities_follow_the_device(monkeypatch, version, supported):
     features = resp.json()["features"]
     assert features["ipv6_address_interface_identifier"]["supported"] is supported
     assert features["vlan_to_vni_description"]["supported"] is supported
+    assert features["gpe"]["supported"] is supported
     assert "version_info" not in resp.json()
 
 
@@ -234,6 +235,7 @@ def test_batch_rejects_blank_interface_name(client, name):
     ({"op": "delete_vlan_to_vni_description", "value": "10"}, "vlan_to_vni_description"),
     ({"op": "set_ipv6_address_interface_identifier", "value": "::1:2"}, "ipv6_address_interface_identifier"),
     ({"op": "delete_ipv6_address_interface_identifier"}, "ipv6_address_interface_identifier"),
+    ({"op": "set_gpe"}, "gpe"),
 ])
 def test_batch_1_5_only_op_on_1_4_is_400(client_14, operation, node):
     """The mapper ValueError is a 400, and nothing in the batch reaches the device."""
@@ -281,6 +283,25 @@ def test_batch_execute_value_error_is_500(client, commit):
     assert resp.status_code == 500, resp.text
     assert resp.json()["detail"] == "Internal server error"
     assert executed == []
+
+
+def test_operations_vocabulary_binds_the_interface_name():
+    """GET /vyos/operations/vxlan names the subject field and keeps the vlan ops."""
+    import asyncio
+    from typing import cast
+
+    from fastapi import Request
+
+    from routers.operations.operations import get_feature_operations
+
+    body = asyncio.run(get_feature_operations("vxlan", cast(Request, None)))
+    assert body["subject_field"] == "interface_name"
+    ops = {row["op"]: row for row in body["operations"]}
+    assert ops["set_vlan_to_vni_vni"]["arg_count"] == 3
+    assert ops["set_vlan_to_vni_vni"]["args"] == ["name", "vlan_id", "vni"]
+    assert ops["set_vlan_to_vni_description"]["arg_count"] == 3
+    assert ops["delete_vlan_to_vni_description"]["arg_count"] == 2
+    assert ops["set_interface"]["arg_count"] == 1
 
 
 @pytest.mark.parametrize("method, path, body", [

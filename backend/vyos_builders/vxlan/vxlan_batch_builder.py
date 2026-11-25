@@ -3,7 +3,8 @@ VXLAN Batch Builder
 
 Provides all batch operations for VXLAN interface configuration.
 The 1.5-only leaves (ipv6 address interface-identifier, vlan-to-vni
-description) are gated on the mapper's versioned_interface_nodes().
+description) are gated on the mapper's versioned_interface_nodes(), and a gpe
+set on supports_gpe().
 """
 
 from typing import Dict, Any, cast
@@ -68,6 +69,8 @@ class VxlanBatchBuilder(BatchBuilder):
         return self.add_delete(self._mapper().get_disable_path(name))
 
     def set_gpe(self, name: str) -> "VxlanBatchBuilder":
+        if not self._mapper().supports_gpe():
+            raise ValueError("vxlan gpe is not supported on this device")
         return self.add_set(self._mapper().get_gpe_path(name))
 
     def delete_gpe(self, name: str) -> "VxlanBatchBuilder":
@@ -388,7 +391,7 @@ class VxlanBatchBuilder(BatchBuilder):
                 "address": {"supported": True, "description": "IP address assignment (multi-value)"},
                 "description": {"supported": True, "description": "Interface description"},
                 "disable": {"supported": True, "description": "Administratively disable interface"},
-                "gpe": {"supported": True, "description": "Generic Protocol Extension (VXLAN-GPE)"},
+                "gpe": {"supported": self._mapper().supports_gpe(), "description": "Generic Protocol Extension (VXLAN-GPE)"},
                 "group": {"supported": True, "description": "Multicast group address"},
                 "ip_settings": {"supported": True, "description": "IPv4 routing parameters"},
                 "ipv6_settings": {"supported": True, "description": "IPv6 routing parameters"},

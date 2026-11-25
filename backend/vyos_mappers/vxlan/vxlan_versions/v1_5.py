@@ -13,6 +13,9 @@ from ..vxlan import VxlanMapper
 class VxlanMapperV1_5(VxlanMapper):
     """VyOS 1.5 vxlan mapper with the 1.5-only leaves."""
 
+    def supports_gpe(self) -> bool:
+        return True
+
     def get_ipv6_address_interface_identifier(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["ipv6", "address", "interface-identifier", value]
 

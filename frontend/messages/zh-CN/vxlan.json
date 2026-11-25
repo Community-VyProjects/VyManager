@@ -46,10 +46,12 @@
       "interfaceIdentifierInvalid": "接口标识符格式必须为 ::h[:h[:h[:h]]]",
       "vlanIdRequired": "映射 {n} 需要 VLAN ID",
       "vlanIdInvalid": "VLAN {vlan} 必须为介于 {min} 到 {max} 之间的 ID 或范围 a-b",
-      "vlanIdDuplicate": "VLAN {vlan} 重复映射",
+      "vlanIdOverlap": "VLAN {vlan} 已被另一个映射使用",
       "vlanVniRequired": "VLAN {vlan} 需要 VNI",
       "vlanVniInvalid": "VLAN {vlan} 的 VNI 必须为介于 {min} 到 {max} 之间的数值或范围 a-b",
-      "vlanVniRangeLength": "VLAN {vlan} 的 VNI 范围长度必须与 VLAN 范围相同"
+      "vlanVniRangeLength": "VLAN {vlan} 的 VNI 范围长度必须与 VLAN 范围相同",
+      "vniReused": "VNI {vni} 已分配给其他 VLAN",
+      "vlanDescriptionTooLong": "VLAN {vlan} 的描述最多 {max} 个字符"
     },
     "basic": {
       "interfaceName": "接口名称",
@@ -74,6 +76,7 @@
       "ipv6Parameters": "IPv6 参数",
       "flowLabel": "流标签",
       "flowLabelCustom": "自定义流标签",
+      "flowlabelInherit": "继承内层数据包",
       "flowLabelPlaceholder": "0x0–0xfffff",
       "mirror": "镜像",
       "ingressInterface": "入站接口",
@@ -88,9 +91,6 @@
       "mssCustom": "自定义 MSS 值",
       "arpCacheTimeout": "ARP 缓存超时",
       "sourceValidation": "源验证",
-      "strict": "严格",
-      "loose": "宽松",
-      "disable": "禁用",
       "disableArpFilter": "禁用 ARP 过滤",
       "disableForwarding": "禁用转发",
       "enableArpAccept": "启用 ARP 接受",

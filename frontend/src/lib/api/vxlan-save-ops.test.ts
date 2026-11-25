@@ -17,6 +17,7 @@ import {
   type VxlanCapabilities,
   type VxlanInterface,
 } from "./vxlan";
+import { apiClient } from "./client";
 
 function caps(v15: boolean): VxlanCapabilities {
   const f = (supported: boolean) => ({ supported, description: "" });
@@ -26,6 +27,8 @@ function caps(v15: boolean): VxlanCapabilities {
       vxlan: f(true),
       ipv6_address_interface_identifier: f(v15),
       vlan_to_vni_description: f(v15),
+      // 1.4 verify rejects gpe; the backend reports it unsupported there.
+      gpe: f(v15),
     },
   };
 }
@@ -138,6 +141,7 @@ function full(): VxlanInterface {
       { vlan_id: "20-21", vni: "20020-20021", description: null },
     ],
     vni: "100",
+    vrf: "red",
   });
 }
 
@@ -248,11 +252,11 @@ const FULL_DELETES: VxlanBatchOperation[] = [
 ];
 
 const is14Only = (o: VxlanBatchOperation) =>
-  !o.op.includes("interface_identifier") && !o.op.includes("vlan_to_vni_description");
+  !o.op.includes("interface_identifier") && !o.op.includes("vlan_to_vni_description") && !o.op.endsWith("_gpe");
 
-/** The full interface as a create form (VRF is not in `full()`'s loaded shape). */
+/** The full interface as a create form. */
 function fullForm(): VxlanForm {
-  return { ...vxlanForm(full()), vrf: "red" };
+  return vxlanForm(full());
 }
 
 function edit(original: VxlanInterface, change: (f: VxlanForm) => void): VxlanForm {
@@ -298,14 +302,26 @@ describe("edit", () => {
 
   it("deletes every cleared field, with the bulk delete for emptied lists", () => {
     const cleared = { ...vxlanForm(null), name: "vxlan1" };
-    const loaded = { ...full(), vrf: "red" };
-    assert.deepEqual(vxlanUpdateOps(loaded, cleared, CAPS15), FULL_DELETES);
+    assert.deepEqual(vxlanUpdateOps(full(), cleared, CAPS15), FULL_DELETES);
   });
 
-  it("never deletes a 1.5-only leaf on 1.4", () => {
+  it("never deletes a 1.5-only leaf or gpe on 1.4", () => {
     const cleared = { ...vxlanForm(null), name: "vxlan1" };
-    const loaded = { ...full(), vrf: "red" };
-    assert.deepEqual(vxlanUpdateOps(loaded, cleared, CAPS14), FULL_DELETES.filter(is14Only));
+    assert.deepEqual(vxlanUpdateOps(full(), cleared, CAPS14), FULL_DELETES.filter(is14Only));
+  });
+
+  it("sends gpe only where the device supports it", () => {
+    const on = edit(bare(), (d) => {
+      d.gpe = true;
+    });
+    const off = { ...vxlanForm(full()), gpe: false };
+    assert.deepEqual(vxlanUpdateOps(bare(), on, CAPS15), [{ op: "set_gpe" }]);
+    assert.deepEqual(vxlanUpdateOps(full(), off, CAPS15), [{ op: "delete_gpe" }]);
+    for (const c of [CAPS14, null]) {
+      assert.deepEqual(vxlanUpdateOps(bare(), on, c), []);
+      assert.deepEqual(vxlanUpdateOps(full(), off, c), []);
+      assert.ok(!vxlanCreateOps(fullForm(), c).some((o) => o.op.endsWith("_gpe")));
+    }
   });
 
   it("sets every field of an emptied interface", () => {
@@ -613,12 +629,16 @@ describe("save checks", () => {
     ["interfaceIdentifierInvalid", (f) => { f.ipv6.address_interface_identifier = "1::"; }],
     ["vlanIdRequired", (f) => { f.vlan_to_vni = [{ vlan_id: " ", vni: "10", description: "" }]; }],
     ["vlanIdInvalid", (f) => { f.vlan_to_vni = [{ vlan_id: "4095", vni: "10", description: "" }]; }],
-    ["vlanIdDuplicate", (f) => {
+    ["vlanIdOverlap", (f) => {
       f.vlan_to_vni = [{ vlan_id: "10", vni: "10", description: "" }, { vlan_id: " 10 ", vni: "11", description: "" }];
     }],
     ["vlanVniRequired", (f) => { f.vlan_to_vni = [{ vlan_id: "10", vni: "", description: "users" }]; }],
     ["vlanVniInvalid", (f) => { f.vlan_to_vni = [{ vlan_id: "10", vni: "16777215", description: "" }]; }],
     ["vlanVniRangeLength", (f) => { f.vlan_to_vni = [{ vlan_id: "10-12", vni: "100-101", description: "" }]; }],
+    ["vniReused", (f) => {
+      f.vlan_to_vni = [{ vlan_id: "10", vni: "100", description: "" }, { vlan_id: "11", vni: "100", description: "" }];
+    }],
+    ["vlanDescriptionTooLong", (f) => { f.vlan_to_vni = [{ vlan_id: "10", vni: "10", description: "x".repeat(256) }]; }],
   ];
 
   it("returns every keyed problem, each with a message in both locales", () => {
@@ -665,6 +685,57 @@ describe("save checks", () => {
     const f = structuredClone(validCreate());
     f.vlan_to_vni = [{ vlan_id: "12-10", vni: "100-102", description: "" }];
     assert.equal(key(null, f), "vlanIdInvalid");
+  });
+
+  it("rejects mixed underlay families, with or without a source address", () => {
+    const f = structuredClone(validCreate());
+    f.source_address = "";
+    f.remotes = ["192.0.2.2", "2001:db8::2"];
+    assert.equal(key(null, f), "addressFamilyMixed");
+    f.remotes = ["2001:db8::2", "2001:db8::3"];
+    assert.equal(key(null, f), null);
+    f.source_address = "2001:db8::1";
+    assert.equal(key(null, f), null);
+  });
+
+  it("expands VLAN ranges and compares ids as numbers", () => {
+    const f = structuredClone(validCreate());
+    const rows = (...r: [string, string][]) => r.map(([vlan_id, vni]) => ({ vlan_id, vni, description: "" }));
+    f.vlan_to_vni = rows(["10", "100"], ["5-15", "200-210"]);
+    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vlanIdOverlap", values: { vlan: "10" } });
+    f.vlan_to_vni = rows(["10", "100"], ["010", "101"]);
+    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vlanIdOverlap", values: { vlan: "10" } });
+    f.vlan_to_vni = rows(["5-9", "100-104"], ["10-15", "105-110"]);
+    assert.equal(key(null, f), null);
+  });
+
+  it("expands VNI ranges and gives each VNI to one VLAN only", () => {
+    const f = structuredClone(validCreate());
+    const rows = (...r: [string, string][]) => r.map(([vlan_id, vni]) => ({ vlan_id, vni, description: "" }));
+    f.vlan_to_vni = rows(["10", "100"], ["11", "100"]);
+    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vniReused", values: { vni: "100" } });
+    f.vlan_to_vni = rows(["10-12", "100-102"], ["20", "0101"]);
+    assert.deepEqual(vxlanProblem(null, f, CAPS15), { key: "vniReused", values: { vni: "101" } });
+    f.vlan_to_vni = rows(["10-12", "100-102"], ["20", "103"]);
+    assert.equal(key(null, f), null);
+  });
+
+  it("limits a mapping description on 1.5 and ignores it on 1.4", () => {
+    const f = structuredClone(validCreate());
+    f.vlan_to_vni = [{ vlan_id: "10", vni: "10", description: "x".repeat(256) }];
+    assert.deepEqual(vxlanProblem(null, f, CAPS15), {
+      key: "vlanDescriptionTooLong",
+      values: { vlan: "10", max: 255 },
+    });
+    assert.equal(key(null, f, CAPS14), null);
+    f.vlan_to_vni[0].description = "x".repeat(255);
+    assert.equal(key(null, f), null);
+  });
+
+  it("drops gpe on 1.4, so its external check cannot fire there", () => {
+    const f = { ...structuredClone(validCreate()), gpe: true };
+    assert.equal(key(null, f, CAPS15), "gpeNeedsExternal");
+    assert.equal(key(null, f, CAPS14), null);
   });
 
   it("names the bounds and the row in the problem values", () => {
@@ -748,5 +819,67 @@ describe("service", () => {
 
   it("deletes the interface with a name-only op", () => {
     assert.deepEqual(vxlanDeleteOps(), [{ op: "delete_interface" }]);
+  });
+});
+
+describe("batchConfigure", () => {
+  /** Stub the POST and the cache refresh; `reply` is what POST /batch returns. */
+  async function withStubs(
+    reply: { success: boolean; error?: string },
+    refreshFails: boolean,
+    run: (log: { posts: unknown[]; refreshes: number }) => Promise<void>,
+  ) {
+    const log = { posts: [] as unknown[], refreshes: 0 };
+    const originalPost = apiClient.post;
+    const originalRefresh = vxlanService.refreshConfig;
+    apiClient.post = (async (endpoint: string, body?: unknown) => {
+      log.posts.push([endpoint, body]);
+      return reply;
+    }) as typeof apiClient.post;
+    vxlanService.refreshConfig = async () => {
+      log.refreshes += 1;
+      if (refreshFails) throw new Error("refresh failed");
+      return { success: true };
+    };
+    try {
+      await run(log);
+    } finally {
+      apiClient.post = originalPost;
+      vxlanService.refreshConfig = originalRefresh;
+    }
+  }
+
+  it("makes no POST for an empty op list", async () => {
+    await withStubs({ success: true }, false, async (log) => {
+      assert.deepEqual(await vxlanService.batchConfigure("vxlan0", []), { success: true });
+      assert.deepEqual(log, { posts: [], refreshes: 0 });
+    });
+  });
+
+  it("throws the device error on a rejected commit and does not refresh", async () => {
+    await withStubs({ success: false, error: "Commit failed" }, false, async (log) => {
+      await assert.rejects(vxlanService.batchConfigure("vxlan0", [{ op: "delete_interface" }]), {
+        message: "Commit failed",
+      });
+      assert.deepEqual(log.posts, [
+        ["/vyos/vxlan/batch", { interface_name: "vxlan0", operations: [{ op: "delete_interface" }] }],
+      ]);
+      assert.equal(log.refreshes, 0);
+    });
+  });
+
+  it("refreshes after a successful commit", async () => {
+    await withStubs({ success: true }, false, async (log) => {
+      assert.deepEqual(await vxlanService.batchConfigure("vxlan0", [{ op: "set_gpe" }]), { success: true });
+      assert.equal(log.posts.length, 1);
+      assert.equal(log.refreshes, 1);
+    });
+  });
+
+  it("does not reject when the refresh after a commit fails", async () => {
+    await withStubs({ success: true }, true, async (log) => {
+      assert.deepEqual(await vxlanService.batchConfigure("vxlan0", [{ op: "set_gpe" }]), { success: true });
+      assert.equal(log.refreshes, 1);
+    });
   });
 });

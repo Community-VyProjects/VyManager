@@ -68,6 +68,15 @@ class VxlanMapper(BaseFeatureMapper):
         if node not in self.versioned_interface_nodes():
             raise ValueError(f"vxlan {node} is not supported on this device")
 
+    def supports_gpe(self) -> bool:
+        """Whether a ``gpe`` set can commit on this device.
+
+        Both labs have the leaf, but the 1.4 verify looks for ``external`` at
+        the interface root instead of under ``parameters``, so ``gpe`` with
+        ``parameters external`` fails the 1.4 commit; 1.5 commits it.
+        """
+        return False
+
     def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
         from .config_parse import parse_config as parse_vxlan_config
 

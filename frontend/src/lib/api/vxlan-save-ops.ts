@@ -45,7 +45,7 @@ export const CLAMP_MSS_TO_PMTU = "clamp-mss-to-pmtu";
 /** The `parameters ipv6 flowlabel` keyword beside a hex value. */
 export const FLOWLABEL_INHERIT = "inherit";
 
-export const INTERFACE_NAME_RE = /^vxlan[0-9]+$/;
+const INTERFACE_NAME_RE = /^vxlan[0-9]+$/;
 const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$/;
 const INTERFACE_IDENTIFIER_RE = /^::[0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,3}$/;
 const FLOWLABEL_RE = /^(0x)?0?[0-9A-Fa-f]{1,5}$/;
@@ -126,8 +126,8 @@ export interface VxlanForm {
 
 type Caps = VxlanCapabilities | null | undefined;
 
-/** 1.5-only leaves the screen offers only when the device has them. */
-export type VxlanVersionedFeature = "ipv6_address_interface_identifier" | "vlan_to_vni_description";
+/** Leaves the screen offers only when the device has them (1.5-only, or GPE that 1.4 verify rejects). */
+export type VxlanVersionedFeature = "ipv6_address_interface_identifier" | "vlan_to_vni_description" | "gpe";
 
 export function vxlanSupports(caps: Caps, flag: VxlanVersionedFeature): boolean {
   return caps?.features?.[flag]?.supported === true;
@@ -274,7 +274,8 @@ function normalize(f: VxlanForm, caps: Caps): Norm {
     vrf: text(f.vrf),
     redirect: text(f.redirect),
     disabled: f.disabled,
-    gpe: f.gpe,
+    // A leaf the device rejects (gpe on 1.4) is never read or sent.
+    gpe: vxlanSupports(caps, "gpe") ? f.gpe : false,
     parameters: {
       ...p,
       ip_df: text(p.ip_df),
@@ -496,10 +497,12 @@ export type VxlanProblemKey =
   | "interfaceIdentifierInvalid"
   | "vlanIdRequired"
   | "vlanIdInvalid"
-  | "vlanIdDuplicate"
+  | "vlanIdOverlap"
   | "vlanVniRequired"
   | "vlanVniInvalid"
-  | "vlanVniRangeLength";
+  | "vlanVniRangeLength"
+  | "vniReused"
+  | "vlanDescriptionTooLong";
 
 export interface VxlanProblem {
   key: VxlanProblemKey;
@@ -511,7 +514,7 @@ function problem(key: VxlanProblemKey, values?: Record<string, string | number>)
 }
 
 /** Digits only (no `1.5`, `1e1`), inside the range. */
-export function inRange(value: string, range: NumericRange): boolean {
+function inRange(value: string, range: NumericRange): boolean {
   if (!/^\d+$/.test(value)) return false;
   const n = Number(value);
   return n >= range.min && (range.max === undefined || n <= range.max);
@@ -565,18 +568,41 @@ function flowlabelValid(value: string): boolean {
   return value === FLOWLABEL_INHERIT || FLOWLABEL_RE.test(value);
 }
 
+/** First number two inclusive ranges share, or null when they are apart. */
+function sharedId(a: [number, number], b: [number, number]): number | null {
+  const lo = Math.max(a[0], b[0]);
+  return lo <= Math.min(a[1], b[1]) ? lo : null;
+}
+
+/**
+ * Mapping rows as the lab verifies them: every range expanded, compared as
+ * numbers (`010` is `10`). A VLAN id may sit in one row only, and a VNI may
+ * be given to one VLAN only.
+ */
 function vlanProblem(form: VxlanForm, caps: Caps): VxlanProblem | null {
-  const seen = new Set<string>();
+  const usedVlans: [number, number][] = [];
+  const usedVnis: [number, number][] = [];
   for (const row of vlanRows(form.vlan_to_vni, caps)) {
     if (!row.vlan) return problem("vlanIdRequired", { n: row.index + 1 });
     const vlans = idOrRange(row.vlan, VLAN_ID_RANGE);
     if (!vlans) return problem("vlanIdInvalid", { vlan: row.vlan, ...bounds(VLAN_ID_RANGE) });
-    if (seen.has(row.vlan)) return problem("vlanIdDuplicate", { vlan: row.vlan });
-    seen.add(row.vlan);
+    for (const used of usedVlans) {
+      const shared = sharedId(used, vlans);
+      if (shared !== null) return problem("vlanIdOverlap", { vlan: String(shared) });
+    }
+    usedVlans.push(vlans);
     if (!row.vni) return problem("vlanVniRequired", { vlan: row.vlan });
     const vnis = idOrRange(row.vni, VNI_RANGE);
     if (!vnis) return problem("vlanVniInvalid", { vlan: row.vlan, ...bounds(VNI_RANGE) });
     if (vnis[1] - vnis[0] !== vlans[1] - vlans[0]) return problem("vlanVniRangeLength", { vlan: row.vlan });
+    for (const used of usedVnis) {
+      const shared = sharedId(used, vnis);
+      if (shared !== null) return problem("vniReused", { vni: String(shared) });
+    }
+    usedVnis.push(vnis);
+    if (row.description.length > DESCRIPTION_MAX) {
+      return problem("vlanDescriptionTooLong", { vlan: row.vlan, max: DESCRIPTION_MAX });
+    }
   }
   return null;
 }
@@ -590,10 +616,9 @@ function verifyProblem(n: Norm): VxlanProblem | null {
   if (!n.group && n.remotes.length === 0 && !n.source_address && !n.source_interface) return problem("endpointRequired");
   if (n.group && !n.source_interface) return problem("groupNeedsSourceInterface");
   if (n.group && n.remotes.length > 0) return problem("groupWithRemote");
-  if (n.source_address) {
-    const v6 = n.source_address.includes(":");
-    if (n.remotes.some((r) => r.includes(":") !== v6)) return problem("addressFamilyMixed");
-  }
+  // The underlay is one family: the source address and every remote.
+  const families = new Set([n.source_address, ...n.remotes].filter(Boolean).map((a) => a.includes(":")));
+  if (families.size > 1) return problem("addressFamilyMixed");
   return null;
 }
 

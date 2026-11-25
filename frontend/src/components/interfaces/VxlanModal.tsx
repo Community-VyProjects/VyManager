@@ -145,11 +145,7 @@ export function VxlanModal({
 
   const hasInterfaceIdentifier = vxlanSupports(capabilities, "ipv6_address_interface_identifier");
   const hasVlanDescription = vxlanSupports(capabilities, "vlan_to_vni_description");
-  const sourceValidationLabels: Record<string, string> = {
-    strict: t("modal.ip.strict"),
-    loose: t("modal.ip.loose"),
-    disable: t("modal.ip.disable"),
-  };
+  const hasGpe = vxlanSupports(capabilities, "gpe");
   const none = { label: tc("none"), value: "" };
   const rangeText = (range: NumericRange) =>
     range.max === undefined ? t("modal.minPlaceholder", { min: range.min }) : t("modal.rangePlaceholder", { min: range.min, max: range.max });
@@ -358,7 +354,7 @@ export function VxlanModal({
 
             <div className="flex gap-6">
               {checkField("vxlan-disabled", tc("disabled"), form.disabled, (disabled) => update({ disabled }))}
-              {checkField("vxlan-gpe", "GPE", form.gpe, (gpe) => update({ gpe }))}
+              {hasGpe && checkField("vxlan-gpe", "GPE", form.gpe, (gpe) => update({ gpe }))}
             </div>
           </TabsContent>
 
@@ -404,7 +400,7 @@ export function VxlanModal({
                   <SelectTrigger id="vxlan-ipv6Flowlabel" className="h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{tc("default")}</SelectItem>
-                    <SelectItem value="keyword" className="font-mono">{FLOWLABEL_INHERIT}</SelectItem>
+                    <SelectItem value="keyword">{t("modal.advanced.flowlabelInherit")}</SelectItem>
                     <SelectItem value="custom">{t("modal.advanced.flowLabelCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -458,7 +454,6 @@ export function VxlanModal({
                   id="vxlan-ipSourceValidation"
                   value={form.ip.source_validation}
                   names={SOURCE_VALIDATION_VALUES}
-                  labels={sourceValidationLabels}
                   onValueChange={(source_validation) => updateIp({ source_validation })}
                 />
               </div>
@@ -521,7 +516,6 @@ export function VxlanModal({
                   id="vxlan-ipv6SourceValidation"
                   value={form.ipv6.source_validation}
                   names={SOURCE_VALIDATION_VALUES}
-                  labels={sourceValidationLabels}
                   onValueChange={(source_validation) => updateIpv6({ source_validation })}
                 />
               </div>
@@ -584,6 +578,7 @@ export function VxlanModal({
                             onChange={(e) => updateVlanMapping(index, { description: e.target.value })}
                             placeholder={tc("optional")}
                             className="h-8 text-sm"
+                            maxLength={DESCRIPTION_MAX}
                           />
                         </div>
                       )}

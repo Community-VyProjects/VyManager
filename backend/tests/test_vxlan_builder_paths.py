@@ -58,7 +58,7 @@ COMMON_CASES = [
     _value("delete_description", "overlay", "description"),
     _flag("set_disable", "disable"),
     _flag("delete_disable", "disable"),
-    _flag("set_gpe", "gpe"),
+    # gpe exists on both labs; only its delete is shared (1.4 cannot commit a set).
     _flag("delete_gpe", "gpe"),
     _value("set_group", "239.1.1.1", "group"),
     _value("delete_group", "239.1.1.1", "group"),
@@ -156,6 +156,8 @@ COMMON_CASES = [
 ]
 
 V15_ONLY_CASES = [
+    # The 1.4 verify rejects gpe even with parameters external (lab-proven).
+    _flag("set_gpe", "gpe"),
     ("set_ipv6_address_interface_identifier", (NAME, "::1:2"), "set",
      BASE + ["ipv6", "address", "interface-identifier", "::1:2"]),
     ("delete_ipv6_address_interface_identifier", (NAME,), "delete",
@@ -255,6 +257,17 @@ def test_capabilities_follow_the_mapper(version, supported):
     features = VxlanBatchBuilder(version=version).get_capabilities()["features"]
     assert features["ipv6_address_interface_identifier"]["supported"] is supported
     assert features["vlan_to_vni_description"]["supported"] is supported
+    assert features["gpe"]["supported"] is supported
+
+
+def test_gpe_follows_supports_gpe_not_the_version(monkeypatch):
+    monkeypatch.setattr(VxlanMapperV1_5, "supports_gpe", lambda self: False)
+    builder = VxlanBatchBuilder(version=ROLLING)
+    assert builder.get_capabilities()["features"]["gpe"]["supported"] is False
+    with pytest.raises(ValueError, match="vxlan gpe is not supported on this device"):
+        builder.set_gpe(NAME)
+    builder.delete_gpe(NAME)
+    assert _ops(builder) == [("delete", BASE + ["gpe"])]
 
 
 def test_capabilities_have_no_version_info():
