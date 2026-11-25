@@ -44,6 +44,13 @@ def test_value_lists_by_version():
     assert RouteMapper("1.4").geoip_country_codes() == ()
     assert "us" in RouteMapperV1_5("1.5").geoip_country_codes()
     assert "icmpv6" in RouteMapper("1.4").protocol_values()
+    # The ip-protocol validator rejects these /etc/protocols names on both labs.
+    assert not {"ethernet", "mptcp"} & set(RouteMapper("1.4").protocol_values())
+    # Lab `allowed:` lines, the same on both labs.
+    assert len(RouteMapper("1.4").icmp_type_name_values()) == 15
+    assert "router-advertisement" in RouteMapper("1.4").icmp_type_name_values()
+    assert "info-reply" in RouteMapper("1.4").icmp_type_name_values()
+    assert "packet-too-big" in RouteMapper("1.4").icmpv6_type_values()
 
 
 @pytest.mark.parametrize(

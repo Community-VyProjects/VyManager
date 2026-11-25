@@ -26,7 +26,8 @@ COMPARE_OPS = ("eq", "gt", "lt")
 # `time weekdays` is one comma-separated value; both labs commit full day
 # names (1.4 rejects "Mon").
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-# `protocol` completes from /etc/protocols (the same list on both labs); the
+# `protocol` completes from /etc/protocols (the same list on both labs) minus
+# "ethernet" and "mptcp", which the ip-protocol validator rejects; the
 # validator also takes "all", "tcp_udp" and "icmpv6" (an icmpv6 match in
 # route6 commits only with protocol icmpv6, not ipv6-icmp or 58).
 PROTOCOLS = (
@@ -35,7 +36,7 @@ PROTOCOLS = (
     "ipv6-route", "ipv6-frag", "idrp", "rsvp", "gre", "esp", "ah", "skip", "ipv6-icmp",
     "ipv6-nonxt", "ipv6-opts", "rspf", "vmtp", "eigrp", "ospf", "ax.25", "ipip", "etherip",
     "encap", "pim", "ipcomp", "vrrp", "l2tp", "isis", "sctp", "fc", "mobility-header", "udplite",
-    "mpls-in-ip", "manet", "hip", "shim6", "wesp", "rohc", "ethernet", "mptcp",
+    "mpls-in-ip", "manet", "hip", "shim6", "wesp", "rohc",
 )
 ICMP_TYPE_NAMES = (
     "echo-reply", "destination-unreachable", "source-quench", "redirect", "echo-request",
