@@ -1,5 +1,5 @@
 """
-VXLAN Mapper - VyOS 1.5 specific paths.
+VXLAN Mapper - VyOS 1.5
 
 VyOS 1.5 adds:
   - ipv6 address interface-identifier
@@ -7,19 +7,20 @@ VyOS 1.5 adds:
 """
 
 from typing import List
+from ..vxlan import VxlanMapper
 
 
-class VxlanMapperV1_5:
-    """VyOS 1.5 specific VXLAN mapper with additional paths."""
+class VxlanMapperV1_5(VxlanMapper):
+    """VyOS 1.5 vxlan mapper with the 1.5-only leaves."""
 
     def get_ipv6_address_interface_identifier(self, name: str, value: str) -> List[str]:
-        return ["interfaces", "vxlan", name, "ipv6", "address", "interface-identifier", value]
+        return self._base(name) + ["ipv6", "address", "interface-identifier", value]
 
     def get_ipv6_address_interface_identifier_path(self, name: str) -> List[str]:
-        return ["interfaces", "vxlan", name, "ipv6", "address", "interface-identifier"]
+        return self._base(name) + ["ipv6", "address", "interface-identifier"]
 
     def get_vlan_to_vni_description(self, name: str, vlan_id: str, value: str) -> List[str]:
-        return ["interfaces", "vxlan", name, "vlan-to-vni", vlan_id, "description", value]
+        return self._base(name) + ["vlan-to-vni", vlan_id, "description", value]
 
     def get_vlan_to_vni_description_path(self, name: str, vlan_id: str) -> List[str]:
-        return ["interfaces", "vxlan", name, "vlan-to-vni", vlan_id, "description"]
+        return self._base(name) + ["vlan-to-vni", vlan_id, "description"]

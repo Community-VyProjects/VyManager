@@ -28,15 +28,50 @@ Config tree:
     vrf              (txt)
 """
 
-from typing import List
+from typing import Any, Dict, FrozenSet, List, Tuple
 from ..base import BaseFeatureMapper
 
 
 class VxlanMapper(BaseFeatureMapper):
-    """Base mapper for VXLAN interface commands. Common paths for VyOS 1.4 and 1.5."""
+    """Mapper for VXLAN interface commands shared by VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    # ========================================================================
+    # Core
+    # ========================================================================
+
+    # Each 1.5-only CLI node and every path method under it.
+    _VERSIONED_INTERFACE_NODES: Dict[str, Tuple[str, ...]] = {
+        "ipv6_address_interface_identifier": (
+            "get_ipv6_address_interface_identifier",
+            "get_ipv6_address_interface_identifier_path",
+        ),
+        "vlan_to_vni_description": (
+            "get_vlan_to_vni_description",
+            "get_vlan_to_vni_description_path",
+        ),
+    }
+
+    def versioned_interface_nodes(self) -> FrozenSet[str]:
+        """1.5-only vxlan leaves this device has.
+
+        IPv6 address interface-identifier and the vlan-to-vni description live
+        on the 1.5 subclass as path methods. Capabilities and builder ops read
+        this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_INTERFACE_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
+
+    def _require_interface_node(self, node: str) -> None:
+        if node not in self.versioned_interface_nodes():
+            raise ValueError(f"vxlan {node} is not supported on this device")
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_vxlan_config
+
+        return parse_vxlan_config(self, full_config)
 
     def _base(self, name: str) -> List[str]:
         return ["interfaces", "vxlan", name]
