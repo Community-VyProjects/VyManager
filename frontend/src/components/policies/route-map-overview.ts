@@ -1,4 +1,4 @@
-import type { MatchConditions, RouteMapRule } from "@/lib/api/route-map";
+import type { MatchConditions, RouteMapRule, SetActions } from "@/lib/api/route-map";
 
 /**
  * A badge label: a `routeMap.overview` key, or a `routeMapRuleModal` field
@@ -6,7 +6,10 @@ import type { MatchConditions, RouteMapRule } from "@/lib/api/route-map";
  */
 export type RouteMapOverviewLabel =
   | { catalog: "routeMap"; key: "overview.asPath" | "overview.community" | "overview.ipPrefix" | "overview.ipv6Prefix" }
-  | { catalog: "routeMapRuleModal"; key: "field.protocol" };
+  | {
+      catalog: "routeMapRuleModal";
+      key: "field.protocol" | "field.localPreference" | "field.metric" | "field.prependAs" | "field.communityAdd";
+    };
 
 export interface RouteMapOverviewBadge {
   label: RouteMapOverviewLabel;
@@ -45,4 +48,30 @@ export function routeMapRuleCounts(rule: Pick<RouteMapRule, "match" | "set">): {
     match: Object.values(rule.match).filter(isPresent).length,
     set: Object.values(rule.set).filter(isPresent).length,
   };
+}
+
+/** The colour a set badge is drawn in. */
+export type RouteMapSetBadgeTone = "purple" | "yellow" | "blue" | "green";
+
+const SET_OVERVIEW_FIELDS: {
+  key: keyof SetActions;
+  label: RouteMapOverviewLabel;
+  tone: RouteMapSetBadgeTone;
+}[] = [
+  { key: "local_preference", label: { catalog: "routeMapRuleModal", key: "field.localPreference" }, tone: "purple" },
+  { key: "metric", label: { catalog: "routeMapRuleModal", key: "field.metric" }, tone: "yellow" },
+  { key: "as_path_prepend", label: { catalog: "routeMapRuleModal", key: "field.prependAs" }, tone: "blue" },
+  { key: "community_add_values", label: { catalog: "routeMapRuleModal", key: "field.communityAdd" }, tone: "green" },
+];
+
+/** The set actions the rules table names, in its order; a list shows its values joined. */
+export function routeMapSetOverviewBadges(
+  set: Partial<SetActions>,
+): (RouteMapOverviewBadge & { tone: RouteMapSetBadgeTone })[] {
+  const badges: (RouteMapOverviewBadge & { tone: RouteMapSetBadgeTone })[] = [];
+  for (const { key, label, tone } of SET_OVERVIEW_FIELDS) {
+    const value = set[key];
+    if (isPresent(value)) badges.push({ label, tone, value: Array.isArray(value) ? value.join(", ") : String(value) });
+  }
+  return badges;
 }

@@ -82,5 +82,14 @@
     "title": "Reorder in Progress",
     "renumber": "{count, plural, one {# rule} other {# rules}} will be renumbered",
     "saveOrder": "Save Order"
+  },
+  "dnd": {
+    "instructions": "To move a rule, press Space or Enter, use the arrow keys, then press Space or Enter to drop it, or Escape to cancel.",
+    "start": "Picked up rule {number}.",
+    "over": "Rule {number} is over rule {target}.",
+    "overNone": "Rule {number} is not over a rule.",
+    "end": "Rule {number} dropped at rule {target}.",
+    "endNone": "Rule {number} dropped.",
+    "cancel": "Moving rule {number} cancelled."
   }
 }

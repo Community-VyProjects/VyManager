@@ -71,7 +71,6 @@ const MATCH: RouteMapRuleProblemKey[] = [
   "matchMetricRange",
   "matchTagRange",
   "matchPeerInvalid",
-  "matchSourcePeerInvalid",
   "evpnVniRange",
   "evpnRdInvalid",
   "ipAddressPrefixLenRange",

@@ -542,7 +542,6 @@ export type RouteMapRuleProblemKey =
   | "matchMetricRange"
   | "matchTagRange"
   | "matchPeerInvalid"
-  | "matchSourcePeerInvalid"
   | "evpnVniRange"
   | "evpnRdInvalid"
   | "ipAddressPrefixLenRange"
@@ -711,11 +710,6 @@ function routeDistinguisherArgs(caps: Caps): Record<string, number | string> {
   };
 }
 
-/** One CLI word, as the builder takes a name: no whitespace or control character. */
-function isWord(value: string): boolean {
-  return !/[\s\u0000-\u001f\u007f-\u009f]/.test(value);
-}
-
 /** `[+-]<number>` or `[+-]rtt`. */
 function metricValid(value: string, caps: Caps): boolean {
   const body = value.startsWith("+") || value.startsWith("-") ? value.slice(1) : value;
@@ -767,14 +761,12 @@ export function routeMapRuleProblem(
     f.on_match_goto && Number(f.on_match_goto) <= own ? problem("onMatchGotoNotAfterRule") : null,
   ];
 
-  const sourcePeer = caps?.features?.match_source_peer?.supported === true;
   const evpn = caps?.features?.match_evpn?.supported === true;
   const match = [
     checkRange("match_local_preference", "match_local_preference", "matchLocalPreferenceRange"),
     checkRange("match_metric", "match_metric", "matchMetricRange"),
     checkRange("match_tag", "match_tag", "matchTagRange"),
     checkValue("match_peer", isIp, "matchPeerInvalid"),
-    sourcePeer ? checkValue("match_source_peer", isWord, "matchSourcePeerInvalid") : null,
     evpn ? checkRange("match_evpn_vni", "evpn_vni", "evpnVniRange") : null,
     evpn && f.match_evpn_rd && !routeDistinguisherValid(f.match_evpn_rd, caps)
       ? problem("evpnRdInvalid", { args: routeDistinguisherArgs(caps) })

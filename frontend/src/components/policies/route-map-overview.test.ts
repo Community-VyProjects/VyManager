@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { routeMapMatchOverviewBadges, routeMapRuleCounts, type RouteMapOverviewLabel } from "./route-map-overview";
+import {
+  routeMapMatchOverviewBadges,
+  routeMapRuleCounts,
+  routeMapSetOverviewBadges,
+  type RouteMapOverviewLabel,
+} from "./route-map-overview";
 
 const RM = (key: Extract<RouteMapOverviewLabel, { catalog: "routeMap" }>["key"]): RouteMapOverviewLabel => ({ catalog: "routeMap", key });
 
@@ -47,5 +52,36 @@ describe("routeMapRuleCounts", () => {
       set: { community_add_values: [], extcommunity_rt: ["65000:1"], atomic_aggregate: false, weight: 0 },
     } as never);
     assert.deepEqual(counts, { match: 2, set: 2 });
+  });
+});
+
+describe("routeMapSetOverviewBadges", () => {
+  const field = (key: Extract<RouteMapOverviewLabel, { catalog: "routeMapRuleModal" }>["key"]): RouteMapOverviewLabel => ({
+    catalog: "routeMapRuleModal",
+    key,
+  });
+
+  it("names local preference (also 0), metric, prepend AS and the added communities, in the row's order", () => {
+    assert.deepEqual(
+      routeMapSetOverviewBadges({
+        community_add_values: ["65000:1", "no-export"],
+        as_path_prepend: "65001 65001",
+        metric: "+5",
+        local_preference: 0,
+      }),
+      [
+        { label: field("field.localPreference"), tone: "purple", value: "0" },
+        { label: field("field.metric"), tone: "yellow", value: "+5" },
+        { label: field("field.prependAs"), tone: "blue", value: "65001 65001" },
+        { label: field("field.communityAdd"), tone: "green", value: "65000:1, no-export" },
+      ],
+    );
+  });
+
+  it("omits unset actions and an empty community list", () => {
+    assert.deepEqual(
+      routeMapSetOverviewBadges({ local_preference: null, metric: null, as_path_prepend: "", community_add_values: [] }),
+      [],
+    );
   });
 });

@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   DndContext,
+  type Announcements,
   type DragEndEvent,
   closestCenter,
   KeyboardSensor,
@@ -44,9 +45,13 @@ import { EditRouteMapModal } from "@/components/policies/EditRouteMapModal";
 import { DeleteRouteMapModal } from "@/components/policies/DeleteRouteMapModal";
 import { RouteMapRuleModal } from "@/components/policies/RouteMapRuleModal";
 import { DeleteRouteMapRuleModal } from "@/components/policies/DeleteRouteMapRuleModal";
-import { RouteMapRuleRow, useOverviewLabel } from "@/components/policies/RouteMapRuleRow";
+import { RouteMapRuleRow, useOverviewBadgeText } from "@/components/policies/RouteMapRuleRow";
 import { RouteMapReorderBanner } from "@/components/policies/RouteMapReorderBanner";
-import { routeMapMatchOverviewBadges } from "@/components/policies/route-map-overview";
+import {
+  routeMapMatchOverviewBadges,
+  routeMapRuleCounts,
+  routeMapSetOverviewBadges,
+} from "@/components/policies/route-map-overview";
 import { NO_PICKERS, type RouteMapPickers } from "@/components/policies/route-map-rule-form";
 
 type ModalKind = "createMap" | "editMap" | "deleteMap" | "createRule" | "editRule" | "deleteRule";
@@ -63,7 +68,7 @@ export default function RouteMapPage() {
   const t = useTranslations("routeMap");
   const tr = useTranslations("routeMapRuleModal");
   const tc = useTranslations("common");
-  const overviewLabel = useOverviewLabel();
+  const badgeText = useOverviewBadgeText();
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.ROUTE_MAP);
 
@@ -215,13 +220,26 @@ export default function RouteMapPage() {
     return rm.name.toLowerCase().includes(query) || (rm.description ?? "").toLowerCase().includes(query);
   });
 
-  /** The text the table shows for a rule, plus the raw values. */
+  /**
+   * Every text the rules table shows for a rule (number, action, description,
+   * the count badges and each match and set badge, through the row's own
+   * badge text), plus the raw action keyword.
+   */
   const ruleSearchText = (rule: RouteMapRule) => {
     const action = rule.action === "permit" ? tr("permit") : rule.action === "deny" ? tr("deny") : "";
-    const badges = routeMapMatchOverviewBadges(rule.match).map((badge) =>
-      t("row.badge", { label: overviewLabel(badge.label), value: badge.value }),
-    );
-    return [String(rule.rule_number), rule.description ?? "", rule.action, action, ...badges].join("\n").toLowerCase();
+    const counts = routeMapRuleCounts(rule);
+    const badges = [...routeMapMatchOverviewBadges(rule.match), ...routeMapSetOverviewBadges(rule.set)].map(badgeText);
+    return [
+      String(rule.rule_number),
+      rule.description ?? "",
+      rule.action,
+      action,
+      counts.match > 0 ? t("row.conditions", { count: counts.match }) : "",
+      counts.set > 0 ? t("row.actions", { count: counts.set }) : "",
+      ...badges,
+    ]
+      .join("\n")
+      .toLowerCase();
   };
 
   const filteredRules = currentRules.filter((rule) => {
@@ -240,6 +258,20 @@ export default function RouteMapPage() {
     setReorderedRules([]);
     setReorderError(null);
   }, []);
+
+  /** Screen-reader text for a keyboard or pointer reorder, naming the rules by number. */
+  const dragAnnouncements: Announcements = {
+    onDragStart: ({ active }) => t("dnd.start", { number: String(active.id) }),
+    onDragOver: ({ active, over }) =>
+      over
+        ? t("dnd.over", { number: String(active.id), target: String(over.id) })
+        : t("dnd.overNone", { number: String(active.id) }),
+    onDragEnd: ({ active, over }) =>
+      over
+        ? t("dnd.end", { number: String(active.id), target: String(over.id) })
+        : t("dnd.endNone", { number: String(active.id) }),
+    onDragCancel: ({ active }) => t("dnd.cancel", { number: String(active.id) }),
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -537,7 +569,15 @@ export default function RouteMapPage() {
                 ) : (
                   <Card>
                     <ScrollArea className="h-[calc(100vh-350px)]">
-                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                        accessibility={{
+                          screenReaderInstructions: { draggable: t("dnd.instructions") },
+                          announcements: dragAnnouncements,
+                        }}
+                      >
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">

@@ -121,7 +121,6 @@
     "matchMetricRange": "规则 {rule}：匹配的度量值必须是 {min} 到 {max} 之间的整数",
     "matchTagRange": "规则 {rule}：匹配的标签必须是 {min} 到 {max} 之间的整数",
     "matchPeerInvalid": "规则 {rule}：对等体必须是 IPv4 或 IPv6 地址",
-    "matchSourcePeerInvalid": "规则 {rule}：源对等体不能包含空格",
     "evpnVniRange": "规则 {rule}：VNI 必须是 {min} 到 {max} 之间的整数",
     "evpnRdInvalid": "规则 {rule}：路由区分符必须是 ASN:NN（{asnMin}-{asnMax}:{asnValueMin}-{asnValueMax}）、ASN4:NN（{asn4Min}-{asn4Max}:{asn4ValueMin}-{asn4ValueMax}）或 IPv4:NN（IPv4:{ipValueMin}-{ipValueMax}）",
     "ipAddressPrefixLenRange": "规则 {rule}：IPv4 地址前缀长度必须是 {min} 到 {max} 之间的整数",

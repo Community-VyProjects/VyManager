@@ -82,5 +82,14 @@
     "title": "正在调整顺序",
     "renumber": "{count} 条规则将重新编号",
     "saveOrder": "保存顺序"
+  },
+  "dnd": {
+    "instructions": "要移动规则，请按空格键或回车键，使用方向键移动，再按空格键或回车键放下，或按 Esc 取消。",
+    "start": "已拿起规则 {number}。",
+    "over": "规则 {number} 位于规则 {target} 上方。",
+    "overNone": "规则 {number} 不在任何规则上方。",
+    "end": "规则 {number} 已放到规则 {target} 处。",
+    "endNone": "规则 {number} 已放下。",
+    "cancel": "已取消移动规则 {number}。"
   }
 }

@@ -121,7 +121,6 @@
     "matchMetricRange": "Rule {rule}: match metric must be a whole number from {min} to {max}",
     "matchTagRange": "Rule {rule}: match tag must be a whole number from {min} to {max}",
     "matchPeerInvalid": "Rule {rule}: the peer must be an IPv4 or IPv6 address",
-    "matchSourcePeerInvalid": "Rule {rule}: the source peer must not contain spaces",
     "evpnVniRange": "Rule {rule}: the VNI must be a whole number from {min} to {max}",
     "evpnRdInvalid": "Rule {rule}: the route distinguisher must be ASN:NN ({asnMin}-{asnMax}:{asnValueMin}-{asnValueMax}), ASN4:NN ({asn4Min}-{asn4Max}:{asn4ValueMin}-{asn4ValueMax}) or IPv4:NN (IPv4:{ipValueMin}-{ipValueMax})",
     "ipAddressPrefixLenRange": "Rule {rule}: the IPv4 address prefix length must be a whole number from {min} to {max}",

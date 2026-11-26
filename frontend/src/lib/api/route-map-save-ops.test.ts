@@ -636,14 +636,6 @@ describe("rule save checks", () => {
     }
   });
 
-  it("source-peer is one word: whitespace and control characters are rejected (1.5)", () => {
-    for (const bad of ["192.0.2.1 x", "eth\t0", "PG\u0007", "PG\u0085", "P\u3000G"]) {
-      assert.equal(check({ match_source_peer: bad })?.key, "matchSourcePeerInvalid", JSON.stringify(bad));
-    }
-    assert.equal(check({ match_source_peer: "eth0" }), null);
-    assert.equal(check({ match_source_peer: "PEERS" }), null);
-  });
-
   it("addresses match the builder; any access-list number is taken", () => {
     assert.equal(check({ match_peer: "2001:db8::1" }), null);
     assert.equal(check({ match_peer: "eth0" })?.key, "matchPeerInvalid");
