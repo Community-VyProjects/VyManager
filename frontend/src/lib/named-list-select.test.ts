@@ -26,6 +26,8 @@ const CALLERS = [
   "src/components/ripng/RipngContent.tsx",
   "src/components/ripng/RipngDistributeListInterfaceModal.tsx",
   "src/components/ospfv3/Ospfv3AreaModal.tsx",
+  "src/components/pim/PimContent.tsx",
+  "src/components/pim/PimInterfaceModal.tsx",
 ];
 
 // Route-map pickers that must use the shared control.

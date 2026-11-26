@@ -86,6 +86,10 @@ jobs:
         working-directory: frontend
         run: npm run test:ripng-save
 
+      - name: Run PIM save op tests
+        working-directory: frontend
+        run: npm run test:pim-save
+
       - name: Run conntrack-sync save op tests
         working-directory: frontend
         run: npm run test:conntrack-sync-save

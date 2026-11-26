@@ -96,7 +96,6 @@ from .vxlan.vxlan_versions import get_vxlan_mapper
 from .nhrp import NhrpMapper
 from .nhrp.nhrp_versions import get_nhrp_mapper
 from .pim import PimMapper
-from .pim.pim_versions import get_pim_mapper
 from .pim6 import Pim6Mapper
 from .pim6.pim6_versions import get_pim6_mapper
 from .rip.rip_versions import get_rip_mapper
@@ -289,8 +288,8 @@ CommandMapperRegistry.register_feature("tunnel", TunnelMapper)
 CommandMapperRegistry.register_feature("vxlan", get_vxlan_mapper)
 # NHRP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("nhrp", get_nhrp_mapper)
-# PIM uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("pim", get_pim_mapper)
+# PIM uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("pim", PimMapper)
 # PIMv6 uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("pim6", get_pim6_mapper)
 # RIP uses factory for version-specific mappers

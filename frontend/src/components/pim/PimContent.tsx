@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 
 import {
   Table,
@@ -22,38 +23,37 @@ import { Plus, RefreshCw, Pencil, Trash2, Save, Loader2, Search, X, AlertCircle,
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   pimService,
-  PimConfig,
-  PimCapabilities,
-  PimInterface,
-  PimRpAddress,
-  PimGlobalSettings,
+  type PimConfig,
+  type PimCapabilities,
+  type PimInterface,
+  type PimRpAddress,
 } from "@/lib/api/pim";
+import {
+  pimGlobalDraft,
+  pimGlobalProblem,
+  pimInterfaceDeleteProblem,
+  pimProblemArgs,
+  pimRange,
+  pimRpTimerProblem,
+  pimText,
+  type PimGlobalDraft,
+  type PimInterfaceDraft,
+  type PimProblem,
+} from "@/lib/api/pim-save-ops";
+import { prefixListService } from "@/lib/api/prefix-list";
+import { bfdService } from "@/lib/api/bfd";
+import type { ApiError } from "@/lib/types/api";
 import { PimInterfaceModal } from "./PimInterfaceModal";
 import { PimRpAddressModal } from "./PimRpAddressModal";
-import { DeletePimItemModal } from "./DeletePimItemModal";
+import { DeletePimItemModal, type PimDeleteKind } from "./DeletePimItemModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function configToGlobalSettings(config: PimConfig): PimGlobalSettings {
-  return {
-    ecmp: config.ecmp,
-    ecmp_rebalance: config.ecmp_rebalance,
-    igmp_watermark_warning: config.igmp_watermark_warning != null ? String(config.igmp_watermark_warning) : "",
-    join_prune_interval: config.join_prune_interval != null ? String(config.join_prune_interval) : "",
-    keep_alive_timer: config.keep_alive_timer != null ? String(config.keep_alive_timer) : "",
-    no_v6_secondary: config.no_v6_secondary,
-    packets: config.packets != null ? String(config.packets) : "",
-    register_accept_list_prefix_list: config.register_accept_list_prefix_list || "",
-    register_suppress_time: config.register_suppress_time != null ? String(config.register_suppress_time) : "",
-    spt_infinity_and_beyond: config.spt_switchover?.infinity_and_beyond ?? false,
-    spt_prefix_list: config.spt_switchover?.prefix_list || "",
-    ssm_prefix_list: config.ssm_prefix_list || "",
-  };
-}
+const DELETE_ACTIONS: Record<PimDeleteKind, (name: string, config: PimConfig) => Promise<unknown>> = {
+  interface: (name, config) => pimService.deleteInterface(config, name),
+  rpAddress: (name, config) => pimService.deleteRpAddress(config, name),
+  pim: () => pimService.deletePim(),
+};
 
 // ============================================================================
 // Main Component
@@ -66,40 +66,36 @@ export function PimContent() {
   const hasWritePermission = canWrite(FeatureGroup.PIM);
 
   const [config, setConfig] = useState<PimConfig | null>(null);
-  const [, setCapabilities] = useState<PimCapabilities | null>(null);
+  const [capabilities, setCapabilities] = useState<PimCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
+  // A re-read after a save; the page stays mounted and every write control waits.
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Picker lists that failed to load (a 403 stays silent: the user may not read that feature).
+  const [listErrors, setListErrors] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("general");
 
-  // Interface state
+  const [prefixListNames, setPrefixListNames] = useState<string[]>([]);
+  const [bfdProfileNames, setBfdProfileNames] = useState<string[]>([]);
+
+  // Interface search
   const [ifaceSearch, setIfaceSearch] = useState("");
+
+  // Modal state. The subject stays set after close so the dialog keeps its
+  // text while it animates out; modalKey remounts the modal on every open.
+  const [modalKey, setModalKey] = useState(0);
   const [ifaceModalOpen, setIfaceModalOpen] = useState(false);
   const [editingIface, setEditingIface] = useState<PimInterface | null>(null);
-  const [deletingIface, setDeletingIface] = useState<PimInterface | null>(null);
-
-  // RP state
   const [rpModalOpen, setRpModalOpen] = useState(false);
   const [editingRp, setEditingRp] = useState<PimRpAddress | null>(null);
-  const [deletingRp, setDeletingRp] = useState<PimRpAddress | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: PimDeleteKind; name: string } | null>(null);
 
   // General tab inline edit
   const [generalEditing, setGeneralEditing] = useState(false);
   const [generalSaving, setGeneralSaving] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
-
-  // General form fields
-  const [ecmp, setEcmp] = useState(false);
-  const [ecmpRebalance, setEcmpRebalance] = useState(false);
-  const [noV6Secondary, setNoV6Secondary] = useState(false);
-  const [joinPruneInterval, setJoinPruneInterval] = useState("");
-  const [keepAliveTimer, setKeepAliveTimer] = useState("");
-  const [registerSuppressTime, setRegisterSuppressTime] = useState("");
-  const [packets, setPackets] = useState("");
-  const [igmpWatermarkWarning, setIgmpWatermarkWarning] = useState("");
-  const [registerAcceptListPrefixList, setRegisterAcceptListPrefixList] = useState("");
-  const [ssmPrefixList, setSsmPrefixList] = useState("");
-  const [sptInfinityAndBeyond, setSptInfinityAndBeyond] = useState(false);
-  const [sptPrefixList, setSptPrefixList] = useState("");
+  const [draft, setDraft] = useState<PimGlobalDraft | null>(null);
 
   // RP keep-alive timer inline edit
   const [rpTimerEditing, setRpTimerEditing] = useState(false);
@@ -111,26 +107,56 @@ export function PimContent() {
   // Load data
   // -------------------------------------------------------------------------
 
-  const loadData = useCallback(async (refresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [configData, capsData] = await Promise.all([
-        pimService.getConfig(refresh),
-        pimService.getCapabilities(),
-      ]);
-      setConfig(configData);
-      setCapabilities(capsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
+  const fetchData = useCallback(async (refresh: boolean) => {
+    const [configData, capsData] = await Promise.all([
+      pimService.getConfig(refresh),
+      pimService.getCapabilities(),
+    ]);
+    // Picker names come from features with their own permissions. A 403
+    // leaves the picker empty without a message; any other failure says so.
+    const failed: string[] = [];
+    const names = (load: Promise<string[]>, message: string) =>
+      load.catch((err: unknown) => {
+        if ((err as ApiError).status !== 403) failed.push(message);
+        return [] as string[];
+      });
+    const [prefixLists, bfdProfiles] = await Promise.all([
+      names(prefixListService.getConfig().then((c) => c.ipv4_lists.map((pl) => pl.name)), t("errors.loadPrefixListsFailed")),
+      names(bfdService.getConfig().then((c) => c.profiles.map((p) => p.name)), t("errors.loadBfdProfilesFailed")),
+    ]);
+    setConfig(configData);
+    setCapabilities(capsData);
+    setPrefixListNames(prefixLists);
+    setBfdProfileNames(bfdProfiles);
+    setListErrors(failed);
+    setError(null);
   }, [t]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchData(false)
+      .catch((err) => setError((err as ApiError).message || t("content.loadFailed")))
+      .finally(() => setLoading(false));
+  }, [fetchData, t]);
+
+  const retry = () => {
+    setLoading(true);
+    fetchData(true)
+      .catch((err) => setError((err as ApiError).message || t("content.loadFailed")))
+      .finally(() => setLoading(false));
+  };
+
+  const reload = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData(true);
+    } catch (err) {
+      setError((err as ApiError).message || t("content.loadFailed"));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const problemText = (problem: PimProblem) => t(`validation.${problem.key}`, pimProblemArgs(problem));
 
   // -------------------------------------------------------------------------
   // General tab edit handlers
@@ -138,19 +164,7 @@ export function PimContent() {
 
   const startEditGeneral = () => {
     if (!config) return;
-    const g = configToGlobalSettings(config);
-    setEcmp(g.ecmp);
-    setEcmpRebalance(g.ecmp_rebalance);
-    setNoV6Secondary(g.no_v6_secondary);
-    setJoinPruneInterval(g.join_prune_interval);
-    setKeepAliveTimer(g.keep_alive_timer);
-    setRegisterSuppressTime(g.register_suppress_time);
-    setPackets(g.packets);
-    setIgmpWatermarkWarning(g.igmp_watermark_warning);
-    setRegisterAcceptListPrefixList(g.register_accept_list_prefix_list);
-    setSsmPrefixList(g.ssm_prefix_list);
-    setSptInfinityAndBeyond(g.spt_infinity_and_beyond);
-    setSptPrefixList(g.spt_prefix_list);
+    setDraft(pimGlobalDraft(config));
     setGeneralEditing(true);
     setGeneralError(null);
   };
@@ -160,31 +174,23 @@ export function PimContent() {
     setGeneralError(null);
   };
 
+  const patchDraft = (patch: Partial<PimGlobalDraft>) => setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+
   const saveGeneral = async () => {
-    if (!config) return;
+    if (!config || !draft) return;
+    const problem = pimGlobalProblem(draft, capabilities, config);
+    if (problem) {
+      setGeneralError(problemText(problem));
+      return;
+    }
     try {
       setGeneralSaving(true);
       setGeneralError(null);
-      const current = configToGlobalSettings(config);
-      const next: PimGlobalSettings = {
-        ecmp,
-        ecmp_rebalance: ecmp ? ecmpRebalance : false,
-        no_v6_secondary: noV6Secondary,
-        join_prune_interval: joinPruneInterval,
-        keep_alive_timer: keepAliveTimer,
-        register_suppress_time: registerSuppressTime,
-        packets,
-        igmp_watermark_warning: igmpWatermarkWarning,
-        register_accept_list_prefix_list: registerAcceptListPrefixList,
-        ssm_prefix_list: ssmPrefixList,
-        spt_infinity_and_beyond: sptInfinityAndBeyond,
-        spt_prefix_list: sptInfinityAndBeyond ? sptPrefixList : "",
-      };
-      await pimService.updateGlobalSettings(current, next);
-      await loadData(true);
+      await pimService.updateGlobalSettings(config, draft);
+      await reload();
       setGeneralEditing(false);
     } catch (err) {
-      setGeneralError(err instanceof Error ? err.message : t("content.saveFailed"));
+      setGeneralError((err as ApiError).message || t("content.saveFailed"));
     } finally {
       setGeneralSaving(false);
     }
@@ -196,76 +202,82 @@ export function PimContent() {
 
   const startEditRpTimer = () => {
     if (!config) return;
-    setRpKeepAliveTimer(config.rp?.keep_alive_timer != null ? String(config.rp.keep_alive_timer) : "");
+    setRpKeepAliveTimer(pimText(config.rp?.keep_alive_timer));
     setRpTimerEditing(true);
     setRpTimerError(null);
   };
 
   const saveRpTimer = async () => {
     if (!config) return;
+    const problem = pimRpTimerProblem(rpKeepAliveTimer, capabilities, config);
+    if (problem) {
+      setRpTimerError(problemText(problem));
+      return;
+    }
     try {
       setRpTimerSaving(true);
       setRpTimerError(null);
-      const currentVal = config.rp?.keep_alive_timer != null ? String(config.rp.keep_alive_timer) : "";
-      await pimService.updateRpKeepAliveTimer(rpKeepAliveTimer, currentVal);
-      await loadData(true);
+      await pimService.updateRpKeepAliveTimer(config, rpKeepAliveTimer);
+      await reload();
       setRpTimerEditing(false);
     } catch (err) {
-      setRpTimerError(err instanceof Error ? err.message : t("content.saveRpTimerFailed"));
+      setRpTimerError((err as ApiError).message || t("content.saveRpTimerFailed"));
     } finally {
       setRpTimerSaving(false);
     }
   };
 
   // -------------------------------------------------------------------------
-  // Interface handlers
+  // Modal handlers
   // -------------------------------------------------------------------------
 
-  const handleCreateInterface = async (iface: PimInterface) => {
-    await pimService.createInterface(iface);
-    await loadData(true);
+  const openIface = (iface: PimInterface | null) => {
+    setEditingIface(iface);
+    setModalKey((k) => k + 1);
+    setIfaceModalOpen(true);
   };
 
-  const handleUpdateInterface = async (iface: PimInterface) => {
-    if (!editingIface) return;
-    await pimService.updateInterface(editingIface, iface);
-    setEditingIface(null);
-    await loadData(true);
+  const submitIface = async (iface: PimInterfaceDraft) => {
+    if (editingIface) await pimService.updateInterface(editingIface, iface);
+    else await pimService.createInterface(iface);
+    await reload();
   };
 
-  const handleDeleteInterface = async () => {
-    if (!deletingIface) return;
-    await pimService.deleteInterface(deletingIface.name);
-    setDeletingIface(null);
-    await loadData(true);
+  const openRp = (rp: PimRpAddress | null) => {
+    setEditingRp(rp);
+    setModalKey((k) => k + 1);
+    setRpModalOpen(true);
   };
 
-  // -------------------------------------------------------------------------
-  // RP handlers
-  // -------------------------------------------------------------------------
-
-  const handleCreateRp = async (rp: PimRpAddress) => {
-    await pimService.createRpAddress(rp);
-    await loadData(true);
+  const submitRp = async (rp: PimRpAddress) => {
+    if (editingRp) await pimService.updateRpAddress(editingRp, rp);
+    else await pimService.createRpAddress(rp);
+    await reload();
   };
 
-  const handleUpdateRp = async (rp: PimRpAddress) => {
-    if (!editingRp) return;
-    await pimService.updateRpAddress(editingRp, rp);
-    setEditingRp(null);
-    await loadData(true);
+  const openDelete = (kind: PimDeleteKind, name: string) => {
+    setDeleteTarget({ kind, name });
+    setModalKey((k) => k + 1);
+    setDeleteOpen(true);
   };
 
-  const handleDeleteRp = async () => {
-    if (!deletingRp) return;
-    await pimService.deleteRpAddress(deletingRp.address);
-    setDeletingRp(null);
-    await loadData(true);
+  const confirmDelete = async () => {
+    if (!deleteTarget || !config) return;
+    // The last interface cannot go while other PIM config remains; the dialog shows why.
+    const problem = deleteTarget.kind === "interface" ? pimInterfaceDeleteProblem(config, deleteTarget.name) : null;
+    if (problem) throw { message: problemText(problem) } satisfies ApiError;
+    await DELETE_ACTIONS[deleteTarget.kind](deleteTarget.name, config);
+    // The commit runs before the close, so a failed commit leaves the dialog open.
+    setDeleteOpen(false);
+    void reload();
   };
 
   // -------------------------------------------------------------------------
   // Derived data
   // -------------------------------------------------------------------------
+
+  // Every write control waits for any running commit and the re-read after it.
+  const writeBusy = refreshing || generalSaving || rpTimerSaving;
 
   const filteredIfaces =
     config?.interfaces.filter(
@@ -273,13 +285,22 @@ export function PimContent() {
     ) ?? [];
 
   const ifaceCount = config?.interfaces.length ?? 0;
+  // The last RP address deletes the whole `rp` node, keep-alive timer included.
+  const lastRpWithTimer = (config?.rp?.addresses.length ?? 0) === 1 && config?.rp?.keep_alive_timer != null;
   const rpCount = config?.rp?.addresses.length ?? 0;
+  const shown = generalEditing && draft ? draft : config ? pimGlobalDraft(config) : null;
+  const generalDisabled = !generalEditing || generalSaving;
+
+  const rangeText = (key: Parameters<typeof pimRange>[1]) => {
+    const range = pimRange(capabilities, key);
+    return range ? `${range.min}-${range.max}` : tc("default");
+  };
 
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
-  if (loading) {
+  if (loading && !config) {
     return (
       <div className="flex items-center justify-center h-full">
         <LoadingSpinner />
@@ -291,12 +312,27 @@ export function PimContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>
+        <Button variant="outline" onClick={retry}>
           {tc("retry")}
         </Button>
       </div>
     );
   }
+
+  const numberField = (id: string, label: string, field: keyof PimGlobalDraft, key: Parameters<typeof pimRange>[1], className?: string) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        inputMode="numeric"
+        value={pimText(shown?.[field] as string | null | undefined)}
+        onChange={(e) => patchDraft({ [field]: e.target.value } as Partial<PimGlobalDraft>)}
+        disabled={generalDisabled}
+        placeholder={rangeText(key)}
+        className={className}
+      />
+    </div>
+  );
 
   return (
     <>
@@ -316,8 +352,20 @@ export function PimContent() {
               {!hasWritePermission && (
                 <Badge variant="secondary">{tc("readOnly")}</Badge>
               )}
-              <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+              {hasWritePermission && config?.configured && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => openDelete("pim", "")}
+                  disabled={writeBusy}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t("deleteModal.pim.title")}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => void reload()} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2${refreshing ? " animate-spin" : ""}`} />
                 {tc("refresh")}
               </Button>
             </div>
@@ -327,6 +375,14 @@ export function PimContent() {
             <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-start gap-2">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
               {error}
+            </div>
+          )}
+
+          {listErrors.length > 0 && (
+            <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+              {listErrors.map((message) => (
+                <p key={message}>{message}</p>
+              ))}
             </div>
           )}
 
@@ -394,12 +450,11 @@ export function PimContent() {
               {/* General Tab                                                   */}
               {/* ============================================================ */}
               <TabsContent value="general" className="space-y-6 mt-0">
-                {/* Edit/Save/Cancel buttons */}
                 {hasWritePermission && (
                   <div className="flex items-center gap-2">
                     {generalEditing ? (
                       <>
-                        <Button size="sm" onClick={saveGeneral} disabled={generalSaving}>
+                        <Button size="sm" onClick={saveGeneral} disabled={generalSaving || writeBusy}>
                           {generalSaving ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           ) : (
@@ -412,7 +467,7 @@ export function PimContent() {
                         </Button>
                       </>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={startEditGeneral}>
+                      <Button size="sm" variant="outline" onClick={startEditGeneral} disabled={writeBusy}>
                         <Pencil className="mr-2 h-4 w-4" />
                         {tc("edit")}
                       </Button>
@@ -435,19 +490,19 @@ export function PimContent() {
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id="pim-ecmp"
-                          checked={generalEditing ? ecmp : config?.ecmp ?? false}
-                          onCheckedChange={(c) => setEcmp(!!c)}
-                          disabled={!generalEditing}
+                          checked={shown?.ecmp ?? false}
+                          onCheckedChange={(c) => patchDraft({ ecmp: !!c })}
+                          disabled={generalDisabled}
                         />
                         <Label htmlFor="pim-ecmp">ECMP</Label>
                       </div>
-                      {(generalEditing ? ecmp : config?.ecmp) && (
+                      {shown?.ecmp && (
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id="pim-ecmp-rebalance"
-                            checked={generalEditing ? ecmpRebalance : config?.ecmp_rebalance ?? false}
-                            onCheckedChange={(c) => setEcmpRebalance(!!c)}
-                            disabled={!generalEditing}
+                            checked={shown.ecmp_rebalance}
+                            onCheckedChange={(c) => patchDraft({ ecmp_rebalance: !!c })}
+                            disabled={generalDisabled}
                           />
                           <Label htmlFor="pim-ecmp-rebalance">{t("content.ecmpRebalance")}</Label>
                         </div>
@@ -455,9 +510,9 @@ export function PimContent() {
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id="pim-no-v6"
-                          checked={generalEditing ? noV6Secondary : config?.no_v6_secondary ?? false}
-                          onCheckedChange={(c) => setNoV6Secondary(!!c)}
-                          disabled={!generalEditing}
+                          checked={shown?.no_v6_secondary ?? false}
+                          onCheckedChange={(c) => patchDraft({ no_v6_secondary: !!c })}
+                          disabled={generalDisabled}
                         />
                         <Label htmlFor="pim-no-v6">{t("content.noV6Secondary")}</Label>
                       </div>
@@ -470,58 +525,10 @@ export function PimContent() {
                   <CardContent className="p-5 space-y-4">
                     <h3 className="text-sm font-semibold">{t("content.timers")}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="pim-join-prune">{t("content.joinPruneInterval")}</Label>
-                        <Input
-                          id="pim-join-prune"
-                          type="number"
-                          value={generalEditing ? joinPruneInterval : (config?.join_prune_interval != null ? String(config.join_prune_interval) : "")}
-                          onChange={(e) => setJoinPruneInterval(e.target.value)}
-                          disabled={!generalEditing}
-                          placeholder={tc("default")}
-                          min={1}
-                          max={65535}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="pim-keepalive">{t("content.keepAliveTimer")}</Label>
-                        <Input
-                          id="pim-keepalive"
-                          type="number"
-                          value={generalEditing ? keepAliveTimer : (config?.keep_alive_timer != null ? String(config.keep_alive_timer) : "")}
-                          onChange={(e) => setKeepAliveTimer(e.target.value)}
-                          disabled={!generalEditing}
-                          placeholder={tc("default")}
-                          min={1}
-                          max={65535}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="pim-reg-suppress">{t("content.registerSuppressTime")}</Label>
-                        <Input
-                          id="pim-reg-suppress"
-                          type="number"
-                          value={generalEditing ? registerSuppressTime : (config?.register_suppress_time != null ? String(config.register_suppress_time) : "")}
-                          onChange={(e) => setRegisterSuppressTime(e.target.value)}
-                          disabled={!generalEditing}
-                          placeholder={tc("default")}
-                          min={1}
-                          max={65535}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="pim-packets">{t("content.packets")}</Label>
-                        <Input
-                          id="pim-packets"
-                          type="number"
-                          value={generalEditing ? packets : (config?.packets != null ? String(config.packets) : "")}
-                          onChange={(e) => setPackets(e.target.value)}
-                          disabled={!generalEditing}
-                          placeholder={tc("default")}
-                          min={1}
-                          max={255}
-                        />
-                      </div>
+                      {numberField("pim-join-prune", t("content.joinPruneInterval"), "join_prune_interval", "timer")}
+                      {numberField("pim-keepalive", t("content.keepAliveTimer"), "keep_alive_timer", "timer")}
+                      {numberField("pim-reg-suppress", t("content.registerSuppressTime"), "register_suppress_time", "timer")}
+                      {numberField("pim-packets", t("content.packets"), "packets", "packets")}
                     </div>
                   </CardContent>
                 </Card>
@@ -530,20 +537,8 @@ export function PimContent() {
                 <Card>
                   <CardContent className="p-5 space-y-4">
                     <h3 className="text-sm font-semibold">IGMP</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="pim-igmp-watermark">{t("content.watermarkWarning")}</Label>
-                      <Input
-                        id="pim-igmp-watermark"
-                        type="number"
-                        value={generalEditing ? igmpWatermarkWarning : (config?.igmp_watermark_warning != null ? String(config.igmp_watermark_warning) : "")}
-                        onChange={(e) => setIgmpWatermarkWarning(e.target.value)}
-                        disabled={!generalEditing}
-                        placeholder={tc("default")}
-                        min={1}
-                        max={65535}
-                        className="max-w-xs"
-                      />
-                    </div>
+                    {numberField("pim-igmp-watermark", t("content.watermarkWarning"), "igmp_watermark_warning",
+                      "watermark_warning", "max-w-xs")}
                   </CardContent>
                 </Card>
 
@@ -554,22 +549,22 @@ export function PimContent() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="pim-reg-accept">{t("content.registerAcceptList")}</Label>
-                        <Input
+                        <NamedListSelect
                           id="pim-reg-accept"
-                          value={generalEditing ? registerAcceptListPrefixList : (config?.register_accept_list_prefix_list || "")}
-                          onChange={(e) => setRegisterAcceptListPrefixList(e.target.value)}
-                          disabled={!generalEditing}
-                          placeholder={t("content.prefixListPlaceholder")}
+                          value={pimText(shown?.register_accept_list_prefix_list)}
+                          names={prefixListNames}
+                          disabled={generalDisabled}
+                          onValueChange={(v) => patchDraft({ register_accept_list_prefix_list: v })}
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="pim-ssm">{t("content.ssmPrefixList")}</Label>
-                        <Input
+                        <NamedListSelect
                           id="pim-ssm"
-                          value={generalEditing ? ssmPrefixList : (config?.ssm_prefix_list || "")}
-                          onChange={(e) => setSsmPrefixList(e.target.value)}
-                          disabled={!generalEditing}
-                          placeholder={t("content.prefixListPlaceholder")}
+                          value={pimText(shown?.ssm_prefix_list)}
+                          names={prefixListNames}
+                          disabled={generalDisabled}
+                          onValueChange={(v) => patchDraft({ ssm_prefix_list: v })}
                         />
                       </div>
                     </div>
@@ -584,22 +579,21 @@ export function PimContent() {
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id="pim-spt-infinity"
-                          checked={generalEditing ? sptInfinityAndBeyond : config?.spt_switchover?.infinity_and_beyond ?? false}
-                          onCheckedChange={(c) => setSptInfinityAndBeyond(!!c)}
-                          disabled={!generalEditing}
+                          checked={shown?.spt_infinity_and_beyond ?? false}
+                          onCheckedChange={(c) => patchDraft({ spt_infinity_and_beyond: !!c })}
+                          disabled={generalDisabled}
                         />
                         <Label htmlFor="pim-spt-infinity">{t("content.infinityAndBeyond")}</Label>
                       </div>
-                      {(generalEditing ? sptInfinityAndBeyond : config?.spt_switchover?.infinity_and_beyond) && (
-                        <div className="ml-6 space-y-2">
+                      {shown?.spt_infinity_and_beyond && (
+                        <div className="ml-6 space-y-2 max-w-xs">
                           <Label htmlFor="pim-spt-prefix">{t("content.prefixList")}</Label>
-                          <Input
+                          <NamedListSelect
                             id="pim-spt-prefix"
-                            value={generalEditing ? sptPrefixList : (config?.spt_switchover?.prefix_list || "")}
-                            onChange={(e) => setSptPrefixList(e.target.value)}
-                            disabled={!generalEditing}
-                            placeholder={t("content.prefixListPlaceholder")}
-                            className="max-w-xs"
+                            value={pimText(shown.spt_prefix_list)}
+                            names={prefixListNames}
+                            disabled={generalDisabled}
+                            onValueChange={(v) => patchDraft({ spt_prefix_list: v })}
                           />
                         </div>
                       )}
@@ -626,6 +620,7 @@ export function PimContent() {
                         variant="ghost"
                         size="icon"
                         className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        aria-label={tc("clear")}
                         onClick={() => setIfaceSearch("")}
                       >
                         <X className="h-4 w-4" />
@@ -633,7 +628,7 @@ export function PimContent() {
                     )}
                   </div>
                   {hasWritePermission && (
-                    <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
+                    <Button size="sm" onClick={() => openIface(null)} disabled={writeBusy}>
                       <Plus className="h-4 w-4 mr-2" />
                       {tc("addInterface")}
                     </Button>
@@ -647,7 +642,7 @@ export function PimContent() {
                       <p className="text-sm font-medium">{t("content.noInterfaces")}</p>
                       <p className="text-xs mt-1">{t("content.noInterfacesHint")}</p>
                       {hasWritePermission && (
-                        <Button variant="outline" size="sm" className="mt-4" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
+                        <Button variant="outline" size="sm" className="mt-4" onClick={() => openIface(null)} disabled={writeBusy}>
                           <Plus className="h-4 w-4 mr-2" />
                           {tc("addInterface")}
                         </Button>
@@ -721,7 +716,9 @@ export function PimContent() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8"
-                                    onClick={() => { setEditingIface(iface); setIfaceModalOpen(true); }}
+                                    aria-label={tc("edit")}
+                                    disabled={writeBusy}
+                                    onClick={() => openIface(iface)}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
@@ -729,7 +726,9 @@ export function PimContent() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => setDeletingIface(iface)}
+                                    aria-label={tc("delete")}
+                                    disabled={writeBusy}
+                                    onClick={() => openDelete("interface", iface.name)}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -757,12 +756,11 @@ export function PimContent() {
                         {rpTimerEditing ? (
                           <Input
                             id="rp-keep-alive"
-                            type="number"
+                            inputMode="numeric"
                             value={rpKeepAliveTimer}
                             onChange={(e) => setRpKeepAliveTimer(e.target.value)}
-                            placeholder={tc("default")}
-                            min={1}
-                            max={65535}
+                            disabled={rpTimerSaving}
+                            placeholder={rangeText("timer")}
                           />
                         ) : (
                           <p className="text-sm font-mono">
@@ -774,7 +772,7 @@ export function PimContent() {
                         <div className="flex items-center gap-2">
                           {rpTimerEditing ? (
                             <>
-                              <Button size="sm" onClick={saveRpTimer} disabled={rpTimerSaving}>
+                              <Button size="sm" onClick={saveRpTimer} disabled={rpTimerSaving || writeBusy}>
                                 {rpTimerSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 {tc("save")}
                               </Button>
@@ -783,7 +781,7 @@ export function PimContent() {
                               </Button>
                             </>
                           ) : (
-                            <Button size="sm" variant="outline" onClick={startEditRpTimer}>
+                            <Button size="sm" variant="outline" onClick={startEditRpTimer} disabled={writeBusy}>
                               <Pencil className="mr-2 h-4 w-4" />
                               {tc("edit")}
                             </Button>
@@ -804,7 +802,7 @@ export function PimContent() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold">{t("content.rpAddresses")}</h3>
                   {hasWritePermission && (
-                    <Button size="sm" onClick={() => { setEditingRp(null); setRpModalOpen(true); }}>
+                    <Button size="sm" onClick={() => openRp(null)} disabled={writeBusy}>
                       <Plus className="h-4 w-4 mr-2" />
                       {t("addRpAddress")}
                     </Button>
@@ -818,7 +816,7 @@ export function PimContent() {
                       <p className="text-sm font-medium">{t("content.noRpAddresses")}</p>
                       <p className="text-xs mt-1">{t("content.noRpAddressesHint")}</p>
                       {hasWritePermission && (
-                        <Button variant="outline" size="sm" className="mt-4" onClick={() => { setEditingRp(null); setRpModalOpen(true); }}>
+                        <Button variant="outline" size="sm" className="mt-4" onClick={() => openRp(null)} disabled={writeBusy}>
                           <Plus className="h-4 w-4 mr-2" />
                           {t("addRpAddress")}
                         </Button>
@@ -848,7 +846,7 @@ export function PimContent() {
                                     </Badge>
                                   ))
                                 ) : (
-                                  <span className="text-muted-foreground text-sm">{t("content.allGroups")}</span>
+                                  <span className="text-muted-foreground text-sm">-</span>
                                 )}
                               </div>
                             </TableCell>
@@ -859,7 +857,9 @@ export function PimContent() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8"
-                                    onClick={() => { setEditingRp(rp); setRpModalOpen(true); }}
+                                    aria-label={tc("edit")}
+                                    disabled={writeBusy}
+                                    onClick={() => openRp(rp)}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
@@ -867,7 +867,9 @@ export function PimContent() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => setDeletingRp(rp)}
+                                    aria-label={tc("delete")}
+                                    disabled={writeBusy}
+                                    onClick={() => openDelete("rpAddress", rp.address)}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -890,44 +892,35 @@ export function PimContent() {
       {/* ================================================================ */}
 
       <PimInterfaceModal
+        key={`iface-${modalKey}`}
         open={ifaceModalOpen}
-        onOpenChange={(open) => {
-          setIfaceModalOpen(open);
-          if (!open) setEditingIface(null);
-        }}
-        onSubmit={editingIface ? handleUpdateInterface : handleCreateInterface}
+        onOpenChange={setIfaceModalOpen}
+        onSubmit={submitIface}
         existingInterface={editingIface}
+        configuredInterfaces={config?.interfaces.map((i) => i.name) ?? []}
+        bfdProfileNames={bfdProfileNames}
+        capabilities={capabilities}
       />
 
       <PimRpAddressModal
+        key={`rp-${modalKey}`}
         open={rpModalOpen}
-        onOpenChange={(open) => {
-          setRpModalOpen(open);
-          if (!open) setEditingRp(null);
-        }}
-        onSubmit={editingRp ? handleUpdateRp : handleCreateRp}
+        onOpenChange={setRpModalOpen}
+        onSubmit={submitRp}
         existingRp={editingRp}
+        configuredRps={config?.rp?.addresses ?? []}
+        configuredInterfaces={config?.interfaces.map((i) => i.name) ?? []}
       />
 
-      {deletingIface && (
-        <DeletePimItemModal
-          open={!!deletingIface}
-          onOpenChange={(open) => { if (!open) setDeletingIface(null); }}
-          itemType="interface"
-          itemName={deletingIface.name}
-          onConfirm={handleDeleteInterface}
-        />
-      )}
-
-      {deletingRp && (
-        <DeletePimItemModal
-          open={!!deletingRp}
-          onOpenChange={(open) => { if (!open) setDeletingRp(null); }}
-          itemType="rp-address"
-          itemName={deletingRp.address}
-          onConfirm={handleDeleteRp}
-        />
-      )}
+      <DeletePimItemModal
+        key={`delete-${modalKey}`}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        itemType={deleteTarget?.kind ?? "interface"}
+        itemName={deleteTarget?.name ?? ""}
+        clearsRpTimer={deleteTarget?.kind === "rpAddress" && lastRpWithTimer}
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }

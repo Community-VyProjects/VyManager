@@ -1,61 +1,21 @@
-"""
-PIM Router
+"""PIM Router.
 
-API endpoints for managing VyOS PIM (Protocol Independent Multicast) configuration.
-No version differences between VyOS 1.4 and 1.5.
-
-Config tree:
-  protocols pim/
-    ecmp
-    ecmp rebalance
-    igmp/
-      watermark-warning  (1-65535)
-    interface/<IFACE>/
-      bfd
-      bfd profile        (txt)
-      dr-priority        (1-4294967295)
-      hello              (1-180)
-      igmp/
-        disable
-        join/<GROUP>/
-          source-address (multi, ipv4)
-        query-interval           (1-1800)
-        query-max-response-time  (10-250)
-        version                  (2|3)
-      no-bsm
-      no-unicast-bsm
-      passive
-      source-address     (ipv4)
-    join-prune-interval  (1-65535)
-    keep-alive-timer     (1-65535)
-    no-v6-secondary
-    packets              (1-255)
-    register-accept-list/
-      prefix-list        (txt)
-    register-suppress-time (1-65535)
-    rp/
-      address/<IP>/
-        group            (multi, ipv4net)
-      keep-alive-timer   (1-65535)
-    spt-switchover/
-      infinity-and-beyond
-      infinity-and-beyond prefix-list (txt)
-    ssm/
-      prefix-list        (txt)
+API endpoints for managing VyOS PIM (Protocol Independent Multicast)
+configuration. PIM is identical between VyOS 1.4 and 1.5.
 """
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.pim import PimMapper
 from vyos_builders.pim import PimBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
-from vyos_mappers.base import CommandMapperRegistry
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +76,7 @@ class PimSptSwitchover(BaseModel):
 
 class PimConfig(BaseModel):
     """Complete PIM configuration."""
+    configured: bool = False
     ecmp: bool = False
     ecmp_rebalance: bool = False
     igmp_watermark_warning: Optional[int] = None
@@ -132,24 +93,15 @@ class PimConfig(BaseModel):
 
 
 class PimBatchOperation(BaseModel):
-    """Single operation in a batch request."""
-    op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Operation value")
-
-
-class PimBatchGroup(BaseModel):
-    """A group of operations scoped to a single interface (or global)."""
-    interface: Optional[str] = Field(None, description="Interface name (null for global ops)")
-    operations: List[PimBatchOperation]
+    op: str = Field(..., description="Builder method name")
+    value: Optional[str] = Field(None, description="Comma-separated arguments")
 
 
 class PimBatchRequest(BaseModel):
-    """Model for batch configuration. Supports multiple groups in a single atomic commit."""
-    groups: List[PimBatchGroup]
+    operations: List[PimBatchOperation]
 
 
 class VyOSResponse(BaseModel):
-    """Standard response from VyOS operations."""
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -162,21 +114,23 @@ class VyOSResponse(BaseModel):
 
 @router.get("/capabilities")
 async def get_pim_capabilities(request: Request):
-    """Get PIM feature capabilities based on device VyOS version."""
+    """Return PIM feature capabilities; they are the same on every VyOS version."""
     await require_read_permission(request, FeatureGroup.PIM)
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = PimBatchBuilder(version=version)
+        builder = PimBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
+
         return capabilities
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Unhandled error")
+        logger.exception("Unhandled error in get_pim_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -187,16 +141,18 @@ async def get_pim_capabilities(request: Request):
 
 @router.get("/config", response_model=PimConfig)
 async def get_pim_config(http_request: Request, refresh: bool = False):
-    """Get all PIM configuration from VyOS in a generalized format."""
+    """Return the full PIM configuration in a normalized format."""
     await require_read_permission(http_request, FeatureGroup.PIM)
 
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("pim", service.get_version())
+        mapper = cast(PimMapper, CommandMapperRegistry.get_mapper("pim", service.get_version()))
         return PimConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Unhandled error")
+        logger.exception("Unhandled error in get_pim_config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -207,46 +163,28 @@ async def get_pim_config(http_request: Request, refresh: bool = False):
 
 @router.post("/batch", response_model=VyOSResponse)
 async def pim_batch_configure(http_request: Request, body: PimBatchRequest):
-    """Execute a batch of PIM configuration operations.
-
-    Accepts multiple groups, each optionally scoped to a single interface.
-    All groups are processed into a single builder and committed atomically.
-    """
+    """Execute a batch of PIM configuration operations atomically."""
     await require_write_permission(http_request, FeatureGroup.PIM)
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = PimBatchBuilder(version=version)
+        builder = PimBatchBuilder(version=service.get_version())
 
-        for group in body.groups:
-            for operation in group.operations:
-                method = resolve_batch_method(builder, operation.op)
-                sig = inspect.signature(method)
-                params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                call_comma_batch_op(builder, operation.op, operation.value)
+        except ValueError as exc:
+            # The builder raises ValueError for a value the lab would reject.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-                args = []
-
-                if "iface" in params and group.interface:
-                    args.append(group.interface)
-
-                if operation.value and len(params) > len(args):
-                    args.append(operation.value)
-
-                method(*args)
-
-        if builder.is_empty():
-            return VyOSResponse(success=True, data={"message": "No operations to execute"})
-
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "PIM configuration updated"},
+            data={"message": "PIM configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Unhandled error")
+        logger.exception("Unhandled error in pim_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -24,297 +24,272 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
-import type { PimInterface, PimIgmpJoin } from "@/lib/api/pim";
-import { showService, InterfaceName } from "@/lib/api/show";
+import type { PimCapabilities, PimIgmpJoin, PimInterface } from "@/lib/api/pim";
+import {
+  pimInterfaceProblem,
+  pimJoinSourcesWithDraft,
+  pimJoinsWithDraft,
+  pimProblemArgs,
+  pimRange,
+  pimText,
+  type PimInterfaceDraft,
+  type PimProblem,
+} from "@/lib/api/pim-save-ops";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import type { ApiError } from "@/lib/types/api";
 
 interface PimInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (iface: PimInterface) => Promise<void>;
+  onSubmit: (iface: PimInterfaceDraft) => Promise<void>;
   existingInterface?: PimInterface | null;
+  /** Interfaces that already have a PIM node; Add offers only the others. */
+  configuredInterfaces: string[];
+  /** `protocols bfd profile` names for the BFD profile picker. */
+  bfdProfileNames: string[];
+  capabilities: Pick<PimCapabilities, "ranges"> | null;
 }
 
+const str = (value: number | string | null | undefined) => pimText(value);
+
+// Problems whose field sits on the IGMP tab; every other problem is on the PIM tab.
+const IGMP_PROBLEMS: ReadonlySet<PimProblem["key"]> = new Set<PimProblem["key"]>([
+  "queryIntervalRange",
+  "queryMaxResponseRange",
+  "igmpVersionRange",
+  "joinGroupInvalid",
+  "joinGroupReserved",
+  "joinExists",
+  "joinSourceInvalid",
+  "joinSourceExists",
+]);
+
+/** The modal tab that holds the field a problem is about. */
+export function pimProblemTab(problem: PimProblem): "pim" | "igmp" {
+  return IGMP_PROBLEMS.has(problem.key) ? "igmp" : "pim";
+}
+
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function PimInterfaceModal({
   open,
   onOpenChange,
   onSubmit,
   existingInterface,
+  configuredInterfaces,
+  bfdProfileNames,
+  capabilities,
 }: PimInterfaceModalProps) {
   const t = useTranslations("pim");
   const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
-
-  // Available interfaces
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [, setInterfacesLoading] = useState(false);
+  const existing = existingInterface ?? null;
+  const igmp = existing?.igmp ?? null;
 
   // PIM form state
-  const [name, setName] = useState("");
-  const [bfd, setBfd] = useState(false);
-  const [bfdProfile, setBfdProfile] = useState("");
-  const [drPriority, setDrPriority] = useState("");
-  const [hello, setHello] = useState("");
-  const [sourceAddress, setSourceAddress] = useState("");
-  const [passive, setPassive] = useState(false);
-  const [noBsm, setNoBsm] = useState(false);
-  const [noUnicastBsm, setNoUnicastBsm] = useState(false);
+  const [name, setName] = useState(existing?.name ?? "");
+  const [bfd, setBfd] = useState(existing?.bfd ?? false);
+  const [bfdProfile, setBfdProfile] = useState(existing?.bfd_profile ?? "");
+  const [drPriority, setDrPriority] = useState(str(existing?.dr_priority));
+  const [hello, setHello] = useState(str(existing?.hello));
+  const [sourceAddress, setSourceAddress] = useState(existing?.source_address ?? "");
+  const [passive, setPassive] = useState(existing?.passive ?? false);
+  const [noBsm, setNoBsm] = useState(existing?.no_bsm ?? false);
+  const [noUnicastBsm, setNoUnicastBsm] = useState(existing?.no_unicast_bsm ?? false);
 
   // IGMP form state
-  const [igmpDisabled, setIgmpDisabled] = useState(false);
-  const [igmpQueryInterval, setIgmpQueryInterval] = useState("");
-  const [igmpQueryMaxResponseTime, setIgmpQueryMaxResponseTime] = useState("");
-  const [igmpVersion, setIgmpVersion] = useState("");
-  const [igmpJoins, setIgmpJoins] = useState<PimIgmpJoin[]>([]);
+  const [igmpEnabled, setIgmpEnabled] = useState(igmp !== null);
+  const [igmpDisabled, setIgmpDisabled] = useState(igmp?.disabled ?? false);
+  const [igmpQueryInterval, setIgmpQueryInterval] = useState(str(igmp?.query_interval));
+  const [igmpQueryMaxResponseTime, setIgmpQueryMaxResponseTime] = useState(str(igmp?.query_max_response_time));
+  const [igmpVersion, setIgmpVersion] = useState(str(igmp?.version));
+  const [igmpJoins, setIgmpJoins] = useState<PimIgmpJoin[]>(
+    igmp?.joins.map((j) => ({ group: j.group, source_addresses: [...j.source_addresses] })) ?? [],
+  );
   const [newJoinGroup, setNewJoinGroup] = useState("");
-  const [newJoinSource, setNewJoinSource] = useState("");
+  // Typed source address per join row (by row index).
+  const [sourceDrafts, setSourceDrafts] = useState<Record<number, string>>({});
 
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("pim");
 
-  useEffect(() => {
-    if (open) {
-      if (existingInterface) {
-        setName(existingInterface.name);
-        setBfd(existingInterface.bfd);
-        setBfdProfile(existingInterface.bfd_profile || "");
-        setDrPriority(existingInterface.dr_priority != null ? String(existingInterface.dr_priority) : "");
-        setHello(existingInterface.hello != null ? String(existingInterface.hello) : "");
-        setSourceAddress(existingInterface.source_address || "");
-        setPassive(existingInterface.passive);
-        setNoBsm(existingInterface.no_bsm);
-        setNoUnicastBsm(existingInterface.no_unicast_bsm);
+  const drRange = pimRange(capabilities, "dr_priority");
+  const helloRange = pimRange(capabilities, "hello");
+  const queryRange = pimRange(capabilities, "query_interval");
+  const maxResponseRange = pimRange(capabilities, "query_max_response_time");
+  const rangeText = (range: { min: number; max: number } | null) => (range ? `${range.min}-${range.max}` : "");
 
-        const igmp = existingInterface.igmp;
-        if (igmp) {
-          setIgmpDisabled(igmp.disabled);
-          setIgmpQueryInterval(igmp.query_interval != null ? String(igmp.query_interval) : "");
-          setIgmpQueryMaxResponseTime(igmp.query_max_response_time != null ? String(igmp.query_max_response_time) : "");
-          setIgmpVersion(igmp.version != null ? String(igmp.version) : "");
-          setIgmpJoins(igmp.joins.map((j) => ({ group: j.group, source_addresses: [...j.source_addresses] })));
-        } else {
-          resetIgmpFields();
-        }
-      } else {
-        resetForm();
-      }
-      setActiveTab("pim");
-      loadInterfaces();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed/reset the form when opened; reset helpers only touch local state
-  }, [open, existingInterface]);
+  const problemText = (problem: PimProblem) => t(`validation.${problem.key}`, pimProblemArgs(problem));
 
-  const loadInterfaces = async () => {
-    setInterfacesLoading(true);
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch {
-      // Non-critical
-    } finally {
-      setInterfacesLoading(false);
-    }
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
-  const resetIgmpFields = () => {
-    setIgmpDisabled(false);
-    setIgmpQueryInterval("");
-    setIgmpQueryMaxResponseTime("");
-    setIgmpVersion("");
-    setIgmpJoins([]);
-    setNewJoinGroup("");
-    setNewJoinSource("");
-  };
-
-  const resetForm = () => {
-    setName("");
-    setBfd(false);
-    setBfdProfile("");
-    setDrPriority("");
-    setHello("");
-    setSourceAddress("");
-    setPassive(false);
-    setNoBsm(false);
-    setNoUnicastBsm(false);
-    resetIgmpFields();
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
-  // IGMP join management
+  // IGMP join management (draft edits, saved with the form)
   const handleAddJoin = () => {
-    const group = newJoinGroup.trim();
-    if (!group) return;
-    if (igmpJoins.some((j) => j.group === group)) {
-      setError(t("interfaceModal.joinExists"));
+    if (loading) return;
+    const { joins, problem } = pimJoinsWithDraft(igmpJoins, newJoinGroup);
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-    setIgmpJoins([...igmpJoins, { group, source_addresses: [] }]);
+    setIgmpJoins(joins);
     setNewJoinGroup("");
     setError(null);
   };
 
   const handleRemoveJoin = (index: number) => {
+    if (loading) return;
     setIgmpJoins(igmpJoins.filter((_, i) => i !== index));
+    // Row drafts follow their row.
+    setSourceDrafts((prev) => {
+      const next: Record<number, string> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        const i = Number(key);
+        if (i < index) next[i] = value;
+        else if (i > index) next[i - 1] = value;
+      }
+      return next;
+    });
   };
 
   const handleAddJoinSource = (joinIndex: number) => {
-    const source = newJoinSource.trim();
-    if (!source) return;
-    const join = igmpJoins[joinIndex];
-    if (join.source_addresses.includes(source)) {
-      setError(t("interfaceModal.sourceExists"));
+    if (loading) return;
+    const { join, problem } = pimJoinSourcesWithDraft(igmpJoins[joinIndex], sourceDrafts[joinIndex] ?? "");
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-    const updated = [...igmpJoins];
-    updated[joinIndex] = {
-      ...join,
-      source_addresses: [...join.source_addresses, source],
-    };
-    setIgmpJoins(updated);
-    setNewJoinSource("");
+    setIgmpJoins(igmpJoins.map((j, i) => (i === joinIndex ? join : j)));
+    setSourceDrafts((prev) => ({ ...prev, [joinIndex]: "" }));
     setError(null);
   };
 
   const handleRemoveJoinSource = (joinIndex: number, sourceIndex: number) => {
-    const updated = [...igmpJoins];
-    updated[joinIndex] = {
-      ...updated[joinIndex],
-      source_addresses: updated[joinIndex].source_addresses.filter((_, i) => i !== sourceIndex),
-    };
-    setIgmpJoins(updated);
+    if (loading) return;
+    setIgmpJoins(igmpJoins.map((j, i) => (
+      i === joinIndex ? { ...j, source_addresses: j.source_addresses.filter((_, s) => s !== sourceIndex) } : j
+    )));
   };
 
-  const validateForm = (): string | null => {
-    if (!name) return t("interfaceModal.interfaceRequired");
-
-    if (drPriority.trim()) {
-      const val = parseInt(drPriority.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 4294967295) return t("interfaceModal.drPriorityRange");
+  /** The joins with every typed-but-not-added value folded in, or the keyed problem. */
+  const foldJoinDrafts = (): { joins: PimIgmpJoin[]; problem: PimProblem | null } => {
+    let joins: PimIgmpJoin[] = [];
+    for (const [index, join] of igmpJoins.entries()) {
+      const folded = pimJoinSourcesWithDraft(join, sourceDrafts[index] ?? "");
+      if (folded.problem) return { joins: igmpJoins, problem: folded.problem };
+      joins = [...joins, folded.join];
     }
-    if (hello.trim()) {
-      const val = parseInt(hello.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 180) return t("interfaceModal.helloRange");
-    }
-    if (igmpQueryInterval.trim()) {
-      const val = parseInt(igmpQueryInterval.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 1800) return t("interfaceModal.igmpQueryIntervalRange");
-    }
-    if (igmpQueryMaxResponseTime.trim()) {
-      const val = parseInt(igmpQueryMaxResponseTime.trim(), 10);
-      if (isNaN(val) || val < 10 || val > 250) return t("interfaceModal.igmpMaxResponseRange");
-    }
-    return null;
+    return pimJoinsWithDraft(joins, newJoinGroup);
   };
 
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const folded = igmpEnabled ? foldJoinDrafts() : { joins: igmpJoins, problem: null };
+    if (folded.problem) {
+      setActiveTab(pimProblemTab(folded.problem));
+      setError(problemText(folded.problem));
       return;
     }
-
-    setLoading(true);
-    setError(null);
-
+    const iface: PimInterfaceDraft = {
+      name,
+      bfd,
+      bfd_profile: bfd ? bfdProfile : "",
+      dr_priority: drPriority,
+      hello,
+      no_bsm: noBsm,
+      no_unicast_bsm: noUnicastBsm,
+      passive,
+      source_address: sourceAddress,
+      igmp: igmpEnabled
+        ? {
+            disabled: igmpDisabled,
+            joins: folded.joins,
+            query_interval: igmpQueryInterval,
+            query_max_response_time: igmpQueryMaxResponseTime,
+            version: igmpVersion,
+          }
+        : null,
+    };
+    const problem = pimInterfaceProblem(existing, iface, capabilities, configuredInterfaces);
+    if (problem) {
+      setActiveTab(pimProblemTab(problem));
+      setError(problemText(problem));
+      return;
+    }
     try {
-      const hasIgmpSettings =
-        igmpDisabled ||
-        igmpQueryInterval.trim() ||
-        igmpQueryMaxResponseTime.trim() ||
-        igmpVersion ||
-        igmpJoins.length > 0;
-
-      const iface: PimInterface = {
-        name,
-        bfd,
-        bfd_profile: bfd && bfdProfile.trim() ? bfdProfile.trim() : null,
-        dr_priority: drPriority.trim() ? parseInt(drPriority.trim(), 10) : null,
-        hello: hello.trim() ? parseInt(hello.trim(), 10) : null,
-        no_bsm: noBsm,
-        no_unicast_bsm: noUnicastBsm,
-        passive,
-        source_address: sourceAddress.trim() || null,
-        igmp: hasIgmpSettings
-          ? {
-              disabled: igmpDisabled,
-              joins: igmpJoins,
-              query_interval: igmpQueryInterval.trim() ? parseInt(igmpQueryInterval.trim(), 10) : null,
-              query_max_response_time: igmpQueryMaxResponseTime.trim() ? parseInt(igmpQueryMaxResponseTime.trim(), 10) : null,
-              version: igmpVersion ? parseInt(igmpVersion, 10) : null,
-            }
-          : null,
-      };
-
+      setLoading(true);
+      setError(null);
+      setIgmpJoins(folded.joins);
+      setNewJoinGroup("");
+      setSourceDrafts({});
       await onSubmit(iface);
-      handleClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      onOpenChange(false);
+    } catch (err) {
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const igmpOff = loading || !igmpEnabled;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? t("interfaceModal.editDescription", { name: String(existingInterface?.name) })
+              ? t("interfaceModal.editDescription", { name: existing?.name ?? "" })
               : t("interfaceModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pim">{t("interfaceModal.tabPim")}</TabsTrigger>
             <TabsTrigger value="igmp">{t("interfaceModal.tabIgmp")}</TabsTrigger>
           </TabsList>
 
-          {/* PIM Settings Tab */}
-          <TabsContent value="pim">
-            <ScrollArea className="max-h-[55vh] pr-4">
+          <ScrollArea className="flex-1 min-h-0 pr-4 mt-2">
+            {/* PIM Settings Tab */}
+            <TabsContent value="pim" className="mt-0">
               <div className="space-y-5 pb-2">
                 {/* Interface Name */}
                 <div className="space-y-2">
-                  <Label>{t("interfaceModal.interface")}</Label>
-                  {isEditMode ? (
-                    <Input value={name} disabled className="bg-muted font-mono" />
-                  ) : (
-                    <InterfaceSelect
-                      value={name}
-                      onValueChange={setName}
-                      interfaces={availableInterfaces}
-                      placeholder={tc("selectInterface")}
-                    />
-                  )}
+                  <Label htmlFor="pim-iface-name">{t("interfaceModal.interface")}</Label>
+                  <InterfaceSelect
+                    id="pim-iface-name"
+                    value={name}
+                    onValueChange={setName}
+                    disabled={isEditMode || loading}
+                    className={isEditMode ? "bg-muted" : ""}
+                    placeholder={tc("selectInterface")}
+                    filter={(item) => isEditMode || !configuredInterfaces.includes(item.name)}
+                  />
                 </div>
 
                 {/* BFD */}
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="pim-bfd" checked={bfd} onCheckedChange={(c) => setBfd(!!c)} />
+                    <Checkbox id="pim-bfd" checked={bfd} disabled={loading} onCheckedChange={(c) => setBfd(!!c)} />
                     <Label htmlFor="pim-bfd">{t("interfaceModal.enableBfd")}</Label>
                   </div>
                   {bfd && (
                     <div className="ml-6 space-y-2">
                       <Label htmlFor="pim-bfd-profile">{t("interfaceModal.bfdProfile")}</Label>
-                      <Input
+                      <NamedListSelect
                         id="pim-bfd-profile"
                         value={bfdProfile}
-                        onChange={(e) => setBfdProfile(e.target.value)}
-                        placeholder={t("interfaceModal.bfdProfilePlaceholder")}
+                        names={bfdProfileNames}
+                        disabled={loading}
+                        onValueChange={setBfdProfile}
                       />
                     </div>
                   )}
@@ -325,16 +300,12 @@ export function PimInterfaceModal({
                   <Label htmlFor="pim-dr-priority">{t("interfaceModal.drPriority")}</Label>
                   <Input
                     id="pim-dr-priority"
-                    type="number"
+                    inputMode="numeric"
                     value={drPriority}
+                    disabled={loading}
                     onChange={(e) => setDrPriority(e.target.value)}
-                    placeholder="1-4294967295"
-                    min={1}
-                    max={4294967295}
+                    placeholder={rangeText(drRange)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t("interfaceModal.drPriorityHelp")}
-                  </p>
                 </div>
 
                 {/* Hello Interval */}
@@ -342,12 +313,11 @@ export function PimInterfaceModal({
                   <Label htmlFor="pim-hello">{t("interfaceModal.helloInterval")}</Label>
                   <Input
                     id="pim-hello"
-                    type="number"
+                    inputMode="numeric"
                     value={hello}
+                    disabled={loading}
                     onChange={(e) => setHello(e.target.value)}
-                    placeholder="1-180"
-                    min={1}
-                    max={180}
+                    placeholder={rangeText(helloRange)}
                   />
                 </div>
 
@@ -357,6 +327,7 @@ export function PimInterfaceModal({
                   <Input
                     id="pim-source-addr"
                     value={sourceAddress}
+                    disabled={loading}
                     onChange={(e) => setSourceAddress(e.target.value)}
                     placeholder={t("interfaceModal.sourceAddressPlaceholder")}
                     className="font-mono"
@@ -368,30 +339,49 @@ export function PimInterfaceModal({
                   <Label>{t("interfaceModal.flags")}</Label>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="pim-passive" checked={passive} onCheckedChange={(c) => setPassive(!!c)} />
+                      <Checkbox id="pim-passive" checked={passive} disabled={loading} onCheckedChange={(c) => setPassive(!!c)} />
                       <Label htmlFor="pim-passive">{t("interfaceModal.passive")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="pim-no-bsm" checked={noBsm} onCheckedChange={(c) => setNoBsm(!!c)} />
+                      <Checkbox id="pim-no-bsm" checked={noBsm} disabled={loading} onCheckedChange={(c) => setNoBsm(!!c)} />
                       <Label htmlFor="pim-no-bsm">{t("interfaceModal.noBsm")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="pim-no-unicast-bsm" checked={noUnicastBsm} onCheckedChange={(c) => setNoUnicastBsm(!!c)} />
+                      <Checkbox
+                        id="pim-no-unicast-bsm"
+                        checked={noUnicastBsm}
+                        disabled={loading}
+                        onCheckedChange={(c) => setNoUnicastBsm(!!c)}
+                      />
                       <Label htmlFor="pim-no-unicast-bsm">{t("interfaceModal.noUnicastBsm")}</Label>
                     </div>
                   </div>
                 </div>
               </div>
-            </ScrollArea>
-          </TabsContent>
+            </TabsContent>
 
-          {/* IGMP Settings Tab */}
-          <TabsContent value="igmp">
-            <ScrollArea className="max-h-[55vh] pr-4">
+            {/* IGMP Settings Tab */}
+            <TabsContent value="igmp" className="mt-0">
               <div className="space-y-5 pb-2">
+                {/* IGMP node */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="igmp-enable"
+                    checked={igmpEnabled}
+                    disabled={loading}
+                    onCheckedChange={(c) => setIgmpEnabled(!!c)}
+                  />
+                  <Label htmlFor="igmp-enable">{t("interfaceModal.enableIgmp")}</Label>
+                </div>
+
                 {/* Disable IGMP */}
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="igmp-disable" checked={igmpDisabled} onCheckedChange={(c) => setIgmpDisabled(!!c)} />
+                  <Checkbox
+                    id="igmp-disable"
+                    checked={igmpDisabled}
+                    disabled={igmpOff}
+                    onCheckedChange={(c) => setIgmpDisabled(!!c)}
+                  />
                   <Label htmlFor="igmp-disable">{t("interfaceModal.disableIgmp")}</Label>
                 </div>
 
@@ -400,12 +390,11 @@ export function PimInterfaceModal({
                   <Label htmlFor="igmp-query-interval">{t("interfaceModal.queryInterval")}</Label>
                   <Input
                     id="igmp-query-interval"
-                    type="number"
+                    inputMode="numeric"
                     value={igmpQueryInterval}
+                    disabled={igmpOff}
                     onChange={(e) => setIgmpQueryInterval(e.target.value)}
-                    placeholder="1-1800"
-                    min={1}
-                    max={1800}
+                    placeholder={rangeText(queryRange)}
                   />
                 </div>
 
@@ -414,24 +403,27 @@ export function PimInterfaceModal({
                   <Label htmlFor="igmp-query-max-response">{t("interfaceModal.queryMaxResponseTime")}</Label>
                   <Input
                     id="igmp-query-max-response"
-                    type="number"
+                    inputMode="numeric"
                     value={igmpQueryMaxResponseTime}
+                    disabled={igmpOff}
                     onChange={(e) => setIgmpQueryMaxResponseTime(e.target.value)}
-                    placeholder="10-250"
-                    min={10}
-                    max={250}
+                    placeholder={rangeText(maxResponseRange)}
                   />
                 </div>
 
                 {/* IGMP Version */}
                 <div className="space-y-2">
-                  <Label>{t("interfaceModal.igmpVersion")}</Label>
-                  <Select value={igmpVersion} onValueChange={setIgmpVersion}>
-                    <SelectTrigger>
+                  <Label htmlFor="igmp-version">{t("interfaceModal.igmpVersion")}</Label>
+                  <Select
+                    value={igmpVersion || NONE_SENTINEL}
+                    onValueChange={(v) => setIgmpVersion(v === NONE_SENTINEL ? "" : v)}
+                    disabled={igmpOff}
+                  >
+                    <SelectTrigger id="igmp-version">
                       <SelectValue placeholder={tc("default")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">{tc("default")}</SelectItem>
+                      <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                       <SelectItem value="2">{t("interfaceModal.version", { version: "2" })}</SelectItem>
                       <SelectItem value="3">{t("interfaceModal.version", { version: "3" })}</SelectItem>
                     </SelectContent>
@@ -441,10 +433,7 @@ export function PimInterfaceModal({
                 {/* IGMP Joins */}
                 <div className="space-y-3">
                   <div>
-                    <Label>{t("interfaceModal.joinGroups")}</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("interfaceModal.joinGroupsHelp")}
-                    </p>
+                    <Label htmlFor="igmp-join-group">{t("interfaceModal.joinGroups")}</Label>
                   </div>
 
                   {igmpJoins.map((join, joinIndex) => (
@@ -455,6 +444,8 @@ export function PimInterfaceModal({
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive hover:text-destructive"
+                          aria-label={tc("delete")}
+                          disabled={igmpOff}
                           onClick={() => handleRemoveJoin(joinIndex)}
                         >
                           <X className="h-4 w-4" />
@@ -472,6 +463,8 @@ export function PimInterfaceModal({
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 text-destructive hover:text-destructive"
+                                aria-label={tc("delete")}
+                                disabled={igmpOff}
                                 onClick={() => handleRemoveJoinSource(joinIndex, srcIndex)}
                               >
                                 <X className="h-3 w-3" />
@@ -484,28 +477,28 @@ export function PimInterfaceModal({
                       {/* Add source to this join */}
                       <div className="flex items-center gap-2 ml-2">
                         <Input
-                          value={joinIndex === igmpJoins.length - 1 ? newJoinSource : ""}
+                          value={sourceDrafts[joinIndex] ?? ""}
                           onChange={(e) => {
-                            if (joinIndex === igmpJoins.length - 1) {
-                              setNewJoinSource(e.target.value);
-                            }
+                            const value = e.target.value;
+                            setSourceDrafts((prev) => ({ ...prev, [joinIndex]: value }));
+                            setError(null);
                           }}
                           placeholder={t("interfaceModal.addSourcePlaceholder")}
                           className="h-8 text-xs font-mono"
+                          disabled={igmpOff}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
                               handleAddJoinSource(joinIndex);
                             }
                           }}
-                          onFocus={() => {
-                            // Allow editing source for any join by focusing
-                          }}
                         />
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 shrink-0"
+                          aria-label={tc("add")}
+                          disabled={igmpOff || !(sourceDrafts[joinIndex] ?? "").trim()}
                           onClick={() => handleAddJoinSource(joinIndex)}
                         >
                           <Plus className="h-3 w-3" />
@@ -517,10 +510,12 @@ export function PimInterfaceModal({
                   {/* Add new join group */}
                   <div className="flex items-center gap-2">
                     <Input
+                      id="igmp-join-group"
                       value={newJoinGroup}
-                      onChange={(e) => setNewJoinGroup(e.target.value)}
+                      onChange={(e) => { setNewJoinGroup(e.target.value); setError(null); }}
                       placeholder={t("interfaceModal.groupPlaceholder")}
                       className="font-mono"
+                      disabled={igmpOff}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
@@ -528,14 +523,21 @@ export function PimInterfaceModal({
                         }
                       }}
                     />
-                    <Button variant="outline" size="icon" className="shrink-0" onClick={handleAddJoin}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      aria-label={tc("add")}
+                      disabled={igmpOff || !newJoinGroup.trim()}
+                      onClick={handleAddJoin}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </div>
-            </ScrollArea>
-          </TabsContent>
+            </TabsContent>
+          </ScrollArea>
         </Tabs>
 
         {error && (
@@ -546,7 +548,7 @@ export function PimInterfaceModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
