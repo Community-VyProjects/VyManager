@@ -2,7 +2,8 @@
 PIM Command Mapper
 
 Handles command path generation for protocols pim configuration.
-PIM has no version differences between VyOS 1.4 and 1.5.
+The protocols pim templates are the same on VyOS 1.4 and 1.5, so one class
+holds every command and the registry returns it for both.
 
 Config tree:
   protocols pim/
@@ -44,15 +45,17 @@ Config tree:
       prefix-list        (txt)
 """
 
-from typing import List
+from typing import Any, Dict, List
+
 from ..base import BaseFeatureMapper
+from .config_parse import parse_config as parse_pim_config
 
 
 class PimMapper(BaseFeatureMapper):
-    """Mapper for PIM commands. Identical on VyOS 1.4 and 1.5."""
+    """All PIM commands (identical on VyOS 1.4 and 1.5)."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        return parse_pim_config(self, full_config)
 
     def _base(self) -> List[str]:
         return ["protocols", "pim"]
@@ -111,9 +114,6 @@ class PimMapper(BaseFeatureMapper):
     # Register Accept List Paths
     # ========================================================================
 
-    def get_register_accept_list(self) -> List[str]:
-        return self._base() + ["register-accept-list"]
-
     def get_register_accept_list_prefix_list(self, value: str) -> List[str]:
         return self._base() + ["register-accept-list", "prefix-list", value]
 
@@ -123,6 +123,9 @@ class PimMapper(BaseFeatureMapper):
     # ========================================================================
     # RP (Rendezvous Point) Paths
     # ========================================================================
+
+    def get_rp(self) -> List[str]:
+        return self._base() + ["rp"]
 
     def get_rp_address(self, address: str) -> List[str]:
         return self._base() + ["rp", "address", address]

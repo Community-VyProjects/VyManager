@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -16,142 +16,114 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { PimRpAddress } from "@/lib/api/pim";
+import { pimProblemArgs, pimRpGroupsWithDraft, pimRpProblem, type PimProblem } from "@/lib/api/pim-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface PimRpAddressModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (rp: PimRpAddress) => Promise<void>;
   existingRp?: PimRpAddress | null;
+  /** Every configured RP address; Add may not reuse one and a group may not be served twice. */
+  configuredRps: PimRpAddress[];
+  /** Configured PIM interfaces; an RP cannot be saved while there is none. */
+  configuredInterfaces: string[];
 }
 
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function PimRpAddressModal({
   open,
   onOpenChange,
   onSubmit,
   existingRp,
+  configuredRps,
+  configuredInterfaces,
 }: PimRpAddressModalProps) {
   const t = useTranslations("pim");
   const tc = useTranslations("common");
   const isEditMode = !!existingRp;
 
-  const [address, setAddress] = useState("");
-  const [groups, setGroups] = useState<string[]>([]);
+  const [address, setAddress] = useState(existingRp?.address ?? "");
+  const [groups, setGroups] = useState<string[]>(existingRp ? [...existingRp.groups] : []);
   const [newGroup, setNewGroup] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      if (existingRp) {
-        setAddress(existingRp.address);
-        setGroups([...existingRp.groups]);
-      } else {
-        resetForm();
-      }
-    }
-  }, [open, existingRp]);
+  const problemText = (problem: PimProblem) => t(`validation.${problem.key}`, pimProblemArgs(problem));
 
-  const resetForm = () => {
-    setAddress("");
-    setGroups([]);
-    setNewGroup("");
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
-  const validateForm = (): string | null => {
-    if (!address.trim()) {
-      return t("rpModal.addressRequired");
-    }
-    if (!address.trim().match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
-      return t("rpModal.addressInvalid");
-    }
-    for (const g of groups) {
-      if (!g.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/)) {
-        return t("rpModal.invalidGroup", { group: g });
-      }
-    }
-    return null;
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleAddGroup = () => {
-    const value = newGroup.trim();
-    if (!value) return;
-    if (groups.includes(value)) {
-      setError(t("rpModal.groupExists"));
+    if (loading) return;
+    const { groups: next, problem } = pimRpGroupsWithDraft(groups, newGroup);
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-    setGroups([...groups, value]);
+    setGroups(next);
     setNewGroup("");
     setError(null);
   };
 
-  const handleRemoveGroup = (index: number) => {
-    setGroups(groups.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    // A typed group that was not added yet is added on save, or blocks it.
+    const folded = pimRpGroupsWithDraft(groups, newGroup);
+    if (folded.problem) {
+      setError(problemText(folded.problem));
       return;
     }
-
-    setLoading(true);
-    setError(null);
-
+    const rp: PimRpAddress = { address: address.trim(), groups: folded.groups };
+    const others = configuredRps.filter((r) => r.address !== existingRp?.address);
+    const problem = pimRpProblem(existingRp ?? null, rp, others, configuredInterfaces);
+    if (problem) {
+      setError(problemText(problem));
+      return;
+    }
     try {
-      await onSubmit({
-        address: address.trim(),
-        groups,
-      });
-      handleClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      setLoading(true);
+      setError(null);
+      setGroups(folded.groups);
+      setNewGroup("");
+      await onSubmit(rp);
+      onOpenChange(false);
+    } catch (err) {
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("rpModal.editTitle") : t("addRpAddress")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? t("rpModal.editDescription", { address: String(existingRp?.address) })
+              ? t("rpModal.editDescription", { address: existingRp?.address ?? "" })
               : t("rpModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-6 pb-2">
             {/* RP Address */}
             <div className="space-y-2">
-              <Label>{t("rpModal.rpAddress")}</Label>
-              {isEditMode ? (
-                <Input
-                  value={address}
-                  disabled
-                  className="bg-muted font-mono"
-                />
-              ) : (
-                <Input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder={t("rpModal.addressPlaceholder")}
-                  className="font-mono"
-                />
-              )}
+              <Label htmlFor="pim-rp-address">{t("rpModal.rpAddress")}</Label>
+              <Input
+                id="pim-rp-address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                disabled={isEditMode || loading}
+                placeholder={t("rpModal.addressPlaceholder")}
+                className={isEditMode ? "bg-muted font-mono" : "font-mono"}
+              />
               <p className="text-xs text-muted-foreground">
                 {t("rpModal.addressHelp")}
               </p>
@@ -160,7 +132,7 @@ export function PimRpAddressModal({
             {/* Multicast Groups */}
             <div className="space-y-3">
               <div>
-                <Label>{t("rpModal.multicastGroups")}</Label>
+                <Label htmlFor="pim-rp-group">{t("rpModal.multicastGroups")}</Label>
                 <p className="text-xs text-muted-foreground mt-1">
                   {t("rpModal.groupsHelp")}
                 </p>
@@ -177,7 +149,9 @@ export function PimRpAddressModal({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
-                        onClick={() => handleRemoveGroup(index)}
+                        aria-label={tc("delete")}
+                        disabled={loading}
+                        onClick={() => setGroups(groups.filter((_, i) => i !== index))}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -188,10 +162,12 @@ export function PimRpAddressModal({
 
               <div className="flex items-center gap-2">
                 <Input
+                  id="pim-rp-group"
                   value={newGroup}
-                  onChange={(e) => setNewGroup(e.target.value)}
+                  onChange={(e) => { setNewGroup(e.target.value); setError(null); }}
                   placeholder={t("rpModal.groupPlaceholder")}
                   className="font-mono"
+                  disabled={loading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -203,6 +179,8 @@ export function PimRpAddressModal({
                   variant="outline"
                   size="icon"
                   className="shrink-0"
+                  aria-label={tc("add")}
+                  disabled={loading || !newGroup.trim()}
                   onClick={handleAddGroup}
                 >
                   <Plus className="h-4 w-4" />
@@ -220,7 +198,7 @@ export function PimRpAddressModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

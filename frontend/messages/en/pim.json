@@ -24,7 +24,6 @@
     "prefixLists": "Prefix Lists",
     "registerAcceptList": "Register Accept List (prefix-list)",
     "ssmPrefixList": "SSM Prefix List",
-    "prefixListPlaceholder": "Prefix list name",
     "sptSwitchover": "SPT Switchover",
     "infinityAndBeyond": "Infinity and Beyond",
     "prefixList": "Prefix List",
@@ -49,6 +48,10 @@
     "colGroups": "Groups",
     "allGroups": "All groups"
   },
+  "errors": {
+    "loadPrefixListsFailed": "Failed to load prefix lists",
+    "loadBfdProfilesFailed": "Failed to load BFD profiles"
+  },
   "deleteModal": {
     "removing": "Removing...",
     "interface": {
@@ -60,16 +63,14 @@
       "title": "Remove RP Address",
       "description": "Are you sure you want to remove this Rendezvous Point address? This will remove all associated multicast groups.",
       "failed": "Failed to delete rp-address"
+    },
+    "pim": {
+      "title": "Delete PIM",
+      "description": "Are you sure you want to delete the whole PIM configuration? This removes every PIM interface, RP address and global setting.",
+      "failed": "Failed to delete PIM"
     }
   },
   "interfaceModal": {
-    "joinExists": "Join group already exists",
-    "sourceExists": "Source address already exists in this join group",
-    "interfaceRequired": "Interface is required",
-    "drPriorityRange": "DR Priority must be between 1 and 4294967295",
-    "helloRange": "Hello interval must be between 1 and 180",
-    "igmpQueryIntervalRange": "IGMP query interval must be between 1 and 1800",
-    "igmpMaxResponseRange": "IGMP query max response time must be between 10 and 250",
     "editTitle": "Edit PIM Interface",
     "addTitle": "Add PIM Interface",
     "editDescription": "Modify PIM and IGMP settings for {name}.",
@@ -79,7 +80,6 @@
     "interface": "Interface",
     "enableBfd": "Enable BFD (Bidirectional Forwarding Detection)",
     "bfdProfile": "BFD Profile",
-    "bfdProfilePlaceholder": "Optional BFD profile name",
     "drPriority": "DR Priority",
     "drPriorityHelp": "Designated Router election priority. Higher wins.",
     "helloInterval": "Hello Interval (seconds)",
@@ -89,6 +89,7 @@
     "passive": "Passive (no PIM hello packets)",
     "noBsm": "No BSM (do not process bootstrap messages)",
     "noUnicastBsm": "No Unicast BSM (block unicast bootstrap messages)",
+    "enableIgmp": "Enable IGMP on this interface",
     "disableIgmp": "Disable IGMP on this interface",
     "queryInterval": "Query Interval (seconds)",
     "queryMaxResponseTime": "Query Max Response Time (deciseconds)",
@@ -101,10 +102,6 @@
     "groupPlaceholder": "e.g. 239.1.1.1"
   },
   "rpModal": {
-    "addressRequired": "RP address is required",
-    "addressInvalid": "RP address must be a valid IPv4 address",
-    "invalidGroup": "Invalid group format: {group}. Use CIDR notation (e.g., 224.0.0.0/4)",
-    "groupExists": "Group already exists",
     "editTitle": "Edit RP Address",
     "editDescription": "Modify the Rendezvous Point configuration for {address}.",
     "addDescription": "Add a new Rendezvous Point address for PIM multicast routing.",
@@ -114,5 +111,31 @@
     "multicastGroups": "Multicast Groups",
     "groupsHelp": "Multicast group ranges this RP serves. Use CIDR notation (e.g., 224.0.0.0/4).",
     "groupPlaceholder": "e.g. 224.0.0.0/4"
+  },
+  "validation": {
+    "timerRange": "Timer must be a whole number from {min} to {max}",
+    "packetsRange": "Packets must be a whole number from {min} to {max}",
+    "watermarkRange": "Watermark warning must be a whole number from {min} to {max}",
+    "drPriorityRange": "DR priority must be a whole number from {min} to {max}",
+    "helloRange": "Hello interval must be a whole number from {min} to {max}",
+    "queryIntervalRange": "IGMP query interval must be a whole number from {min} to {max}",
+    "queryMaxResponseRange": "IGMP query max response time must be a whole number from {min} to {max}",
+    "igmpVersionRange": "IGMP version must be {min} or {max}",
+    "sourceAddressInvalid": "Source address must be a valid IPv4 address",
+    "selectInterface": "Select an interface",
+    "interfaceExists": "PIM is already configured on this interface",
+    "joinGroupInvalid": "Join group must be a valid IPv4 address",
+    "joinExists": "Join group already exists",
+    "joinSourceInvalid": "Source address must be a valid IPv4 address",
+    "joinSourceExists": "Source address already exists in this join group",
+    "rpAddressInvalid": "RP address must be a valid IPv4 address",
+    "rpAddressExists": "This RP address is already configured",
+    "groupInvalid": "Group must be an IPv4 multicast prefix with no host bits set (e.g. 224.0.0.0/4)",
+    "groupExists": "Group already exists",
+    "groupUsed": "This group is already served by another RP address",
+    "groupRequired": "Add at least one multicast group",
+    "interfaceRequired": "Add a PIM interface first: PIM needs at least one interface",
+    "lastInterface": "This is the last PIM interface. Remove the other PIM settings first, or delete PIM",
+    "rpRequired": "Add an RP address first: the keep-alive timer needs one"
   }
 }

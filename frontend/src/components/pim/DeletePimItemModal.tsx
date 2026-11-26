@@ -13,12 +13,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Loader2 } from "lucide-react";
+import type { ApiError } from "@/lib/types/api";
+
+export type PimDeleteKind = "interface" | "rpAddress" | "pim";
 
 interface DeletePimItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  itemType: "interface" | "rp-address";
+  itemType: PimDeleteKind;
+  /** Name of the deleted object; unused for the whole-protocol delete. */
   itemName: string;
+  /** Commits the delete and closes the dialog; a rejection keeps it open with the device error. */
   onConfirm: () => Promise<void>;
 }
 
@@ -31,33 +36,31 @@ export function DeletePimItemModal({
 }: DeletePimItemModalProps) {
   const t = useTranslations("pim");
   const tc = useTranslations("common");
-  const itemKey = itemType === "interface" ? "interface" : "rpAddress";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
     try {
       await onConfirm();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t(`deleteModal.${itemKey}.failed`);
-      setError(message);
+      setError((err as ApiError).message || t(`deleteModal.${itemType}.failed`));
+    } finally {
       setLoading(false);
-      return;
     }
-    setLoading(false);
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      if (loading) return;
       setError(null);
     }
-    onOpenChange(open);
+    onOpenChange(next);
   };
 
-  const title = t(`deleteModal.${itemKey}.title`);
-  const description = t(`deleteModal.${itemKey}.description`);
+  const title = t(`deleteModal.${itemType}.title`);
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
@@ -65,9 +68,13 @@ export function DeletePimItemModal({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            {description}
-            <br />
-            <span className="font-mono font-semibold">{itemName}</span>
+            {t(`deleteModal.${itemType}.description`)}
+            {itemType !== "pim" && (
+              <>
+                <br />
+                <span className="font-mono font-semibold">{itemName}</span>
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
