@@ -74,6 +74,10 @@ jobs:
         working-directory: frontend
         run: npm run test:vrf-rpki-save
 
+      - name: Run RPKI save op tests
+        working-directory: frontend
+        run: npm run test:rpki-save
+
       - name: Run VRF schema save op tests
         working-directory: frontend
         run: npm run test:vrf-schema-save

@@ -7,9 +7,10 @@ configuration. Supports version-aware configuration for VyOS 1.4 and 1.5.
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.rpki.rpki import RpkiMapper
 from vyos_builders.rpki import RpkiBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -40,6 +41,7 @@ class RpkiCacheServer(BaseModel):
 
 
 class RpkiConfig(BaseModel):
+    configured: bool = False
     cache_servers: List[RpkiCacheServer] = []
     expire_interval: Optional[int] = None
     polling_period: Optional[int] = None
@@ -110,7 +112,7 @@ async def get_rpki_config(http_request: Request, refresh: bool = False):
         service = get_session_vyos_service(http_request)
         version = service.get_version()
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("rpki", version)
+        mapper = cast(RpkiMapper, CommandMapperRegistry.get_mapper("rpki", version))
         return RpkiConfig(**mapper.parse_config(full_config))
     except HTTPException:
         raise
@@ -137,7 +139,8 @@ async def rpki_batch_configure(http_request: Request, body: RpkiBatchRequest):
             for operation in body.operations:
                 call_comma_batch_op(builder, operation.op, operation.value)
         except ValueError as e:
-            # The mapper rejects a cache leaf this device version does not have.
+            # The builder rejects a value the lab would not take, and a cache
+            # leaf this device version does not have.
             raise HTTPException(status_code=400, detail=str(e))
 
         response = await run_in_threadpool(service.execute_batch, builder)

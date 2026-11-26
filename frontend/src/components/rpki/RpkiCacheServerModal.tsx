@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -10,28 +10,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { RpkiCacheServer } from "@/lib/api/rpki";
-import { pkiService } from "@/lib/api/pki";
+import type { ApiError } from "@/lib/types/api";
+import type { RpkiCacheServer, RpkiCapabilities } from "@/lib/api/rpki";
+import {
+  rpkiCacheFields,
+  rpkiCacheProblem,
+  rpkiRange,
+  type RpkiCacheFields,
+  type RpkiRangeKey,
+} from "@/lib/api/rpki-save-ops";
+import { useRpkiProblemText } from "./useRpkiProblemText";
 
 interface RpkiCacheServerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (server: RpkiCacheServer) => Promise<void>;
-  existingServer?: RpkiCacheServer | null;
-  sourceAddressSupported: boolean;
+  /** Commits the save; a rejection keeps the dialog open with the device error. */
+  onSubmit: (fields: RpkiCacheFields) => Promise<void>;
+  existingServer: RpkiCacheServer | null;
+  /** Every configured cache server (address and preference checks). */
+  servers: RpkiCacheServer[];
+  capabilities: RpkiCapabilities | null;
+  /** `pki openssh` key names. */
+  sshKeyNames: string[];
 }
 
 export function RpkiCacheServerModal({
@@ -39,114 +46,55 @@ export function RpkiCacheServerModal({
   onOpenChange,
   onSubmit,
   existingServer,
-  sourceAddressSupported,
+  servers,
+  capabilities,
+  sshKeyNames,
 }: RpkiCacheServerModalProps) {
   const t = useTranslations("rpki");
   const tc = useTranslations("common");
-  const isEditMode = !!existingServer;
+  const isEditMode = existingServer !== null;
+  const sourceAddressSupported = capabilities?.features.cache_source_address.supported ?? false;
 
-  const [address, setAddress] = useState("");
-  const [port, setPort] = useState("");
-  const [preference, setPreference] = useState("");
-  const [sourceAddress, setSourceAddress] = useState("");
-  const [sshEnabled, setSshEnabled] = useState(false);
-  const [sshKey, setSshKey] = useState("");
-  const [sshUsername, setSshUsername] = useState("");
-  const [opensshKeys, setOpensshKeys] = useState<string[]>([]);
+  // The page remounts this dialog on every open, so the draft starts from the loaded server.
+  const [fields, setFields] = useState<RpkiCacheFields>(() => rpkiCacheFields(existingServer));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const resetForm = () => {
-    setAddress("");
-    setPort("");
-    setPreference("");
-    setSourceAddress("");
-    setSshEnabled(false);
-    setSshKey("");
-    setSshUsername("");
-    setError(null);
+  const patch = (next: Partial<RpkiCacheFields>) => setFields((prev) => ({ ...prev, ...next }));
+  const problemText = useRpkiProblemText();
+
+  const rangeText = (key: RpkiRangeKey) => {
+    const range = rpkiRange(capabilities, key);
+    return range ? `${range.min}-${range.max}` : "";
   };
 
-  useEffect(() => {
-    if (open) {
-      pkiService.getConfig().then((pki) => {
-        setOpensshKeys(pki.openssh.map((k) => k.name));
-      }).catch(() => {
-        setOpensshKeys([]);
-      });
-
-      if (existingServer) {
-        setAddress(existingServer.address);
-        setPort(existingServer.port != null ? String(existingServer.port) : "");
-        setPreference(existingServer.preference != null ? String(existingServer.preference) : "");
-        setSourceAddress(existingServer.source_address ?? "");
-        setSshEnabled(existingServer.ssh != null);
-        setSshKey(existingServer.ssh?.key ?? "");
-        setSshUsername(existingServer.ssh?.username ?? "");
-        setError(null);
-      } else {
-        resetForm();
-      }
-    }
-  }, [open, existingServer]);
-
-  const validateForm = (): string | null => {
-    if (!address.trim()) return t("modal.addressRequired");
-
-    if (port) {
-      const p = parseInt(port, 10);
-      if (isNaN(p) || p < 1 || p > 65535) return t("modal.portRange");
-    }
-
-    if (preference) {
-      const pref = parseInt(preference, 10);
-      if (isNaN(pref) || pref < 1 || pref > 255) return t("modal.preferenceRange");
-    }
-
-    if (sshEnabled && !sshKey.trim() && !sshUsername.trim()) {
-      return t("modal.sshRequired");
-    }
-
-    return null;
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    // A close while the commit runs would drop its error.
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const problem = rpkiCacheProblem(fields, existingServer, servers, capabilities);
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-
     setLoading(true);
     setError(null);
-
-    const server: RpkiCacheServer = {
-      address: address.trim(),
-      port: port ? parseInt(port, 10) : null,
-      preference: preference ? parseInt(preference, 10) : null,
-      source_address: sourceAddress.trim() || null,
-      ssh: sshEnabled
-        ? { key: sshKey.trim() || null, username: sshUsername.trim() || null }
-        : null,
-    };
-
     try {
-      await onSubmit(server);
-      handleClose();
+      await onSubmit(fields);
+      onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || t("errors.saveCache"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[520px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("modal.editTitle") : t("servers.add")}
@@ -156,22 +104,19 @@ export function RpkiCacheServerModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-5 py-2">
             {/* Address */}
             <div className="space-y-1.5">
               <Label htmlFor="rpki-address">{t("modal.address")}</Label>
               <Input
                 id="rpki-address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                value={fields.address}
+                onChange={(e) => patch({ address: e.target.value })}
                 placeholder={t("modal.addressPlaceholder")}
-                disabled={isEditMode}
+                disabled={isEditMode || loading}
                 className={isEditMode ? "bg-muted" : ""}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("modal.addressHelp")}
-              </p>
             </div>
 
             {/* Connection Settings */}
@@ -182,11 +127,12 @@ export function RpkiCacheServerModal({
                   <Input
                     id="rpki-port"
                     type="number"
-                    min={1}
-                    max={65535}
-                    value={port}
-                    onChange={(e) => setPort(e.target.value)}
-                    placeholder={tc("optional")}
+                    min={rpkiRange(capabilities, "port")?.min}
+                    max={rpkiRange(capabilities, "port")?.max}
+                    value={fields.port}
+                    onChange={(e) => patch({ port: e.target.value })}
+                    placeholder={rangeText("port")}
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -194,11 +140,12 @@ export function RpkiCacheServerModal({
                   <Input
                     id="rpki-preference"
                     type="number"
-                    min={1}
-                    max={255}
-                    value={preference}
-                    onChange={(e) => setPreference(e.target.value)}
-                    placeholder={t("modal.preferencePlaceholder")}
+                    min={rpkiRange(capabilities, "preference")?.min}
+                    max={rpkiRange(capabilities, "preference")?.max}
+                    value={fields.preference}
+                    onChange={(e) => patch({ preference: e.target.value })}
+                    placeholder={rangeText("preference")}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -207,9 +154,10 @@ export function RpkiCacheServerModal({
                   <Label htmlFor="rpki-source-address">{t("servers.sourceAddress")}</Label>
                   <Input
                     id="rpki-source-address"
-                    value={sourceAddress}
-                    onChange={(e) => setSourceAddress(e.target.value)}
+                    value={fields.sourceAddress}
+                    onChange={(e) => patch({ sourceAddress: e.target.value })}
                     placeholder={t("modal.sourceAddressPlaceholder")}
+                    disabled={loading}
                   />
                 </div>
               )}
@@ -217,57 +165,38 @@ export function RpkiCacheServerModal({
 
             {/* SSH Transport */}
             <div className="rounded-md border border-border p-4 space-y-3">
-              <div className="flex items-start gap-3">
+              <div className="flex items-center gap-3">
                 <Checkbox
                   id="rpki-ssh-enabled"
-                  checked={sshEnabled}
-                  onCheckedChange={(checked) => setSshEnabled(checked === true)}
+                  checked={fields.sshEnabled}
+                  onCheckedChange={(checked) => patch({ sshEnabled: checked === true })}
+                  disabled={loading}
                 />
-                <div className="space-y-0.5">
-                  <Label htmlFor="rpki-ssh-enabled" className="cursor-pointer">
-                    {t("modal.useSsh")}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t("modal.useSshHelp")}
-                  </p>
-                </div>
+                <Label htmlFor="rpki-ssh-enabled" className="cursor-pointer">
+                  {t("modal.useSsh")}
+                </Label>
               </div>
 
-              {sshEnabled && (
+              {fields.sshEnabled && (
                 <div className="pl-7 space-y-3">
                   <div className="space-y-1.5">
-                    <Label>{t("modal.sshKey")}</Label>
-                    {opensshKeys.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-1">
-                        {t("modal.noSshKeys")}
-                      </p>
-                    ) : (
-                      <>
-                        <Select value={sshKey} onValueChange={setSshKey}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("modal.selectKey")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {opensshKeys.map((name) => (
-                              <SelectItem key={name} value={name}>
-                                {name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          {t("modal.keyHelp")}
-                        </p>
-                      </>
-                    )}
+                    <Label htmlFor="rpki-ssh-key">{t("modal.sshKey")}</Label>
+                    <NamedListSelect
+                      id="rpki-ssh-key"
+                      value={fields.sshKey}
+                      names={sshKeyNames}
+                      onValueChange={(sshKey) => patch({ sshKey })}
+                      disabled={loading}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="rpki-ssh-username">{t("modal.sshUsername")}</Label>
                     <Input
                       id="rpki-ssh-username"
-                      value={sshUsername}
-                      onChange={(e) => setSshUsername(e.target.value)}
+                      value={fields.sshUsername}
+                      onChange={(e) => patch({ sshUsername: e.target.value })}
                       placeholder={t("modal.usernamePlaceholder")}
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -279,12 +208,12 @@ export function RpkiCacheServerModal({
         {error && (
           <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
             <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

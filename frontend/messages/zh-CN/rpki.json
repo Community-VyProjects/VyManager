@@ -2,10 +2,36 @@
   "cacheServers": "缓存服务器",
   "errors": {
     "loadConfig": "加载 RPKI 配置失败",
-    "expireRange": "过期间隔必须介于 600 到 172800 秒之间",
-    "pollingRange": "轮询周期必须介于 1 到 86400 秒之间",
-    "retryRange": "重试间隔必须介于 1 到 7200 秒之间",
-    "saveSettings": "保存设置失败"
+    "saveSettings": "保存设置失败",
+    "saveCache": "保存缓存服务器失败",
+    "deleteCache": "删除缓存服务器失败",
+    "deleteRpki": "删除 RPKI 失败",
+    "loadSshKeys": "加载 PKI OpenSSH 密钥失败"
+  },
+  "validation": {
+    "addressRequired": "缓存服务器地址为必填项",
+    "addressInvalid": "缓存服务器地址必须是 IP 地址或主机名",
+    "addressExists": "缓存服务器 {name} 已存在",
+    "portRequired": "端口为必填项",
+    "preferenceRequired": "首选项为必填项",
+    "preferenceTaken": "缓存服务器 {name} 已使用此首选项",
+    "sourceAddressInvalid": "源地址必须是 IPv4 地址",
+    "sshIncomplete": "SSH 传输需要同时填写密钥和用户名",
+    "usernameInvalid": "SSH 用户名必须是 1 到 128 个 ASCII 字符",
+    "range": {
+      "expire_interval": "过期间隔必须介于 {min} 到 {max} 秒之间",
+      "polling_period": "轮询周期必须介于 {min} 到 {max} 秒之间",
+      "retry_interval": "重试间隔必须介于 {min} 到 {max} 秒之间",
+      "port": "端口必须介于 {min} 到 {max} 之间",
+      "preference": "首选项必须介于 {min} 到 {max} 之间"
+    },
+    "numberInvalid": {
+      "expire_interval": "过期间隔必须是整数秒",
+      "polling_period": "轮询周期必须是整数秒",
+      "retry_interval": "重试间隔必须是整数秒",
+      "port": "端口必须是整数",
+      "preference": "首选项必须是整数"
+    }
   },
   "header": {
     "subtitle": "资源公钥基础设施"
@@ -30,36 +56,19 @@
   "settings": {
     "globalTimers": "全局定时器",
     "expireInterval": "过期间隔",
-    "expirePlaceholder": "默认：7200",
-    "expireHelp": "缓存数据过期前的秒数（600–172800）",
-    "expireDefault": "（默认：7200s）",
     "pollingPeriod": "轮询周期",
-    "pollingPlaceholder": "默认：300",
-    "pollingHelp": "缓存轮询间隔，单位为秒（1–86400）",
-    "pollingDefault": "（默认：300s）",
     "retryInterval": "重试间隔",
-    "retryPlaceholder": "默认：600",
-    "retryHelp": "重新连接缓存服务器的重试间隔（1–7200）",
-    "retryDefault": "（默认：600s）"
+    "defaultPlaceholder": "默认：{value}",
+    "defaultValue": "（默认：{value}s）"
   },
   "modal": {
-    "addressRequired": "缓存服务器地址为必填项",
-    "portRange": "端口必须是 1 到 65535 之间的整数",
-    "preferenceRange": "首选项必须是 1 到 255 之间的整数",
-    "sshRequired": "启用 SSH 传输时，必须填写 SSH 密钥或用户名",
     "editTitle": "编辑缓存服务器",
     "description": "配置用于 BGP 路由起源验证的 RPKI 缓存服务器。",
     "address": "缓存服务器地址",
     "addressPlaceholder": "例如 192.0.2.1 或 rpki.example.com",
-    "addressHelp": "IPv4 地址、IPv6 地址或完全限定域名",
-    "preferencePlaceholder": "可选（1–255）",
     "sourceAddressPlaceholder": "可选的 IPv4 源地址",
     "useSsh": "使用 SSH 传输",
-    "useSshHelp": "通过 SSH 而非普通 TCP 连接",
     "sshKey": "SSH 密钥",
-    "noSshKeys": "尚未配置 SSH 密钥 — 请在 PKI → OpenSSH 中添加",
-    "selectKey": "选择密钥",
-    "keyHelp": "在 PKI → OpenSSH 中配置",
     "sshUsername": "SSH 用户名",
     "usernamePlaceholder": "例如 rpki-user"
   },
@@ -67,5 +76,10 @@
     "title": "删除 RPKI 缓存服务器",
     "description": "确定要移除缓存服务器 <mono>{address}</mono> 吗？这将影响 BGP 路由起源验证。",
     "confirm": "删除服务器"
+  },
+  "deleteAll": {
+    "title": "删除 RPKI",
+    "description": "确定要移除整个 RPKI 配置（包括所有缓存服务器和定时器）吗？BGP 路由起源验证将停止。",
+    "confirm": "删除 RPKI"
   }
 }

@@ -1,5 +1,9 @@
-"""RPKI GET /config parse lives on the mapper (issue #966)."""
+"""RPKI GET /config parse lives on the shared mapper (issues #966, #1415)."""
 
+import pytest
+
+from routers.rpki.rpki import RpkiConfig
+from vyos_mappers.rpki.rpki import RpkiMapper
 from vyos_mappers.rpki.rpki_versions import get_rpki_mapper
 
 
@@ -24,8 +28,9 @@ def _tree():
     }
 
 
-def _empty():
+def _empty(configured=False):
     return {
+        "configured": configured,
         "cache_servers": [],
         "expire_interval": None,
         "polling_period": None,
@@ -33,16 +38,20 @@ def _empty():
     }
 
 
-def test_parse_config_is_explicit_and_version_falls_through():
-    mapper = get_rpki_mapper("1.4")
-    assert "parse_config" in type(mapper).__dict__
-    assert mapper.version == "1.4"
-    assert get_rpki_mapper("1.5").version == "1.5"
+def test_parse_config_is_on_the_shared_class():
+    """No merge proxy: both versions inherit RpkiMapper.parse_config."""
+    assert "parse_config" in RpkiMapper.__dict__
+    for version in ("1.4", "1.5", "2026.09.23-0027-rolling"):
+        mapper = get_rpki_mapper(version)
+        assert isinstance(mapper, RpkiMapper)
+        assert type(mapper).parse_config is RpkiMapper.parse_config
+        assert mapper.version == version
 
 
 def test_cache_servers_and_intervals():
     parsed = get_rpki_mapper("1.5").parse_config(_tree())
     assert type(parsed) is dict
+    assert parsed["configured"] is True
     assert parsed["expire_interval"] == 7200
     assert parsed["polling_period"] == 300
     assert parsed["retry_interval"] is None
@@ -56,11 +65,23 @@ def test_cache_servers_and_intervals():
     assert get_rpki_mapper("1.4").parse_config(_tree()) == parsed
 
 
-def test_empty_tree():
+def test_unconfigured_tree_keeps_the_shape():
     assert get_rpki_mapper("1.4").parse_config({}) == _empty()
     assert get_rpki_mapper("1.5").parse_config({"protocols": {}}) == _empty()
-    assert get_rpki_mapper("1.5").parse_config({"protocols": {"rpki": {}}}) == _empty()
 
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_bare_root_is_configured(version):
+    """A bare ``protocols rpki`` parses as {} but the node exists, so the screen can remove it."""
+    parsed = get_rpki_mapper(version).parse_config({"protocols": {"rpki": {}}})
+    assert parsed == _empty(configured=True)
+    assert RpkiConfig(**parsed).configured is True
+    assert RpkiConfig(**get_rpki_mapper(version).parse_config({})).configured is False
+
+
+def test_full_sample_fits_the_response_model():
+    parsed = get_rpki_mapper("1.5").parse_config(_tree())
+    assert RpkiConfig(**parsed).model_dump() == parsed
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
@@ -92,8 +113,4 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     client = TestClient(app)
     response = client.get("/vyos/rpki/config")
     assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["expire_interval"] == expected["expire_interval"]
-    assert body["retry_interval"] is None
-    assert body["cache_servers"][0]["ssh"]["username"] == "rpki"
-    assert body["cache_servers"][1]["ssh"] is None
+    assert response.json() == expected

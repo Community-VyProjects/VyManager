@@ -2,10 +2,36 @@
   "cacheServers": "Cache Servers",
   "errors": {
     "loadConfig": "Failed to load RPKI configuration",
-    "expireRange": "Expire interval must be between 600 and 172800 seconds",
-    "pollingRange": "Polling period must be between 1 and 86400 seconds",
-    "retryRange": "Retry interval must be between 1 and 7200 seconds",
-    "saveSettings": "Failed to save settings"
+    "saveSettings": "Failed to save settings",
+    "saveCache": "Failed to save the cache server",
+    "deleteCache": "Failed to delete the cache server",
+    "deleteRpki": "Failed to delete RPKI",
+    "loadSshKeys": "Failed to load the PKI OpenSSH keys"
+  },
+  "validation": {
+    "addressRequired": "Cache server address is required",
+    "addressInvalid": "Cache server address must be an IP address or a hostname",
+    "addressExists": "Cache server {name} is already configured",
+    "portRequired": "Port is required",
+    "preferenceRequired": "Preference is required",
+    "preferenceTaken": "Cache server {name} already uses this preference",
+    "sourceAddressInvalid": "Source address must be an IPv4 address",
+    "sshIncomplete": "SSH transport needs both a key and a username",
+    "usernameInvalid": "SSH username must be 1 to 128 ASCII characters",
+    "range": {
+      "expire_interval": "Expire interval must be between {min} and {max} seconds",
+      "polling_period": "Polling period must be between {min} and {max} seconds",
+      "retry_interval": "Retry interval must be between {min} and {max} seconds",
+      "port": "Port must be between {min} and {max}",
+      "preference": "Preference must be between {min} and {max}"
+    },
+    "numberInvalid": {
+      "expire_interval": "Expire interval must be a whole number of seconds",
+      "polling_period": "Polling period must be a whole number of seconds",
+      "retry_interval": "Retry interval must be a whole number of seconds",
+      "port": "Port must be a whole number",
+      "preference": "Preference must be a whole number"
+    }
   },
   "header": {
     "subtitle": "Resource Public Key Infrastructure"
@@ -30,36 +56,19 @@
   "settings": {
     "globalTimers": "Global Timers",
     "expireInterval": "Expire Interval",
-    "expirePlaceholder": "Default: 7200",
-    "expireHelp": "Seconds before expiring cache data (600–172800)",
-    "expireDefault": "(default: 7200s)",
     "pollingPeriod": "Polling Period",
-    "pollingPlaceholder": "Default: 300",
-    "pollingHelp": "Cache polling interval in seconds (1–86400)",
-    "pollingDefault": "(default: 300s)",
     "retryInterval": "Retry Interval",
-    "retryPlaceholder": "Default: 600",
-    "retryHelp": "Retry interval to reconnect to cache server (1–7200)",
-    "retryDefault": "(default: 600s)"
+    "defaultPlaceholder": "Default: {value}",
+    "defaultValue": "(default: {value}s)"
   },
   "modal": {
-    "addressRequired": "Cache server address is required",
-    "portRange": "Port must be an integer between 1 and 65535",
-    "preferenceRange": "Preference must be an integer between 1 and 255",
-    "sshRequired": "SSH key or username is required when SSH transport is enabled",
     "editTitle": "Edit Cache Server",
     "description": "Configure an RPKI cache server for BGP route origin validation.",
     "address": "Cache Server Address",
     "addressPlaceholder": "e.g. 192.0.2.1 or rpki.example.com",
-    "addressHelp": "IPv4 address, IPv6 address, or fully-qualified domain name",
-    "preferencePlaceholder": "Optional (1–255)",
     "sourceAddressPlaceholder": "Optional IPv4 source address",
     "useSsh": "Use SSH Transport",
-    "useSshHelp": "Connect via SSH instead of plain TCP",
     "sshKey": "SSH Key",
-    "noSshKeys": "No SSH keys configured — add one in PKI → OpenSSH",
-    "selectKey": "Select a key",
-    "keyHelp": "Configured in PKI → OpenSSH",
     "sshUsername": "SSH Username",
     "usernamePlaceholder": "e.g. rpki-user"
   },
@@ -67,5 +76,10 @@
     "title": "Delete RPKI Cache Server",
     "description": "Remove cache server <mono>{address}</mono>? This will affect BGP route origin validation.",
     "confirm": "Delete Server"
+  },
+  "deleteAll": {
+    "title": "Delete RPKI",
+    "description": "Remove the whole RPKI configuration, every cache server and timer included? BGP route origin validation stops.",
+    "confirm": "Delete RPKI"
   }
 }
