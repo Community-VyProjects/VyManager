@@ -11,9 +11,9 @@ for, which VRF dispatch falls back to by name:
 
 - ``area <id> area-type <type>`` set from one Select value (the global
   builder has one method per type);
-- the set of a virtual-link md5 ``key-id``, and the deletes of an md5
-  ``md5-key``, of one segment-routing block label, and of a bare
-  ``ldp-sync``.
+- the set of a virtual-link md5 ``key-id``, the deletes of an md5
+  ``md5-key`` and of one segment-routing block label, and the set and
+  delete of a bare ``ldp-sync``.
 """
 
 from typing import List
