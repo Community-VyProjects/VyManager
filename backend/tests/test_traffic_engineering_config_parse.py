@@ -1,9 +1,10 @@
 """Traffic Engineering GET /config parse lives on the mapper (issue #966)."""
 
+from typing import Any, Dict, Optional
+
+from routers.traffic_engineering.traffic_engineering import TrafficEngineeringConfig
 from vyos_mappers.base import CommandMapperRegistry
-from vyos_mappers.traffic_engineering.traffic_engineering_versions import (
-    get_traffic_engineering_mapper,
-)
+from vyos_mappers.traffic_engineering import TrafficEngineeringMapper
 
 
 def _tree():
@@ -12,51 +13,70 @@ def _tree():
             "traffic-engineering": {
                 "admin-group": {
                     "gold": {"bit-position": "7"},
-                    "bare": None,
+                    "silver": {"bit-position": "0"},
                 },
                 "interface": {
                     "eth0": {
                         "admin-group": "gold",
                         "max-bandwidth": "1000",
-                        "max-reservable-bandwidth": "not-a-number",
+                        "max-reservable-bandwidth": "500",
                         "metric": "10",
                     },
                     "eth1": {"admin-group": ["gold", "silver"]},
+                    "lo": {},
                 },
             }
         }
     }
 
 
-def test_1_5_parses_admin_groups_and_interfaces():
-    parsed = get_traffic_engineering_mapper("1.5").parse_config(_tree())
-    groups = {item["name"]: item for item in parsed["admin_groups"]}
-    assert groups["gold"]["bit_position"] == 7
-    assert groups["bare"]["bit_position"] is None
-    interfaces = {item["name"]: item for item in parsed["interfaces"]}
-    assert interfaces["eth0"]["admin_groups"] == ["gold"]
-    assert interfaces["eth0"]["max_bandwidth"] == 1000
-    assert interfaces["eth0"]["max_reservable_bandwidth"] is None
-    assert interfaces["eth0"]["metric"] == 10
-    assert interfaces["eth1"]["admin_groups"] == ["gold", "silver"]
+def _parse(full_config: Dict[str, Any], version: str = "1.5") -> TrafficEngineeringConfig:
+    mapper = CommandMapperRegistry.get_mapper("traffic_engineering", version)
+    assert isinstance(mapper, TrafficEngineeringMapper)
+    return TrafficEngineeringConfig(**mapper.parse_config(full_config))
 
 
-def test_1_4_returns_empty_even_when_tree_is_present():
-    parsed = get_traffic_engineering_mapper("1.4").parse_config(_tree())
-    assert parsed == {"admin_groups": [], "interfaces": []}
+def _node(node: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    return {"protocols": {"traffic-engineering": node}}
 
 
-def test_empty_tree_on_1_5():
-    parsed = get_traffic_engineering_mapper("1.5").parse_config({})
-    assert parsed == {"admin_groups": [], "interfaces": []}
+def test_parses_every_leaf_into_the_router_model():
+    parsed = _parse(_tree())
+    assert parsed.configured is True
+    groups = {group.name: group.bit_position for group in parsed.admin_groups}
+    assert groups == {"gold": 7, "silver": 0}
+    interfaces = {item.name: item for item in parsed.interfaces}
+    assert interfaces["eth0"].admin_groups == ["gold"]
+    assert interfaces["eth0"].max_bandwidth == 1000
+    assert interfaces["eth0"].max_reservable_bandwidth == 500
+    assert interfaces["eth0"].metric == 10
+    assert interfaces["eth1"].admin_groups == ["gold", "silver"]
+    assert interfaces["lo"].admin_groups == []
+    assert interfaces["lo"].metric is None
 
 
-def test_registry_matches_factory():
-    factory = get_traffic_engineering_mapper("1.4.2").parse_config(_tree())
-    registry = CommandMapperRegistry.get_mapper(
-        "traffic_engineering", "1.4.2"
-    ).parse_config(_tree())
-    assert registry == factory == {"admin_groups": [], "interfaces": []}
+def test_bare_root_is_configured_with_empty_lists():
+    """A bare ``protocols traffic-engineering`` commits and parses as {}."""
+    for node in ({}, None):
+        parsed = _parse(_node(node))
+        assert parsed.configured is True
+        assert parsed.admin_groups == []
+        assert parsed.interfaces == []
+
+
+def test_missing_root_is_the_same_shape_unconfigured():
+    for full_config in ({}, {"protocols": {}}, {"protocols": {"bgp": {}}}):
+        mapper = CommandMapperRegistry.get_mapper("traffic_engineering", "1.5")
+        assert isinstance(mapper, TrafficEngineeringMapper)
+        assert mapper.parse_config(full_config) == {
+            "configured": False,
+            "admin_groups": [],
+            "interfaces": [],
+        }
+
+
+def test_parse_is_the_same_on_both_versions():
+    assert _parse(_tree(), "1.4") == _parse(_tree(), "2026.09.23-0027-rolling")
 
 
 def test_1_4_get_does_not_fetch_config(monkeypatch):
@@ -67,7 +87,7 @@ def test_1_4_get_does_not_fetch_config(monkeypatch):
 
     class FakeService:
         def get_version(self):
-            return "1.4"
+            return "1.4.3"
 
         def get_full_config(self, refresh=False):
             fetched["n"] += 1
@@ -90,44 +110,5 @@ def test_1_4_get_does_not_fetch_config(monkeypatch):
     app.include_router(router)
     response = TestClient(app).get("/vyos/traffic-engineering/config")
     assert response.status_code == 200, response.text
-    assert response.json()["admin_groups"] == []
-    assert response.json()["interfaces"] == []
+    assert response.json() == {"configured": False, "admin_groups": [], "interfaces": []}
     assert fetched["n"] == 0
-
-
-def test_get_config_returns_mapper_parse(monkeypatch):
-    tree = _tree()
-    expected = get_traffic_engineering_mapper("1.5").parse_config(tree)
-
-    async def allow(*_args, **_kwargs):
-        return None
-
-    class FakeService:
-        def get_version(self):
-            return "1.5"
-
-        def get_full_config(self, refresh=False):
-            return tree
-
-    monkeypatch.setattr(
-        "routers.traffic_engineering.traffic_engineering.require_read_permission",
-        allow,
-    )
-    monkeypatch.setattr(
-        "routers.traffic_engineering.traffic_engineering.get_session_vyos_service",
-        lambda _req: FakeService(),
-    )
-
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from routers.traffic_engineering.traffic_engineering import router
-
-    app = FastAPI()
-    app.include_router(router)
-    client = TestClient(app)
-    response = client.get("/vyos/traffic-engineering/config")
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["admin_groups"][0]["bit_position"] == expected["admin_groups"][0]["bit_position"]
-    assert body["interfaces"][0]["max_bandwidth"] == 1000
-    assert body["interfaces"][0]["admin_groups"] == ["gold"]

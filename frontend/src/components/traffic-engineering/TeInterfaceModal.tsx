@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -15,131 +15,125 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertCircle, Loader2 } from "lucide-react";
-import type { AdminGroup, TeInterface } from "@/lib/api/traffic-engineering";
-import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { AlertCircle, Loader2 } from "lucide-react";
+import type { ApiError } from "@/lib/types/api";
+import type {
+  AdminGroup,
+  TeInterface,
+  TrafficEngineeringCapabilities,
+} from "@/lib/api/traffic-engineering";
+import {
+  teInterfaceFields,
+  teInterfaceProblem,
+  teRange,
+  type TeInterfaceFields,
+  type TeInterfaceNumberKey,
+} from "@/lib/api/traffic-engineering-save-ops";
+import { useTeProblemText } from "./useTeProblemText";
 
 interface TeInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (iface: TeInterface) => Promise<void>;
-  existingInterface?: TeInterface | null;
+  /** Commits the save; a rejection keeps the dialog open with the device error. */
+  onSubmit: (fields: TeInterfaceFields) => Promise<void>;
+  existingInterface: TeInterface | null;
+  /** Every configured TE interface (the create picker leaves them out). */
+  interfaces: TeInterface[];
   adminGroups: AdminGroup[];
+  capabilities: TrafficEngineeringCapabilities | null;
 }
+
+const NUMBER_LABELS = {
+  max_bandwidth: "interfaces.maxBw",
+  max_reservable_bandwidth: "interfaces.maxReservBw",
+  metric: "interfaces.metric",
+} as const satisfies Record<TeInterfaceNumberKey, string>;
 
 export function TeInterfaceModal({
   open,
   onOpenChange,
   onSubmit,
   existingInterface,
+  interfaces,
   adminGroups,
+  capabilities,
 }: TeInterfaceModalProps) {
   const t = useTranslations("trafficEngineering");
   const tc = useTranslations("common");
-  const isEditMode = !!existingInterface;
+  const isEditMode = existingInterface !== null;
 
-  const [name, setName] = useState("");
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
-  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
-  const [maxBandwidth, setMaxBandwidth] = useState("");
-  const [maxReservableBandwidth, setMaxReservableBandwidth] = useState("");
-  const [metric, setMetric] = useState("");
+  // The page remounts this dialog on every open, so the draft starts from the loaded interface.
+  const [fields, setFields] = useState<TeInterfaceFields>(() => teInterfaceFields(existingInterface));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const problemText = useTeProblemText();
 
-  useEffect(() => {
-    if (open) {
-      if (existingInterface) {
-        setName(existingInterface.name);
-        setSelectedGroups(new Set(existingInterface.admin_groups));
-        setMaxBandwidth(existingInterface.max_bandwidth != null ? String(existingInterface.max_bandwidth) : "");
-        setMaxReservableBandwidth(
-          existingInterface.max_reservable_bandwidth != null
-            ? String(existingInterface.max_reservable_bandwidth)
-            : ""
-        );
-        setMetric(existingInterface.metric != null ? String(existingInterface.metric) : "");
-      } else {
-        setName("");
-        setSelectedGroups(new Set());
-        setMaxBandwidth("");
-        setMaxReservableBandwidth("");
-        setMetric("");
-      }
-      setError(null);
+  // Configured groups, plus any loaded name the list lacks, so an edit can still clear it.
+  const groupNames = [
+    ...adminGroups.map((group) => group.name),
+    ...(existingInterface?.admin_groups ?? []).filter(
+      (name) => !adminGroups.some((group) => group.name === name),
+    ),
+  ];
+  const bitOf = (name: string) => adminGroups.find((group) => group.name === name)?.bit_position;
+  const configuredNames = interfaces.map((iface) => iface.name);
 
-      setInterfacesLoading(true);
-      showService
-        .getAllInterfaces()
-        .then((res) => setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
-        .catch(() => setAvailableInterfaces([]))
-        .finally(() => setInterfacesLoading(false));
-    }
-  }, [open, existingInterface]);
-
-  const validateBandwidth = (val: string, label: string): string | null => {
-    if (!val) return null;
-    const v = parseInt(val, 10);
-    if (isNaN(v) || v < 1 || v > 4294967295) return t("interfaceModal.bandwidthRange", { label });
-    return null;
+  const toggleGroup = (name: string, checked: boolean) => {
+    setFields((prev) => ({
+      ...prev,
+      adminGroups: checked
+        ? [...prev.adminGroups.filter((g) => g !== name), name]
+        : prev.adminGroups.filter((g) => g !== name),
+    }));
   };
 
-  const validate = (): string | null => {
-    if (!name) return t("interfaceModal.interfaceRequired");
-    const bwErr = validateBandwidth(maxBandwidth, t("interfaceModal.maxBandwidth"));
-    if (bwErr) return bwErr;
-    const rbwErr = validateBandwidth(maxReservableBandwidth, t("interfaceModal.maxReservableBandwidth"));
-    if (rbwErr) return rbwErr;
-    if (metric) {
-      const v = parseInt(metric, 10);
-      if (isNaN(v) || v < 1 || v > 4294967295) return t("interfaceModal.metricRange");
-    }
-    return null;
-  };
-
-  const toggleGroup = (groupName: string) => {
-    setSelectedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupName)) {
-        next.delete(groupName);
-      } else {
-        next.add(groupName);
-      }
-      return next;
-    });
+  const handleOpenChange = (next: boolean) => {
+    // A close while the commit runs would drop its error.
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+    const problem = teInterfaceProblem(fields, existingInterface, interfaces, capabilities);
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      await onSubmit({
-        name,
-        admin_groups: Array.from(selectedGroups),
-        max_bandwidth: maxBandwidth ? parseInt(maxBandwidth, 10) : null,
-        max_reservable_bandwidth: maxReservableBandwidth ? parseInt(maxReservableBandwidth, 10) : null,
-        metric: metric ? parseInt(metric, 10) : null,
-      });
+      await onSubmit(fields);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || t("errors.saveInterface"));
     } finally {
       setLoading(false);
     }
   };
 
+  const numberField = (key: TeInterfaceNumberKey) => {
+    const range = teRange(capabilities, key);
+    return (
+      <div key={key} className="space-y-1.5">
+        <Label htmlFor={`te-${key}`}>{t(NUMBER_LABELS[key])}</Label>
+        <Input
+          id={`te-${key}`}
+          type="number"
+          min={range?.min}
+          max={range?.max}
+          value={fields[key]}
+          onChange={(e) => setFields((prev) => ({ ...prev, [key]: e.target.value }))}
+          placeholder={tc("optional")}
+          disabled={loading}
+        />
+      </div>
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
@@ -149,18 +143,19 @@ export function TeInterfaceModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>{t("interfaces.interface")}</Label>
+              <Label htmlFor="te-interface">{t("interfaces.interface")}</Label>
               {isEditMode ? (
-                <Input value={name} disabled className="bg-muted" />
+                <Input id="te-interface" value={fields.name} disabled className="bg-muted" />
               ) : (
                 <InterfaceSelect
-                  value={name}
-                  onValueChange={setName}
-                  disabled={interfacesLoading}
-                  interfaces={availableInterfaces}
+                  id="te-interface"
+                  value={fields.name}
+                  onValueChange={(name) => setFields((prev) => ({ ...prev, name }))}
+                  filter={(iface) => !configuredNames.includes(iface.name)}
+                  disabled={loading}
                   placeholder={tc("selectInterface")}
                 />
               )}
@@ -168,69 +163,43 @@ export function TeInterfaceModal({
 
             <div className="space-y-1.5">
               <Label>{t("adminGroups")}</Label>
-              {adminGroups.length === 0 ? (
+              {groupNames.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-1">
                   {t("interfaceModal.noGroups")}
                 </p>
               ) : (
                 <div className="rounded-md border border-border divide-y divide-border max-h-40 overflow-y-auto">
-                  {adminGroups.map((group) => (
-                    <div key={group.name} className="flex items-center gap-3 px-3 py-2">
-                      <Checkbox
-                        id={`ag-${group.name}`}
-                        checked={selectedGroups.has(group.name)}
-                        onCheckedChange={() => toggleGroup(group.name)}
-                      />
-                      <Label htmlFor={`ag-${group.name}`} className="cursor-pointer flex-1 font-normal">
-                        <span className="font-mono">{group.name}</span>
-                        {group.bit_position != null && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {t("interfaceModal.bit", { position: String(group.bit_position) })}
-                          </span>
-                        )}
-                      </Label>
-                    </div>
-                  ))}
+                  {groupNames.map((name) => {
+                    const bit = bitOf(name);
+                    return (
+                      <div key={name} className="flex items-center gap-3 px-3 py-2">
+                        <Checkbox
+                          id={`ag-${name}`}
+                          checked={fields.adminGroups.includes(name)}
+                          onCheckedChange={(checked) => toggleGroup(name, checked === true)}
+                          disabled={loading}
+                        />
+                        <Label htmlFor={`ag-${name}`} className="cursor-pointer flex-1 font-normal">
+                          <span className="font-mono">{name}</span>
+                          {bit != null && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {t("interfaceModal.bit", { position: String(bit) })}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="te-max-bw">{t("interfaces.maxBw")}</Label>
-                <Input
-                  id="te-max-bw"
-                  type="number"
-                  min={1}
-                  value={maxBandwidth}
-                  onChange={(e) => setMaxBandwidth(e.target.value)}
-                  placeholder={tc("optional")}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="te-max-rbw">{t("interfaces.maxReservBw")}</Label>
-                <Input
-                  id="te-max-rbw"
-                  type="number"
-                  min={1}
-                  value={maxReservableBandwidth}
-                  onChange={(e) => setMaxReservableBandwidth(e.target.value)}
-                  placeholder={tc("optional")}
-                />
-              </div>
+              {numberField("max_bandwidth")}
+              {numberField("max_reservable_bandwidth")}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="te-metric">{t("interfaces.metric")}</Label>
-              <Input
-                id="te-metric"
-                type="number"
-                min={1}
-                value={metric}
-                onChange={(e) => setMetric(e.target.value)}
-                placeholder={tc("optional")}
-              />
-            </div>
+            {numberField("metric")}
           </div>
         </ScrollArea>
 
@@ -242,7 +211,7 @@ export function TeInterfaceModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

@@ -78,6 +78,10 @@ jobs:
         working-directory: frontend
         run: npm run test:rpki-save
 
+      - name: Run Traffic Engineering save op tests
+        working-directory: frontend
+        run: npm run test:traffic-engineering-save
+
       - name: Run VRF schema save op tests
         working-directory: frontend
         run: npm run test:vrf-schema-save

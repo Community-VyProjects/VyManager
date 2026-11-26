@@ -26,17 +26,18 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import type { ApiError } from "@/lib/types/api";
 import {
   trafficEngineeringService,
-  TrafficEngineeringConfig,
-  TrafficEngineeringCapabilities,
-  AdminGroup,
-  TeInterface,
+  type TrafficEngineeringConfig,
+  type TrafficEngineeringCapabilities,
+  type AdminGroup,
+  type TeInterface,
 } from "@/lib/api/traffic-engineering";
+import type { AdminGroupFields, TeInterfaceFields } from "@/lib/api/traffic-engineering-save-ops";
 import { AdminGroupModal } from "./AdminGroupModal";
-import { DeleteAdminGroupModal } from "./DeleteAdminGroupModal";
 import { TeInterfaceModal } from "./TeInterfaceModal";
-import { DeleteTeInterfaceModal } from "./DeleteTeInterfaceModal";
+import { DeleteTeItemModal, type TeDeleteKind } from "./DeleteTeItemModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -47,91 +48,125 @@ export function TrafficEngineeringContent() {
   const hasWritePermission = canWrite(FeatureGroup.TRAFFIC_ENGINEERING);
 
   const [config, setConfig] = useState<TrafficEngineeringConfig | null>(null);
-  const [, setCapabilities] = useState<TrafficEngineeringCapabilities | null>(null);
+  const [capabilities, setCapabilities] = useState<TrafficEngineeringCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
+  // A re-read after a save; the page stays mounted and every write control waits.
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"admin-groups" | "interfaces">("admin-groups");
 
-  // Admin group modals
-  const [agModalOpen, setAgModalOpen] = useState(false);
+  // Modal state. The subject stays set after close so the dialog keeps its
+  // text while it animates out; modalKey remounts the modal on every open.
+  const [modalKey, setModalKey] = useState(0);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<AdminGroup | null>(null);
-  const [deletingGroup, setDeletingGroup] = useState<string | null>(null);
-
-  // Interface modals
   const [ifaceModalOpen, setIfaceModalOpen] = useState(false);
   const [editingIface, setEditingIface] = useState<TeInterface | null>(null);
-  const [deletingIface, setDeletingIface] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: TeDeleteKind; name: string }>({
+    kind: "group",
+    name: "",
+  });
 
-  const loadData = useCallback(async (refresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [configData, capData] = await Promise.all([
-        trafficEngineeringService.getConfig(refresh),
-        trafficEngineeringService.getCapabilities(),
-      ]);
-      setConfig(configData);
-      setCapabilities(capData);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("errors.loadConfig")
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  // ============================================================================
+  // Data Loading
+  // ============================================================================
+
+  const fetchData = useCallback(async (refresh: boolean) => {
+    const [configData, capData] = await Promise.all([
+      trafficEngineeringService.getConfig(refresh),
+      trafficEngineeringService.getCapabilities(),
+    ]);
+    setConfig(configData);
+    setCapabilities(capData);
+    setError(null);
+  }, []);
+
+  /** Full-page load: the spinner shows until the first read settles. */
+  const load = useCallback((refresh: boolean) => {
+    return fetchData(refresh)
+      .catch((err) => setError((err as ApiError).message || t("errors.loadConfig")))
+      .finally(() => setLoading(false));
+  }, [fetchData, t]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void load(false);
+  }, [load]);
 
-  // Stats
-  const adminGroupCount = config?.admin_groups.length ?? 0;
-  const interfaceCount = config?.interfaces.length ?? 0;
-  const ifacesWithGroups = config?.interfaces.filter((i) => i.admin_groups.length > 0).length ?? 0;
-  const ifacesWithMetric = config?.interfaces.filter((i) => i.metric != null).length ?? 0;
-
-  // Admin group handlers
-  const handleCreateGroup = async (group: AdminGroup) => {
-    await trafficEngineeringService.createAdminGroup(group.name, group.bit_position);
-    await loadData(true);
+  const retry = () => {
+    setLoading(true);
+    void load(true);
   };
 
-  const handleUpdateGroup = async (group: AdminGroup) => {
-    await trafficEngineeringService.updateAdminGroup(
-      editingGroup!.name,
-      group.name,
-      group.bit_position
-    );
-    setEditingGroup(null);
-    await loadData(true);
+  const reload = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData(true);
+    } catch (err) {
+      setError((err as ApiError).message || t("errors.loadConfig"));
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const handleDeleteGroup = async () => {
-    await trafficEngineeringService.deleteAdminGroup(deletingGroup!);
-    setDeletingGroup(null);
-    await loadData(true);
+  // ============================================================================
+  // Derived data
+  // ============================================================================
+
+  const adminGroups = config?.admin_groups ?? [];
+  const interfaces = config?.interfaces ?? [];
+  const ifacesWithGroups = interfaces.filter((i) => i.admin_groups.length > 0).length;
+  const ifacesWithMetric = interfaces.filter((i) => i.metric != null).length;
+
+  // ============================================================================
+  // CRUD Handlers
+  // ============================================================================
+
+  const openGroup = (group: AdminGroup | null) => {
+    setEditingGroup(group);
+    setModalKey((k) => k + 1);
+    setGroupModalOpen(true);
   };
 
-  // Interface handlers
-  const handleCreateIface = async (iface: TeInterface) => {
-    await trafficEngineeringService.createInterface(iface);
-    await loadData(true);
+  const submitGroup = async (fields: AdminGroupFields) => {
+    if (editingGroup) await trafficEngineeringService.updateAdminGroup(editingGroup, fields);
+    else await trafficEngineeringService.createAdminGroup(fields);
+    await reload();
   };
 
-  const handleUpdateIface = async (iface: TeInterface) => {
-    await trafficEngineeringService.updateInterface(editingIface!.name, iface);
-    setEditingIface(null);
-    await loadData(true);
+  const openIface = (iface: TeInterface | null) => {
+    setEditingIface(iface);
+    setModalKey((k) => k + 1);
+    setIfaceModalOpen(true);
   };
 
-  const handleDeleteIface = async () => {
-    await trafficEngineeringService.deleteInterface(deletingIface!);
-    setDeletingIface(null);
-    await loadData(true);
+  const submitIface = async (fields: TeInterfaceFields) => {
+    if (editingIface) await trafficEngineeringService.updateInterface(editingIface, fields);
+    else await trafficEngineeringService.createInterface(fields);
+    await reload();
   };
 
-  if (loading) {
+  const openDelete = (kind: TeDeleteKind, name: string) => {
+    setDeleteTarget({ kind, name });
+    setModalKey((k) => k + 1);
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteTarget.kind === "all") await trafficEngineeringService.deleteTrafficEngineering();
+    else if (deleteTarget.kind === "group") {
+      await trafficEngineeringService.deleteAdminGroup(deleteTarget.name, interfaces);
+    } else await trafficEngineeringService.deleteInterface(deleteTarget.name);
+    // The commit runs before the close, so a failed commit leaves the dialog open.
+    setDeleteOpen(false);
+    void reload();
+  };
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  if (loading && !config) {
     return (
       <div className="flex items-center justify-center h-full">
         <LoadingSpinner />
@@ -143,7 +178,7 @@ export function TrafficEngineeringContent() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>
+        <Button variant="outline" onClick={retry}>
           {tc("retry")}
         </Button>
       </div>
@@ -170,10 +205,24 @@ export function TrafficEngineeringContent() {
                 {t("header.subtitle")}
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {tc("refresh")}
-            </Button>
+            <div className="flex items-center gap-2">
+              {hasWritePermission && config?.configured && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => openDelete("all", "")}
+                  disabled={refreshing}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t("deleteAll.title")}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => void reload()} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2${refreshing ? " animate-spin" : ""}`} />
+                {tc("refresh")}
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -192,7 +241,7 @@ export function TrafficEngineeringContent() {
                     <FolderTree className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{adminGroupCount}</p>
+                    <p className="text-2xl font-bold">{adminGroups.length}</p>
                     <p className="text-xs text-muted-foreground">{t("adminGroups")}</p>
                   </div>
                 </div>
@@ -205,7 +254,7 @@ export function TrafficEngineeringContent() {
                     <Network className="h-4 w-4 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{interfaceCount}</p>
+                    <p className="text-2xl font-bold">{interfaces.length}</p>
                     <p className="text-xs text-muted-foreground">{t("stats.configuredInterfaces")}</p>
                   </div>
                 </div>
@@ -273,20 +322,14 @@ export function TrafficEngineeringContent() {
                   {t("groups.description")}
                 </p>
                 {hasWritePermission && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setEditingGroup(null);
-                      setAgModalOpen(true);
-                    }}
-                  >
+                  <Button size="sm" onClick={() => openGroup(null)} disabled={refreshing}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("groups.add")}
                   </Button>
                 )}
               </div>
 
-              {adminGroupCount === 0 ? (
+              {adminGroups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <FolderTree className="h-12 w-12 mb-4 opacity-50" />
                   <p className="text-lg font-medium">{t("groups.empty")}</p>
@@ -294,13 +337,7 @@ export function TrafficEngineeringContent() {
                     {t("groups.emptyHint")}
                   </p>
                   {hasWritePermission && (
-                    <Button
-                      className="mt-4"
-                      onClick={() => {
-                        setEditingGroup(null);
-                        setAgModalOpen(true);
-                      }}
-                    >
+                    <Button className="mt-4" onClick={() => openGroup(null)} disabled={refreshing}>
                       <Plus className="h-4 w-4 mr-2" />
                       {t("groups.add")}
                     </Button>
@@ -317,7 +354,7 @@ export function TrafficEngineeringContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {config?.admin_groups.map((group) => (
+                      {adminGroups.map((group) => (
                         <TableRow key={group.name}>
                           <TableCell className="font-mono">{group.name}</TableCell>
                           <TableCell>
@@ -330,10 +367,8 @@ export function TrafficEngineeringContent() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7"
-                                  onClick={() => {
-                                    setEditingGroup(group);
-                                    setAgModalOpen(true);
-                                  }}
+                                  onClick={() => openGroup(group)}
+                                  disabled={refreshing}
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
@@ -341,7 +376,8 @@ export function TrafficEngineeringContent() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 text-destructive hover:text-destructive"
-                                  onClick={() => setDeletingGroup(group.name)}
+                                  onClick={() => openDelete("group", group.name)}
+                                  disabled={refreshing}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -364,20 +400,14 @@ export function TrafficEngineeringContent() {
                   {t("interfaces.description")}
                 </p>
                 {hasWritePermission && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setEditingIface(null);
-                      setIfaceModalOpen(true);
-                    }}
-                  >
+                  <Button size="sm" onClick={() => openIface(null)} disabled={refreshing}>
                     <Plus className="h-4 w-4 mr-2" />
                     {tc("addInterface")}
                   </Button>
                 )}
               </div>
 
-              {interfaceCount === 0 ? (
+              {interfaces.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Network className="h-12 w-12 mb-4 opacity-50" />
                   <p className="text-lg font-medium">{t("interfaces.empty")}</p>
@@ -385,13 +415,7 @@ export function TrafficEngineeringContent() {
                     {t("interfaces.emptyHint")}
                   </p>
                   {hasWritePermission && (
-                    <Button
-                      className="mt-4"
-                      onClick={() => {
-                        setEditingIface(null);
-                        setIfaceModalOpen(true);
-                      }}
-                    >
+                    <Button className="mt-4" onClick={() => openIface(null)} disabled={refreshing}>
                       <Plus className="h-4 w-4 mr-2" />
                       {tc("addInterface")}
                     </Button>
@@ -411,7 +435,7 @@ export function TrafficEngineeringContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {config?.interfaces.map((iface) => (
+                      {interfaces.map((iface) => (
                         <TableRow key={iface.name}>
                           <TableCell className="font-mono">{iface.name}</TableCell>
                           <TableCell>
@@ -437,10 +461,8 @@ export function TrafficEngineeringContent() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7"
-                                  onClick={() => {
-                                    setEditingIface(iface);
-                                    setIfaceModalOpen(true);
-                                  }}
+                                  onClick={() => openIface(iface)}
+                                  disabled={refreshing}
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
@@ -448,7 +470,8 @@ export function TrafficEngineeringContent() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 text-destructive hover:text-destructive"
-                                  onClick={() => setDeletingIface(iface.name)}
+                                  onClick={() => openDelete("interface", iface.name)}
+                                  disabled={refreshing}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -466,45 +489,35 @@ export function TrafficEngineeringContent() {
         </div>
       </div>
 
-      {/* Admin Group Modals */}
+      {/* Modals */}
       <AdminGroupModal
-        open={agModalOpen}
-        onOpenChange={(open) => {
-          setAgModalOpen(open);
-          if (!open) setEditingGroup(null);
-        }}
-        onSubmit={editingGroup ? handleUpdateGroup : handleCreateGroup}
+        key={`group-${modalKey}`}
+        open={groupModalOpen}
+        onOpenChange={setGroupModalOpen}
+        onSubmit={submitGroup}
         existingGroup={editingGroup}
+        groups={adminGroups}
+        capabilities={capabilities}
       />
 
-      <DeleteAdminGroupModal
-        open={deletingGroup !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeletingGroup(null);
-        }}
-        groupName={deletingGroup ?? ""}
-        onConfirm={handleDeleteGroup}
-      />
-
-      {/* Interface Modals */}
       <TeInterfaceModal
+        key={`iface-${modalKey}`}
         open={ifaceModalOpen}
-        onOpenChange={(open) => {
-          setIfaceModalOpen(open);
-          if (!open) setEditingIface(null);
-        }}
-        onSubmit={editingIface ? handleUpdateIface : handleCreateIface}
+        onOpenChange={setIfaceModalOpen}
+        onSubmit={submitIface}
         existingInterface={editingIface}
-        adminGroups={config?.admin_groups ?? []}
+        interfaces={interfaces}
+        adminGroups={adminGroups}
+        capabilities={capabilities}
       />
 
-      <DeleteTeInterfaceModal
-        open={deletingIface !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeletingIface(null);
-        }}
-        interfaceName={deletingIface ?? ""}
-        onConfirm={handleDeleteIface}
+      <DeleteTeItemModal
+        key={`delete-${modalKey}`}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        kind={deleteTarget.kind}
+        name={deleteTarget.name}
+        onConfirm={confirmDelete}
       />
     </>
   );

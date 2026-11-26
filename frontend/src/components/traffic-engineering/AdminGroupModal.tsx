@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -14,13 +14,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { AdminGroup } from "@/lib/api/traffic-engineering";
+import type { ApiError } from "@/lib/types/api";
+import type { AdminGroup, TrafficEngineeringCapabilities } from "@/lib/api/traffic-engineering";
+import {
+  adminGroupFields,
+  adminGroupProblem,
+  teRange,
+  type AdminGroupFields,
+} from "@/lib/api/traffic-engineering-save-ops";
+import { useTeProblemText } from "./useTeProblemText";
 
 interface AdminGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (group: AdminGroup) => Promise<void>;
-  existingGroup?: AdminGroup | null;
+  /** Commits the save; a rejection keeps the dialog open with the device error. */
+  onSubmit: (fields: AdminGroupFields) => Promise<void>;
+  existingGroup: AdminGroup | null;
+  /** Every configured admin group (name and bit-position checks). */
+  groups: AdminGroup[];
+  capabilities: TrafficEngineeringCapabilities | null;
 }
 
 export function AdminGroupModal({
@@ -28,65 +40,46 @@ export function AdminGroupModal({
   onOpenChange,
   onSubmit,
   existingGroup,
+  groups,
+  capabilities,
 }: AdminGroupModalProps) {
   const t = useTranslations("trafficEngineering");
   const tc = useTranslations("common");
-  const isEditMode = !!existingGroup;
+  const isEditMode = existingGroup !== null;
+  const bitRange = teRange(capabilities, "bit_position");
 
-  const [name, setName] = useState("");
-  const [bitPosition, setBitPosition] = useState("");
+  // The page remounts this dialog on every open, so the draft starts from the loaded group.
+  const [fields, setFields] = useState<AdminGroupFields>(() => adminGroupFields(existingGroup));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const problemText = useTeProblemText();
 
-  useEffect(() => {
-    if (open) {
-      if (existingGroup) {
-        setName(existingGroup.name);
-        setBitPosition(existingGroup.bit_position != null ? String(existingGroup.bit_position) : "");
-      } else {
-        setName("");
-        setBitPosition("");
-      }
-      setError(null);
-    }
-  }, [open, existingGroup]);
-
-  const validate = (): string | null => {
-    if (!name.trim()) return t("groupModal.nameRequired");
-    if (!/^[-a-zA-Z0-9]+$/.test(name.trim())) return t("groupModal.nameInvalid");
-    if (bitPosition) {
-      const v = parseInt(bitPosition, 10);
-      if (isNaN(v) || v < 0 || v > 31 || String(v) !== bitPosition.trim())
-        return t("groupModal.bitRange");
-    }
-    return null;
+  const handleOpenChange = (next: boolean) => {
+    // A close while the commit runs would drop its error.
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+    const problem = adminGroupProblem(fields, existingGroup, groups, capabilities);
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      await onSubmit({
-        name: name.trim(),
-        bit_position: bitPosition ? parseInt(bitPosition, 10) : null,
-      });
+      await onSubmit(fields);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || t("errors.saveGroup"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>{isEditMode ? t("groupModal.editTitle") : t("groups.add")}</DialogTitle>
@@ -100,13 +93,12 @@ export function AdminGroupModal({
             <Label htmlFor="ag-name">{tc("name")}</Label>
             <Input
               id="ag-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={fields.name}
+              onChange={(e) => setFields((prev) => ({ ...prev, name: e.target.value }))}
               placeholder={t("groupModal.namePlaceholder")}
-              disabled={isEditMode}
+              disabled={isEditMode || loading}
               className={isEditMode ? "bg-muted" : ""}
             />
-            <p className="text-xs text-muted-foreground">{t("groupModal.nameHelp")}</p>
           </div>
 
           <div className="space-y-1.5">
@@ -114,11 +106,12 @@ export function AdminGroupModal({
             <Input
               id="ag-bit"
               type="number"
-              min={0}
-              max={31}
-              value={bitPosition}
-              onChange={(e) => setBitPosition(e.target.value)}
-              placeholder={t("groupModal.bitPlaceholder")}
+              min={bitRange?.min}
+              max={bitRange?.max}
+              value={fields.bitPosition}
+              onChange={(e) => setFields((prev) => ({ ...prev, bitPosition: e.target.value }))}
+              placeholder={bitRange ? `${bitRange.min}-${bitRange.max}` : undefined}
+              disabled={loading}
             />
           </div>
         </div>
@@ -131,7 +124,7 @@ export function AdminGroupModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
