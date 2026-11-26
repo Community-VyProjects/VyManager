@@ -70,14 +70,34 @@ def test_instances_sorted_by_int_id():
 
 
 def test_empty_tree():
-    empty = {"globally_disabled": False, "instances": []}
-    assert BroadcastRelayMapper("1.5").parse_config({}) == empty
-    assert (
-        BroadcastRelayMapper("1.4").parse_config(
-            {"service": {"broadcast-relay": {}}}
+    """No root is unconfigured; a bare root (``{}`` or ``None``) is configured."""
+    absent = {"configured": False, "globally_disabled": False, "instances": []}
+    bare = {"configured": True, "globally_disabled": False, "instances": []}
+    assert BroadcastRelayMapper("1.5").parse_config({}) == absent
+    assert BroadcastRelayMapper("1.5").parse_config({"service": {}}) == absent
+    for raw in ({}, None):
+        assert (
+            BroadcastRelayMapper("1.4").parse_config(
+                {"service": {"broadcast-relay": raw}}
+            )
+            == bare
         )
-        == empty
-    )
+
+
+def test_bare_root_through_response_model():
+    """The response model keeps ``configured`` for a bare root and for no root."""
+    from routers.broadcast_relay.broadcast_relay import BroadcastRelayConfig
+
+    mapper = BroadcastRelayMapper("1.5")
+    bare = BroadcastRelayConfig(**mapper.parse_config({"service": {"broadcast-relay": {}}}))
+    assert bare.configured is True
+    assert bare.globally_disabled is False
+    assert bare.instances == []
+    absent = BroadcastRelayConfig(**mapper.parse_config({}))
+    assert absent.configured is False
+    full = BroadcastRelayConfig(**mapper.parse_config(_tree()))
+    assert full.configured is True
+    assert full.globally_disabled is True
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):

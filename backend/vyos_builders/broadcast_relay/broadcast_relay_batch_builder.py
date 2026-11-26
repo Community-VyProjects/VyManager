@@ -20,24 +20,25 @@ Multi-argument batch operations encode compound values as "arg1,arg2"
 (comma-separated), matching the project's standard batch dispatch pattern.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
+from vyos_mappers.broadcast_relay import BroadcastRelayMapper
 from vyos_builders.base import BatchBuilder
 
 
 class BroadcastRelayBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
         super().__init__(version)
-        self.m = CommandMapperRegistry.get_mapper("broadcast_relay", version)
+        self.m = cast(
+            BroadcastRelayMapper,
+            CommandMapperRegistry.get_mapper("broadcast_relay", version),
+        )
 
     # -----------------------------------------------------------------------
     # Capabilities
     # -----------------------------------------------------------------------
 
     def get_capabilities(self) -> Dict[str, Any]:
-        is_1_4 = "1.4" in self.version
-        is_1_5 = not is_1_4
-
         return {
             "version": self.version,
             "features": {
@@ -74,11 +75,9 @@ class BroadcastRelayBatchBuilder(BatchBuilder):
                 "port": {
                     "supported": True,
                     "description": "UDP port number (1–65535)",
+                    "min": 1,
+                    "max": 65535,
                 },
-            },
-            "version_info": {
-                "is_1_4": is_1_4,
-                "is_1_5": is_1_5,
             },
         }
 

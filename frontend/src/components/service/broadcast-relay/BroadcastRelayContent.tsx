@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Radio,
@@ -24,6 +34,7 @@ import {
   Ban,
   Loader2,
   AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -31,10 +42,20 @@ import {
   BroadcastRelayConfig,
   BroadcastRelayInstance,
 } from "@/lib/api/broadcast-relay";
+import {
+  broadcastRelayCanDisable,
+  broadcastRelayInstanceActive,
+  broadcastRelayRanges,
+  type BroadcastRelayRanges,
+} from "@/lib/api/broadcast-relay-save-ops";
+import type { ApiError } from "@/lib/types/api";
 import { BroadcastRelayInstanceModal } from "./BroadcastRelayInstanceModal";
 import { DeleteBroadcastRelayInstanceModal } from "./DeleteBroadcastRelayInstanceModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+
+/** A page-level change that commits at once, so it is confirmed first. */
+type PageAction = "disable" | "enable" | "deleteService";
 
 export function BroadcastRelayContent() {
   const t = useTranslations("broadcastRelay");
@@ -43,68 +64,116 @@ export function BroadcastRelayContent() {
   const hasWritePermission = canWrite(FeatureGroup.BROADCAST_RELAY);
 
   const [config, setConfig] = useState<BroadcastRelayConfig | null>(null);
+  const [ranges, setRanges] = useState<BroadcastRelayRanges | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [globalDisableLoading, setGlobalDisableLoading] = useState(false);
 
   const [instanceModalOpen, setInstanceModalOpen] = useState(false);
+  const [instanceModalKey, setInstanceModalKey] = useState(0);
   const [editingInstance, setEditingInstance] = useState<BroadcastRelayInstance | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingInstance, setDeletingInstance] = useState<BroadcastRelayInstance | null>(null);
 
-  const loadData = useCallback(async (refresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const configData = await broadcastRelayService.getConfig(refresh);
-      setConfig(configData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  // The action outlives close so the dialog text does not flip while it animates out.
+  const [pendingAction, setPendingAction] = useState<PageAction>("disable");
+  const [actionOpen, setActionOpen] = useState(false);
+  const [actionSaving, setActionSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(
+    async (refresh: boolean) => {
+      try {
+        const [configData, capabilities] = await Promise.all([
+          broadcastRelayService.getConfig(refresh),
+          broadcastRelayService.getCapabilities(),
+        ]);
+        const loadedRanges = broadcastRelayRanges(capabilities);
+        if (!loadedRanges) {
+          setError(t("content.loadFailed"));
+          return;
+        }
+        setConfig(configData);
+        setRanges(loadedRanges);
+        setError(null);
+      } catch (err) {
+        setError((err as ApiError).message || t("content.loadFailed"));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
-    loadData();
+    void loadData(false);
   }, [loadData]);
 
-  const totalInstances = config?.instances.length ?? 0;
-  const activeInstances = config?.instances.filter((i) => !i.disabled).length ?? 0;
-  const disabledInstances = config?.instances.filter((i) => i.disabled).length ?? 0;
+  const reload = () => {
+    setRefreshing(true);
+    return loadData(true);
+  };
 
-  const handleToggleGlobalDisable = async () => {
-    if (!config || !hasWritePermission) return;
-    setGlobalDisableLoading(true);
+  const retry = () => {
+    setLoading(true);
+    void loadData(false);
+  };
+
+  const writeBusy = refreshing || actionSaving;
+  const totalInstances = config?.instances.length ?? 0;
+  const activeInstances = config
+    ? config.instances.filter((inst) => broadcastRelayInstanceActive(config, inst)).length
+    : 0;
+  const disabledInstances = totalInstances - activeInstances;
+
+  const openAction = (action: PageAction) => {
+    setPendingAction(action);
+    setActionError(null);
+    setActionOpen(true);
+  };
+
+  const handleActionOpenChange = (next: boolean) => {
+    if (!next && actionSaving) return;
+    setActionOpen(next);
+  };
+
+  const handleApplyAction = async (event: MouseEvent) => {
+    event.preventDefault();
+    if (!hasWritePermission) return;
+    setActionSaving(true);
+    setActionError(null);
     try {
-      if (config.globally_disabled) {
-        await broadcastRelayService.deleteGlobalDisable();
-      } else {
-        await broadcastRelayService.setGlobalDisable();
-      }
-      await loadData(true);
+      if (pendingAction === "enable") await broadcastRelayService.deleteGlobalDisable();
+      else if (pendingAction === "disable") await broadcastRelayService.setGlobalDisable();
+      else await broadcastRelayService.deleteService();
+      setActionOpen(false);
+      void reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("content.updateStatusFailed"));
+      const fallback =
+        pendingAction === "deleteService" ? t("content.deleteServiceFailed") : t("content.updateStatusFailed");
+      setActionError((err as ApiError).message || fallback);
     } finally {
-      setGlobalDisableLoading(false);
+      setActionSaving(false);
     }
   };
 
-  const handleCreateInstance = async (data: Partial<BroadcastRelayInstance> & { id: string }) => {
-    await broadcastRelayService.createInstance(data);
-    await loadData(true);
+  const openInstanceModal = (instance: BroadcastRelayInstance | null) => {
+    setEditingInstance(instance);
+    setInstanceModalKey((key) => key + 1);
+    setInstanceModalOpen(true);
   };
 
-  const handleUpdateInstance = async (data: Partial<BroadcastRelayInstance> & { id: string }) => {
-    if (!editingInstance) return;
-    await broadcastRelayService.updateInstance(editingInstance, data);
-    await loadData(true);
+  const handleSubmitInstance = async (instance: BroadcastRelayInstance) => {
+    if (editingInstance) await broadcastRelayService.updateInstance(editingInstance, instance);
+    else await broadcastRelayService.createInstance(instance);
+    void reload();
   };
 
   const handleDeleteInstance = async () => {
-    if (!deletingInstance) return;
-    await broadcastRelayService.deleteInstance(deletingInstance.id);
-    setDeletingInstance(null);
-    await loadData(true);
+    if (!deletingInstance || !config) return;
+    await broadcastRelayService.deleteInstance(config, deletingInstance.id);
+    void reload();
   };
 
   if (loading) {
@@ -115,16 +184,22 @@ export function BroadcastRelayContent() {
     );
   }
 
-  if (error && !config) {
+  if (!config || !ranges) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>
+        <p className="text-destructive whitespace-pre-wrap">{error ?? t("content.loadFailed")}</p>
+        <Button variant="outline" onClick={retry}>
           {tc("retry")}
         </Button>
       </div>
     );
   }
+
+  const actionText: Record<PageAction, { title: string; description: string }> = {
+    disable: { title: t("content.confirm.disableTitle"), description: t("content.confirm.disableDescription") },
+    enable: { title: t("content.confirm.enableTitle"), description: t("content.confirm.enableDescription") },
+    deleteService: { title: t("content.confirm.deleteTitle"), description: t("content.confirm.deleteDescription") },
+  };
 
   return (
     <>
@@ -149,28 +224,37 @@ export function BroadcastRelayContent() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {hasWritePermission && (
+              {hasWritePermission && (config.globally_disabled || broadcastRelayCanDisable(config)) && (
                 <Button
-                  variant={config?.globally_disabled ? "default" : "outline"}
+                  variant={config.globally_disabled ? "default" : "outline"}
                   size="sm"
-                  onClick={handleToggleGlobalDisable}
-                  disabled={globalDisableLoading}
+                  onClick={() => openAction(config.globally_disabled ? "enable" : "disable")}
+                  disabled={writeBusy}
                 >
-                  {globalDisableLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : null}
-                  {config?.globally_disabled ? t("content.enableService") : t("content.disableService")}
+                  {config.globally_disabled ? t("content.enableService") : t("content.disableService")}
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => loadData(true)}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+              {hasWritePermission && config.configured && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => openAction("deleteService")}
+                  disabled={writeBusy}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t("content.deleteService")}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => void reload()} disabled={writeBusy}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
                 {tc("refresh")}
               </Button>
             </div>
           </div>
 
           {/* Global disable warning */}
-          {config?.globally_disabled && (
+          {config.globally_disabled && (
             <div className="mb-4 flex items-center gap-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">
@@ -181,8 +265,8 @@ export function BroadcastRelayContent() {
                   variant="outline"
                   size="sm"
                   className="ml-auto border-amber-500/30 hover:bg-amber-500/10"
-                  onClick={handleToggleGlobalDisable}
-                  disabled={globalDisableLoading}
+                  onClick={() => openAction("enable")}
+                  disabled={writeBusy}
                 >
                   {t("content.reEnable")}
                 </Button>
@@ -246,13 +330,7 @@ export function BroadcastRelayContent() {
         <div className="flex-1 p-6 pt-4 overflow-auto">
           {totalInstances > 0 && hasWritePermission && (
             <div className="flex justify-end mb-4">
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditingInstance(null);
-                  setInstanceModalOpen(true);
-                }}
-              >
+              <Button size="sm" onClick={() => openInstanceModal(null)} disabled={writeBusy}>
                 <Plus className="h-4 w-4 mr-2" />
                 {t("content.addInstance")}
               </Button>
@@ -265,13 +343,7 @@ export function BroadcastRelayContent() {
                 <Radio className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <p className="text-sm text-muted-foreground mb-4">{t("content.empty")}</p>
                 {hasWritePermission && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setEditingInstance(null);
-                      setInstanceModalOpen(true);
-                    }}
-                  >
+                  <Button size="sm" onClick={() => openInstanceModal(null)} disabled={writeBusy}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("content.addInstance")}
                   </Button>
@@ -284,7 +356,7 @@ export function BroadcastRelayContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
+                      <TableHead>{t("content.colId")}</TableHead>
                       <TableHead>{t("content.colPort")}</TableHead>
                       <TableHead>{t("content.colInterfaces")}</TableHead>
                       <TableHead>{t("content.colSourceAddress")}</TableHead>
@@ -296,7 +368,7 @@ export function BroadcastRelayContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {config?.instances.map((inst) => (
+                    {config.instances.map((inst) => (
                       <TableRow key={inst.id}>
                         <TableCell>
                           <Badge variant="outline" className="font-mono">
@@ -305,7 +377,9 @@ export function BroadcastRelayContent() {
                         </TableCell>
                         <TableCell>
                           {inst.port != null ? (
-                            <span className="font-mono text-sm">UDP/{inst.port}</span>
+                            <span className="font-mono text-sm">
+                              {t("content.udpPortValue", { port: String(inst.port) })}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -343,13 +417,13 @@ export function BroadcastRelayContent() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {inst.disabled ? (
-                            <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                              {tc("disabled")}
-                            </Badge>
-                          ) : (
+                          {broadcastRelayInstanceActive(config, inst) ? (
                             <Badge variant="secondary" className="bg-green-500/10 text-green-600">
                               {t("content.active")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                              {tc("disabled")}
                             </Badge>
                           )}
                         </TableCell>
@@ -360,10 +434,9 @@ export function BroadcastRelayContent() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingInstance(inst);
-                                  setInstanceModalOpen(true);
-                                }}
+                                aria-label={tc("edit")}
+                                onClick={() => openInstanceModal(inst)}
+                                disabled={writeBusy}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -371,7 +444,12 @@ export function BroadcastRelayContent() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => setDeletingInstance(inst)}
+                                aria-label={tc("delete")}
+                                onClick={() => {
+                                  setDeletingInstance(inst);
+                                  setDeleteOpen(true);
+                                }}
+                                disabled={writeBusy}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -389,24 +467,53 @@ export function BroadcastRelayContent() {
       </div>
 
       <BroadcastRelayInstanceModal
+        key={instanceModalKey}
         open={instanceModalOpen}
-        onOpenChange={(open) => {
-          setInstanceModalOpen(open);
-          if (!open) setEditingInstance(null);
-        }}
+        onOpenChange={setInstanceModalOpen}
         instance={editingInstance}
-        onSuccess={() => {}}
-        onSubmit={editingInstance ? handleUpdateInstance : handleCreateInstance}
+        ranges={ranges}
+        existingIds={config.instances.map((inst) => inst.id)}
+        onSubmit={handleSubmitInstance}
       />
 
       <DeleteBroadcastRelayInstanceModal
-        open={!!deletingInstance}
-        onOpenChange={(open) => {
-          if (!open) setDeletingInstance(null);
-        }}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
         instance={deletingInstance}
         onConfirm={handleDeleteInstance}
       />
+
+      <AlertDialog open={actionOpen} onOpenChange={handleActionOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{actionText[pendingAction].title}</AlertDialogTitle>
+            <AlertDialogDescription>{actionText[pendingAction].description}</AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {actionError && (
+            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive whitespace-pre-wrap">{actionError}</p>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionSaving}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleApplyAction}
+              disabled={actionSaving}
+              className={
+                pendingAction === "enable"
+                  ? undefined
+                  : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              }
+            >
+              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("content.confirm.apply")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

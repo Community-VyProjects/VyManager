@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 def _empty() -> Dict[str, Any]:
     return {
+        "configured": False,
         "globally_disabled": False,
         "instances": [],
     }
@@ -52,10 +53,15 @@ def parse_instance(relay_id: str, cfg: dict) -> Dict[str, Any]:
 
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalise full VyOS config into the GET /vyos/broadcast-relay/config payload."""
-    br_raw = full_config.get("service", {}).get("broadcast-relay", {})
-    if not br_raw:
+    """Normalise full VyOS config into the GET /vyos/broadcast-relay/config payload.
+
+    ``configured`` is key membership: a bare ``service broadcast-relay`` commits
+    on both labs and stays after its last instance is deleted, parsing as ``{}``.
+    """
+    service = full_config.get("service") or {}
+    if "broadcast-relay" not in service:
         return _empty()
+    br_raw = service["broadcast-relay"] or {}
 
     globally_disabled = "disable" in br_raw
 
@@ -70,6 +76,7 @@ def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     instances.sort(key=lambda i: int(i["id"]))
 
     return {
+        "configured": True,
         "globally_disabled": globally_disabled,
         "instances": instances,
     }

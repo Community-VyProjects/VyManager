@@ -2,10 +2,12 @@
   "content": {
     "loadFailed": "Failed to load broadcast relay configuration",
     "updateStatusFailed": "Failed to update service status",
+    "deleteServiceFailed": "Failed to delete the broadcast relay service",
     "title": "Broadcast Relay",
     "subtitle": "UDP broadcast relay between interfaces",
     "enableService": "Enable Service",
     "disableService": "Disable Service",
+    "deleteService": "Delete Service",
     "globallyDisabled": "Broadcast relay service is globally disabled. All instances are inactive.",
     "reEnable": "Re-enable",
     "totalInstances": "Total Instances",
@@ -13,10 +15,21 @@
     "disabledInstances": "Disabled Instances",
     "addInstance": "Add Instance",
     "empty": "No relay instances configured",
+    "colId": "ID",
     "colPort": "Port",
     "colInterfaces": "Interfaces",
     "colSourceAddress": "Source Address",
-    "active": "Active"
+    "udpPortValue": "UDP/{port}",
+    "active": "Active",
+    "confirm": {
+      "disableTitle": "Disable Broadcast Relay",
+      "disableDescription": "Disable the broadcast relay service?",
+      "enableTitle": "Enable Broadcast Relay",
+      "enableDescription": "Enable the broadcast relay service?",
+      "deleteTitle": "Delete Broadcast Relay Service",
+      "deleteDescription": "Delete service broadcast-relay with every relay instance? This action cannot be undone.",
+      "apply": "Apply"
+    }
   },
   "delete": {
     "failed": "Failed to delete instance",
@@ -26,26 +39,24 @@
     "confirm": "Delete Instance"
   },
   "modal": {
-    "idRange": "Instance ID must be an integer between 1 and 99",
-    "portRange": "UDP port must be an integer between 1 and 65535",
-    "interfaceRequired": "At least one interface is required",
+    "idRange": "Instance ID must be an integer between {min} and {max}",
+    "idExists": "Relay instance #{id} already exists",
+    "portRange": "UDP port must be an integer between {min} and {max}",
+    "interfacesRequired": "At least {min} interfaces are required",
     "addressInvalid": "Source address must be a valid IPv4 address (e.g. 192.168.1.1)",
+    "descriptionTooLong": "Description must be at most {max} characters",
     "editTitle": "Edit Relay Instance",
     "addTitle": "Add Relay Instance",
     "editDescription": "Modify relay instance #{id}.",
     "addDescription": "Configure a new UDP broadcast relay instance.",
     "instanceId": "Instance ID",
-    "instanceIdLocked": "Instance ID cannot be changed after creation.",
+    "rangePlaceholder": "{min}–{max}",
     "udpPort": "UDP Port",
     "udpPortPlaceholder": "e.g. 67",
-    "udpPortHint": "UDP port to relay broadcasts on (1–65535).",
     "interfaces": "Interfaces",
-    "interfacesHint": "At least one interface required; two or more needed for relaying.",
     "selectInterface": "Select interface to add",
-    "noMoreInterfaces": "No more interfaces available",
     "sourceAddress": "Source Address",
     "sourceAddressPlaceholder": "e.g. 192.168.1.1",
-    "sourceAddressHint": "Optional. If unset, the original sender's address is used.",
     "disableInstance": "Disable this instance",
     "adding": "Adding..."
   }
