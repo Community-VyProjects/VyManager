@@ -372,8 +372,8 @@ export function RipngContent() {
   // Derived values
   // ============================================================
 
-  // Write controls outside the list sections wait for a list commit and the re-read after any save.
-  const writeBusy = refreshing || listBusy !== null;
+  // Every write control waits for any running commit (list, overview, global filter) and the re-read after it.
+  const writeBusy = refreshing || listBusy !== null || overviewSaving || dlGlobalSaving;
 
   const networkCount = config?.networks.length ?? 0;
   const aggregateCount = config?.aggregate_addresses.length ?? 0;
@@ -414,8 +414,8 @@ export function RipngContent() {
       setListError(kind, null);
     };
     const err = listErrorsByKind[kind] ?? null;
-    // Every section waits while any list commit or the re-read after it runs; only the running one spins.
-    const busy = listBusy !== null || refreshing;
+    // Every section waits while any commit or the re-read after it runs; only the running one spins.
+    const busy = writeBusy;
     const running = listBusy === kind;
     const add = () => {
       if (inputValue.trim() && !busy) runListAction(kind, () => addListItem(kind, items));

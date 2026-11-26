@@ -391,7 +391,7 @@ describe("screens", () => {
     const page = read("RipngContent.tsx");
     assert.match(page, /onClick=\{\(\) => openDelete\(kind, item\)\}/);
     assert.doesNotMatch(page, /onRemove/);
-    assert.match(page, /const busy = listBusy !== null \|\| refreshing;/);
+    assert.match(page, /const busy = writeBusy;/);
     assert.equal(page.match(/disabled=\{busy\}/g)?.length, 3);
     assert.match(page, /disabled=\{busy \|\| !inputValue\.trim\(\)\}/);
     assert.match(page, /if \(inputValue\.trim\(\) && !busy\)/);
@@ -399,7 +399,9 @@ describe("screens", () => {
 
   it("a list commit gates every other write control on the page", () => {
     const page = read("RipngContent.tsx");
-    assert.match(page, /const writeBusy = refreshing \|\| listBusy !== null;/);
+    assert.match(page, /const writeBusy = refreshing \|\| listBusy !== null \|\| overviewSaving \|\| dlGlobalSaving;/);
+    // List sections wait on the same flag, so an overview or filter save blocks list adds and removes.
+    assert.match(page, /const busy = writeBusy;/);
     // Only the Refresh button waits on the re-read alone.
     assert.equal(page.match(/disabled=\{refreshing\}/g)?.length, 1);
     // header delete, overview edit, 2 interface adds, 2 redistribute adds, global-filter edit, per-interface add,
