@@ -6,186 +6,116 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { prefixListService, type PrefixListCapabilitiesResponse } from "@/lib/api/prefix-list";
+import {
+  prefixListService,
+  type PrefixListCapabilitiesResponse,
+  type PrefixListType,
+} from "@/lib/api/prefix-list";
+import {
+  descriptionMaxLength,
+  emptyRuleForm,
+  prefixListProblem,
+  prefixListRange,
+  prefixListRuleProblem,
+  type PrefixListForm,
+  type PrefixListRuleForm,
+} from "@/lib/api/prefix-list-save-ops";
+import type { ApiError } from "@/lib/types/api";
+import { PrefixListRuleFields } from "./PrefixListRuleFields";
+import { nextRuleNumber } from "./prefix-list-rule-form";
 
 interface CreatePrefixListModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  listType: "ipv4" | "ipv6";
+  listType: PrefixListType;
+  /** Names this family already has. */
+  existingNames: string[];
   capabilities: PrefixListCapabilitiesResponse | null;
 }
 
-export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType }: CreatePrefixListModalProps) {
+/**
+ * Create a list and its first rule. The list commit (list ops take no rule
+ * number) runs first; when the rule commit then fails, the list stays created
+ * and a retry sends only the rule.
+ */
+export function CreatePrefixListModal({
+  open,
+  onOpenChange,
+  onSuccess,
+  listType,
+  existingNames,
+  capabilities,
+}: CreatePrefixListModalProps) {
   const t = useTranslations("prefixList");
+  const tl = useTranslations("prefixList.listErrors");
+  const tr = useTranslations("prefixList.ruleErrors");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
-
-  // Basic tab
-  const [listName, setListName] = useState("");
-  const [listDescription, setListDescription] = useState("");
-
-  // First rule tab
-  const [ruleNumber, setRuleNumber] = useState(100);
-  const [action, setAction] = useState<"permit" | "deny">("permit");
-  const [ruleDescription, setRuleDescription] = useState("");
-  const [prefix, setPrefix] = useState("");
-  const [ge, setGe] = useState("");
-  const [le, setLe] = useState("");
-
-  const resetForm = () => {
-    setListName("");
-    setListDescription("");
-    setRuleNumber(100);
-    setAction("permit");
-    setRuleDescription("");
-    setPrefix("");
-    setGe("");
-    setLe("");
-    setActiveTab("basic");
-  };
-
-  const handleClose = () => {
-    setError(null);
-    resetForm();
-    onOpenChange(false);
-  };
-
-  // Validate CIDR notation
-  const validateCIDR = (cidr: string): boolean => {
-    if (!cidr) return false;
-
-    const parts = cidr.split('/');
-    if (parts.length !== 2) return false;
-
-    const [ip, prefixLen] = parts;
-    const prefixLength = parseInt(prefixLen, 10);
-
-    if (listType === "ipv4") {
-      // IPv4 validation
-      const ipParts = ip.split('.');
-      if (ipParts.length !== 4) return false;
-      if (!ipParts.every(part => {
-        const num = parseInt(part, 10);
-        return num >= 0 && num <= 255;
-      })) return false;
-      if (isNaN(prefixLength) || prefixLength < 0 || prefixLength > 32) return false;
-    } else {
-      // IPv6 validation (basic)
-      if (isNaN(prefixLength) || prefixLength < 0 || prefixLength > 128) return false;
-      // More detailed IPv6 validation could be added here
-    }
-
-    return true;
-  };
+  const [listForm, setListForm] = useState<PrefixListForm>({ name: "", description: "" });
+  const [ruleForm, setRuleForm] = useState<PrefixListRuleForm>(() => ({
+    ...emptyRuleForm(nextRuleNumber([], prefixListRange(capabilities, "rule"))),
+    action: "permit",
+  }));
+  /** The list name once its commit succeeded. */
+  const [created, setCreated] = useState<string | null>(null);
+  const family = listType === "ipv4" ? "IPv4" : "IPv6";
 
   const handleSubmit = async () => {
-    // Validation
-    if (!listName.trim()) {
-      setError(t("validation.nameRequired"));
+    const listProblem = prefixListProblem(listForm, created ? null : existingNames, capabilities);
+    if (listProblem) {
+      setError(tl(listProblem.key, { max: listProblem.max ?? "" }));
       setActiveTab("basic");
       return;
     }
-
-    if (!prefix.trim()) {
-      setError(t("validation.prefixRequired"));
+    const ruleProblem = prefixListRuleProblem(listType, null, ruleForm, capabilities, []);
+    if (ruleProblem) {
+      setError(
+        tr(ruleProblem.key, {
+          min: ruleProblem.min ?? "",
+          max: ruleProblem.max ?? "",
+          length: ruleProblem.length ?? "",
+          rule: ruleProblem.rule ?? "",
+        }),
+      );
       setActiveTab("rule");
       return;
     }
-
-    if (!validateCIDR(prefix)) {
-      setError(t("validation.invalidCidr", { type: listType.toUpperCase(), example: listType === "ipv4" ? "192.168.1.0/24" : "2001:db8::/32" }));
-      setActiveTab("rule");
-      return;
-    }
-
-    // Validate ge/le if provided
-    if (ge && isNaN(parseInt(ge, 10))) {
-      setError(t("validation.geNotNumber"));
-      setActiveTab("rule");
-      return;
-    }
-
-    if (le && isNaN(parseInt(le, 10))) {
-      setError(t("validation.leNotNumber"));
-      setActiveTab("rule");
-      return;
-    }
-
-    // Get prefix length from CIDR
-    const prefixLength = parseInt(prefix.split('/')[1], 10);
-    const maxLength = listType === "ipv4" ? 32 : 128;
-
-    if (ge) {
-      const geNum = parseInt(ge, 10);
-      if (geNum < prefixLength || geNum > maxLength) {
-        setError(t("validation.geRange", { min: String(prefixLength), max: String(maxLength) }));
-        setActiveTab("rule");
-        return;
-      }
-    }
-
-    if (le) {
-      const leNum = parseInt(le, 10);
-      if (leNum < prefixLength || leNum > maxLength) {
-        setError(t("validation.leRange", { min: String(prefixLength), max: String(maxLength) }));
-        setActiveTab("rule");
-        return;
-      }
-    }
-
-    if (ge && le) {
-      const geNum = parseInt(ge, 10);
-      const leNum = parseInt(le, 10);
-      if (geNum > leNum) {
-        setError(t("validation.geAboveLe"));
-        setActiveTab("rule");
-        return;
-      }
-    }
-
     setLoading(true);
     setError(null);
-
     try {
-      // Build first rule
-      const firstRule: Record<string, unknown> = {
-        rule_number: ruleNumber,
-        action,
-        description: ruleDescription || null,
-        prefix: prefix.trim(),
-        ge: ge ? parseInt(ge, 10) : null,
-        le: le ? parseInt(le, 10) : null,
-      };
-
-      await prefixListService.createPrefixList(
-        listName.trim(),
-        listType,
-        listDescription || null,
-        firstRule
-      );
-      handleClose();
+      const name = created ?? listForm.name.trim();
+      if (!created) {
+        await prefixListService.createPrefixList(listType, listForm);
+        setCreated(name);
+      }
+      await prefixListService.saveRule(listType, name, Number(ruleForm.rule_number.trim()), null, ruleForm);
+      onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("create.failed"));
+      setError((err as ApiError).message || t("create.failed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+    // A list committed without its rule is on the device: show it.
+    if (!next && created) onSuccess();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("create.title", { type: listType.toUpperCase() })}</DialogTitle>
-          <DialogDescription>
-            {t("create.description")}
-          </DialogDescription>
+          <DialogTitle>{t("create.title", { type: family })}</DialogTitle>
+          <DialogDescription>{t("create.description")}</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -194,150 +124,53 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
             <TabsTrigger value="rule">{t("create.firstRule")}</TabsTrigger>
           </TabsList>
 
-          {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="list-name">{t("create.listName")} *</Label>
+              <Label htmlFor="prefix-list-name">{t("create.listName")} *</Label>
               <Input
-                id="list-name"
-                value={listName}
-                onChange={(e) => setListName(e.target.value)}
+                id="prefix-list-name"
+                value={listForm.name}
+                onChange={(e) => setListForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder={t("form.example", { value: "MY-PREFIXES" })}
-                disabled={loading}
+                disabled={loading || created !== null}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("create.nameHelp")}
-              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="list-description">{tc("description")}</Label>
+              <Label htmlFor="prefix-list-description">{tc("description")}</Label>
               <Input
-                id="list-description"
-                value={listDescription}
-                onChange={(e) => setListDescription(e.target.value)}
+                id="prefix-list-description"
+                value={listForm.description}
+                maxLength={descriptionMaxLength(capabilities)}
+                onChange={(e) => setListForm((prev) => ({ ...prev, description: e.target.value }))}
                 placeholder={t("create.descriptionPlaceholder")}
-                disabled={loading}
+                disabled={loading || created !== null}
               />
             </div>
           </TabsContent>
 
-          {/* First Rule Tab */}
-          <TabsContent value="rule" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="rule-number">{t("form.ruleNumber")}</Label>
-                <Input
-                  id="rule-number"
-                  type="number"
-                  value={ruleNumber}
-                  disabled
-                  className="bg-muted"
-                />
-                <p className="text-xs text-muted-foreground">{t("create.startingAt")}</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="action">{t("form.action")} *</Label>
-                <Select value={action} onValueChange={(v) => setAction(v as "permit" | "deny")} disabled={loading}>
-                  <SelectTrigger id="action">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="permit">{t("form.permit")}</SelectItem>
-                    <SelectItem value="deny">{t("form.deny")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="rule-description">{t("form.ruleDescription")}</Label>
-              <Input
-                id="rule-description"
-                value={ruleDescription}
-                onChange={(e) => setRuleDescription(e.target.value)}
-                placeholder={t("form.ruleDescriptionPlaceholder")}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="prefix">{t("form.prefixCidr")} *</Label>
-              <Input
-                id="prefix"
-                value={prefix}
-                onChange={(e) => setPrefix(e.target.value)}
-                placeholder={listType === "ipv4" ? t("form.example", { value: "192.168.1.0/24" }) : t("form.example", { value: "2001:db8::/32" })}
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("form.prefixHelp")}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ge">{t("form.geLabel")}</Label>
-                <Input
-                  id="ge"
-                  type="number"
-                  value={ge}
-                  onChange={(e) => setGe(e.target.value)}
-                  placeholder={tc("optional")}
-                  disabled={loading}
-                  min={prefix ? parseInt(prefix.split('/')[1] || "0", 10) : 0}
-                  max={listType === "ipv4" ? 32 : 128}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("form.geHelp")}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="le">{t("form.leLabel")}</Label>
-                <Input
-                  id="le"
-                  type="number"
-                  value={le}
-                  onChange={(e) => setLe(e.target.value)}
-                  placeholder={tc("optional")}
-                  disabled={loading}
-                  min={prefix ? parseInt(prefix.split('/')[1] || "0", 10) : 0}
-                  max={listType === "ipv4" ? 32 : 128}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("form.leHelp")}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3">
-              <div className="flex gap-2">
-                <AlertCircle className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">{t("form.aboutTitle")}</p>
-                  <ul className="space-y-1 text-xs">
-                    <li>• {t("form.aboutGe")}</li>
-                    <li>• {t("form.aboutLe")}</li>
-                    <li>• {t("form.aboutOptional")}</li>
-                    <li>• {t("form.aboutExample")}</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+          <TabsContent value="rule" className="mt-4">
+            <PrefixListRuleFields
+              idPrefix="prefix-list-create"
+              listType={listType}
+              form={ruleForm}
+              onChange={setRuleForm}
+              ruleNumberLocked={false}
+              disabled={loading}
+              capabilities={capabilities}
+            />
           </TabsContent>
         </Tabs>
 
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

@@ -23,7 +23,12 @@
     "selectFromSidebar": "从侧边栏选择一个前缀列表以查看其规则",
     "colRule": "规则",
     "colAction": "动作",
-    "colPrefix": "前缀"
+    "colPrefix": "前缀",
+    "colGe": "GE",
+    "colLe": "LE",
+    "editList": "编辑前缀列表 {name}",
+    "deleteList": "删除前缀列表 {name}",
+    "dragRule": "拖动规则 {number}"
   },
   "form": {
     "ruleNumber": "规则编号",
@@ -33,34 +38,38 @@
     "ruleDescription": "规则描述",
     "ruleDescriptionPlaceholder": "输入规则描述（可选）",
     "prefixCidr": "前缀（CIDR）",
-    "prefixHelp": "以 CIDR 格式输入前缀",
     "example": "例如：{value}",
     "geLabel": "GE（大于等于）",
-    "leLabel": "LE（小于等于）",
-    "geHelp": "要匹配的最小前缀长度",
-    "leHelp": "要匹配的最大前缀长度",
-    "aboutTitle": "关于 GE/LE",
-    "aboutGe": "GE（大于等于）指定要匹配的最小前缀长度",
-    "aboutLe": "LE（小于等于）指定要匹配的最大前缀长度",
-    "aboutOptional": "两者均为可选，用于细化前缀匹配",
-    "aboutExample": "示例：10.0.0.0/8 ge 16 le 24 匹配 10.x.y.0/16 到 10.x.y.z/24"
+    "leLabel": "LE（小于等于）"
   },
-  "validation": {
+  "listErrors": {
     "nameRequired": "请输入前缀列表名称",
-    "prefixRequired": "请以 CIDR 格式输入前缀",
-    "invalidCidr": "{type} CIDR 格式无效。格式：{example}",
-    "geNotNumber": "GE 必须是有效数字",
-    "leNotNumber": "LE 必须是有效数字",
-    "geRange": "GE 必须介于 {min}（前缀长度）和 {max} 之间",
-    "leRange": "LE 必须介于 {min}（前缀长度）和 {max} 之间",
-    "geAboveLe": "GE 必须小于或等于 LE"
+    "nameInvalid": "名称只能包含字母、数字、连字符和下划线",
+    "nameTaken": "已存在同名的前缀列表",
+    "descriptionTooLong": "描述不能超过 {max} 个字符"
+  },
+  "ruleErrors": {
+    "ruleNumberRequired": "请输入规则编号",
+    "ruleNumberRange": "规则编号必须是 {min} 到 {max} 之间的整数",
+    "ruleNumberTaken": "该规则编号已被使用",
+    "actionRequired": "请选择动作",
+    "actionInvalid": "动作必须是允许或拒绝",
+    "descriptionTooLong": "描述不能超过 {max} 个字符",
+    "prefixRequired": "请输入前缀",
+    "prefixInvalidIpv4": "前缀必须是 IPv4 网络前缀且主机位为零（例如 192.168.1.0/24）",
+    "prefixInvalidIpv6": "前缀必须是 IPv6 网络前缀且主机位为零（例如 2001:db8::/32）",
+    "geRange": "GE 必须是 {min} 到 {max} 之间的整数",
+    "leRange": "LE 必须是 {min} 到 {max} 之间的整数",
+    "geBelowLength": "GE 不能小于前缀长度 {length}",
+    "leBelowLength": "LE 不能小于前缀长度 {length}",
+    "geAboveLe": "GE 必须小于或等于 LE",
+    "ruleDuplicate": "规则 {rule} 已有相同的动作、描述、前缀、GE 和 LE"
   },
   "ruleModal": {
     "editTitle": "编辑规则 #{number}",
     "addTitle": "向 {list} 添加规则",
     "editDescription": "更新此前缀列表规则",
     "addDescription": "为此前缀列表创建新规则",
-    "autoCalculated": "根据现有规则自动计算",
     "updateFailed": "更新规则失败",
     "addFailed": "添加规则失败",
     "adding": "正在添加...",
@@ -77,9 +86,7 @@
     "basic": "基本",
     "firstRule": "第一条规则",
     "listName": "前缀列表名称",
-    "nameHelp": "为前缀列表输入唯一名称",
     "descriptionPlaceholder": "输入前缀列表描述（可选）",
-    "startingAt": "从 100 开始",
     "failed": "创建前缀列表失败",
     "submit": "创建前缀列表"
   },

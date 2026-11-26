@@ -1,24 +1,36 @@
 import { apiClient } from "./client";
-import { VyOSResponse } from "@/lib/types/api";
+import type { ApiError, VyOSResponse } from "@/lib/types/api";
+import {
+  listCreateOps,
+  listDeleteOps,
+  listUpdateOps,
+  ruleDeleteOps,
+  ruleSaveOps,
+  type PrefixListForm,
+  type PrefixListRuleForm,
+} from "./prefix-list-save-ops";
 
 // ============================================================================
-// TypeScript Interfaces
+// Config (GET /vyos/prefix-list/config)
 // ============================================================================
+
+/** ipv4 is `policy prefix-list`, ipv6 is `policy prefix-list6`. */
+export type PrefixListType = "ipv4" | "ipv6";
 
 export interface PrefixListRule {
   rule_number: number;
-  action: string;  // permit or deny
-  description?: string | null;
-  prefix?: string | null;  // CIDR notation (e.g., 10.0.0.0/8)
-  ge?: number | null;  // Greater-than-or-equal prefix length
-  le?: number | null;  // Less-than-or-equal prefix length
+  action: string | null;
+  description: string | null;
+  prefix: string | null;
+  ge: number | null;
+  le: number | null;
 }
 
 export interface PrefixList {
   name: string;
-  description?: string | null;
+  list_type: PrefixListType;
+  description: string | null;
   rules: PrefixListRule[];
-  list_type: string;  // ipv4 or ipv6
 }
 
 export interface PrefixListConfigResponse {
@@ -28,39 +40,55 @@ export interface PrefixListConfigResponse {
   total_ipv6: number;
 }
 
+// ============================================================================
+// Capabilities (GET /vyos/prefix-list/capabilities)
+// ============================================================================
+
+export interface PrefixListRange {
+  min: number;
+  max: number;
+}
+
+export type PrefixListRangeKey = "rule" | "prefix_length_ipv4" | "prefix_length_ipv6";
+
 export interface PrefixListCapabilitiesResponse {
   version: string;
   features: {
-    ipv4_prefix_lists: {
-      supported: boolean;
-      description: string;
-    };
-    ipv6_prefix_lists: {
-      supported: boolean;
-      description: string;
-    };
-    ge_le_operators: {
-      supported: boolean;
-      description: string;
-    };
-    rule_descriptions: {
-      supported: boolean;
-      description: string;
-    };
+    ipv4_prefix_lists: { supported: boolean };
+    ipv6_prefix_lists: { supported: boolean };
   };
-  device_name?: string;
+  values: { rule_actions: string[] };
+  ranges: Record<PrefixListRangeKey, PrefixListRange>;
+  description_max_length: number;
+  instance_name?: string;
+  instance_id?: string;
 }
+
+// ============================================================================
+// Batch (POST /vyos/prefix-list/batch)
+// ============================================================================
 
 export interface PrefixListBatchOperation {
   op: string;
   value?: string;
 }
 
+/** One commit on one list. Rule ops need rule_number; list ops take none. */
 export interface PrefixListBatchRequest {
+  list_type: PrefixListType;
   name: string;
-  list_type: string;  // ipv4 or ipv6
   rule_number?: number;
   operations: PrefixListBatchOperation[];
+}
+
+const NO_CHANGES: VyOSResponse = { success: true };
+
+function throwIfFailed(result: VyOSResponse): VyOSResponse {
+  if (!result.success) {
+    const error: ApiError = { message: result.error || "" };
+    throw error;
+  }
+  return result;
 }
 
 // ============================================================================
@@ -68,16 +96,10 @@ export interface PrefixListBatchRequest {
 // ============================================================================
 
 export class PrefixListService {
-  /**
-   * Get capabilities based on VyOS version
-   */
   async getCapabilities(): Promise<PrefixListCapabilitiesResponse> {
     return apiClient.get<PrefixListCapabilitiesResponse>("/vyos/prefix-list/capabilities");
   }
 
-  /**
-   * Get all prefix-list configurations
-   */
   async getConfig(refresh: boolean = false): Promise<PrefixListConfigResponse> {
     return apiClient.get<PrefixListConfigResponse>("/vyos/prefix-list/config", {
       refresh: refresh.toString(),
@@ -85,308 +107,81 @@ export class PrefixListService {
   }
 
   /**
-   * Refresh the cached configuration
-   */
-  async refreshConfig(): Promise<VyOSResponse> {
-    return apiClient.post("/vyos/config/refresh");
-  }
-
-  /**
-   * Execute batch operations
+   * Commit one batch; a rejected commit throws its error as an ApiError. An
+   * empty op list has nothing to send, so no POST is made.
    */
   async batchConfigure(request: PrefixListBatchRequest): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/prefix-list/batch", request);
-    await this.refreshConfig();
-    return result;
+    if (request.operations.length === 0) return NO_CHANGES;
+    return throwIfFailed(await apiClient.post<VyOSResponse>("/vyos/prefix-list/batch", request));
   }
 
-  /**
-   * Reorder rules in a prefix-list
-   */
-  async reorderRules(
-    name: string,
-    listType: string,
-    rules: Array<{ old_number: number; new_number: number; rule_data: PrefixListRule }>
-  ): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/prefix-list/reorder", {
-      name,
-      list_type: listType,
-      rules,
-    });
-    await this.refreshConfig();
-    return result;
-  }
+  // ========================================================================
+  // List
+  // ========================================================================
 
-  /**
-   * Helper: Create a new prefix-list with first rule
-   */
-  async createPrefixList(
-    name: string,
-    listType: string,
-    description: string | null,
-    rule: Partial<PrefixListRule>
-  ): Promise<VyOSResponse> {
-    const operations: PrefixListBatchOperation[] = [];
-
-    // Create prefix-list
-    operations.push({ op: listType === "ipv4" ? "set_prefix_list" : "set_prefix_list6" });
-
-    // Add description if provided
-    if (description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_prefix_list_description" : "set_prefix_list6_description",
-        value: description
-      });
-    }
-
-    // Create rule
-    operations.push({ op: listType === "ipv4" ? "set_rule" : "set_rule6" });
-
-    // Set rule action
-    operations.push({
-      op: listType === "ipv4" ? "set_rule_action" : "set_rule6_action",
-      value: rule.action || "permit"
-    });
-
-    // Set rule description
-    if (rule.description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_description" : "set_rule6_description",
-        value: rule.description
-      });
-    }
-
-    // Set prefix
-    if (rule.prefix) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_prefix" : "set_rule6_prefix",
-        value: rule.prefix
-      });
-    }
-
-    // Set ge
-    if (rule.ge !== undefined && rule.ge !== null) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_ge" : "set_rule6_ge",
-        value: rule.ge.toString()
-      });
-    }
-
-    // Set le
-    if (rule.le !== undefined && rule.le !== null) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_le" : "set_rule6_le",
-        value: rule.le.toString()
-      });
-    }
-
+  async createPrefixList(listType: PrefixListType, form: PrefixListForm): Promise<VyOSResponse> {
     return this.batchConfigure({
-      name,
       list_type: listType,
-      rule_number: rule.rule_number,
-      operations,
+      name: form.name.trim(),
+      operations: listCreateOps(form),
     });
   }
 
-  /**
-   * Helper: Update prefix-list description
-   */
-  async updatePrefixListDescription(
-    name: string,
-    listType: string,
-    description: string | null
-  ): Promise<VyOSResponse> {
-    const operations: PrefixListBatchOperation[] = [];
-
-    if (description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_prefix_list_description" : "set_prefix_list6_description",
-        value: description
-      });
-    } else {
-      operations.push({
-        op: listType === "ipv4" ? "delete_prefix_list_description" : "delete_prefix_list6_description"
-      });
-    }
-
+  /** Only the list leaves the form changed are sent. */
+  async updatePrefixList(original: PrefixList, form: PrefixListForm): Promise<VyOSResponse> {
     return this.batchConfigure({
-      name,
-      list_type: listType,
-      operations,
+      list_type: original.list_type,
+      name: original.name,
+      operations: listUpdateOps(original, form),
     });
   }
 
-  /**
-   * Helper: Delete a prefix-list
-   */
-  async deletePrefixList(name: string, listType: string): Promise<VyOSResponse> {
-    const operations: PrefixListBatchOperation[] = [];
-    operations.push({
-      op: listType === "ipv4" ? "delete_prefix_list" : "delete_prefix_list6"
-    });
-
+  async deletePrefixList(list: PrefixList): Promise<VyOSResponse> {
     return this.batchConfigure({
-      name,
-      list_type: listType,
-      operations,
+      list_type: list.list_type,
+      name: list.name,
+      operations: listDeleteOps(),
     });
   }
 
-  /**
-   * Helper: Add a rule to an existing prefix-list
-   */
-  async addRule(
-    name: string,
-    listType: string,
-    rule: Partial<PrefixListRule>
-  ): Promise<VyOSResponse> {
-    const operations: PrefixListBatchOperation[] = [];
+  // ========================================================================
+  // Rule
+  // ========================================================================
 
-    // Create rule
-    operations.push({ op: listType === "ipv4" ? "set_rule" : "set_rule6" });
-
-    // Set rule action
-    operations.push({
-      op: listType === "ipv4" ? "set_rule_action" : "set_rule6_action",
-      value: rule.action || "permit"
-    });
-
-    // Set rule description
-    if (rule.description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_description" : "set_rule6_description",
-        value: rule.description
-      });
-    }
-
-    // Set prefix
-    if (rule.prefix) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_prefix" : "set_rule6_prefix",
-        value: rule.prefix
-      });
-    }
-
-    // Set ge
-    if (rule.ge !== undefined && rule.ge !== null) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_ge" : "set_rule6_ge",
-        value: rule.ge.toString()
-      });
-    }
-
-    // Set le
-    if (rule.le !== undefined && rule.le !== null) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_le" : "set_rule6_le",
-        value: rule.le.toString()
-      });
-    }
-
-    return this.batchConfigure({
-      name,
-      list_type: listType,
-      rule_number: rule.rule_number,
-      operations,
-    });
-  }
-
-  /**
-   * Helper: Update an existing rule
-   */
-  async updateRule(
-    name: string,
-    listType: string,
+  /** Create a rule (original null) or edit one: only changed leaves are sent. */
+  async saveRule(
+    listType: PrefixListType,
+    listName: string,
     ruleNumber: number,
-    rule: Partial<PrefixListRule>
+    original: PrefixListRule | null,
+    form: PrefixListRuleForm,
   ): Promise<VyOSResponse> {
-    const operations: PrefixListBatchOperation[] = [];
-
-    // IMPORTANT: Process deletes FIRST, then sets
-    // This ensures VyOS properly removes fields before setting new values
-
-    // Delete operations first
-    if (rule.description !== undefined && !rule.description) {
-      operations.push({
-        op: listType === "ipv4" ? "delete_rule_description" : "delete_rule6_description"
-      });
-    }
-
-    if (rule.ge !== undefined && rule.ge === null) {
-      operations.push({
-        op: listType === "ipv4" ? "delete_rule_ge" : "delete_rule6_ge"
-      });
-    }
-
-    if (rule.le !== undefined && rule.le === null) {
-      operations.push({
-        op: listType === "ipv4" ? "delete_rule_le" : "delete_rule6_le"
-      });
-    }
-
-    // Set operations after deletes
-    if (rule.action) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_action" : "set_rule6_action",
-        value: rule.action
-      });
-    }
-
-    if (rule.description !== undefined && rule.description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_description" : "set_rule6_description",
-        value: rule.description
-      });
-    }
-
-    if (rule.prefix !== undefined && rule.prefix) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_prefix" : "set_rule6_prefix",
-        value: rule.prefix
-      });
-    }
-
-    if (rule.ge !== undefined && rule.ge !== null) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_ge" : "set_rule6_ge",
-        value: rule.ge.toString()
-      });
-    }
-
-    if (rule.le !== undefined && rule.le !== null) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_le" : "set_rule6_le",
-        value: rule.le.toString()
-      });
-    }
-
     return this.batchConfigure({
-      name,
       list_type: listType,
+      name: listName,
       rule_number: ruleNumber,
-      operations,
+      operations: ruleSaveOps(original, form),
     });
   }
 
-  /**
-   * Helper: Delete a rule
-   */
-  async deleteRule(
-    name: string,
-    listType: string,
-    ruleNumber: number
-  ): Promise<VyOSResponse> {
-    const operations: PrefixListBatchOperation[] = [];
-    operations.push({
-      op: listType === "ipv4" ? "delete_rule" : "delete_rule6"
-    });
-
+  async deleteRule(listType: PrefixListType, listName: string, ruleNumber: number): Promise<VyOSResponse> {
     return this.batchConfigure({
-      name,
       list_type: listType,
+      name: listName,
       rule_number: ruleNumber,
-      operations,
+      operations: ruleDeleteOps(),
     });
+  }
+
+  /** New order of every rule of the list; a rejected commit throws. */
+  async reorderRules(listType: PrefixListType, listName: string, ruleNumbers: number[]): Promise<VyOSResponse> {
+    return throwIfFailed(
+      await apiClient.post<VyOSResponse>("/vyos/prefix-list/reorder", {
+        list_type: listType,
+        name: listName,
+        rule_numbers: ruleNumbers,
+      }),
+    );
   }
 }
 

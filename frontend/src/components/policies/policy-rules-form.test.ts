@@ -15,11 +15,6 @@ import {
   type LocalRouteRule,
 } from "@/lib/api/local-route";
 import {
-  PrefixListService,
-  type PrefixListBatchRequest,
-  type PrefixListRule,
-} from "@/lib/api/prefix-list";
-import {
   AccessListService,
   type AccessListBatchRequest,
   type AccessListRule,
@@ -44,12 +39,6 @@ import {
   submitLocalRouteUpdate,
   validateLocalRoute,
 } from "./local-route-form";
-import {
-  emptyPrefixListRuleDraft,
-  prefixListRuleDraftFrom,
-  submitPrefixListUpdate,
-  validatePrefixListRule,
-} from "./prefix-list-rule-form";
 import {
   emptyAccessListRuleDraft,
   submitAccessListCreate,
@@ -82,14 +71,6 @@ class RecordingPolicy extends PolicyListService {
 class RecordingLocal extends LocalRouteService {
   calls: LocalRouteBatchRequest[] = [];
   async batchConfigure(request: LocalRouteBatchRequest): Promise<VyOSResponse> {
-    this.calls.push(request);
-    return { success: true };
-  }
-}
-
-class RecordingPrefix extends PrefixListService {
-  calls: PrefixListBatchRequest[] = [];
-  async batchConfigure(request: PrefixListBatchRequest): Promise<VyOSResponse> {
     this.calls.push(request);
     return { success: true };
   }
@@ -129,15 +110,6 @@ const storedLocal: LocalRouteRule = {
   destination_port: null,
   table: "main",
   vrf: null,
-};
-
-const storedPrefix: PrefixListRule = {
-  rule_number: 10,
-  action: "permit",
-  description: "corp",
-  prefix: "10.0.0.0/8",
-  ge: 16,
-  le: null,
 };
 
 const storedAccess: AccessListRule = {
@@ -291,36 +263,6 @@ describe("local route update", () => {
     draft.source = "";
     await submitLocalRouteUpdate(storedLocal, draft, "ipv4", service);
     assert.ok(service.calls[0].operations.some((op) => op.op === "delete_local_route_rule_source"));
-  });
-});
-
-describe("prefix-list rule", () => {
-  it("rejects a missing prefix", () => {
-    assert.deepEqual(
-      validatePrefixListRule(emptyPrefixListRuleDraft(), "ipv4"),
-      { key: "prefixRequired" },
-    );
-  });
-
-  it("deletes a cleared ge on update", async () => {
-    const service = new RecordingPrefix();
-    const draft = prefixListRuleDraftFrom(storedPrefix);
-    draft.ge = "";
-    await submitPrefixListUpdate("PL", "ipv4", storedPrefix, draft, service);
-    assert.ok(service.calls[0].operations.some((op) => op.op === "delete_rule_ge"));
-  });
-
-  it("sends nothing when nothing changed", async () => {
-    const service = new RecordingPrefix();
-    const result = await submitPrefixListUpdate(
-      "PL",
-      "ipv4",
-      storedPrefix,
-      prefixListRuleDraftFrom(storedPrefix),
-      service,
-    );
-    assert.equal(result, null);
-    assert.equal(service.calls.length, 0);
   });
 });
 

@@ -1,5 +1,4 @@
-"""Prefix List mapper module."""
+"""Prefix-list command mapper."""
 from .prefix_list import PrefixListMapper
-from .prefix_list_versions import get_prefix_list_mapper
 
-__all__ = ["PrefixListMapper", "get_prefix_list_mapper"]
+__all__ = ["PrefixListMapper"]

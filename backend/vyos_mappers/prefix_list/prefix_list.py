@@ -1,129 +1,113 @@
-"""
-Prefix List Command Mapper
+"""Prefix-list command mapper.
 
-Handles command path generation for prefix-list configuration.
-Version-specific logic is in version-specific files.
+One class holds the ``policy prefix-list`` / ``policy prefix-list6``
+commands; the templates are the same on VyOS 1.4 and 1.5, so the registry
+returns this class for both.
+
+Config tree (``prefix-list`` for ipv4, ``prefix-list6`` for ipv6):
+  policy prefix-list <NAME [-_a-zA-Z0-9]+>/
+    description          (0-255 characters)
+    rule <1-65535>/
+      action             (permit | deny)
+      description        (0-255 characters)
+      prefix             (ipv4-prefix | ipv6-prefix)
+      ge                 (0-32 | 0-128)
+      le                 (0-32 | 0-128)
 """
 
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple
+
 from ..base import BaseFeatureMapper
+
+# Request list type -> CLI node.
+FAMILIES: Dict[str, str] = {"ipv4": "prefix-list", "ipv6": "prefix-list6"}
+# Lab `allowed:` of rule action, the same on 1.4 and 1.5.
+RULE_ACTIONS: Tuple[str, ...] = ("permit", "deny")
 
 
 class PrefixListMapper(BaseFeatureMapper):
-    """Base mapper with common operations"""
+    """Prefix-list paths shared by VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        """Initialize with VyOS version."""
-        super().__init__(version)
-
-    # ========================================================================
-    # Core Prefix List Paths (IPv4)
-    # ========================================================================
-
-    def get_prefix_list_path(self, name: str) -> List[str]:
-        """Get command path for prefix-list."""
-        return ["policy", "prefix-list", name]
-
-    def get_prefix_list_description(self, name: str, description: str) -> List[str]:
-        """Get command path for prefix-list description."""
-        return ["policy", "prefix-list", name, "description", description]
+    def rule_action_values(self) -> Tuple[str, ...]:
+        return RULE_ACTIONS
 
     # ========================================================================
-    # Rule Paths (IPv4)
+    # Config read
     # ========================================================================
 
-    def get_rule_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for rule."""
-        return ["policy", "prefix-list", name, "rule", rule]
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_prefix_list_config
 
-    def get_rule_action(self, name: str, rule: str, action: str) -> List[str]:
-        """Get command path for rule action (permit/deny)."""
-        return ["policy", "prefix-list", name, "rule", rule, "action", action]
+        return parse_prefix_list_config(self, full_config)
 
-    def get_rule_description(self, name: str, rule: str, description: str) -> List[str]:
-        """Get command path for rule description."""
-        return ["policy", "prefix-list", name, "rule", rule, "description", description]
+    def rule_trees(self, full_config: Dict[str, Any], list_type: str, name: str) -> Optional[Dict[int, Any]]:
+        """Raw rule subtrees of one list (reorder), or None when the list is absent."""
+        from .config_parse import rule_trees
 
-    def get_rule_prefix(self, name: str, rule: str, prefix: str) -> List[str]:
-        """Get command path for rule prefix."""
-        return ["policy", "prefix-list", name, "rule", rule, "prefix", prefix]
+        return rule_trees(full_config, self.get_prefix_list_path(list_type, name)[1], name)
 
-    def get_rule_ge(self, name: str, rule: str, ge: str) -> List[str]:
-        """Get command path for rule ge (greater-than-or-equal)."""
-        return ["policy", "prefix-list", name, "rule", rule, "ge", ge]
+    def rule_tree_paths(self, list_type: str, name: str, rule: str, tree: Any) -> List[List[str]]:
+        """Set paths that recreate a rule from its config subtree (reorder).
 
-    def get_rule_le(self, name: str, rule: str, le: str) -> List[str]:
-        """Get command path for rule le (less-than-or-equal)."""
-        return ["policy", "prefix-list", name, "rule", rule, "le", le]
-
-    # ========================================================================
-    # Delete Paths (IPv4)
-    # ========================================================================
-
-    def get_rule_description_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting rule description."""
-        return ["policy", "prefix-list", name, "rule", rule, "description"]
-
-    def get_rule_ge_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting rule ge."""
-        return ["policy", "prefix-list", name, "rule", rule, "ge"]
-
-    def get_rule_le_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting rule le."""
-        return ["policy", "prefix-list", name, "rule", rule, "le"]
+        Every rule leaf is a single value, so one path per leaf.
+        """
+        base = self.get_rule_path(list_type, name, rule)
+        node = tree if isinstance(tree, dict) else {}
+        paths = [base]
+        for leaf, value in node.items():
+            if isinstance(value, (str, int)) and not isinstance(value, bool):
+                paths.append(base + [str(leaf), str(value)])
+        return paths
 
     # ========================================================================
-    # Core Prefix List Paths (IPv6)
+    # List
     # ========================================================================
 
-    def get_prefix_list6_path(self, name: str) -> List[str]:
-        """Get command path for prefix-list6."""
-        return ["policy", "prefix-list6", name]
+    def get_prefix_list_path(self, list_type: str, name: str) -> List[str]:
+        node = FAMILIES.get(list_type)
+        if node is None:
+            raise ValueError(f"{list_type} is not a prefix-list type")
+        return ["policy", node, name]
 
-    def get_prefix_list6_description(self, name: str, description: str) -> List[str]:
-        """Get command path for prefix-list6 description."""
-        return ["policy", "prefix-list6", name, "description", description]
+    def get_prefix_list_description_path(self, list_type: str, name: str) -> List[str]:
+        return self.get_prefix_list_path(list_type, name) + ["description"]
 
-    # ========================================================================
-    # Rule Paths (IPv6)
-    # ========================================================================
-
-    def get_rule6_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for IPv6 rule."""
-        return ["policy", "prefix-list6", name, "rule", rule]
-
-    def get_rule6_action(self, name: str, rule: str, action: str) -> List[str]:
-        """Get command path for IPv6 rule action (permit/deny)."""
-        return ["policy", "prefix-list6", name, "rule", rule, "action", action]
-
-    def get_rule6_description(self, name: str, rule: str, description: str) -> List[str]:
-        """Get command path for IPv6 rule description."""
-        return ["policy", "prefix-list6", name, "rule", rule, "description", description]
-
-    def get_rule6_prefix(self, name: str, rule: str, prefix: str) -> List[str]:
-        """Get command path for IPv6 rule prefix."""
-        return ["policy", "prefix-list6", name, "rule", rule, "prefix", prefix]
-
-    def get_rule6_ge(self, name: str, rule: str, ge: str) -> List[str]:
-        """Get command path for IPv6 rule ge (greater-than-or-equal)."""
-        return ["policy", "prefix-list6", name, "rule", rule, "ge", ge]
-
-    def get_rule6_le(self, name: str, rule: str, le: str) -> List[str]:
-        """Get command path for IPv6 rule le (less-than-or-equal)."""
-        return ["policy", "prefix-list6", name, "rule", rule, "le", le]
+    def get_prefix_list_description(self, list_type: str, name: str, value: str) -> List[str]:
+        return self.get_prefix_list_description_path(list_type, name) + [value]
 
     # ========================================================================
-    # Delete Paths (IPv6)
+    # Rule
     # ========================================================================
 
-    def get_rule6_description_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting IPv6 rule description."""
-        return ["policy", "prefix-list6", name, "rule", rule, "description"]
+    def get_rule_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_prefix_list_path(list_type, name) + ["rule", rule]
 
-    def get_rule6_ge_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting IPv6 rule ge."""
-        return ["policy", "prefix-list6", name, "rule", rule, "ge"]
+    def get_rule_action_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_rule_path(list_type, name, rule) + ["action"]
 
-    def get_rule6_le_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting IPv6 rule le."""
-        return ["policy", "prefix-list6", name, "rule", rule, "le"]
+    def get_rule_action(self, list_type: str, name: str, rule: str, value: str) -> List[str]:
+        return self.get_rule_action_path(list_type, name, rule) + [value]
+
+    def get_rule_description_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_rule_path(list_type, name, rule) + ["description"]
+
+    def get_rule_description(self, list_type: str, name: str, rule: str, value: str) -> List[str]:
+        return self.get_rule_description_path(list_type, name, rule) + [value]
+
+    def get_rule_prefix_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_rule_path(list_type, name, rule) + ["prefix"]
+
+    def get_rule_prefix(self, list_type: str, name: str, rule: str, value: str) -> List[str]:
+        return self.get_rule_prefix_path(list_type, name, rule) + [value]
+
+    def get_rule_ge_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_rule_path(list_type, name, rule) + ["ge"]
+
+    def get_rule_ge(self, list_type: str, name: str, rule: str, value: str) -> List[str]:
+        return self.get_rule_ge_path(list_type, name, rule) + [value]
+
+    def get_rule_le_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_rule_path(list_type, name, rule) + ["le"]
+
+    def get_rule_le(self, list_type: str, name: str, rule: str, value: str) -> List[str]:
+        return self.get_rule_le_path(list_type, name, rule) + [value]
