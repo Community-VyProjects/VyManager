@@ -250,7 +250,7 @@ export function PimContent() {
   };
 
   const submitRp = async (rp: PimRpAddress) => {
-    if (editingRp && config) await pimService.updateRpAddress(config, editingRp, rp);
+    if (editingRp) await pimService.updateRpAddress(editingRp, rp);
     else await pimService.createRpAddress(rp);
     await reload();
   };
@@ -285,6 +285,8 @@ export function PimContent() {
     ) ?? [];
 
   const ifaceCount = config?.interfaces.length ?? 0;
+  // The last RP address deletes the whole `rp` node, keep-alive timer included.
+  const lastRpWithTimer = (config?.rp?.addresses.length ?? 0) === 1 && config?.rp?.keep_alive_timer != null;
   const rpCount = config?.rp?.addresses.length ?? 0;
   const shown = generalEditing && draft ? draft : config ? pimGlobalDraft(config) : null;
   const generalDisabled = !generalEditing || generalSaving;
@@ -618,6 +620,7 @@ export function PimContent() {
                         variant="ghost"
                         size="icon"
                         className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        aria-label={tc("clear")}
                         onClick={() => setIfaceSearch("")}
                       >
                         <X className="h-4 w-4" />
@@ -843,7 +846,7 @@ export function PimContent() {
                                     </Badge>
                                   ))
                                 ) : (
-                                  <span className="text-muted-foreground text-sm">{t("content.allGroups")}</span>
+                                  <span className="text-muted-foreground text-sm">-</span>
                                 )}
                               </div>
                             </TableCell>
@@ -915,6 +918,7 @@ export function PimContent() {
         onOpenChange={setDeleteOpen}
         itemType={deleteTarget?.kind ?? "interface"}
         itemName={deleteTarget?.name ?? ""}
+        clearsRpTimer={deleteTarget?.kind === "rpAddress" && lastRpWithTimer}
         onConfirm={confirmDelete}
       />
     </>

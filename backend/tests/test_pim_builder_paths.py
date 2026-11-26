@@ -147,6 +147,13 @@ def test_every_op_has_a_golden_path():
     ("delete_rp_address_group", ("x", NET)),
     ("set_interface_source_address", ("eth0", "192.0.2.0/24")),
     ("set_interface_igmp_join", ("eth0", "239.1.1")),
+    ("set_interface_igmp_join", ("eth0", "224.0.0.1")),
+    ("set_interface_igmp_join", ("eth0", "224.0.0.255")),
+    ("delete_interface_igmp_join", ("eth0", "224.0.0.22")),
+    ("set_interface_igmp_join_source", ("eth0", "224.0.0.5", S)),
+    ("delete_interface_igmp_join_source", ("eth0", "224.0.0.5", S)),
+    ("set_interface", ("eth0.1.2.3",)),
+    ("set_interface", ("eth0x1",)),
     ("set_interface_igmp_join_source", ("eth0", G, "2001:db8::1")),
     ("delete_interface_igmp_join_source", ("eth0", "bad", S)),
     # names
@@ -168,7 +175,9 @@ def test_bad_value_raises_before_any_op(method, args):
     assert builder.get_operations() == []
 
 
-@pytest.mark.parametrize("iface", ["eth0", "eth0.10", "br1", "bond0", "wg0", "dum0", "lo", "pod-web_1", "vtun3"])
+@pytest.mark.parametrize("iface", [
+    "eth0", "eth0.10", "eth0.100.10", "bond0.5.6", "br1", "bond0", "wg0", "dum0", "lo", "pod-web_1", "vtun3", "vpptap0",
+])
 def test_lab_interface_names_are_accepted(iface):
     builder = PimBatchBuilder("1.4").set_interface(iface)
     assert builder.get_operations() == [{"op": "set", "path": BASE + ["interface", iface]}]
@@ -184,6 +193,24 @@ def test_multicast_prefix_without_host_bits_is_accepted(prefix):
 def test_bad_rp_group_names_the_problem(group):
     with pytest.raises(ValueError, match="multicast prefix inside 224.0.0.0/4 with no host bits"):
         PimBatchBuilder("1.4").set_rp_address_group(RP, group)
+
+
+def test_reserved_join_group_names_the_problem():
+    with pytest.raises(ValueError, match="224.0.0.0/24 is reserved"):
+        PimBatchBuilder("1.4").set_interface_igmp_join("eth0", "224.0.0.9")
+
+
+@pytest.mark.parametrize("group", ["224.0.1.0", "224.0.1.1", "239.255.255.255"])
+def test_join_group_just_outside_the_reserved_block_is_accepted(group):
+    builder = PimBatchBuilder("1.5").set_interface_igmp_join("eth0", group)
+    assert builder.get_operations() == [{"op": "set", "path": BASE + I + ["igmp", "join", group]}]
+
+
+def test_mapper_has_no_duplicate_delete_paths():
+    from vyos_mappers.pim.pim import PimMapper
+
+    for name in ("get_rp_address_delete", "get_rp_address_group_delete", "get_interface_igmp_join_source_delete"):
+        assert not hasattr(PimMapper, name), name
 
 
 def test_igmp_join_takes_a_unicast_group():

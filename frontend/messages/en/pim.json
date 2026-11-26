@@ -16,11 +16,11 @@
     "ecmpRebalance": "ECMP Rebalance",
     "noV6Secondary": "No IPv6 Secondary",
     "timers": "Timers",
-    "joinPruneInterval": "Join/Prune Interval (1-65535s)",
-    "keepAliveTimer": "Keep Alive Timer (1-65535s)",
-    "registerSuppressTime": "Register Suppress Time (1-65535s)",
-    "packets": "Packets (1-255)",
-    "watermarkWarning": "Watermark Warning (1-65535)",
+    "joinPruneInterval": "Join/Prune Interval (s)",
+    "keepAliveTimer": "Keep Alive Timer (s)",
+    "registerSuppressTime": "Register Suppress Time (s)",
+    "packets": "Packets",
+    "watermarkWarning": "Watermark Warning",
     "prefixLists": "Prefix Lists",
     "registerAcceptList": "Register Accept List (prefix-list)",
     "ssmPrefixList": "SSM Prefix List",
@@ -41,12 +41,11 @@
     "flagNoUbsm": "No UBSM",
     "igmpActive": "Active",
     "igmpActiveJoins": "{count, plural, one {Active (# join)} other {Active (# joins)}}",
-    "rpKeepAliveTimer": "RP Keep Alive Timer (1-65535s)",
+    "rpKeepAliveTimer": "RP Keep Alive Timer (s)",
     "noRpAddresses": "No RP addresses configured",
     "noRpAddressesHint": "Add a Rendezvous Point address for PIM multicast routing.",
     "colAddress": "Address",
-    "colGroups": "Groups",
-    "allGroups": "All groups"
+    "colGroups": "Groups"
   },
   "errors": {
     "loadPrefixListsFailed": "Failed to load prefix lists",
@@ -62,6 +61,7 @@
     "rpAddress": {
       "title": "Remove RP Address",
       "description": "Are you sure you want to remove this Rendezvous Point address? This will remove all associated multicast groups.",
+      "descriptionLast": "Are you sure you want to remove this rendezvous point (RP) address? It is the last RP address, so this also clears the RP keep alive timer.",
       "failed": "Failed to delete rp-address"
     },
     "pim": {
@@ -113,7 +113,6 @@
     "groupPlaceholder": "e.g. 224.0.0.0/4"
   },
   "validation": {
-    "timerRange": "Timer must be a whole number from {min} to {max}",
     "packetsRange": "Packets must be a whole number from {min} to {max}",
     "watermarkRange": "Watermark warning must be a whole number from {min} to {max}",
     "drPriorityRange": "DR priority must be a whole number from {min} to {max}",
@@ -126,7 +125,7 @@
     "interfaceExists": "PIM is already configured on this interface",
     "joinGroupInvalid": "Join group must be a valid IPv4 address",
     "joinExists": "Join group already exists",
-    "joinSourceInvalid": "Source address must be a valid IPv4 address",
+    "joinSourceInvalid": "IGMP join source address must be a valid IPv4 address",
     "joinSourceExists": "Source address already exists in this join group",
     "rpAddressInvalid": "RP address must be a valid IPv4 address",
     "rpAddressExists": "This RP address is already configured",
@@ -136,6 +135,12 @@
     "groupRequired": "Add at least one multicast group",
     "interfaceRequired": "Add a PIM interface first: PIM needs at least one interface",
     "lastInterface": "This is the last PIM interface. Remove the other PIM settings first, or delete PIM",
-    "rpRequired": "Add an RP address first: the keep-alive timer needs one"
+    "rpRequired": "Add an RP address first: the keep-alive timer needs one",
+    "joinPruneRange": "Join/prune interval must be a whole number from {min} to {max}",
+    "keepAliveRange": "Keep alive timer must be a whole number from {min} to {max}",
+    "registerSuppressRange": "Register suppress time must be a whole number from {min} to {max}",
+    "rpKeepAliveRange": "RP keep alive timer must be a whole number from {min} to {max}",
+    "joinGroupReserved": "Groups within 224.0.0.0/24 are reserved and cannot be joined",
+    "groupLast": "An RP address needs at least one group. To remove its last group, delete the RP address"
   }
 }

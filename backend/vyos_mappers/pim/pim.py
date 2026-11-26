@@ -130,13 +130,7 @@ class PimMapper(BaseFeatureMapper):
     def get_rp_address(self, address: str) -> List[str]:
         return self._base() + ["rp", "address", address]
 
-    def get_rp_address_delete(self, address: str) -> List[str]:
-        return self._base() + ["rp", "address", address]
-
     def get_rp_address_group(self, address: str, group: str) -> List[str]:
-        return self._base() + ["rp", "address", address, "group", group]
-
-    def get_rp_address_group_delete(self, address: str, group: str) -> List[str]:
         return self._base() + ["rp", "address", address, "group", group]
 
     def get_rp_keep_alive_timer(self, value: str) -> List[str]:
@@ -228,9 +222,6 @@ class PimMapper(BaseFeatureMapper):
         return self._base() + ["interface", iface, "igmp", "join", group]
 
     def get_interface_igmp_join_source(self, iface: str, group: str, source: str) -> List[str]:
-        return self._base() + ["interface", iface, "igmp", "join", group, "source-address", source]
-
-    def get_interface_igmp_join_source_delete(self, iface: str, group: str, source: str) -> List[str]:
         return self._base() + ["interface", iface, "igmp", "join", group, "source-address", source]
 
     def get_interface_igmp_query_interval(self, iface: str, value: str) -> List[str]:

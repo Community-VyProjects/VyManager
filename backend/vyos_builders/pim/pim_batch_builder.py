@@ -37,10 +37,15 @@ RANGES: Dict[str, Dict[str, int]] = {
 _DECIMAL = re.compile(r"\d{1,10}", re.ASCII)
 # Prefix length as the lab takes it: no leading zero (/032 is rejected).
 _PREFIX_LENGTH = re.compile(r"0|[1-9]\d?", re.ASCII)
-# protocols pim interface node.def regex (1.5 also requires the interface to exist).
+# Interface name, from the protocols pim interface node.def regex with up to
+# two VLAN suffixes so QinQ (eth0.100.10) passes. The labs validate it
+# differently: 1.4 checks /sys/class/net at set time, and its type list lacks
+# vpptap/vpptun; 1.5's start-anchored regex alone passes at set time and
+# verify_interface_exists runs at commit. Existence is left to the device.
 _INTERFACE = re.compile(
     r"(bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun"
-    r"|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(.\d+)?|pod-[-_a-zA-Z0-9]{1,11}|lo"
+    r"|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(\.\d+){0,2}|pod-[-_a-zA-Z0-9]{1,11}|lo",
+    re.ASCII,
 )
 # register-accept-list, spt-switchover and ssm take a `policy prefix-list`
 # name, which the lab limits to [-_a-zA-Z0-9]+.
@@ -88,10 +93,21 @@ def _multicast_group(value: str) -> str:
     return text
 
 
+_RESERVED_JOIN = ipaddress.IPv4Network("224.0.0.0/24")
+
+
+def _join_group(value: str) -> str:
+    """igmp join group: any IPv4 address outside the reserved 224.0.0.0/24 (both labs reject it)."""
+    text = _ipv4("igmp join", value)
+    if ipaddress.IPv4Address(text) in _RESERVED_JOIN:
+        raise ValueError("igmp join group within 224.0.0.0/24 is reserved and cannot be joined")
+    return text
+
+
 def _interface(value: str) -> str:
     text = str(value).strip()
     if not _INTERFACE.fullmatch(text):
-        raise ValueError("interface name is not one the lab takes")
+        raise ValueError("interface name is not valid")
     return text
 
 
@@ -227,7 +243,7 @@ class PimBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_rp_address(_ipv4("rp address", address)))
 
     def delete_rp_address(self, address: str) -> "PimBatchBuilder":
-        return self.add_delete(self.m.get_rp_address_delete(_ipv4("rp address", address)))
+        return self.add_delete(self.m.get_rp_address(_ipv4("rp address", address)))
 
     def set_rp_address_group(self, address: str, group: str) -> "PimBatchBuilder":
         return self.add_set(
@@ -235,7 +251,7 @@ class PimBatchBuilder(BatchBuilder):
 
     def delete_rp_address_group(self, address: str, group: str) -> "PimBatchBuilder":
         return self.add_delete(
-            self.m.get_rp_address_group_delete(_ipv4("rp address", address), _multicast_group(group)))
+            self.m.get_rp_address_group(_ipv4("rp address", address), _multicast_group(group)))
 
     def set_rp_keep_alive_timer(self, value: str) -> "PimBatchBuilder":
         return self.add_set(self.m.get_rp_keep_alive_timer(_number("timer", value)))
@@ -346,18 +362,18 @@ class PimBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_interface_igmp_disable(_interface(iface)))
 
     def set_interface_igmp_join(self, iface: str, group: str) -> "PimBatchBuilder":
-        return self.add_set(self.m.get_interface_igmp_join(_interface(iface), _ipv4("igmp join", group)))
+        return self.add_set(self.m.get_interface_igmp_join(_interface(iface), _join_group(group)))
 
     def delete_interface_igmp_join(self, iface: str, group: str) -> "PimBatchBuilder":
-        return self.add_delete(self.m.get_interface_igmp_join(_interface(iface), _ipv4("igmp join", group)))
+        return self.add_delete(self.m.get_interface_igmp_join(_interface(iface), _join_group(group)))
 
     def set_interface_igmp_join_source(self, iface: str, group: str, source: str) -> "PimBatchBuilder":
         return self.add_set(self.m.get_interface_igmp_join_source(
-            _interface(iface), _ipv4("igmp join", group), _ipv4("source-address", source)))
+            _interface(iface), _join_group(group), _ipv4("source-address", source)))
 
     def delete_interface_igmp_join_source(self, iface: str, group: str, source: str) -> "PimBatchBuilder":
-        return self.add_delete(self.m.get_interface_igmp_join_source_delete(
-            _interface(iface), _ipv4("igmp join", group), _ipv4("source-address", source)))
+        return self.add_delete(self.m.get_interface_igmp_join_source(
+            _interface(iface), _join_group(group), _ipv4("source-address", source)))
 
     def set_interface_igmp_query_interval(self, iface: str, value: str) -> "PimBatchBuilder":
         return self.add_set(

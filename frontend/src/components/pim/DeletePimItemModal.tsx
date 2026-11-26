@@ -23,6 +23,8 @@ interface DeletePimItemModalProps {
   itemType: PimDeleteKind;
   /** Name of the deleted object; unused for the whole-protocol delete. */
   itemName: string;
+  /** The last RP address with a keep-alive timer: its delete clears the timer too. */
+  clearsRpTimer?: boolean;
   /** Commits the delete and closes the dialog; a rejection keeps it open with the device error. */
   onConfirm: () => Promise<void>;
 }
@@ -32,6 +34,7 @@ export function DeletePimItemModal({
   onOpenChange,
   itemType,
   itemName,
+  clearsRpTimer = false,
   onConfirm,
 }: DeletePimItemModalProps) {
   const t = useTranslations("pim");
@@ -68,7 +71,7 @@ export function DeletePimItemModal({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t(`deleteModal.${itemType}.description`)}
+            {clearsRpTimer ? t("deleteModal.rpAddress.descriptionLast") : t(`deleteModal.${itemType}.description`)}
             {itemType !== "pim" && (
               <>
                 <br />

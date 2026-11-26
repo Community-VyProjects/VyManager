@@ -54,6 +54,23 @@ interface PimInterfaceModalProps {
 
 const str = (value: number | string | null | undefined) => pimText(value);
 
+// Problems whose field sits on the IGMP tab; every other problem is on the PIM tab.
+const IGMP_PROBLEMS: ReadonlySet<PimProblem["key"]> = new Set<PimProblem["key"]>([
+  "queryIntervalRange",
+  "queryMaxResponseRange",
+  "igmpVersionRange",
+  "joinGroupInvalid",
+  "joinGroupReserved",
+  "joinExists",
+  "joinSourceInvalid",
+  "joinSourceExists",
+]);
+
+/** The modal tab that holds the field a problem is about. */
+export function pimProblemTab(problem: PimProblem): "pim" | "igmp" {
+  return IGMP_PROBLEMS.has(problem.key) ? "igmp" : "pim";
+}
+
 /** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function PimInterfaceModal({
   open,
@@ -173,7 +190,7 @@ export function PimInterfaceModal({
   const handleSubmit = async () => {
     const folded = igmpEnabled ? foldJoinDrafts() : { joins: igmpJoins, problem: null };
     if (folded.problem) {
-      setActiveTab("igmp");
+      setActiveTab(pimProblemTab(folded.problem));
       setError(problemText(folded.problem));
       return;
     }
@@ -199,6 +216,7 @@ export function PimInterfaceModal({
     };
     const problem = pimInterfaceProblem(existing, iface, capabilities, configuredInterfaces);
     if (problem) {
+      setActiveTab(pimProblemTab(problem));
       setError(problemText(problem));
       return;
     }

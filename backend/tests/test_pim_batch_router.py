@@ -177,7 +177,8 @@ def test_value_on_zero_arg_op_is_400(client, operation):
     ({"op": "set_rp_address", "value": "2001:db8::1"}, "IPv4"),
     ({"op": "set_interface_source_address", "value": "eth0,192.0.2.0/24"}, "IPv4"),
     ({"op": "set_ssm_prefix_list", "value": "PL.1"}, "prefix-list name"),
-    ({"op": "set_interface", "value": "foo0"}, "interface name"),
+    ({"op": "set_interface", "value": "foo0"}, "interface name is not valid"),
+    ({"op": "set_interface_igmp_join", "value": "eth0,224.0.0.1"}, "reserved"),
     ({"op": "set_interface_bfd_profile", "value": "eth0,a b"}, "bfd profile"),
 ])
 def test_out_of_range_value_is_400(client, operation, needle):

@@ -55,7 +55,10 @@ function flag(ops: Op[], setOp: string, deleteOp: string, target: string | undef
 // ============================================================================
 
 export type PimProblemKey =
-  | "timerRange"
+  | "joinPruneRange"
+  | "keepAliveRange"
+  | "registerSuppressRange"
+  | "rpKeepAliveRange"
   | "packetsRange"
   | "watermarkRange"
   | "drPriorityRange"
@@ -68,6 +71,7 @@ export type PimProblemKey =
   | "interfaceExists"
   | "joinGroupInvalid"
   | "joinExists"
+  | "joinGroupReserved"
   | "joinSourceInvalid"
   | "joinSourceExists"
   | "rpAddressInvalid"
@@ -76,6 +80,7 @@ export type PimProblemKey =
   | "groupExists"
   | "groupUsed"
   | "groupRequired"
+  | "groupLast"
   | "interfaceRequired"
   | "lastInterface"
   | "rpRequired";
@@ -113,6 +118,11 @@ function rangeProblem(caps: Caps, key: PimRangeKey, problem: PimProblemKey, valu
 
 function first(...problems: (PimProblem | null)[]): PimProblem | null {
   return problems.find((p) => p !== null) ?? null;
+}
+
+/** 224.0.0.0/24 is reserved: both labs reject an `igmp join` group inside it. */
+export function isReservedJoinGroup(value: string): boolean {
+  return isIpv4(value) && /^224\.0\.0\.\d+$/.test(value);
 }
 
 /** An IPv4 multicast group address (224.0.0.0/4). */
@@ -182,9 +192,9 @@ function globalDraftSet(draft: PimGlobalDraft): boolean {
 export function pimGlobalProblem(draft: PimGlobalDraft, caps: Caps, config?: PimConfig | null): PimProblem | null {
   if (config && config.interfaces.length === 0 && globalDraftSet(draft)) return { key: "interfaceRequired" };
   return first(
-    rangeProblem(caps, "timer", "timerRange", draft.join_prune_interval),
-    rangeProblem(caps, "timer", "timerRange", draft.keep_alive_timer),
-    rangeProblem(caps, "timer", "timerRange", draft.register_suppress_time),
+    rangeProblem(caps, "timer", "joinPruneRange", draft.join_prune_interval),
+    rangeProblem(caps, "timer", "keepAliveRange", draft.keep_alive_timer),
+    rangeProblem(caps, "timer", "registerSuppressRange", draft.register_suppress_time),
     rangeProblem(caps, "packets", "packetsRange", draft.packets),
     rangeProblem(caps, "watermark_warning", "watermarkRange", draft.igmp_watermark_warning),
   );
@@ -234,7 +244,7 @@ export function pimRpTimerProblem(value: Scalar, caps: Caps, config?: PimConfig 
     if (config.interfaces.length === 0) return { key: "interfaceRequired" };
     if ((config.rp?.addresses.length ?? 0) === 0) return { key: "rpRequired" };
   }
-  return rangeProblem(caps, "timer", "timerRange", value);
+  return rangeProblem(caps, "timer", "rpKeepAliveRange", value);
 }
 
 export function pimRpTimerOps(original: PimConfig, value: Scalar): Op[] {
@@ -280,6 +290,7 @@ function joinProblem(joins: PimIgmpJoin[]): PimProblem | null {
   for (const join of joins) {
     const group = pimText(join.group);
     if (!isIpv4(group)) return { key: "joinGroupInvalid" };
+    if (isReservedJoinGroup(group)) return { key: "joinGroupReserved" };
     if (groups.has(group)) return { key: "joinExists" };
     groups.add(group);
     const sources = new Set<string>();
@@ -323,6 +334,7 @@ export function pimJoinsWithDraft(joins: PimIgmpJoin[], draft: string): { joins:
   const group = pimText(draft);
   if (!group) return { joins, problem: null };
   if (!isIpv4(group)) return { joins, problem: { key: "joinGroupInvalid" } };
+  if (isReservedJoinGroup(group)) return { joins, problem: { key: "joinGroupReserved" } };
   if (joins.some((j) => pimText(j.group) === group)) return { joins, problem: { key: "joinExists" } };
   return { joins: [...joins, { group, source_addresses: [] }], problem: null };
 }
@@ -422,8 +434,8 @@ export function pimRpProblem(
   if (!isIpv4(address)) return { key: "rpAddressInvalid" };
   if (original === null && others.some((rp) => pimText(rp.address) === address)) return { key: "rpAddressExists" };
   const groups = updated.groups.map(pimText).filter(Boolean);
-  // An RP needs a group; an edit that removes the last one deletes the RP instead.
-  if (groups.length === 0) return original === null ? { key: "groupRequired" } : null;
+  // An RP needs a group. An edit may not remove the last one: the user deletes the RP instead.
+  if (groups.length === 0) return original === null ? { key: "groupRequired" } : { key: "groupLast" };
   const used = new Set(others.filter((rp) => pimText(rp.address) !== address).flatMap((rp) => rp.groups.map(pimText)));
   const seen = new Set<string>();
   for (const group of groups) {
@@ -456,15 +468,14 @@ export function pimRpDeleteOps(config: PimConfig | null | undefined, address: st
 
 /**
  * Ops for one RP; ``original`` is null on create. The address tag is never
- * deleted and re-created. An edit that removes the last group deletes the
- * address (through ``pimRpDeleteOps``), since the lab rejects an RP with no group.
+ * deleted and re-created. An edit with no group left sends nothing: the lab
+ * rejects an RP with no group, and pimRpProblem blocks it (groupLast) so the
+ * user deletes the RP instead of it being deleted silently.
  */
-export function pimRpOps(original: PimRpAddress | null, updated: PimRpAddress, config?: PimConfig | null): Op[] {
+export function pimRpOps(original: PimRpAddress | null, updated: PimRpAddress): Op[] {
   const ops: Op[] = [];
   const address = pimText(original?.address ?? updated.address);
-  if (original !== null && updated.groups.map(pimText).filter(Boolean).length === 0) {
-    return pimRpDeleteOps(config, address);
-  }
+  if (original !== null && updated.groups.map(pimText).filter(Boolean).length === 0) return ops;
   if (original === null) ops.push({ op: "set_rp_address", value: address });
   const before = new Set((original?.groups ?? []).map(pimText).filter(Boolean));
   const after = new Set(updated.groups.map(pimText).filter(Boolean));

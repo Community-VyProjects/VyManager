@@ -158,9 +158,8 @@ class PimService {
     return this.batchConfigure(pimRpOps(null, rp));
   }
 
-  /** Removing the last group deletes the address; the last address deletes the whole `rp` node. */
-  async updateRpAddress(config: PimConfig, original: PimRpAddress, updated: PimRpAddress): Promise<VyOSResponse> {
-    return this.batchConfigure(pimRpOps(original, updated, config));
+  async updateRpAddress(original: PimRpAddress, updated: PimRpAddress): Promise<VyOSResponse> {
+    return this.batchConfigure(pimRpOps(original, updated));
   }
 
   /** The last address deletes the whole `rp` node with its keep-alive-timer (the lab rejects an empty `rp`). */

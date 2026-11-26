@@ -189,7 +189,9 @@ describe("global settings", () => {
     for (const bad of ["0", "256", "1e1", "3.0", "-1", "3abc", "0x3", "٣", "３"]) {
       assert.deepEqual(pimGlobalProblem(draft({ packets: bad }), CAPS), { key: "packetsRange", min: 1, max: 255 }, bad);
     }
-    assert.deepEqual(pimGlobalProblem(draft({ keep_alive_timer: "65536" }), CAPS), { key: "timerRange", min: 1, max: 65535 });
+    assert.deepEqual(pimGlobalProblem(draft({ keep_alive_timer: "65536" }), CAPS), { key: "keepAliveRange", min: 1, max: 65535 });
+    assert.deepEqual(pimGlobalProblem(draft({ join_prune_interval: "0" }), CAPS)?.key, "joinPruneRange");
+    assert.deepEqual(pimGlobalProblem(draft({ register_suppress_time: "65536" }), CAPS)?.key, "registerSuppressRange");
     assert.deepEqual(pimGlobalProblem(draft({ igmp_watermark_warning: "0" }), CAPS)?.key, "watermarkRange");
     assert.deepEqual(pimProblemArgs({ key: "packetsRange", min: 1, max: 255 }), { min: "1", max: "255" });
   });
@@ -202,7 +204,7 @@ describe("rp keep-alive timer", () => {
     const withRp = config({ rp: { addresses: [{ address: "192.0.2.50", groups: ["224.0.0.0/4"] }], keep_alive_timer: 180 } });
     assert.deepEqual(pimRpTimerOps(withRp, ""), [{ op: "delete_rp_keep_alive_timer" }]);
     assert.deepEqual(pimRpTimerOps(config(), "90"), [{ op: "set_rp_keep_alive_timer", value: "90" }]);
-    assert.deepEqual(pimRpTimerProblem("0", CAPS), { key: "timerRange", min: 1, max: 65535 });
+    assert.deepEqual(pimRpTimerProblem("0", CAPS), { key: "rpKeepAliveRange", min: 1, max: 65535 });
     assert.equal(pimRpTimerProblem("", CAPS), null);
   });
 
@@ -314,6 +316,7 @@ describe("interfaces", () => {
     assert.deepEqual(pimInterfaceProblem(null, withIgmp({ query_max_response_time: "9" }), CAPS)?.key, "queryMaxResponseRange");
     assert.deepEqual(pimInterfaceProblem(null, withIgmp({ version: "4" }), CAPS)?.key, "igmpVersionRange");
     assert.deepEqual(pimInterfaceProblem(null, withIgmp({ joins: [{ group: "10.0.0", source_addresses: [] }] }), CAPS)?.key, "joinGroupInvalid");
+    assert.deepEqual(pimInterfaceProblem(null, withIgmp({ joins: [{ group: "224.0.0.5", source_addresses: [] }] }), CAPS)?.key, "joinGroupReserved");
     // The lab takes a unicast join group.
     assert.equal(pimInterfaceProblem(null, withIgmp({ joins: [{ group: "10.0.0.1", source_addresses: ["192.0.2.1"] }] }), CAPS), null);
     assert.deepEqual(pimInterfaceProblem(null, withIgmp({ joins: [{ group: "239.1.1.1", source_addresses: ["x"] }] }), CAPS)?.key, "joinSourceInvalid");
@@ -328,6 +331,11 @@ describe("interfaces", () => {
     assert.deepEqual(pimJoinsWithDraft(joins, "239.1.1.1").problem, { key: "joinExists" });
     assert.deepEqual(pimJoinsWithDraft(joins, "192.0.2.256").problem, { key: "joinGroupInvalid" });
     assert.equal(pimJoinsWithDraft(joins, "192.0.2.1").problem, null);
+    // 224.0.0.0/24 is reserved on both labs.
+    for (const reserved of ["224.0.0.1", "224.0.0.22", "224.0.0.255"]) {
+      assert.deepEqual(pimJoinsWithDraft(joins, reserved).problem, { key: "joinGroupReserved" }, reserved);
+    }
+    assert.equal(pimJoinsWithDraft(joins, "224.0.1.1").problem, null);
     assert.deepEqual(pimJoinSourcesWithDraft(joins[0], "192.0.2.1").join.source_addresses, ["192.0.2.1"]);
     assert.deepEqual(pimJoinSourcesWithDraft({ ...joins[0], source_addresses: ["192.0.2.1"] }, "192.0.2.1").problem, { key: "joinSourceExists" });
     assert.deepEqual(pimJoinSourcesWithDraft(joins[0], "192.0.2.01").problem, { key: "joinSourceInvalid" });
@@ -349,15 +357,14 @@ describe("rp addresses", () => {
   const two = config({ interfaces: [IFACE], rp: { addresses: [RP, RP2], keep_alive_timer: 180 } });
   const last = (timer: number | null) => config({ interfaces: [IFACE], rp: { addresses: [RP], keep_alive_timer: timer } });
 
-  it("removing the last group deletes the RP address", () => {
-    assert.deepEqual(pimRpOps(RP, { ...RP, groups: [] }, two), [{ op: "delete_rp_address", value: "192.0.2.50" }]);
+  it("removing the last group never deletes the RP or the rp node silently", () => {
+    assert.deepEqual(pimRpOps(RP, { ...RP, groups: [] }), []);
   });
 
   it("the last RP address deletes the whole rp node, with or without a keep-alive-timer", () => {
     // An `rp` node with no address fails the commit; delete_rp also clears the timer.
     assert.deepEqual(pimRpDeleteOps(last(null), "192.0.2.50"), [{ op: "delete_rp" }]);
     assert.deepEqual(pimRpDeleteOps(last(180), "192.0.2.50"), [{ op: "delete_rp" }]);
-    assert.deepEqual(pimRpOps(RP, { ...RP, groups: [] }, last(180)), [{ op: "delete_rp" }]);
     assert.deepEqual(pimRpDeleteOps(two, "192.0.2.50"), [{ op: "delete_rp_address", value: "192.0.2.50" }]);
   });
 
@@ -375,8 +382,9 @@ describe("rp addresses", () => {
     assert.deepEqual(pimRpProblem(null, RP, [RP]), { key: "rpAddressExists" });
     assert.deepEqual(pimRpProblem(null, { ...RP, groups: [] }), { key: "groupRequired" });
     assert.deepEqual(pimRpProblem(null, { ...RP, groups: ["224.0.0.1/4"] }), { key: "groupInvalid" });
-    // An edit may remove the last group: that deletes the RP.
-    assert.equal(pimRpProblem(RP, { ...RP, groups: [] }), null);
+    // An edit may not remove the last group; the user deletes the RP instead.
+    assert.deepEqual(pimRpProblem(RP, { ...RP, groups: [] }), { key: "groupLast" });
+    assert.deepEqual(pimRpProblem(RP, { ...RP, groups: [" "] }), { key: "groupLast" });
     assert.deepEqual(pimRpProblem(null, RP, [], []), { key: "interfaceRequired" });
     assert.equal(pimRpProblem(null, RP, [], ["eth0"]), null);
     assert.deepEqual(pimRpProblem(null, { ...RP, groups: ["224.1.1.1/16"] }), { key: "groupInvalid" });
@@ -447,7 +455,7 @@ describe("service", () => {
     await service.updateGlobalSettings(FILLED, draft());
     await service.updateRpKeepAliveTimer(FILLED, "180");
     await service.updateInterface(IFACE, ifaceDraft());
-    await service.updateRpAddress(FILLED, { address: "192.0.2.50", groups: ["224.0.0.0/4"] }, { address: "192.0.2.50", groups: ["224.0.0.0/4"] });
+    await service.updateRpAddress({ address: "192.0.2.50", groups: ["224.0.0.0/4"] }, { address: "192.0.2.50", groups: ["224.0.0.0/4"] });
     assert.deepEqual(sent, []);
   });
 
@@ -547,6 +555,39 @@ describe("screens", () => {
   it("adds a typed-but-not-added value on save or blocks it", () => {
     assert.match(read("PimInterfaceModal.tsx"), /const folded = igmpEnabled \? foldJoinDrafts\(\)/);
     assert.match(read("PimRpAddressModal.tsx"), /const folded = pimRpGroupsWithDraft\(groups, newGroup\);/);
+  });
+
+  it("switches to the tab of any problem's field", () => {
+    const modal = read("PimInterfaceModal.tsx");
+    assert.equal(modal.match(/setActiveTab\(pimProblemTab\(/g)?.length, 2);
+    assert.doesNotMatch(modal, /setActiveTab\("igmp"\)/);
+    for (const key of ["queryIntervalRange", "queryMaxResponseRange", "igmpVersionRange", "joinGroupInvalid",
+      "joinGroupReserved", "joinExists", "joinSourceInvalid", "joinSourceExists"]) {
+      assert.match(modal, new RegExp(`"${key}",`), key);
+    }
+  });
+
+  it("the last RP address delete says it clears the keep-alive timer", () => {
+    const page = read("PimContent.tsx");
+    assert.match(page, /clearsRpTimer=\{deleteTarget\?\.kind === "rpAddress" && lastRpWithTimer\}/);
+    assert.match(read("DeletePimItemModal.tsx"), /t\("deleteModal\.rpAddress\.descriptionLast"\)/);
+  });
+
+  it("the search clear button has an accessible name and RP rows with no group show a dash", () => {
+    const page = read("PimContent.tsx");
+    assert.match(page, /aria-label=\{tc\("clear"\)\}\n\s*onClick=\{\(\) => setIfaceSearch\(""\)\}/);
+    assert.doesNotMatch(page, /allGroups/);
+  });
+
+  it("labels carry no hardcoded ranges; the served ranges are the placeholders", () => {
+    for (const locale of ["en", "zh-CN"]) {
+      const messages = JSON.parse(readFileSync(join(FRONTEND, "messages", locale, "pim.json"), "utf8"));
+      for (const key of ["joinPruneInterval", "keepAliveTimer", "registerSuppressTime", "packets", "watermarkWarning", "rpKeepAliveTimer"]) {
+        assert.doesNotMatch(messages.content[key], /\d+-\d+/, `${locale} ${key}`);
+      }
+      assert.equal(messages.validation.timerRange, undefined, locale);
+      assert.ok(messages.deleteModal.rpAddress.descriptionLast, locale);
+    }
   });
 
   it("offers the whole-protocol delete when PIM is configured", () => {
