@@ -124,18 +124,12 @@ export function PimRpAddressModal({
                 placeholder={t("rpModal.addressPlaceholder")}
                 className={isEditMode ? "bg-muted font-mono" : "font-mono"}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("rpModal.addressHelp")}
-              </p>
             </div>
 
             {/* Multicast Groups */}
             <div className="space-y-3">
               <div>
                 <Label htmlFor="pim-rp-group">{t("rpModal.multicastGroups")}</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("rpModal.groupsHelp")}
-                </p>
               </div>
 
               {groups.length > 0 && (

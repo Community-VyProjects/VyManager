@@ -306,9 +306,6 @@ export function PimInterfaceModal({
                     onChange={(e) => setDrPriority(e.target.value)}
                     placeholder={rangeText(drRange)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t("interfaceModal.drPriorityHelp")}
-                  </p>
                 </div>
 
                 {/* Hello Interval */}
@@ -437,9 +434,6 @@ export function PimInterfaceModal({
                 <div className="space-y-3">
                   <div>
                     <Label htmlFor="igmp-join-group">{t("interfaceModal.joinGroups")}</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("interfaceModal.joinGroupsHelp")}
-                    </p>
                   </div>
 
                   {igmpJoins.map((join, joinIndex) => (

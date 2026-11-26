@@ -81,7 +81,6 @@
     "enableBfd": "Enable BFD (Bidirectional Forwarding Detection)",
     "bfdProfile": "BFD Profile",
     "drPriority": "DR Priority",
-    "drPriorityHelp": "Designated Router election priority. Higher wins.",
     "helloInterval": "Hello Interval (seconds)",
     "sourceAddress": "Source Address",
     "sourceAddressPlaceholder": "IPv4 source address (optional)",
@@ -96,7 +95,6 @@
     "igmpVersion": "IGMP Version",
     "version": "Version {version}",
     "joinGroups": "IGMP Join Groups",
-    "joinGroupsHelp": "Statically join multicast groups on this interface.",
     "sourceAddresses": "Source Addresses:",
     "addSourcePlaceholder": "Add source address",
     "groupPlaceholder": "e.g. 239.1.1.1"
@@ -107,9 +105,7 @@
     "addDescription": "Add a new Rendezvous Point address for PIM multicast routing.",
     "rpAddress": "RP Address",
     "addressPlaceholder": "e.g. 192.168.1.1",
-    "addressHelp": "IPv4 address of the Rendezvous Point.",
     "multicastGroups": "Multicast Groups",
-    "groupsHelp": "Multicast group ranges this RP serves. Use CIDR notation (e.g., 224.0.0.0/4).",
     "groupPlaceholder": "e.g. 224.0.0.0/4"
   },
   "validation": {

@@ -81,7 +81,6 @@
     "enableBfd": "启用 BFD（双向转发检测）",
     "bfdProfile": "BFD 配置文件",
     "drPriority": "DR 优先级",
-    "drPriorityHelp": "指定路由器 (DR) 选举优先级，数值高者胜出。",
     "helloInterval": "Hello 间隔（秒）",
     "sourceAddress": "源地址",
     "sourceAddressPlaceholder": "IPv4 源地址（可选）",
@@ -96,7 +95,6 @@
     "igmpVersion": "IGMP 版本",
     "version": "版本 {version}",
     "joinGroups": "IGMP 加入组",
-    "joinGroupsHelp": "在此接口上静态加入组播组。",
     "sourceAddresses": "源地址：",
     "addSourcePlaceholder": "添加源地址",
     "groupPlaceholder": "例如 239.1.1.1"
@@ -107,9 +105,7 @@
     "addDescription": "为 PIM 组播路由添加新的汇聚点 (RP) 地址。",
     "rpAddress": "RP 地址",
     "addressPlaceholder": "例如 192.168.1.1",
-    "addressHelp": "汇聚点 (RP) 的 IPv4 地址。",
     "multicastGroups": "组播组",
-    "groupsHelp": "此 RP 服务的组播组范围。请使用 CIDR 表示法（例如 224.0.0.0/4）。",
     "groupPlaceholder": "例如 224.0.0.0/4"
   },
   "validation": {
