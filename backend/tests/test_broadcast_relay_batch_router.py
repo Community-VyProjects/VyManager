@@ -157,6 +157,7 @@ def test_config_returns_the_parse(client):
     resp = client.http.get("/vyos/broadcast-relay/config")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
+        "configured": True,
         "globally_disabled": False,
         "instances": [{
             "id": "5",

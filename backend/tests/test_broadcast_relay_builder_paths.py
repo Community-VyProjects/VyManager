@@ -1,10 +1,13 @@
 """Golden (method, args, expected_path) cases for BroadcastRelayBatchBuilder."""
 
+import inspect
+
 import pytest
 
 from vyos_builders.broadcast_relay.broadcast_relay_batch_builder import (
     BroadcastRelayBatchBuilder,
 )
+from vyos_mappers.broadcast_relay import BroadcastRelayMapper
 
 
 RELAY_ID = "10"
@@ -38,3 +41,27 @@ def test_broadcast_relay_builder_paths(method, args, op, expected_path, version)
     getattr(builder, method)(*args)
     operations = builder.get_operations()
     assert [(item["op"], item["path"]) for item in operations] == [(op, expected_path)]
+
+
+def test_every_builder_op_has_a_golden_row():
+    ops = {
+        name
+        for name, _ in inspect.getmembers(BroadcastRelayBatchBuilder, inspect.isfunction)
+        if name.startswith(("set_", "delete_", "create_"))
+    }
+    assert ops == {case[0] for case in CASES}
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5", "2026.09.23-0027-rolling"])
+def test_builder_reads_the_shared_mapper(version):
+    assert type(BroadcastRelayBatchBuilder(version=version).m) is BroadcastRelayMapper
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5", "2026.09.23-0027-rolling"])
+def test_capabilities_carry_ranges_and_no_version_info(version):
+    """Both labs share the tree, so capabilities carry no version_info."""
+    caps = BroadcastRelayBatchBuilder(version=version).get_capabilities()
+    assert "version_info" not in caps
+    features = caps["features"]
+    assert (features["instance_id_range"]["min"], features["instance_id_range"]["max"]) == (1, 99)
+    assert (features["port"]["min"], features["port"]["max"]) == (1, 65535)

@@ -349,7 +349,12 @@ export const configSources: ConfigSourceDefinition[] = [
     id: "broadcast-relay",
     feature: "Service",
     hrefBase: "/service/broadcast-relay",
-    fetch: () => broadcastRelayService.getConfig(),
+    fetch: async () => {
+      // `configured` is not a field.
+      const config: Record<string, unknown> = { ...(await broadcastRelayService.getConfig()) };
+      delete config.configured;
+      return config;
+    },
   },
   {
     id: "bonding",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -14,290 +14,166 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertCircle, Loader2, Plus, X } from "lucide-react";
+import { InterfaceMultiSelect } from "@/components/ui/interface-multi-select";
+import { AlertCircle, Loader2 } from "lucide-react";
 import type { BroadcastRelayInstance } from "@/lib/api/broadcast-relay";
-import { showService, InterfaceName } from "@/lib/api/show";
-import { InterfaceSelect } from "@/components/ui/interface-select";
+import {
+  BROADCAST_RELAY_DESCRIPTION_MAX,
+  broadcastRelayProblem,
+  draftFromInstance,
+  normalizeBroadcastRelayDraft,
+  type BroadcastRelayDraft,
+  type BroadcastRelayRanges,
+} from "@/lib/api/broadcast-relay-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The stored instance to edit, or null to add one. */
   instance: BroadcastRelayInstance | null;
-  onSuccess: () => void;
-  onSubmit: (data: Partial<BroadcastRelayInstance> & { id: string }) => Promise<void>;
+  ranges: BroadcastRelayRanges;
+  /** Configured instance ids; a new instance may not reuse one. */
+  existingIds: string[];
+  onSubmit: (instance: BroadcastRelayInstance) => Promise<void>;
 }
 
-const IPV4_REGEX = /^(\d{1,3}\.){3}\d{1,3}$/;
-
-function isValidIPv4(value: string): boolean {
-  if (!IPV4_REGEX.test(value)) return false;
-  return value.split(".").every((octet) => parseInt(octet, 10) <= 255);
-}
-
-export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSuccess, onSubmit }: Props) {
+/** Seeded from props on mount; the page remounts it with a new `key` on every open. */
+export function BroadcastRelayInstanceModal({
+  open,
+  onOpenChange,
+  instance,
+  ranges,
+  existingIds,
+  onSubmit,
+}: Props) {
   const t = useTranslations("broadcastRelay");
   const tc = useTranslations("common");
   const isEditMode = !!instance;
 
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [, setInterfacesLoading] = useState(false);
-
-  const [instanceId, setInstanceId] = useState("");
-  const [port, setPort] = useState("");
-  const [interfaces, setInterfaces] = useState<string[]>([]);
-  const [selectedInterface, setSelectedInterface] = useState("");
-  const [address, setAddress] = useState("");
-  const [description, setDescription] = useState("");
-  const [disabled, setDisabled] = useState(false);
-
+  const [draft, setDraft] = useState<BroadcastRelayDraft>(() => draftFromInstance(instance));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      if (instance) {
-        setInstanceId(instance.id);
-        setPort(instance.port != null ? String(instance.port) : "");
-        setInterfaces([...instance.interfaces]);
-        setAddress(instance.address ?? "");
-        setDescription(instance.description ?? "");
-        setDisabled(instance.disabled);
-      } else {
-        resetForm();
-      }
-      loadInterfaces();
-    }
-  }, [open, instance]);
-
-  const loadInterfaces = async () => {
-    setInterfacesLoading(true);
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch {
-      // non-critical
-    } finally {
-      setInterfacesLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setInstanceId("");
-    setPort("");
-    setInterfaces([]);
-    setSelectedInterface("");
-    setAddress("");
-    setDescription("");
-    setDisabled(false);
+  const update = (patch: Partial<BroadcastRelayDraft>) => {
+    setDraft((current) => ({ ...current, ...patch }));
     setError(null);
   };
 
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
-  const handleAddInterface = () => {
-    if (!selectedInterface || interfaces.includes(selectedInterface)) return;
-    setInterfaces([...interfaces, selectedInterface]);
-    setSelectedInterface("");
-    setError(null);
-  };
-
-  const handleRemoveInterface = (iface: string) => {
-    setInterfaces(interfaces.filter((i) => i !== iface));
-  };
-
-  const validate = (): string | null => {
-    if (!isEditMode) {
-      const idNum = parseInt(instanceId, 10);
-      if (!instanceId || isNaN(idNum) || idNum < 1 || idNum > 99) {
-        return t("modal.idRange");
-      }
-    }
-
-    const portNum = parseInt(port, 10);
-    if (!port || isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      return t("modal.portRange");
-    }
-
-    if (interfaces.length === 0) {
-      return t("modal.interfaceRequired");
-    }
-
-    if (address && !isValidIPv4(address)) {
-      return t("modal.addressInvalid");
-    }
-
-    return null;
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+    const problem = broadcastRelayProblem(draft, ranges, isEditMode ? [] : existingIds);
+    if (problem) {
+      setError(t(`modal.${problem.key}`, problem.values));
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      await onSubmit({
-        id: isEditMode ? instance!.id : instanceId,
-        port: parseInt(port, 10),
-        interfaces,
-        address: address || null,
-        description: description || null,
-        disabled,
-      });
-      handleClose();
-      onSuccess();
+      await onSubmit(normalizeBroadcastRelayDraft(draft));
+      onOpenChange(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const availableToAdd = availableInterfaces.filter((i) => !interfaces.includes(i.name));
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditMode ? t("modal.editTitle") : t("modal.addTitle")}</DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? t("modal.editDescription", { id: instance!.id })
+              ? t("modal.editDescription", { id: instance.id })
               : t("modal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
-          <div className="space-y-5 pb-2">
-            {/* Instance ID */}
-            <div className="space-y-2">
-              <Label htmlFor="br-instance-id">{t("modal.instanceId")}</Label>
-              <Input
-                id="br-instance-id"
-                type="number"
-                value={instanceId}
-                onChange={(e) => setInstanceId(e.target.value)}
-                min={1}
-                max={99}
-                disabled={isEditMode}
-                className={isEditMode ? "bg-muted font-mono" : "font-mono"}
-                placeholder="1–99"
-              />
-              {isEditMode && (
-                <p className="text-xs text-muted-foreground">{t("modal.instanceIdLocked")}</p>
-              )}
-            </div>
-
-            {/* UDP Port */}
-            <div className="space-y-2">
-              <Label htmlFor="br-port">{t("modal.udpPort")}</Label>
-              <Input
-                id="br-port"
-                type="number"
-                value={port}
-                onChange={(e) => setPort(e.target.value)}
-                min={1}
-                max={65535}
-                placeholder={t("modal.udpPortPlaceholder")}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">{t("modal.udpPortHint")}</p>
-            </div>
-
-            {/* Interfaces */}
-            <div className="space-y-3">
-              <div>
-                <Label>{t("modal.interfaces")}</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("modal.interfacesHint")}
-                </p>
-              </div>
-
-              {interfaces.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {interfaces.map((iface) => (
-                    <Badge key={iface} variant="secondary" className="font-mono gap-1 pr-1">
-                      {iface}
-                      <button
-                        onClick={() => handleRemoveInterface(iface)}
-                        className="ml-1 hover:text-destructive transition-colors"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <InterfaceSelect
-                  value={selectedInterface}
-                  onValueChange={setSelectedInterface}
-                  interfaces={availableToAdd}
-                  className="flex-1"
-                  placeholder={t("modal.selectInterface")}
-                  emptyText={t("modal.noMoreInterfaces")}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={handleAddInterface}
-                  disabled={!selectedInterface}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Source Address */}
-            <div className="space-y-2">
-              <Label htmlFor="br-address">{t("modal.sourceAddress")}</Label>
-              <Input
-                id="br-address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder={t("modal.sourceAddressPlaceholder")}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("modal.sourceAddressHint")}
-              </p>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="br-description">{tc("description")}</Label>
-              <Input
-                id="br-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={tc("optionalDescription")}
-                maxLength={255}
-              />
-            </div>
-
-            {/* Disabled */}
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="br-disabled"
-                checked={disabled}
-                onCheckedChange={(checked) => setDisabled(checked === true)}
-              />
-              <Label htmlFor="br-disabled" className="cursor-pointer">
-                {t("modal.disableInstance")}
-              </Label>
-            </div>
+        <div className="space-y-5 pb-2">
+          <div className="space-y-2">
+            <Label htmlFor="br-instance-id">{t("modal.instanceId")}</Label>
+            <Input
+              id="br-instance-id"
+              type="number"
+              value={draft.id}
+              onChange={(e) => update({ id: e.target.value })}
+              min={ranges.id.min}
+              max={ranges.id.max}
+              disabled={isEditMode || loading}
+              className={isEditMode ? "bg-muted font-mono" : "font-mono"}
+              placeholder={t("modal.rangePlaceholder", { min: ranges.id.min, max: ranges.id.max })}
+            />
           </div>
-        </ScrollArea>
+
+          <div className="space-y-2">
+            <Label htmlFor="br-port">{t("modal.udpPort")}</Label>
+            <Input
+              id="br-port"
+              type="number"
+              value={draft.port}
+              onChange={(e) => update({ port: e.target.value })}
+              min={ranges.port.min}
+              max={ranges.port.max}
+              disabled={loading}
+              placeholder={t("modal.udpPortPlaceholder")}
+              className="font-mono"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="br-interfaces">{t("modal.interfaces")}</Label>
+            <InterfaceMultiSelect
+              id="br-interfaces"
+              values={draft.interfaces}
+              onChange={(interfaces) => update({ interfaces })}
+              placeholder={t("modal.selectInterface")}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="br-address">{t("modal.sourceAddress")}</Label>
+            <Input
+              id="br-address"
+              value={draft.address}
+              onChange={(e) => update({ address: e.target.value })}
+              disabled={loading}
+              placeholder={t("modal.sourceAddressPlaceholder")}
+              className="font-mono"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="br-description">{tc("description")}</Label>
+            <Input
+              id="br-description"
+              value={draft.description}
+              onChange={(e) => update({ description: e.target.value })}
+              disabled={loading}
+              placeholder={tc("optionalDescription")}
+              maxLength={BROADCAST_RELAY_DESCRIPTION_MAX}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="br-disabled"
+              checked={draft.disabled}
+              onCheckedChange={(checked) => update({ disabled: checked === true })}
+              disabled={loading}
+            />
+            <Label htmlFor="br-disabled" className="cursor-pointer">
+              {t("modal.disableInstance")}
+            </Label>
+          </div>
+        </div>
 
         {error && (
           <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
@@ -307,7 +183,7 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

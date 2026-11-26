@@ -44,6 +44,7 @@ class BroadcastRelayInstance(BaseModel):
 
 class BroadcastRelayConfig(BaseModel):
     """Full broadcast-relay service configuration."""
+    configured: bool = False
     globally_disabled: bool = False
     instances: List[BroadcastRelayInstance] = []
 
