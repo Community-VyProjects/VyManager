@@ -129,6 +129,18 @@ class RouteMapMapper(BaseFeatureMapper):
 
         return rule_trees(full_config, name)
 
+    def rule_targets(self, tree: Any) -> Dict[str, int]:
+        """Rule numbers a raw rule subtree points at, keyed ``continue`` / ``on_match_goto``."""
+        from .config_parse import rule_targets
+
+        return rule_targets(tree)
+
+    def retarget_rule_tree(self, tree: Any, renumber: Dict[int, int]) -> Any:
+        """Copy of a raw rule subtree with ``continue`` / ``on-match goto`` renumbered (reorder)."""
+        from .config_parse import retarget_rule_tree
+
+        return retarget_rule_tree(tree, renumber)
+
     def rule_tree_paths(self, name: str, rule: str, tree: Any) -> List[List[str]]:
         """Set paths that recreate a rule from its config subtree (reorder).
 

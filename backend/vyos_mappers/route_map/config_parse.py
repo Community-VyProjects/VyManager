@@ -6,6 +6,7 @@ dict unchanged. A flag is read by key membership, a value leaf as its string
 (``[]`` when absent; the device returns one value as a plain string).
 """
 
+import copy
 from typing import Any, Dict, List, Optional
 
 
@@ -181,3 +182,34 @@ def rule_trees(full_config: Dict[str, Any], name: str) -> Optional[Dict[int, Any
         return None
     rules = _dict(_dict(route_maps[name]).get("rule"))
     return {int(number): tree for number, tree in rules.items() if str(number).isascii() and str(number).isdigit()}
+
+
+def rule_targets(tree: Any) -> Dict[str, int]:
+    """Rule numbers a rule points at: ``continue`` and ``on_match_goto`` (when set)."""
+    rule = _dict(tree)
+    targets: Dict[str, int] = {}
+    continue_rule = _int(rule.get("continue"))
+    if continue_rule is not None:
+        targets["continue"] = continue_rule
+    goto_rule = _int(_dict(rule.get("on-match")).get("goto"))
+    if goto_rule is not None:
+        targets["on_match_goto"] = goto_rule
+    return targets
+
+
+def retarget_rule_tree(tree: Any, renumber: Dict[int, int]) -> Any:
+    """A copy of a rule subtree whose ``continue`` / ``on-match goto`` follow renumbered rules.
+
+    The input is not changed; a target that did not move keeps its value.
+    """
+    if not isinstance(tree, dict):
+        return tree
+    moved = copy.deepcopy(tree)
+    for leaf, target in rule_targets(moved).items():
+        if target not in renumber:
+            continue
+        if leaf == "continue":
+            moved["continue"] = str(renumber[target])
+        else:
+            moved["on-match"]["goto"] = str(renumber[target])
+    return moved

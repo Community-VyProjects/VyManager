@@ -6,6 +6,7 @@ its own thread against it. Every route passes a session lookup's
 HTTPException through.
 """
 
+import copy
 import threading
 from types import SimpleNamespace
 
@@ -47,7 +48,12 @@ def commit():
 
 
 @pytest.fixture
-def client(monkeypatch, commit):
+def tree():
+    return copy.deepcopy(TREE)
+
+
+@pytest.fixture
+def client(monkeypatch, commit, tree):
     executed = []
     loop_threads = set()
     device_threads = []
@@ -65,7 +71,7 @@ def client(monkeypatch, commit):
 
         def get_full_config(self, refresh=False):
             device_threads.append(threading.current_thread())
-            return TREE
+            return tree
 
         def execute_batch(self, batch):
             device_threads.append(threading.current_thread())
@@ -309,13 +315,15 @@ def test_empty_batch_stays_500(client):
     assert _batch(client, []).status_code == 500
 
 
-def test_in_the_generic_operations_vocabulary():
-    from routers.operations.operations import _BUILDER_REGISTRY, describe_batch_builder
+def test_not_in_the_generic_operations_vocabulary():
+    # Its ops take name and rule from the body, so the introspected signature
+    # would misreport them (same as access-list and prefix-list).
+    import routers.operations.operations as operations
     from vyos_builders.route_map import RouteMapBatchBuilder
 
-    assert _BUILDER_REGISTRY["route-map"] is RouteMapBatchBuilder
-    ops = {item["op"] for item in describe_batch_builder(RouteMapBatchBuilder)}
-    assert "set_route_map" in ops and "restore_rule" not in ops
+    assert "route-map" not in operations._BUILDER_REGISTRY
+    assert RouteMapBatchBuilder not in operations._BUILDER_REGISTRY.values()
+    assert "RouteMapBatchBuilder" not in vars(operations)
 
 
 # ---------------------------------------------------------------- reorder
@@ -381,6 +389,79 @@ def test_reorder_failed_commit_reports_the_error(client, commit):
     commit.update(status=400, error="Commit failed")
     resp = _reorder(client, [20, 10, 30])
     assert resp.json() == {"success": False, "data": None, "error": "Commit failed"}
+
+
+def _rules(tree):
+    return tree["policy"]["route-map"]["RM"]["rule"]
+
+
+def test_reorder_retargets_continue_in_a_rule_that_stays(client, tree):
+    # Rule 10 stays and continues to rule 20; rules 20 and 30 swap.
+    _rules(tree)["10"]["continue"] = "20"
+    before = copy.deepcopy(tree)
+    resp = _reorder(client, [10, 30, 20])
+    assert resp.status_code == 200, resp.text
+    r10, r20, r30 = (RM + ["rule", n] for n in ("10", "20", "30"))
+    (ops,) = client.executed
+    assert ops[:2] == [("delete", r30), ("delete", r20)]
+    # Old 30 is restored as 20, old 20 as 30.
+    assert ("set", r20 + ["on-match", "next"]) in ops
+    assert ("set", r30 + ["action", "deny"]) in ops
+    # Rule 10 is not rewritten; only its continue follows rule 20 to 30.
+    assert [op for op in ops if op[1][: len(r10)] == r10] == [("set", r10 + ["continue", "30"])]
+    assert ops[-1] == ("set", r10 + ["continue", "30"])
+    # The config read is not changed in place.
+    assert tree == before
+
+
+def test_reorder_retargets_goto_in_a_rule_that_stays(client, tree):
+    _rules(tree)["10"]["on-match"] = {"goto": "30"}
+    resp = _reorder(client, [10, 30, 20])
+    assert resp.status_code == 200, resp.text
+    r10 = RM + ["rule", "10"]
+    (ops,) = client.executed
+    assert [op for op in ops if op[1][: len(r10)] == r10] == [("set", r10 + ["on-match", "goto", "20"])]
+
+
+def test_reorder_moved_rule_follows_its_moved_target(client, tree):
+    # 20 -> 10 continues to 30, which moves to 40.
+    _rules(tree)["20"]["continue"] = "30"
+    _rules(tree)["40"] = {"action": "permit"}
+    resp = _reorder(client, [20, 10, 40, 30])
+    assert resp.status_code == 200, resp.text
+    r10 = RM + ["rule", "10"]
+    (ops,) = client.executed
+    assert ("set", r10 + ["continue", "40"]) in ops
+    assert ("set", r10 + ["continue", "30"]) not in ops
+    assert not any(path[-2:] == ["continue", "20"] for _op, path in ops)
+
+
+@pytest.mark.parametrize("leaf,value,label", [
+    ("continue", "20", "continue"),
+    ("on-match", {"goto": "20"}, "on-match goto"),
+])
+def test_reorder_target_below_its_rule_is_400_and_nothing_runs(client, tree, leaf, value, label):
+    # Rule 10 -> 20 and 20 -> 10: its target would be 10, not after 20.
+    _rules(tree)["10"][leaf] = value
+    resp = _reorder(client, [20, 10, 30])
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == (
+        f"Rule 10 cannot move to 20: its {label} target 10 must be greater than its rule number"
+    )
+    assert client.executed == []
+    # Only the config read ran; execute_batch never did.
+    assert len(client.device_threads) == 1
+
+
+def test_reorder_moved_rule_past_its_unmoved_target_is_400(client, tree):
+    # Rule 10 continues to 30 and would move to 40, past its own target.
+    _rules(tree)["10"]["continue"] = "30"
+    _rules(tree)["40"] = {"action": "permit"}
+    resp = _reorder(client, [20, 40, 30, 10])  # 30 stays put
+    assert resp.status_code == 400
+    assert resp.json()["detail"].startswith("Rule 10 cannot move to 40: its continue target 30")
+    assert client.executed == []
+    assert len(client.device_threads) == 1
 
 
 # ---------------------------------------------------------------- passthrough

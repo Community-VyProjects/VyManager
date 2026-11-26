@@ -7,7 +7,7 @@ read builds the response from the mapper's parse.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
@@ -202,6 +202,11 @@ def _mapper(version: str) -> RouteMapMapper:
     return cast(RouteMapMapper, CommandMapperRegistry.get_mapper("route_map", version))
 
 
+# Reorder: the builder op that re-sets each rule-target leaf, and its CLI name.
+_RETARGET_OPS: Dict[str, str] = {"continue": "set_rule_continue", "on_match_goto": "set_rule_on_match_goto"}
+_TARGET_LABELS: Dict[str, str] = {"continue": "continue", "on_match_goto": "on-match goto"}
+
+
 # ============================================================================
 # Endpoints
 # ============================================================================
@@ -285,7 +290,9 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRequest):
 
     The listed rules must be exactly the route-map's rules. Each moved rule is
     deleted and recreated from its own config subtree under its new number,
-    so every leaf the device holds is kept.
+    so every leaf the device holds is kept. ``continue`` / ``on-match goto``
+    targets that moved follow their rule (in a rule that stays put too); a
+    target that would not be greater than its rule's new number is a 400.
     """
     await require_write_permission(http_request, FeatureGroup.ROUTE_MAP)
 
@@ -306,12 +313,35 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRequest):
         moves = [(old, new) for old, new in zip(body.rule_numbers, targets) if old != new]
         if not moves:
             return VyOSResponse(success=True, data={"message": "Rules reordered"})
+        renumber = dict(moves)
+
+        # ``continue`` and ``on-match goto`` name rules of this map. A target
+        # that moved follows it; the lab verify requires every target to be
+        # greater than its own rule number, on both versions.
+        retarget: List[Tuple[int, str, int]] = []
+        for old in sorted(trees):
+            rule_new = renumber.get(old, old)
+            for leaf, target in mapper.rule_targets(trees[old]).items():
+                new_target = renumber.get(target, target)
+                if new_target <= rule_new:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Rule {old} cannot move to {rule_new}: its {_TARGET_LABELS[leaf]} "
+                            f"target {new_target} must be greater than its rule number"
+                        ),
+                    )
+                if old not in renumber and target in renumber:
+                    retarget.append((old, leaf, new_target))
 
         try:
             for old, _ in moves:
                 builder.delete_rule(body.name, str(old))
             for old, new in moves:
-                builder.restore_rule(body.name, str(new), trees[old])
+                builder.restore_rule(body.name, str(new), mapper.retarget_rule_tree(trees[old], renumber))
+            # A rule that stays put but points at a moved rule gets the new number.
+            for old, leaf, new_target in retarget:
+                getattr(builder, _RETARGET_OPS[leaf])(body.name, str(old), str(new_target))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 

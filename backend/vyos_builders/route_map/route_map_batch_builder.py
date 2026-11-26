@@ -10,6 +10,7 @@ exclusive leaves) are the client's: the builder sees one op at a time.
 
 import ipaddress
 import re
+import unicodedata
 from typing import Any, Dict, List, Tuple, cast
 
 from vyos_builders.base import BatchBuilder
@@ -51,6 +52,10 @@ RANGES: Dict[str, Dict[str, int]] = {
     # access-list is a u32 tag. The val_help ranges are a hint; the labs
     # commit numbers outside them (500, 2700).
     "ip_access_list": {"min": 0, "max": U32_MAX},
+    # ``match evpn rd`` four-byte form ASN4:NN; the two-byte ASN:NN and IPv4:NN
+    # forms use the extcommunity_* bounds above (the same lab checks).
+    "evpn_rd_asn4": {"min": 65536, "max": U32_MAX},
+    "evpn_rd_asn4_value": {"min": 0, "max": 65535},
 }
 DESCRIPTION_MAX_LENGTH = 255
 
@@ -86,10 +91,49 @@ def _choice(label: str, value: str, allowed: Tuple[str, ...]) -> str:
     return value
 
 
-def _name(value: str) -> str:
+def _name(value: str, label: str = "route-map name") -> str:
     if not _NAME.fullmatch(value):
-        raise ValueError("route-map name must start with a letter, digit, hyphen or underscore "
+        raise ValueError(f"{label} must start with a letter, digit, hyphen or underscore "
                          "and contain only letters, digits, hyphens, underscores, dots and plus signs")
+    return value
+
+
+def _word(label: str, value: str) -> str:
+    """A list, peer, interface or VRF name the builder passes through as one CLI word.
+
+    The lab takes these as plain ``txt`` (or checks them against configured
+    objects at commit); whitespace splits the FRR command and a control
+    character cannot be part of a CLI word.
+    """
+    if not value or any(ch.isspace() or unicodedata.category(ch) == "Cc" for ch in value):
+        raise ValueError(f"{label} must not be empty or contain whitespace or control characters")
+    return value
+
+
+def _route_distinguisher(value: str) -> str:
+    """Lab ``bgp-rd-rt --route-distinguisher``.
+
+    ``ASN:NN`` (ASN 0-65535, NN 0-4294967295), ``ASN4:NN`` (ASN
+    65536-4294967295, NN 0-65535) or ``IPv4:NN`` (NN 0-65535).
+    """
+    head, sep, tail = value.rpartition(":")
+    ok = False
+    if sep and _DECIMAL.fullmatch(tail):
+        if _DECIMAL.fullmatch(head):
+            ok = (_part("extcommunity_asn", head) and _part("extcommunity_asn_value", tail)) or (
+                _part("evpn_rd_asn4", head) and _part("evpn_rd_asn4_value", tail)
+            )
+        else:
+            try:
+                ipaddress.IPv4Address(head)
+                ok = _part("extcommunity_ip_value", tail)
+            except ValueError:
+                ok = False
+    if not ok:
+        raise ValueError(
+            f"match evpn rd must be ASN:NN (0-65535:0-{U32_MAX}), ASN4:NN (65536-{U32_MAX}:0-65535) "
+            "or IPv4:NN (0-65535)"
+        )
     return value
 
 
@@ -267,7 +311,7 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_rule_action_path(name, rule))
 
     def set_rule_call(self, name: str, rule: str, call_map: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_rule_call(name, rule, call_map))
+        return self.add_set(self._rule(name, rule).get_rule_call(name, rule, _name(call_map, "call")))
 
     def delete_rule_call(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_rule_call_path(name, rule))
@@ -314,13 +358,14 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_ipv6_path(name, rule))
 
     def set_match_as_path(self, name: str, rule: str, as_path: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_as_path(name, rule, as_path))
+        return self.add_set(self._rule(name, rule).get_match_as_path(name, rule, _word("match as-path", as_path)))
 
     def delete_match_as_path(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_as_path_path(name, rule))
 
     def set_match_community(self, name: str, rule: str, community: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_community(name, rule, community))
+        value = _word("match community community-list", community)
+        return self.add_set(self._rule(name, rule).get_match_community(name, rule, value))
 
     def delete_match_community(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         """Delete ``match community`` (its list and exact-match)."""
@@ -336,13 +381,16 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_community_exact_match_path(name, rule))
 
     def set_match_extcommunity(self, name: str, rule: str, extcommunity: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_extcommunity(name, rule, extcommunity))
+        value = _word("match extcommunity", extcommunity)
+        return self.add_set(self._rule(name, rule).get_match_extcommunity(name, rule, value))
 
     def delete_match_extcommunity(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_extcommunity_path(name, rule))
 
     def set_match_large_community(self, name: str, rule: str, large_community: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_large_community(name, rule, large_community))
+        return self.add_set(self._rule(name, rule).get_match_large_community(
+            name, rule, _word("match large-community large-community-list", large_community)
+        ))
 
     def delete_match_large_community(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_large_community_path(name, rule))
@@ -400,7 +448,10 @@ class RouteMapBatchBuilder(BatchBuilder):
 
     def set_match_source_peer(self, name: str, rule: str, peer: str) -> "RouteMapBatchBuilder":
         self._rule(name, rule)
-        return self.add_set(self._versioned_path(MATCH_SOURCE_PEER, "get_match_source_peer", name, rule, peer))
+        # The node check runs first, so 1.4 names the missing node.
+        path = self._versioned_path(MATCH_SOURCE_PEER, "get_match_source_peer", name, rule, peer)
+        _word("match source-peer", peer)
+        return self.add_set(path)
 
     def delete_match_source_peer(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         self._rule(name, rule)
@@ -421,7 +472,7 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_evpn_default_route_path(name, rule))
 
     def set_match_evpn_rd(self, name: str, rule: str, rd: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_evpn_rd(name, rule, rd))
+        return self.add_set(self._rule(name, rule).get_match_evpn_rd(name, rule, _route_distinguisher(rd)))
 
     def delete_match_evpn_rd(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_evpn_rd_path(name, rule))
@@ -459,7 +510,9 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_ip_address_access_list_path(name, rule))
 
     def set_match_ip_address_prefix_list(self, name: str, rule: str, prefix_list: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_ip_address_prefix_list(name, rule, prefix_list))
+        return self.add_set(self._rule(name, rule).get_match_ip_address_prefix_list(
+            name, rule, _word("match ip address prefix-list", prefix_list)
+        ))
 
     def delete_match_ip_address_prefix_list(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_ip_address_prefix_list_path(name, rule))
@@ -477,13 +530,17 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_ipv6_address_path(name, rule))
 
     def set_match_ipv6_address_access_list(self, name: str, rule: str, access_list: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_ipv6_address_access_list(name, rule, access_list))
+        return self.add_set(self._rule(name, rule).get_match_ipv6_address_access_list(
+            name, rule, _word("match ipv6 address access-list", access_list)
+        ))
 
     def delete_match_ipv6_address_access_list(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_ipv6_address_access_list_path(name, rule))
 
     def set_match_ipv6_address_prefix_list(self, name: str, rule: str, prefix_list: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_ipv6_address_prefix_list(name, rule, prefix_list))
+        return self.add_set(self._rule(name, rule).get_match_ipv6_address_prefix_list(
+            name, rule, _word("match ipv6 address prefix-list", prefix_list)
+        ))
 
     def delete_match_ipv6_address_prefix_list(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_ipv6_address_prefix_list_path(name, rule))
@@ -529,7 +586,9 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_ip_nexthop_prefix_len_path(name, rule))
 
     def set_match_ip_nexthop_prefix_list(self, name: str, rule: str, prefix_list: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_ip_nexthop_prefix_list(name, rule, prefix_list))
+        return self.add_set(self._rule(name, rule).get_match_ip_nexthop_prefix_list(
+            name, rule, _word("match ip nexthop prefix-list", prefix_list)
+        ))
 
     def delete_match_ip_nexthop_prefix_list(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_ip_nexthop_prefix_list_path(name, rule))
@@ -547,7 +606,9 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_ipv6_nexthop_path(name, rule))
 
     def set_match_ipv6_nexthop_access_list(self, name: str, rule: str, access_list: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_ipv6_nexthop_access_list(name, rule, access_list))
+        return self.add_set(self._rule(name, rule).get_match_ipv6_nexthop_access_list(
+            name, rule, _word("match ipv6 nexthop access-list", access_list)
+        ))
 
     def delete_match_ipv6_nexthop_access_list(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_ipv6_nexthop_access_list_path(name, rule))
@@ -561,7 +622,9 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_ipv6_nexthop_address_path(name, rule))
 
     def set_match_ipv6_nexthop_prefix_list(self, name: str, rule: str, prefix_list: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_ipv6_nexthop_prefix_list(name, rule, prefix_list))
+        return self.add_set(self._rule(name, rule).get_match_ipv6_nexthop_prefix_list(
+            name, rule, _word("match ipv6 nexthop prefix-list", prefix_list)
+        ))
 
     def delete_match_ipv6_nexthop_prefix_list(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_ipv6_nexthop_prefix_list_path(name, rule))
@@ -595,7 +658,9 @@ class RouteMapBatchBuilder(BatchBuilder):
     def set_match_ip_route_source_prefix_list(
         self, name: str, rule: str, prefix_list: str
     ) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_ip_route_source_prefix_list(name, rule, prefix_list))
+        return self.add_set(self._rule(name, rule).get_match_ip_route_source_prefix_list(
+            name, rule, _word("match ip route-source prefix-list", prefix_list)
+        ))
 
     def delete_match_ip_route_source_prefix_list(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_ip_route_source_prefix_list_path(name, rule))
@@ -605,7 +670,7 @@ class RouteMapBatchBuilder(BatchBuilder):
     # ========================================================================
 
     def set_match_interface(self, name: str, rule: str, interface: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_interface(name, rule, interface))
+        return self.add_set(self._rule(name, rule).get_match_interface(name, rule, _word("match interface", interface)))
 
     def delete_match_interface(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_interface_path(name, rule))
@@ -619,7 +684,7 @@ class RouteMapBatchBuilder(BatchBuilder):
         return self.add_delete(self._rule(name, rule).get_match_protocol_path(name, rule))
 
     def set_match_source_vrf(self, name: str, rule: str, vrf: str) -> "RouteMapBatchBuilder":
-        return self.add_set(self._rule(name, rule).get_match_source_vrf(name, rule, vrf))
+        return self.add_set(self._rule(name, rule).get_match_source_vrf(name, rule, _word("match source-vrf", vrf)))
 
     def delete_match_source_vrf(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_match_source_vrf_path(name, rule))
@@ -682,7 +747,9 @@ class RouteMapBatchBuilder(BatchBuilder):
 
     def delete_set_community_add(self, name: str, rule: str, community: str) -> "RouteMapBatchBuilder":
         """Remove one value from ``set community add``."""
-        return self.add_delete(self._rule(name, rule).get_set_community_add(name, rule, community))
+        return self.add_delete(
+            self._rule(name, rule).get_set_community_add(name, rule, _word("set community add", community))
+        )
 
     def set_community_replace(self, name: str, rule: str, community: str) -> "RouteMapBatchBuilder":
         """Add one value to the ``multi:`` leaf ``set community replace``."""
@@ -692,11 +759,14 @@ class RouteMapBatchBuilder(BatchBuilder):
 
     def delete_set_community_replace(self, name: str, rule: str, community: str) -> "RouteMapBatchBuilder":
         """Remove one value from ``set community replace``."""
-        return self.add_delete(self._rule(name, rule).get_set_community_replace(name, rule, community))
+        return self.add_delete(
+            self._rule(name, rule).get_set_community_replace(name, rule, _word("set community replace", community))
+        )
 
     def set_community_delete(self, name: str, rule: str, community_list: str) -> "RouteMapBatchBuilder":
         """``set community delete <community-list>``: one value leaf naming a list."""
-        return self.add_set(self._rule(name, rule).get_set_community_delete(name, rule, community_list))
+        value = _word("set community delete", community_list)
+        return self.add_set(self._rule(name, rule).get_set_community_delete(name, rule, value))
 
     def delete_set_community_delete(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_set_community_delete_path(name, rule))
@@ -723,7 +793,9 @@ class RouteMapBatchBuilder(BatchBuilder):
 
     def delete_set_large_community_add(self, name: str, rule: str, community: str) -> "RouteMapBatchBuilder":
         """Remove one value from ``set large-community add``."""
-        return self.add_delete(self._rule(name, rule).get_set_large_community_add(name, rule, community))
+        return self.add_delete(
+            self._rule(name, rule).get_set_large_community_add(name, rule, _word("set large-community add", community))
+        )
 
     def set_large_community_replace(self, name: str, rule: str, community: str) -> "RouteMapBatchBuilder":
         """Add one value to the ``multi:`` leaf ``set large-community replace``."""
@@ -735,11 +807,14 @@ class RouteMapBatchBuilder(BatchBuilder):
         self, name: str, rule: str, community: str
     ) -> "RouteMapBatchBuilder":
         """Remove one value from ``set large-community replace``."""
-        return self.add_delete(self._rule(name, rule).get_set_large_community_replace(name, rule, community))
+        value = _word("set large-community replace", community)
+        return self.add_delete(self._rule(name, rule).get_set_large_community_replace(name, rule, value))
 
     def set_large_community_delete(self, name: str, rule: str, community_list: str) -> "RouteMapBatchBuilder":
         """``set large-community delete <large-community-list>``: one value leaf naming a list."""
-        return self.add_set(self._rule(name, rule).get_set_large_community_delete(name, rule, community_list))
+        return self.add_set(self._rule(name, rule).get_set_large_community_delete(
+            name, rule, _word("set large-community delete", community_list)
+        ))
 
     def delete_set_large_community_delete(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_set_large_community_delete_path(name, rule))
@@ -782,7 +857,9 @@ class RouteMapBatchBuilder(BatchBuilder):
 
     def delete_set_extcommunity_rt(self, name: str, rule: str, rt: str) -> "RouteMapBatchBuilder":
         """Remove one value from ``set extcommunity rt``."""
-        return self.add_delete(self._rule(name, rule).get_set_extcommunity_rt(name, rule, rt))
+        return self.add_delete(
+            self._rule(name, rule).get_set_extcommunity_rt(name, rule, _word("set extcommunity rt", rt))
+        )
 
     def set_extcommunity_soo(self, name: str, rule: str, soo: str) -> "RouteMapBatchBuilder":
         """Add one value to the ``multi:`` leaf ``set extcommunity soo``."""
@@ -792,7 +869,9 @@ class RouteMapBatchBuilder(BatchBuilder):
 
     def delete_set_extcommunity_soo(self, name: str, rule: str, soo: str) -> "RouteMapBatchBuilder":
         """Remove one value from ``set extcommunity soo``."""
-        return self.add_delete(self._rule(name, rule).get_set_extcommunity_soo(name, rule, soo))
+        return self.add_delete(
+            self._rule(name, rule).get_set_extcommunity_soo(name, rule, _word("set extcommunity soo", soo))
+        )
 
     def set_extcommunity_none(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_set(self._rule(name, rule).get_set_extcommunity_none_path(name, rule))
@@ -1021,9 +1100,6 @@ class RouteMapBatchBuilder(BatchBuilder):
                 "match_evpn": {
                     "supported": True,
                     "description": "Match EVPN default route, RD, route type and VNI",
-                    "route_types": evpn_route_types,
-                    "vni_min": vni_min,
-                    "vni_max": vni_max,
                 },
                 "set_actions": {
                     "supported": True,

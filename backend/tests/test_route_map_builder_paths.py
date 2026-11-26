@@ -92,6 +92,11 @@ CASES = [
     ("delete_match_evpn_default_route", ("10",), "delete", M + ["evpn", "default-route"]),
     ("set_match_evpn_rd", ("10", "65000:100"), "set", M + ["evpn", "rd", "65000:100"]),
     ("set_match_evpn_rd", ("10", "192.0.2.1:100"), "set", M + ["evpn", "rd", "192.0.2.1:100"]),
+    ("set_match_evpn_rd", ("10", "0:0"), "set", M + ["evpn", "rd", "0:0"]),
+    ("set_match_evpn_rd", ("10", "65535:4294967295"), "set", M + ["evpn", "rd", "65535:4294967295"]),
+    ("set_match_evpn_rd", ("10", "65536:0"), "set", M + ["evpn", "rd", "65536:0"]),
+    ("set_match_evpn_rd", ("10", "4294967295:65535"), "set", M + ["evpn", "rd", "4294967295:65535"]),
+    ("set_match_evpn_rd", ("10", "0.0.0.0:65535"), "set", M + ["evpn", "rd", "0.0.0.0:65535"]),
     ("delete_match_evpn_rd", ("10",), "delete", M + ["evpn", "rd"]),
     ("set_match_evpn_route_type", ("10", "macip"), "set", M + ["evpn", "route-type", "macip"]),
     ("set_match_evpn_route_type", ("10", "prefix"), "set", M + ["evpn", "route-type", "prefix"]),
@@ -266,6 +271,34 @@ V15_CASES = [
 ]
 GATED = sorted({case[0] for case in V15_CASES})
 
+# Ops whose value the lab takes as plain txt (a list, interface or VRF name,
+# or a per-value delete of a multi: leaf): one CLI word, no whitespace and no
+# control character.
+WORD_OPS = (
+    "set_match_as_path",
+    "set_match_community",
+    "set_match_extcommunity",
+    "set_match_large_community",
+    "set_match_ip_address_prefix_list",
+    "set_match_ipv6_address_access_list",
+    "set_match_ipv6_address_prefix_list",
+    "set_match_ip_nexthop_prefix_list",
+    "set_match_ipv6_nexthop_access_list",
+    "set_match_ipv6_nexthop_prefix_list",
+    "set_match_ip_route_source_prefix_list",
+    "set_match_interface",
+    "set_match_source_vrf",
+    "set_community_delete",
+    "set_large_community_delete",
+    "delete_set_community_add",
+    "delete_set_community_replace",
+    "delete_set_large_community_add",
+    "delete_set_large_community_replace",
+    "delete_set_extcommunity_rt",
+    "delete_set_extcommunity_soo",
+)
+BAD_WORDS = ("", "A B", "AB\n", "A\tB", "A\x01B", "A\x7fB", "A\u00a0B", " AB", "AB ")
+
 # ``match ip ... access-list`` numbers both labs committed, including 500 and
 # 2700 outside the val_help ranges, and the u32 bounds.
 IP_ACCESS_LIST_NUMBERS = ("0", "1", "99", "500", "1299", "2700", "65536", "4294967295")
@@ -427,6 +460,18 @@ def test_lab_names_are_accepted():
     # evpn
     ("set_match_evpn_vni", ("10", "0")), ("set_match_evpn_vni", ("10", "16777215")),
     ("set_match_evpn_vni", ("10", "\u0661")), ("set_match_evpn_route_type", ("10", "bogus")),
+    # evpn rd: ASN:NN, ASN4:NN or IPv4:NN
+    ("set_match_evpn_rd", ("10", "65536:65536")), ("set_match_evpn_rd", ("10", "4294967296:0")),
+    ("set_match_evpn_rd", ("10", "0:4294967296")), ("set_match_evpn_rd", ("10", "192.0.2.1:65536")),
+    ("set_match_evpn_rd", ("10", "65000")), ("set_match_evpn_rd", ("10", "65000:")),
+    ("set_match_evpn_rd", ("10", ":1")), ("set_match_evpn_rd", ("10", "2001:db8::1:1")),
+    ("set_match_evpn_rd", ("10", "1.2.3:4")), ("set_match_evpn_rd", ("10", "a:1")),
+    ("set_match_evpn_rd", ("10", "1:1:1")), ("set_match_evpn_rd", ("10", "\u0661:1")),
+    ("set_match_evpn_rd", ("10", "65000: 1")), ("set_match_evpn_rd", ("10", "")),
+    # call: the route-map name regex
+    *[("set_rule_call", ("10", value)) for value in ("", ".RM", "R M", "RM\n", "R\tM", "R\x01M", "R/M")],
+    # list, peer, interface and VRF names: no whitespace or control characters
+    *[(method, ("10", value)) for method in WORD_OPS for value in BAD_WORDS],
     # as-path
     ("set_as_path_exclude", ("10", "0")), ("set_as_path_exclude", ("10", "65001,65002")),
     ("set_as_path_exclude", ("10", "ALL")), ("set_as_path_prepend", ("10", "all")),
@@ -458,6 +503,41 @@ def test_bad_value_raises_before_any_op(method, args):
     with pytest.raises(ValueError):
         getattr(builder, method)(N, *args)
     assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize("value", BAD_WORDS)
+def test_source_peer_rejects_a_bad_word_on_1_5(value):
+    builder = RouteMapBatchBuilder("1.5")
+    with pytest.raises(ValueError, match="match source-peer must not be empty"):
+        builder.set_match_source_peer(N, "10", value)
+    assert builder.get_operations() == []
+
+
+def _value_ops():
+    """Ops that take a value after name and rule."""
+    return [
+        name for name in _public_ops()
+        if list(inspect.signature(getattr(RouteMapBatchBuilder, name)).parameters)[1:3] == ["name", "rule"]
+        and len(inspect.signature(getattr(RouteMapBatchBuilder, name)).parameters) == 4
+    ]
+
+
+# Free text: the lab regex `.{0,255}` takes spaces (line breaks are checked).
+FREE_TEXT_OPS = {"set_rule_description"}
+
+
+@pytest.mark.parametrize("value", ["A B", "A\x01B", "A\nB"])
+def test_every_value_op_checks_its_value(value):
+    """No value op passes whitespace or a control character through unchecked."""
+    ops = _value_ops()
+    assert "set_rule_call" in ops and "set_match_source_peer" in ops and len(ops) > 60
+    for method in ops:
+        if method in FREE_TEXT_OPS and value != "A\nB":
+            continue
+        builder = RouteMapBatchBuilder("1.5")
+        with pytest.raises(ValueError):
+            getattr(builder, method)(N, "10", value)
+        assert builder.get_operations() == [], method
 
 
 def test_lab_bounds_are_accepted():
@@ -597,12 +677,15 @@ def test_capabilities_per_version():
         assert "match_large_community_exact_match" not in caps["features"]
     assert old["values"]["evpn_route_types"] == ["macip", "multicast", "prefix"]
     assert new["values"]["evpn_route_types"] == ["ead", "macip", "multicast", "es", "prefix", "1", "2", "3", "4", "5"]
-    assert old["features"]["match_evpn"]["route_types"] == old["values"]["evpn_route_types"]
+    for caps in (old, new):
+        assert set(caps["features"]["match_evpn"]) == {"supported", "description"}
+        assert caps["features"]["match_evpn"]["supported"] is True
     assert old["ranges"]["table"] == {"min": 1, "max": 200}
     assert new["ranges"]["table"] == {"min": 1, "max": 4294967295}
     for caps in (old, new):
         assert caps["ranges"]["evpn_vni"] == {"min": 1, "max": 16777214}
-        assert (caps["features"]["match_evpn"]["vni_min"], caps["features"]["match_evpn"]["vni_max"]) == (1, 16777214)
+        assert caps["ranges"]["evpn_rd_asn4"] == {"min": 65536, "max": 4294967295}
+        assert caps["ranges"]["evpn_rd_asn4_value"] == {"min": 0, "max": 65535}
         assert {k: v for k, v in caps["ranges"].items() if k not in ("table", "evpn_vni")} == RANGES
         assert "ip_access_list_ranges" not in caps
         assert caps["ranges"]["ip_access_list"] == {"min": 0, "max": 4294967295}
