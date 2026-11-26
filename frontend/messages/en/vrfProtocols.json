@@ -840,7 +840,7 @@
         "label": "Passive"
       },
       "passiveInterface": {
-        "label": "Passive interfaces"
+        "label": "Passive by default"
       },
       "password": {
         "label": "Password"

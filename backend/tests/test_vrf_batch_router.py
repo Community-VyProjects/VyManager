@@ -131,10 +131,10 @@ def test_unresolvable_protocol_op_is_400(client, commit, version):
     """A packed protocol op whose value fits no mapper path raises
     ArityError in vrf_protocol; the client sent it, so it is a 400 naming the op."""
     commit["version"] = version
-    resp = _post(client, [{"op": "set_vrf_ospf_parameters_router_id", "value": "red"}])
+    resp = _post(client, [{"op": "set_vrf_ospf_area_type", "value": "red"}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == (
-        "Operation set_vrf_ospf_parameters_router_id has the wrong number of comma-separated values"
+        "Operation set_vrf_ospf_area_type has the wrong number of comma-separated values"
     )
     assert client.executed == []
 
@@ -236,6 +236,23 @@ def test_1_5_isis_leaf_on_1_4_is_400(client, operation, node):
 ])
 def test_1_5_bgp_leaf_on_1_4_is_400(client, operation, detail):
     resp = _post(client, [{"op": "set_vrf_bgp_system_as", "value": "T-V,65001"}, operation])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == detail
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("operation, detail", [
+    ({"op": "set_vrf_ospf_redistribute", "value": "T-V,nhrp"}, "redistribute nhrp is not supported on this device"),
+    ({"op": "delete_vrf_ospf_redistribute", "value": "T-V,nhrp"}, "redistribute nhrp is not supported on this device"),
+    ({"op": "set_vrf_ospf_redistribute_metric", "value": "T-V,nhrp,10"},
+     "redistribute nhrp is not supported on this device"),
+    ({"op": "set_vrf_ospf_interface_authentication_null", "value": "T-V,eth0"},
+     "interface authentication null is not supported on this device"),
+    ({"op": "delete_vrf_ospf_area_virtual_link_authentication_null", "value": "T-V,0,192.0.2.1"},
+     "virtual-link authentication null is not supported on this device"),
+])
+def test_1_5_ospf_leaf_on_1_4_is_400(client, operation, detail):
+    resp = _post(client, [{"op": "set_vrf_ospf_router_id", "value": "T-V,192.0.2.1"}, operation])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == detail
     assert client.executed == []

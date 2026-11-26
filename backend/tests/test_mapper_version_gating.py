@@ -25,7 +25,6 @@ from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 from vyos_mappers.vrf.vrf_bgp import VrfBgpMapper
 from vyos_mappers.vrf.vrf_bgp_versions import get_vrf_bgp_mapper
 from vyos_mappers.vrf.vrf_isis import VrfIsisMapper
-from vyos_mappers.vrf.vrf_ospf import VrfOspfMapper
 
 
 def test_isis_v14_rejects_ti_lfa_instead_of_silent_noop():
@@ -51,9 +50,9 @@ def test_mappers_14_reject_redistribute_nhrp():
     bgp = get_bgp_mapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         bgp.get_af_redistribute("ipv4-unicast", "nhrp")
-    vrf_ospf = VrfOspfMapper("1.4")
+    vrf_builder = VrfBatchBuilder("1.4")
     with pytest.raises(ValueError, match="not supported"):
-        vrf_ospf.get_ospf_redistribute("blue", "nhrp")
+        vrf_builder.set_vrf_ospf_redistribute("blue", "nhrp")
     vrf_bgp = VrfBgpMapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         vrf_bgp.get_bgp_af_redistribute("blue", "ipv4-unicast", "nhrp")
@@ -71,7 +70,9 @@ def test_mappers_14_delete_redistribute_nhrp():
     babel = get_babel_mapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         babel.get_redistribute_ipv4_delete("nhrp")
-    assert VrfOspfMapper("1.4").get_ospf_redistribute_delete("blue", "nhrp")[-1] == "nhrp"
+    # VRF OSPF deletes run the global OSPF builder, which checks the protocol.
+    with pytest.raises(ValueError, match="redistribute nhrp is not supported"):
+        VrfBatchBuilder("1.4").delete_vrf_ospf_redistribute("blue", "nhrp")
     isis = get_isis_mapper("1.4")
     assert isis.get_redistribute_delete_path("ipv4", "nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
     vrf_isis = VrfIsisMapper("1.4")

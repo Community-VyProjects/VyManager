@@ -65,16 +65,22 @@ def test_ui_schema_protocol_ops_resolve():
 
     root = Path(__file__).resolve().parents[2] / "frontend" / "src" / "components" / "vrf" / "schema"
     ops = set()
+    del_ops = set()
     for path in root.glob("*.ts"):
-        ops.update(re.findall(r"vrf_(?:bgp|ospf|ospfv3|isis)[a-z0-9_]*", path.read_text()))
+        text = path.read_text()
+        # A delOp is only ever sent as delete_<op>; every other op name is
+        # sent as set_ and (clearing the field or entity) delete_.
+        for del_prefix, op in re.findall(r"(delOp:\s*\")?(vrf_(?:bgp|ospf|ospfv3|isis)[a-z0-9_]*)", text):
+            (del_ops if del_prefix else ops).add(op)
     builder = VrfBatchBuilder("1.5")
     missing = []
-    for op in sorted(ops):
-        for verb in ("set_", "delete_"):
-            try:
-                getattr(builder, verb + op)
-            except AttributeError:
-                missing.append(verb + op)
+    names = [verb + op for op in sorted(ops) for verb in ("set_", "delete_")]
+    names += ["delete_" + op for op in sorted(del_ops - ops)]
+    for name in names:
+        try:
+            getattr(builder, name)
+        except AttributeError:
+            missing.append(name)
     assert missing == []
 
 
