@@ -210,6 +210,41 @@ function storedLeaves(rule: AccessListRule): RuleLeaves {
   return { ...leaves, destination };
 }
 
+/**
+ * Keep the leaves the form never showed. The form shows one choice per
+ * endpoint (any > host > network); when the user leaves that choice as
+ * loaded, the device's other leaves on that endpoint (a host or network
+ * beside any, a network beside a host, exact-match beside any) stay as they
+ * are. Switching the choice deletes them.
+ */
+function keepHidden(b: RuleLeaves, a: RuleLeaves, original: AccessListRule, f: AccessListRuleForm): RuleLeaves {
+  const kept = { ...a };
+  const source = choiceOf(original.source_any, original.source_host, original.source_network);
+  if (source && f.source === source) {
+    if (source === "any") {
+      kept.source_host = b.source_host;
+      kept.source_network = b.source_network;
+      kept.source_inverse_mask = b.source_inverse_mask;
+      kept.source_exact_match = b.source_exact_match;
+    } else if (source === "host") {
+      kept.source_network = b.source_network;
+      kept.source_inverse_mask = b.source_inverse_mask;
+    }
+  }
+  const destination = choiceOf(original.destination_any, original.destination_host, original.destination_network);
+  if (destination && f.destination === destination) {
+    if (destination === "any") {
+      kept.destination_host = b.destination_host;
+      kept.destination_network = b.destination_network;
+      kept.destination_inverse_mask = b.destination_inverse_mask;
+    } else if (destination === "host") {
+      kept.destination_network = b.destination_network;
+      kept.destination_inverse_mask = b.destination_inverse_mask;
+    }
+  }
+  return kept;
+}
+
 /** The leaves a normalized form asks for. */
 function formLeaves(f: AccessListRuleForm): RuleLeaves {
   return {
@@ -296,11 +331,13 @@ function destinationOps(b: RuleLeaves, a: RuleLeaves): Op[] {
  * Ops for one rule: create (original null) or the diff of an edit, leaf by
  * leaf against the stored rule. Create and edit share this emit, so the two
  * cannot offer different leaves. A source switch sets the new leaf and
- * deletes the old ones in the same batch (the lab needs a source at commit).
+ * deletes the old ones in the same batch (the lab needs a source at commit);
+ * an unswitched choice keeps the leaves the form does not show.
  */
 export function ruleSaveOps(listType: AccessListType, original: AccessListRule | null, updated: AccessListRuleForm): Op[] {
   const b = original ? storedLeaves(original) : NO_LEAVES;
-  const a = formLeaves(normalizeRuleForm(listType, updated));
+  const f = normalizeRuleForm(listType, updated);
+  const a = original ? keepHidden(b, formLeaves(f), original, f) : formLeaves(f);
   if (listType === "ipv6") {
     return [
       ...(original ? [] : [{ op: "create_rule" }]),
@@ -397,10 +434,11 @@ export function isExtendedList(caps: Caps, listType: AccessListType, name: strin
 
 /**
  * An IPv6 prefix the lab validator takes: no host bits, no zone index, no
- * dotted IPv4 tail, no leading zero in the length.
+ * dotted IPv4 tail, no leading zero in the length (isIpv6Prefix takes only
+ * hex groups, so a dotted tail already fails).
  */
 export function ipv6NetworkValid(value: string): boolean {
-  return !value.split("/")[0].includes(".") && isIpv6Prefix(value);
+  return isIpv6Prefix(value);
 }
 
 function endpointProblem(
@@ -479,7 +517,7 @@ export function accessListProblem(
       // The lab verify calls int() on the number: ASCII digits in the u32 range.
       const range = accessListRange(caps, "ipv4_list");
       if (!inRange(f.name, range)) return { key: "numberInvalid", min: range.min, max: range.max };
-    } else if (/\s/.test(f.name)) {
+    } else if (/[\s\p{Cc}]/u.test(f.name)) {
       return { key: "nameInvalid" };
     }
     const key = listKey(listType, f.name);

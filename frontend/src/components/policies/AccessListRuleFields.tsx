@@ -45,13 +45,14 @@ export function AccessListRuleFields({
   capabilities,
 }: AccessListRuleFieldsProps) {
   const t = useTranslations("accessList");
+  const tc = useTranslations("common");
   const set = <K extends keyof AccessListRuleForm>(key: K, value: AccessListRuleForm[K]) =>
     onChange({ ...form, [key]: value });
   const ipv4 = listType === "ipv4";
   const actionLabel = (action: string) =>
     action === "permit" ? t("form.permit") : action === "deny" ? t("form.deny") : action;
   const choiceLabel: Record<DestinationChoice, string> = {
-    none: t("form.none"),
+    none: tc("none"),
     any: t("form.any"),
     host: t("form.host"),
     network: t("form.network"),

@@ -83,17 +83,20 @@ export function CreateAccessListModal({
     }
     setLoading(true);
     setError(null);
+    // The list commit may succeed in this call; `created` is the value at the click.
+    let listCreated = created !== null;
     try {
       const name = created ?? listForm.name.trim();
       if (!created) {
         await accessListService.createAccessList(listType, listForm);
+        listCreated = true;
         setCreated(name);
       }
       await accessListService.saveRule(listType, name, Number(ruleForm.rule_number.trim()), null, ruleForm);
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || t("create.failed"));
+      setError((err as ApiError).message || (listCreated ? t("ruleModal.addFailed") : t("create.failed")));
     } finally {
       setLoading(false);
     }

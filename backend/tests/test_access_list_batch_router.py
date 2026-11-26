@@ -260,7 +260,8 @@ def test_bad_value_is_400(client, operation, list_type, name, detail):
     "list_type,name,detail",
     [
         ("ipv4", "abc", "access-list number must be a number from 0 to 4294967295"),
-        ("ipv6", "A B", "access-list6 name must not be empty or contain whitespace"),
+        ("ipv6", "A B", "access-list6 name must not be empty or contain whitespace or control characters"),
+        ("ipv6", "A\u0001B", "access-list6 name must not be empty or contain whitespace or control characters"),
     ],
 )
 def test_bad_name_is_400(client, list_type, name, detail):

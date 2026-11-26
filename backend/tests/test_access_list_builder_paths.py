@@ -154,6 +154,8 @@ def test_ipv6_only_leaf_raises_on_ipv4(method):
     ("create_access_list", ("ipv6", "")),
     ("create_access_list", ("ipv6", "A B")),
     ("create_rule", ("ipv6", "A\tB", "10")),
+    ("create_access_list", ("ipv6", "A\x7fB")),
+    ("create_access_list", ("ipv6", "A\x00")),
     # rule number
     ("create_rule", ("ipv4", "10", "0")),
     ("create_rule", ("ipv4", "10", "65536")),

@@ -3,7 +3,8 @@
 Provides all batch operations for ``policy access-list`` (list type ipv4) and
 ``policy access-list6`` (list type ipv6). The templates are the same on VyOS
 1.4 and 1.5. An IPv4 list number that is not a u32 (the lab verify calls
-int() on it), an IPv6 list name with whitespace, a rule number outside the lab
+int() on it), an IPv6 list name with whitespace or a control character, a
+rule number outside the lab
 range, an address or prefix the lab validator rejects, an action outside
 permit/deny, a description over 255 characters, or a leaf the list type does
 not have (access-list6 has no destination, host or inverse-mask) raises
@@ -12,6 +13,7 @@ ValueError before the op is queued.
 
 import ipaddress
 import re
+import unicodedata
 from typing import Any, Dict, cast
 
 from vyos_builders.base import BatchBuilder
@@ -42,9 +44,10 @@ def _number(key: str, label: str, value: str) -> str:
 def _name(list_type: str, value: str) -> str:
     if list_type == "ipv4":
         return _number("ipv4_list", "access-list number", value)
-    # access-list6 is a free txt tag; whitespace splits the FRR command.
-    if not value or any(ch.isspace() for ch in value):
-        raise ValueError("access-list6 name must not be empty or contain whitespace")
+    # access-list6 is a free txt tag; whitespace splits the FRR command and a
+    # control character cannot be part of a CLI word.
+    if not value or any(ch.isspace() or unicodedata.category(ch) == "Cc" for ch in value):
+        raise ValueError("access-list6 name must not be empty or contain whitespace or control characters")
     return value
 
 
@@ -110,6 +113,7 @@ class AccessListBatchBuilder(BatchBuilder):
         self, list_type: str, name: str, rule: str, endpoint: str, leaf: str, value: str
     ) -> "AccessListBatchBuilder":
         mapper = self._rule(list_type, name, rule)
+        # The leaf check runs first, so a leaf the list type lacks is named as such.
         path = mapper.get_rule_endpoint_leaf_path(list_type, name, rule, endpoint, leaf)
         if leaf == "network" and list_type == "ipv6":
             value = _ipv6_prefix(value)

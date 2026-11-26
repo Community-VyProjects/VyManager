@@ -148,8 +148,3 @@ class AccessListMapper(BaseFeatureMapper):
         if leaf not in ENDPOINT_LEAVES[list_type][endpoint]:
             raise ValueError(f"{FAMILIES[list_type]} rule {endpoint} has no {leaf}")
         return path + [leaf]
-
-    def get_rule_endpoint_leaf(
-        self, list_type: str, name: str, rule: str, endpoint: str, leaf: str, value: str
-    ) -> List[str]:
-        return self.get_rule_endpoint_leaf_path(list_type, name, rule, endpoint, leaf) + [value]

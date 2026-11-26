@@ -99,7 +99,7 @@ export function AccessListRuleRow({
       {listType === "ipv4" && <TableCell>{endpoint("destination")}</TableCell>}
       <TableCell className="text-right">
         {canWrite && (
-          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
             <Button variant="ghost" size="sm" onClick={() => onEdit(rule)} className="h-8" disabled={disabled}>
               <Pencil className="h-4 w-4 mr-1" />
               {tc("edit")}

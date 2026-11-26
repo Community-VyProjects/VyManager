@@ -162,16 +162,36 @@ describe("ipv4 rule ops", () => {
     ]);
   });
 
-  it("a rule holding any beside a network: saving with the derived any choice deletes the hidden network", () => {
+  it("a rule holding any beside a network or host: an unswitched choice keeps the hidden leaves", () => {
     const both = rule({ source_any: true, source_network: "10.0.0.0", source_inverse_mask: "0.0.0.255" });
     const f = ruleFormFrom(both);
     assert.equal(f.source, "any");
-    assert.deepEqual(ruleSaveOps("ipv4", both, f), [
-      { op: "delete_rule_source_network" },
-      { op: "delete_rule_source_inverse_mask" },
-    ]);
+    assert.deepEqual(ruleSaveOps("ipv4", both, f), []);
+    assert.deepEqual(ruleSaveOps("ipv4", both, { ...f, description: "x" }), [{ op: "set_rule_description", value: "x" }]);
     const anyHost = rule({ source_any: true, source_host: "10.0.0.1" });
-    assert.deepEqual(ruleSaveOps("ipv4", anyHost, ruleFormFrom(anyHost)), [{ op: "delete_rule_source_host" }]);
+    assert.deepEqual(ruleSaveOps("ipv4", anyHost, ruleFormFrom(anyHost)), []);
+    const hostNet = rule({ source_host: "10.0.0.1", source_network: "10.0.0.0", source_inverse_mask: "0.0.0.255" });
+    assert.deepEqual(ruleSaveOps("ipv4", hostNet, ruleFormFrom(hostNet)), []);
+    // Switching the choice deletes every other leaf the endpoint held.
+    assert.deepEqual(ops(ruleSaveOps("ipv4", both, { ...f, source: "host", source_host: "10.0.0.9" })), [
+      "delete_rule_source_any",
+      "set_rule_source_host",
+      "delete_rule_source_network",
+      "delete_rule_source_inverse_mask",
+    ]);
+  });
+
+  it("a destination holding any beside a host: an unrelated edit keeps the host", () => {
+    const both = rule({ destination_any: true, destination_host: "192.0.2.1" });
+    assert.deepEqual(ruleSaveOps("ipv4", both, { ...ruleFormFrom(both), description: "d" }), [
+      { op: "set_rule_description", value: "d" },
+    ]);
+    assert.deepEqual(ops(ruleSaveOps("ipv4", both, { ...ruleFormFrom(both), destination: "network", destination_network: "192.0.2.0", destination_inverse_mask: "0.0.0.255" })), [
+      "delete_rule_destination_any",
+      "delete_rule_destination_host",
+      "set_rule_destination_network",
+      "set_rule_destination_inverse_mask",
+    ]);
   });
 
   it("a changed inverse mask is one set", () => {
@@ -268,9 +288,14 @@ describe("ipv6 rule ops", () => {
     ]);
   });
 
-  it("any beside a network: the derived any choice deletes the hidden network", () => {
-    const both = rule({ source_any: true, source_network: "2001:db8::/32" });
-    assert.deepEqual(ruleSaveOps("ipv6", both, ruleFormFrom(both)), [{ op: "delete_rule_source_network" }]);
+  it("any beside a network (and exact-match): an unswitched choice keeps them; switching to network keeps the network", () => {
+    const both = rule({ source_any: true, source_network: "2001:db8::/32", source_exact_match: true });
+    assert.deepEqual(ruleSaveOps("ipv6", both, ruleFormFrom(both)), []);
+    assert.deepEqual(ruleSaveOps("ipv6", both, { ...ruleFormFrom(both), source: "network" }), [{ op: "delete_rule_source_any" }]);
+    assert.deepEqual(
+      ruleSaveOps("ipv6", both, { ...ruleFormFrom(both), source: "network", source_exact_match: false }),
+      [{ op: "delete_rule_source_any" }, { op: "delete_rule_source_exact_match" }],
+    );
   });
 
   it("the normalizer forces IPv6 forms onto IPv6 leaves", () => {
@@ -413,6 +438,7 @@ describe("list save checks", () => {
 
   it("IPv6 name: free text without whitespace", () => {
     assert.deepEqual(accessListProblem("ipv6", { name: "MY ACL", description: "" }, [], CAPS), { key: "nameInvalid" });
+    assert.deepEqual(accessListProblem("ipv6", { name: "MY\u0001ACL", description: "" }, [], CAPS), { key: "nameInvalid" });
     assert.deepEqual(accessListProblem("ipv6", { name: "", description: "" }, [], CAPS), { key: "nameRequired" });
     for (const name of ["ACL.6", "a:b", "访问", "x_y-z"]) {
       assert.equal(accessListProblem("ipv6", { name, description: "" }, [], CAPS), null, name);

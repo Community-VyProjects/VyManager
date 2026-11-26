@@ -371,7 +371,7 @@ function AccessListPageInner() {
                       )}
                     </button>
                     {hasWrite && (
-                      <div className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="sm"

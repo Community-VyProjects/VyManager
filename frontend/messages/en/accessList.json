@@ -38,7 +38,6 @@
     "ruleDescriptionPlaceholder": "Enter rule description (optional)",
     "source": "Source",
     "destination": "Destination",
-    "none": "None",
     "any": "Any",
     "host": "Host",
     "network": "Network",
@@ -52,7 +51,7 @@
   "listErrors": {
     "nameRequired": "Enter an access list number or name",
     "numberInvalid": "The access list number must be a whole number from {min} to {max}",
-    "nameInvalid": "The access list name must not contain spaces",
+    "nameInvalid": "The access list name must not contain spaces or control characters",
     "nameTaken": "An access list with this number or name already exists",
     "descriptionTooLong": "Description must be one line of at most {max} characters"
   },

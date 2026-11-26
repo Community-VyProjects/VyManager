@@ -38,7 +38,6 @@
     "ruleDescriptionPlaceholder": "输入规则描述（可选）",
     "source": "源",
     "destination": "目标",
-    "none": "无",
     "any": "任意",
     "host": "主机",
     "network": "网络",
@@ -52,7 +51,7 @@
   "listErrors": {
     "nameRequired": "请输入访问列表编号或名称",
     "numberInvalid": "访问列表编号必须是 {min} 到 {max} 之间的整数",
-    "nameInvalid": "访问列表名称不能包含空格",
+    "nameInvalid": "访问列表名称不能包含空格或控制字符",
     "nameTaken": "已存在相同编号或名称的访问列表",
     "descriptionTooLong": "描述必须为单行且不超过 {max} 个字符"
   },
