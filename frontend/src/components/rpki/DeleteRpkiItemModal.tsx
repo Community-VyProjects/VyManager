@@ -18,7 +18,7 @@ import type { ApiError } from "@/lib/types/api";
 /** One cache server, or the whole `protocols rpki` tree. */
 export type RpkiDeleteKind = "cache" | "all";
 
-interface DeleteRpkiCacheServerModalProps {
+interface DeleteRpkiItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   kind: RpkiDeleteKind;
@@ -28,13 +28,13 @@ interface DeleteRpkiCacheServerModalProps {
   onConfirm: () => Promise<void>;
 }
 
-export function DeleteRpkiCacheServerModal({
+export function DeleteRpkiItemModal({
   open,
   onOpenChange,
   kind,
   serverAddress,
   onConfirm,
-}: DeleteRpkiCacheServerModalProps) {
+}: DeleteRpkiItemModalProps) {
   const t = useTranslations("rpki");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);

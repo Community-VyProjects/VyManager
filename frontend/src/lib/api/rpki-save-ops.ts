@@ -86,9 +86,10 @@ export function rpkiRange(caps: Caps, key: RpkiRangeKey): { min: number; max: nu
 }
 
 function rangeProblem(caps: Caps, field: RpkiRangeKey, value: string): RpkiProblem | null {
+  if (!value) return null;
+  if (!/^\d{1,10}$/.test(value)) return { key: "numberInvalid", field };
   const range = rpkiRange(caps, field);
-  if (!range) return /^\d{0,10}$/.test(value) ? null : { key: "numberInvalid", field };
-  return inRange(value, range) ? null : { key: "range", field, min: range.min, max: range.max };
+  return !range || inRange(value, range) ? null : { key: "range", field, min: range.min, max: range.max };
 }
 
 /** Cache tag as the lab takes it: an IP address (no zone index, no dotted IPv6 tail) or the fqdn regex. */

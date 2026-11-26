@@ -197,8 +197,11 @@ describe("rpkiCacheProblem", () => {
     assert.deepEqual(rpkiCacheProblem(fields({ ...ok, preference: "0" }), null, servers, V15), {
       key: "range", field: "preference", min: 1, max: 255,
     });
-    assert.deepEqual(rpkiCacheProblem(fields({ ...ok, port: "1.5" }), null, servers, null), {
+    assert.deepEqual(rpkiCacheProblem(fields({ ...ok, port: "1.5" }), null, servers, V15), {
       key: "numberInvalid", field: "port",
+    });
+    assert.deepEqual(rpkiCacheProblem(fields({ ...ok, preference: "-1" }), null, servers, null), {
+      key: "numberInvalid", field: "preference",
     });
   });
 
@@ -252,7 +255,10 @@ describe("timers", () => {
       key: "range", field: "expire_interval", min: 600, max: 172800,
     });
     assert.deepEqual(rpkiTimerProblem({ expire_interval: "", polling_period: "", retry_interval: "x" }, V15), {
-      key: "range", field: "retry_interval", min: 1, max: 7200,
+      key: "numberInvalid", field: "retry_interval",
+    });
+    assert.deepEqual(rpkiTimerProblem({ expire_interval: "", polling_period: "99999", retry_interval: "" }, V15), {
+      key: "range", field: "polling_period", min: 1, max: 86400,
     });
   });
 });

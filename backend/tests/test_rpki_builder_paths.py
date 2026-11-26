@@ -165,6 +165,14 @@ def test_cache_address_rejects_what_the_lab_rejects(method, address):
 @pytest.mark.parametrize("key", sorted(RANGES))
 def test_numeric_leaves_take_the_lab_bounds(key):
     bounds = RANGES[key]
+    # The 400 detail names the CLI leaf, as the sibling messages do.
+    LEAF = {
+        "port": "cache port",
+        "preference": "cache preference",
+        "expire_interval": "expire-interval",
+        "polling_period": "polling-period",
+        "retry_interval": "retry-interval",
+    }
     method = {
         "port": "set_cache_port",
         "preference": "set_cache_preference",
@@ -179,7 +187,7 @@ def test_numeric_leaves_take_the_lab_bounds(key):
         assert _ops(builder)[0][1][-1] == str(good)
     for bad in (str(bounds["min"] - 1), str(bounds["max"] + 1), "x", "1.5", " 1", "\u0663"):
         builder = RpkiBatchBuilder(version="1.5")
-        with pytest.raises(ValueError, match=f"^rpki {key} must be a number from"):
+        with pytest.raises(ValueError, match=f"^rpki {LEAF[key]} must be a number from {bounds['min']} to {bounds['max']}$"):
             getattr(builder, method)(*prefix, bad)
         assert builder.get_operations() == []
 

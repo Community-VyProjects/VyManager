@@ -37,6 +37,7 @@ import {
   rpkiRange,
   rpkiTimerFields,
   rpkiTimerProblem,
+  RPKI_TIMER_KEYS,
   type RpkiCacheFields,
   type RpkiTimerFields,
   type RpkiTimerKey,
@@ -44,8 +45,8 @@ import {
 import { pkiService } from "@/lib/api/pki";
 import type { ApiError } from "@/lib/types/api";
 import { RpkiCacheServerModal } from "./RpkiCacheServerModal";
-import { DeleteRpkiCacheServerModal, type RpkiDeleteKind } from "./DeleteRpkiCacheServerModal";
-import { useRpkiProblemText } from "./rpki-problem-text";
+import { DeleteRpkiItemModal, type RpkiDeleteKind } from "./DeleteRpkiItemModal";
+import { useRpkiProblemText } from "./useRpkiProblemText";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -102,31 +103,37 @@ export function RpkiContent() {
       rpkiService.getConfig(refresh),
       rpkiService.getCapabilities(),
     ]);
+    // Only the cache dialog reads the key names, and only a writer opens it.
     const failed: string[] = [];
-    const keys = await pkiService.getConfig()
-      .then((pki) => pki.openssh.map((k) => k.name))
-      .catch((err: unknown) => {
-        if ((err as ApiError).status !== 403) failed.push(t("errors.loadSshKeys"));
-        return [] as string[];
-      });
+    const keys = hasWritePermission
+      ? await pkiService.getConfig()
+          .then((pki) => pki.openssh.map((k) => k.name))
+          .catch((err: unknown) => {
+            if ((err as ApiError).status !== 403) failed.push(t("errors.loadSshKeys"));
+            return [] as string[];
+          })
+      : [];
     setConfig(configData);
     setCapabilities(capData);
     setSshKeyNames(keys);
     setListErrors(failed);
     setError(null);
-  }, [t]);
+  }, [hasWritePermission, t]);
 
-  useEffect(() => {
-    fetchData(false)
+  /** Full-page load: the spinner shows until the first read settles. */
+  const load = useCallback((refresh: boolean) => {
+    return fetchData(refresh)
       .catch((err) => setError((err as ApiError).message || t("errors.loadConfig")))
       .finally(() => setLoading(false));
   }, [fetchData, t]);
 
+  useEffect(() => {
+    void load(false);
+  }, [load]);
+
   const retry = () => {
     setLoading(true);
-    fetchData(true)
-      .catch((err) => setError((err as ApiError).message || t("errors.loadConfig")))
-      .finally(() => setLoading(false));
+    void load(true);
   };
 
   const reload = async () => {
@@ -516,9 +523,7 @@ export function RpkiContent() {
               <CardContent className="space-y-4">
                 {settingsEditing ? (
                   <>
-                    {timerInput("expire_interval")}
-                    {timerInput("polling_period")}
-                    {timerInput("retry_interval")}
+                    {RPKI_TIMER_KEYS.map((key) => timerInput(key))}
 
                     {settingsError && (
                       <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
@@ -547,7 +552,7 @@ export function RpkiContent() {
                   </>
                 ) : (
                   <div className="space-y-3 text-sm">
-                    {(["expire_interval", "polling_period", "retry_interval"] as const).map((key, index, all) => (
+                    {RPKI_TIMER_KEYS.map((key, index, all) => (
                       <div
                         key={key}
                         className={`flex justify-between items-center py-1${index < all.length - 1 ? " border-b border-border" : ""}`}
@@ -578,7 +583,7 @@ export function RpkiContent() {
         sshKeyNames={sshKeyNames}
       />
 
-      <DeleteRpkiCacheServerModal
+      <DeleteRpkiItemModal
         key={`delete-${modalKey}`}
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

@@ -38,12 +38,22 @@ _FQDN = re.compile(r"[A-Za-z0-9][-.A-Za-z0-9]*", re.ASCII)
 _USERNAME = re.compile(r"[\x00-\x7f]{1,128}", re.ASCII)
 
 
+# CLI leaf each RANGES key bounds, for the 400 detail the screen shows.
+_LEAF_NAMES: Dict[str, str] = {
+    "expire_interval": "expire-interval",
+    "polling_period": "polling-period",
+    "retry_interval": "retry-interval",
+    "port": "cache port",
+    "preference": "cache preference",
+}
+
+
 def _number(key: str, value: str) -> str:
     """value when it is a decimal inside RANGES[key], else ValueError."""
     bounds = RANGES[key]
     text = str(value)
     if not _DECIMAL.fullmatch(text) or not bounds["min"] <= int(text) <= bounds["max"]:
-        raise ValueError(f"rpki {key} must be a number from {bounds['min']} to {bounds['max']}")
+        raise ValueError(f"rpki {_LEAF_NAMES[key]} must be a number from {bounds['min']} to {bounds['max']}")
     return text
 
 

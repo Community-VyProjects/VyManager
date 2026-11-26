@@ -26,7 +26,7 @@ import {
   type RpkiCacheFields,
   type RpkiRangeKey,
 } from "@/lib/api/rpki-save-ops";
-import { useRpkiProblemText } from "./rpki-problem-text";
+import { useRpkiProblemText } from "./useRpkiProblemText";
 
 interface RpkiCacheServerModalProps {
   open: boolean;
@@ -94,7 +94,7 @@ export function RpkiCacheServerModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("modal.editTitle") : t("servers.add")}
@@ -104,7 +104,7 @@ export function RpkiCacheServerModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-5 py-2">
             {/* Address */}
             <div className="space-y-1.5">
