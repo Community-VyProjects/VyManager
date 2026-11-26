@@ -23,14 +23,13 @@ import {
   type Pim6Config,
   type Pim6Capabilities,
   type Pim6Interface,
+  type Pim6RangeKey,
   type Pim6RpAddress,
 } from "@/lib/api/pim6";
-import { pimText } from "@/lib/api/pim-save-ops";
+import { pimProblemArgs, pimRange, pimText } from "@/lib/api/pim-save-ops";
 import {
   pim6GlobalDraft,
   pim6GlobalProblem,
-  pim6ProblemArgs,
-  pim6Range,
   pim6RpTimerProblem,
   type Pim6GlobalDraft,
   type Pim6InterfaceDraft,
@@ -146,7 +145,7 @@ export function Pim6Content() {
     }
   };
 
-  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pim6ProblemArgs(problem));
+  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pimProblemArgs(problem));
 
   // -------------------------------------------------------------------------
   // General tab edit handlers
@@ -279,8 +278,8 @@ export function Pim6Content() {
   const shown = generalEditing && draft ? draft : config ? pim6GlobalDraft(config) : null;
   const generalDisabled = !generalEditing || generalSaving;
 
-  const rangeText = (key: Parameters<typeof pim6Range>[1]) => {
-    const range = pim6Range(capabilities, key);
+  const rangeText = (key: Pim6RangeKey) => {
+    const range = pimRange(capabilities, key);
     return range ? `${range.min}-${range.max}` : tc("default");
   };
 
@@ -307,7 +306,7 @@ export function Pim6Content() {
     );
   }
 
-  const numberField = (id: string, label: string, field: keyof Pim6GlobalDraft, key: Parameters<typeof pim6Range>[1]) => (
+  const numberField = (id: string, label: string, field: keyof Pim6GlobalDraft, key: Pim6RangeKey) => (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
@@ -535,7 +534,7 @@ export function Pim6Content() {
                           <TableHead>{t("content.colDrPriority")}</TableHead>
                           <TableHead>{t("content.colHello")}</TableHead>
                           <TableHead>{t("content.colFlags")}</TableHead>
-                          <TableHead>MLD</TableHead>
+                          <TableHead>{t("content.colMld")}</TableHead>
                           {hasWritePermission && <TableHead className="text-right">{tc("actions")}</TableHead>}
                         </TableRow>
                       </TableHeader>

@@ -25,6 +25,7 @@
     "colDrPriority": "DR Priority",
     "colHello": "Hello",
     "colFlags": "Flags",
+    "colMld": "MLD",
     "seconds": "{value}s",
     "flagPassive": "Passive",
     "flagNoBsm": "No BSM",
@@ -84,9 +85,9 @@
     "sourceAddresses": "Source Addresses:",
     "addSourcePlaceholder": "Add IPv6 source address",
     "groupPlaceholder": "e.g. ff3e::1234",
-    "lastMemberQueryIntervalReadOnly": "Last member query interval: {value} ms (VyOS cannot commit a change)",
+    "lastMemberQueryIntervalReadOnly": "Last member query interval: {value} ms",
     "removeLastMemberQueryInterval": "Remove last member query interval",
-    "maxResponseTimeReadOnly": "Max response time: {value} ms (VyOS cannot commit a change)",
+    "maxResponseTimeReadOnly": "Max response time: {value} ms",
     "removeMaxResponseTime": "Remove max response time"
   },
   "rpModal": {

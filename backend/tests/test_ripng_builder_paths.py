@@ -222,9 +222,13 @@ def test_registry_returns_the_shared_mapper():
 
 
 def test_mapper_has_no_versions_package_or_pass_through_init():
-    import importlib.util
+    # A file check, not find_spec: a stale __pycache__/ left by the old package
+    # still resolves as a namespace package.
+    from pathlib import Path
 
-    assert importlib.util.find_spec("vyos_mappers.ripng.ripng_versions") is None
+    assert not (Path(inspect.getfile(RipNgMapper)).parent / "ripng_versions" / "__init__.py").exists()
+    for version in ("1.4", "1.5", "2026.09.23-0027-rolling"):
+        assert isinstance(CommandMapperRegistry.get_mapper("ripng", version), RipNgMapper)
     assert "__init__" not in RipNgMapper.__dict__
     assert "parse_config" in RipNgMapper.__dict__
 

@@ -24,14 +24,12 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
-import type { Pim6Capabilities, Pim6Interface, Pim6MldJoin } from "@/lib/api/pim6";
-import { pimText } from "@/lib/api/pim-save-ops";
+import type { Pim6Capabilities, Pim6Interface, Pim6MldJoin, Pim6RangeKey } from "@/lib/api/pim6";
+import { pimProblemArgs, pimRange, pimText } from "@/lib/api/pim-save-ops";
 import {
   pim6InterfaceProblem,
   pim6JoinSourcesWithDraft,
   pim6JoinsWithDraft,
-  pim6ProblemArgs,
-  pim6Range,
   type Pim6InterfaceDraft,
   type Pim6Problem,
 } from "@/lib/api/pim6-save-ops";
@@ -113,12 +111,12 @@ export function Pim6InterfaceModal({
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("pim6");
 
-  const rangeText = (key: Parameters<typeof pim6Range>[1]) => {
-    const range = pim6Range(capabilities, key);
+  const rangeText = (key: Pim6RangeKey) => {
+    const range = pimRange(capabilities, key);
     return range ? `${range.min}-${range.max}` : "";
   };
 
-  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pim6ProblemArgs(problem));
+  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pimProblemArgs(problem));
 
   const handleOpenChange = (next: boolean) => {
     if (!next && loading) return;
@@ -233,7 +231,7 @@ export function Pim6InterfaceModal({
   const mldOff = loading || !mldEnabled;
 
   const numberInput = (id: string, label: string, value: string, onChange: (v: string) => void,
-    key: Parameters<typeof pim6Range>[1], disabled: boolean) => (
+    key: Pim6RangeKey, disabled: boolean) => (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input

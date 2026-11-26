@@ -3,26 +3,17 @@ import type {
   Pim6Capabilities,
   Pim6Config,
   Pim6MldJoin,
-  Pim6RangeKey,
   Pim6RpAddress,
 } from "./pim6";
-import { flag, leaf, pimText } from "./pim-save-ops";
-import { isIpv6Prefix } from "./ospfv3-save-ops";
+import { first, flag, leaf, pimText, pimValue, rangeProblem } from "./pim-save-ops";
+import { ipv6Groups, isIpv6Prefix } from "./ospfv3-save-ops";
 
 type Op = Pim6BatchOperation;
 type Scalar = string | number | null | undefined;
 
 // ============================================================================
-// Normalizers. The save checks and the emit read values through pimText.
-// ============================================================================
-
-function pim6Value(value: Scalar): string | null {
-  const text = pimText(value);
-  return text === "" ? null : text;
-}
-
-// ============================================================================
-// Save checks. Bounds come from the builder RANGES served in capabilities.
+// Save checks. Bounds come from the builder RANGES served in capabilities;
+// pimRange, pimProblemArgs, rangeProblem and first are shared with PIM.
 // ============================================================================
 
 export type Pim6ProblemKey =
@@ -59,32 +50,51 @@ export interface Pim6Problem {
   max?: number;
 }
 
-/** Values for a ``validation.*`` message; a range key always has min and max. */
-export function pim6ProblemArgs(problem: Pim6Problem): { min: string; max: string } {
-  return { min: String(problem.min ?? ""), max: String(problem.max ?? "") };
-}
-
 type Caps = Pick<Pim6Capabilities, "ranges"> | null | undefined;
 
-export function pim6Range(caps: Caps, key: Pim6RangeKey): { min: number; max: number } | null {
-  const range = caps?.ranges?.[key];
-  return range && typeof range.min === "number" && typeof range.max === "number" ? range : null;
-}
-
-/** A blank value passes; otherwise a plain decimal inside the served range (no parseInt). */
-function rangeProblem(caps: Caps, key: Pim6RangeKey, problem: Pim6ProblemKey, value: Scalar): Pim6Problem | null {
-  const text = pim6Value(value);
-  if (text === null) return null;
-  const range = pim6Range(caps, key);
-  const n = Number(text);
-  if (!/^\d{1,10}$/.test(text) || (range && (n < range.min || n > range.max))) {
-    return { key: problem, min: range?.min, max: range?.max };
+/** Lowercased, compressed IPv6 text (RFC 5952 style), or null when malformed. */
+function compressIpv6(address: string): string | null {
+  const groups = ipv6Groups(address);
+  if (!groups) return null;
+  // The longest run of two or more zero groups becomes "::" (the first on a tie).
+  let best = -1;
+  let bestLen = 1;
+  for (let i = 0; i < 8; ) {
+    let j = i;
+    while (j < 8 && groups[j] === 0) j++;
+    if (j - i > bestLen) {
+      best = i;
+      bestLen = j - i;
+    }
+    i = j === i ? i + 1 : j;
   }
-  return null;
+  const hex = groups.map((g) => g.toString(16));
+  if (best < 0) return hex.join(":");
+  return `${hex.slice(0, best).join(":")}::${hex.slice(best + bestLen).join(":")}`;
 }
 
-function first(...problems: (Pim6Problem | null)[]): Pim6Problem | null {
-  return problems.find((p) => p !== null) ?? null;
+/**
+ * Compare key for an IPv6 address or prefix: lowercased and compressed, so
+ * 2001:DB8::1 and 2001:db8:0::1 are one address. Only duplicate checks and
+ * diffs use it; ops carry the user's or the loaded text, so a loaded node is
+ * still addressed as the device stored it. Malformed text keys as itself.
+ */
+export function ipv6Key(value: Scalar): string {
+  const text = pimText(value);
+  const [address, length, ...rest] = text.split("/");
+  const compressed = rest.length === 0 ? compressIpv6(address) : null;
+  if (compressed === null) return text.toLowerCase();
+  return length === undefined ? compressed : `${compressed}/${length}`;
+}
+
+/** Map of compare key to the first text seen for it, for blank-free IPv6 lists. */
+function keyed(values: Scalar[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const value of values) {
+    const text = pimText(value);
+    if (text && !map.has(ipv6Key(text))) map.set(ipv6Key(text), text);
+  }
+  return map;
 }
 
 /** An IPv6 address as the lab takes it: no prefix length and no zone index. */
@@ -159,14 +169,14 @@ export function pim6GlobalOps(original: Pim6Config, updated: Pim6GlobalDraft): O
 
 /** `rp keep-alive-timer` with no `rp address` fails the commit, so the timer needs an RP address. */
 export function pim6RpTimerProblem(value: Scalar, caps: Caps, config?: Pim6Config | null): Pim6Problem | null {
-  if (config && pim6Value(value) !== null && (config.rp?.addresses.length ?? 0) === 0) return { key: "rpRequired" };
+  if (config && pimValue(value) !== null && (config.rp?.addresses.length ?? 0) === 0) return { key: "rpRequired" };
   return rangeProblem(caps, "timer", "rpKeepAliveRange", value);
 }
 
 export function pim6RpTimerOps(original: Pim6Config, value: Scalar): Op[] {
   const ops: Op[] = [];
   // Clearing the timer of an `rp` node with no address would leave it empty; delete the node.
-  if (pim6Value(value) === null && pim6Value(original.rp?.keep_alive_timer) !== null
+  if (pimValue(value) === null && pimValue(original.rp?.keep_alive_timer) !== null
     && (original.rp?.addresses.length ?? 0) === 0) {
     return pim6DeleteOps.rp();
   }
@@ -205,14 +215,14 @@ function joinProblem(joins: Pim6MldJoin[]): Pim6Problem | null {
   for (const join of joins) {
     const group = pimText(join.group);
     if (!isIpv6Multicast(group)) return { key: "joinGroupInvalid" };
-    if (groups.has(group)) return { key: "joinExists" };
-    groups.add(group);
+    if (groups.has(ipv6Key(group))) return { key: "joinExists" };
+    groups.add(ipv6Key(group));
     const sources = new Set<string>();
     for (const raw of join.sources) {
       const source = pimText(raw);
       if (!isIpv6Address(source)) return { key: "joinSourceInvalid" };
-      if (sources.has(source)) return { key: "joinSourceExists" };
-      sources.add(source);
+      if (sources.has(ipv6Key(source))) return { key: "joinSourceExists" };
+      sources.add(ipv6Key(source));
     }
   }
   return null;
@@ -246,7 +256,7 @@ export function pim6JoinsWithDraft(joins: Pim6MldJoin[], draft: string): { joins
   const group = pimText(draft);
   if (!group) return { joins, problem: null };
   if (!isIpv6Multicast(group)) return { joins, problem: { key: "joinGroupInvalid" } };
-  if (joins.some((j) => pimText(j.group) === group)) return { joins, problem: { key: "joinExists" } };
+  if (joins.some((j) => ipv6Key(j.group) === ipv6Key(group))) return { joins, problem: { key: "joinExists" } };
   return { joins: [...joins, { group, sources: [] }], problem: null };
 }
 
@@ -255,15 +265,16 @@ export function pim6JoinSourcesWithDraft(join: Pim6MldJoin, draft: string): { jo
   const source = pimText(draft);
   if (!source) return { join, problem: null };
   if (!isIpv6Address(source)) return { join, problem: { key: "joinSourceInvalid" } };
-  if (join.sources.map(pimText).includes(source)) return { join, problem: { key: "joinSourceExists" } };
+  if (join.sources.some((s) => ipv6Key(s) === ipv6Key(source))) return { join, problem: { key: "joinSourceExists" } };
   return { join: { ...join, sources: [...join.sources, source] }, problem: null };
 }
 
-function joinMap(joins: Pim6MldJoin[] | undefined): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
+/** Joins by group compare key: the group text and its sources (compare key to text). */
+function joinMap(joins: Pim6MldJoin[] | undefined): Map<string, { group: string; sources: Map<string, string> }> {
+  const map = new Map<string, { group: string; sources: Map<string, string> }>();
   for (const join of joins ?? []) {
     const group = pimText(join.group);
-    if (group) map.set(group, new Set(join.sources.map(pimText).filter(Boolean)));
+    if (group && !map.has(ipv6Key(group))) map.set(ipv6Key(group), { group, sources: keyed(join.sources) });
   }
   return map;
 }
@@ -279,7 +290,7 @@ export const READ_ONLY_MLD_LEAVES = ["last_member_query_interval", "max_response
 
 /** Delete a loaded leaf the user removed; never set one. */
 function removeOnly(ops: Op[], deleteOp: string, target: string, before: Scalar, after: Scalar): void {
-  if (pim6Value(before) !== null && pim6Value(after) === null) ops.push({ op: deleteOp, value: target });
+  if (pimValue(before) !== null && pimValue(after) === null) ops.push({ op: deleteOp, value: target });
 }
 
 function mldOps(ops: Op[], name: string, before: Pim6MldDraft | null, after: Pim6MldDraft | null): void {
@@ -294,25 +305,29 @@ function mldOps(ops: Op[], name: string, before: Pim6MldDraft | null, after: Pim
   leaf(ops, "set_interface_mld_interval", "delete_interface_mld_interval", name, before?.interval, after.interval);
   leaf(ops, "set_interface_mld_last_member_query_count", "delete_interface_mld_last_member_query_count", name,
     before?.last_member_query_count, after.last_member_query_count);
-  // Set is never sent for these two (see READ_ONLY_MLD_LEAVES); a loaded value can only be removed.
-  removeOnly(ops, "delete_interface_mld_last_member_query_interval", name,
-    before?.last_member_query_interval, after.last_member_query_interval);
-  removeOnly(ops, "delete_interface_mld_max_response_time", name, before?.max_response_time, after.max_response_time);
+  // Set is never sent for these; a loaded value can only be removed.
+  for (const key of READ_ONLY_MLD_LEAVES) removeOnly(ops, `delete_interface_mld_${key}`, name, before?.[key], after[key]);
   leaf(ops, "set_interface_mld_version", "delete_interface_mld_version", name, before?.version, after.version);
   // A join group is a tag: a kept group only diffs its sources.
+  // Deletes and kept groups use the loaded text so they address the stored node.
   const old = joinMap(before?.joins);
   const next = joinMap(after.joins);
-  for (const group of old.keys()) {
-    if (!next.has(group)) ops.push({ op: "delete_interface_mld_join", value: `${name},${group}` });
+  for (const [key, join] of old) {
+    if (!next.has(key)) ops.push({ op: "delete_interface_mld_join", value: `${name},${join.group}` });
   }
-  for (const [group, sources] of next) {
-    const kept = old.get(group);
+  for (const [key, join] of next) {
+    const kept = old.get(key);
+    const group = kept?.group ?? join.group;
     if (!kept) ops.push({ op: "set_interface_mld_join", value: `${name},${group}` });
-    for (const source of kept ?? []) {
-      if (!sources.has(source)) ops.push({ op: "delete_interface_mld_join_source", value: `${name},${group},${source}` });
+    for (const [sourceKey, source] of kept?.sources ?? []) {
+      if (!join.sources.has(sourceKey)) {
+        ops.push({ op: "delete_interface_mld_join_source", value: `${name},${group},${source}` });
+      }
     }
-    for (const source of sources) {
-      if (!kept?.has(source)) ops.push({ op: "set_interface_mld_join_source", value: `${name},${group},${source}` });
+    for (const [sourceKey, source] of join.sources) {
+      if (!kept?.sources.has(sourceKey)) {
+        ops.push({ op: "set_interface_mld_join_source", value: `${name},${group},${source}` });
+      }
     }
   }
 }
@@ -349,19 +364,22 @@ export function pim6RpProblem(
 ): Pim6Problem | null {
   const address = pimText(updated.address);
   if (!isIpv6Address(address)) return { key: "rpAddressInvalid" };
-  if (original === null && others.some((rp) => pimText(rp.address) === address)) return { key: "rpAddressExists" };
+  if (original === null && others.some((rp) => ipv6Key(rp.address) === ipv6Key(address))) {
+    return { key: "rpAddressExists" };
+  }
   const groups = updated.groups.map(pimText).filter(Boolean);
-  const prefixList = pim6Value(updated.prefix_list6);
+  const prefixList = pimValue(updated.prefix_list6);
   // An edit may not remove the last group: the user deletes the RP instead.
   if (groups.length === 0) return original === null ? { key: "groupRequired" } : { key: "groupLast" };
   if (prefixList !== null && !isPrefixList6Name(prefixList)) return { key: "prefixListInvalid" };
-  const used = new Set(others.filter((rp) => pimText(rp.address) !== address).flatMap((rp) => rp.groups.map(pimText)));
+  const used = new Set(others.filter((rp) => ipv6Key(rp.address) !== ipv6Key(address))
+    .flatMap((rp) => rp.groups.map(ipv6Key)));
   const seen = new Set<string>();
   for (const group of groups) {
     if (!isIpv6MulticastPrefix(group)) return { key: "groupInvalid" };
-    if (seen.has(group)) return { key: "groupExists" };
-    if (used.has(group)) return { key: "groupUsed" };
-    seen.add(group);
+    if (seen.has(ipv6Key(group))) return { key: "groupExists" };
+    if (used.has(ipv6Key(group))) return { key: "groupUsed" };
+    seen.add(ipv6Key(group));
   }
   return null;
 }
@@ -371,7 +389,7 @@ export function pim6RpGroupsWithDraft(groups: string[], draft: string): { groups
   const group = pimText(draft);
   if (!group) return { groups, problem: null };
   if (!isIpv6MulticastPrefix(group)) return { groups, problem: { key: "groupInvalid" } };
-  if (groups.map(pimText).includes(group)) return { groups, problem: { key: "groupExists" } };
+  if (groups.some((g) => ipv6Key(g) === ipv6Key(group))) return { groups, problem: { key: "groupExists" } };
   return { groups: [...groups, group], problem: null };
 }
 
@@ -381,7 +399,7 @@ export function pim6RpGroupsWithDraft(groups: string[], draft: string): { groups
  * `rp` node, which clears the timer with it.
  */
 export function pim6RpDeleteOps(config: Pim6Config | null | undefined, address: string): Op[] {
-  const others = (config?.rp?.addresses ?? []).filter((rp) => pimText(rp.address) !== pimText(address));
+  const others = (config?.rp?.addresses ?? []).filter((rp) => ipv6Key(rp.address) !== ipv6Key(address));
   return config && others.length === 0 ? pim6DeleteOps.rp() : pim6DeleteOps.rpAddress(address);
 }
 
@@ -394,21 +412,21 @@ export function pim6RpDeleteOps(config: Pim6Config | null | undefined, address: 
 export function pim6RpOps(original: Pim6RpAddress | null, updated: Pim6RpAddress): Op[] {
   const ops: Op[] = [];
   const address = pimText(original?.address ?? updated.address);
-  const after = new Set(updated.groups.map(pimText).filter(Boolean));
-  const prefixList = pim6Value(updated.prefix_list6);
+  const after = keyed(updated.groups);
+  const prefixList = pimValue(updated.prefix_list6);
   if (original !== null && after.size === 0) return ops;
   if (original === null) ops.push({ op: "set_rp_address", value: address });
-  const before = new Set((original?.groups ?? []).map(pimText).filter(Boolean));
-  for (const group of before) {
-    if (!after.has(group)) ops.push({ op: "delete_rp_address_group", value: `${address},${group}` });
+  const before = keyed(original?.groups ?? []);
+  for (const [key, group] of before) {
+    if (!after.has(key)) ops.push({ op: "delete_rp_address_group", value: `${address},${group}` });
   }
-  if (pim6Value(original?.prefix_list6) !== null && prefixList === null) {
+  if (pimValue(original?.prefix_list6) !== null && prefixList === null) {
     ops.push({ op: "delete_rp_address_prefix_list6", value: address });
   }
-  for (const group of after) {
-    if (!before.has(group)) ops.push({ op: "set_rp_address_group", value: `${address},${group}` });
+  for (const [key, group] of after) {
+    if (!before.has(key)) ops.push({ op: "set_rp_address_group", value: `${address},${group}` });
   }
-  if (prefixList !== null && prefixList !== pim6Value(original?.prefix_list6)) {
+  if (prefixList !== null && prefixList !== pimValue(original?.prefix_list6)) {
     ops.push({ op: "set_rp_address_prefix_list6", value: `${address},${prefixList}` });
   }
   return ops;

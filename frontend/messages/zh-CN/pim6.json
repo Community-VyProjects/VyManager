@@ -25,6 +25,7 @@
     "colDrPriority": "DR 优先级",
     "colHello": "Hello",
     "colFlags": "标志",
+    "colMld": "MLD",
     "seconds": "{value} 秒",
     "flagPassive": "被动",
     "flagNoBsm": "无 BSM",
@@ -84,9 +85,9 @@
     "sourceAddresses": "源地址：",
     "addSourcePlaceholder": "添加 IPv6 源地址",
     "groupPlaceholder": "例如 ff3e::1234",
-    "lastMemberQueryIntervalReadOnly": "最后成员查询间隔：{value} 毫秒（VyOS 无法提交修改）",
+    "lastMemberQueryIntervalReadOnly": "最后成员查询间隔：{value} 毫秒",
     "removeLastMemberQueryInterval": "移除最后成员查询间隔",
-    "maxResponseTimeReadOnly": "最大响应时间：{value} 毫秒（VyOS 无法提交修改）",
+    "maxResponseTimeReadOnly": "最大响应时间：{value} 毫秒",
     "removeMaxResponseTime": "移除最大响应时间"
   },
   "rpModal": {

@@ -7,6 +7,7 @@ import {
   isIpv6Address,
   isIpv6Multicast,
   isIpv6MulticastPrefix,
+  ipv6Key,
   pim6DeleteOps,
   pim6GlobalDraft,
   pim6GlobalOps,
@@ -15,7 +16,6 @@ import {
   pim6InterfaceProblem,
   pim6JoinSourcesWithDraft,
   pim6JoinsWithDraft,
-  pim6ProblemArgs,
   pim6RpDeleteOps,
   pim6RpGroupsWithDraft,
   pim6RpOps,
@@ -27,6 +27,7 @@ import {
   type Pim6InterfaceDraft,
 } from "./pim6-save-ops";
 import { apiClient } from "./client";
+import { pimProblemArgs } from "./pim-save-ops";
 import {
   pim6Service,
   type Pim6BatchOperation,
@@ -154,7 +155,7 @@ describe("global settings", () => {
     assert.deepEqual(pim6GlobalProblem(draft({ join_prune_interval: "0" }), CAPS)?.key, "joinPruneRange");
     assert.deepEqual(pim6GlobalProblem(draft({ keep_alive_timer: "1e3" }), CAPS)?.key, "keepAliveRange");
     assert.deepEqual(pim6GlobalProblem(draft({ register_suppress_time: "65536" }), CAPS)?.key, "registerSuppressRange");
-    assert.deepEqual(pim6ProblemArgs({ key: "packetsRange", min: 1, max: 255 }), { min: "1", max: "255" });
+    assert.deepEqual(pimProblemArgs({ key: "packetsRange", min: 1, max: 255 }), { min: "1", max: "255" });
   });
 });
 
@@ -381,6 +382,60 @@ describe("rp addresses", () => {
   });
 });
 
+describe("IPv6 compare keys", () => {
+  it("normalizes case and format, keeps malformed text", () => {
+    assert.equal(ipv6Key("2001:DB8::1"), "2001:db8::1");
+    assert.equal(ipv6Key("2001:0db8:0:0:0:0:0:1"), "2001:db8::1");
+    assert.equal(ipv6Key("FF0E::/16"), "ff0e::/16");
+    assert.equal(ipv6Key("ff0e:0::/16"), "ff0e::/16");
+    assert.equal(ipv6Key("2001:db8:0:1:0:0:0:1"), "2001:db8:0:1::1");
+    assert.equal(ipv6Key("::"), "::");
+    assert.equal(ipv6Key(" Bad "), "bad");
+  });
+
+  it("duplicate checks compare keys", () => {
+    const upper: Pim6RpAddress = { address: "2001:DB8::1", groups: ["FF0E::/16"], prefix_list6: null };
+    const lower: Pim6RpAddress = { address: "2001:db8::1", groups: ["ff0e::/16"], prefix_list6: null };
+    assert.deepEqual(pim6RpProblem(null, lower, [upper]), { key: "rpAddressExists" });
+    assert.deepEqual(pim6RpProblem(null, { ...RP_GROUPS, groups: ["ff0e::/16"] }, [upper]), { key: "groupUsed" });
+    // The same RP written another way is not "another" RP.
+    assert.equal(pim6RpProblem(upper, lower, [upper]), null);
+    assert.deepEqual(pim6RpProblem(null, { ...RP_GROUPS, groups: ["FF0E::/16", "ff0e::/16"] }), { key: "groupExists" });
+    assert.deepEqual(pim6RpGroupsWithDraft(["FF0E::/16"], "ff0e::/16").problem, { key: "groupExists" });
+    assert.deepEqual(pim6JoinsWithDraft([{ group: "FF0E::1:3", sources: [] }], "ff0e::1:3").problem, { key: "joinExists" });
+    assert.deepEqual(pim6JoinSourcesWithDraft({ group: G, sources: ["2001:DB8::1"] }, "2001:db8::1").problem,
+      { key: "joinSourceExists" });
+    const base = ifaceDraft().mld!;
+    assert.equal(pim6InterfaceProblem(IFACE, ifaceDraft({ mld: { ...base,
+      joins: [{ group: "FF0E::1:3", sources: [] }, { group: "ff0e::1:3", sources: [] }] } }), CAPS)?.key, "joinExists");
+    assert.equal(pim6InterfaceProblem(IFACE, ifaceDraft({ mld: { ...base,
+      joins: [{ group: G, sources: ["2001:DB8::1", "2001:db8::1"] }] } }), CAPS)?.key, "joinSourceExists");
+  });
+
+  it("diffs by key and sends the loaded text, so a rewritten value sends nothing", () => {
+    const loaded: Pim6RpAddress = { address: RP, groups: ["FF0E::/16"], prefix_list6: null };
+    assert.deepEqual(pim6RpOps(loaded, { ...loaded, groups: ["ff0e::/16"] }), []);
+    assert.deepEqual(pim6RpOps(loaded, { ...loaded, groups: ["ff3e::/32"] }), [
+      { op: "delete_rp_address_group", value: `${RP},FF0E::/16` },
+      { op: "set_rp_address_group", value: `${RP},ff3e::/32` },
+    ]);
+    const stored: Pim6Interface = { ...IFACE, mld: { ...IFACE.mld!, joins: [{ group: "FF0E::1:3", sources: ["2001:DB8::10"] }] } };
+    const base = ifaceDraft().mld!;
+    assert.deepEqual(pim6InterfaceOps(stored, ifaceDraft({ mld: { ...base,
+      joins: [{ group: "ff0e::1:3", sources: ["2001:db8::10"] }] } })), []);
+    assert.deepEqual(pim6InterfaceOps(stored, ifaceDraft({ mld: { ...base,
+      joins: [{ group: "ff0e::1:3", sources: ["2001:db8::12"] }] } })), [
+      { op: "delete_interface_mld_join_source", value: "eth0,FF0E::1:3,2001:DB8::10" },
+      { op: "set_interface_mld_join_source", value: "eth0,FF0E::1:3,2001:db8::12" },
+    ]);
+    assert.deepEqual(pim6InterfaceOps(stored, ifaceDraft({ mld: { ...base, joins: [] } })), [
+      { op: "delete_interface_mld_join", value: "eth0,FF0E::1:3" },
+    ]);
+    const cfg = config({ rp: { addresses: [{ ...RP_GROUPS, address: "2001:DB8::50" }], keep_alive_timer: null } });
+    assert.deepEqual(pim6RpDeleteOps(cfg, "2001:db8::50"), [{ op: "delete_rp" }]);
+  });
+});
+
 describe("whole-object deletes", () => {
   it("names one object each and an interface delete never widens", () => {
     assert.deepEqual(pim6DeleteOps.interface(" eth0 "), [{ op: "delete_interface", value: "eth0" }]);
@@ -536,6 +591,10 @@ describe("screens", () => {
       assert.equal(messages.content.allGroups, undefined);
       assert.equal(messages.validation.groupOrPrefixList, undefined);
       assert.equal(messages.rpModal.modePrefixList, undefined);
+      assert.ok(messages.content.colMld);
+      for (const key of ["lastMemberQueryIntervalReadOnly", "maxResponseTimeReadOnly"]) {
+        assert.doesNotMatch(messages.interfaceModal[key], /VyOS|\(/, key);
+      }
     }
   });
 
@@ -543,6 +602,14 @@ describe("screens", () => {
     const page = read("Pim6Content.tsx");
     assert.match(page, /config\?\.configured && \(/);
     assert.match(page, /openDelete\("pim6", ""\)/);
+  });
+
+  it("has no hardcoded table heading and no copied PIM helpers", () => {
+    assert.doesNotMatch(read("Pim6Content.tsx"), /<TableHead>[A-Za-z]/);
+    const ops = readFileSync(join(FRONTEND, "src/lib/api/pim6-save-ops.ts"), "utf8");
+    assert.doesNotMatch(ops, /function (pim6Value|first|rangeProblem|pim6Range|pim6ProblemArgs)\b/);
+    assert.match(ops, /import \{ first, flag, leaf, pimText, pimValue, rangeProblem \} from "\.\/pim-save-ops";/);
+    assert.match(ops, /for \(const key of READ_ONLY_MLD_LEAVES\)/);
   });
 
   it("has no parseInt or English error fallback in the save path", () => {

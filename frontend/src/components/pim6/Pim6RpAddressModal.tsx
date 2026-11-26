@@ -17,7 +17,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { Pim6RpAddress } from "@/lib/api/pim6";
-import { pim6ProblemArgs, pim6RpGroupsWithDraft, pim6RpProblem, type Pim6Problem } from "@/lib/api/pim6-save-ops";
+import { pimProblemArgs } from "@/lib/api/pim-save-ops";
+import { pim6RpGroupsWithDraft, pim6RpProblem, type Pim6Problem } from "@/lib/api/pim6-save-ops";
 import type { ApiError } from "@/lib/types/api";
 
 interface Pim6RpAddressModalProps {
@@ -52,7 +53,7 @@ export function Pim6RpAddressModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pim6ProblemArgs(problem));
+  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pimProblemArgs(problem));
 
   const handleOpenChange = (next: boolean) => {
     if (!next && loading) return;

@@ -26,6 +26,7 @@ import {
   type PimConfig,
   type PimCapabilities,
   type PimInterface,
+  type PimRangeKey,
   type PimRpAddress,
 } from "@/lib/api/pim";
 import {
@@ -291,7 +292,7 @@ export function PimContent() {
   const shown = generalEditing && draft ? draft : config ? pimGlobalDraft(config) : null;
   const generalDisabled = !generalEditing || generalSaving;
 
-  const rangeText = (key: Parameters<typeof pimRange>[1]) => {
+  const rangeText = (key: PimRangeKey) => {
     const range = pimRange(capabilities, key);
     return range ? `${range.min}-${range.max}` : tc("default");
   };
@@ -319,7 +320,7 @@ export function PimContent() {
     );
   }
 
-  const numberField = (id: string, label: string, field: keyof PimGlobalDraft, key: Parameters<typeof pimRange>[1], className?: string) => (
+  const numberField = (id: string, label: string, field: keyof PimGlobalDraft, key: PimRangeKey, className?: string) => (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
