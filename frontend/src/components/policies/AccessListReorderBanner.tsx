@@ -9,14 +9,11 @@ interface AccessListReorderBannerProps {
   onCancel: () => void;
   saving: boolean;
   count: number;
+  /** The rejected reorder's device error, if any. */
+  error: string | null;
 }
 
-export function AccessListReorderBanner({
-  onSave,
-  onCancel,
-  saving,
-  count,
-}: AccessListReorderBannerProps) {
+export function AccessListReorderBanner({ onSave, onCancel, saving, count, error }: AccessListReorderBannerProps) {
   const t = useTranslations("accessList");
   const tc = useTranslations("common");
   return (
@@ -25,35 +22,22 @@ export function AccessListReorderBanner({
         <div className="flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-blue-500" />
           <div>
-            <p className="text-sm font-medium text-foreground">
-              {t("banner.title")}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t("banner.renumbered", { count })}
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("banner.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("banner.renumbered", { count })}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            disabled={saving}
-          >
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
             <X className="h-4 w-4 mr-2" />
             {tc("cancel")}
           </Button>
-          <Button
-            size="sm"
-            onClick={onSave}
-            disabled={saving}
-            className="bg-blue-500 hover:bg-blue-600"
-          >
+          <Button size="sm" onClick={onSave} disabled={saving} className="bg-blue-500 hover:bg-blue-600">
             <Check className="h-4 w-4 mr-2" />
             {saving ? tc("saving") : t("banner.saveOrder")}
           </Button>
         </div>
       </div>
+      {error && <p className="mt-2 text-sm text-destructive whitespace-pre-wrap">{error}</p>}
     </div>
   );
 }

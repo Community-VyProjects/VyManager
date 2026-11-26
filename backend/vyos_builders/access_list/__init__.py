@@ -1,5 +1,4 @@
-"""Access List Builder Module"""
-
-from .access_list import AccessListBatchBuilder
+"""Access List builder module."""
+from .access_list_batch_builder import AccessListBatchBuilder
 
 __all__ = ["AccessListBatchBuilder"]

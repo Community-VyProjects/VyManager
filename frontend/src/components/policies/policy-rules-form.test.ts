@@ -14,11 +14,7 @@ import {
   type LocalRouteBatchRequest,
   type LocalRouteRule,
 } from "@/lib/api/local-route";
-import {
-  AccessListService,
-  type AccessListBatchRequest,
-  type AccessListRule,
-} from "@/lib/api/access-list";
+import type { AccessListCapabilitiesResponse, AccessListRule } from "@/lib/api/access-list";
 import {
   RouteMapService,
   type RouteMapBatchRequest,
@@ -41,12 +37,7 @@ import {
   submitLocalRouteUpdate,
   validateLocalRoute,
 } from "./local-route-form";
-import {
-  emptyAccessListRuleDraft,
-  submitAccessListCreate,
-  submitAccessListUpdate,
-  validateAccessListRule,
-} from "./access-list-rule-form";
+import { endpointParts, suggestedRuleNumber as suggestedAccessRuleNumber } from "./access-list-rule-form";
 import {
   emptyRouteMapRuleDraft,
   routeMapRuleDraftFrom,
@@ -78,14 +69,6 @@ class RecordingLocal extends LocalRouteService {
   }
 }
 
-class RecordingAccess extends AccessListService {
-  calls: AccessListBatchRequest[] = [];
-  async batchConfigure(request: AccessListBatchRequest): Promise<VyOSResponse> {
-    this.calls.push(request);
-    return { success: true };
-  }
-}
-
 class RecordingRouteMap extends RouteMapService {
   calls: RouteMapBatchRequest[] = [];
   async batchConfigure(request: RouteMapBatchRequest): Promise<VyOSResponse> {
@@ -112,18 +95,6 @@ const storedLocal: LocalRouteRule = {
   destination_port: null,
   table: "main",
   vrf: null,
-};
-
-const storedAccess: AccessListRule = {
-  rule_number: 10,
-  action: "permit",
-  description: "corp",
-  source_type: "host",
-  source_address: "10.0.0.1",
-  source_mask: null,
-  destination_type: "any",
-  destination_address: null,
-  destination_mask: null,
 };
 
 const storedMap: RouteMapRule = {
@@ -309,43 +280,44 @@ describe("prefix-list form helpers", () => {
   });
 });
 
-describe("access-list rule", () => {
-  it("rejects a host source with no address", () => {
-    const draft = emptyAccessListRuleDraft();
-    draft.sourceType = "host";
-    assert.equal(
-      validateAccessListRule(draft, "ipv4"),
-      "sourceHostAddress",
-    );
+describe("access-list form helpers", () => {
+  const caps = { ranges: { rule: { min: 1, max: 65535 }, ipv4_list: { min: 0, max: 4294967295 } } } as AccessListCapabilitiesResponse;
+  const rule = (over: Partial<AccessListRule> = {}): AccessListRule => ({
+    rule_number: 10,
+    action: "permit",
+    description: null,
+    source_any: false,
+    source_host: null,
+    source_network: null,
+    source_inverse_mask: null,
+    source_exact_match: false,
+    destination_any: false,
+    destination_host: null,
+    destination_network: null,
+    destination_inverse_mask: null,
+    ...over,
   });
 
-  it("maps network to inverse-mask on create", async () => {
-    const service = new RecordingAccess();
-    const draft = emptyAccessListRuleDraft();
-    draft.ruleNumber = 10;
-    draft.sourceType = "network";
-    draft.sourceAddress = "10.0.0.0";
-    draft.sourceMask = "0.255.255.255";
-    await submitAccessListCreate("1", "ipv4", draft, service);
-    assert.ok(
-      service.calls[0].operations.some(
-        (op) => op.op === "set_rule_source_inverse_mask" && op.value === "10.0.0.0",
-      ),
-    );
+  it("suggests a free rule number inside the served range, with the lab range when caps are absent", () => {
+    assert.equal(suggestedAccessRuleNumber([], caps), "100");
+    assert.equal(suggestedAccessRuleNumber([rule({ rule_number: 10 }), rule({ rule_number: 20 })], caps), "21");
+    assert.equal(suggestedAccessRuleNumber([rule({ rule_number: 65535 })], caps), "1");
+    assert.equal(suggestedAccessRuleNumber([rule({ rule_number: 65535 })], null), "1");
   });
 
-  it("sends nothing when nothing changed", async () => {
-    const service = new RecordingAccess();
-    const { accessListRuleDraftFrom } = await import("./access-list-rule-form");
-    const result = await submitAccessListUpdate(
-      "1",
-      "ipv4",
-      storedAccess,
-      accessListRuleDraftFrom(storedAccess, "ipv4"),
-      service,
-    );
-    assert.equal(result, null);
-    assert.equal(service.calls.length, 0);
+  it("shows every endpoint leaf the device holds", () => {
+    assert.deepEqual(endpointParts(rule({ source_any: true, source_network: "10.0.0.0", source_inverse_mask: "0.0.0.255" }), "source"), [
+      { key: "any" },
+      { key: "networkMask", address: "10.0.0.0", mask: "0.0.0.255" },
+    ]);
+    assert.deepEqual(endpointParts(rule({ source_network: "2001:db8::/32", source_exact_match: true }), "source"), [
+      { key: "network", address: "2001:db8::/32" },
+      { key: "exactMatch" },
+    ]);
+    assert.deepEqual(endpointParts(rule({ destination_host: "10.0.0.1" }), "destination"), [
+      { key: "host", address: "10.0.0.1" },
+    ]);
+    assert.deepEqual(endpointParts(rule(), "destination"), []);
   });
 });
 

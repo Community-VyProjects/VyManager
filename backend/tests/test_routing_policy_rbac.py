@@ -47,6 +47,8 @@ GATED_HANDLERS = {
     },
     # the siblings the fix was copied from — keep them honest too
     "access_list/access_list.py": {
+        "get_access_list_capabilities": "require_read_permission",
+        "get_access_list_config": "require_read_permission",
         "access_list_batch_configure": "require_write_permission",
         "reorder_access_list_rules": "require_write_permission",
     },

@@ -1,140 +1,150 @@
-"""
-Access List Command Mapper
+"""Access-list command mapper.
 
-Handles command path generation for access-list configuration.
-Version-specific logic is in version-specific files.
+One class holds the ``policy access-list`` / ``policy access-list6``
+commands; the templates are the same on VyOS 1.4 and 1.5, so the registry
+returns this class for both.
+
+Config tree (``access-list`` for ipv4, ``access-list6`` for ipv6):
+  policy access-list <number>/            (u32 tag; the verify calls int() on it)
+    description            (0-255 characters)
+    rule <1-65535>/
+      action               (permit | deny)
+      description          (0-255 characters)
+      source/ destination/ (destination: ipv4 only)
+        any                (flag)
+        host               (ipv4-address)
+        network            (ipv4-address, with inverse-mask)
+        inverse-mask       (ipv4-address)
+  policy access-list6 <name>/
+    description
+    rule <1-65535>/
+      action, description
+      source/
+        any                (flag)
+        exact-match        (flag, with network)
+        network            (ipv6-prefix)
 """
 
-from typing import List
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
+
 from ..base import BaseFeatureMapper
+
+# Request list type -> CLI node.
+FAMILIES: Dict[str, str] = {"ipv4": "access-list", "ipv6": "access-list6"}
+# Lab `allowed:` of rule action, the same on 1.4 and 1.5.
+RULE_ACTIONS: Tuple[str, ...] = ("permit", "deny")
+# Rule endpoint nodes and their leaves per list type.
+ENDPOINT_LEAVES: Dict[str, Dict[str, FrozenSet[str]]] = {
+    "ipv4": {
+        "source": frozenset({"any", "host", "network", "inverse-mask"}),
+        "destination": frozenset({"any", "host", "network", "inverse-mask"}),
+    },
+    "ipv6": {
+        "source": frozenset({"any", "exact-match", "network"}),
+    },
+}
+# Lab val_help of an extended IPv4 list number; the verify requires a rule
+# destination on these lists, and FRR renders the destination only for them.
+EXTENDED_RANGES: Tuple[Tuple[int, int], ...] = ((100, 199), (2000, 2699))
 
 
 class AccessListMapper(BaseFeatureMapper):
-    """Base mapper with common operations"""
+    """Access-list paths shared by VyOS 1.4 and 1.5."""
 
-    def __init__(self, version: str):
-        """Initialize with VyOS version."""
-        super().__init__(version)
+    def rule_action_values(self) -> Tuple[str, ...]:
+        return RULE_ACTIONS
 
-    # ========================================================================
-    # Core Access List Paths (IPv4)
-    # ========================================================================
-
-    def get_access_list_path(self, number: str) -> List[str]:
-        """Get command path for access-list."""
-        return ["policy", "access-list", number]
-
-    def get_access_list_description(self, number: str, description: str) -> List[str]:
-        """Get command path for access-list description."""
-        return ["policy", "access-list", number, "description", description]
+    def extended_ranges(self) -> Tuple[Tuple[int, int], ...]:
+        return EXTENDED_RANGES
 
     # ========================================================================
-    # Rule Paths (IPv4)
+    # Config read
     # ========================================================================
 
-    def get_rule_path(self, number: str, rule: str) -> List[str]:
-        """Get command path for rule."""
-        return ["policy", "access-list", number, "rule", rule]
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_access_list_config
 
-    def get_rule_action(self, number: str, rule: str, action: str) -> List[str]:
-        """Get command path for rule action (permit/deny)."""
-        return ["policy", "access-list", number, "rule", rule, "action", action]
+        return parse_access_list_config(self, full_config)
 
-    def get_rule_description(self, number: str, rule: str, description: str) -> List[str]:
-        """Get command path for rule description."""
-        return ["policy", "access-list", number, "rule", rule, "description", description]
+    def rule_trees(self, full_config: Dict[str, Any], list_type: str, name: str) -> Optional[Dict[int, Any]]:
+        """Raw rule subtrees of one list (reorder), or None when the list is absent."""
+        from .config_parse import rule_trees
 
-    def get_rule_source_any(self, number: str, rule: str) -> List[str]:
-        """Get command path for rule source any."""
-        return ["policy", "access-list", number, "rule", rule, "source", "any"]
+        return rule_trees(full_config, self.get_access_list_path(list_type, name)[1], name)
 
-    def get_rule_source_host(self, number: str, rule: str, host: str) -> List[str]:
-        """Get command path for rule source host."""
-        return ["policy", "access-list", number, "rule", rule, "source", "host", host]
+    def rule_tree_paths(self, list_type: str, name: str, rule: str, tree: Any) -> List[List[str]]:
+        """Set paths that recreate a rule from its config subtree (reorder).
 
-    def get_rule_source_inverse_mask_network(self, number: str, rule: str, address: str) -> List[str]:
-        """Get command path for rule source network address (used with inverse-mask)."""
-        return ["policy", "access-list", number, "rule", rule, "source", "network", address]
+        A value leaf is one path with its value; a flag (``{}``) or a plain
+        node is the path itself, so every leaf the device holds is kept.
+        """
+        base = self.get_rule_path(list_type, name, rule)
+        paths = [base]
 
-    def get_rule_source_inverse_mask_mask(self, number: str, rule: str, mask: str) -> List[str]:
-        """Get command path for rule source inverse-mask."""
-        return ["policy", "access-list", number, "rule", rule, "source", "inverse-mask", mask]
+        def walk(prefix: List[str], node: Any) -> None:
+            for key, value in node.items():
+                path = prefix + [str(key)]
+                if isinstance(value, dict):
+                    if value:
+                        walk(path, value)
+                    else:
+                        paths.append(path)
+                elif isinstance(value, (str, int)) and not isinstance(value, bool):
+                    paths.append(path + [str(value)])
 
-    def get_rule_destination_any(self, number: str, rule: str) -> List[str]:
-        """Get command path for rule destination any."""
-        return ["policy", "access-list", number, "rule", rule, "destination", "any"]
-
-    def get_rule_destination_host(self, number: str, rule: str, host: str) -> List[str]:
-        """Get command path for rule destination host."""
-        return ["policy", "access-list", number, "rule", rule, "destination", "host", host]
-
-    def get_rule_destination_inverse_mask_network(self, number: str, rule: str, address: str) -> List[str]:
-        """Get command path for rule destination network address (used with inverse-mask)."""
-        return ["policy", "access-list", number, "rule", rule, "destination", "network", address]
-
-    def get_rule_destination_inverse_mask_mask(self, number: str, rule: str, mask: str) -> List[str]:
-        """Get command path for rule destination inverse-mask."""
-        return ["policy", "access-list", number, "rule", rule, "destination", "inverse-mask", mask]
+        walk(base, tree if isinstance(tree, dict) else {})
+        return paths
 
     # ========================================================================
-    # Delete Paths (IPv4)
+    # List
     # ========================================================================
 
-    def get_rule_source_path(self, number: str, rule: str) -> List[str]:
-        """Get command path for deleting rule source."""
-        return ["policy", "access-list", number, "rule", rule, "source"]
+    def get_access_list_path(self, list_type: str, name: str) -> List[str]:
+        node = FAMILIES.get(list_type)
+        if node is None:
+            raise ValueError(f"{list_type} is not an access-list type")
+        return ["policy", node, name]
 
-    def get_rule_destination_path(self, number: str, rule: str) -> List[str]:
-        """Get command path for deleting rule destination."""
-        return ["policy", "access-list", number, "rule", rule, "destination"]
+    def get_access_list_description_path(self, list_type: str, name: str) -> List[str]:
+        return self.get_access_list_path(list_type, name) + ["description"]
 
-    # ========================================================================
-    # Core Access List Paths (IPv6)
-    # ========================================================================
-
-    def get_access_list6_path(self, name: str) -> List[str]:
-        """Get command path for access-list6."""
-        return ["policy", "access-list6", name]
-
-    def get_access_list6_description(self, name: str, description: str) -> List[str]:
-        """Get command path for access-list6 description."""
-        return ["policy", "access-list6", name, "description", description]
+    def get_access_list_description(self, list_type: str, name: str, value: str) -> List[str]:
+        return self.get_access_list_description_path(list_type, name) + [value]
 
     # ========================================================================
-    # Rule Paths (IPv6)
+    # Rule
     # ========================================================================
 
-    def get_rule6_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for IPv6 rule."""
-        return ["policy", "access-list6", name, "rule", rule]
+    def get_rule_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_access_list_path(list_type, name) + ["rule", rule]
 
-    def get_rule6_action(self, name: str, rule: str, action: str) -> List[str]:
-        """Get command path for IPv6 rule action (permit/deny)."""
-        return ["policy", "access-list6", name, "rule", rule, "action", action]
+    def get_rule_action_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_rule_path(list_type, name, rule) + ["action"]
 
-    def get_rule6_description(self, name: str, rule: str, description: str) -> List[str]:
-        """Get command path for IPv6 rule description."""
-        return ["policy", "access-list6", name, "rule", rule, "description", description]
+    def get_rule_action(self, list_type: str, name: str, rule: str, value: str) -> List[str]:
+        return self.get_rule_action_path(list_type, name, rule) + [value]
 
-    def get_rule6_source_any(self, name: str, rule: str) -> List[str]:
-        """Get command path for IPv6 rule source any."""
-        return ["policy", "access-list6", name, "rule", rule, "source", "any"]
+    def get_rule_description_path(self, list_type: str, name: str, rule: str) -> List[str]:
+        return self.get_rule_path(list_type, name, rule) + ["description"]
 
-    def get_rule6_source_exact_match(self, name: str, rule: str) -> List[str]:
-        """Get command path for IPv6 rule source exact-match."""
-        return ["policy", "access-list6", name, "rule", rule, "source", "exact-match"]
-
-    def get_rule6_source_network(self, name: str, rule: str, network: str) -> List[str]:
-        """Get command path for IPv6 rule source network."""
-        return ["policy", "access-list6", name, "rule", rule, "source", "network", network]
-
-    # NOTE: IPv6 access-lists do NOT have destination fields
-    # They only match on source (any or network)
+    def get_rule_description(self, list_type: str, name: str, rule: str, value: str) -> List[str]:
+        return self.get_rule_description_path(list_type, name, rule) + [value]
 
     # ========================================================================
-    # Delete Paths (IPv6)
+    # Rule source / destination
     # ========================================================================
 
-    def get_rule6_source_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting IPv6 rule source."""
-        return ["policy", "access-list6", name, "rule", rule, "source"]
+    def get_rule_endpoint_path(self, list_type: str, name: str, rule: str, endpoint: str) -> List[str]:
+        """``source`` or ``destination`` of a rule; access-list6 has no destination."""
+        path = self.get_rule_path(list_type, name, rule)
+        if endpoint not in ENDPOINT_LEAVES[list_type]:
+            raise ValueError(f"{FAMILIES[list_type]} rules have no {endpoint}")
+        return path + [endpoint]
+
+    def get_rule_endpoint_leaf_path(
+        self, list_type: str, name: str, rule: str, endpoint: str, leaf: str
+    ) -> List[str]:
+        path = self.get_rule_endpoint_path(list_type, name, rule, endpoint)
+        if leaf not in ENDPOINT_LEAVES[list_type][endpoint]:
+            raise ValueError(f"{FAMILIES[list_type]} rule {endpoint} has no {leaf}")
+        return path + [leaf]

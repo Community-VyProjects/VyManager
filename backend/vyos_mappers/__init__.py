@@ -39,7 +39,6 @@ from .static_routes.static_routes_versions import get_static_routes_mapper
 from .route_map import RouteMapMapper
 from .route_map.route_map_versions import get_route_map_mapper
 from .access_list import AccessListMapper
-from .access_list.access_list_versions import get_access_list_mapper
 from .prefix_list import PrefixListMapper
 from .local_route import LocalRouteMapper
 from .local_route.local_route_versions import get_local_route_mapper
@@ -211,8 +210,8 @@ CommandMapperRegistry.register_feature("dhcp_server", get_dhcp_server_mapper)
 CommandMapperRegistry.register_feature("static_routes", get_static_routes_mapper)
 # Route Map uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("route_map", get_route_map_mapper)
-# Access List uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("access_list", get_access_list_mapper)
+# Access List uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("access_list", AccessListMapper)
 # Prefix List uses the shared class (no version differences)
 CommandMapperRegistry.register_feature("prefix_list", PrefixListMapper)
 # Local Route uses factory for version-specific mappers
