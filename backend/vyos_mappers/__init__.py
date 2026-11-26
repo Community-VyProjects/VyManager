@@ -100,7 +100,7 @@ from .pim.pim_versions import get_pim_mapper
 from .pim6 import Pim6Mapper
 from .pim6.pim6_versions import get_pim6_mapper
 from .rip.rip_versions import get_rip_mapper
-from .ripng.ripng_versions import get_ripng_mapper
+from .ripng import RipNgMapper
 from .rpki import RpkiMapper
 from .rpki.rpki_versions import get_rpki_mapper
 from .segment_routing import SegmentRoutingMapper
@@ -295,7 +295,8 @@ CommandMapperRegistry.register_feature("pim", get_pim_mapper)
 CommandMapperRegistry.register_feature("pim6", get_pim6_mapper)
 # RIP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("rip", get_rip_mapper)
-CommandMapperRegistry.register_feature("ripng", get_ripng_mapper)
+# RIPng uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("ripng", RipNgMapper)
 # RPKI uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("rpki", get_rpki_mapper)
 # Segment Routing uses factory for version-specific mappers
@@ -405,6 +406,7 @@ __all__ = [
     "L2TPMapper",
     "PKIMapper",
     "TunnelMapper",
+    "RipNgMapper",
     "VxlanMapper",
     "NhrpMapper",
     "PimMapper",

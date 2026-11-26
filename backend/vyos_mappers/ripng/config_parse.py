@@ -1,10 +1,16 @@
 """Read-model for RIPng config.
 
 Mappers own VyOS tree shape. Routers call parse_config and do not rebuild
-the tree.
+the tree. RIPng parse does not branch on version; both 1.4 and 1.5 use this
+tree. Valueless nodes are read by key membership: a bare node parses as {}
+(or None), which is falsy but present.
 """
 
 from typing import Any, Dict, List, Optional
+
+
+def _dict(value: Any) -> Dict[str, Any]:
+    return value if isinstance(value, dict) else {}
 
 
 def _safe_int(value: Any) -> Optional[int]:
@@ -16,11 +22,15 @@ def _safe_int(value: Any) -> Optional[int]:
         return None
 
 
+def _text(value: Any) -> Optional[str]:
+    return value if isinstance(value, str) and value else None
+
+
 def _to_list(value: Any) -> List[str]:
     if value is None:
         return []
     if isinstance(value, list):
-        return value
+        return [v for v in value if isinstance(v, str)]
     if isinstance(value, str):
         return [value]
     if isinstance(value, dict):
@@ -50,6 +60,7 @@ def _empty_timers() -> Dict[str, Optional[int]]:
 
 def _empty() -> Dict[str, Any]:
     return {
+        "configured": False,
         "default_information_originate": False,
         "default_metric": None,
         "route_map": None,
@@ -64,109 +75,87 @@ def _empty() -> Dict[str, Any]:
     }
 
 
-def parse_distribute_list(raw: dict) -> Dict[str, Any]:
-    if not raw:
-        return _empty_distribute_list()
-
-    acl_raw = raw.get("access-list", {}) or {}
-    pl_raw = raw.get("prefix-list", {}) or {}
-
-    global_filters = {
-        "access_list_in": acl_raw.get("in") if isinstance(acl_raw, dict) else None,
-        "access_list_out": acl_raw.get("out") if isinstance(acl_raw, dict) else None,
-        "prefix_list_in": pl_raw.get("in") if isinstance(pl_raw, dict) else None,
-        "prefix_list_out": pl_raw.get("out") if isinstance(pl_raw, dict) else None,
+def _list_filters(raw: Any) -> Dict[str, Optional[str]]:
+    node = _dict(raw)
+    acl = _dict(node.get("access-list"))
+    pl = _dict(node.get("prefix-list"))
+    return {
+        "access_list_in": _text(acl.get("in")),
+        "access_list_out": _text(acl.get("out")),
+        "prefix_list_in": _text(pl.get("in")),
+        "prefix_list_out": _text(pl.get("out")),
     }
 
-    iface_filters = []
-    for iface, iface_raw in (raw.get("interface", {}) or {}).items():
-        if iface_raw is None:
-            iface_raw = {}
-        iface_acl = iface_raw.get("access-list", {}) or {}
-        iface_pl = iface_raw.get("prefix-list", {}) or {}
-        iface_filters.append(
-            {
-                "interface": iface,
-                "access_list_in": iface_acl.get("in") if isinstance(iface_acl, dict) else None,
-                "access_list_out": iface_acl.get("out") if isinstance(iface_acl, dict) else None,
-                "prefix_list_in": iface_pl.get("in") if isinstance(iface_pl, dict) else None,
-                "prefix_list_out": iface_pl.get("out") if isinstance(iface_pl, dict) else None,
-            }
-        )
 
-    return {"global_filters": global_filters, "interface_filters": iface_filters}
+def parse_distribute_list(raw: Any) -> Dict[str, Any]:
+    node = _dict(raw)
+    if not node:
+        return _empty_distribute_list()
+
+    # A bare `distribute-list interface <if>` is still listed so it can be
+    # edited or deleted; every list on it reads None.
+    iface_filters = [
+        {"interface": iface, **_list_filters(iface_raw)}
+        for iface, iface_raw in _dict(node.get("interface")).items()
+    ]
+    return {"global_filters": _list_filters(node), "interface_filters": iface_filters}
 
 
-def parse_interfaces(raw: dict) -> List[Dict[str, Any]]:
-    if not raw:
-        return []
-
+def parse_interfaces(raw: Any) -> List[Dict[str, Any]]:
     interfaces = []
-    for iface_name, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
-
-        split_horizon_raw = cfg.get("split-horizon", {}) or {}
+    for iface_name, cfg in _dict(raw).items():
+        split_horizon_raw = _dict(_dict(cfg).get("split-horizon"))
         split_horizon = None
         if "poison-reverse" in split_horizon_raw:
             split_horizon = "poison-reverse"
         elif "disable" in split_horizon_raw:
             split_horizon = "disable"
-
-        interfaces.append(
-            {
-                "name": iface_name,
-                "split_horizon": split_horizon,
-            }
-        )
-
+        interfaces.append({"name": iface_name, "split_horizon": split_horizon})
     return interfaces
 
 
-def parse_redistribute(raw: dict) -> List[Dict[str, Any]]:
-    if not raw:
-        return []
-
+def parse_redistribute(raw: Any) -> List[Dict[str, Any]]:
     entries = []
-    for protocol, cfg in raw.items():
-        if cfg is None:
-            cfg = {}
+    for protocol, cfg in _dict(raw).items():
+        node = _dict(cfg)
         entries.append(
             {
                 "protocol": protocol,
-                "metric": _safe_int(cfg.get("metric")),
-                "route_map": cfg.get("route-map"),
+                "metric": _safe_int(node.get("metric")),
+                "route_map": _text(node.get("route-map")),
             }
         )
     return entries
 
 
-def parse_timers(raw: dict) -> Dict[str, Optional[int]]:
-    if not raw:
-        return _empty_timers()
+def parse_timers(raw: Any) -> Dict[str, Optional[int]]:
+    node = _dict(raw)
     return {
-        "update": _safe_int(raw.get("update")),
-        "timeout": _safe_int(raw.get("timeout")),
-        "garbage_collection": _safe_int(raw.get("garbage-collection")),
+        "update": _safe_int(node.get("update")),
+        "timeout": _safe_int(node.get("timeout")),
+        "garbage_collection": _safe_int(node.get("garbage-collection")),
     }
 
 
 def parse_config(_mapper, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise full VyOS config into the GET /vyos/ripng/config payload."""
-    ripng_raw = full_config.get("protocols", {}).get("ripng", {})
-    if not ripng_raw:
+    protocols = _dict(_dict(full_config).get("protocols"))
+    if "ripng" not in protocols:
         return _empty()
+    # A bare `protocols ripng` node still exists and can be deleted.
+    ripng_raw = _dict(protocols["ripng"])
 
     return {
-        "default_information_originate": "originate" in (ripng_raw.get("default-information") or {}),
+        "configured": True,
+        "default_information_originate": "originate" in _dict(ripng_raw.get("default-information")),
         "default_metric": _safe_int(ripng_raw.get("default-metric")),
-        "route_map": ripng_raw.get("route-map"),
+        "route_map": _text(ripng_raw.get("route-map")),
         "aggregate_addresses": _to_list(ripng_raw.get("aggregate-address")),
         "networks": _to_list(ripng_raw.get("network")),
         "routes": _to_list(ripng_raw.get("route")),
         "passive_interfaces": _to_list(ripng_raw.get("passive-interface")),
-        "distribute_list": parse_distribute_list(ripng_raw.get("distribute-list", {})),
-        "interfaces": parse_interfaces(ripng_raw.get("interface", {})),
-        "redistribute": parse_redistribute(ripng_raw.get("redistribute", {})),
-        "timers": parse_timers(ripng_raw.get("timers", {})),
+        "distribute_list": parse_distribute_list(ripng_raw.get("distribute-list")),
+        "interfaces": parse_interfaces(ripng_raw.get("interface")),
+        "redistribute": parse_redistribute(ripng_raw.get("redistribute")),
+        "timers": parse_timers(ripng_raw.get("timers")),
     }

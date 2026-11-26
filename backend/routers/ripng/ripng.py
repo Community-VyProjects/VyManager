@@ -1,21 +1,21 @@
 """RIPng Protocol Router.
 
 API endpoints for managing VyOS RIPng (Routing Information Protocol next generation)
-configuration. Supports version-aware configuration for VyOS 1.4 and 1.5.
+configuration. RIPng is identical between VyOS 1.4 and 1.5.
 """
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 from session_vyos_service import get_session_vyos_service
 from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.ripng import RipNgMapper
 from vyos_builders.ripng import RipNgBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
 import logging
-from batch_dispatch import resolve_batch_method
+from batch_dispatch import call_comma_batch_op
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,7 @@ class RipNgTimers(BaseModel):
 
 
 class RipNgConfig(BaseModel):
+    configured: bool = False
     default_information_originate: bool = False
     default_metric: Optional[int] = None
     route_map: Optional[str] = None
@@ -100,7 +101,7 @@ class VyOSResponse(BaseModel):
 
 @router.get("/capabilities")
 async def get_ripng_capabilities(request: Request):
-    """Return RIPng feature capabilities based on the device VyOS version."""
+    """Return RIPng feature capabilities; they are the same on every VyOS version."""
     await require_read_permission(request, FeatureGroup.RIPNG)
 
     try:
@@ -113,6 +114,8 @@ async def get_ripng_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_ripng_capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -131,8 +134,10 @@ async def get_ripng_config(http_request: Request, refresh: bool = False):
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        mapper = CommandMapperRegistry.get_mapper("ripng", service.get_version())
+        mapper = cast(RipNgMapper, CommandMapperRegistry.get_mapper("ripng", service.get_version()))
         return RipNgConfig(**mapper.parse_config(full_config))
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in get_ripng_config")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -152,38 +157,21 @@ async def ripng_batch_configure(http_request: Request, body: RipNgBatchRequest):
         service = get_session_vyos_service(http_request)
         builder = RipNgBatchBuilder(version=service.get_version())
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        try:
+            for operation in body.operations:
+                call_comma_batch_op(builder, operation.op, operation.value)
+        except ValueError as exc:
+            # The builder raises ValueError for a value the lab would reject.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-            if len(params) == 0:
-                method()
-            elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-            elif len(params) == 2 and operation.value is not None:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value, "")
-            elif len(params) == 3 and operation.value is not None:
-                values = operation.value.split(",", 2)
-                if len(values) == 3:
-                    method(values[0], values[1], values[2])
-                elif len(values) == 2:
-                    method(values[0], values[1], "")
-
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "RIPng configuration updated"},
+            data={"message": "RIPng configuration updated"} if response.status == 200 else None,
             error=response.error if response.error else None,
         )
-    except AttributeError as e:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled error in ripng_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

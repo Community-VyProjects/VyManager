@@ -1,20 +1,20 @@
 {
   "header": {
     "title": "RIPng Protocol",
-    "subtitle": "Routing Information Protocol Next Generation — IPv6 distance-vector routing"
+    "subtitle": "Routing Information Protocol Next Generation — IPv6 distance-vector routing",
+    "deleteRipng": "Delete RIPng"
   },
   "errors": {
     "loadFailed": "Failed to load RIPng configuration",
     "saveSettingsFailed": "Failed to save settings",
     "addNetworkFailed": "Failed to add network",
-    "removeNetworkFailed": "Failed to remove network",
     "addAggregateFailed": "Failed to add aggregate address",
-    "removeAggregateFailed": "Failed to remove aggregate address",
     "addRouteFailed": "Failed to add route",
-    "removeRouteFailed": "Failed to remove route",
     "addPassiveIfaceFailed": "Failed to add passive interface",
-    "removePassiveIfaceFailed": "Failed to remove passive interface",
-    "saveFiltersFailed": "Failed to save filters"
+    "saveFiltersFailed": "Failed to save filters",
+    "loadRouteMapsFailed": "Failed to load route maps",
+    "loadAccessListsFailed": "Failed to load IPv6 access lists",
+    "loadPrefixListsFailed": "Failed to load IPv6 prefix lists"
   },
   "stats": {
     "networks": "Networks",
@@ -77,9 +77,10 @@
     "plOut": "PL Out"
   },
   "deleteModal": {
-    "title": "Delete RIPng {type, select, interface {Interface} redistribution {Redistribution} other {Interface Filter}}",
-    "description": "Are you sure you want to delete the RIPng {type, select, interface {interface} redistribution {redistribution} other {interface filter}} <mono>{name}</mono>? This action cannot be undone.",
-    "confirm": "Delete {type, select, interface {Interface} redistribution {Redistribution} other {Interface Filter}}"
+    "title": "Delete RIPng {type, select, interface {Interface} redistribution {Redistribution} network {Network} aggregateAddress {Aggregate Address} route {Static Route} passiveInterface {Passive Interface} ripng {Configuration} other {Interface Filter}}",
+    "description": "Are you sure you want to delete the RIPng {type, select, interface {interface} redistribution {redistribution} network {network} aggregateAddress {aggregate address} route {static route} passiveInterface {passive interface} other {interface filter}} <mono>{name}</mono>? This action cannot be undone.",
+    "ripngDescription": "Are you sure you want to delete the whole RIPng configuration from this router? This action cannot be undone.",
+    "confirm": "Delete {type, select, interface {Interface} redistribution {Redistribution} network {Network} aggregateAddress {Aggregate Address} route {Static Route} passiveInterface {Passive Interface} ripng {RIPng} other {Interface Filter}}"
   },
   "modal": {
     "adding": "Adding...",
@@ -89,7 +90,11 @@
     "selectInterface": "Please select an interface",
     "selectProtocol": "Please select a protocol",
     "selectList": "Select at least one access list or prefix list",
-    "metricRange": "Metric must be between 1 and 16"
+    "metricRange": "Metric must be between {min} and {max}",
+    "timerRange": "Timers must be between {min} and {max} seconds",
+    "prefixInvalid": "Enter an IPv6 prefix with no host bits set, such as 2001:db8::/32",
+    "prefixExists": "This prefix is already configured",
+    "interfaceExists": "This interface is already configured"
   },
   "interfaceModal": {
     "editTitle": "Edit RIPng Interface",
@@ -111,6 +116,6 @@
     "editDescription": "Modify redistribution settings for {protocol}.",
     "addDescription": "Configure a new protocol to redistribute into RIPng.",
     "selectProtocol": "Select protocol",
-    "metricHint": "(optional, 1–16)"
+    "metricHint": "(optional, {min}–{max})"
   }
 }

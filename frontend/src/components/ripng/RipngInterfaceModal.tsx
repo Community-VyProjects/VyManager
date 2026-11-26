@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -18,93 +19,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNgInterface } from "@/lib/api/ripng";
-import { showService, InterfaceName } from "@/lib/api/show";
-import { InterfaceSelect } from "@/components/ui/interface-select";
+import { ripngInterfaceProblem, ripngProblemArgs } from "@/lib/api/ripng-save-ops";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import type { ApiError } from "@/lib/types/api";
 
 interface RipngInterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (config: RipNgInterface) => Promise<void>;
   existingInterface?: RipNgInterface | null;
+  /** Interfaces that already have a RIPng node; Add offers only the others. */
+  configuredInterfaces: string[];
 }
 
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function RipngInterfaceModal({
   open,
   onOpenChange,
   onSubmit,
   existingInterface,
+  configuredInterfaces,
 }: RipngInterfaceModalProps) {
   const t = useTranslations("ripng");
   const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
 
-  const [name, setName] = useState("");
-  const [splitHorizon, setSplitHorizon] = useState("");
+  const [name, setName] = useState(existingInterface?.name ?? "");
+  const [splitHorizon, setSplitHorizon] = useState(existingInterface?.split_horizon ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
-  useEffect(() => {
-    if (!open) return;
-    showService.getAllInterfaces()
-      .then((res) => setAvailableInterfaces(res.interfaces))
-      .catch(() => {});
-
-    if (existingInterface) {
-      setName(existingInterface.name);
-      setSplitHorizon(existingInterface.split_horizon || "");
-    } else {
-      resetForm();
-    }
-  }, [open, existingInterface]);
-
-  const resetForm = () => {
-    setName("");
-    setSplitHorizon("");
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
-  const validate = (): string | null => {
-    if (!name) return t("validation.selectInterface");
-    return null;
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+    const config: RipNgInterface = { name, split_horizon: splitHorizon || null };
+    const problem = ripngInterfaceProblem(existingInterface ?? null, config, configuredInterfaces);
+    if (problem) {
+      setError(t(`validation.${problem.key}`, ripngProblemArgs(problem)));
       return;
     }
-
-    const config: RipNgInterface = {
-      name,
-      split_horizon: splitHorizon || null,
-    };
-
     try {
       setLoading(true);
       setError(null);
       await onSubmit(config);
-      handleClose();
+      onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("operationFailed"));
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
@@ -116,35 +92,42 @@ export function RipngInterfaceModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Interface */}
-          <div className="space-y-2">
-            <Label htmlFor="ripng-iface-name">{t("interfaces.interface")}</Label>
-            <InterfaceSelect
-              value={name}
-              onValueChange={setName}
-              disabled={isEditMode}
-              id="ripng-iface-name"
-              className={isEditMode ? "bg-muted" : ""}
-              interfaces={availableInterfaces}
-            />
-          </div>
+        <ScrollArea className="flex-1 min-h-0 pr-4">
+          <div className="space-y-4">
+            {/* Interface */}
+            <div className="space-y-2">
+              <Label htmlFor="ripng-iface-name">{t("interfaces.interface")}</Label>
+              <InterfaceSelect
+                id="ripng-iface-name"
+                value={name}
+                onValueChange={setName}
+                disabled={isEditMode || loading}
+                className={isEditMode ? "bg-muted" : ""}
+                placeholder={tc("selectInterface")}
+                filter={(item) => isEditMode || !configuredInterfaces.includes(item.name)}
+              />
+            </div>
 
-          {/* Split Horizon */}
-          <div className="space-y-2">
-            <Label>{t("interfaces.splitHorizon")}</Label>
-            <Select value={splitHorizon || "unset"} onValueChange={(v) => setSplitHorizon(v === "unset" ? "" : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder={tc("default")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unset">{tc("default")}</SelectItem>
-                <SelectItem value="disable">{t("interfaceModal.disable")}</SelectItem>
-                <SelectItem value="poison-reverse">{t("interfaceModal.poisonReverse")}</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Split Horizon */}
+            <div className="space-y-2">
+              <Label htmlFor="ripng-iface-split-horizon">{t("interfaces.splitHorizon")}</Label>
+              <Select
+                value={splitHorizon || NONE_SENTINEL}
+                onValueChange={(v) => setSplitHorizon(v === NONE_SENTINEL ? "" : v)}
+                disabled={loading}
+              >
+                <SelectTrigger id="ripng-iface-split-horizon">
+                  <SelectValue placeholder={tc("default")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
+                  <SelectItem value="disable">{t("interfaceModal.disable")}</SelectItem>
+                  <SelectItem value="poison-reverse">{t("interfaceModal.poisonReverse")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
+        </ScrollArea>
 
         {error && (
           <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
@@ -154,7 +137,7 @@ export function RipngInterfaceModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
