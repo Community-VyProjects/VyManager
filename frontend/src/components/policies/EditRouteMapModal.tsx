@@ -1,110 +1,105 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle } from "lucide-react";
-import { routeMapService } from "@/lib/api/route-map";
-import type { RouteMap } from "@/lib/api/route-map";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, Map as MapIcon } from "lucide-react";
+import { routeMapService, type RouteMap, type RouteMapCapabilities } from "@/lib/api/route-map";
+import {
+  descriptionMaxLength,
+  mapFormFrom,
+  routeMapProblem,
+  type RouteMapForm,
+} from "@/lib/api/route-map-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface EditRouteMapModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  routeMap: RouteMap | null;
+  routeMap: RouteMap;
+  capabilities: RouteMapCapabilities | null;
 }
 
-export function EditRouteMapModal({ open, onOpenChange, onSuccess, routeMap }: EditRouteMapModalProps) {
+/** The route-map's own leaves (its description); rules are edited from the table. */
+export function EditRouteMapModal({ open, onOpenChange, onSuccess, routeMap, capabilities }: EditRouteMapModalProps) {
   const t = useTranslations("routeMap");
+  const tl = useTranslations("routeMap.mapErrors");
   const tc = useTranslations("common");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [description, setDescription] = useState("");
-
-  useEffect(() => {
-    if (open && routeMap) {
-      setDescription(routeMap.description || "");
-    }
-  }, [open, routeMap]);
+  const [form, setForm] = useState<RouteMapForm>(() => mapFormFrom(routeMap));
 
   const handleSubmit = async () => {
-    if (!routeMap) return;
-
+    const problem = routeMapProblem(form, null, capabilities);
+    if (problem) {
+      setError(tl(problem.key, { max: problem.max ?? "" }));
+      return;
+    }
     setLoading(true);
     setError(null);
-
     try {
-      await routeMapService.updateRouteMap(
-        routeMap.name,
-        routeMap,
-        description.trim() || null
-      );
-
+      await routeMapService.updateRouteMap(routeMap, form);
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("edit.updateFailed"));
+      setError((err as ApiError).message || t("edit.failed"));
     } finally {
       setLoading(false);
     }
   };
 
-  if (!routeMap) return null;
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("edit.title")}</DialogTitle>
-          <DialogDescription>
-            {t("edit.description")}
-          </DialogDescription>
+          <DialogDescription>{t("edit.description")}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t("edit.nameLabel")}</Label>
-            <Input value={routeMap.name} disabled className="bg-muted" />
-            <p className="text-xs text-muted-foreground">
-              {t("edit.nameHint")}
-            </p>
+        <div className="space-y-4 py-4">
+          <div className="border rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <MapIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="font-mono text-sm font-medium">{routeMap.name}</span>
+              <Badge variant="secondary">{t("ruleCount", { count: routeMap.rules.length })}</Badge>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">{tc("description")}</Label>
-            <Textarea
-              id="description"
-              placeholder={t("edit.descriptionPlaceholder")}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+            <Label htmlFor="route-map-edit-description">{tc("description")}</Label>
+            <Input
+              id="route-map-edit-description"
+              value={form.description}
+              maxLength={descriptionMaxLength(capabilities)}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              disabled={loading}
             />
-          </div>
-
-          <div className="bg-muted/50 border rounded-lg p-3">
-            <p className="text-sm text-muted-foreground">
-              {t("edit.rulesInfo", { count: routeMap.rules.length })}
-            </p>
           </div>
         </div>
 
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? t("edit.updating") : t("edit.submit")}
+            {loading ? tc("saving") : tc("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

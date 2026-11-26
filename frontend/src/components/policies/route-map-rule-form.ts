@@ -1,112 +1,94 @@
 /**
- * Draft, validation and submit logic for route-map rules.
- *
- * Create sends the fields the operator filled in. Update diffs the draft
- * against the stored record so an unchanged rule sends nothing. The write
- * target is the stored rule number, never the draft.
+ * Form-only helpers of the route-map modals. Every emit and save check lives
+ * in `@/lib/api/route-map-save-ops`.
  */
 
-import {
-  routeMapService,
-  RouteMapService,
-  type MatchConditions,
-  type RouteMapRule,
-  type SetActions,
-} from "@/lib/api/route-map";
-import type { VyOSResponse } from "@/lib/types/api";
+import type { RouteMapCapabilities, RouteMapRule } from "@/lib/api/route-map";
+import { routeMapRange, type RouteMapRuleProblem, type RouteMapRuleProblemKey } from "@/lib/api/route-map-save-ops";
+import { nextRuleNumber } from "./route-rule-form";
 
-export interface RouteMapRuleDraft {
-  ruleNumber: number;
-  description: string;
-  action: string;
-  call: string;
-  continueRule: string;
-  onMatchGoto: string;
-  onMatchNext: boolean;
-  match: Partial<MatchConditions>;
-  set: Partial<SetActions>;
+type Caps = RouteMapCapabilities | null;
+
+/** The tabs of the rule field set. */
+export type RouteMapRuleTab = "basic" | "match" | "set" | "advanced";
+
+/** A free rule number inside the served rule range. */
+export function suggestedRuleNumber(rules: RouteMapRule[], caps: Caps): string {
+  return nextRuleNumber(
+    rules.map((r) => r.rule_number),
+    routeMapRange(caps, "rule"),
+  );
 }
 
-export const emptyRouteMapRuleDraft = (): RouteMapRuleDraft => ({
-  ruleNumber: 100,
-  description: "",
-  action: "permit",
-  call: "",
-  continueRule: "",
-  onMatchGoto: "",
-  onMatchNext: false,
-  match: {},
-  set: {},
-});
-
-export function nextRuleNumber(rules: { rule_number: number }[]): number {
-  if (rules.length === 0) return 100;
-  return Math.max(...rules.map((r) => r.rule_number)) + 1;
+/**
+ * Names of the configured objects a rule can pick, loaded by the page. A
+ * picker keeps a loaded value that is not in its list.
+ */
+export interface RouteMapPickers {
+  /** Route-maps a rule can `call` (the edited route-map excluded). */
+  routeMaps: string[];
+  asPathLists: string[];
+  communityLists: string[];
+  extcommunityLists: string[];
+  largeCommunityLists: string[];
+  /** IPv4 access-list numbers inside the served `ip_access_list_ranges`. */
+  ipv4AccessLists: string[];
+  ipv6AccessLists: string[];
+  ipv4PrefixLists: string[];
+  ipv6PrefixLists: string[];
 }
 
-export function routeMapRuleDraftFrom(rule: RouteMapRule): RouteMapRuleDraft {
-  return {
-    ruleNumber: rule.rule_number,
-    description: rule.description ?? "",
-    action: rule.action,
-    call: rule.call ?? "",
-    continueRule: rule.continue_rule != null ? String(rule.continue_rule) : "",
-    onMatchGoto: rule.on_match_goto != null ? String(rule.on_match_goto) : "",
-    onMatchNext: !!rule.on_match_next,
-    match: { ...(rule.match || {}) },
-    set: { ...(rule.set || {}) },
-  };
+export const NO_PICKERS: RouteMapPickers = {
+  routeMaps: [],
+  asPathLists: [],
+  communityLists: [],
+  extcommunityLists: [],
+  largeCommunityLists: [],
+  ipv4AccessLists: [],
+  ipv6AccessLists: [],
+  ipv4PrefixLists: [],
+  ipv6PrefixLists: [],
+};
+
+const BASIC: RouteMapRuleProblemKey[] = [
+  "ruleNumberRequired",
+  "ruleNumberRange",
+  "ruleNumberTaken",
+  "actionRequired",
+  "descriptionTooLong",
+];
+const ADVANCED: RouteMapRuleProblemKey[] = [
+  "continueRange",
+  "continueNotAfterRule",
+  "onMatchGotoRange",
+  "onMatchGotoNotAfterRule",
+];
+const MATCH: RouteMapRuleProblemKey[] = [
+  "matchLocalPreferenceRange",
+  "matchMetricRange",
+  "matchTagRange",
+  "matchPeerInvalid",
+  "matchSourcePeerInvalid",
+  "evpnVniRange",
+  "ipAddressAccessListInvalid",
+  "ipAddressPrefixLenRange",
+  "ipv6AddressPrefixLenRange",
+  "ipNexthopAccessListInvalid",
+  "ipNexthopAddressInvalid",
+  "ipNexthopPrefixLenRange",
+  "ipv6NexthopAddressInvalid",
+  "ipRouteSourceAccessListInvalid",
+];
+
+/** The tab holding the field a save check names, so the submit can switch to it. */
+export function problemTab(key: RouteMapRuleProblemKey): RouteMapRuleTab {
+  if (BASIC.includes(key)) return "basic";
+  if (ADVANCED.includes(key)) return "advanced";
+  if (MATCH.includes(key)) return "match";
+  return "set";
 }
 
-export function buildRouteMapCreate(draft: RouteMapRuleDraft): Partial<RouteMapRule> {
-  return {
-    rule_number: draft.ruleNumber,
-    description: draft.description.trim() || null,
-    action: draft.action,
-    call: draft.call.trim() || null,
-    continue_rule: draft.continueRule.trim() ? parseInt(draft.continueRule, 10) : null,
-    on_match_goto: draft.onMatchGoto.trim() ? parseInt(draft.onMatchGoto, 10) : null,
-    on_match_next: draft.onMatchNext,
-    match: draft.match,
-    set: draft.set,
-  };
-}
-
-const keyOf = (draft: RouteMapRuleDraft): string =>
-  JSON.stringify({
-    description: draft.description.trim() || null,
-    action: draft.action,
-    call: draft.call.trim() || null,
-    continue_rule: draft.continueRule.trim() ? parseInt(draft.continueRule, 10) : null,
-    on_match_goto: draft.onMatchGoto.trim() ? parseInt(draft.onMatchGoto, 10) : null,
-    on_match_next: draft.onMatchNext,
-    match: draft.match,
-    set: draft.set,
-  });
-
-export function buildRouteMapUpdate(
-  draft: RouteMapRuleDraft,
-  current: RouteMapRule,
-): Partial<RouteMapRule> | null {
-  if (keyOf(draft) === keyOf(routeMapRuleDraftFrom(current))) return null;
-  return buildRouteMapCreate(draft);
-}
-
-export function submitRouteMapCreate(
-  name: string,
-  draft: RouteMapRuleDraft,
-  service: RouteMapService = routeMapService,
-): Promise<VyOSResponse> {
-  return service.addRule(name, buildRouteMapCreate(draft));
-}
-
-export async function submitRouteMapUpdate(
-  name: string,
-  current: RouteMapRule,
-  draft: RouteMapRuleDraft,
-  service: RouteMapService = routeMapService,
-): Promise<VyOSResponse | null> {
-  const config = buildRouteMapUpdate(draft, current);
-  if (!config) return null;
-  return service.updateRule(name, current.rule_number, config, current.match);
+/** The message arguments of a rule save check (every message may name the rule). */
+export function ruleProblemArgs(problem: RouteMapRuleProblem): Record<string, string | number> {
+  return { rule: problem.rule, min: problem.min ?? "", max: problem.max ?? "", value: problem.value ?? "" };
 }
