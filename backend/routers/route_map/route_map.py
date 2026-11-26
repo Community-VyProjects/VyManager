@@ -1,22 +1,26 @@
 """
 Route Map Router
 
-API endpoints for managing VyOS route-map configuration.
-Supports version-aware configuration for VyOS 1.4 and 1.5. Match leaves that
-exist on only one version are gated by the route-map mapper.
+API endpoints for VyOS policy route-map configuration. The mapper decides
+which nodes this VyOS version has; capabilities report them, and the config
+read builds the response from the mapper's parse.
 """
 
+import logging
+from typing import Any, Dict, List, Optional, cast
+
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
-from session_vyos_service import get_session_vyos_service
-from vyos_builders.route_map import RouteMapBatchBuilder
+
+from batch_dispatch import call_item_batch_op
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
-import logging
-from batch_dispatch import resolve_batch_method
+from session_vyos_service import get_session_vyos_service
+from vyos_builders.route_map import RouteMapBatchBuilder
+from vyos_mappers.base import CommandMapperRegistry
+from vyos_mappers.route_map.route_map import RouteMapMapper
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/route-map", tags=["route-map"])
@@ -28,29 +32,28 @@ router = APIRouter(prefix="/vyos/route-map", tags=["route-map"])
 
 
 class MatchConditions(BaseModel):
-    """Match conditions for route-map rule"""
-    # BGP Attributes
+    """Rule match leaves."""
+    # BGP attributes
     as_path: Optional[str] = None
     community_list: Optional[str] = None
     community_exact_match: bool = False
     extcommunity: Optional[str] = None
     large_community_list: Optional[str] = None
-    large_community_exact_match: bool = False
     local_preference: Optional[int] = None
     metric: Optional[int] = None
-    origin: Optional[str] = None  # egp|igp|incomplete
+    origin: Optional[str] = None
     peer: Optional[str] = None
-    rpki: Optional[str] = None  # invalid|notfound|valid
-    rpki_extcommunity: Optional[str] = None  # invalid|notfound|valid
-    source_peer: Optional[str] = None
+    rpki: Optional[str] = None
+    rpki_extcommunity: Optional[str] = None  # 1.5 only
+    source_peer: Optional[str] = None  # 1.5 only
 
     # EVPN
     evpn_default_route: bool = False
     evpn_rd: Optional[str] = None
-    evpn_route_type: Optional[str] = None  # values per device: capabilities match_evpn.route_types
+    evpn_route_type: Optional[str] = None
     evpn_vni: Optional[int] = None
 
-    # IP/IPv6 Address
+    # IP / IPv6 address
     ip_address_access_list: Optional[str] = None
     ip_address_prefix_list: Optional[str] = None
     ip_address_prefix_len: Optional[int] = None
@@ -58,7 +61,7 @@ class MatchConditions(BaseModel):
     ipv6_address_prefix_list: Optional[str] = None
     ipv6_address_prefix_len: Optional[int] = None
 
-    # Next-Hop
+    # Next-hop
     ip_nexthop_access_list: Optional[str] = None
     ip_nexthop_address: Optional[str] = None
     ip_nexthop_prefix_len: Optional[int] = None
@@ -69,51 +72,49 @@ class MatchConditions(BaseModel):
     ipv6_nexthop_prefix_list: Optional[str] = None
     ipv6_nexthop_type: Optional[str] = None
 
-    # Route Source
+    # Route source
     ip_route_source_access_list: Optional[str] = None
     ip_route_source_prefix_list: Optional[str] = None
 
     # Other
     interface: Optional[str] = None
-    protocol: Optional[str] = None  # babel|bgp|connected|isis|kernel|ospf|ospfv3|rip|ripng|static|table|vnc
+    protocol: Optional[str] = None
     source_vrf: Optional[str] = None
     tag: Optional[int] = None
 
 
 class SetActions(BaseModel):
-    """Set actions for route-map rule"""
-    # BGP AS Path
+    """Rule set leaves. A ``multi:`` leaf is a list."""
+    # AS path
     as_path_exclude: Optional[str] = None
     as_path_prepend: Optional[str] = None
     as_path_prepend_last_as: Optional[int] = None
 
-    # BGP Communities (separate fields for each action to support multiple simultaneous operations)
-    community_add_values: Optional[List[str]] = None
-    community_delete_values: Optional[List[str]] = None
-    community_replace_values: Optional[List[str]] = None
-    community_remove_all: bool = False
-
-    # Large Communities (separate fields for each action)
-    large_community_add_values: Optional[List[str]] = None
-    large_community_delete_values: Optional[List[str]] = None
-    large_community_replace_values: Optional[List[str]] = None
-    large_community_remove_all: bool = False
+    # Communities
+    community_add_values: List[str] = []
+    community_replace_values: List[str] = []
+    community_delete: Optional[str] = None  # community-list name
+    community_remove_all: bool = False  # set community none
+    large_community_add_values: List[str] = []
+    large_community_replace_values: List[str] = []
+    large_community_delete: Optional[str] = None  # large-community-list name
+    large_community_remove_all: bool = False  # set large-community none
     extcommunity_bandwidth: Optional[str] = None
     extcommunity_bandwidth_non_transitive: bool = False
-    extcommunity_rt: Optional[str] = None
-    extcommunity_soo: Optional[str] = None
+    extcommunity_rt: List[str] = []
+    extcommunity_soo: List[str] = []
     extcommunity_none: bool = False
 
-    # BGP Attributes
+    # BGP attributes
     atomic_aggregate: bool = False
     aggregator_as: Optional[str] = None
     aggregator_ip: Optional[str] = None
     local_preference: Optional[int] = None
-    origin: Optional[str] = None  # egp|igp|incomplete
+    origin: Optional[str] = None
     originator_id: Optional[str] = None
     weight: Optional[int] = None
 
-    # Next-Hop
+    # Next-hop (``set ip-next-hop`` is one leaf: an address, or one of the flags)
     ip_nexthop: Optional[str] = None
     ip_nexthop_peer_address: bool = False
     ip_nexthop_unchanged: bool = False
@@ -127,20 +128,19 @@ class SetActions(BaseModel):
     evpn_gateway_ipv4: Optional[str] = None
     evpn_gateway_ipv6: Optional[str] = None
 
-    # Route Properties
+    # Route properties
     distance: Optional[int] = None
-    metric: Optional[str] = None  # Can be +/- or absolute
-    metric_type: Optional[str] = None  # type-1|type-2
+    metric: Optional[str] = None
+    metric_type: Optional[str] = None
     src: Optional[str] = None
     table: Optional[int] = None
     tag: Optional[int] = None
 
 
 class RouteMapRule(BaseModel):
-    """Route-map rule"""
     rule_number: int
     description: Optional[str] = None
-    action: str = "permit"  # permit|deny
+    action: str = "permit"
     call: Optional[str] = None
     continue_rule: Optional[int] = None
     on_match_goto: Optional[int] = None
@@ -150,686 +150,179 @@ class RouteMapRule(BaseModel):
 
 
 class RouteMap(BaseModel):
-    """Complete route-map configuration"""
     name: str
     description: Optional[str] = None
     rules: List[RouteMapRule] = []
 
 
 class RouteMapConfig(BaseModel):
-    """Response containing all route-maps"""
     route_maps: List[RouteMap] = []
     total: int = 0
 
 
 class RouteMapBatchOperation(BaseModel):
-    """Single operation in a batch request"""
-    op: str = Field(..., description="Operation name")
+    op: str = Field(..., description="Builder operation name")
     value: Optional[str] = Field(None, description="Operation value")
 
 
 class RouteMapBatchRequest(BaseModel):
-    """Model for batch configuration"""
-    name: str = Field(..., description="Route-map name")
-    rule_number: Optional[int] = Field(None, description="Rule number (optional)")
+    """One commit on one route-map. Rule ops need rule_number; route-map ops take none."""
+    name: str = Field(..., min_length=1, description="Route-map name")
+    rule_number: Optional[int] = Field(None, ge=1, le=65535)
     operations: List[RouteMapBatchOperation]
 
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("name must not be blank")
+        return value
 
-class ReorderRuleItem(BaseModel):
-    """Single rule in a reorder request"""
-    old_number: int = Field(..., description="Original rule number")
-    new_number: Optional[int] = Field(None, description="New rule number after reorder; None = delete-only")
-    rule_data: RouteMapRule = Field(..., description="Complete rule configuration")
 
+class ReorderRequest(BaseModel):
+    """New order of a route-map's rules; each listed number takes the next sorted slot."""
+    name: str = Field(..., min_length=1)
+    rule_numbers: List[int] = Field(..., min_length=1)
 
-class ReorderRouteMapRequest(BaseModel):
-    """Model for reordering route-map rules"""
-    route_map_name: str = Field(..., description="Route-map name")
-    rules: List[ReorderRuleItem] = Field(..., description="List of rules with new order")
+    @field_validator("rule_numbers")
+    @classmethod
+    def no_duplicates(cls, value: List[int]) -> List[int]:
+        if len(set(value)) != len(value):
+            raise ValueError("rule_numbers must not repeat")
+        return value
 
 
 class VyOSResponse(BaseModel):
-    """Standard response from VyOS operations"""
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
+def _mapper(version: str) -> RouteMapMapper:
+    return cast(RouteMapMapper, CommandMapperRegistry.get_mapper("route_map", version))
+
+
 # ============================================================================
-# Endpoint 1: Capabilities
+# Endpoints
 # ============================================================================
 
 
 @router.get("/capabilities")
 async def get_route_map_capabilities(http_request: Request):
-    """
-    Get feature capabilities based on device VyOS version.
-
-    Returns feature flags indicating which operations are supported.
-    Allows frontends to conditionally enable/disable features.
-    """
-    # Check RBAC permission
+    """Feature flags, value lists and ranges for this device's VyOS version."""
     await require_read_permission(http_request, FeatureGroup.ROUTE_MAP)
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = RouteMapBatchBuilder(version=version)
+        builder = RouteMapBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
-        # Add instance info
         if hasattr(http_request.state, "instance") and http_request.state.instance:
             capabilities["instance_name"] = http_request.state.instance.get("name")
             capabilities["instance_id"] = http_request.state.instance.get("id")
         return capabilities
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in route-map capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Endpoint 2: Config (Generalized Data)
-# ============================================================================
 
 
 @router.get("/config", response_model=RouteMapConfig)
 async def get_route_map_config(http_request: Request, refresh: bool = False):
-    """
-    Get all route-map configuration from VyOS in a generalized format.
-
-    Args:
-        refresh: If True, force refresh from VyOS. If False, use cache.
-
-    Returns:
-        Generalized configuration data optimized for frontend consumption
-    """
-    # Check RBAC permission
+    """Every route-map."""
     await require_read_permission(http_request, FeatureGroup.ROUTE_MAP)
 
     try:
         service = get_session_vyos_service(http_request)
+        mapper = _mapper(service.get_version())
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        # Navigate to policy -> route-map
-        route_map_config = full_config.get("policy", {}).get("route-map", {})
-
-        if not route_map_config:
-            return RouteMapConfig(route_maps=[], total=0)
-
-        # Parse route-maps
-        route_maps = []
-        for name, rm_data in route_map_config.items():
-            route_map = parse_route_map(name, rm_data)
-            route_maps.append(route_map)
-
-        return RouteMapConfig(route_maps=route_maps, total=len(route_maps))
-
-    except Exception as e:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-def parse_route_map(name: str, rm_data: dict) -> RouteMap:
-    """Parse route-map configuration from VyOS format."""
-    description = rm_data.get("description")
-
-    rules = []
-    rules_raw = rm_data.get("rule", {})
-    if rules_raw:
-        for rule_num, rule_data in rules_raw.items():
-            rule = parse_rule(int(rule_num), rule_data)
-            rules.append(rule)
-
-    return RouteMap(
-        name=name,
-        description=description,
-        rules=sorted(rules, key=lambda r: r.rule_number)
-    )
-
-
-def parse_rule(rule_number: int, rule_data: dict) -> RouteMapRule:
-    """Parse route-map rule from VyOS format."""
-    description = rule_data.get("description")
-    action = rule_data.get("action", "permit")
-    call = rule_data.get("call")
-    continue_rule = int(rule_data["continue"]) if "continue" in rule_data else None
-
-    # On-match
-    on_match_goto = None
-    on_match_next = False
-    if "on-match" in rule_data:
-        on_match = rule_data["on-match"]
-        if "goto" in on_match:
-            on_match_goto = int(on_match["goto"])
-        if "next" in on_match:
-            on_match_next = True
-
-    # Parse match conditions
-    match = parse_match_conditions(rule_data.get("match", {}))
-
-    # Parse set actions
-    set_actions = parse_set_actions(rule_data.get("set", {}))
-
-    return RouteMapRule(
-        rule_number=rule_number,
-        description=description,
-        action=action,
-        call=call,
-        continue_rule=continue_rule,
-        on_match_goto=on_match_goto,
-        on_match_next=on_match_next,
-        match=match,
-        set=set_actions
-    )
-
-
-def parse_match_conditions(match_data: dict) -> MatchConditions:
-    """Parse match conditions from VyOS format."""
-    match = MatchConditions()
-
-    # BGP Attributes
-    match.as_path = match_data.get("as-path")
-    if "community" in match_data:
-        comm_data = match_data["community"]
-        match.community_list = comm_data.get("community-list")
-        match.community_exact_match = "exact-match" in comm_data
-    match.extcommunity = match_data.get("extcommunity")
-    if "large-community" in match_data:
-        lc_data = match_data["large-community"]
-        match.large_community_list = lc_data.get("large-community-list")
-        match.large_community_exact_match = "exact-match" in lc_data
-    match.local_preference = int(match_data["local-preference"]) if "local-preference" in match_data else None
-    match.metric = int(match_data["metric"]) if "metric" in match_data else None
-    match.origin = match_data.get("origin")
-    match.peer = match_data.get("peer")
-    match.rpki = match_data.get("rpki")
-    match.rpki_extcommunity = match_data.get("rpki-extcommunity")
-    match.source_peer = match_data.get("source-peer")
-
-    # EVPN
-    evpn = match_data.get("evpn", {})
-    match.evpn_default_route = "default-route" in evpn
-    match.evpn_rd = evpn.get("rd")
-    match.evpn_route_type = evpn.get("route-type")
-    match.evpn_vni = int(evpn["vni"]) if "vni" in evpn else None
-
-    # IP Address
-    if "ip" in match_data and "address" in match_data["ip"]:
-        ip_addr = match_data["ip"]["address"]
-        match.ip_address_access_list = ip_addr.get("access-list")
-        match.ip_address_prefix_list = ip_addr.get("prefix-list")
-        match.ip_address_prefix_len = int(ip_addr["prefix-len"]) if "prefix-len" in ip_addr else None
-
-    # IPv6 Address
-    if "ipv6" in match_data and "address" in match_data["ipv6"]:
-        ipv6_addr = match_data["ipv6"]["address"]
-        match.ipv6_address_access_list = ipv6_addr.get("access-list")
-        match.ipv6_address_prefix_list = ipv6_addr.get("prefix-list")
-        match.ipv6_address_prefix_len = int(ipv6_addr["prefix-len"]) if "prefix-len" in ipv6_addr else None
-
-    # IP Next-Hop
-    if "ip" in match_data and "nexthop" in match_data["ip"]:
-        ip_nh = match_data["ip"]["nexthop"]
-        match.ip_nexthop_access_list = ip_nh.get("access-list")
-        match.ip_nexthop_address = ip_nh.get("address")
-        match.ip_nexthop_prefix_len = int(ip_nh["prefix-len"]) if "prefix-len" in ip_nh else None
-        match.ip_nexthop_prefix_list = ip_nh.get("prefix-list")
-        match.ip_nexthop_type = ip_nh.get("type")
-
-    # IPv6 Next-Hop
-    if "ipv6" in match_data and "nexthop" in match_data["ipv6"]:
-        ipv6_nh = match_data["ipv6"]["nexthop"]
-        match.ipv6_nexthop_access_list = ipv6_nh.get("access-list")
-        match.ipv6_nexthop_address = ipv6_nh.get("address")
-        match.ipv6_nexthop_prefix_list = ipv6_nh.get("prefix-list")
-        match.ipv6_nexthop_type = ipv6_nh.get("type")
-
-    # IP Route Source
-    if "ip" in match_data and "route-source" in match_data["ip"]:
-        route_src = match_data["ip"]["route-source"]
-        match.ip_route_source_access_list = route_src.get("access-list")
-        match.ip_route_source_prefix_list = route_src.get("prefix-list")
-
-    # Other
-    match.interface = match_data.get("interface")
-    match.protocol = match_data.get("protocol")
-    match.source_vrf = match_data.get("source-vrf")
-    match.tag = int(match_data["tag"]) if "tag" in match_data else None
-
-    return match
-
-
-def parse_set_actions(set_data: dict) -> SetActions:
-    """Parse set actions from VyOS format."""
-    set_actions = SetActions()
-
-    # BGP AS Path
-    if "as-path" in set_data:
-        as_path = set_data["as-path"]
-        set_actions.as_path_exclude = as_path.get("exclude")
-        set_actions.as_path_prepend = as_path.get("prepend")
-        set_actions.as_path_prepend_last_as = int(as_path["prepend-last-as"]) if "prepend-last-as" in as_path else None
-
-    # Communities (parse into separate fields for each action)
-    # Note: VyOS returns a string for single values, list for multiple values
-    if "community" in set_data:
-        comm = set_data["community"]
-        if "none" in comm:
-            set_actions.community_remove_all = True
-        if "add" in comm:
-            # Normalize to list (VyOS returns string if single value, list if multiple)
-            set_actions.community_add_values = comm["add"] if isinstance(comm["add"], list) else [comm["add"]]
-        if "replace" in comm:
-            set_actions.community_replace_values = comm["replace"] if isinstance(comm["replace"], list) else [comm["replace"]]
-        if "delete" in comm:
-            set_actions.community_delete_values = comm["delete"] if isinstance(comm["delete"], list) else [comm["delete"]]
-
-    # Large Communities (parse into separate fields for each action)
-    # Note: VyOS returns a string for single values, list for multiple values
-    if "large-community" in set_data:
-        lc = set_data["large-community"]
-        if "none" in lc:
-            set_actions.large_community_remove_all = True
-        if "add" in lc:
-            set_actions.large_community_add_values = lc["add"] if isinstance(lc["add"], list) else [lc["add"]]
-        if "replace" in lc:
-            set_actions.large_community_replace_values = lc["replace"] if isinstance(lc["replace"], list) else [lc["replace"]]
-        if "delete" in lc:
-            set_actions.large_community_delete_values = lc["delete"] if isinstance(lc["delete"], list) else [lc["delete"]]
-
-    # Extcommunity
-    if "extcommunity" in set_data:
-        extc = set_data["extcommunity"]
-        set_actions.extcommunity_bandwidth = extc.get("bandwidth")
-        set_actions.extcommunity_bandwidth_non_transitive = "bandwidth-non-transitive" in extc
-        set_actions.extcommunity_rt = extc.get("rt")
-        set_actions.extcommunity_soo = extc.get("soo")
-        set_actions.extcommunity_none = "none" in extc
-
-    # BGP Attributes
-    set_actions.atomic_aggregate = "atomic-aggregate" in set_data
-    if "aggregator" in set_data:
-        agg = set_data["aggregator"]
-        set_actions.aggregator_as = agg.get("as")
-        set_actions.aggregator_ip = agg.get("ip")
-    set_actions.local_preference = int(set_data["local-preference"]) if "local-preference" in set_data else None
-    set_actions.origin = set_data.get("origin")
-    set_actions.originator_id = set_data.get("originator-id")
-    set_actions.weight = int(set_data["weight"]) if "weight" in set_data else None
-
-    # Next-Hop
-    if "ip-next-hop" in set_data:
-        ip_nh = set_data["ip-next-hop"]
-        if isinstance(ip_nh, str):
-            set_actions.ip_nexthop = ip_nh
-        elif isinstance(ip_nh, dict):
-            if "peer-address" in ip_nh:
-                set_actions.ip_nexthop_peer_address = True
-            if "unchanged" in ip_nh:
-                set_actions.ip_nexthop_unchanged = True
-
-    if "ipv6-next-hop" in set_data:
-        ipv6_nh = set_data["ipv6-next-hop"]
-        set_actions.ipv6_nexthop_global = ipv6_nh.get("global")
-        set_actions.ipv6_nexthop_local = ipv6_nh.get("local")
-        set_actions.ipv6_nexthop_peer_address = "peer-address" in ipv6_nh
-        set_actions.ipv6_nexthop_prefer_global = "prefer-global" in ipv6_nh
-
-    l3vpn_encap = set_data.get("l3vpn-nexthop", {}).get("encapsulation", {})
-    set_actions.l3vpn_nexthop_encapsulation_gre = "gre" in l3vpn_encap
-
-    # EVPN
-    evpn_gateway = set_data.get("evpn", {}).get("gateway", {})
-    set_actions.evpn_gateway_ipv4 = evpn_gateway.get("ipv4")
-    set_actions.evpn_gateway_ipv6 = evpn_gateway.get("ipv6")
-
-    # Route Properties
-    set_actions.distance = int(set_data["distance"]) if "distance" in set_data else None
-    set_actions.metric = set_data.get("metric")
-    set_actions.metric_type = set_data.get("metric-type")
-    set_actions.src = set_data.get("src")
-    set_actions.table = int(set_data["table"]) if "table" in set_data else None
-    set_actions.tag = int(set_data["tag"]) if "tag" in set_data else None
-
-    return set_actions
-
-
-# ============================================================================
-# Endpoint 3: Batch Operations
-# ============================================================================
-
-
-@router.post("/batch")
-async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRequest):
-    """
-    Execute a batch of configuration operations.
-
-    Allows multiple changes in a single VyOS commit for efficiency.
-    """
-    # Check RBAC permission
-    await require_write_permission(http_request, FeatureGroup.ROUTE_MAP)
-
-    try:
-        service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = RouteMapBatchBuilder(version=version)
-
-        # Process operations using inspect for dynamic method calls
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
-
-            # Build arguments dynamically
-            args = []
-
-            # Add route-map name
-            if "name" in params:
-                args.append(body.name)
-
-            # Add rule number if specified and method accepts it
-            if body.rule_number and "rule" in params:
-                args.append(str(body.rule_number))
-
-            # Add operation value if provided
-            if operation.value and len(params) > len(args):
-                # Check remaining parameters
-                remaining_params = params[len(args):]
-                for param in remaining_params:
-                    if param != "self":
-                        args.append(operation.value)
-                        break
-
-            method(*args)
+        return RouteMapConfig(**mapper.parse_config(full_config or {}))
     except HTTPException:
         raise
-    except ValueError as e:
-        # The mapper rejects a node this device version does not have.
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except Exception:
+        logger.exception("Unhandled error in route-map config")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/batch", response_model=VyOSResponse)
+async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRequest):
+    """Run a batch of builder ops on one route-map in a single commit.
+
+    Every op takes the route-map name; an op with a ``rule`` parameter needs
+    rule_number and an op without one rejects it. The value fills the rest.
+    """
+    await require_write_permission(http_request, FeatureGroup.ROUTE_MAP)
 
     try:
-        response = service.execute_batch(builder)
+        service = get_session_vyos_service(http_request)
+        builder = RouteMapBatchBuilder(version=service.get_version())
+        rule = str(body.rule_number) if body.rule_number else None
 
+        try:
+            for operation in body.operations:
+                call_item_batch_op(builder, operation.op, body.name, operation.value, bound={"rule": rule})
+        except ValueError as exc:
+            # The builder raises ValueError for a name, value or node the device rejects.
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Configuration updated"},
-            error=response.error if response.error else None
+            data={"message": "Configuration updated"} if response.status == 200 else None,
+            error=response.error or None,
         )
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in route-map batch")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ============================================================================
-# Additional Helper Endpoints
-# ============================================================================
-# All operations use the batch endpoint above
-# No direct DELETE endpoints - use /batch for all operations
-# ============================================================================
+@router.post("/reorder", response_model=VyOSResponse)
+async def reorder_route_map_rules(http_request: Request, body: ReorderRequest):
+    """Renumber a route-map's rules in one commit.
 
-
-# ============================================================================
-# Reorder Endpoint
-# ============================================================================
-
-
-@router.post("/reorder")
-async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRequest):
+    The listed rules must be exactly the route-map's rules. Each moved rule is
+    deleted and recreated from its own config subtree under its new number,
+    so every leaf the device holds is kept.
     """
-    Reorder route-map rules by deleting and recreating them in a single commit.
-
-    This endpoint efficiently reorders multiple rules by:
-    1. Deleting all specified rules in reverse order
-    2. Recreating them with new rule numbers
-    All operations are executed in a single VyOS commit.
-
-    Args:
-        request: Reorder request containing route-map name and list of rules
-
-    Returns:
-        VyOSResponse with success/failure information
-    """
-    # Check RBAC permission
     await require_write_permission(http_request, FeatureGroup.ROUTE_MAP)
 
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
+        mapper = _mapper(version)
         builder = RouteMapBatchBuilder(version=version)
 
-        # Step 1: Delete all rules in reverse order
-        rules_to_delete = sorted([r.old_number for r in body.rules], reverse=True)
-        for old_number in rules_to_delete:
-            builder.delete_rule(body.route_map_name, str(old_number))
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        trees = mapper.rule_trees(full_config or {}, body.name)
+        if trees is None:
+            raise HTTPException(status_code=404, detail=f"Route-map {body.name} not found")
+        if set(trees) != set(body.rule_numbers):
+            raise HTTPException(status_code=400, detail="rule_numbers must list every rule of the route-map")
 
-        # Step 2: Recreate rules with new numbers
-        for rule_item in body.rules:
-            new_number = rule_item.new_number
-            if new_number is None:
-                continue  # delete-only item: removed above, not recreated
-            rule_data = rule_item.rule_data
+        targets = sorted(body.rule_numbers)
+        moves = [(old, new) for old, new in zip(body.rule_numbers, targets) if old != new]
+        if not moves:
+            return VyOSResponse(success=True, data={"message": "Rules reordered"})
 
-            # Create the rule
-            builder.set_rule(body.route_map_name, str(new_number))
+        try:
+            for old, _ in moves:
+                builder.delete_rule(body.name, str(old))
+            for old, new in moves:
+                builder.restore_rule(body.name, str(new), trees[old])
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
-            # Set action
-            if rule_data.action:
-                builder.set_rule_action(body.route_map_name, str(new_number), rule_data.action)
-
-            # Set description
-            if rule_data.description:
-                builder.set_rule_description(body.route_map_name, str(new_number), rule_data.description)
-
-            # Set flow control
-            if rule_data.call:
-                builder.set_rule_call(body.route_map_name, str(new_number), rule_data.call)
-            if rule_data.continue_rule:
-                builder.set_rule_continue(body.route_map_name, str(new_number), str(rule_data.continue_rule))
-            if rule_data.on_match_goto:
-                builder.set_rule_on_match_goto(body.route_map_name, str(new_number), str(rule_data.on_match_goto))
-            if rule_data.on_match_next:
-                builder.set_rule_on_match_next(body.route_map_name, str(new_number))
-
-            # Set match conditions
-            match = rule_data.match
-            if match.as_path:
-                builder.set_match_as_path(body.route_map_name, str(new_number), match.as_path)
-            if match.community_list:
-                builder.set_match_community_list(body.route_map_name, str(new_number), match.community_list)
-                if match.community_exact_match:
-                    builder.set_match_community_exact_match(body.route_map_name, str(new_number))
-            if match.extcommunity:
-                builder.set_match_extcommunity(body.route_map_name, str(new_number), match.extcommunity)
-            if match.large_community_list:
-                builder.set_match_large_community_list(body.route_map_name, str(new_number), match.large_community_list)
-                if match.large_community_exact_match:
-                    builder.set_match_large_community_exact_match(body.route_map_name, str(new_number))
-            if match.local_preference is not None:
-                builder.set_match_local_preference(body.route_map_name, str(new_number), str(match.local_preference))
-            if match.metric is not None:
-                builder.set_match_metric(body.route_map_name, str(new_number), str(match.metric))
-            if match.origin:
-                builder.set_match_origin(body.route_map_name, str(new_number), match.origin)
-            if match.peer:
-                builder.set_match_peer(body.route_map_name, str(new_number), match.peer)
-            if match.rpki:
-                builder.set_match_rpki(body.route_map_name, str(new_number), match.rpki)
-            if match.rpki_extcommunity:
-                builder.set_match_rpki_extcommunity(body.route_map_name, str(new_number), match.rpki_extcommunity)
-            if match.source_peer:
-                builder.set_match_source_peer(body.route_map_name, str(new_number), match.source_peer)
-
-            # EVPN matches
-            if match.evpn_default_route:
-                builder.set_match_evpn_default_route(body.route_map_name, str(new_number))
-            if match.evpn_rd:
-                builder.set_match_evpn_rd(body.route_map_name, str(new_number), match.evpn_rd)
-            if match.evpn_route_type:
-                builder.set_match_evpn_route_type(body.route_map_name, str(new_number), match.evpn_route_type)
-            if match.evpn_vni is not None:
-                builder.set_match_evpn_vni(body.route_map_name, str(new_number), str(match.evpn_vni))
-
-            # IP/IPv6 Address matches
-            if match.ip_address_access_list:
-                builder.set_match_ip_address_access_list(body.route_map_name, str(new_number), match.ip_address_access_list)
-            if match.ip_address_prefix_list:
-                builder.set_match_ip_address_prefix_list(body.route_map_name, str(new_number), match.ip_address_prefix_list)
-            if match.ip_address_prefix_len is not None:
-                builder.set_match_ip_address_prefix_len(body.route_map_name, str(new_number), str(match.ip_address_prefix_len))
-            if match.ipv6_address_access_list:
-                builder.set_match_ipv6_address_access_list(body.route_map_name, str(new_number), match.ipv6_address_access_list)
-            if match.ipv6_address_prefix_list:
-                builder.set_match_ipv6_address_prefix_list(body.route_map_name, str(new_number), match.ipv6_address_prefix_list)
-            if match.ipv6_address_prefix_len is not None:
-                builder.set_match_ipv6_address_prefix_len(body.route_map_name, str(new_number), str(match.ipv6_address_prefix_len))
-
-            # Next-hop matches
-            if match.ip_nexthop_access_list:
-                builder.set_match_ip_nexthop_access_list(body.route_map_name, str(new_number), match.ip_nexthop_access_list)
-            if match.ip_nexthop_address:
-                builder.set_match_ip_nexthop_address(body.route_map_name, str(new_number), match.ip_nexthop_address)
-            if match.ip_nexthop_prefix_len is not None:
-                builder.set_match_ip_nexthop_prefix_len(body.route_map_name, str(new_number), str(match.ip_nexthop_prefix_len))
-            if match.ip_nexthop_prefix_list:
-                builder.set_match_ip_nexthop_prefix_list(body.route_map_name, str(new_number), match.ip_nexthop_prefix_list)
-            if match.ip_nexthop_type:
-                builder.set_match_ip_nexthop_type(body.route_map_name, str(new_number), match.ip_nexthop_type)
-            if match.ipv6_nexthop_access_list:
-                builder.set_match_ipv6_nexthop_access_list(body.route_map_name, str(new_number), match.ipv6_nexthop_access_list)
-            if match.ipv6_nexthop_address:
-                builder.set_match_ipv6_nexthop_address(body.route_map_name, str(new_number), match.ipv6_nexthop_address)
-            if match.ipv6_nexthop_prefix_list:
-                builder.set_match_ipv6_nexthop_prefix_list(body.route_map_name, str(new_number), match.ipv6_nexthop_prefix_list)
-            if match.ipv6_nexthop_type:
-                builder.set_match_ipv6_nexthop_type(body.route_map_name, str(new_number), match.ipv6_nexthop_type)
-
-            # Route source matches
-            if match.ip_route_source_access_list:
-                builder.set_match_ip_route_source_access_list(body.route_map_name, str(new_number), match.ip_route_source_access_list)
-            if match.ip_route_source_prefix_list:
-                builder.set_match_ip_route_source_prefix_list(body.route_map_name, str(new_number), match.ip_route_source_prefix_list)
-
-            # Other matches
-            if match.interface:
-                builder.set_match_interface(body.route_map_name, str(new_number), match.interface)
-            if match.protocol:
-                builder.set_match_protocol(body.route_map_name, str(new_number), match.protocol)
-            if match.source_vrf:
-                builder.set_match_source_vrf(body.route_map_name, str(new_number), match.source_vrf)
-            if match.tag is not None:
-                builder.set_match_tag(body.route_map_name, str(new_number), str(match.tag))
-
-            # Set actions
-            set_actions = rule_data.set
-            if set_actions.as_path_exclude:
-                builder.set_as_path_exclude(body.route_map_name, str(new_number), set_actions.as_path_exclude)
-            if set_actions.as_path_prepend:
-                builder.set_as_path_prepend(body.route_map_name, str(new_number), set_actions.as_path_prepend)
-            if set_actions.as_path_prepend_last_as is not None:
-                builder.set_as_path_prepend_last_as(body.route_map_name, str(new_number), str(set_actions.as_path_prepend_last_as))
-
-            # Communities (handles separate add/delete/replace operations)
-            if set_actions.community_add_values:
-                for community in set_actions.community_add_values:
-                    builder.set_community_add(body.route_map_name, str(new_number), community)
-            if set_actions.community_delete_values:
-                for community in set_actions.community_delete_values:
-                    builder.set_community_delete(body.route_map_name, str(new_number), community)
-            if set_actions.community_replace_values:
-                for community in set_actions.community_replace_values:
-                    builder.set_community_replace(body.route_map_name, str(new_number), community)
-            if set_actions.community_remove_all:
-                builder.set_community_none(body.route_map_name, str(new_number))
-
-            # Large Communities (handles separate add/delete/replace operations)
-            if set_actions.large_community_add_values:
-                for large_community in set_actions.large_community_add_values:
-                    builder.set_large_community_add(body.route_map_name, str(new_number), large_community)
-            if set_actions.large_community_delete_values:
-                for large_community in set_actions.large_community_delete_values:
-                    builder.set_large_community_delete(body.route_map_name, str(new_number), large_community)
-            if set_actions.large_community_replace_values:
-                for large_community in set_actions.large_community_replace_values:
-                    builder.set_large_community_replace(body.route_map_name, str(new_number), large_community)
-            if set_actions.large_community_remove_all:
-                builder.set_large_community_none(body.route_map_name, str(new_number))
-
-            if set_actions.extcommunity_bandwidth:
-                builder.set_extcommunity_bandwidth(body.route_map_name, str(new_number), set_actions.extcommunity_bandwidth)
-            if set_actions.extcommunity_bandwidth_non_transitive:
-                builder.set_extcommunity_bandwidth_non_transitive(body.route_map_name, str(new_number))
-            if set_actions.extcommunity_rt:
-                builder.set_extcommunity_rt(body.route_map_name, str(new_number), set_actions.extcommunity_rt)
-            if set_actions.extcommunity_soo:
-                builder.set_extcommunity_soo(body.route_map_name, str(new_number), set_actions.extcommunity_soo)
-            if set_actions.extcommunity_none:
-                builder.set_extcommunity_none(body.route_map_name, str(new_number))
-
-            # BGP attributes
-            if set_actions.atomic_aggregate:
-                builder.set_atomic_aggregate(body.route_map_name, str(new_number))
-            if set_actions.aggregator_as:
-                builder.set_aggregator_as(body.route_map_name, str(new_number), set_actions.aggregator_as)
-            if set_actions.aggregator_ip:
-                builder.set_aggregator_ip(body.route_map_name, str(new_number), set_actions.aggregator_ip)
-            if set_actions.local_preference is not None:
-                builder.set_local_preference(body.route_map_name, str(new_number), str(set_actions.local_preference))
-            if set_actions.origin:
-                builder.set_origin(body.route_map_name, str(new_number), set_actions.origin)
-            if set_actions.originator_id:
-                builder.set_originator_id(body.route_map_name, str(new_number), set_actions.originator_id)
-            if set_actions.weight is not None:
-                builder.set_weight(body.route_map_name, str(new_number), str(set_actions.weight))
-
-            # Next-hop
-            if set_actions.ip_nexthop:
-                builder.set_ip_nexthop(body.route_map_name, str(new_number), set_actions.ip_nexthop)
-            if set_actions.ipv6_nexthop_global:
-                builder.set_ipv6_nexthop_global(body.route_map_name, str(new_number), set_actions.ipv6_nexthop_global)
-            if set_actions.ipv6_nexthop_local:
-                builder.set_ipv6_nexthop_local(body.route_map_name, str(new_number), set_actions.ipv6_nexthop_local)
-            if set_actions.ipv6_nexthop_prefer_global:
-                builder.set_ipv6_nexthop_prefer_global(body.route_map_name, str(new_number))
-            if set_actions.l3vpn_nexthop_encapsulation_gre:
-                builder.set_l3vpn_nexthop_encapsulation_gre(body.route_map_name, str(new_number))
-
-            # EVPN
-            if set_actions.evpn_gateway_ipv4:
-                builder.set_evpn_gateway_ipv4(body.route_map_name, str(new_number), set_actions.evpn_gateway_ipv4)
-            if set_actions.evpn_gateway_ipv6:
-                builder.set_evpn_gateway_ipv6(body.route_map_name, str(new_number), set_actions.evpn_gateway_ipv6)
-
-            # Route properties
-            if set_actions.distance is not None:
-                builder.set_distance(body.route_map_name, str(new_number), str(set_actions.distance))
-            if set_actions.metric is not None:
-                builder.set_metric(body.route_map_name, str(new_number), str(set_actions.metric))
-            if set_actions.metric_type:
-                builder.set_metric_type(body.route_map_name, str(new_number), set_actions.metric_type)
-            if set_actions.src:
-                builder.set_src(body.route_map_name, str(new_number), set_actions.src)
-            if set_actions.table is not None:
-                builder.set_table(body.route_map_name, str(new_number), str(set_actions.table))
-            if set_actions.tag is not None:
-                builder.set_tag(body.route_map_name, str(new_number), str(set_actions.tag))
-    except ValueError as e:
-        # The mapper rejects a node this device version does not have.
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-    try:
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": f"Successfully reordered {len(body.rules)} rules in route-map {body.route_map_name}"},
-            error=response.error if response.error else None
+            data={"message": "Rules reordered"} if response.status == 200 else None,
+            error=response.error or None,
         )
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in route-map reorder")
         raise HTTPException(status_code=500, detail="Internal server error")
