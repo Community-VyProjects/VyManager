@@ -90,6 +90,10 @@ jobs:
         working-directory: frontend
         run: npm run test:pim-save
 
+      - name: Run PIM6 save op tests
+        working-directory: frontend
+        run: npm run test:pim6-save
+
       - name: Run conntrack-sync save op tests
         working-directory: frontend
         run: npm run test:conntrack-sync-save

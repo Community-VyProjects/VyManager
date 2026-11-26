@@ -163,7 +163,7 @@ function areaIdOk(caps: Caps, value: string): boolean {
 }
 
 /** The eight 16-bit groups of an IPv6 address, or null when it is malformed. */
-function ipv6Groups(addr: string): number[] | null {
+export function ipv6Groups(addr: string): number[] | null {
   if (!/^[0-9a-fA-F:]+$/.test(addr) || !addr.includes(":")) return null;
   const halves = addr.split("::");
   if (halves.length > 2) return null;

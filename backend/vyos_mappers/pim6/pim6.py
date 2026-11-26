@@ -2,7 +2,8 @@
 PIMv6 Command Mapper
 
 Handles command path generation for `protocols pim6` configuration.
-PIMv6 has no version differences between VyOS 1.4 and 1.5.
+The protocols pim6 templates are the same on VyOS 1.4 and 1.5, so one class
+holds every command and the registry returns it for both.
 
 Config tree:
   protocols pim6/
@@ -32,15 +33,17 @@ Config tree:
       keep-alive-timer   (1-65535)
 """
 
-from typing import List
+from typing import Any, Dict, List
+
 from ..base import BaseFeatureMapper
+from .config_parse import parse_config as parse_pim6_config
 
 
 class Pim6Mapper(BaseFeatureMapper):
-    """Mapper for PIMv6 commands. Identical on VyOS 1.4 and 1.5."""
+    """All PIMv6 commands (identical on VyOS 1.4 and 1.5)."""
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    def parse_config(self, full_config: Any) -> Dict[str, Any]:
+        return parse_pim6_config(self, full_config)
 
     def _base(self) -> List[str]:
         return ["protocols", "pim6"]
@@ -86,13 +89,7 @@ class Pim6Mapper(BaseFeatureMapper):
     def get_rp_address(self, address: str) -> List[str]:
         return self._base() + ["rp", "address", address]
 
-    def get_rp_address_delete(self, address: str) -> List[str]:
-        return self._base() + ["rp", "address", address]
-
     def get_rp_address_group(self, address: str, group: str) -> List[str]:
-        return self._base() + ["rp", "address", address, "group", group]
-
-    def get_rp_address_group_delete(self, address: str, group: str) -> List[str]:
         return self._base() + ["rp", "address", address, "group", group]
 
     def get_rp_address_prefix_list6(self, address: str, value: str) -> List[str]:
@@ -179,7 +176,4 @@ class Pim6Mapper(BaseFeatureMapper):
         return self._base() + ["interface", iface, "mld", "join", group]
 
     def get_interface_mld_join_source(self, iface: str, group: str, source: str) -> List[str]:
-        return self._base() + ["interface", iface, "mld", "join", group, "source", source]
-
-    def get_interface_mld_join_source_delete(self, iface: str, group: str, source: str) -> List[str]:
         return self._base() + ["interface", iface, "mld", "join", group, "source", source]

@@ -20,7 +20,7 @@ export function pimText(value: Scalar): string {
   return value == null ? "" : String(value).trim();
 }
 
-function pimValue(value: Scalar): string | null {
+export function pimValue(value: Scalar): string | null {
   const text = pimText(value);
   return text === "" ? null : text;
 }
@@ -31,7 +31,7 @@ function withTarget(target: string | undefined, value?: string): string | undefi
 }
 
 /** Set a single-value leaf when it changed, delete it when it was cleared. */
-function leaf(ops: Op[], setOp: string, deleteOp: string, target: string | undefined, before: Scalar, after: Scalar): void {
+export function leaf(ops: Op[], setOp: string, deleteOp: string, target: string | undefined, before: Scalar, after: Scalar): void {
   const b = pimValue(before);
   const a = pimValue(after);
   if (a === b) return;
@@ -43,7 +43,7 @@ function leaf(ops: Op[], setOp: string, deleteOp: string, target: string | undef
 }
 
 /** Set or delete a valueless leaf when the flag changed. */
-function flag(ops: Op[], setOp: string, deleteOp: string, target: string | undefined,
+export function flag(ops: Op[], setOp: string, deleteOp: string, target: string | undefined,
   before: boolean | null | undefined, after: boolean): void {
   if (!!before === after) return;
   const op = after ? setOp : deleteOp;
@@ -93,22 +93,29 @@ export interface PimProblem {
 }
 
 /** Values for a ``validation.*`` message; a range key always has min and max. */
-export function pimProblemArgs(problem: PimProblem): { min: string; max: string } {
+export function pimProblemArgs(problem: { min?: number; max?: number }): { min: string; max: string } {
   return { min: String(problem.min ?? ""), max: String(problem.max ?? "") };
 }
 
+/** Served builder RANGES, keyed by the feature's range keys (PIM and PIMv6 share these helpers). */
+export type RangeCaps<K extends string> = { ranges?: Partial<Record<K, { min: number; max: number }>> } | null | undefined;
+
 type Caps = Pick<PimCapabilities, "ranges"> | null | undefined;
 
-export function pimRange(caps: Caps, key: PimRangeKey): { min: number; max: number } | null {
+export function pimRange<K extends string = PimRangeKey>(
+  caps: RangeCaps<K>, key: NoInfer<K>,
+): { min: number; max: number } | null {
   const range = caps?.ranges?.[key];
   return range && typeof range.min === "number" && typeof range.max === "number" ? range : null;
 }
 
 /** A blank value passes; otherwise a plain decimal inside the served range (no parseInt). */
-function rangeProblem(caps: Caps, key: PimRangeKey, problem: PimProblemKey, value: Scalar): PimProblem | null {
+export function rangeProblem<K extends string, P extends string>(
+  caps: RangeCaps<K>, key: NoInfer<K>, problem: P, value: Scalar,
+): { key: P; min?: number; max?: number } | null {
   const text = pimValue(value);
   if (text === null) return null;
-  const range = pimRange(caps, key);
+  const range = pimRange<K>(caps, key);
   const n = Number(text);
   if (!/^\d{1,10}$/.test(text) || (range && (n < range.min || n > range.max))) {
     return { key: problem, min: range?.min, max: range?.max };
@@ -116,8 +123,9 @@ function rangeProblem(caps: Caps, key: PimRangeKey, problem: PimProblemKey, valu
   return null;
 }
 
-function first(...problems: (PimProblem | null)[]): PimProblem | null {
-  return problems.find((p) => p !== null) ?? null;
+/** The first problem that is set, in check order. */
+export function first<A extends (object | null)[]>(...problems: A): NonNullable<A[number]> | null {
+  return (problems.find((p) => p !== null) ?? null) as NonNullable<A[number]> | null;
 }
 
 /** 224.0.0.0/24 is reserved: both labs reject an `igmp join` group inside it. */
