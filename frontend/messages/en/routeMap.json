@@ -9,6 +9,8 @@
     "loadLargeCommunityListsFailed": "Failed to load large community lists",
     "loadAccessListsFailed": "Failed to load access lists",
     "loadPrefixListsFailed": "Failed to load prefix lists",
+    "loadBgpPeersFailed": "Failed to load BGP neighbors and peer-groups",
+    "loadVrfBgpPeersFailed": "Failed to load VRF BGP neighbors and peer-groups",
     "errorTitle": "Error Loading Route Maps",
     "title": "Route Maps",
     "summary": "{mapCount, plural, one {# map} other {# maps}} · {ruleCount, plural, one {# rule} other {# rules}}",
@@ -68,18 +70,13 @@
   "row": {
     "conditions": "{count, plural, one {# condition} other {# conditions}}",
     "actions": "{count, plural, one {# action} other {# actions}}",
-    "badge": "{label}: {value}",
-    "localPref": "Local Pref: {value}",
-    "metric": "Metric: {value}",
-    "asPrepend": "AS Prepend: {value}",
-    "community": "Community: {value}"
+    "badge": "{label}: {value}"
   },
   "overview": {
     "asPath": "AS Path",
     "community": "Community",
     "ipPrefix": "IP Prefix",
-    "ipv6Prefix": "IPv6 Prefix",
-    "protocol": "Protocol"
+    "ipv6Prefix": "IPv6 Prefix"
   },
   "reorder": {
     "title": "Reorder in Progress",

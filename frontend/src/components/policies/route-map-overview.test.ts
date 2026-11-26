@@ -1,17 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { routeMapMatchOverviewBadges, routeMapRuleCounts } from "./route-map-overview";
+import { routeMapMatchOverviewBadges, routeMapRuleCounts, type RouteMapOverviewLabel } from "./route-map-overview";
+
+const RM = (key: Extract<RouteMapOverviewLabel, { catalog: "routeMap" }>["key"]): RouteMapOverviewLabel => ({ catalog: "routeMap", key });
 
 describe("routeMapMatchOverviewBadges", () => {
   it("shows an IPv4 prefix-list match as ipPrefix", () => {
     assert.deepEqual(routeMapMatchOverviewBadges({ ip_address_prefix_list: "PL4" }), [
-      { labelKey: "ipPrefix", value: "PL4" },
+      { label: RM("overview.ipPrefix"), value: "PL4" },
     ]);
   });
 
   it("shows an IPv6 prefix-list match the same way as IPv4", () => {
     assert.deepEqual(routeMapMatchOverviewBadges({ ipv6_address_prefix_list: "PL6" }), [
-      { labelKey: "ipv6Prefix", value: "PL6" },
+      { label: RM("overview.ipv6Prefix"), value: "PL6" },
     ]);
   });
 
@@ -19,17 +21,17 @@ describe("routeMapMatchOverviewBadges", () => {
     assert.deepEqual(
       routeMapMatchOverviewBadges({ ip_address_prefix_list: "PL4", ipv6_address_prefix_list: "PL6" }),
       [
-        { labelKey: "ipPrefix", value: "PL4" },
-        { labelKey: "ipv6Prefix", value: "PL6" },
+        { label: RM("overview.ipPrefix"), value: "PL4" },
+        { label: RM("overview.ipv6Prefix"), value: "PL6" },
       ],
     );
   });
 
-  it("keeps AS Path, community, and protocol badges", () => {
+  it("keeps AS Path and community badges; protocol uses the rule modal's field label", () => {
     assert.deepEqual(routeMapMatchOverviewBadges({ as_path: "AS1", community_list: "CL1", protocol: "bgp" }), [
-      { labelKey: "asPath", value: "AS1" },
-      { labelKey: "community", value: "CL1" },
-      { labelKey: "protocol", value: "bgp" },
+      { label: RM("overview.asPath"), value: "AS1" },
+      { label: RM("overview.community"), value: "CL1" },
+      { label: { catalog: "routeMapRuleModal", key: "field.protocol" }, value: "bgp" },
     ]);
   });
 

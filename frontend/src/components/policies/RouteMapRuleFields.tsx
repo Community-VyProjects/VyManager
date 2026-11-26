@@ -101,7 +101,6 @@ export function RouteMapRuleFields({
   );
 
   const numberField = (key: SingleKey, label: string, rangeKey: RouteMapRangeKey) => {
-    const range = routeMapRange(caps, rangeKey);
     return (
       <div className="space-y-2">
         <Label htmlFor={id(key)}>{label}</Label>
@@ -109,8 +108,6 @@ export function RouteMapRuleFields({
           id={id(key)}
           value={form[key]}
           inputMode="numeric"
-          min={range?.min}
-          max={range?.max}
           onChange={(e) => set(key, e.target.value)}
           placeholder={rangeHint(rangeKey)}
           className="font-mono"
@@ -167,8 +164,6 @@ export function RouteMapRuleFields({
                 id={id("rule_number")}
                 value={form.rule_number}
                 inputMode="numeric"
-                min={routeMapRange(caps, "rule")?.min}
-                max={routeMapRange(caps, "rule")?.max}
                 placeholder={rangeHint("rule")}
                 onChange={(e) => set("rule_number", e.target.value)}
                 disabled={ruleNumberLocked}
@@ -224,7 +219,7 @@ export function RouteMapRuleFields({
                   {numberField("match_metric", t("field.metricMed"), "match_metric")}
                   {textField("match_peer", t("field.peerAddress"), t("example", { value: "192.0.2.1" }))}
                   {features?.match_source_peer?.supported === true &&
-                    textField("match_source_peer", t("field.sourcePeer"), t("example", { value: "192.0.2.1" }))}
+                    pick("match_source_peer", t("field.sourcePeer"), pickers.bgpPeers)}
                   {pick("match_rpki", t("field.rpki"), values?.rpki_states || [])}
                   {features?.match_rpki_extcommunity?.supported === true &&
                     pick("match_rpki_extcommunity", t("field.rpkiExtcommunity"), values?.rpki_states || [])}
@@ -366,8 +361,9 @@ export function RouteMapRuleFields({
               <AccordionTrigger>{t("field.extendedCommunity")}</AccordionTrigger>
               <AccordionContent className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label>{t("field.bandwidth")}</Label>
+                  <Label id={id("set_extcommunity_bandwidth_label")}>{t("field.bandwidth")}</Label>
                   <RadioGroup
+                    aria-labelledby={id("set_extcommunity_bandwidth_label")}
                     value={bandwidthMode}
                     onValueChange={(mode) => {
                       setBandwidthMode(mode);
@@ -390,8 +386,6 @@ export function RouteMapRuleFields({
                       aria-label={t("field.bandwidthMbps")}
                       value={form.set_extcommunity_bandwidth}
                       inputMode="numeric"
-                      min={routeMapRange(caps, "extcommunity_bandwidth")?.min}
-                      max={routeMapRange(caps, "extcommunity_bandwidth")?.max}
                       placeholder={rangeHint("extcommunity_bandwidth")}
                       onChange={(e) => set("set_extcommunity_bandwidth", e.target.value)}
                       className="font-mono"
@@ -424,8 +418,9 @@ export function RouteMapRuleFields({
               <AccordionTrigger>{t("field.nexthop")}</AccordionTrigger>
               <AccordionContent className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label>{t("field.ipv4Nexthop")}</Label>
+                  <Label id={id("set_ip_nexthop_label")}>{t("field.ipv4Nexthop")}</Label>
                   <RadioGroup
+                    aria-labelledby={id("set_ip_nexthop_label")}
                     value={nexthopMode}
                     onValueChange={(v) => {
                       const mode = v as NexthopMode;

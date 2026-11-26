@@ -100,7 +100,10 @@ export function CreateRouteMapModal({
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError((err as ApiError).message || (mapCreated ? t("create.ruleFailed") : t("create.failed")));
+      const message = (err as ApiError).message;
+      // The route-map is on the device: say so beside the device's reason for the rule.
+      if (mapCreated) setError(message ? `${t("create.ruleFailed")}\n${message}` : t("create.ruleFailed"));
+      else setError(message || t("create.failed"));
     } finally {
       setLoading(false);
     }

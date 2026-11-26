@@ -32,6 +32,8 @@ import { asPathListService } from "@/lib/api/as-path-list";
 import { communityListService, extcommunityListService, largeCommunityListService } from "@/lib/api/policy-list";
 import { accessListService } from "@/lib/api/access-list";
 import { prefixListService } from "@/lib/api/prefix-list";
+import { bgpService } from "@/lib/api/bgp";
+import { vrfService } from "@/lib/api/vrf";
 import type { ApiError } from "@/lib/types/api";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -42,7 +44,7 @@ import { EditRouteMapModal } from "@/components/policies/EditRouteMapModal";
 import { DeleteRouteMapModal } from "@/components/policies/DeleteRouteMapModal";
 import { RouteMapRuleModal } from "@/components/policies/RouteMapRuleModal";
 import { DeleteRouteMapRuleModal } from "@/components/policies/DeleteRouteMapRuleModal";
-import { RouteMapRuleRow } from "@/components/policies/RouteMapRuleRow";
+import { RouteMapRuleRow, useOverviewLabel } from "@/components/policies/RouteMapRuleRow";
 import { RouteMapReorderBanner } from "@/components/policies/RouteMapReorderBanner";
 import { routeMapMatchOverviewBadges } from "@/components/policies/route-map-overview";
 import { NO_PICKERS, type RouteMapPickers } from "@/components/policies/route-map-rule-form";
@@ -61,6 +63,7 @@ export default function RouteMapPage() {
   const t = useTranslations("routeMap");
   const tr = useTranslations("routeMapRuleModal");
   const tc = useTranslations("common");
+  const overviewLabel = useOverviewLabel();
   const { canWrite } = usePermissions();
   const hasWrite = canWrite(FeatureGroup.ROUTE_MAP);
 
@@ -90,7 +93,7 @@ export default function RouteMapPage() {
   );
 
   /** Lists the rule pickers name. A 403 leaves a picker empty without a message. */
-  const loadPickerLists = useCallback(async () => {
+  const loadPickerLists = useCallback(async (caps: RouteMapCapabilities) => {
     const failed: string[] = [];
     const names = (load: Promise<string[]>, message: string) =>
       load.catch((err: unknown) => {
@@ -102,7 +105,9 @@ export default function RouteMapPage() {
         if ((err as ApiError).status !== 403) failed.push(message);
         return { ipv4: [] as string[], ipv6: [] as string[] };
       });
-    const [asPathLists, communityLists, extcommunityLists, largeCommunityLists, accessLists, prefixLists] =
+    const sourcePeers = caps.features?.match_source_peer?.supported === true;
+    const NONE = Promise.resolve([] as string[]);
+    const [asPathLists, communityLists, extcommunityLists, largeCommunityLists, accessLists, prefixLists, bgpPeers, vrfPeers] =
       await Promise.all([
         names(asPathListService.getConfig().then((c) => c.as_path_lists.map((l) => l.name)), t("page.loadAsPathListsFailed")),
         names(communityListService.getConfig().then((c) => c.community_lists.map((l) => l.name)), t("page.loadCommunityListsFailed")),
@@ -126,6 +131,24 @@ export default function RouteMapPage() {
             .then((c) => ({ ipv4: c.ipv4_lists.map((l) => l.name), ipv6: c.ipv6_lists.map((l) => l.name) })),
           t("page.loadPrefixListsFailed"),
         ),
+        // `match source-peer` (only where the device has it): neighbors, interface
+        // neighbors and peer-groups of the global BGP instance and of every VRF.
+        sourcePeers
+          ? names(
+              bgpService
+                .getConfig()
+                .then((c) => [...c.neighbors.map((n) => n.address), ...c.peer_groups.map((g) => g.name)]),
+              t("page.loadBgpPeersFailed"),
+            )
+          : NONE,
+        sourcePeers
+          ? names(
+              vrfService
+                .getConfig()
+                .then((c) => c.instances.flatMap((vrf) => [...(vrf.bgp?.neighbors ?? []), ...(vrf.bgp?.peer_groups ?? [])])),
+              t("page.loadVrfBgpPeersFailed"),
+            )
+          : NONE,
       ]);
     setLists({
       asPathLists,
@@ -136,6 +159,7 @@ export default function RouteMapPage() {
       ipv6AccessLists: accessLists.ipv6,
       ipv4PrefixLists: prefixLists.ipv4,
       ipv6PrefixLists: prefixLists.ipv6,
+      bgpPeers: [...new Set([...bgpPeers, ...vrfPeers])].sort(),
     });
     setPickerErrors(failed);
   }, [t]);
@@ -148,7 +172,7 @@ export default function RouteMapPage() {
       setReorderedRules([]);
       setReorderError(null);
       setError(null);
-      await loadPickerLists();
+      await loadPickerLists(caps);
     },
     [loadPickerLists],
   );
@@ -195,7 +219,7 @@ export default function RouteMapPage() {
   const ruleSearchText = (rule: RouteMapRule) => {
     const action = rule.action === "permit" ? tr("permit") : rule.action === "deny" ? tr("deny") : "";
     const badges = routeMapMatchOverviewBadges(rule.match).map((badge) =>
-      t("row.badge", { label: t(`overview.${badge.labelKey}`), value: badge.value }),
+      t("row.badge", { label: overviewLabel(badge.label), value: badge.value }),
     );
     return [String(rule.rule_number), rule.description ?? "", rule.action, action, ...badges].join("\n").toLowerCase();
   };
@@ -278,6 +302,7 @@ export default function RouteMapPage() {
           ipv6AccessLists: lists.ipv6AccessLists,
           ipv4PrefixLists: lists.ipv4PrefixLists,
           ipv6PrefixLists: lists.ipv6PrefixLists,
+          bgpPeers: lists.bgpPeers,
           routeMaps: routeMaps.map((rm) => rm.name).filter((name) => name !== routeMapName),
         }
       : NO_PICKERS;

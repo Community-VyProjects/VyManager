@@ -36,6 +36,8 @@ export interface RouteMapPickers {
   ipv6AccessLists: string[];
   ipv4PrefixLists: string[];
   ipv6PrefixLists: string[];
+  /** Configured BGP neighbors (addresses and interfaces) and peer-groups, global and per VRF. */
+  bgpPeers: string[];
 }
 
 export const NO_PICKERS: RouteMapPickers = {
@@ -48,6 +50,7 @@ export const NO_PICKERS: RouteMapPickers = {
   ipv6AccessLists: [],
   ipv4PrefixLists: [],
   ipv6PrefixLists: [],
+  bgpPeers: [],
 };
 
 const BASIC: RouteMapRuleProblemKey[] = [
@@ -70,6 +73,7 @@ const MATCH: RouteMapRuleProblemKey[] = [
   "matchPeerInvalid",
   "matchSourcePeerInvalid",
   "evpnVniRange",
+  "evpnRdInvalid",
   "ipAddressPrefixLenRange",
   "ipv6AddressPrefixLenRange",
   "ipNexthopAddressInvalid",
@@ -87,5 +91,5 @@ export function problemTab(key: RouteMapRuleProblemKey): RouteMapRuleTab {
 
 /** The message arguments of a rule save check (every message may name the rule). */
 export function ruleProblemArgs(problem: RouteMapRuleProblem): Record<string, string | number> {
-  return { rule: problem.rule, min: problem.min ?? "", max: problem.max ?? "", value: problem.value ?? "" };
+  return { ...problem.args, rule: problem.rule, min: problem.min ?? "", max: problem.max ?? "", value: problem.value ?? "" };
 }

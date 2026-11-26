@@ -42,7 +42,7 @@ function caps(v15: boolean): RouteMapCapabilities {
       match_conditions: feature(true),
       match_rpki_extcommunity: feature(v15),
       match_source_peer: feature(v15),
-      match_evpn: { ...feature(true), route_types: routeTypes, vni_min: 1, vni_max: 16777214 },
+      match_evpn: feature(true),
       set_actions: feature(true),
       bgp_attributes: feature(true),
       call_continue: feature(true),
@@ -84,6 +84,8 @@ function caps(v15: boolean): RouteMapCapabilities {
       extcommunity_ip_value: { min: 0, max: 65535 },
       ip_access_list: { min: 0, max: u32 },
       evpn_vni: { min: 1, max: 16777214 },
+      evpn_rd_asn4: { min: 65536, max: u32 },
+      evpn_rd_asn4_value: { min: 0, max: 65535 },
       table: { min: 1, max: v15 ? u32 : 200 },
     },
     description_max_length: 255,
@@ -566,8 +568,29 @@ describe("rule save checks", () => {
     assert.equal(check({ set_extcommunity_bandwidth_non_transitive: true })?.key, "bandwidthNonTransitiveNeedsBandwidth");
     assert.equal(check({ set_extcommunity_bandwidth: "cumulative", set_extcommunity_bandwidth_non_transitive: true }), null);
     assert.equal(check({ set_extcommunity_bandwidth: "25601" })?.key, "extcommunityBandwidthInvalid");
-    assert.equal(check({ set_extcommunity_rt: ["65536:1"] })?.key, "extcommunityRtInvalid");
-    assert.equal(check({ set_extcommunity_soo: ["192.0.2.1:65536"] })?.key, "extcommunitySooInvalid");
+    // An out-of-range part is a range error naming that part, not a format error.
+    assert.deepEqual(check({ set_extcommunity_rt: ["65536:1"] }), {
+      key: "extcommunityRtRange",
+      rule: "10",
+      value: "65536",
+      min: 0,
+      max: 65535,
+      args: { entry: "65536:1" },
+    });
+    assert.deepEqual(check({ set_extcommunity_soo: ["192.0.2.1:65536"] }), {
+      key: "extcommunitySooRange",
+      rule: "10",
+      value: "65536",
+      min: 0,
+      max: 65535,
+      args: { entry: "192.0.2.1:65536" },
+    });
+    assert.equal(check({ set_extcommunity_rt: ["65000:4294967296"] })?.key, "extcommunityRtRange");
+    for (const bad of ["65000", "x:1", "65000:", "300.0.0.1:1", ":1"]) {
+      assert.deepEqual(check({ set_extcommunity_rt: [bad] }), { key: "extcommunityRtInvalid", rule: "10", value: bad }, bad);
+    }
+    assert.equal(check({ set_extcommunity_soo: ["65000"] })?.key, "extcommunitySooInvalid");
+    assert.equal(check({ set_extcommunity_rt: ["65000:4294967295"], set_extcommunity_soo: ["192.0.2.1:65535"] }), null);
   });
 
   it("as-path: one value of space-separated AS numbers; exclude also takes all", () => {
@@ -589,6 +612,36 @@ describe("rule save checks", () => {
     assert.equal(check({ match_metric: "0" })?.key, "matchMetricRange");
     assert.equal(check({ set_distance: "256" })?.key, "distanceRange");
     assert.equal(check({ match_evpn_vni: "16777215" })?.key, "evpnVniRange");
+  });
+
+  it("match evpn rd takes ASN:NN, ASN4:NN or IPv4:NN with each part in its served range", () => {
+    for (const ok of ["0:4294967295", "65535:0", "65536:65535", "4294967295:0", "192.0.2.1:65535"]) {
+      assert.equal(check({ match_evpn_rd: ok }), null, ok);
+    }
+    for (const bad of ["65536:65536", "4294967296:1", "192.0.2.1:65536", "65000", "65000:01", "rd:1", "192.0.2:1"]) {
+      const problem = check({ match_evpn_rd: bad });
+      assert.equal(problem?.key, "evpnRdInvalid", bad);
+      assert.deepEqual(problem?.args, {
+        asnMin: 0,
+        asnMax: 65535,
+        asnValueMin: 0,
+        asnValueMax: 4294967295,
+        asn4Min: 65536,
+        asn4Max: 4294967295,
+        asn4ValueMin: 0,
+        asn4ValueMax: 65535,
+        ipValueMin: 0,
+        ipValueMax: 65535,
+      });
+    }
+  });
+
+  it("source-peer is one word: whitespace and control characters are rejected (1.5)", () => {
+    for (const bad of ["192.0.2.1 x", "eth\t0", "PG\u0007", "PG\u0085", "P\u3000G"]) {
+      assert.equal(check({ match_source_peer: bad })?.key, "matchSourcePeerInvalid", JSON.stringify(bad));
+    }
+    assert.equal(check({ match_source_peer: "eth0" }), null);
+    assert.equal(check({ match_source_peer: "PEERS" }), null);
   });
 
   it("addresses match the builder; any access-list number is taken", () => {

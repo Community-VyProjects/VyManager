@@ -172,6 +172,8 @@ export type RouteMapRangeKey =
   | "extcommunity_ip_value"
   | "ip_access_list"
   | "evpn_vni"
+  | "evpn_rd_asn4"
+  | "evpn_rd_asn4_value"
   | "table";
 
 interface RouteMapFeature {
@@ -187,11 +189,7 @@ export interface RouteMapCapabilities {
     match_conditions: RouteMapFeature;
     match_rpki_extcommunity: RouteMapFeature;
     match_source_peer: RouteMapFeature;
-    match_evpn: RouteMapFeature & {
-      route_types: string[];
-      vni_min: number;
-      vni_max: number;
-    };
+    match_evpn: RouteMapFeature;
     set_actions: RouteMapFeature;
     bgp_attributes: RouteMapFeature;
     call_continue: RouteMapFeature;

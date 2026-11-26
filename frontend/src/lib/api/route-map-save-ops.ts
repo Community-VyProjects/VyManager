@@ -544,6 +544,7 @@ export type RouteMapRuleProblemKey =
   | "matchPeerInvalid"
   | "matchSourcePeerInvalid"
   | "evpnVniRange"
+  | "evpnRdInvalid"
   | "ipAddressPrefixLenRange"
   | "ipv6AddressPrefixLenRange"
   | "ipNexthopAddressInvalid"
@@ -563,7 +564,9 @@ export type RouteMapRuleProblemKey =
   | "extcommunityBandwidthInvalid"
   | "bandwidthNonTransitiveNeedsBandwidth"
   | "extcommunityRtInvalid"
+  | "extcommunityRtRange"
   | "extcommunitySooInvalid"
+  | "extcommunitySooRange"
   | "aggregatorAsRange"
   | "aggregatorIpInvalid"
   | "setLocalPreferenceRange"
@@ -587,6 +590,8 @@ export interface RouteMapRuleProblem {
   min?: number;
   max?: number;
   value?: string;
+  /** Further message arguments (the three route-distinguisher forms and their bounds). */
+  args?: Record<string, number | string>;
 }
 
 export type RouteMapProblemKey = "nameRequired" | "nameInvalid" | "nameTaken" | "descriptionTooLong";
@@ -647,16 +652,68 @@ function communityValid(value: string, caps: Caps): boolean {
   return partsInRange(value, 2, routeMapRange(caps, "community_part"));
 }
 
-/** `ASN:NN` or `IPv4:NN`. */
-function extcommunityValid(value: string, caps: Caps): boolean {
+/** Why an `ASN:NN` / `IPv4:NN` value fails: its format, or the part out of its served range. */
+type PartProblem = { kind: "format" } | { kind: "range"; part: string; min?: number; max?: number };
+
+function partProblem(part: string, range: RouteMapRange | null): PartProblem | null {
+  return inRange(part, range) ? null : { kind: "range", part, min: range?.min, max: range?.max };
+}
+
+/** `ASN:NN` or `IPv4:NN` (set extcommunity rt|soo). */
+function extcommunityProblem(value: string, caps: Caps): PartProblem | null {
   const at = value.lastIndexOf(":");
-  if (at <= 0) return false;
   const head = value.slice(0, at);
   const tail = value.slice(at + 1);
+  if (at <= 0 || !DECIMAL.test(tail)) return { kind: "format" };
   if (DECIMAL.test(head)) {
-    return inRange(head, routeMapRange(caps, "extcommunity_asn")) && inRange(tail, routeMapRange(caps, "extcommunity_asn_value"));
+    return (
+      partProblem(head, routeMapRange(caps, "extcommunity_asn")) ??
+      partProblem(tail, routeMapRange(caps, "extcommunity_asn_value"))
+    );
+  }
+  if (!isIpv4(head)) return { kind: "format" };
+  return partProblem(tail, routeMapRange(caps, "extcommunity_ip_value"));
+}
+
+/** `ASN:NN`, `ASN4:NN` or `IPv4:NN` (match evpn rd), each part in its served range. */
+function routeDistinguisherValid(value: string, caps: Caps): boolean {
+  const at = value.lastIndexOf(":");
+  const head = value.slice(0, at);
+  const tail = value.slice(at + 1);
+  if (at <= 0 || !DECIMAL.test(tail)) return false;
+  if (DECIMAL.test(head)) {
+    const asn2 = inRange(head, routeMapRange(caps, "extcommunity_asn")) && inRange(tail, routeMapRange(caps, "extcommunity_asn_value"));
+    const asn4 = inRange(head, routeMapRange(caps, "evpn_rd_asn4")) && inRange(tail, routeMapRange(caps, "evpn_rd_asn4_value"));
+    return asn2 || asn4;
   }
   return isIpv4(head) && inRange(tail, routeMapRange(caps, "extcommunity_ip_value"));
+}
+
+/** The bounds the route-distinguisher message names. */
+function routeDistinguisherArgs(caps: Caps): Record<string, number | string> {
+  const bound = (key: RouteMapRangeKey) => routeMapRange(caps, key) ?? { min: "", max: "" };
+  const asn = bound("extcommunity_asn");
+  const asnValue = bound("extcommunity_asn_value");
+  const asn4 = bound("evpn_rd_asn4");
+  const asn4Value = bound("evpn_rd_asn4_value");
+  const ipValue = bound("extcommunity_ip_value");
+  return {
+    asnMin: asn.min,
+    asnMax: asn.max,
+    asnValueMin: asnValue.min,
+    asnValueMax: asnValue.max,
+    asn4Min: asn4.min,
+    asn4Max: asn4.max,
+    asn4ValueMin: asn4Value.min,
+    asn4ValueMax: asn4Value.max,
+    ipValueMin: ipValue.min,
+    ipValueMax: ipValue.max,
+  };
+}
+
+/** One CLI word, as the builder takes a name: no whitespace or control character. */
+function isWord(value: string): boolean {
+  return !/[\s\u0000-\u001f\u007f-\u009f]/.test(value);
 }
 
 /** `[+-]<number>` or `[+-]rtt`. */
@@ -717,8 +774,11 @@ export function routeMapRuleProblem(
     checkRange("match_metric", "match_metric", "matchMetricRange"),
     checkRange("match_tag", "match_tag", "matchTagRange"),
     checkValue("match_peer", isIp, "matchPeerInvalid"),
-    sourcePeer ? checkValue("match_source_peer", (v) => !/\s/.test(v), "matchSourcePeerInvalid") : null,
+    sourcePeer ? checkValue("match_source_peer", isWord, "matchSourcePeerInvalid") : null,
     evpn ? checkRange("match_evpn_vni", "evpn_vni", "evpnVniRange") : null,
+    evpn && f.match_evpn_rd && !routeDistinguisherValid(f.match_evpn_rd, caps)
+      ? problem("evpnRdInvalid", { args: routeDistinguisherArgs(caps) })
+      : null,
     checkRange("match_ip_address_prefix_len", "ip_prefix_len", "ipAddressPrefixLenRange"),
     checkRange("match_ipv6_address_prefix_len", "ipv6_prefix_len", "ipv6AddressPrefixLenRange"),
     checkValue("match_ip_nexthop_address", isIpv4, "ipNexthopAddressInvalid"),
@@ -747,8 +807,17 @@ export function routeMapRuleProblem(
   const badLarge = [...f.set_large_community_add, ...f.set_large_community_replace].find(
     (v) => !partsInRange(v, 3, largeRange),
   );
-  const badRt = f.set_extcommunity_rt.find((v) => !extcommunityValid(v, caps));
-  const badSoo = f.set_extcommunity_soo.find((v) => !extcommunityValid(v, caps));
+  /** The first rt/soo value the builder rejects: a format error, or the out-of-range part. */
+  const extcommunityListProblem = (values: string[], formatKey: RouteMapRuleProblemKey, rangeKey: RouteMapRuleProblemKey) => {
+    for (const value of values) {
+      const bad = extcommunityProblem(value, caps);
+      if (bad?.kind === "format") return problem(formatKey, { value });
+      if (bad?.kind === "range") {
+        return problem(rangeKey, { value: bad.part, min: bad.min, max: bad.max, args: { entry: value } });
+      }
+    }
+    return null;
+  };
   const bandwidthRange = routeMapRange(caps, "extcommunity_bandwidth");
   const bandwidthKeywords = caps?.values?.extcommunity_bandwidth_keywords || [];
   const communities = [
@@ -780,8 +849,8 @@ export function routeMapRuleProblem(
     f.set_extcommunity_bandwidth_non_transitive && !f.set_extcommunity_bandwidth
       ? problem("bandwidthNonTransitiveNeedsBandwidth")
       : null,
-    badRt ? problem("extcommunityRtInvalid", { value: badRt }) : null,
-    badSoo ? problem("extcommunitySooInvalid", { value: badSoo }) : null,
+    extcommunityListProblem(f.set_extcommunity_rt, "extcommunityRtInvalid", "extcommunityRtRange"),
+    extcommunityListProblem(f.set_extcommunity_soo, "extcommunitySooInvalid", "extcommunitySooRange"),
   ];
 
   const nexthop = f.set_ip_nexthop;

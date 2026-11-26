@@ -8,7 +8,7 @@ import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { RouteMapCapabilities } from "@/lib/api/route-map";
 import { routeMapRange, type RouteMapRuleForm } from "@/lib/api/route-map-save-ops";
-import { evpnRouteTypeLabelKey } from "./route-map-evpn";
+import { evpnRouteTypeLabel } from "./route-map-evpn";
 
 interface EvpnSectionProps {
   idPrefix: string;
@@ -29,8 +29,9 @@ export function RouteMapEvpnMatchSection({ idPrefix, form, set, capabilities }: 
   const routeTypes = capabilities?.values?.evpn_route_types || [];
   const labels = Object.fromEntries(
     routeTypes.map((type) => {
-      const key = evpnRouteTypeLabelKey(type);
-      return [type, key ? t(key) : t("evpn.routeTypeNumbered", { n: type })];
+      const label = evpnRouteTypeLabel(type);
+      if (!label) return [type, type];
+      return [type, label.alias ? t("evpn.routeTypeAlias", { number: label.alias, name: t(label.key) }) : t(label.key)];
     }),
   );
   const vni = routeMapRange(capabilities, "evpn_vni");
@@ -55,8 +56,6 @@ export function RouteMapEvpnMatchSection({ idPrefix, form, set, capabilities }: 
             <Input
               id={`${idPrefix}-match-evpn-vni`}
               inputMode="numeric"
-              min={vni?.min}
-              max={vni?.max}
               placeholder={vni ? t("rangePlaceholder", { min: vni.min, max: vni.max }) : undefined}
               value={form.match_evpn_vni}
               onChange={(e) => set("match_evpn_vni", e.target.value)}

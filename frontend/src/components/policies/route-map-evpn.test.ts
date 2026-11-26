@@ -1,19 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { evpnRouteTypeLabelKey } from "./route-map-evpn";
+import { evpnRouteTypeLabel } from "./route-map-evpn";
 
-describe("evpnRouteTypeLabelKey", () => {
+describe("evpnRouteTypeLabel", () => {
   it("labels every named 1.4 and 1.5 route type", () => {
-    assert.equal(evpnRouteTypeLabelKey("ead"), "evpn.routeTypeEad");
-    assert.equal(evpnRouteTypeLabelKey("macip"), "evpn.routeTypeMacip");
-    assert.equal(evpnRouteTypeLabelKey("multicast"), "evpn.routeTypeMulticast");
-    assert.equal(evpnRouteTypeLabelKey("es"), "evpn.routeTypeEs");
-    assert.equal(evpnRouteTypeLabelKey("prefix"), "evpn.routeTypePrefix");
+    assert.deepEqual(evpnRouteTypeLabel("ead"), { key: "evpn.routeTypeEad", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("macip"), { key: "evpn.routeTypeMacip", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("multicast"), { key: "evpn.routeTypeMulticast", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("es"), { key: "evpn.routeTypeEs", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("prefix"), { key: "evpn.routeTypePrefix", alias: null });
   });
 
-  it("leaves numbered types and unknown names to the numbered label", () => {
-    for (const type of ["1", "5", "toString", "constructor"]) {
-      assert.equal(evpnRouteTypeLabelKey(type), null, type);
+  it("labels the 1.5 numeric aliases with their type's name and number", () => {
+    assert.deepEqual(evpnRouteTypeLabel("1"), { key: "evpn.routeTypeEad", alias: "1" });
+    assert.deepEqual(evpnRouteTypeLabel("2"), { key: "evpn.routeTypeMacip", alias: "2" });
+    assert.deepEqual(evpnRouteTypeLabel("3"), { key: "evpn.routeTypeMulticast", alias: "3" });
+    assert.deepEqual(evpnRouteTypeLabel("4"), { key: "evpn.routeTypeEs", alias: "4" });
+    assert.deepEqual(evpnRouteTypeLabel("5"), { key: "evpn.routeTypePrefix", alias: "5" });
+  });
+
+  it("leaves an unknown value to show as itself", () => {
+    for (const type of ["6", "0", "toString", "constructor"]) {
+      assert.equal(evpnRouteTypeLabel(type), null, type);
     }
   });
 });

@@ -9,6 +9,8 @@
     "loadLargeCommunityListsFailed": "加载大型团体列表失败",
     "loadAccessListsFailed": "加载访问列表失败",
     "loadPrefixListsFailed": "加载前缀列表失败",
+    "loadBgpPeersFailed": "加载 BGP 邻居和对等体组失败",
+    "loadVrfBgpPeersFailed": "加载 VRF BGP 邻居和对等体组失败",
     "errorTitle": "加载路由映射出错",
     "title": "路由映射",
     "summary": "{mapCount} 个映射 · {ruleCount} 条规则",
@@ -68,18 +70,13 @@
   "row": {
     "conditions": "{count} 个条件",
     "actions": "{count} 个动作",
-    "badge": "{label}：{value}",
-    "localPref": "本地优先级：{value}",
-    "metric": "度量值：{value}",
-    "asPrepend": "AS 前置：{value}",
-    "community": "团体：{value}"
+    "badge": "{label}：{value}"
   },
   "overview": {
     "asPath": "AS 路径",
     "community": "团体",
     "ipPrefix": "IP 前缀",
-    "ipv6Prefix": "IPv6 前缀",
-    "protocol": "协议"
+    "ipv6Prefix": "IPv6 前缀"
   },
   "reorder": {
     "title": "正在调整顺序",

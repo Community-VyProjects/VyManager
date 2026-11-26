@@ -1,22 +1,27 @@
 import type { MatchConditions, RouteMapRule } from "@/lib/api/route-map";
 
-/** Message key under `routeMap.overview` for a badge label. */
-export type RouteMapOverviewLabelKey = "asPath" | "community" | "ipPrefix" | "ipv6Prefix" | "protocol";
+/**
+ * A badge label: a `routeMap.overview` key, or a `routeMapRuleModal` field
+ * label where the rule modal already names the leaf.
+ */
+export type RouteMapOverviewLabel =
+  | { catalog: "routeMap"; key: "overview.asPath" | "overview.community" | "overview.ipPrefix" | "overview.ipv6Prefix" }
+  | { catalog: "routeMapRuleModal"; key: "field.protocol" };
 
 export interface RouteMapOverviewBadge {
-  labelKey: RouteMapOverviewLabelKey;
+  label: RouteMapOverviewLabel;
   value: string;
 }
 
 export const ROUTE_MAP_MATCH_OVERVIEW_FIELDS: {
   key: keyof MatchConditions;
-  labelKey: RouteMapOverviewLabelKey;
+  label: RouteMapOverviewLabel;
 }[] = [
-  { key: "as_path", labelKey: "asPath" },
-  { key: "community_list", labelKey: "community" },
-  { key: "ip_address_prefix_list", labelKey: "ipPrefix" },
-  { key: "ipv6_address_prefix_list", labelKey: "ipv6Prefix" },
-  { key: "protocol", labelKey: "protocol" },
+  { key: "as_path", label: { catalog: "routeMap", key: "overview.asPath" } },
+  { key: "community_list", label: { catalog: "routeMap", key: "overview.community" } },
+  { key: "ip_address_prefix_list", label: { catalog: "routeMap", key: "overview.ipPrefix" } },
+  { key: "ipv6_address_prefix_list", label: { catalog: "routeMap", key: "overview.ipv6Prefix" } },
+  { key: "protocol", label: { catalog: "routeMapRuleModal", key: "field.protocol" } },
 ];
 
 /** A leaf the device holds: a value, a set flag, or a non-empty `multi:` list. */
@@ -27,9 +32,9 @@ function isPresent(value: unknown): boolean {
 
 export function routeMapMatchOverviewBadges(match: Partial<MatchConditions>): RouteMapOverviewBadge[] {
   const badges: RouteMapOverviewBadge[] = [];
-  for (const { key, labelKey } of ROUTE_MAP_MATCH_OVERVIEW_FIELDS) {
+  for (const { key, label } of ROUTE_MAP_MATCH_OVERVIEW_FIELDS) {
     const value = match[key];
-    if (isPresent(value)) badges.push({ labelKey, value: String(value) });
+    if (isPresent(value)) badges.push({ label, value: String(value) });
   }
   return badges;
 }
