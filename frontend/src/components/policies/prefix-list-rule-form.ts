@@ -14,6 +14,21 @@ export function familyLabel(listType: PrefixListType): "IPv4" | "IPv6" {
   return listType === "ipv6" ? "IPv6" : "IPv4";
 }
 
+/**
+ * What a `?section=` request does: switch to that list type, "wait" while a
+ * reorder save runs (it applies once the save ends), or null when it names
+ * no list type or the type already shown.
+ */
+export function sectionTarget(
+  section: string | null,
+  current: PrefixListType,
+  savingReorder: boolean,
+): PrefixListType | "wait" | null {
+  if (section !== "ipv4" && section !== "ipv6") return null;
+  if (section === current) return null;
+  return savingReorder ? "wait" : section;
+}
+
 /** A free rule number inside the served rule range. */
 export function suggestedRuleNumber(rules: PrefixListRule[], caps: Caps): string {
   return nextRuleNumber(

@@ -25,7 +25,7 @@ import {
   type PrefixListType,
 } from "@/lib/api/prefix-list";
 import { reorderMoveCount } from "@/lib/api/prefix-list-save-ops";
-import { familyLabel } from "@/components/policies/prefix-list-rule-form";
+import { familyLabel, sectionTarget } from "@/components/policies/prefix-list-rule-form";
 import type { ApiError } from "@/lib/types/api";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -78,11 +78,6 @@ function PrefixListPageInner() {
   const [reorderError, setReorderError] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-
-  useEffect(() => {
-    const section = searchParams.get("section");
-    if (section === "ipv4" || section === "ipv6") setSelectedListType(section);
-  }, [searchParams]);
 
   const applyConfig = useCallback(async (refresh: boolean) => {
     const [config, caps] = await Promise.all([prefixListService.getConfig(refresh), prefixListService.getCapabilities()]);
@@ -149,10 +144,37 @@ function PrefixListPageInner() {
     setModalOpen(true);
   };
 
-  const resetReorder = () => {
+  const resetReorder = useCallback(() => {
     setReorderedRules([]);
     setReorderError(null);
-  };
+  }, []);
+
+  /** Tab click and `?section=` both switch here: the pending reorder, selection and searches belong to the old type. */
+  const switchListType = useCallback(
+    (type: PrefixListType) => {
+      resetReorder();
+      setSelectedListType(type);
+      setSelectedListName(null);
+      setSearchQuery("");
+      setRuleSearchQuery("");
+    },
+    [resetReorder],
+  );
+
+  // A `?section=` request (sidebar nav, search hit) is held until it applies,
+  // so a reorder save in flight delays it instead of dropping it, and a later
+  // tab click is not undone when the save ends.
+  const [requestedSection, setRequestedSection] = useState<string | null>(null);
+  useEffect(() => {
+    setRequestedSection(searchParams.get("section"));
+  }, [searchParams]);
+  useEffect(() => {
+    if (requestedSection === null) return;
+    const target = sectionTarget(requestedSection, selectedListType, savingReorder);
+    if (target === "wait") return;
+    setRequestedSection(null);
+    if (target) switchListType(target);
+  }, [requestedSection, selectedListType, savingReorder, switchListType]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -188,11 +210,8 @@ function PrefixListPageInner() {
   };
 
   const handleTabChange = (value: string) => {
-    resetReorder();
-    setSelectedListType(value as PrefixListType);
-    setSelectedListName(null);
-    setSearchQuery("");
-    setRuleSearchQuery("");
+    if (savingReorder || value === selectedListType) return;
+    switchListType(value as PrefixListType);
   };
 
   const handleListSelect = (name: string) => {

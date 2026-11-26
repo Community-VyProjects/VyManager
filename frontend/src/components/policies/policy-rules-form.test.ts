@@ -26,7 +26,7 @@ import {
 } from "@/lib/api/route-map";
 import type { VyOSResponse } from "@/lib/types/api";
 import type { PrefixListCapabilitiesResponse, PrefixListRule } from "@/lib/api/prefix-list";
-import { familyLabel, geLeBounds, suggestedRuleNumber } from "./prefix-list-rule-form";
+import { familyLabel, geLeBounds, sectionTarget, suggestedRuleNumber } from "./prefix-list-rule-form";
 import {
   emptyRegexListRuleDraft,
   regexListRuleDraftFrom,
@@ -278,6 +278,16 @@ describe("prefix-list form helpers", () => {
   } as PrefixListCapabilitiesResponse;
   const rule = (n: number): PrefixListRule => ({
     rule_number: n, action: "permit", description: null, prefix: "10.0.0.0/8", ge: null, le: null,
+  });
+
+  it("a ?section= request switches type, waits for a reorder save, or does nothing", () => {
+    assert.equal(sectionTarget("ipv6", "ipv4", false), "ipv6");
+    assert.equal(sectionTarget("ipv4", "ipv6", false), "ipv4");
+    assert.equal(sectionTarget("ipv6", "ipv4", true), "wait");
+    assert.equal(sectionTarget("ipv6", "ipv6", false), null);
+    assert.equal(sectionTarget("ipv6", "ipv6", true), null);
+    assert.equal(sectionTarget(null, "ipv4", false), null);
+    assert.equal(sectionTarget("route", "ipv4", true), null);
   });
 
   it("family label", () => {
