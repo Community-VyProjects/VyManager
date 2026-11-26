@@ -111,6 +111,8 @@
     "description": "确定要删除此规则吗？此操作无法撤销。",
     "ruleBadge": "规则 {number}",
     "prefixLabel": "前缀：",
+    "geLabel": "GE：",
+    "leLabel": "LE：",
     "warning": "这将永久删除该规则",
     "warningDetail": "此规则中配置的路由过滤将被移除。",
     "failed": "删除规则失败",

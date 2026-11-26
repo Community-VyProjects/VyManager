@@ -6,7 +6,10 @@ import {
   listDeleteOps,
   listUpdateOps,
   prefixListProblem,
+  prefixLengthOf,
   prefixListRuleProblem,
+  prefixValid,
+  reorderMoveCount,
   ruleDeleteOps,
   ruleFormFrom,
   ruleSaveOps,
@@ -166,7 +169,14 @@ describe("rule save checks", () => {
     for (const p of ["10.0.0.1/8", "10.0.0.0", "10.0.0.0/33", "010.0.0.0/8", "10.0.0.0/08", "2001:db8::/32"]) {
       assert.deepEqual(check(form({ prefix: p })), { key: "prefixInvalidIpv4" }, p);
     }
-    for (const p of ["2001:db8::1/32", "fe80::%eth0/64", "2001:db8::/129", "10.0.0.0/8"]) {
+    for (const p of [
+      "2001:db8::1/32",
+      "fe80::%eth0/64",
+      "2001:db8::/129",
+      "10.0.0.0/8",
+      "::ffff:10.0.0.0/104",
+      "64:ff9b::10.0.0.0/120",
+    ]) {
       assert.deepEqual(check(form({ prefix: p }), "ipv6"), { key: "prefixInvalidIpv6" }, p);
     }
   });
@@ -220,6 +230,31 @@ describe("duplicate rule save check", () => {
     const other: PrefixListRule = { ...RULE, rule_number: 30, action: "deny" };
     const edited = { ...ruleFormFrom(other), action: "permit" };
     assert.deepEqual(prefixListRuleProblem("ipv4", other, edited, CAPS, [RULE, other]), { key: "ruleDuplicate", rule: 10 });
+  });
+});
+
+describe("prefix helpers", () => {
+  it("an IPv6 prefix with a dotted IPv4 tail is rejected; the hex form is valid", () => {
+    assert.equal(prefixValid("ipv6", "::ffff:10.0.0.0/104"), false);
+    assert.equal(prefixValid("ipv6", "64:ff9b::10.0.0.0/120"), false);
+    assert.equal(prefixValid("ipv6", "::ffff:a00:0/104"), true);
+    assert.equal(prefixValid("ipv4", "10.0.0.0/8"), true);
+  });
+
+  it("prefixLengthOf reads the length or null", () => {
+    assert.equal(prefixLengthOf(" 10.0.0.0/16 "), 16);
+    assert.equal(prefixLengthOf("2001:db8::/128"), 128);
+    assert.equal(prefixLengthOf("10.0.0.0"), null);
+  });
+});
+
+describe("reorder move count", () => {
+  it("counts only rules off their sorted slot", () => {
+    assert.equal(reorderMoveCount([10, 20, 30]), 0);
+    assert.equal(reorderMoveCount([20, 10, 30]), 2);
+    assert.equal(reorderMoveCount([30, 10, 20]), 3);
+    assert.equal(reorderMoveCount([10, 30, 20, 40]), 2);
+    assert.equal(reorderMoveCount([]), 0);
   });
 });
 

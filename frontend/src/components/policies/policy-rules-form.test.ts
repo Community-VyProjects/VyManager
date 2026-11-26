@@ -25,6 +25,8 @@ import {
   type RouteMapRule,
 } from "@/lib/api/route-map";
 import type { VyOSResponse } from "@/lib/types/api";
+import type { PrefixListCapabilitiesResponse, PrefixListRule } from "@/lib/api/prefix-list";
+import { familyLabel, geLeBounds, suggestedRuleNumber } from "./prefix-list-rule-form";
 import {
   emptyRegexListRuleDraft,
   regexListRuleDraftFrom,
@@ -263,6 +265,37 @@ describe("local route update", () => {
     draft.source = "";
     await submitLocalRouteUpdate(storedLocal, draft, "ipv4", service);
     assert.ok(service.calls[0].operations.some((op) => op.op === "delete_local_route_rule_source"));
+  });
+});
+
+describe("prefix-list form helpers", () => {
+  const caps = {
+    ranges: {
+      rule: { min: 1, max: 65535 },
+      prefix_length_ipv4: { min: 0, max: 32 },
+      prefix_length_ipv6: { min: 0, max: 128 },
+    },
+  } as PrefixListCapabilitiesResponse;
+  const rule = (n: number): PrefixListRule => ({
+    rule_number: n, action: "permit", description: null, prefix: "10.0.0.0/8", ge: null, le: null,
+  });
+
+  it("family label", () => {
+    assert.equal(familyLabel("ipv4"), "IPv4");
+    assert.equal(familyLabel("ipv6"), "IPv6");
+  });
+
+  it("suggests a free rule number inside the served range", () => {
+    assert.equal(suggestedRuleNumber([], caps), "100");
+    assert.equal(suggestedRuleNumber([rule(10), rule(20)], caps), "21");
+    assert.equal(suggestedRuleNumber([rule(65535)], caps), "1");
+    assert.equal(suggestedRuleNumber([rule(5)], null), "6");
+  });
+
+  it("ge/le bounds start at the typed prefix length", () => {
+    assert.deepEqual(geLeBounds("ipv4", "10.0.0.0/16", caps), { min: 16, max: 32 });
+    assert.deepEqual(geLeBounds("ipv6", "", caps), { min: 0, max: 128 });
+    assert.deepEqual(geLeBounds("ipv4", "10.0.0.0", null), { min: undefined, max: undefined });
   });
 });
 

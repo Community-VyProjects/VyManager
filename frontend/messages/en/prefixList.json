@@ -111,6 +111,8 @@
     "description": "Are you sure you want to delete this rule? This action cannot be undone.",
     "ruleBadge": "Rule {number}",
     "prefixLabel": "Prefix:",
+    "geLabel": "GE:",
+    "leLabel": "LE:",
     "warning": "This will permanently delete the rule",
     "warningDetail": "Route filtering configured in this rule will be removed.",
     "failed": "Failed to delete rule",

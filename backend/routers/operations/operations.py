@@ -89,7 +89,6 @@ from vyos_builders.pim import PimBatchBuilder
 from vyos_builders.pim6 import Pim6BatchBuilder
 from vyos_builders.pki import PKIBatchBuilder
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
-from vyos_builders.prefix_list import PrefixListBatchBuilder
 from vyos_builders.qos import QoSBatchBuilder
 from vyos_builders.rip import RipBatchBuilder
 from vyos_builders.ripng import RipNgBatchBuilder
@@ -121,8 +120,8 @@ router = APIRouter(prefix="/vyos/operations", tags=["operations"])
 # with the op value as the method args) are listed — the introspected vocabulary
 # matches their real op contract. Excluded:
 #   - Interface sub-types, which use the service.create_*_batch() factory.
-#   - Explicit-dispatch handlers (firewall/groups, firewall/bridge, route, which
-#     inject top-level body fields into builder calls), where the builder
+#   - Explicit-dispatch handlers (firewall/groups, firewall/bridge, route,
+#     prefix-list, which inject top-level body fields into builder calls), where the builder
 #     signature would not match how ops are actually invoked.
 _BUILDER_REGISTRY: dict[str, type] = {
     "access-list": AccessListBatchBuilder,
@@ -173,7 +172,6 @@ _BUILDER_REGISTRY: dict[str, type] = {
     "pim6": Pim6BatchBuilder,
     "pki": PKIBatchBuilder,
     "pppoe-server": PPPoEServerBatchBuilder,
-    "prefix-list": PrefixListBatchBuilder,
     "qos": QoSBatchBuilder,
     "rip": RipBatchBuilder,
     "ripng": RipNgBatchBuilder,

@@ -113,6 +113,8 @@ def test_every_op_takes_list_type_and_name_first():
     ("set_rule_prefix", ("ipv6", "PL6", "10", "2001:db8::1/32")),
     ("set_rule_prefix", ("ipv6", "PL6", "10", "fe80::%eth0/64")),
     ("set_rule_prefix", ("ipv6", "PL6", "10", "2001:db8::/129")),
+    ("set_rule_prefix", ("ipv6", "PL6", "10", "::ffff:10.0.0.0/104")),
+    ("set_rule_prefix", ("ipv6", "PL6", "10", "64:ff9b::10.0.0.0/120")),
     # ge / le
     ("set_rule_ge", ("ipv4", "PL", "10", "33")),
     ("set_rule_le", ("ipv4", "PL", "10", "-1")),
@@ -135,6 +137,7 @@ def test_bad_value_raises_before_any_op(method, args):
     ("ipv6", "::/0"),
     ("ipv6", "2001:db8:0:1::/64"),
     ("ipv6", "2001:db8::1/128"),
+    ("ipv6", "::ffff:a00:0/104"),
 ])
 def test_lab_prefixes_are_accepted(list_type, prefix):
     builder = PrefixListBatchBuilder("1.4").set_rule_prefix(list_type, "PL", "1", prefix)

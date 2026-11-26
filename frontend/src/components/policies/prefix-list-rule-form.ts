@@ -1,25 +1,29 @@
 /**
- * Form-only helpers of the prefix-list rule modal. Every emit and save check
+ * Form-only helpers of the prefix-list modals. Every emit and save check
  * lives in `@/lib/api/prefix-list-save-ops`.
  */
 
-import type { PrefixListRange } from "@/lib/api/prefix-list";
+import type { PrefixListCapabilitiesResponse, PrefixListRule, PrefixListType } from "@/lib/api/prefix-list";
+import { lengthRange, prefixListRange, prefixLengthOf } from "@/lib/api/prefix-list-save-ops";
+import { nextRuleNumber } from "./route-rule-form";
 
-/** A free rule number: the next after the highest, else the lowest unused one. */
-export function nextRuleNumber(numbers: number[], range: PrefixListRange | null): string {
-  const min = range?.min ?? 1;
-  const max = range?.max ?? 65535;
-  if (numbers.length === 0) return String(Math.min(Math.max(100, min), max));
-  const next = Math.max(...numbers) + 1;
-  if (next <= max) return String(next);
-  for (let n = min; n <= max; n += 1) {
-    if (!numbers.includes(n)) return String(n);
-  }
-  return "";
+type Caps = PrefixListCapabilitiesResponse | null;
+
+/** The family label the page, the badges and the dialogs show. */
+export function familyLabel(listType: PrefixListType): "IPv4" | "IPv6" {
+  return listType === "ipv6" ? "IPv6" : "IPv4";
 }
 
-/** The length of a typed prefix, or null while it has none. */
-export function prefixLength(prefix: string): number | null {
-  const match = /\/(\d{1,3})$/.exec(prefix.trim());
-  return match ? Number(match[1]) : null;
+/** A free rule number inside the served rule range. */
+export function suggestedRuleNumber(rules: PrefixListRule[], caps: Caps): string {
+  return nextRuleNumber(
+    rules.map((r) => r.rule_number),
+    prefixListRange(caps, "rule"),
+  );
+}
+
+/** The ge/le input bounds: from the typed prefix length up to the family maximum. */
+export function geLeBounds(listType: PrefixListType, prefix: string, caps: Caps): { min?: number; max?: number } {
+  const range = lengthRange(caps, listType);
+  return { min: prefixLengthOf(prefix) ?? range?.min, max: range?.max };
 }

@@ -6,7 +6,7 @@ labs have the same leaves, so the parse reads the shape the device returned.
 
 from typing import Any, Dict, List, Optional
 
-_FAMILIES = (("ipv4", "prefix-list"), ("ipv6", "prefix-list6"))
+from .prefix_list import FAMILIES
 
 
 def _dict(value: Any) -> Dict[str, Any]:
@@ -56,7 +56,7 @@ def parse_config(_mapper: Any, full_config: Dict[str, Any]) -> Dict[str, Any]:
     """Parse ``policy prefix-list`` and ``policy prefix-list6`` into the shape the client reads."""
     policy = _dict(_dict(full_config).get("policy"))
     parsed: Dict[str, List[Dict[str, Any]]] = {}
-    for list_type, node in _FAMILIES:
+    for list_type, node in FAMILIES.items():
         lists = [_parse_list(list_type, name, raw) for name, raw in _dict(policy.get(node)).items()]
         lists.sort(key=lambda item: item["name"])
         parsed[list_type] = lists

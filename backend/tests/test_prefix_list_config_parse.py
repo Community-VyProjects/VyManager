@@ -85,6 +85,7 @@ def test_bad_shapes_read_as_unset():
 def test_rule_trees():
     mapper = _mapper("1.4")
     trees = mapper.rule_trees(TREE, "ipv4", "CORP")
+    assert trees is not None
     assert sorted(trees) == [10, 20]
     assert trees[20] == {"action": "permit", "prefix": "172.16.0.0/12"}
     assert mapper.rule_trees(TREE, "ipv6", "EMPTY") == {}
@@ -103,6 +104,14 @@ def test_mapper_has_no_versions_package_or_pass_through_init():
     assert not (package / "prefix_list_versions" / "__init__.py").exists()
     assert "__init__" not in PrefixListMapper.__dict__
     assert "parse_config" in PrefixListMapper.__dict__
+
+
+def test_parse_reads_the_mapper_family_table():
+    from vyos_mappers.prefix_list import config_parse
+    from vyos_mappers.prefix_list.prefix_list import FAMILIES
+
+    assert config_parse.FAMILIES is FAMILIES
+    assert not hasattr(config_parse, "_FAMILIES")
 
 
 def test_every_leaf_has_a_delete_path():

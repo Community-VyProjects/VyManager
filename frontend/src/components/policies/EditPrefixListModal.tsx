@@ -16,6 +16,7 @@ import {
   type PrefixListForm,
 } from "@/lib/api/prefix-list-save-ops";
 import type { ApiError } from "@/lib/types/api";
+import { familyLabel } from "./prefix-list-rule-form";
 
 interface EditPrefixListModalProps {
   open: boolean;
@@ -70,7 +71,7 @@ export function EditPrefixListModal({ open, onOpenChange, onSuccess, prefixList,
             <div className="flex items-center gap-2">
               <ListFilter className="h-4 w-4 text-muted-foreground" />
               <span className="font-mono text-sm font-medium">{prefixList.name}</span>
-              <Badge variant="outline">{prefixList.list_type.toUpperCase()}</Badge>
+              <Badge variant="outline">{familyLabel(prefixList.list_type)}</Badge>
               <Badge variant="secondary">{t("ruleCount", { count: prefixList.rules.length })}</Badge>
             </div>
           </div>

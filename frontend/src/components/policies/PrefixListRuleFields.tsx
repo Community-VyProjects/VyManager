@@ -5,13 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslations } from "next-intl";
 import type { PrefixListCapabilitiesResponse, PrefixListType } from "@/lib/api/prefix-list";
-import {
-  descriptionMaxLength,
-  lengthRange,
-  ruleActions,
-  type PrefixListRuleForm,
-} from "@/lib/api/prefix-list-save-ops";
-import { prefixLength } from "./prefix-list-rule-form";
+import { descriptionMaxLength, ruleActions, type PrefixListRuleForm } from "@/lib/api/prefix-list-save-ops";
+import { geLeBounds } from "./prefix-list-rule-form";
 
 interface PrefixListRuleFieldsProps {
   idPrefix: string;
@@ -36,8 +31,7 @@ export function PrefixListRuleFields({
 }: PrefixListRuleFieldsProps) {
   const t = useTranslations("prefixList");
   const set = (key: keyof PrefixListRuleForm, value: string) => onChange({ ...form, [key]: value });
-  const range = lengthRange(capabilities, listType);
-  const minLength = prefixLength(form.prefix) ?? range?.min;
+  const bounds = geLeBounds(listType, form.prefix, capabilities);
   const actionLabel = (action: string) =>
     action === "permit" ? t("form.permit") : action === "deny" ? t("form.deny") : action;
 
@@ -106,8 +100,8 @@ export function PrefixListRuleFields({
             value={form.ge}
             onChange={(e) => set("ge", e.target.value)}
             disabled={disabled}
-            min={minLength}
-            max={range?.max}
+            min={bounds.min}
+            max={bounds.max}
           />
         </div>
 
@@ -120,8 +114,8 @@ export function PrefixListRuleFields({
             value={form.le}
             onChange={(e) => set("le", e.target.value)}
             disabled={disabled}
-            min={minLength}
-            max={range?.max}
+            min={bounds.min}
+            max={bounds.max}
           />
         </div>
       </div>

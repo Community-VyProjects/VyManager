@@ -194,9 +194,26 @@ function inRange(value: string, range: PrefixListRange | null): boolean {
   return n >= range.min && n <= range.max;
 }
 
-/** A prefix of the list's family the lab validator takes (no host bits, no zone index). */
+/**
+ * A prefix of the list's family the lab validator takes: no host bits, no
+ * zone index, and for IPv6 no dotted IPv4 tail (::ffff:10.0.0.0/104 is
+ * rejected; the hex form ::ffff:a00:0/104 is valid).
+ */
 export function prefixValid(listType: PrefixListType, value: string): boolean {
-  return listType === "ipv6" ? isIpv6Prefix(value) : isIPv4Prefix(value);
+  if (listType === "ipv6") return !value.split("/")[0].includes(".") && isIpv6Prefix(value);
+  return isIPv4Prefix(value);
+}
+
+/** The length of a `<address>/<length>` prefix, or null when it has none. */
+export function prefixLengthOf(prefix: string): number | null {
+  const match = /\/(\d{1,3})$/.exec(prefix.trim());
+  return match ? Number(match[1]) : null;
+}
+
+/** How many rules a pending reorder renumbers: those not already at their sorted slot. */
+export function reorderMoveCount(order: number[]): number {
+  const slots = [...order].sort((a, b) => a - b);
+  return order.filter((number, i) => number !== slots[i]).length;
 }
 
 /** A rule batch the lab would reject, or null. */
@@ -230,12 +247,12 @@ export function prefixListRuleProblem(
   if (f.le && !inRange(f.le, range)) return { key: "leRange", min: range?.min, max: range?.max };
   // 1.5 verify (1.4 has none, and anything that passes commits there too):
   // ge >= prefix length, le >= prefix length, ge <= le; equal is allowed.
-  const length = Number(f.prefix.split("/")[1]);
+  const length = prefixLengthOf(f.prefix) ?? 0;
   if (f.ge && Number(f.ge) < length) return { key: "geBelowLength", length };
   if (f.le && Number(f.le) < length) return { key: "leBelowLength", length };
   if (f.ge && f.le && Number(f.ge) > Number(f.le)) return { key: "geAboveLe" };
-  // 1.5 verify rejects a rule whose whole config equals another rule's in
-  // the same list (1.4 does not check; the check is safe on both).
+  // Both 1.4 and 1.5 reject a rule whose whole config equals another rule's
+  // in the same list.
   const key = ruleCompareKey(listType, f);
   const twin = existingRules.find(
     (r) => r.rule_number !== original?.rule_number && ruleCompareKey(listType, ruleFormFrom(r)) === key,

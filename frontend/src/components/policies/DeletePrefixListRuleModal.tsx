@@ -85,13 +85,13 @@ export function DeletePrefixListRuleModal({
               </div>
               {rule.ge != null && (
                 <div className="flex gap-2">
-                  <span className="text-muted-foreground min-w-24">{t("page.colGe")}</span>
+                  <span className="text-muted-foreground min-w-24">{t("deleteRule.geLabel")}</span>
                   <span className="font-mono">{rule.ge}</span>
                 </div>
               )}
               {rule.le != null && (
                 <div className="flex gap-2">
-                  <span className="text-muted-foreground min-w-24">{t("page.colLe")}</span>
+                  <span className="text-muted-foreground min-w-24">{t("deleteRule.leLabel")}</span>
                   <span className="font-mono">{rule.le}</span>
                 </div>
               )}

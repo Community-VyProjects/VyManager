@@ -17,14 +17,13 @@ import {
   descriptionMaxLength,
   emptyRuleForm,
   prefixListProblem,
-  prefixListRange,
   prefixListRuleProblem,
   type PrefixListForm,
   type PrefixListRuleForm,
 } from "@/lib/api/prefix-list-save-ops";
 import type { ApiError } from "@/lib/types/api";
 import { PrefixListRuleFields } from "./PrefixListRuleFields";
-import { nextRuleNumber } from "./prefix-list-rule-form";
+import { familyLabel, suggestedRuleNumber } from "./prefix-list-rule-form";
 
 interface CreatePrefixListModalProps {
   open: boolean;
@@ -58,12 +57,12 @@ export function CreatePrefixListModal({
   const [activeTab, setActiveTab] = useState("basic");
   const [listForm, setListForm] = useState<PrefixListForm>({ name: "", description: "" });
   const [ruleForm, setRuleForm] = useState<PrefixListRuleForm>(() => ({
-    ...emptyRuleForm(nextRuleNumber([], prefixListRange(capabilities, "rule"))),
+    ...emptyRuleForm(suggestedRuleNumber([], capabilities)),
     action: "permit",
   }));
   /** The list name once its commit succeeded. */
   const [created, setCreated] = useState<string | null>(null);
-  const family = listType === "ipv4" ? "IPv4" : "IPv6";
+  const family = familyLabel(listType);
 
   const handleSubmit = async () => {
     const listProblem = prefixListProblem(listForm, created ? null : existingNames, capabilities);

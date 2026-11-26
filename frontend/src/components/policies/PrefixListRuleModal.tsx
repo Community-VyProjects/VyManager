@@ -13,7 +13,6 @@ import {
 } from "@/lib/api/prefix-list";
 import {
   emptyRuleForm,
-  prefixListRange,
   prefixListRuleProblem,
   ruleFormFrom,
   type PrefixListRuleForm,
@@ -21,7 +20,7 @@ import {
 import type { ApiError } from "@/lib/types/api";
 import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import { PrefixListRuleFields } from "./PrefixListRuleFields";
-import { nextRuleNumber } from "./prefix-list-rule-form";
+import { suggestedRuleNumber } from "./prefix-list-rule-form";
 
 interface PrefixListRuleModalProps {
   open: boolean;
@@ -50,12 +49,7 @@ export function PrefixListRuleModal({
     existing
       ? ruleFormFrom(existing)
       : {
-          ...emptyRuleForm(
-            nextRuleNumber(
-              prefixList.rules.map((r) => r.rule_number),
-              prefixListRange(capabilities, "rule"),
-            ),
-          ),
+          ...emptyRuleForm(suggestedRuleNumber(prefixList.rules, capabilities)),
           action: "permit",
         },
   );

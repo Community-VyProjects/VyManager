@@ -24,6 +24,8 @@ import {
   type PrefixListRule,
   type PrefixListType,
 } from "@/lib/api/prefix-list";
+import { reorderMoveCount } from "@/lib/api/prefix-list-save-ops";
+import { familyLabel } from "@/components/policies/prefix-list-rule-form";
 import type { ApiError } from "@/lib/types/api";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -158,7 +160,10 @@ function PrefixListPageInner() {
     const oldIndex = currentRules.findIndex((r) => r.rule_number === active.id);
     const newIndex = currentRules.findIndex((r) => r.rule_number === over.id);
     if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-      setReorderedRules(arrayMove(currentRules, oldIndex, newIndex));
+      const next = arrayMove(currentRules, oldIndex, newIndex);
+      // Dragged back to the stored order: nothing left to save.
+      if (reorderMoveCount(next.map((r) => r.rule_number)) === 0) resetReorder();
+      else setReorderedRules(next);
     }
   };
 
@@ -208,7 +213,7 @@ function PrefixListPageInner() {
   };
 
   const ruleIds = filteredRules.map((r) => r.rule_number);
-  const family = selectedListType === "ipv4" ? "IPv4" : "IPv6";
+  const family = familyLabel(selectedListType);
 
   if (loading) {
     return (
@@ -258,8 +263,12 @@ function PrefixListPageInner() {
 
             <Tabs value={selectedListType} onValueChange={handleTabChange} className="mb-4">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="ipv4">IPv4</TabsTrigger>
-                <TabsTrigger value="ipv6">IPv6</TabsTrigger>
+                <TabsTrigger value="ipv4" disabled={savingReorder}>
+                  {familyLabel("ipv4")}
+                </TabsTrigger>
+                <TabsTrigger value="ipv6" disabled={savingReorder}>
+                  {familyLabel("ipv6")}
+                </TabsTrigger>
               </TabsList>
             </Tabs>
 
@@ -321,7 +330,8 @@ function PrefixListPageInner() {
                   >
                     <button
                       onClick={() => handleListSelect(list.name)}
-                      className="w-full text-left px-3 py-2.5 pr-10"
+                      disabled={savingReorder}
+                      className="w-full text-left px-3 py-2.5 pr-10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium text-sm font-mono truncate">{list.name}</span>
@@ -418,7 +428,7 @@ function PrefixListPageInner() {
                   onSave={handleSaveReorder}
                   onCancel={resetReorder}
                   saving={savingReorder}
-                  count={reorderedRules.length}
+                  count={reorderMoveCount(reorderedRules.map((r) => r.rule_number))}
                   error={reorderError}
                 />
               )}

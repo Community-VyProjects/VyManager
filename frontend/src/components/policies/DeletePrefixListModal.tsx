@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "next-intl";
 import { prefixListService, type PrefixList } from "@/lib/api/prefix-list";
 import type { ApiError } from "@/lib/types/api";
+import { familyLabel } from "./prefix-list-rule-form";
 
 interface DeletePrefixListModalProps {
   open: boolean;
@@ -55,7 +56,7 @@ export function DeletePrefixListModal({ open, onOpenChange, onSuccess, prefixLis
             <div className="flex items-center gap-2">
               <ListFilter className="h-4 w-4 text-muted-foreground" />
               <span className="font-mono text-sm font-medium">{prefixList.name}</span>
-              <Badge variant="outline">{prefixList.list_type.toUpperCase()}</Badge>
+              <Badge variant="outline">{familyLabel(prefixList.list_type)}</Badge>
               <Badge variant="secondary">{t("ruleCount", { count: prefixList.rules.length })}</Badge>
             </div>
             {prefixList.description && <p className="text-sm text-muted-foreground pl-6">{prefixList.description}</p>}

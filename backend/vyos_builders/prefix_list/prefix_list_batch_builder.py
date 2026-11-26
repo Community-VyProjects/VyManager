@@ -4,7 +4,7 @@ Provides all batch operations for ``policy prefix-list`` (list type ipv4) and
 ``policy prefix-list6`` (list type ipv6). The templates are the same on VyOS
 1.4 and 1.5. A list name outside the lab regex, a rule number, ge or le
 outside the lab range, a prefix the lab validator rejects (host bits set,
-zone index), an action outside permit/deny, or a description over 255
+zone index, a dotted IPv4 tail in an IPv6 prefix), an action outside permit/deny, or a description over 255
 characters raises ValueError before the op is queued.
 """
 
@@ -56,6 +56,10 @@ def _prefix(list_type: str, value: str) -> str:
     try:
         address, sep, length = value.partition("/")
         if not sep or "%" in address or not _PREFIX_LENGTH.fullmatch(length):
+            raise ValueError
+        # The lab ipv6-prefix validator rejects a dotted IPv4 tail
+        # (::ffff:10.0.0.0/104); the hex form ::ffff:a00:0/104 is valid.
+        if list_type == "ipv6" and "." in address:
             raise ValueError
         if list_type == "ipv6":
             ipaddress.IPv6Network(value, strict=True)

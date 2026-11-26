@@ -311,6 +311,15 @@ def test_reorder_failed_commit_reports_the_error(client, commit):
     assert resp.json() == {"success": False, "data": None, "error": "Commit failed"}
 
 
+def test_not_in_the_generic_operations_vocabulary():
+    # Its ops take list_type, name and rule from the body, so the introspected
+    # signature would misreport them (same as route).
+    from routers.operations.operations import _BUILDER_REGISTRY
+
+    assert "prefix-list" not in _BUILDER_REGISTRY
+    assert "route" not in _BUILDER_REGISTRY
+
+
 # ---------------------------------------------------------------- passthrough
 
 
