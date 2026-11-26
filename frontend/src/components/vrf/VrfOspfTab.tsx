@@ -106,7 +106,12 @@ export function VrfOspfTab({ vrf, capabilities, canWrite, onRefresh }: VrfOspfTa
       {([
         OSPF_AREA_GROUP,
         OSPF_INTERFACE_GROUP,
-        OSPF_REDISTRIBUTE_GROUP,
+        {
+          ...OSPF_REDISTRIBUTE_GROUP,
+          fixedIds: (OSPF_REDISTRIBUTE_GROUP.fixedIds ?? []).filter(
+            (o) => o.value !== "nhrp" || capabilities.features.ospf_redistribute_nhrp?.supported === true,
+          ),
+        },
         OSPF_SUMMARY_ADDRESS_GROUP,
         OSPF_NEIGHBOR_GROUP,
       ] as const).map((group) => (

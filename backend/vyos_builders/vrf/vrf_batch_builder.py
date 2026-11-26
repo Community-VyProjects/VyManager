@@ -12,7 +12,7 @@ from typing import Dict, Any, cast
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.ospf.ospf import OspfMapper
 from vyos_mappers.static_routes.static_routes import IPV4_SEGMENTS, SOURCE_PROFILE, StaticRoutesMapper
-from vyos_mappers.vrf import VrfBgpMapper, VrfIsisMapper, VrfMapper, VrfOspfMapper
+from vyos_mappers.vrf import VrfBgpMapper, VrfIsisMapper, VrfMapper
 from .vrf_protocol import (
     ArityError,
     parse_vrf_protocol_op,
@@ -195,8 +195,8 @@ class VrfBatchBuilder(BatchBuilder):
         vrf_mapper = self.m
         static_mapper = cast(StaticRoutesMapper, self.mappers["static_routes"])
         # VRF OSPF ops run the global OSPF builder, so its allowlist decides.
-        ospf_nodes = cast(OspfMapper, self.mappers["ospf"]).versioned_nodes()
-        vrf_ospf = cast(VrfOspfMapper, self.mappers["vrf_ospf"])
+        ospf = cast(OspfMapper, self.mappers["ospf"])
+        ospf_nodes = ospf.versioned_nodes()
         vrf_isis = cast(VrfIsisMapper, self.mappers["vrf_isis"])
         vrf_bgp = cast(VrfBgpMapper, self.mappers["vrf_bgp"])
 
@@ -285,7 +285,7 @@ class VrfBatchBuilder(BatchBuilder):
                     "description": "OSPF retransmit-window on interfaces and virtual-links",
                 },
                 "ospf_redistribute_nhrp": {
-                    "supported": "nhrp" in vrf_ospf.redistribute_protocols(),
+                    "supported": "nhrp" in ospf.redistribute_protocols(),
                     "description": "OSPF redistribute NHRP (VyOS 1.5+ only)",
                 },
                 "isis_fast_reroute": {
