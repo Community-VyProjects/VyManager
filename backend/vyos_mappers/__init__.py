@@ -97,7 +97,6 @@ from .nhrp import NhrpMapper
 from .nhrp.nhrp_versions import get_nhrp_mapper
 from .pim import PimMapper
 from .pim6 import Pim6Mapper
-from .pim6.pim6_versions import get_pim6_mapper
 from .rip.rip_versions import get_rip_mapper
 from .ripng import RipNgMapper
 from .rpki import RpkiMapper
@@ -290,8 +289,8 @@ CommandMapperRegistry.register_feature("vxlan", get_vxlan_mapper)
 CommandMapperRegistry.register_feature("nhrp", get_nhrp_mapper)
 # PIM uses the shared class (no version differences)
 CommandMapperRegistry.register_feature("pim", PimMapper)
-# PIMv6 uses factory for version-specific mappers
-CommandMapperRegistry.register_feature("pim6", get_pim6_mapper)
+# PIMv6 uses the shared class (no version differences)
+CommandMapperRegistry.register_feature("pim6", Pim6Mapper)
 # RIP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("rip", get_rip_mapper)
 # RIPng uses the shared class (no version differences)

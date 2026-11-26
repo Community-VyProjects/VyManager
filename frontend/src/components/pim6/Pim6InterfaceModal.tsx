@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -24,427 +24,366 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
-import type { Pim6Interface, Pim6MldJoin } from "@/lib/api/pim6";
-import { showService, InterfaceName } from "@/lib/api/show";
+import type { Pim6Capabilities, Pim6Interface, Pim6MldJoin } from "@/lib/api/pim6";
+import { pimText } from "@/lib/api/pim-save-ops";
+import {
+  pim6InterfaceProblem,
+  pim6JoinSourcesWithDraft,
+  pim6JoinsWithDraft,
+  pim6ProblemArgs,
+  pim6Range,
+  type Pim6InterfaceDraft,
+  type Pim6Problem,
+} from "@/lib/api/pim6-save-ops";
 import { InterfaceSelect } from "@/components/ui/interface-select";
-import { isValidIPv6 } from "@/lib/validators/firewall";
+import { NONE_SENTINEL } from "@/lib/named-list-select-options";
+import type { ApiError } from "@/lib/types/api";
 
 interface Pim6InterfaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (iface: Pim6Interface) => Promise<void>;
+  onSubmit: (iface: Pim6InterfaceDraft) => Promise<void>;
   existingInterface?: Pim6Interface | null;
+  /** Interfaces that already have a PIMv6 node; Add offers only the others. */
+  configuredInterfaces: string[];
+  capabilities: Pick<Pim6Capabilities, "ranges"> | null;
 }
 
+const str = (value: number | string | null | undefined) => pimText(value);
+
+// Problems whose field sits on the MLD tab; every other problem is on the PIMv6 tab.
+const MLD_PROBLEMS: ReadonlySet<Pim6Problem["key"]> = new Set<Pim6Problem["key"]>([
+  "mldIntervalRange",
+  "lastMemberQueryCountRange",
+  "mldVersionRange",
+  "joinGroupInvalid",
+  "joinExists",
+  "joinSourceInvalid",
+  "joinSourceExists",
+]);
+
+/** The modal tab that holds the field a problem is about. */
+export function pim6ProblemTab(problem: Pim6Problem): "pim6" | "mld" {
+  return MLD_PROBLEMS.has(problem.key) ? "mld" : "pim6";
+}
+
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function Pim6InterfaceModal({
   open,
   onOpenChange,
   onSubmit,
   existingInterface,
+  configuredInterfaces,
+  capabilities,
 }: Pim6InterfaceModalProps) {
   const t = useTranslations("pim6");
   const tc = useTranslations("common");
   const isEditMode = !!existingInterface;
-
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [, setInterfacesLoading] = useState(false);
+  const existing = existingInterface ?? null;
+  const mld = existing?.mld ?? null;
 
   // PIMv6 form state
-  const [name, setName] = useState("");
-  const [drPriority, setDrPriority] = useState("");
-  const [hello, setHello] = useState("");
-  const [passive, setPassive] = useState(false);
-  const [noBsm, setNoBsm] = useState(false);
-  const [noUnicastBsm, setNoUnicastBsm] = useState(false);
+  const [name, setName] = useState(existing?.name ?? "");
+  const [drPriority, setDrPriority] = useState(str(existing?.dr_priority));
+  const [hello, setHello] = useState(str(existing?.hello));
+  const [passive, setPassive] = useState(existing?.passive ?? false);
+  const [noBsm, setNoBsm] = useState(existing?.no_bsm ?? false);
+  const [noUnicastBsm, setNoUnicastBsm] = useState(existing?.no_unicast_bsm ?? false);
 
   // MLD form state
-  const [mldDisabled, setMldDisabled] = useState(false);
-  const [mldInterval, setMldInterval] = useState("");
-  const [mldLastMemberQueryCount, setMldLastMemberQueryCount] = useState("");
-  const [mldLastMemberQueryInterval, setMldLastMemberQueryInterval] = useState("");
-  const [mldMaxResponseTime, setMldMaxResponseTime] = useState("");
-  const [mldVersion, setMldVersion] = useState("");
-  const [mldJoins, setMldJoins] = useState<Pim6MldJoin[]>([]);
+  const [mldEnabled, setMldEnabled] = useState(mld !== null);
+  const [mldDisabled, setMldDisabled] = useState(mld?.disabled ?? false);
+  const [mldInterval, setMldInterval] = useState(str(mld?.interval));
+  const [mldLastMemberQueryCount, setMldLastMemberQueryCount] = useState(str(mld?.last_member_query_count));
+  // No value for these two can commit on VyOS (READ_ONLY_MLD_LEAVES): a loaded one is shown read-only and can be removed.
+  const loadedLmqi = str(mld?.last_member_query_interval);
+  const loadedMaxResponse = str(mld?.max_response_time);
+  const [removeLmqi, setRemoveLmqi] = useState(false);
+  const [removeMaxResponse, setRemoveMaxResponse] = useState(false);
+  const [mldVersion, setMldVersion] = useState(str(mld?.version));
+  const [mldJoins, setMldJoins] = useState<Pim6MldJoin[]>(
+    mld?.joins.map((j) => ({ group: j.group, sources: [...j.sources] })) ?? [],
+  );
   const [newJoinGroup, setNewJoinGroup] = useState("");
-  const [joinSourceInputs, setJoinSourceInputs] = useState<Record<number, string>>({});
+  // Typed source address per join row (by row index).
+  const [sourceDrafts, setSourceDrafts] = useState<Record<number, string>>({});
 
+  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("pim6");
 
-  useEffect(() => {
-    if (open) {
-      if (existingInterface) {
-        setName(existingInterface.name);
-        setDrPriority(existingInterface.dr_priority != null ? String(existingInterface.dr_priority) : "");
-        setHello(existingInterface.hello != null ? String(existingInterface.hello) : "");
-        setPassive(existingInterface.passive);
-        setNoBsm(existingInterface.no_bsm);
-        setNoUnicastBsm(existingInterface.no_unicast_bsm);
-
-        const mld = existingInterface.mld;
-        if (mld) {
-          setMldDisabled(mld.disabled);
-          setMldInterval(mld.interval != null ? String(mld.interval) : "");
-          setMldLastMemberQueryCount(mld.last_member_query_count != null ? String(mld.last_member_query_count) : "");
-          setMldLastMemberQueryInterval(mld.last_member_query_interval != null ? String(mld.last_member_query_interval) : "");
-          setMldMaxResponseTime(mld.max_response_time != null ? String(mld.max_response_time) : "");
-          setMldVersion(mld.version != null ? String(mld.version) : "");
-          setMldJoins(mld.joins.map((j) => ({ group: j.group, sources: [...j.sources] })));
-        } else {
-          resetMldFields();
-        }
-      } else {
-        resetForm();
-      }
-      setJoinSourceInputs({});
-      setActiveTab("pim6");
-      loadInterfaces();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed/reset the form when opened; reset helpers only touch local state
-  }, [open, existingInterface]);
-
-  const loadInterfaces = async () => {
-    setInterfacesLoading(true);
-    try {
-      const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces);
-    } catch {
-      // Non-critical
-    } finally {
-      setInterfacesLoading(false);
-    }
+  const rangeText = (key: Parameters<typeof pim6Range>[1]) => {
+    const range = pim6Range(capabilities, key);
+    return range ? `${range.min}-${range.max}` : "";
   };
 
-  const resetMldFields = () => {
-    setMldDisabled(false);
-    setMldInterval("");
-    setMldLastMemberQueryCount("");
-    setMldLastMemberQueryInterval("");
-    setMldMaxResponseTime("");
-    setMldVersion("");
-    setMldJoins([]);
-    setNewJoinGroup("");
-    setJoinSourceInputs({});
+  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pim6ProblemArgs(problem));
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
-  const resetForm = () => {
-    setName("");
-    setDrPriority("");
-    setHello("");
-    setPassive(false);
-    setNoBsm(false);
-    setNoUnicastBsm(false);
-    resetMldFields();
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
+  // MLD join management (draft edits, saved with the form)
   const handleAddJoin = () => {
-    const group = newJoinGroup.trim();
-    if (!group) return;
-    if (!isValidIPv6(group) || group === "") {
-      setError(t("interfaceModal.invalidGroup", { group }));
+    if (loading) return;
+    const { joins, problem } = pim6JoinsWithDraft(mldJoins, newJoinGroup);
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-    if (mldJoins.some((j) => j.group === group)) {
-      setError(t("interfaceModal.joinExists"));
-      return;
-    }
-    setMldJoins([...mldJoins, { group, sources: [] }]);
+    setMldJoins(joins);
     setNewJoinGroup("");
     setError(null);
   };
 
   const handleRemoveJoin = (index: number) => {
+    if (loading) return;
     setMldJoins(mldJoins.filter((_, i) => i !== index));
-    const newInputs = { ...joinSourceInputs };
-    delete newInputs[index];
-    setJoinSourceInputs(newInputs);
+    // Row drafts follow their row.
+    setSourceDrafts((prev) => {
+      const next: Record<number, string> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        const i = Number(key);
+        if (i < index) next[i] = value;
+        else if (i > index) next[i - 1] = value;
+      }
+      return next;
+    });
   };
 
   const handleAddJoinSource = (joinIndex: number) => {
-    const source = (joinSourceInputs[joinIndex] || "").trim();
-    if (!source) return;
-    if (!isValidIPv6(source) || source === "") {
-      setError(t("interfaceModal.invalidSource", { source }));
+    if (loading) return;
+    const { join, problem } = pim6JoinSourcesWithDraft(mldJoins[joinIndex], sourceDrafts[joinIndex] ?? "");
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-    const join = mldJoins[joinIndex];
-    if (join.sources.includes(source)) {
-      setError(t("interfaceModal.sourceExists"));
-      return;
-    }
-    const updated = [...mldJoins];
-    updated[joinIndex] = { ...join, sources: [...join.sources, source] };
-    setMldJoins(updated);
-    setJoinSourceInputs({ ...joinSourceInputs, [joinIndex]: "" });
+    setMldJoins(mldJoins.map((j, i) => (i === joinIndex ? join : j)));
+    setSourceDrafts((prev) => ({ ...prev, [joinIndex]: "" }));
     setError(null);
   };
 
   const handleRemoveJoinSource = (joinIndex: number, sourceIndex: number) => {
-    const updated = [...mldJoins];
-    updated[joinIndex] = {
-      ...updated[joinIndex],
-      sources: updated[joinIndex].sources.filter((_, i) => i !== sourceIndex),
-    };
-    setMldJoins(updated);
+    if (loading) return;
+    setMldJoins(mldJoins.map((j, i) => (
+      i === joinIndex ? { ...j, sources: j.sources.filter((_, s) => s !== sourceIndex) } : j
+    )));
   };
 
-  const validateForm = (): string | null => {
-    if (!name) return t("interfaceModal.interfaceRequired");
-
-    if (drPriority.trim()) {
-      const val = parseInt(drPriority.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 4294967295) return t("interfaceModal.drPriorityRange");
+  /** The joins with every typed-but-not-added value folded in, or the keyed problem. */
+  const foldJoinDrafts = (): { joins: Pim6MldJoin[]; problem: Pim6Problem | null } => {
+    let joins: Pim6MldJoin[] = [];
+    for (const [index, join] of mldJoins.entries()) {
+      const folded = pim6JoinSourcesWithDraft(join, sourceDrafts[index] ?? "");
+      if (folded.problem) return { joins: mldJoins, problem: folded.problem };
+      joins = [...joins, folded.join];
     }
-    if (hello.trim()) {
-      const val = parseInt(hello.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 180) return t("interfaceModal.helloRange");
-    }
-    if (mldInterval.trim()) {
-      const val = parseInt(mldInterval.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 65535) return t("interfaceModal.mldIntervalRange");
-    }
-    if (mldLastMemberQueryCount.trim()) {
-      const val = parseInt(mldLastMemberQueryCount.trim(), 10);
-      if (isNaN(val) || val < 1 || val > 255) return t("interfaceModal.mldLmqcRange");
-    }
-    if (mldLastMemberQueryInterval.trim()) {
-      const val = parseInt(mldLastMemberQueryInterval.trim(), 10);
-      if (isNaN(val) || val < 100 || val > 6553500) return t("interfaceModal.mldLmqiRange");
-    }
-    if (mldMaxResponseTime.trim()) {
-      const val = parseInt(mldMaxResponseTime.trim(), 10);
-      if (isNaN(val) || val < 100 || val > 6553500) return t("interfaceModal.mldMaxResponseRange");
-    }
-    return null;
+    return pim6JoinsWithDraft(joins, newJoinGroup);
   };
 
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const folded = mldEnabled ? foldJoinDrafts() : { joins: mldJoins, problem: null };
+    if (folded.problem) {
+      setActiveTab(pim6ProblemTab(folded.problem));
+      setError(problemText(folded.problem));
       return;
     }
-
-    setLoading(true);
-    setError(null);
-
+    const iface: Pim6InterfaceDraft = {
+      name,
+      dr_priority: drPriority,
+      hello,
+      no_bsm: noBsm,
+      no_unicast_bsm: noUnicastBsm,
+      passive,
+      mld: mldEnabled
+        ? {
+            disabled: mldDisabled,
+            interval: mldInterval,
+            last_member_query_count: mldLastMemberQueryCount,
+            last_member_query_interval: removeLmqi ? "" : loadedLmqi,
+            max_response_time: removeMaxResponse ? "" : loadedMaxResponse,
+            version: mldVersion,
+            joins: folded.joins,
+          }
+        : null,
+    };
+    const problem = pim6InterfaceProblem(existing, iface, capabilities, configuredInterfaces);
+    if (problem) {
+      setActiveTab(pim6ProblemTab(problem));
+      setError(problemText(problem));
+      return;
+    }
     try {
-      const hasMldSettings =
-        mldDisabled ||
-        mldInterval.trim() ||
-        mldLastMemberQueryCount.trim() ||
-        mldLastMemberQueryInterval.trim() ||
-        mldMaxResponseTime.trim() ||
-        (mldVersion && mldVersion !== "default") ||
-        mldJoins.length > 0;
-
-      const iface: Pim6Interface = {
-        name,
-        dr_priority: drPriority.trim() ? parseInt(drPriority.trim(), 10) : null,
-        hello: hello.trim() ? parseInt(hello.trim(), 10) : null,
-        no_bsm: noBsm,
-        no_unicast_bsm: noUnicastBsm,
-        passive,
-        mld: hasMldSettings
-          ? {
-              disabled: mldDisabled,
-              interval: mldInterval.trim() ? parseInt(mldInterval.trim(), 10) : null,
-              last_member_query_count: mldLastMemberQueryCount.trim() ? parseInt(mldLastMemberQueryCount.trim(), 10) : null,
-              last_member_query_interval: mldLastMemberQueryInterval.trim() ? parseInt(mldLastMemberQueryInterval.trim(), 10) : null,
-              max_response_time: mldMaxResponseTime.trim() ? parseInt(mldMaxResponseTime.trim(), 10) : null,
-              version: mldVersion && mldVersion !== "default" ? parseInt(mldVersion, 10) : null,
-              joins: mldJoins,
-            }
-          : null,
-      };
-
+      setLoading(true);
+      setError(null);
+      setMldJoins(folded.joins);
+      setNewJoinGroup("");
+      setSourceDrafts({});
       await onSubmit(iface);
-      handleClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      onOpenChange(false);
+    } catch (err) {
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const mldOff = loading || !mldEnabled;
+
+  const numberInput = (id: string, label: string, value: string, onChange: (v: string) => void,
+    key: Parameters<typeof pim6Range>[1], disabled: boolean) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        inputMode="numeric"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={rangeText(key)}
+      />
+    </div>
+  );
+
+  const readOnlyLeaf = (id: string, text: string, removeLabel: string, removed: boolean, setRemoved: (v: boolean) => void) => (
+    <div className="space-y-2">
+      <p className="text-sm font-mono">{text}</p>
+      <div className="flex items-center space-x-2">
+        <Checkbox id={id} checked={removed} disabled={mldOff} onCheckedChange={(c) => setRemoved(c === true)} />
+        <Label htmlFor={id} className="text-sm font-normal cursor-pointer">{removeLabel}</Label>
+      </div>
+    </div>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? t("interfaceModal.editDescription", { name: String(existingInterface?.name) })
+              ? t("interfaceModal.editDescription", { name: existing?.name ?? "" })
               : t("interfaceModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pim6">{t("interfaceModal.tabPim6")}</TabsTrigger>
             <TabsTrigger value="mld">{t("interfaceModal.tabMld")}</TabsTrigger>
           </TabsList>
 
-          {/* PIMv6 Settings Tab */}
-          <TabsContent value="pim6">
-            <ScrollArea className="max-h-[55vh] pr-4">
+          <ScrollArea className="flex-1 min-h-0 pr-4 mt-2">
+            {/* PIMv6 Settings Tab */}
+            <TabsContent value="pim6" className="mt-0">
               <div className="space-y-5 pb-2">
+                {/* Interface Name */}
                 <div className="space-y-2">
-                  <Label>{t("interfaceModal.interface")}</Label>
-                  {isEditMode ? (
-                    <Input value={name} disabled className="bg-muted font-mono" />
-                  ) : (
-                    <InterfaceSelect
-                      value={name}
-                      onValueChange={setName}
-                      interfaces={availableInterfaces}
-                      placeholder={tc("selectInterface")}
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pim6-dr-priority">{t("interfaceModal.drPriority")}</Label>
-                  <Input
-                    id="pim6-dr-priority"
-                    type="number"
-                    value={drPriority}
-                    onChange={(e) => setDrPriority(e.target.value)}
-                    placeholder="1-4294967295"
-                    min={1}
-                    max={4294967295}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t("interfaceModal.drPriorityHelp")}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pim6-hello">{t("interfaceModal.helloInterval")}</Label>
-                  <Input
-                    id="pim6-hello"
-                    type="number"
-                    value={hello}
-                    onChange={(e) => setHello(e.target.value)}
-                    placeholder="1-180"
-                    min={1}
-                    max={180}
+                  <Label htmlFor="pim6-iface-name">{t("interfaceModal.interface")}</Label>
+                  <InterfaceSelect
+                    id="pim6-iface-name"
+                    value={name}
+                    onValueChange={setName}
+                    disabled={isEditMode || loading}
+                    className={isEditMode ? "bg-muted" : ""}
+                    placeholder={tc("selectInterface")}
+                    filter={(item) => isEditMode || !configuredInterfaces.includes(item.name)}
                   />
                 </div>
 
+                {numberInput("pim6-dr-priority", t("interfaceModal.drPriority"), drPriority, setDrPriority, "dr_priority", loading)}
+                {numberInput("pim6-hello", t("interfaceModal.helloInterval"), hello, setHello, "hello", loading)}
+
+                {/* Flags */}
                 <div className="space-y-3">
                   <Label>{t("interfaceModal.flags")}</Label>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="pim6-passive" checked={passive} onCheckedChange={(c) => setPassive(!!c)} />
+                      <Checkbox id="pim6-passive" checked={passive} disabled={loading} onCheckedChange={(c) => setPassive(!!c)} />
                       <Label htmlFor="pim6-passive">{t("interfaceModal.passive")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="pim6-no-bsm" checked={noBsm} onCheckedChange={(c) => setNoBsm(!!c)} />
+                      <Checkbox id="pim6-no-bsm" checked={noBsm} disabled={loading} onCheckedChange={(c) => setNoBsm(!!c)} />
                       <Label htmlFor="pim6-no-bsm">{t("interfaceModal.noBsm")}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="pim6-no-unicast-bsm" checked={noUnicastBsm} onCheckedChange={(c) => setNoUnicastBsm(!!c)} />
+                      <Checkbox
+                        id="pim6-no-unicast-bsm"
+                        checked={noUnicastBsm}
+                        disabled={loading}
+                        onCheckedChange={(c) => setNoUnicastBsm(!!c)}
+                      />
                       <Label htmlFor="pim6-no-unicast-bsm">{t("interfaceModal.noUnicastBsm")}</Label>
                     </div>
                   </div>
                 </div>
               </div>
-            </ScrollArea>
-          </TabsContent>
+            </TabsContent>
 
-          {/* MLD Settings Tab */}
-          <TabsContent value="mld">
-            <ScrollArea className="max-h-[55vh] pr-4">
+            {/* MLD Settings Tab */}
+            <TabsContent value="mld" className="mt-0">
               <div className="space-y-5 pb-2">
+                {/* MLD node */}
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="mld-disable" checked={mldDisabled} onCheckedChange={(c) => setMldDisabled(!!c)} />
+                  <Checkbox
+                    id="mld-enable"
+                    checked={mldEnabled}
+                    disabled={loading}
+                    onCheckedChange={(c) => setMldEnabled(!!c)}
+                  />
+                  <Label htmlFor="mld-enable">{t("interfaceModal.enableMld")}</Label>
+                </div>
+
+                {/* Disable MLD */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="mld-disable"
+                    checked={mldDisabled}
+                    disabled={mldOff}
+                    onCheckedChange={(c) => setMldDisabled(!!c)}
+                  />
                   <Label htmlFor="mld-disable">{t("interfaceModal.disableMld")}</Label>
                 </div>
 
+                {/* MLD Version */}
                 <div className="space-y-2">
-                  <Label>{t("interfaceModal.mldVersion")}</Label>
-                  <Select value={mldVersion || "default"} onValueChange={setMldVersion}>
-                    <SelectTrigger>
+                  <Label htmlFor="mld-version">{t("interfaceModal.mldVersion")}</Label>
+                  <Select
+                    value={mldVersion || NONE_SENTINEL}
+                    onValueChange={(v) => setMldVersion(v === NONE_SENTINEL ? "" : v)}
+                    disabled={mldOff}
+                  >
+                    <SelectTrigger id="mld-version">
                       <SelectValue placeholder={tc("default")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">{tc("default")}</SelectItem>
+                      <SelectItem value={NONE_SENTINEL}>{tc("default")}</SelectItem>
                       <SelectItem value="1">{t("interfaceModal.version", { version: "1" })}</SelectItem>
                       <SelectItem value="2">{t("interfaceModal.version", { version: "2" })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="mld-interval">{t("interfaceModal.queryInterval")}</Label>
-                  <Input
-                    id="mld-interval"
-                    type="number"
-                    value={mldInterval}
-                    onChange={(e) => setMldInterval(e.target.value)}
-                    placeholder="1-65535"
-                    min={1}
-                    max={65535}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {numberInput("mld-interval", t("interfaceModal.queryInterval"), mldInterval, setMldInterval,
+                    "mld_interval", mldOff)}
+                  {numberInput("mld-lmqc", t("interfaceModal.lastMemberQueryCount"), mldLastMemberQueryCount,
+                    setMldLastMemberQueryCount, "last_member_query_count", mldOff)}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="mld-lmqc">{t("interfaceModal.lastMemberQueryCount")}</Label>
-                  <Input
-                    id="mld-lmqc"
-                    type="number"
-                    value={mldLastMemberQueryCount}
-                    onChange={(e) => setMldLastMemberQueryCount(e.target.value)}
-                    placeholder="1-255"
-                    min={1}
-                    max={255}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="mld-lmqi">{t("interfaceModal.lastMemberQueryInterval")}</Label>
-                  <Input
-                    id="mld-lmqi"
-                    type="number"
-                    value={mldLastMemberQueryInterval}
-                    onChange={(e) => setMldLastMemberQueryInterval(e.target.value)}
-                    placeholder="100-6553500"
-                    min={100}
-                    max={6553500}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="mld-mrt">{t("interfaceModal.maxResponseTime")}</Label>
-                  <Input
-                    id="mld-mrt"
-                    type="number"
-                    value={mldMaxResponseTime}
-                    onChange={(e) => setMldMaxResponseTime(e.target.value)}
-                    placeholder="100-6553500"
-                    min={100}
-                    max={6553500}
-                  />
-                </div>
+                {loadedLmqi && readOnlyLeaf("mld-lmqi-remove", t("interfaceModal.lastMemberQueryIntervalReadOnly",
+                  { value: loadedLmqi }), t("interfaceModal.removeLastMemberQueryInterval"), removeLmqi, setRemoveLmqi)}
+                {loadedMaxResponse && readOnlyLeaf("mld-max-response-remove", t("interfaceModal.maxResponseTimeReadOnly",
+                  { value: loadedMaxResponse }), t("interfaceModal.removeMaxResponseTime"), removeMaxResponse, setRemoveMaxResponse)}
 
                 {/* MLD Joins */}
                 <div className="space-y-3">
                   <div>
-                    <Label>{t("interfaceModal.joinGroups")}</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("interfaceModal.joinGroupsHelp")}
-                    </p>
+                    <Label htmlFor="mld-join-group">{t("interfaceModal.joinGroups")}</Label>
                   </div>
 
                   {mldJoins.map((join, joinIndex) => (
@@ -455,12 +394,15 @@ export function Pim6InterfaceModal({
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive hover:text-destructive"
+                          aria-label={tc("delete")}
+                          disabled={mldOff}
                           onClick={() => handleRemoveJoin(joinIndex)}
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
 
+                      {/* Sources for this join */}
                       {join.sources.length > 0 && (
                         <div className="ml-2 space-y-1">
                           <p className="text-xs text-muted-foreground">{t("interfaceModal.sourceAddresses")}</p>
@@ -471,6 +413,8 @@ export function Pim6InterfaceModal({
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 text-destructive hover:text-destructive"
+                                aria-label={tc("delete")}
+                                disabled={mldOff}
                                 onClick={() => handleRemoveJoinSource(joinIndex, srcIndex)}
                               >
                                 <X className="h-3 w-3" />
@@ -480,14 +424,18 @@ export function Pim6InterfaceModal({
                         </div>
                       )}
 
+                      {/* Add source to this join */}
                       <div className="flex items-center gap-2 ml-2">
                         <Input
-                          value={joinSourceInputs[joinIndex] || ""}
-                          onChange={(e) =>
-                            setJoinSourceInputs({ ...joinSourceInputs, [joinIndex]: e.target.value })
-                          }
+                          value={sourceDrafts[joinIndex] ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSourceDrafts((prev) => ({ ...prev, [joinIndex]: value }));
+                            setError(null);
+                          }}
                           placeholder={t("interfaceModal.addSourcePlaceholder")}
                           className="h-8 text-xs font-mono"
+                          disabled={mldOff}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
@@ -499,6 +447,8 @@ export function Pim6InterfaceModal({
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 shrink-0"
+                          aria-label={tc("add")}
+                          disabled={mldOff || !(sourceDrafts[joinIndex] ?? "").trim()}
                           onClick={() => handleAddJoinSource(joinIndex)}
                         >
                           <Plus className="h-3 w-3" />
@@ -507,12 +457,15 @@ export function Pim6InterfaceModal({
                     </div>
                   ))}
 
+                  {/* Add new join group */}
                   <div className="flex items-center gap-2">
                     <Input
+                      id="mld-join-group"
                       value={newJoinGroup}
-                      onChange={(e) => setNewJoinGroup(e.target.value)}
+                      onChange={(e) => { setNewJoinGroup(e.target.value); setError(null); }}
                       placeholder={t("interfaceModal.groupPlaceholder")}
                       className="font-mono"
+                      disabled={mldOff}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
@@ -520,14 +473,21 @@ export function Pim6InterfaceModal({
                         }
                       }}
                     />
-                    <Button variant="outline" size="icon" className="shrink-0" onClick={handleAddJoin}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      aria-label={tc("add")}
+                      disabled={mldOff || !newJoinGroup.trim()}
+                      onClick={handleAddJoin}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </div>
-            </ScrollArea>
-          </TabsContent>
+            </TabsContent>
+          </ScrollArea>
         </Tabs>
 
         {error && (
@@ -538,7 +498,7 @@ export function Pim6InterfaceModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

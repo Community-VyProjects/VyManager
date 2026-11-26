@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,273 +13,191 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { Pim6RpAddress } from "@/lib/api/pim6";
-import { isValidIPv6, isValidIPv6CIDR } from "@/lib/validators/firewall";
-
-type MatchMode = "groups" | "prefix-list6";
+import { pim6ProblemArgs, pim6RpGroupsWithDraft, pim6RpProblem, type Pim6Problem } from "@/lib/api/pim6-save-ops";
+import type { ApiError } from "@/lib/types/api";
 
 interface Pim6RpAddressModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (rp: Pim6RpAddress) => Promise<void>;
   existingRp?: Pim6RpAddress | null;
+  /** Every configured RP address; Add may not reuse one and a group may not be served twice. */
+  configuredRps: Pim6RpAddress[];
+  /** `policy prefix-list6` names for the prefix-list6 picker. */
+  prefixListNames: string[];
 }
 
+/** Seeded from props on mount; the page remounts it with a new key on every open. */
 export function Pim6RpAddressModal({
   open,
   onOpenChange,
   onSubmit,
   existingRp,
+  configuredRps,
+  prefixListNames,
 }: Pim6RpAddressModalProps) {
   const t = useTranslations("pim6");
   const tc = useTranslations("common");
   const isEditMode = !!existingRp;
 
-  const [address, setAddress] = useState("");
-  const [mode, setMode] = useState<MatchMode>("groups");
-  const [groups, setGroups] = useState<string[]>([]);
+  const [address, setAddress] = useState(existingRp?.address ?? "");
+  const [groups, setGroups] = useState<string[]>(existingRp ? [...existingRp.groups] : []);
   const [newGroup, setNewGroup] = useState("");
-  const [prefixList, setPrefixList] = useState("");
+  const [prefixList, setPrefixList] = useState(existingRp?.prefix_list6 ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      if (existingRp) {
-        setAddress(existingRp.address);
-        if (existingRp.prefix_list6) {
-          setMode("prefix-list6");
-          setPrefixList(existingRp.prefix_list6);
-          setGroups([]);
-        } else {
-          setMode("groups");
-          setGroups([...existingRp.groups]);
-          setPrefixList("");
-        }
-        setNewGroup("");
-        setError(null);
-      } else {
-        resetForm();
-      }
-    }
-  }, [open, existingRp]);
+  const problemText = (problem: Pim6Problem) => t(`validation.${problem.key}`, pim6ProblemArgs(problem));
 
-  const resetForm = () => {
-    setAddress("");
-    setMode("groups");
-    setGroups([]);
-    setNewGroup("");
-    setPrefixList("");
-    setError(null);
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
-  };
-
-  const handleModeChange = (next: MatchMode) => {
-    setMode(next);
-    setError(null);
-  };
-
-  const validateForm = (): string | null => {
-    const trimmed = address.trim();
-    if (!trimmed) {
-      return t("rpModal.addressRequired");
-    }
-    if (!isValidIPv6(trimmed) || trimmed === "") {
-      return t("rpModal.addressInvalid");
-    }
-    if (mode === "groups") {
-      if (groups.length === 0) {
-        return t("rpModal.groupsRequired");
-      }
-      for (const g of groups) {
-        if (!isValidIPv6CIDR(g) || g === "") {
-          return t("rpModal.invalidGroup", { group: g });
-        }
-      }
-    } else {
-      if (!prefixList.trim()) {
-        return t("rpModal.prefixListRequired");
-      }
-    }
-    return null;
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
   };
 
   const handleAddGroup = () => {
-    const value = newGroup.trim();
-    if (!value) return;
-    if (groups.includes(value)) {
-      setError(t("rpModal.groupExists"));
+    if (loading) return;
+    const { groups: next, problem } = pim6RpGroupsWithDraft(groups, newGroup);
+    if (problem) {
+      setError(problemText(problem));
       return;
     }
-    if (!isValidIPv6CIDR(value) || value === "") {
-      setError(t("rpModal.invalidCidr", { value }));
-      return;
-    }
-    setGroups([...groups, value]);
+    setGroups(next);
     setNewGroup("");
     setError(null);
   };
 
-  const handleRemoveGroup = (index: number) => {
-    setGroups(groups.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    // A typed group that was not added yet is added on save, or blocks it.
+    const folded = pim6RpGroupsWithDraft(groups, newGroup);
+    if (folded.problem) {
+      setError(problemText(folded.problem));
       return;
     }
-
-    setLoading(true);
-    setError(null);
-
+    // Groups are required; the prefix-list6 is an optional extra next to them.
+    const rp: Pim6RpAddress = {
+      address: address.trim(),
+      groups: folded.groups,
+      prefix_list6: prefixList.trim() || null,
+    };
+    const others = configuredRps.filter((r) => r.address !== existingRp?.address);
+    const problem = pim6RpProblem(existingRp ?? null, rp, others);
+    if (problem) {
+      setError(problemText(problem));
+      return;
+    }
     try {
-      await onSubmit({
-        address: address.trim(),
-        groups: mode === "groups" ? groups : [],
-        prefix_list6: mode === "prefix-list6" ? prefixList.trim() : null,
-      });
-      handleClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : tc("operationFailed");
-      setError(message);
+      setLoading(true);
+      setError(null);
+      setGroups(folded.groups);
+      setNewGroup("");
+      await onSubmit(rp);
+      onOpenChange(false);
+    } catch (err) {
+      setError((err as ApiError).message || tc("operationFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("rpModal.editTitle") : t("addRpAddress")}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? t("rpModal.editDescription", { address: String(existingRp?.address) })
+              ? t("rpModal.editDescription", { address: existingRp?.address ?? "" })
               : t("rpModal.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-6 pb-2">
             {/* RP Address */}
             <div className="space-y-2">
-              <Label>{t("rpModal.rpAddress")}</Label>
-              {isEditMode ? (
-                <Input value={address} disabled className="bg-muted font-mono" />
-              ) : (
-                <Input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder={t("rpModal.addressPlaceholder")}
-                  className="font-mono"
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                {t("rpModal.addressHelp")}
-              </p>
+              <Label htmlFor="pim6-rp-address">{t("rpModal.rpAddress")}</Label>
+              <Input
+                id="pim6-rp-address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                disabled={isEditMode || loading}
+                placeholder={t("rpModal.addressPlaceholder")}
+                className={isEditMode ? "bg-muted font-mono" : "font-mono"}
+              />
             </div>
 
-            {/* Match mode */}
             <div className="space-y-3">
-              <Label>{t("rpModal.groupMatching")}</Label>
-              <RadioGroup
-                value={mode}
-                onValueChange={(v) => handleModeChange(v as MatchMode)}
-                className="gap-3"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="groups" id="mode-groups" />
-                  <Label htmlFor="mode-groups" className="font-normal cursor-pointer">
-                    {t("rpModal.modeGroups")}
-                  </Label>
+              <div>
+                <Label htmlFor="pim6-rp-group">{t("rpModal.multicastGroups")}</Label>
+              </div>
+
+              {groups.length > 0 && (
+                <div className="space-y-2">
+                  {groups.map((group, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="flex-1 px-3 py-2 rounded-md border bg-muted font-mono text-sm">
+                        {group}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
+                        aria-label={tc("delete")}
+                        disabled={loading}
+                        onClick={() => setGroups(groups.filter((_, i) => i !== index))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="prefix-list6" id="mode-prefix" />
-                  <Label htmlFor="mode-prefix" className="font-normal cursor-pointer">
-                    {t("rpModal.modePrefixList")}
-                  </Label>
-                </div>
-              </RadioGroup>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Input
+                  id="pim6-rp-group"
+                  value={newGroup}
+                  onChange={(e) => { setNewGroup(e.target.value); setError(null); }}
+                  placeholder={t("rpModal.groupPlaceholder")}
+                  className="font-mono"
+                  disabled={loading}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddGroup();
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  aria-label={tc("add")}
+                  disabled={loading || !newGroup.trim()}
+                  onClick={handleAddGroup}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            {mode === "groups" ? (
-              <div className="space-y-3">
-                <div>
-                  <Label>{t("rpModal.multicastGroups")}</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("rpModal.groupsHelp")}
-                  </p>
-                </div>
-
-                {groups.length > 0 && (
-                  <div className="space-y-2">
-                    {groups.map((group, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="flex-1 px-3 py-2 rounded-md border bg-muted font-mono text-sm">
-                          {group}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
-                          onClick={() => handleRemoveGroup(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={newGroup}
-                    onChange={(e) => setNewGroup(e.target.value)}
-                    placeholder={t("rpModal.groupPlaceholder")}
-                    className="font-mono"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddGroup();
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={handleAddGroup}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>{t("rpModal.prefixListName")}</Label>
-                <Input
-                  value={prefixList}
-                  onChange={(e) => setPrefixList(e.target.value)}
-                  placeholder={t("rpModal.prefixListPlaceholder")}
-                  className="font-mono"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t.rich("rpModal.prefixListHelp", { code: (chunks) => <code>{chunks}</code> })}
-                </p>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="pim6-rp-prefix-list6">{t("rpModal.prefixListName")}</Label>
+              <NamedListSelect
+                id="pim6-rp-prefix-list6"
+                value={prefixList}
+                names={prefixListNames}
+                disabled={loading}
+                onValueChange={(v) => { setPrefixList(v); setError(null); }}
+              />
+            </div>
           </div>
         </ScrollArea>
 
@@ -291,7 +209,7 @@ export function Pim6RpAddressModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

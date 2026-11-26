@@ -31,7 +31,7 @@ function withTarget(target: string | undefined, value?: string): string | undefi
 }
 
 /** Set a single-value leaf when it changed, delete it when it was cleared. */
-function leaf(ops: Op[], setOp: string, deleteOp: string, target: string | undefined, before: Scalar, after: Scalar): void {
+export function leaf(ops: Op[], setOp: string, deleteOp: string, target: string | undefined, before: Scalar, after: Scalar): void {
   const b = pimValue(before);
   const a = pimValue(after);
   if (a === b) return;
@@ -43,7 +43,7 @@ function leaf(ops: Op[], setOp: string, deleteOp: string, target: string | undef
 }
 
 /** Set or delete a valueless leaf when the flag changed. */
-function flag(ops: Op[], setOp: string, deleteOp: string, target: string | undefined,
+export function flag(ops: Op[], setOp: string, deleteOp: string, target: string | undefined,
   before: boolean | null | undefined, after: boolean): void {
   if (!!before === after) return;
   const op = after ? setOp : deleteOp;
