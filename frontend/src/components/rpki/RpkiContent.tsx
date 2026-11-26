@@ -141,6 +141,7 @@ export function RpkiContent() {
   const retry = () => {
     setLoading(true);
     void load(true);
+    void loadSshKeys();
   };
 
   const reload = async () => {
