@@ -1,7 +1,12 @@
 {
   "adminGroups": "Admin Groups",
   "errors": {
-    "loadConfig": "Failed to load Traffic Engineering configuration"
+    "loadConfig": "Failed to load Traffic Engineering configuration",
+    "saveGroup": "Failed to save the admin group",
+    "saveInterface": "Failed to save the interface parameters",
+    "deleteGroup": "Failed to delete the admin group",
+    "deleteInterface": "Failed to delete the interface configuration",
+    "deleteAll": "Failed to delete Traffic Engineering"
   },
   "header": {
     "title": "Traffic Engineering",
@@ -32,26 +37,37 @@
     "metric": "Metric"
   },
   "groupModal": {
-    "nameRequired": "Name is required",
-    "nameInvalid": "Name may only contain letters, numbers, and hyphens",
-    "bitRange": "Bit position must be an integer between 0 and 31",
     "editTitle": "Edit Admin Group",
     "description": "Configure a Traffic Engineering admin group for link classification.",
-    "namePlaceholder": "e.g. gold",
-    "nameHelp": "Letters, numbers, and hyphens only",
-    "bitPlaceholder": "0 – 31 (optional)"
+    "namePlaceholder": "e.g. gold"
   },
   "interfaceModal": {
-    "bandwidthRange": "{label} must be between 1 and 4294967295",
-    "interfaceRequired": "Interface is required",
-    "maxBandwidth": "Max Bandwidth",
-    "maxReservableBandwidth": "Max Reservable Bandwidth",
-    "metricRange": "Metric must be between 1 and 4294967295",
     "editTitle": "Edit Interface Parameters",
     "addTitle": "Add Interface Parameters",
     "description": "Configure Traffic Engineering parameters for a network interface.",
     "noGroups": "No admin groups configured — add one in the Admin Groups tab",
     "bit": "bit {position}"
+  },
+  "validation": {
+    "nameRequired": "Name is required",
+    "nameInvalid": "Name may only contain letters, numbers, and hyphens",
+    "groupExists": "Admin group {name} already exists",
+    "bitRequired": "Bit position is required",
+    "bitTaken": "Admin group {name} already uses this bit position",
+    "interfaceRequired": "Interface is required",
+    "interfaceExists": "Interface {name} already has Traffic Engineering parameters",
+    "numberInvalid": {
+      "bit_position": "Bit position must be a whole number",
+      "max_bandwidth": "Max bandwidth must be a whole number",
+      "max_reservable_bandwidth": "Max reservable bandwidth must be a whole number",
+      "metric": "Metric must be a whole number"
+    },
+    "range": {
+      "bit_position": "Bit position must be between {min} and {max}",
+      "max_bandwidth": "Max bandwidth must be between {min} and {max}",
+      "max_reservable_bandwidth": "Max reservable bandwidth must be between {min} and {max}",
+      "metric": "Metric must be between {min} and {max}"
+    }
   },
   "deleteGroup": {
     "title": "Delete Admin Group",
@@ -61,5 +77,9 @@
     "title": "Delete Interface Configuration",
     "description": "Remove Traffic Engineering parameters for interface <mono>{name}</mono>? All TE settings for this interface will be cleared.",
     "confirm": "Delete Interface Config"
+  },
+  "deleteAll": {
+    "title": "Delete Traffic Engineering",
+    "description": "Remove the whole Traffic Engineering configuration, including every admin group and interface?"
   }
 }

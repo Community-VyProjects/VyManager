@@ -1,7 +1,12 @@
 {
   "adminGroups": "管理组",
   "errors": {
-    "loadConfig": "加载流量工程配置失败"
+    "loadConfig": "加载流量工程配置失败",
+    "saveGroup": "保存管理组失败",
+    "saveInterface": "保存接口参数失败",
+    "deleteGroup": "删除管理组失败",
+    "deleteInterface": "删除接口配置失败",
+    "deleteAll": "删除流量工程失败"
   },
   "header": {
     "title": "流量工程",
@@ -32,26 +37,37 @@
     "metric": "度量值"
   },
   "groupModal": {
-    "nameRequired": "名称为必填项",
-    "nameInvalid": "名称只能包含字母、数字和连字符",
-    "bitRange": "比特位必须是 0 到 31 之间的整数",
     "editTitle": "编辑管理组",
     "description": "配置用于链路分类的流量工程管理组。",
-    "namePlaceholder": "例如 gold",
-    "nameHelp": "只能包含字母、数字和连字符",
-    "bitPlaceholder": "0 – 31（可选）"
+    "namePlaceholder": "例如 gold"
   },
   "interfaceModal": {
-    "bandwidthRange": "{label}必须介于 1 到 4294967295 之间",
-    "interfaceRequired": "接口为必填项",
-    "maxBandwidth": "最大带宽",
-    "maxReservableBandwidth": "可预留带宽",
-    "metricRange": "度量值必须介于 1 到 4294967295 之间",
     "editTitle": "编辑接口参数",
     "addTitle": "添加接口参数",
     "description": "为网络接口配置流量工程参数。",
     "noGroups": "尚未配置管理组 — 请在“管理组”标签页中添加",
     "bit": "比特 {position}"
+  },
+  "validation": {
+    "nameRequired": "名称为必填项",
+    "nameInvalid": "名称只能包含字母、数字和连字符",
+    "groupExists": "管理组 {name} 已存在",
+    "bitRequired": "比特位为必填项",
+    "bitTaken": "管理组 {name} 已使用此比特位",
+    "interfaceRequired": "接口为必填项",
+    "interfaceExists": "接口 {name} 已配置流量工程参数",
+    "numberInvalid": {
+      "bit_position": "比特位必须是整数",
+      "max_bandwidth": "最大带宽必须是整数",
+      "max_reservable_bandwidth": "可预留带宽必须是整数",
+      "metric": "度量值必须是整数"
+    },
+    "range": {
+      "bit_position": "比特位必须介于 {min} 到 {max} 之间",
+      "max_bandwidth": "最大带宽必须介于 {min} 到 {max} 之间",
+      "max_reservable_bandwidth": "可预留带宽必须介于 {min} 到 {max} 之间",
+      "metric": "度量值必须介于 {min} 到 {max} 之间"
+    }
   },
   "deleteGroup": {
     "title": "删除管理组",
@@ -61,5 +77,9 @@
     "title": "删除接口配置",
     "description": "确定要移除接口 <mono>{name}</mono> 的流量工程参数吗？此接口的所有 TE 设置都将被清除。",
     "confirm": "删除接口配置"
+  },
+  "deleteAll": {
+    "title": "删除流量工程",
+    "description": "确定要移除整个流量工程配置吗？所有管理组和接口都将被删除。"
   }
 }

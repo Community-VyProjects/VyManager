@@ -1,70 +1,78 @@
-"""Traffic Engineering Protocol Command Mapper."""
-from typing import List
+"""Traffic Engineering command mapper.
+
+``protocols traffic-engineering`` exists only on VyOS 1.5. This shared class
+is the 1.4 mapper: it has no path methods and reports no Traffic Engineering
+node. The paths live on
+``traffic_engineering_versions.v1_5.TrafficEngineeringMapperV1_5``. The
+builder calls ``require_node`` before it reads a path, so 1.4 gets a
+``ValueError``.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, FrozenSet, Tuple
+
 from ..base import BaseFeatureMapper
+
+TRAFFIC_ENGINEERING_NODE = "protocols traffic-engineering"
 
 
 class TrafficEngineeringMapper(BaseFeatureMapper):
-    """Base mapper for Traffic Engineering configuration paths."""
+    # Version-only CLI node -> every path method under it (on the subclass).
+    _VERSIONED_NODES: Dict[str, Tuple[str, ...]] = {
+        TRAFFIC_ENGINEERING_NODE: (
+            "get_te_delete",
+            "get_admin_group",
+            "get_admin_group_delete",
+            "get_admin_group_bit_position",
+            "get_admin_group_bit_position_delete",
+            "get_interface",
+            "get_interface_delete",
+            "get_interface_admin_group",
+            "get_interface_admin_group_delete",
+            "get_interface_max_bandwidth",
+            "get_interface_max_bandwidth_delete",
+            "get_interface_max_reservable_bandwidth",
+            "get_interface_max_reservable_bandwidth_delete",
+            "get_interface_metric",
+            "get_interface_metric_delete",
+        ),
+    }
 
-    def __init__(self, version: str):
-        super().__init__(version)
+    # ------------------------------------------------------------------
+    # Version allowlist
+    # ------------------------------------------------------------------
 
-    def _te(self) -> List[str]:
-        return ["protocols", "traffic-engineering"]
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Traffic Engineering nodes only some VyOS versions have.
 
-    # ========================================================================
-    # Admin Groups
-    # ========================================================================
+        A node counts when every path method below it is on this mapper.
+        Capabilities, the config route and the builder read this set instead
+        of the version string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
 
-    def get_admin_group(self, name: str) -> List[str]:
-        return self._te() + ["admin-group", name]
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError("Traffic Engineering is not supported on this device")
 
-    def get_admin_group_delete(self, name: str) -> List[str]:
-        return self._te() + ["admin-group", name]
+    # ------------------------------------------------------------------
+    # Value ranges
+    # ------------------------------------------------------------------
 
-    def get_admin_group_bit_position(self, name: str, bit: str) -> List[str]:
-        return self._te() + ["admin-group", name, "bit-position", bit]
+    def value_ranges(self) -> Dict[str, Dict[str, int]]:
+        """Numeric leaf bounds. The leaves do not exist on 1.4."""
+        return {}
 
-    def get_admin_group_bit_position_delete(self, name: str) -> List[str]:
-        return self._te() + ["admin-group", name, "bit-position"]
+    # ------------------------------------------------------------------
+    # Config read
+    # ------------------------------------------------------------------
 
-    # ========================================================================
-    # Interfaces
-    # ========================================================================
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_traffic_engineering_config
 
-    def get_interface(self, iface: str) -> List[str]:
-        return self._te() + ["interface", iface]
-
-    def get_interface_delete(self, iface: str) -> List[str]:
-        return self._te() + ["interface", iface]
-
-    def get_interface_admin_group(self, iface: str, group: str) -> List[str]:
-        return self._te() + ["interface", iface, "admin-group", group]
-
-    def get_interface_admin_group_delete(self, iface: str, group: str) -> List[str]:
-        return self._te() + ["interface", iface, "admin-group", group]
-
-    def get_interface_max_bandwidth(self, iface: str, value: str) -> List[str]:
-        return self._te() + ["interface", iface, "max-bandwidth", value]
-
-    def get_interface_max_bandwidth_delete(self, iface: str) -> List[str]:
-        return self._te() + ["interface", iface, "max-bandwidth"]
-
-    def get_interface_max_reservable_bandwidth(self, iface: str, value: str) -> List[str]:
-        return self._te() + ["interface", iface, "max-reservable-bandwidth", value]
-
-    def get_interface_max_reservable_bandwidth_delete(self, iface: str) -> List[str]:
-        return self._te() + ["interface", iface, "max-reservable-bandwidth"]
-
-    def get_interface_metric(self, iface: str, value: str) -> List[str]:
-        return self._te() + ["interface", iface, "metric", value]
-
-    def get_interface_metric_delete(self, iface: str) -> List[str]:
-        return self._te() + ["interface", iface, "metric"]
-
-    # ========================================================================
-    # Delete entire Traffic Engineering config
-    # ========================================================================
-
-    def get_te_delete(self) -> List[str]:
-        return self._te()
+        return parse_traffic_engineering_config(self, full_config)
