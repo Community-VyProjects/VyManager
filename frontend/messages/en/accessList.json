@@ -11,8 +11,6 @@
     "noListsMatch": "No lists match your search",
     "noListsConfigured": "No access lists configured",
     "createFirst": "Create your first access list",
-    "validRanges": "Valid ranges: {standard} (standard), {extended} (extended)",
-    "ipv6Names": "IPv6 access lists use alphanumeric names",
     "addRule": "Add Rule",
     "searchRules": "Search rules...",
     "noRulesMatch": "No Rules Match Search",
@@ -26,7 +24,10 @@
     "colRule": "Rule",
     "colAction": "Action",
     "colSource": "Source",
-    "colDestination": "Destination"
+    "colDestination": "Destination",
+    "editList": "Edit access list {name}",
+    "deleteList": "Delete access list {name}",
+    "dragRule": "Drag rule {number}"
   },
   "form": {
     "ruleNumber": "Rule Number",
@@ -37,6 +38,7 @@
     "ruleDescriptionPlaceholder": "Enter rule description (optional)",
     "source": "Source",
     "destination": "Destination",
+    "none": "None",
     "any": "Any",
     "host": "Host",
     "network": "Network",
@@ -44,30 +46,38 @@
     "networkAddress": "Network Address",
     "inverseMask": "Inverse Mask",
     "networkCidr": "Network (CIDR)",
+    "exactMatch": "Exact Match",
     "example": "e.g., {value}"
   },
-  "validation": {
-    "listNumberRequired": "Please enter an access list number",
-    "listNameRequired": "Please enter an access list name",
-    "sourceHostAddress": "Please enter a source address for host type",
-    "sourceNetworkAddress": "Please enter a source address for network type",
-    "sourceNetworkMask": "Please enter a source mask for network type",
-    "destinationHostAddress": "Please enter a destination address for host type",
-    "destinationNetworkAddress": "Please enter a destination address for network type",
-    "destinationNetworkMask": "Please enter a destination mask for network type",
-    "ipv6Cidr": "IPv6 network must be in CIDR format (e.g., 2001:db8::/32)",
-    "ipv6SourceRequired": "Please select at least one source option (Any, Exact Match, or Network)",
-    "exactMatchWithNetwork": "Exact Match and Network cannot be used together"
+  "listErrors": {
+    "nameRequired": "Enter an access list number or name",
+    "numberInvalid": "The access list number must be a whole number from {min} to {max}",
+    "nameInvalid": "The access list name must not contain spaces",
+    "nameTaken": "An access list with this number or name already exists",
+    "descriptionTooLong": "Description must be one line of at most {max} characters"
+  },
+  "ruleErrors": {
+    "ruleNumberRequired": "Enter a rule number",
+    "ruleNumberRange": "Rule number must be a whole number from {min} to {max}",
+    "ruleNumberTaken": "This rule number is already in use",
+    "actionRequired": "Select an action",
+    "actionInvalid": "Action must be permit or deny",
+    "descriptionTooLong": "Description must be one line of at most {max} characters",
+    "sourceRequired": "Select a source",
+    "sourceHostInvalid": "The source host must be an IPv4 address (e.g. 192.168.1.1)",
+    "sourceNetworkInvalid": "The source network must be an IPv4 address (e.g. 192.168.1.0)",
+    "sourceNetworkInvalidIpv6": "The source network must be an IPv6 prefix with no host bits set (e.g. 2001:db8::/32)",
+    "sourceInverseMaskInvalid": "The source inverse mask must be an IPv4 address (e.g. 0.0.0.255)",
+    "destinationRequired": "Rules of an extended access list need a destination",
+    "destinationHostInvalid": "The destination host must be an IPv4 address (e.g. 10.0.0.1)",
+    "destinationNetworkInvalid": "The destination network must be an IPv4 address (e.g. 10.0.0.0)",
+    "destinationInverseMaskInvalid": "The destination inverse mask must be an IPv4 address (e.g. 0.0.0.255)"
   },
   "ruleModal": {
     "editTitle": "Edit Rule #{number}",
     "addTitle": "Add Rule to {list}",
     "editDescription": "Update this access list rule",
     "addDescription": "Create a new rule for this access list",
-    "autoCalculated": "Auto-calculated based on existing rules",
-    "exactMatch": "Exact Match",
-    "ipv6SourceHelp": "Any can coexist with Exact Match OR Network. Exact Match and Network are mutually exclusive.",
-    "ipv6NetworkHelp": "Must include prefix length (e.g., /32, /64). Can coexist with Any, but not Exact Match.",
     "updateFailed": "Failed to update rule",
     "addFailed": "Failed to add rule",
     "adding": "Adding...",
@@ -75,10 +85,10 @@
   },
   "row": {
     "any": "Any",
-    "exactMatch": "Exact-Match",
-    "networkCompact": "Network:{address}",
-    "host": "Host: {address}",
-    "network": "Network: {address}"
+    "host": "Host {address}",
+    "network": "Network {address}",
+    "networkMask": "Network {address} / {mask}",
+    "exactMatch": "Exact match"
   },
   "banner": {
     "title": "Reorder in Progress",
@@ -92,10 +102,7 @@
     "firstRule": "First Rule",
     "listNumber": "Access List Number",
     "listName": "Access List Name",
-    "ipv6Helper": "Enter a unique name for the IPv6 access list",
-    "ipv4Helper": "Standard: 1-99, 1300-1999 | Extended: 100-199, 2000-2699",
     "descriptionPlaceholder": "Enter access list description (optional)",
-    "defaultRuleNumber": "Default starting rule number",
     "failed": "Failed to create access list",
     "submit": "Create Access List"
   },

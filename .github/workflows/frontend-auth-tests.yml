@@ -146,6 +146,10 @@ jobs:
         working-directory: frontend
         run: npm run test:prefix-list-save
 
+      - name: Run access-list save op tests
+        working-directory: frontend
+        run: npm run test:access-list-save
+
       - name: Run PKI save op and dialog tests
         working-directory: frontend
         run: npm run test:pki-save

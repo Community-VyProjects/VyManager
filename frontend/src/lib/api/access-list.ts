@@ -1,28 +1,45 @@
 import { apiClient } from "./client";
-import { VyOSResponse } from "../types/api";
+import type { ApiError, VyOSResponse } from "@/lib/types/api";
+import {
+  listCreateOps,
+  listDeleteOps,
+  listUpdateOps,
+  ruleDeleteOps,
+  ruleSaveOps,
+  type AccessListForm,
+  type AccessListRuleForm,
+} from "./access-list-save-ops";
 
 // ============================================================================
-// TypeScript Interfaces
+// Config (GET /vyos/access-list/config)
 // ============================================================================
 
+/** ipv4 is `policy access-list`, ipv6 is `policy access-list6`. */
+export type AccessListType = "ipv4" | "ipv6";
+
+/** One field per lab leaf. IPv6 rules have no host, inverse-mask or destination. */
 export interface AccessListRule {
   rule_number: number;
-  action: string;  // permit or deny
-  description?: string | null;
-  source_type?: string | null;  // any, host, inverse-mask, network
-  source_address?: string | null;
-  source_mask?: string | null;
-  source_exact_match?: boolean;  // IPv6 exact-match flag (can coexist with any)
-  destination_type?: string | null;  // any, host, inverse-mask, network
-  destination_address?: string | null;
-  destination_mask?: string | null;
+  action: string | null;
+  description: string | null;
+  source_any: boolean;
+  source_host: string | null;
+  source_network: string | null;
+  source_inverse_mask: string | null;
+  /** IPv6 only (always false on IPv4). */
+  source_exact_match: boolean;
+  destination_any: boolean;
+  destination_host: string | null;
+  destination_network: string | null;
+  destination_inverse_mask: string | null;
 }
 
 export interface AccessList {
-  number: string;  // For IPv4, name for IPv6
-  description?: string | null;
+  /** The IPv4 list number, or the IPv6 list name. */
+  number: string;
+  list_type: AccessListType;
+  description: string | null;
   rules: AccessListRule[];
-  list_type: string;  // ipv4 or ipv6
 }
 
 export interface AccessListConfigResponse {
@@ -32,40 +49,58 @@ export interface AccessListConfigResponse {
   total_ipv6: number;
 }
 
+// ============================================================================
+// Capabilities (GET /vyos/access-list/capabilities)
+// ============================================================================
+
+export interface AccessListRange {
+  min: number;
+  max: number;
+}
+
+export type AccessListRangeKey = "rule" | "ipv4_list";
+
 export interface AccessListCapabilitiesResponse {
   version: string;
   features: {
-    ipv4_access_list: {
-      supported: boolean;
-      description: string;
-    };
-    ipv6_access_list: {
-      supported: boolean;
-      description: string;
-    };
-    source_destination_filters: {
-      supported: boolean;
-      description: string;
-    };
+    ipv4_access_lists: { supported: boolean };
+    ipv6_access_lists: { supported: boolean };
   };
-  access_list_ranges: {
-    standard: string;
-    extended: string;
-  };
-  device_name?: string;
+  values: { rule_actions: string[] };
+  ranges: Record<AccessListRangeKey, AccessListRange>;
+  /** IPv4 list numbers whose rules need a destination. */
+  extended_ranges: AccessListRange[];
+  description_max_length: number;
+  instance_name?: string;
+  instance_id?: string;
 }
+
+// ============================================================================
+// Batch (POST /vyos/access-list/batch)
+// ============================================================================
 
 export interface AccessListBatchOperation {
   op: string;
   value?: string;
-  value2?: string;
 }
 
+/** One commit on one list. Rule ops need rule_number; list ops take none. */
 export interface AccessListBatchRequest {
-  identifier: string;  // number for IPv4, name for IPv6
-  list_type: string;  // ipv4 or ipv6
+  list_type: AccessListType;
+  /** The IPv4 list number or the IPv6 list name. */
+  name: string;
   rule_number?: number;
   operations: AccessListBatchOperation[];
+}
+
+const NO_CHANGES: VyOSResponse = { success: true };
+
+function throwIfFailed(result: VyOSResponse): VyOSResponse {
+  if (!result.success) {
+    const error: ApiError = { message: result.error || "" };
+    throw error;
+  }
+  return result;
 }
 
 // ============================================================================
@@ -73,16 +108,10 @@ export interface AccessListBatchRequest {
 // ============================================================================
 
 export class AccessListService {
-  /**
-   * Get capabilities based on VyOS version
-   */
   async getCapabilities(): Promise<AccessListCapabilitiesResponse> {
     return apiClient.get<AccessListCapabilitiesResponse>("/vyos/access-list/capabilities");
   }
 
-  /**
-   * Get all access-list configurations
-   */
   async getConfig(refresh: boolean = false): Promise<AccessListConfigResponse> {
     return apiClient.get<AccessListConfigResponse>("/vyos/access-list/config", {
       refresh: refresh.toString(),
@@ -90,461 +119,81 @@ export class AccessListService {
   }
 
   /**
-   * Refresh the cached configuration
-   */
-  async refreshConfig(): Promise<VyOSResponse> {
-    return apiClient.post<VyOSResponse>("/vyos/config/refresh");
-  }
-
-  /**
-   * Execute batch operations
+   * Commit one batch; a rejected commit throws its error as an ApiError. An
+   * empty op list has nothing to send, so no POST is made.
    */
   async batchConfigure(request: AccessListBatchRequest): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/access-list/batch", request);
-    await this.refreshConfig();
-    return result;
+    if (request.operations.length === 0) return NO_CHANGES;
+    return throwIfFailed(await apiClient.post<VyOSResponse>("/vyos/access-list/batch", request));
   }
 
-  /**
-   * Reorder rules in an access-list
-   */
-  async reorderRules(
-    identifier: string,
-    listType: string,
-    rules: Array<{ old_number: number; new_number: number; rule_data: AccessListRule }>
-  ): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/access-list/reorder", {
-      identifier,
-      list_type: listType,
-      rules,
-    });
-    await this.refreshConfig();
-    return result;
-  }
+  // ========================================================================
+  // List
+  // ========================================================================
 
-  /**
-   * Helper: Create a new access-list with first rule
-   */
-  async createAccessList(
-    identifier: string,
-    listType: string,
-    description: string | null,
-    rule: Partial<AccessListRule>
-  ): Promise<VyOSResponse> {
-    const operations: AccessListBatchOperation[] = [];
-
-    // Create access-list
-    operations.push({ op: listType === "ipv4" ? "set_access_list" : "set_access_list6" });
-
-    // Add description if provided
-    if (description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_access_list_description" : "set_access_list6_description",
-        value: description
-      });
-    }
-
-    // Create rule
-    operations.push({ op: listType === "ipv4" ? "set_rule" : "set_rule6" });
-
-    // Set rule action
-    operations.push({
-      op: listType === "ipv4" ? "set_rule_action" : "set_rule6_action",
-      value: rule.action || "permit"
-    });
-
-    // Set rule description
-    if (rule.description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_description" : "set_rule6_description",
-        value: rule.description
-      });
-    }
-
-    // Set source
-    if (listType === "ipv4") {
-      // IPv4 source handling
-      if (rule.source_type === "any") {
-        operations.push({
-          op: "set_rule_source_any"
-        });
-      } else if (rule.source_type === "host" && rule.source_address) {
-        operations.push({
-          op: "set_rule_source_host",
-          value: rule.source_address
-        });
-      } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
-        operations.push({
-          op: "set_rule_source_inverse_mask",
-          value: rule.source_address,
-          value2: rule.source_mask
-        });
-      } else if (rule.source_type === "network" && rule.source_address && rule.source_mask) {
-        operations.push({
-          op: "set_rule_source_network",
-          value: rule.source_address,
-          value2: rule.source_mask
-        });
-      }
-    } else {
-      // IPv6 source handling - any can coexist with network or exact-match
-      // exact-match and network are mutually exclusive
-      if (rule.source_type === "any") {
-        operations.push({
-          op: "set_rule6_source_any"
-        });
-      }
-
-      if (rule.source_address) {
-        // Network can coexist with "any"
-        operations.push({
-          op: "set_rule6_source_network",
-          value: rule.source_address
-        });
-      }
-
-      if (rule.source_exact_match) {
-        operations.push({
-          op: "set_rule6_source_exact_match"
-        });
-      }
-    }
-
-    // Set destination (IPv4 only - IPv6 access-lists don't have destination)
-    if (listType === "ipv4") {
-      if (rule.destination_type === "any") {
-        operations.push({
-          op: "set_rule_destination_any"
-        });
-      } else if (rule.destination_type === "host" && rule.destination_address) {
-        operations.push({
-          op: "set_rule_destination_host",
-          value: rule.destination_address
-        });
-      } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
-        operations.push({
-          op: "set_rule_destination_inverse_mask",
-          value: rule.destination_address,
-          value2: rule.destination_mask
-        });
-      } else if (rule.destination_type === "network" && rule.destination_address && rule.destination_mask) {
-        operations.push({
-          op: "set_rule_destination_network",
-          value: rule.destination_address,
-          value2: rule.destination_mask
-        });
-      }
-    }
-
+  async createAccessList(listType: AccessListType, form: AccessListForm): Promise<VyOSResponse> {
     return this.batchConfigure({
-      identifier,
       list_type: listType,
-      rule_number: rule.rule_number,
-      operations,
+      name: form.name.trim(),
+      operations: listCreateOps(form),
     });
   }
 
-  /**
-   * Helper: Update access-list description
-   */
-  async updateAccessListDescription(
-    identifier: string,
-    listType: string,
-    description: string | null
-  ): Promise<VyOSResponse> {
-    const operations: AccessListBatchOperation[] = [];
-
-    if (description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_access_list_description" : "set_access_list6_description",
-        value: description
-      });
-    } else {
-      operations.push({
-        op: listType === "ipv4" ? "delete_access_list_description" : "delete_access_list6_description"
-      });
-    }
-
+  /** Only the list leaves the form changed are sent. */
+  async updateAccessList(original: AccessList, form: AccessListForm): Promise<VyOSResponse> {
     return this.batchConfigure({
-      identifier,
-      list_type: listType,
-      operations,
+      list_type: original.list_type,
+      name: original.number,
+      operations: listUpdateOps(original, form),
     });
   }
 
-  /**
-   * Helper: Delete an access-list
-   */
-  async deleteAccessList(identifier: string, listType: string): Promise<VyOSResponse> {
-    const operations: AccessListBatchOperation[] = [];
-    operations.push({
-      op: listType === "ipv4" ? "delete_access_list" : "delete_access_list6"
-    });
-
+  async deleteAccessList(list: AccessList): Promise<VyOSResponse> {
     return this.batchConfigure({
-      identifier,
-      list_type: listType,
-      operations,
+      list_type: list.list_type,
+      name: list.number,
+      operations: listDeleteOps(),
     });
   }
 
-  /**
-   * Helper: Add a rule to an existing access-list
-   */
-  async addRule(
-    identifier: string,
-    listType: string,
-    rule: Partial<AccessListRule>
-  ): Promise<VyOSResponse> {
-    const operations: AccessListBatchOperation[] = [];
+  // ========================================================================
+  // Rule
+  // ========================================================================
 
-    // Create rule
-    operations.push({ op: listType === "ipv4" ? "set_rule" : "set_rule6" });
-
-    // Set rule action
-    operations.push({
-      op: listType === "ipv4" ? "set_rule_action" : "set_rule6_action",
-      value: rule.action || "permit"
-    });
-
-    // Set rule description
-    if (rule.description) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_description" : "set_rule6_description",
-        value: rule.description
-      });
-    }
-
-    // Set source
-    if (listType === "ipv4") {
-      // IPv4 source handling
-      if (rule.source_type === "any") {
-        operations.push({
-          op: "set_rule_source_any"
-        });
-      } else if (rule.source_type === "host" && rule.source_address) {
-        operations.push({
-          op: "set_rule_source_host",
-          value: rule.source_address
-        });
-      } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
-        operations.push({
-          op: "set_rule_source_inverse_mask",
-          value: rule.source_address,
-          value2: rule.source_mask
-        });
-      } else if (rule.source_type === "network" && rule.source_address && rule.source_mask) {
-        operations.push({
-          op: "set_rule_source_network",
-          value: rule.source_address,
-          value2: rule.source_mask
-        });
-      }
-    } else {
-      // IPv6 source handling - any can coexist with network or exact-match
-      // exact-match and network are mutually exclusive
-      if (rule.source_type === "any") {
-        operations.push({
-          op: "set_rule6_source_any"
-        });
-      }
-
-      if (rule.source_address) {
-        // Network can coexist with "any"
-        operations.push({
-          op: "set_rule6_source_network",
-          value: rule.source_address
-        });
-      }
-
-      if (rule.source_exact_match) {
-        operations.push({
-          op: "set_rule6_source_exact_match"
-        });
-      }
-    }
-
-    // Set destination (IPv4 only - IPv6 access-lists don't have destination)
-    if (listType === "ipv4") {
-      if (rule.destination_type === "any") {
-        operations.push({
-          op: "set_rule_destination_any"
-        });
-      } else if (rule.destination_type === "host" && rule.destination_address) {
-        operations.push({
-          op: "set_rule_destination_host",
-          value: rule.destination_address
-        });
-      } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
-        operations.push({
-          op: "set_rule_destination_inverse_mask",
-          value: rule.destination_address,
-          value2: rule.destination_mask
-        });
-      } else if (rule.destination_type === "network" && rule.destination_address && rule.destination_mask) {
-        operations.push({
-          op: "set_rule_destination_network",
-          value: rule.destination_address,
-          value2: rule.destination_mask
-        });
-      }
-    }
-
-    return this.batchConfigure({
-      identifier,
-      list_type: listType,
-      rule_number: rule.rule_number,
-      operations,
-    });
-  }
-
-  /**
-   * Helper: Update an existing rule
-   */
-  async updateRule(
-    identifier: string,
-    listType: string,
+  /** Create a rule (original null) or edit one: only changed leaves are sent. */
+  async saveRule(
+    listType: AccessListType,
+    listName: string,
     ruleNumber: number,
-    rule: Partial<AccessListRule>
+    original: AccessListRule | null,
+    form: AccessListRuleForm,
   ): Promise<VyOSResponse> {
-    const operations: AccessListBatchOperation[] = [];
-
-    // Delete existing source first
-    operations.push({
-      op: listType === "ipv4" ? "delete_rule_source" : "delete_rule6_source"
-    });
-
-    // Delete existing destination (IPv4 only - IPv6 doesn't have destination)
-    if (listType === "ipv4") {
-      operations.push({
-        op: "delete_rule_destination"
-      });
-    }
-
-    // Update action
-    if (rule.action) {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_action" : "set_rule6_action",
-        value: rule.action
-      });
-    }
-
-    // Update description
-    if (rule.description !== undefined) {
-      if (rule.description) {
-        operations.push({
-          op: listType === "ipv4" ? "set_rule_description" : "set_rule6_description",
-          value: rule.description
-        });
-      } else {
-        operations.push({
-          op: listType === "ipv4" ? "delete_rule_description" : "delete_rule6_description"
-        });
-      }
-    }
-
-    // Set new source
-    if (listType === "ipv4") {
-      // IPv4 source handling
-      if (rule.source_type === "any") {
-        operations.push({
-          op: "set_rule_source_any"
-        });
-      } else if (rule.source_type === "host" && rule.source_address) {
-        operations.push({
-          op: "set_rule_source_host",
-          value: rule.source_address
-        });
-      } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
-        operations.push({
-          op: "set_rule_source_inverse_mask",
-          value: rule.source_address,
-          value2: rule.source_mask
-        });
-      } else if (rule.source_type === "network" && rule.source_address && rule.source_mask) {
-        operations.push({
-          op: "set_rule_source_network",
-          value: rule.source_address,
-          value2: rule.source_mask
-        });
-      }
-    } else {
-      // IPv6 source handling - any can coexist with network or exact-match
-      // exact-match and network are mutually exclusive
-      if (rule.source_type === "any") {
-        operations.push({
-          op: "set_rule6_source_any"
-        });
-      }
-
-      if (rule.source_address) {
-        // Network can coexist with "any"
-        operations.push({
-          op: "set_rule6_source_network",
-          value: rule.source_address
-        });
-      }
-
-      if (rule.source_exact_match) {
-        operations.push({
-          op: "set_rule6_source_exact_match"
-        });
-      }
-    }
-
-    // Set new destination (IPv4 only - IPv6 access-lists don't have destination)
-    if (listType === "ipv4") {
-      if (rule.destination_type === "any") {
-        operations.push({
-          op: "set_rule_destination_any"
-        });
-      } else if (rule.destination_type === "host" && rule.destination_address) {
-        operations.push({
-          op: "set_rule_destination_host",
-          value: rule.destination_address
-        });
-      } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
-        operations.push({
-          op: "set_rule_destination_inverse_mask",
-          value: rule.destination_address,
-          value2: rule.destination_mask
-        });
-      } else if (rule.destination_type === "network" && rule.destination_address && rule.destination_mask) {
-        operations.push({
-          op: "set_rule_destination_network",
-          value: rule.destination_address,
-          value2: rule.destination_mask
-        });
-      }
-    }
-
     return this.batchConfigure({
-      identifier,
       list_type: listType,
+      name: listName,
       rule_number: ruleNumber,
-      operations,
+      operations: ruleSaveOps(listType, original, form),
     });
   }
 
-  /**
-   * Helper: Delete a rule
-   */
-  async deleteRule(
-    identifier: string,
-    listType: string,
-    ruleNumber: number
-  ): Promise<VyOSResponse> {
-    const operations: AccessListBatchOperation[] = [];
-    operations.push({
-      op: listType === "ipv4" ? "delete_rule" : "delete_rule6"
-    });
-
+  async deleteRule(listType: AccessListType, listName: string, ruleNumber: number): Promise<VyOSResponse> {
     return this.batchConfigure({
-      identifier,
       list_type: listType,
+      name: listName,
       rule_number: ruleNumber,
-      operations,
+      operations: ruleDeleteOps(),
     });
+  }
+
+  /** New order of every rule of the list; a rejected commit throws. */
+  async reorderRules(listType: AccessListType, listName: string, ruleNumbers: number[]): Promise<VyOSResponse> {
+    return throwIfFailed(
+      await apiClient.post<VyOSResponse>("/vyos/access-list/reorder", {
+        list_type: listType,
+        name: listName,
+        rule_numbers: ruleNumbers,
+      }),
+    );
   }
 }
 
