@@ -201,6 +201,9 @@ class RouteMapMapper(BaseFeatureMapper):
     def get_rule_continue(self, name: str, rule: str, continue_rule: str) -> List[str]:
         return self.get_rule_continue_path(name, rule) + [continue_rule]
 
+    def get_rule_on_match_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "on-match")
+
     def get_rule_on_match_goto_path(self, name: str, rule: str) -> List[str]:
         return self._rule_node(name, rule, "on-match", "goto")
 
@@ -213,6 +216,16 @@ class RouteMapMapper(BaseFeatureMapper):
     # ========================================================================
     # Match - BGP attributes
     # ========================================================================
+
+    def get_match_path(self, name: str, rule: str) -> List[str]:
+        """The rule ``match`` node; deleting a child leaves it on the device."""
+        return self._rule_node(name, rule, "match")
+
+    def get_match_ip_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ip")
+
+    def get_match_ipv6_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ipv6")
 
     def get_match_as_path_path(self, name: str, rule: str) -> List[str]:
         return self._rule_node(name, rule, "match", "as-path")
@@ -465,6 +478,13 @@ class RouteMapMapper(BaseFeatureMapper):
     # ========================================================================
     # Set - AS path
     # ========================================================================
+
+    def get_set_path(self, name: str, rule: str) -> List[str]:
+        """The rule ``set`` node; deleting a child leaves it on the device."""
+        return self._rule_node(name, rule, "set")
+
+    def get_set_as_path_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "as-path")
 
     def get_set_as_path_exclude_path(self, name: str, rule: str) -> List[str]:
         return self._rule_node(name, rule, "set", "as-path", "exclude")

@@ -47,9 +47,11 @@ RANGES: Dict[str, Dict[str, int]] = {
     "extcommunity_asn": {"min": 0, "max": 65535},
     "extcommunity_asn_value": {"min": 0, "max": U32_MAX},
     "extcommunity_ip_value": {"min": 0, "max": 65535},
+    # ``match ip address|nexthop|route-source access-list``: an IPv4
+    # access-list is a u32 tag. The val_help ranges are a hint; the labs
+    # commit numbers outside them (500, 2700).
+    "ip_access_list": {"min": 0, "max": U32_MAX},
 }
-# Lab val_help of ``match ip address|nexthop|route-source access-list``.
-IP_ACCESS_LIST_RANGES: Tuple[Tuple[int, int], ...] = ((1, 99), (100, 199), (1300, 1999), (2000, 2699))
 DESCRIPTION_MAX_LENGTH = 255
 
 # Lab route-map name regex.
@@ -134,10 +136,8 @@ def _as_list(label: str, value: str) -> str:
 
 
 def _ip_access_list(label: str, value: str) -> str:
-    if _DECIMAL.fullmatch(value) and any(low <= int(value) <= high for low, high in IP_ACCESS_LIST_RANGES):
-        return value
-    ranges = ", ".join(f"{low}-{high}" for low, high in IP_ACCESS_LIST_RANGES)
-    raise ValueError(f"{label} must be an access-list number in {ranges}")
+    """An IPv4 access-list number: any u32 (ASCII digits)."""
+    return _number("ip_access_list", label, value)
 
 
 def _metric(value: str) -> str:
@@ -287,6 +287,10 @@ class RouteMapBatchBuilder(BatchBuilder):
     def delete_rule_on_match_goto(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_delete(self._rule(name, rule).get_rule_on_match_goto_path(name, rule))
 
+    def delete_rule_on_match(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete the whole ``on-match`` node (goto and next)."""
+        return self.add_delete(self._rule(name, rule).get_rule_on_match_path(name, rule))
+
     def set_rule_on_match_next(self, name: str, rule: str) -> "RouteMapBatchBuilder":
         return self.add_set(self._rule(name, rule).get_rule_on_match_next_path(name, rule))
 
@@ -296,6 +300,18 @@ class RouteMapBatchBuilder(BatchBuilder):
     # ========================================================================
     # Match - BGP attributes
     # ========================================================================
+
+    def delete_match(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete the rule ``match`` node and every match condition."""
+        return self.add_delete(self._rule(name, rule).get_match_path(name, rule))
+
+    def delete_match_ip(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete ``match ip`` (address, nexthop and route-source)."""
+        return self.add_delete(self._rule(name, rule).get_match_ip_path(name, rule))
+
+    def delete_match_ipv6(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete ``match ipv6`` (address and nexthop)."""
+        return self.add_delete(self._rule(name, rule).get_match_ipv6_path(name, rule))
 
     def set_match_as_path(self, name: str, rule: str, as_path: str) -> "RouteMapBatchBuilder":
         return self.add_set(self._rule(name, rule).get_match_as_path(name, rule, as_path))
@@ -618,6 +634,14 @@ class RouteMapBatchBuilder(BatchBuilder):
     # ========================================================================
     # Set - AS path
     # ========================================================================
+
+    def delete_set(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete the rule ``set`` node and every set action."""
+        return self.add_delete(self._rule(name, rule).get_set_path(name, rule))
+
+    def delete_set_as_path(self, name: str, rule: str) -> "RouteMapBatchBuilder":
+        """Delete ``set as-path`` (exclude, prepend and prepend-last-as)."""
+        return self.add_delete(self._rule(name, rule).get_set_as_path_path(name, rule))
 
     def set_as_path_exclude(self, name: str, rule: str, as_path: str) -> "RouteMapBatchBuilder":
         mapper = self._rule(name, rule)
@@ -1025,7 +1049,6 @@ class RouteMapBatchBuilder(BatchBuilder):
                 "evpn_vni": {"min": vni_min, "max": vni_max},
                 "table": {"min": table_min, "max": table_max},
             },
-            "ip_access_list_ranges": [{"min": low, "max": high} for low, high in IP_ACCESS_LIST_RANGES],
             "description_max_length": DESCRIPTION_MAX_LENGTH,
             # 1.5 rejects ``set as-path prepend`` together with ``prepend-last-as``.
             "as_path_prepend_exclusive": mapper.as_path_prepend_exclusive(),

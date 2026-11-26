@@ -177,6 +177,22 @@ def test_batch_dispatches_onto_paths(client):
     assert client.permissions == [("write", "ROUTE_MAP")]
 
 
+def test_parent_deletes_dispatch_with_the_rule(client):
+    ops = ["delete_match_ip", "delete_match_ipv6", "delete_set_as_path", "delete_rule_on_match", "delete_match",
+           "delete_set"]
+    resp = _batch(client, [{"op": op} for op in ops], rule_number=10)
+    assert resp.status_code == 200, resp.text
+    r = RM + ["rule", "10"]
+    assert client.executed == [[
+        ("delete", r + ["match", "ip"]),
+        ("delete", r + ["match", "ipv6"]),
+        ("delete", r + ["set", "as-path"]),
+        ("delete", r + ["on-match"]),
+        ("delete", r + ["match"]),
+        ("delete", r + ["set"]),
+    ]]
+
+
 def test_map_ops_run_without_a_rule_number(client):
     resp = _batch(client, [{"op": "set_route_map"}, {"op": "set_route_map_description", "value": "x"}], name="NEW")
     assert resp.status_code == 200, resp.text

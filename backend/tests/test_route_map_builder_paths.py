@@ -13,7 +13,6 @@ import pytest
 
 from vyos_builders.route_map.route_map_batch_builder import (
     DESCRIPTION_MAX_LENGTH,
-    IP_ACCESS_LIST_RANGES,
     RANGES,
     RouteMapBatchBuilder,
 )
@@ -53,6 +52,14 @@ CASES = [
     ("delete_rule_continue", ("10",), "delete", R + ["continue"]),
     ("set_rule_on_match_goto", ("10", "30"), "set", R + ["on-match", "goto", "30"]),
     ("delete_rule_on_match_goto", ("10",), "delete", R + ["on-match", "goto"]),
+    # Deleting a plain node's last child leaves the empty node on both labs;
+    # deleting the node itself commits.
+    ("delete_rule_on_match", ("10",), "delete", R + ["on-match"]),
+    ("delete_match", ("10",), "delete", M),
+    ("delete_set", ("10",), "delete", S),
+    ("delete_match_ip", ("10",), "delete", M + ["ip"]),
+    ("delete_match_ipv6", ("10",), "delete", M + ["ipv6"]),
+    ("delete_set_as_path", ("10",), "delete", S + ["as-path"]),
     ("set_rule_on_match_next", ("10",), "set", R + ["on-match", "next"]),
     ("delete_rule_on_match_next", ("10",), "delete", R + ["on-match", "next"]),
     # match - BGP attributes
@@ -259,6 +266,21 @@ V15_CASES = [
 ]
 GATED = sorted({case[0] for case in V15_CASES})
 
+# ``match ip ... access-list`` numbers both labs committed, including 500 and
+# 2700 outside the val_help ranges, and the u32 bounds.
+IP_ACCESS_LIST_NUMBERS = ("0", "1", "99", "500", "1299", "2700", "65536", "4294967295")
+
+# Parent deletes: a plain node the device keeps empty after its last child
+# goes. Each one is the node the child paths hang off.
+PARENT_DELETES = {
+    "delete_match": M,
+    "delete_set": S,
+    "delete_match_ip": M + ["ip"],
+    "delete_match_ipv6": M + ["ipv6"],
+    "delete_set_as_path": S + ["as-path"],
+    "delete_rule_on_match": R + ["on-match"],
+}
+
 # Values only the 1.5 lab takes.
 V15_VALUES = [
     ("set_match_evpn_route_type", ("10", "ead"), "set", M + ["evpn", "route-type", "ead"]),
@@ -396,10 +418,12 @@ def test_lab_names_are_accepted():
     # set ip-next-hop: the keywords are their own ops
     ("set_ip_nexthop", ("10", "peer-address")), ("set_ip_nexthop", ("10", "unchanged")),
     ("set_ip_nexthop", ("10", "2001:db8::1")),
-    # ip access-list numbers (val_help ranges)
-    ("set_match_ip_address_access_list", ("10", "0")), ("set_match_ip_address_access_list", ("10", "200")),
-    ("set_match_ip_nexthop_access_list", ("10", "1299")), ("set_match_ip_route_source_access_list", ("10", "2700")),
-    ("set_match_ip_address_access_list", ("10", "ACL")),
+    # ip access-list numbers: a u32 tag in ASCII digits
+    ("set_match_ip_address_access_list", ("10", "4294967296")), ("set_match_ip_address_access_list", ("10", "-1")),
+    ("set_match_ip_nexthop_access_list", ("10", "\u0661\u0660\u0660")),
+    ("set_match_ip_route_source_access_list", ("10", "1.5")),
+    ("set_match_ip_address_access_list", ("10", "ACL")), ("set_match_ip_nexthop_access_list", ("10", "")),
+    ("set_match_ip_route_source_access_list", ("10", "+5")),
     # evpn
     ("set_match_evpn_vni", ("10", "0")), ("set_match_evpn_vni", ("10", "16777215")),
     ("set_match_evpn_vni", ("10", "\u0661")), ("set_match_evpn_route_type", ("10", "bogus")),
@@ -441,9 +465,11 @@ def test_lab_bounds_are_accepted():
     builder.set_rule(N, "1").set_rule(N, "65535")
     builder.set_rule_description(N, "1", "x" * DESCRIPTION_MAX_LENGTH)
     builder.set_route_map_description(N, "")
-    for low, high in IP_ACCESS_LIST_RANGES:
-        builder.set_match_ip_address_access_list(N, "1", str(low))
-        builder.set_match_ip_address_access_list(N, "1", str(high))
+    # The labs commit 500 and 2700, outside the val_help ranges.
+    for number in IP_ACCESS_LIST_NUMBERS:
+        builder.set_match_ip_address_access_list(N, "1", number)
+        builder.set_match_ip_nexthop_access_list(N, "1", number)
+        builder.set_match_ip_route_source_access_list(N, "1", number)
     for community in COMMUNITY_WELL_KNOWN:
         builder.set_community_add(N, "1", community)
     builder.set_match_ip_address_prefix_len(N, "1", "0").set_match_ipv6_address_prefix_len(N, "1", "0")
@@ -451,7 +477,7 @@ def test_lab_bounds_are_accepted():
     builder.set_extcommunity_rt(N, "1", "0:0").set_extcommunity_bandwidth(N, "1", "cumulative")
     builder.set_large_community_add(N, "1", "0:0:0").set_as_path_exclude(N, "1", "1")
     builder.set_distance(N, "1", "0").set_table(N, "1", "1")
-    assert len(builder.get_operations()) == 4 + 2 * len(IP_ACCESS_LIST_RANGES) + len(COMMUNITY_WELL_KNOWN) + 11
+    assert len(builder.get_operations()) == 4 + 3 * len(IP_ACCESS_LIST_NUMBERS) + len(COMMUNITY_WELL_KNOWN) + 11
 
 
 def test_internet_is_not_offered():
@@ -496,6 +522,67 @@ def test_restore_rule_checks_name_and_rule():
         RouteMapBatchBuilder("1.5").restore_rule("bad name", "1", {})
 
 
+@pytest.mark.parametrize("version", VERSIONS)
+def test_restore_rule_resets_an_empty_plain_container(version):
+    """A ``{}`` the device left behind after its last child was deleted.
+
+    ``match ip address {}``, ``set as-path {}``, ``on-match {}`` and the rest
+    are plain nodes, not flags, but the move re-sets each bare node so the
+    renumbered rule matches what the device held.
+    """
+    tree = {
+        "action": "permit",
+        "match": {"ip": {"address": {}}, "large-community": {}},
+        "on-match": {},
+        "set": {
+            "as-path": {},
+            "community": {},
+            "evpn": {"gateway": {}},
+            "extcommunity": {},
+            "l3vpn-nexthop": {"encapsulation": {}},
+        },
+    }
+    builder = RouteMapBatchBuilder(version).restore_rule(N, "20", tree)
+    base = RM + ["rule", "20"]
+    assert _ops(builder) == [
+        ("set", base),
+        ("set", base + ["action", "permit"]),
+        ("set", base + ["match", "ip", "address"]),
+        ("set", base + ["match", "large-community"]),
+        ("set", base + ["on-match"]),
+        ("set", base + ["set", "as-path"]),
+        ("set", base + ["set", "community"]),
+        ("set", base + ["set", "evpn", "gateway"]),
+        ("set", base + ["set", "extcommunity"]),
+        ("set", base + ["set", "l3vpn-nexthop", "encapsulation"]),
+    ]
+    # An empty top-level ``match {}`` / ``set {}`` is re-set as the bare node too.
+    bare = RouteMapBatchBuilder(version).restore_rule(N, "20", {"match": {}, "set": {}})
+    assert _ops(bare) == [("set", base), ("set", base + ["match"]), ("set", base + ["set"])]
+
+
+@pytest.mark.parametrize("version", VERSIONS)
+@pytest.mark.parametrize("method", sorted(PARENT_DELETES))
+def test_parent_delete_is_the_prefix_of_its_children(version, method):
+    """Each parent op deletes the node that its child ops' paths start with."""
+    builder = RouteMapBatchBuilder(version)
+    getattr(builder, method)(N, "10")
+    ((op, path),) = _ops(builder)
+    assert (op, path) == ("delete", PARENT_DELETES[method])
+    children = [case for case in CASES if case[0] != method and case[3][: len(path)] == path and len(case[3]) > len(path)]
+    assert children
+
+
+@pytest.mark.parametrize("method", sorted(PARENT_DELETES))
+def test_parent_delete_checks_name_and_rule(method):
+    builder = RouteMapBatchBuilder("1.5")
+    with pytest.raises(ValueError):
+        getattr(builder, method)(N, "0")
+    with pytest.raises(ValueError):
+        getattr(builder, method)("bad name", "10")
+    assert builder.get_operations() == []
+
+
 # ---------------------------------------------------------------- capabilities
 
 
@@ -517,9 +604,8 @@ def test_capabilities_per_version():
         assert caps["ranges"]["evpn_vni"] == {"min": 1, "max": 16777214}
         assert (caps["features"]["match_evpn"]["vni_min"], caps["features"]["match_evpn"]["vni_max"]) == (1, 16777214)
         assert {k: v for k, v in caps["ranges"].items() if k not in ("table", "evpn_vni")} == RANGES
-        assert caps["ip_access_list_ranges"] == [
-            {"min": 1, "max": 99}, {"min": 100, "max": 199}, {"min": 1300, "max": 1999}, {"min": 2000, "max": 2699},
-        ]
+        assert "ip_access_list_ranges" not in caps
+        assert caps["ranges"]["ip_access_list"] == {"min": 0, "max": 4294967295}
         assert caps["description_max_length"] == 255
         assert caps["values"]["protocols"] == [
             "babel", "bgp", "connected", "isis", "kernel", "ospf", "ospfv3", "rip", "ripng", "static", "table", "vnc",
