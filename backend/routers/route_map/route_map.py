@@ -324,11 +324,13 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRequest):
             for leaf, target in mapper.rule_targets(trees[old]).items():
                 new_target = renumber.get(target, target)
                 if new_target <= rule_new:
+                    label = _TARGET_LABELS[leaf]
+                    became = f"would become {new_target}" if new_target != target else "stays"
                     raise HTTPException(
                         status_code=400,
                         detail=(
-                            f"Rule {old} cannot move to {rule_new}: its {_TARGET_LABELS[leaf]} "
-                            f"target {new_target} must be greater than its rule number"
+                            f"Rule {old}'s {label} target {target} {became}, "
+                            f"which is not greater than its rule number {rule_new}"
                         ),
                     )
                 if old not in renumber and target in renumber:

@@ -446,10 +446,27 @@ def test_reorder_target_below_its_rule_is_400_and_nothing_runs(client, tree, lea
     resp = _reorder(client, [20, 10, 30])
     assert resp.status_code == 400
     assert resp.json()["detail"] == (
-        f"Rule 10 cannot move to 20: its {label} target 10 must be greater than its rule number"
+        f"Rule 10's {label} target 20 would become 10, which is not greater than its rule number 20"
     )
     assert client.executed == []
     # Only the config read ran; execute_batch never did.
+    assert len(client.device_threads) == 1
+
+
+@pytest.mark.parametrize("leaf,value,label", [
+    ("continue", "20", "continue"),
+    ("on-match", {"goto": "20"}, "on-match goto"),
+])
+def test_reorder_target_moved_below_an_unmoved_rule_is_400(client, tree, leaf, value, label):
+    # Rule 10 stays put; its target 20 would move to 5, below it.
+    _rules(tree)["5"] = {"action": "permit"}
+    _rules(tree)["10"][leaf] = value
+    resp = _reorder(client, [20, 10, 5, 30])
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == (
+        f"Rule 10's {label} target 20 would become 5, which is not greater than its rule number 10"
+    )
+    assert client.executed == []
     assert len(client.device_threads) == 1
 
 
@@ -459,7 +476,9 @@ def test_reorder_moved_rule_past_its_unmoved_target_is_400(client, tree):
     _rules(tree)["40"] = {"action": "permit"}
     resp = _reorder(client, [20, 40, 30, 10])  # 30 stays put
     assert resp.status_code == 400
-    assert resp.json()["detail"].startswith("Rule 10 cannot move to 40: its continue target 30")
+    assert resp.json()["detail"] == (
+        "Rule 10's continue target 30 stays, which is not greater than its rule number 40"
+    )
     assert client.executed == []
     assert len(client.device_threads) == 1
 
