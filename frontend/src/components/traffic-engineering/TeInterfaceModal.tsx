@@ -133,7 +133,7 @@ export function TeInterfaceModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? t("interfaceModal.editTitle") : t("interfaceModal.addTitle")}
@@ -143,7 +143,7 @@ export function TeInterfaceModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="te-interface">{t("interfaces.interface")}</Label>

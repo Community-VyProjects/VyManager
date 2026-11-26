@@ -23,13 +23,13 @@ from ..traffic_engineering import TrafficEngineeringMapper
 
 BASE = ["protocols", "traffic-engineering"]
 
-# Lab node.def regexes (validate-value matches the whole value). ASCII and \Z
-# so a non-ASCII digit or a trailing newline cannot pass.
+# Lab node.def regexes. ASCII and \Z so a non-ASCII digit or a trailing newline
+# cannot pass.
 _GROUP_NAME = re.compile(r"[-a-zA-Z0-9]+\Z", re.ASCII)
-_INTERFACE = re.compile(
-    r"(?:(?:bond|br|dum|en|ersp|eth|gnv|ifb|ipoe|lan|l2tp|l2tpeth|macsec|peth|ppp|pppoe|pptp|sstp|sstpc|tun|veth|vpptap|vpptun|vti|vtun|vxlan|wg|wlan|wwan)[0-9]+(?:.\d+)?|pod-[-_a-zA-Z0-9]{1,11}|lo)\Z",
-    re.ASCII,
-)
+# The interface tag passes validate-value when either its regex or
+# interface-exists passes (any existing interface, QinQ and host names
+# included), so only a shape that cannot reach the CLI as one word is refused.
+_INTERFACE = re.compile(r"[^\s,'\"]+\Z", re.ASCII)
 _DIGITS = re.compile(r"[0-9]+\Z", re.ASCII)
 
 # Lab val_help ranges.

@@ -89,8 +89,10 @@ def test_1_4_rejects_every_op(version, method, args, op, path):
         ("set_admin_group_bit_position", ("gold", "+1"), "Bit position must be 0-31"),
         ("set_admin_group_bit_position", ("gold", "١"), "Bit position must be 0-31"),
         ("set_admin_group_bit_position", ("gold", ""), "Bit position must be 0-31"),
-        ("set_interface", ("eth",), "Invalid interface name"),
+        ("set_interface", ("",), "Invalid interface name"),
         ("set_interface", ("eth0 ",), "Invalid interface name"),
+        ("set_interface", ("eth0,1",), "Invalid interface name"),
+        ("set_interface", ("eth0'",), "Invalid interface name"),
         ("set_interface_admin_group", ("eth0", "a,b"), "Admin group names must be letters, digits, and hyphens"),
         ("set_interface_max_bandwidth", ("eth0", "0"), "Max bandwidth must be 1-4294967295"),
         ("set_interface_max_bandwidth", ("eth0", "4294967296"), "Max bandwidth must be 1-4294967295"),
@@ -112,12 +114,15 @@ def test_rejects_values_the_device_rejects(method, args, detail):
 @pytest.mark.parametrize(
     "method, args",
     [
-        # The lab numeric validator takes leading zeros; the interface regex
-        # has an unescaped dot before the VLAN id.
+        # The lab numeric validator takes leading zeros. The interface tag
+        # takes any existing interface (regex OR interface-exists): QinQ and
+        # host interfaces outside the regex included.
         ("set_admin_group_bit_position", ("gold", "07")),
         ("set_interface_metric", ("eth0", "0001")),
         ("set_interface", ("pod-web_1",)),
-        ("set_interface", ("eth0x10",)),
+        ("set_interface", ("eth0.10.20",)),
+        ("set_interface", ("tailscale0",)),
+        ("delete_interface", ("podman0",)),
         ("set_admin_group", ("Gold-1",)),
     ],
 )
