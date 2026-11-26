@@ -103,21 +103,24 @@ export function RpkiContent() {
       rpkiService.getConfig(refresh),
       rpkiService.getCapabilities(),
     ]);
-    // Only the cache dialog reads the key names, and only a writer opens it.
-    const failed: string[] = [];
-    const keys = hasWritePermission
-      ? await pkiService.getConfig()
-          .then((pki) => pki.openssh.map((k) => k.name))
-          .catch((err: unknown) => {
-            if ((err as ApiError).status !== 403) failed.push(t("errors.loadSshKeys"));
-            return [] as string[];
-          })
-      : [];
     setConfig(configData);
     setCapabilities(capData);
-    setSshKeyNames(keys);
-    setListErrors(failed);
     setError(null);
+  }, []);
+
+  // Only the cache dialog reads the key names, and only a writer opens it.
+  // Permissions load after mount, so this read has its own effect.
+  const loadSshKeys = useCallback(async () => {
+    if (!hasWritePermission) return;
+    try {
+      const pki = await pkiService.getConfig();
+      setSshKeyNames(pki.openssh.map((k) => k.name));
+      setListErrors([]);
+    } catch (err: unknown) {
+      setSshKeyNames([]);
+      // A 403 stays silent: the user may not read PKI.
+      setListErrors((err as ApiError).status !== 403 ? [t("errors.loadSshKeys")] : []);
+    }
   }, [hasWritePermission, t]);
 
   /** Full-page load: the spinner shows until the first read settles. */
@@ -131,6 +134,10 @@ export function RpkiContent() {
     void load(false);
   }, [load]);
 
+  useEffect(() => {
+    void loadSshKeys();
+  }, [loadSshKeys]);
+
   const retry = () => {
     setLoading(true);
     void load(true);
@@ -139,7 +146,7 @@ export function RpkiContent() {
   const reload = async () => {
     setRefreshing(true);
     try {
-      await fetchData(true);
+      await Promise.all([fetchData(true), loadSshKeys()]);
     } catch (err) {
       setError((err as ApiError).message || t("errors.loadConfig"));
     } finally {
