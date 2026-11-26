@@ -70,8 +70,8 @@ def test_ui_schema_protocol_ops_resolve():
         text = path.read_text()
         # A delOp is only ever sent as delete_<op>; every other op name is
         # sent as set_ and (clearing the field or entity) delete_.
-        del_ops.update(re.findall(r"delOp:\s*\"(vrf_(?:bgp|ospf|ospfv3|isis)[a-z0-9_]*)\"", text))
-        ops.update(re.findall(r"(?<!delOp: \")vrf_(?:bgp|ospf|ospfv3|isis)[a-z0-9_]*", text))
+        for del_prefix, op in re.findall(r"(delOp:\s*\")?(vrf_(?:bgp|ospf|ospfv3|isis)[a-z0-9_]*)", text):
+            (del_ops if del_prefix else ops).add(op)
     builder = VrfBatchBuilder("1.5")
     missing = []
     names = [verb + op for op in sorted(ops) for verb in ("set_", "delete_")]

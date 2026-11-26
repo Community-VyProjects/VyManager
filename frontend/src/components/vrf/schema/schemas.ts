@@ -88,12 +88,12 @@ export const OSPF_SCHEMA: SectionSpec[] = [
   {
     title: "Parameters",
     fields: [
-      { op: "vrf_ospf_parameters_router_id", label: "Router ID", type: "text", path: ["parameters", "router-id"] },
-      { op: "vrf_ospf_parameters_abr_type", label: "ABR type", type: "select", path: ["parameters", "abr-type"], options: [
+      { op: "vrf_ospf_router_id", label: "Router ID", type: "text", path: ["parameters", "router-id"] },
+      { op: "vrf_ospf_abr_type", label: "ABR type", type: "select", path: ["parameters", "abr-type"], options: [
         { value: "cisco", label: "Cisco" }, { value: "ibm", label: "IBM" }, { value: "shortcut", label: "Shortcut" }, { value: "standard", label: "Standard" },
       ] },
-      { op: "vrf_ospf_parameters_opaque_lsa", label: "Opaque LSA", type: "toggle", path: ["parameters", "opaque-lsa"] },
-      { op: "vrf_ospf_parameters_rfc1583_compatibility", label: "RFC1583 compatibility", type: "toggle", path: ["parameters", "rfc1583-compatibility"] },
+      { op: "vrf_ospf_opaque_lsa", label: "Opaque LSA", type: "toggle", path: ["parameters", "opaque-lsa"] },
+      { op: "vrf_ospf_rfc1583_compatibility", label: "RFC1583 compatibility", type: "toggle", path: ["parameters", "rfc1583-compatibility"] },
       { op: "vrf_ospf_capability_opaque", label: "Capability opaque", type: "toggle", path: ["capability", "opaque"] },
       { op: "vrf_ospf_default_metric", label: "Default metric", type: "number", path: ["default-metric"] },
       { op: "vrf_ospf_maximum_paths", label: "Maximum paths", type: "number", path: ["maximum-paths"] },

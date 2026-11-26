@@ -252,7 +252,7 @@ def test_1_5_bgp_leaf_on_1_4_is_400(client, operation, detail):
      "virtual-link authentication null is not supported on this device"),
 ])
 def test_1_5_ospf_leaf_on_1_4_is_400(client, operation, detail):
-    resp = _post(client, [{"op": "set_vrf_ospf_parameters_router_id", "value": "T-V,192.0.2.1"}, operation])
+    resp = _post(client, [{"op": "set_vrf_ospf_router_id", "value": "T-V,192.0.2.1"}, operation])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == detail
     assert client.executed == []

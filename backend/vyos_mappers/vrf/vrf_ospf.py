@@ -2,8 +2,7 @@
 VRF OSPF Command Mapper
 
 ``vrf name <NAME> protocols ospf`` is the global ``protocols ospf`` tree on
-both labs, and VRF OSPF ops run the global ``OspfBatchBuilder`` first (the
-``parameters_*`` screen names through ``vrf_protocol._alias``). Its mapper,
+both labs, and VRF OSPF ops run the global ``OspfBatchBuilder`` first. Its mapper,
 and the 1.5 subclass in ``ospf_versions``, own every path that builder serves,
 including the 1.5-only leaves and the redistribute allowlist.
 
@@ -20,7 +19,7 @@ for, which VRF dispatch falls back to by name:
 from typing import List
 
 from ..base import BaseFeatureMapper
-from ..ospf.ospf import OspfMapper
+from ..ospf.ospf_versions import get_ospf_mapper
 
 
 class VrfOspfMapper(BaseFeatureMapper):
@@ -34,7 +33,7 @@ class VrfOspfMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_ospf_area_type(self, name: str, area: str, area_type: str) -> List[str]:
-        if area_type not in OspfMapper(self.version).area_types():
+        if area_type not in get_ospf_mapper(self.version).area_types():
             raise ValueError(f"area-type {area_type} is not supported on this device")
         return self._base(name) + ["area", area, "area-type", area_type]
 

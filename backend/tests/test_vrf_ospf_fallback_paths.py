@@ -56,20 +56,27 @@ def _run(version: str, op: str, value: str):
     return [(o["op"], o["path"]) for o in builder.get_operations()]
 
 
+#: Version-only nodes the global OSPF mapper gates on 1.4 (``_VERSIONED_NODES``).
+_GATED = ("retransmit_window", "authentication_null")
+
+
 def _global_paths(version: str):
     """CLI paths (under ``protocols ospf``) each global builder op queues for
-    placeholder arguments, keyed by verb."""
+    placeholder arguments, keyed by verb. Only the 1.4-gated ops may raise."""
     paths = {"set": set(), "delete": set()}
+    protocol = OspfMapper(version).redistribute_protocol_list()[0]
     for name, _ in inspect.getmembers(OspfBatchBuilder, inspect.isfunction):
         verb = name.split("_", 1)[0]
         if verb not in paths:
             continue
         builder = OspfBatchBuilder(version)
         method = getattr(builder, name)
-        args = [f"A{i}" for i in range(len(inspect.signature(method).parameters))]
+        params = list(inspect.signature(method).parameters)
+        args = [protocol if p == "protocol" else f"A{i}" for i, p in enumerate(params)]
         try:
             method(*args)
-        except (ValueError, TypeError):
+        except ValueError:
+            assert version == "1.4" and any(node in name for node in _GATED), name
             continue
         for op in builder.get_operations():
             paths[op["op"]].add(tuple(op["path"][2:]))
@@ -116,8 +123,8 @@ def test_mapper_has_no_redistribute_allowlist_or_version_check():
 def test_parameters_ops_run_the_global_builder(version, leaf, value, path):
     builder = VrfBatchBuilder(version)
     set_args = ("T-V", value) if value else ("T-V",)
-    getattr(builder, f"set_vrf_ospf_parameters_{leaf}")(*set_args)
-    getattr(builder, f"delete_vrf_ospf_parameters_{leaf}")("T-V")
+    getattr(builder, f"set_vrf_ospf_{leaf}")(*set_args)
+    getattr(builder, f"delete_vrf_ospf_{leaf}")("T-V")
     leaf_path = PREFIX + ["parameters"] + path
     assert [(o["op"], o["path"]) for o in builder.get_operations()] == [
         ("set", leaf_path),

@@ -55,7 +55,7 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
     if suffix is None:
         return True
     inner_cls = PROTOCOL_BUILDERS[proto]
-    if hasattr(inner_cls, f"{verb}_{_alias(proto, suffix)}"):
+    if hasattr(inner_cls, f"{verb}_{suffix}"):
         return True
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is None:
@@ -227,10 +227,6 @@ def _alias(proto: str, suffix: str) -> str:
             return "ipv4_" + suffix
     elif proto == "failover" and suffix.startswith("route_"):
         return suffix[len("route_") :]
-    elif proto == "ospf" and suffix.startswith("parameters_"):
-        # The VRF screen names `parameters <leaf>` by path; the global OSPF
-        # builder names it by leaf (set_router_id, set_abr_type, ...).
-        return suffix[len("parameters_") :]
     elif proto == "dhcp":
         if suffix == "disable":
             return "global_disable"
@@ -409,7 +405,7 @@ def run_vrf_protocol_op(
         return owner.add_set(path) if verb == "set" else owner.add_delete(path)
 
     inner = PROTOCOL_BUILDERS[proto](owner.version)
-    inner_name = f"{verb}_{_alias(proto, suffix)}"
+    inner_name = f"{verb}_{suffix}"
     method = getattr(inner, inner_name, None)
     # The op exists but its packed value fits no path.
     misfit = False
