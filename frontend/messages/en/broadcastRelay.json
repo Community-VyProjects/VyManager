@@ -23,9 +23,9 @@
     "active": "Active",
     "confirm": {
       "disableTitle": "Disable Broadcast Relay",
-      "disableDescription": "Set the global disable flag? Every relay instance stops forwarding.",
+      "disableDescription": "Disable the broadcast relay service?",
       "enableTitle": "Enable Broadcast Relay",
-      "enableDescription": "Remove the global disable flag? Relay instances that are not disabled start forwarding.",
+      "enableDescription": "Enable the broadcast relay service?",
       "deleteTitle": "Delete Broadcast Relay Service",
       "deleteDescription": "Delete service broadcast-relay with every relay instance? This action cannot be undone.",
       "apply": "Apply"

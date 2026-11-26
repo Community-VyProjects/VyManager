@@ -23,9 +23,9 @@
     "active": "活动",
     "confirm": {
       "disableTitle": "禁用广播中继",
-      "disableDescription": "设置全局禁用标志？所有中继实例将停止转发。",
+      "disableDescription": "禁用广播中继服务？",
       "enableTitle": "启用广播中继",
-      "enableDescription": "移除全局禁用标志？未禁用的中继实例将开始转发。",
+      "enableDescription": "启用广播中继服务？",
       "deleteTitle": "删除广播中继服务",
       "deleteDescription": "删除 service broadcast-relay 及其所有中继实例？此操作无法撤销。",
       "apply": "应用"

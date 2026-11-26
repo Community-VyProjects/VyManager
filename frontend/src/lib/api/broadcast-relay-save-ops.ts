@@ -1,6 +1,7 @@
 import type {
   BatchOperation,
   BroadcastRelayCapabilities,
+  BroadcastRelayConfig,
   BroadcastRelayInstance,
 } from "./broadcast-relay";
 import { isIPv4Address } from "./bgp-ranges";
@@ -199,4 +200,31 @@ export function broadcastRelayUpdateOps(
     ops.push({ op: updated.disabled ? "set_instance_disable" : "delete_instance_disable", value: id });
   }
   return ops;
+}
+
+/**
+ * Lab commit (both versions): a global `disable` with no `id` under it fails
+ * (conf_mode generate() reads `relay['id']` unguarded). Disabling needs an
+ * instance, and deleting the last instance also drops the global flag.
+ */
+export function broadcastRelayCanDisable(config: Pick<BroadcastRelayConfig, "instances">): boolean {
+  return config.instances.length > 0;
+}
+
+export function broadcastRelayDeleteInstanceOps(
+  config: Pick<BroadcastRelayConfig, "globally_disabled" | "instances">,
+  id: string,
+): BatchOperation[] {
+  const ops: BatchOperation[] = [{ op: "delete_instance", value: id }];
+  const last = config.instances.every((instance) => instance.id === id);
+  if (last && config.globally_disabled) ops.push({ op: "delete_global_disable" });
+  return ops;
+}
+
+/** An instance forwards only when neither it nor the whole service is disabled. */
+export function broadcastRelayInstanceActive(
+  config: Pick<BroadcastRelayConfig, "globally_disabled">,
+  instance: Pick<BroadcastRelayInstance, "disabled">,
+): boolean {
+  return !config.globally_disabled && !instance.disabled;
 }

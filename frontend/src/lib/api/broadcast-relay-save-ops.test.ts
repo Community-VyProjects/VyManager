@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   BROADCAST_RELAY_DESCRIPTION_MAX,
+  broadcastRelayCanDisable,
   broadcastRelayCreateOps,
+  broadcastRelayDeleteInstanceOps,
+  broadcastRelayInstanceActive,
   broadcastRelayProblem,
   broadcastRelayRanges,
   broadcastRelayUpdateOps,
@@ -10,7 +13,12 @@ import {
   normalizeBroadcastRelayDraft,
   type BroadcastRelayDraft,
 } from "./broadcast-relay-save-ops";
-import { broadcastRelayService, type BatchOperation, type BroadcastRelayInstance } from "./broadcast-relay";
+import {
+  broadcastRelayService,
+  type BatchOperation,
+  type BroadcastRelayConfig,
+  type BroadcastRelayInstance,
+} from "./broadcast-relay";
 import { apiClient } from "./client";
 
 const RANGES = { id: { min: 1, max: 99 }, port: { min: 1, max: 65535 } };
@@ -31,6 +39,36 @@ function draft(patch: Partial<BroadcastRelayDraft> = {}): BroadcastRelayDraft {
 function edit(patch: Partial<BroadcastRelayDraft>): BatchOperation[] {
   return broadcastRelayUpdateOps(STORED, normalizeBroadcastRelayDraft(draft(patch)));
 }
+
+const OTHER: BroadcastRelayInstance = { ...STORED, id: "6", port: 137 };
+const CONFIG: BroadcastRelayConfig = { configured: true, globally_disabled: false, instances: [STORED, OTHER] };
+
+describe("service state", () => {
+  it("offers the global disable only while an instance exists", () => {
+    assert.equal(broadcastRelayCanDisable(CONFIG), true);
+    assert.equal(broadcastRelayCanDisable({ instances: [] }), false);
+  });
+
+  it("deletes one instance alone, and the last one under a global disable with the flag", () => {
+    assert.deepEqual(broadcastRelayDeleteInstanceOps(CONFIG, "5"), [{ op: "delete_instance", value: "5" }]);
+    assert.deepEqual(broadcastRelayDeleteInstanceOps({ ...CONFIG, globally_disabled: true }, "5"), [
+      { op: "delete_instance", value: "5" },
+    ]);
+    assert.deepEqual(broadcastRelayDeleteInstanceOps({ ...CONFIG, instances: [STORED] }, "5"), [
+      { op: "delete_instance", value: "5" },
+    ]);
+    assert.deepEqual(
+      broadcastRelayDeleteInstanceOps({ ...CONFIG, globally_disabled: true, instances: [STORED] }, "5"),
+      [{ op: "delete_instance", value: "5" }, { op: "delete_global_disable" }],
+    );
+  });
+
+  it("counts an instance active only when neither it nor the service is disabled", () => {
+    assert.equal(broadcastRelayInstanceActive(CONFIG, STORED), true);
+    assert.equal(broadcastRelayInstanceActive(CONFIG, { disabled: true }), false);
+    assert.equal(broadcastRelayInstanceActive({ globally_disabled: true }, STORED), false);
+  });
+});
 
 describe("ranges", () => {
   it("reads the id and port bounds from capabilities", () => {
@@ -213,7 +251,7 @@ describe("client", () => {
       await broadcastRelayService.setGlobalDisable();
       await broadcastRelayService.deleteGlobalDisable();
       await broadcastRelayService.deleteService();
-      await broadcastRelayService.deleteInstance("5");
+      await broadcastRelayService.deleteInstance(CONFIG, "5");
       assert.deepEqual(
         stub.calls.map(([, body]) => (body as { operations: BatchOperation[] }).operations),
         [
@@ -241,7 +279,7 @@ describe("client", () => {
     }
     const empty = stubPost({ success: false, error: null });
     try {
-      await assert.rejects(broadcastRelayService.deleteInstance("5"), (err: unknown) => {
+      await assert.rejects(broadcastRelayService.deleteInstance(CONFIG, "5"), (err: unknown) => {
         assert.deepEqual(err, { message: "" });
         return true;
       });

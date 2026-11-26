@@ -1,6 +1,10 @@
 import { apiClient } from "./client";
 import type { ApiError } from "@/lib/types/api";
-import { broadcastRelayCreateOps, broadcastRelayUpdateOps } from "./broadcast-relay-save-ops";
+import {
+  broadcastRelayCreateOps,
+  broadcastRelayDeleteInstanceOps,
+  broadcastRelayUpdateOps,
+} from "./broadcast-relay-save-ops";
 
 export interface BroadcastRelayInstance {
   id: string;
@@ -93,8 +97,9 @@ class BroadcastRelayService {
     return this.batchConfigure(broadcastRelayUpdateOps(original, updated));
   }
 
-  async deleteInstance(id: string): Promise<VyOSResponse> {
-    return this.batchConfigure([{ op: "delete_instance", value: id }]);
+  /** Deleting the last instance under a global disable also drops the flag (see save-ops). */
+  async deleteInstance(config: BroadcastRelayConfig, id: string): Promise<VyOSResponse> {
+    return this.batchConfigure(broadcastRelayDeleteInstanceOps(config, id));
   }
 }
 

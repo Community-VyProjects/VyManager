@@ -43,6 +43,8 @@ import {
   BroadcastRelayInstance,
 } from "@/lib/api/broadcast-relay";
 import {
+  broadcastRelayCanDisable,
+  broadcastRelayInstanceActive,
   broadcastRelayRanges,
   type BroadcastRelayRanges,
 } from "@/lib/api/broadcast-relay-save-ops";
@@ -120,8 +122,10 @@ export function BroadcastRelayContent() {
 
   const writeBusy = refreshing || actionSaving;
   const totalInstances = config?.instances.length ?? 0;
-  const activeInstances = config?.instances.filter((i) => !i.disabled).length ?? 0;
-  const disabledInstances = config?.instances.filter((i) => i.disabled).length ?? 0;
+  const activeInstances = config
+    ? config.instances.filter((inst) => broadcastRelayInstanceActive(config, inst)).length
+    : 0;
+  const disabledInstances = totalInstances - activeInstances;
 
   const openAction = (action: PageAction) => {
     setPendingAction(action);
@@ -136,6 +140,7 @@ export function BroadcastRelayContent() {
 
   const handleApplyAction = async (event: MouseEvent) => {
     event.preventDefault();
+    if (!hasWritePermission) return;
     setActionSaving(true);
     setActionError(null);
     try {
@@ -166,8 +171,8 @@ export function BroadcastRelayContent() {
   };
 
   const handleDeleteInstance = async () => {
-    if (!deletingInstance) return;
-    await broadcastRelayService.deleteInstance(deletingInstance.id);
+    if (!deletingInstance || !config) return;
+    await broadcastRelayService.deleteInstance(config, deletingInstance.id);
     void reload();
   };
 
@@ -219,7 +224,7 @@ export function BroadcastRelayContent() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {hasWritePermission && (
+              {hasWritePermission && (config.globally_disabled || broadcastRelayCanDisable(config)) && (
                 <Button
                   variant={config.globally_disabled ? "default" : "outline"}
                   size="sm"
@@ -412,13 +417,13 @@ export function BroadcastRelayContent() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {inst.disabled ? (
-                            <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                              {tc("disabled")}
-                            </Badge>
-                          ) : (
+                          {broadcastRelayInstanceActive(config, inst) ? (
                             <Badge variant="secondary" className="bg-green-500/10 text-green-600">
                               {t("content.active")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                              {tc("disabled")}
                             </Badge>
                           )}
                         </TableCell>
