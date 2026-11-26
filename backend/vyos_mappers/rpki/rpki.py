@@ -1,29 +1,68 @@
-"""RPKI Protocol Command Mapper."""
-from typing import FrozenSet, List
+"""RPKI Protocol Command Mapper.
+
+One class holds the ``protocols rpki`` commands both VyOS versions have.
+Cache ``source-address`` exists only on 1.5; its paths live on
+``rpki_versions.v1_5.RpkiMapperV1_5``.
+
+Config tree (both versions):
+  protocols rpki/
+    cache/<ADDR>/
+      port
+      preference
+      ssh/{key, username}
+    expire-interval
+    polling-period
+    retry-interval
+"""
+
+from typing import Any, Dict, FrozenSet, List, Tuple
+
 from ..base import BaseFeatureMapper
 
 
 class RpkiMapper(BaseFeatureMapper):
-    """Base mapper for RPKI (Resource Public Key Infrastructure) configuration paths."""
+    """RPKI paths shared by VyOS 1.4 and 1.5."""
 
-    # Cache leaves that exist on 1.5 and not on 1.4 (validateTmplPath on both).
-    _CACHE_1_5_ONLY = ("source-address",)
-
-    def __init__(self, version: str):
-        super().__init__(version)
-
-    def versioned_cache_nodes(self) -> FrozenSet[str]:
-        """Version-dependent cache leaves this device has."""
-        if "1.4" in self.version:
-            return frozenset()
-        return frozenset(self._CACHE_1_5_ONLY)
-
-    def _require_cache(self, node: str) -> None:
-        if node not in self.versioned_cache_nodes():
-            raise ValueError(f"rpki cache {node} is not supported on this device")
+    # Version-only cache leaf -> every path method for it (on the subclass).
+    _VERSIONED_CACHE_NODES: Dict[str, Tuple[str, ...]] = {
+        "source-address": (
+            "get_cache_source_address",
+            "get_cache_source_address_delete",
+        ),
+    }
 
     def _rpki(self) -> List[str]:
         return ["protocols", "rpki"]
+
+    # ========================================================================
+    # Version allowlist
+    # ========================================================================
+
+    def versioned_cache_nodes(self) -> FrozenSet[str]:
+        """Cache leaves only some VyOS versions have.
+
+        A leaf counts when every path method for it is on this mapper.
+        Capabilities and the builder read this set instead of the version
+        string.
+        """
+        return frozenset(
+            node
+            for node, methods in self._VERSIONED_CACHE_NODES.items()
+            if all(callable(getattr(self, method, None)) for method in methods)
+        )
+
+    def require_cache_node(self, node: str) -> None:
+        if node not in self.versioned_cache_nodes():
+            raise ValueError(f"rpki cache {node} is not supported on this device")
+
+    # ========================================================================
+    # Config read
+    # ========================================================================
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_rpki_config
+
+        return parse_rpki_config(self, full_config)
 
     # ========================================================================
     # Cache servers
@@ -46,14 +85,6 @@ class RpkiMapper(BaseFeatureMapper):
 
     def get_cache_preference_delete(self, address: str) -> List[str]:
         return self._rpki() + ["cache", address, "preference"]
-
-    def get_cache_source_address(self, address: str, source: str) -> List[str]:
-        self._require_cache("source-address")
-        return self._rpki() + ["cache", address, "source-address", source]
-
-    def get_cache_source_address_delete(self, address: str) -> List[str]:
-        self._require_cache("source-address")
-        return self._rpki() + ["cache", address, "source-address"]
 
     def get_cache_ssh_key(self, address: str, key: str) -> List[str]:
         return self._rpki() + ["cache", address, "ssh", "key", key]

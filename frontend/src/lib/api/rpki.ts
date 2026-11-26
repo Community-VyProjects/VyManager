@@ -1,4 +1,14 @@
 import { apiClient } from "./client";
+import type { ApiError } from "@/lib/types/api";
+import {
+  rpkiCacheOps,
+  rpkiDeleteOps,
+  rpkiTimerOps,
+  type RpkiCacheFields,
+  type RpkiRangeKey,
+  type RpkiTimerFields,
+  type RpkiTimerKey,
+} from "./rpki-save-ops";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -18,6 +28,8 @@ export interface RpkiCacheServer {
 }
 
 export interface RpkiConfig {
+  /** `protocols rpki` exists on the device (a bare node counts). */
+  configured: boolean;
   cache_servers: RpkiCacheServer[];
   expire_interval: number | null;
   polling_period: number | null;
@@ -26,7 +38,6 @@ export interface RpkiConfig {
 
 export interface RpkiCapabilities {
   version: string;
-  version_info: { is_1_4: boolean; is_1_5: boolean };
   features: {
     cache_servers: { supported: boolean; description: string };
     expire_interval: { supported: boolean; description: string };
@@ -35,6 +46,10 @@ export interface RpkiCapabilities {
     cache_source_address: { supported: boolean; description: string };
     ssh_transport: { supported: boolean; description: string };
   };
+  /** Lab syntax bounds, served by the builder. */
+  ranges: Partial<Record<RpkiRangeKey, { min: number; max: number }>>;
+  /** Lab defaults applied when a timer is unset. */
+  defaults: Partial<Record<RpkiTimerKey, number>>;
   instance_name?: string;
   instance_id?: string;
 }
@@ -50,8 +65,10 @@ export interface VyOSResponse {
   error?: string | null;
 }
 
+const NO_CHANGES: VyOSResponse = { success: true, data: null };
+
 // ============================================================================
-// API Service
+// API Service. Op building lives in rpki-save-ops.ts; this only posts.
 // ============================================================================
 
 class RpkiService {
@@ -65,135 +82,39 @@ class RpkiService {
     });
   }
 
-  private async batch(ops: RpkiBatchOperation[]): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/rpki/batch", {
-      operations: ops,
-    });
-    if (!result.success) throw new Error(result.error || "RPKI operation failed");
+  /** POST one batch. An unchanged form sends nothing; a rejected commit throws the device error. */
+  async batchConfigure(operations: RpkiBatchOperation[]): Promise<VyOSResponse> {
+    if (operations.length === 0) return NO_CHANGES;
+    const result = await apiClient.post<VyOSResponse>("/vyos/rpki/batch", { operations });
+    if (!result.success) {
+      const error: ApiError = { message: result.error || "" };
+      throw error;
+    }
     return result;
   }
 
-  async createCacheServer(server: RpkiCacheServer): Promise<VyOSResponse> {
-    const ops: RpkiBatchOperation[] = [{ op: "set_cache", value: server.address }];
-
-    if (server.port != null) {
-      ops.push({ op: "set_cache_port", value: `${server.address},${server.port}` });
-    }
-    if (server.preference != null) {
-      ops.push({ op: "set_cache_preference", value: `${server.address},${server.preference}` });
-    }
-    if (server.source_address) {
-      ops.push({ op: "set_cache_source_address", value: `${server.address},${server.source_address}` });
-    }
-    if (server.ssh?.key) {
-      ops.push({ op: "set_cache_ssh_key", value: `${server.address},${server.ssh.key}` });
-    }
-    if (server.ssh?.username) {
-      ops.push({ op: "set_cache_ssh_username", value: `${server.address},${server.ssh.username}` });
-    }
-
-    return this.batch(ops);
+  async createCacheServer(fields: RpkiCacheFields, caps: RpkiCapabilities | null): Promise<VyOSResponse> {
+    return this.batchConfigure(rpkiCacheOps(null, fields, caps));
   }
 
   async updateCacheServer(
     original: RpkiCacheServer,
-    updated: RpkiCacheServer
+    fields: RpkiCacheFields,
+    caps: RpkiCapabilities | null,
   ): Promise<VyOSResponse> {
-    const ops: RpkiBatchOperation[] = [];
-    const addr = original.address;
-
-    if (original.port !== updated.port) {
-      if (updated.port != null) {
-        ops.push({ op: "set_cache_port", value: `${addr},${updated.port}` });
-      } else {
-        ops.push({ op: "delete_cache_port", value: addr });
-      }
-    }
-
-    if (original.preference !== updated.preference) {
-      if (updated.preference != null) {
-        ops.push({ op: "set_cache_preference", value: `${addr},${updated.preference}` });
-      } else {
-        ops.push({ op: "delete_cache_preference", value: addr });
-      }
-    }
-
-    if (original.source_address !== updated.source_address) {
-      if (updated.source_address) {
-        ops.push({ op: "set_cache_source_address", value: `${addr},${updated.source_address}` });
-      } else {
-        ops.push({ op: "delete_cache_source_address", value: addr });
-      }
-    }
-
-    const hadSsh = original.ssh != null;
-    const hasSsh = updated.ssh != null;
-
-    if (hadSsh && !hasSsh) {
-      ops.push({ op: "delete_cache_ssh", value: addr });
-    } else {
-      if (original.ssh?.key !== updated.ssh?.key) {
-        if (updated.ssh?.key) {
-          ops.push({ op: "set_cache_ssh_key", value: `${addr},${updated.ssh.key}` });
-        } else {
-          ops.push({ op: "delete_cache_ssh_key", value: addr });
-        }
-      }
-      if (original.ssh?.username !== updated.ssh?.username) {
-        if (updated.ssh?.username) {
-          ops.push({ op: "set_cache_ssh_username", value: `${addr},${updated.ssh.username}` });
-        } else {
-          ops.push({ op: "delete_cache_ssh_username", value: addr });
-        }
-      }
-    }
-
-    if (ops.length === 0) {
-      return { success: true, data: { message: "No changes" } };
-    }
-
-    return this.batch(ops);
+    return this.batchConfigure(rpkiCacheOps(original, fields, caps));
   }
 
   async deleteCacheServer(address: string): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_cache", value: address }]);
+    return this.batchConfigure(rpkiDeleteOps.cache(address));
   }
 
-  async updateGlobalSettings(
-    current: Pick<RpkiConfig, "expire_interval" | "polling_period" | "retry_interval">,
-    next: Pick<RpkiConfig, "expire_interval" | "polling_period" | "retry_interval">
-  ): Promise<VyOSResponse> {
-    const ops: RpkiBatchOperation[] = [];
+  async updateGlobalSettings(original: RpkiConfig, fields: RpkiTimerFields): Promise<VyOSResponse> {
+    return this.batchConfigure(rpkiTimerOps(original, fields));
+  }
 
-    if (current.expire_interval !== next.expire_interval) {
-      if (next.expire_interval != null) {
-        ops.push({ op: "set_expire_interval", value: String(next.expire_interval) });
-      } else {
-        ops.push({ op: "delete_expire_interval" });
-      }
-    }
-
-    if (current.polling_period !== next.polling_period) {
-      if (next.polling_period != null) {
-        ops.push({ op: "set_polling_period", value: String(next.polling_period) });
-      } else {
-        ops.push({ op: "delete_polling_period" });
-      }
-    }
-
-    if (current.retry_interval !== next.retry_interval) {
-      if (next.retry_interval != null) {
-        ops.push({ op: "set_retry_interval", value: String(next.retry_interval) });
-      } else {
-        ops.push({ op: "delete_retry_interval" });
-      }
-    }
-
-    if (ops.length === 0) {
-      return { success: true, data: { message: "No changes" } };
-    }
-
-    return this.batch(ops);
+  async deleteRpki(): Promise<VyOSResponse> {
+    return this.batchConfigure(rpkiDeleteOps.all());
   }
 }
 

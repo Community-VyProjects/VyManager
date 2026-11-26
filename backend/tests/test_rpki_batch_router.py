@@ -162,6 +162,7 @@ def test_config_returns_the_parse(client):
     resp = client.http.get("/vyos/rpki/config")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
+        "configured": True,
         "cache_servers": [{
             "address": "192.0.2.1",
             "port": 3323,
@@ -253,6 +254,28 @@ def test_batch_source_address_on_1_4_is_400(client, commit, op, value):
     ])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == "rpki cache source-address is not supported on this device"
+    assert client.executed == []
+
+
+@pytest.mark.parametrize("op, value, detail", [
+    ("set_cache", "rpki cache", "rpki cache address must be an IP address or a hostname"),
+    ("set_cache_port", "192.0.2.1,0", "rpki port must be a number from 1 to 65535"),
+    ("set_cache_port", "192.0.2.1,65536", "rpki port must be a number from 1 to 65535"),
+    ("set_cache_preference", "192.0.2.1,256", "rpki preference must be a number from 1 to 255"),
+    ("set_cache_source_address", "192.0.2.1,2001:db8::1", "rpki cache source-address must be an IPv4 address"),
+    ("set_cache_ssh_username", "192.0.2.1,r\u00e9", "rpki cache ssh username must be 1 to 128 ASCII characters"),
+    ("set_expire_interval", "599", "rpki expire_interval must be a number from 600 to 172800"),
+    ("set_polling_period", "86401", "rpki polling_period must be a number from 1 to 86400"),
+    ("set_retry_interval", "\u0663", "rpki retry_interval must be a number from 1 to 7200"),
+])
+def test_batch_value_the_lab_rejects_is_400(client, op, value, detail):
+    """The builder checks each value against the lab syntax before anything commits."""
+    resp = _post(client, [
+        {"op": "set_polling_period", "value": "300"},
+        {"op": op, "value": value},
+    ])
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == detail
     assert client.executed == []
 
 
