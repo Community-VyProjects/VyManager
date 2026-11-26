@@ -50,7 +50,12 @@ GATED_HANDLERS = {
         "access_list_batch_configure": "require_write_permission",
         "reorder_access_list_rules": "require_write_permission",
     },
-    "prefix_list/prefix_list.py": {},
+    "prefix_list/prefix_list.py": {
+        "get_prefix_list_capabilities": "require_read_permission",
+        "get_prefix_list_config": "require_read_permission",
+        "prefix_list_batch_configure": "require_write_permission",
+        "reorder_prefix_list_rules": "require_write_permission",
+    },
 }
 
 # router files whose batch handlers dispatch a client-supplied op name
@@ -60,6 +65,7 @@ DYNAMIC_DISPATCH_FILES = [
     "as_path_list/as_path_list.py",
     "policy_list/policy_list.py",
     "route/route.py",
+    "prefix_list/prefix_list.py",
     "route_map/route_map.py",
     "access_list/access_list.py",
     "bgp/bgp.py",

@@ -15,11 +15,6 @@ import {
   type LocalRouteRule,
 } from "@/lib/api/local-route";
 import {
-  PrefixListService,
-  type PrefixListBatchRequest,
-  type PrefixListRule,
-} from "@/lib/api/prefix-list";
-import {
   AccessListService,
   type AccessListBatchRequest,
   type AccessListRule,
@@ -30,6 +25,8 @@ import {
   type RouteMapRule,
 } from "@/lib/api/route-map";
 import type { VyOSResponse } from "@/lib/types/api";
+import type { PrefixListCapabilitiesResponse, PrefixListRule } from "@/lib/api/prefix-list";
+import { familyLabel, geLeBounds, sectionTarget, suggestedRuleNumber } from "./prefix-list-rule-form";
 import {
   emptyRegexListRuleDraft,
   regexListRuleDraftFrom,
@@ -44,12 +41,6 @@ import {
   submitLocalRouteUpdate,
   validateLocalRoute,
 } from "./local-route-form";
-import {
-  emptyPrefixListRuleDraft,
-  prefixListRuleDraftFrom,
-  submitPrefixListUpdate,
-  validatePrefixListRule,
-} from "./prefix-list-rule-form";
 import {
   emptyAccessListRuleDraft,
   submitAccessListCreate,
@@ -82,14 +73,6 @@ class RecordingPolicy extends PolicyListService {
 class RecordingLocal extends LocalRouteService {
   calls: LocalRouteBatchRequest[] = [];
   async batchConfigure(request: LocalRouteBatchRequest): Promise<VyOSResponse> {
-    this.calls.push(request);
-    return { success: true };
-  }
-}
-
-class RecordingPrefix extends PrefixListService {
-  calls: PrefixListBatchRequest[] = [];
-  async batchConfigure(request: PrefixListBatchRequest): Promise<VyOSResponse> {
     this.calls.push(request);
     return { success: true };
   }
@@ -129,15 +112,6 @@ const storedLocal: LocalRouteRule = {
   destination_port: null,
   table: "main",
   vrf: null,
-};
-
-const storedPrefix: PrefixListRule = {
-  rule_number: 10,
-  action: "permit",
-  description: "corp",
-  prefix: "10.0.0.0/8",
-  ge: 16,
-  le: null,
 };
 
 const storedAccess: AccessListRule = {
@@ -294,33 +268,44 @@ describe("local route update", () => {
   });
 });
 
-describe("prefix-list rule", () => {
-  it("rejects a missing prefix", () => {
-    assert.deepEqual(
-      validatePrefixListRule(emptyPrefixListRuleDraft(), "ipv4"),
-      { key: "prefixRequired" },
-    );
+describe("prefix-list form helpers", () => {
+  const caps = {
+    ranges: {
+      rule: { min: 1, max: 65535 },
+      prefix_length_ipv4: { min: 0, max: 32 },
+      prefix_length_ipv6: { min: 0, max: 128 },
+    },
+  } as PrefixListCapabilitiesResponse;
+  const rule = (n: number): PrefixListRule => ({
+    rule_number: n, action: "permit", description: null, prefix: "10.0.0.0/8", ge: null, le: null,
   });
 
-  it("deletes a cleared ge on update", async () => {
-    const service = new RecordingPrefix();
-    const draft = prefixListRuleDraftFrom(storedPrefix);
-    draft.ge = "";
-    await submitPrefixListUpdate("PL", "ipv4", storedPrefix, draft, service);
-    assert.ok(service.calls[0].operations.some((op) => op.op === "delete_rule_ge"));
+  it("a ?section= request switches type, waits for a reorder save, or does nothing", () => {
+    assert.equal(sectionTarget("ipv6", "ipv4", false), "ipv6");
+    assert.equal(sectionTarget("ipv4", "ipv6", false), "ipv4");
+    assert.equal(sectionTarget("ipv6", "ipv4", true), "wait");
+    assert.equal(sectionTarget("ipv6", "ipv6", false), null);
+    assert.equal(sectionTarget("ipv6", "ipv6", true), null);
+    assert.equal(sectionTarget(null, "ipv4", false), null);
+    assert.equal(sectionTarget("route", "ipv4", true), null);
   });
 
-  it("sends nothing when nothing changed", async () => {
-    const service = new RecordingPrefix();
-    const result = await submitPrefixListUpdate(
-      "PL",
-      "ipv4",
-      storedPrefix,
-      prefixListRuleDraftFrom(storedPrefix),
-      service,
-    );
-    assert.equal(result, null);
-    assert.equal(service.calls.length, 0);
+  it("family label", () => {
+    assert.equal(familyLabel("ipv4"), "IPv4");
+    assert.equal(familyLabel("ipv6"), "IPv6");
+  });
+
+  it("suggests a free rule number inside the served range", () => {
+    assert.equal(suggestedRuleNumber([], caps), "100");
+    assert.equal(suggestedRuleNumber([rule(10), rule(20)], caps), "21");
+    assert.equal(suggestedRuleNumber([rule(65535)], caps), "1");
+    assert.equal(suggestedRuleNumber([rule(5)], null), "6");
+  });
+
+  it("ge/le bounds start at the typed prefix length", () => {
+    assert.deepEqual(geLeBounds("ipv4", "10.0.0.0/16", caps), { min: 16, max: 32 });
+    assert.deepEqual(geLeBounds("ipv6", "", caps), { min: 0, max: 128 });
+    assert.deepEqual(geLeBounds("ipv4", "10.0.0.0", null), { min: undefined, max: undefined });
   });
 });
 

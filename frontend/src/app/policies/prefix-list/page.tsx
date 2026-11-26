@@ -2,8 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { Suspense } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,26 +14,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  AlertCircle,
-  ListFilter,
-  Trash2,
-  Pencil,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
-import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { Plus, Search, RefreshCw, AlertCircle, ListFilter, Trash2, Pencil } from "lucide-react";
+import { DndContext, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
   prefixListService,
   type PrefixList,
-  type PrefixListConfigResponse,
-  type PrefixListRule,
   type PrefixListCapabilitiesResponse,
+  type PrefixListRule,
+  type PrefixListType,
 } from "@/lib/api/prefix-list";
+import { reorderMoveCount } from "@/lib/api/prefix-list-save-ops";
+import { familyLabel, sectionTarget } from "@/components/policies/prefix-list-rule-form";
+import type { ApiError } from "@/lib/types/api";
+import { FeatureGroup } from "@/lib/api/user-management";
+import { usePermissions } from "@/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreatePrefixListModal } from "@/components/policies/CreatePrefixListModal";
@@ -43,229 +39,200 @@ import { DeletePrefixListRuleModal } from "@/components/policies/DeletePrefixLis
 import { PrefixListRuleRow } from "@/components/policies/PrefixListRuleRow";
 import { PrefixListReorderBanner } from "@/components/policies/PrefixListReorderBanner";
 
+type ModalKind = "createList" | "editList" | "deleteList" | "createRule" | "editRule" | "deleteRule";
+
+interface ModalState {
+  kind: ModalKind;
+  list: PrefixList | null;
+  rule: PrefixListRule | null;
+}
+
 function PrefixListPageInner() {
   const t = useTranslations("prefixList");
   const tc = useTranslations("common");
   const searchParams = useSearchParams();
-  const [config, setConfig] = useState<PrefixListConfigResponse | null>(null);
+  const { canWrite } = usePermissions();
+  const hasWrite = canWrite(FeatureGroup.PREFIX_LIST);
+
+  const [ipv4Lists, setIpv4Lists] = useState<PrefixList[]>([]);
+  const [ipv6Lists, setIpv6Lists] = useState<PrefixList[]>([]);
   const [capabilities, setCapabilities] = useState<PrefixListCapabilitiesResponse | null>(null);
-  const [selectedListType, setSelectedListType] = useState<"ipv4" | "ipv6">("ipv4");
-  const [selectedList, setSelectedList] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [selectedListType, setSelectedListType] = useState<PrefixListType>(() =>
+    searchParams.get("section") === "ipv6" ? "ipv6" : "ipv4",
+  );
+  const [selectedListName, setSelectedListName] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [ruleSearchQuery, setRuleSearchQuery] = useState("");
 
-  // Modal states
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editingList, setEditingList] = useState<PrefixList | null>(null);
-  const [deletingList, setDeletingList] = useState<PrefixList | null>(null);
-  const [addRuleModalOpen, setAddRuleModalOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<PrefixListRule | null>(null);
-  const [deletingRule, setDeletingRule] = useState<PrefixListRule | null>(null);
+  // One modal at a time; the subject stays set after close so the text does not flip.
+  const [modal, setModal] = useState<ModalState | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalKey, setModalKey] = useState(0);
 
-  // Drag and drop states
   const [reorderedRules, setReorderedRules] = useState<PrefixListRule[]>([]);
-  const [originalRules, setOriginalRules] = useState<PrefixListRule[]>([]);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
 
-  // Drag and drop sensors - require 8px movement before drag starts
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-  useEffect(() => {
-    fetchConfig();
-    fetchCapabilities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch config + capabilities once on mount
+  const applyConfig = useCallback(async (refresh: boolean) => {
+    const [config, caps] = await Promise.all([prefixListService.getConfig(refresh), prefixListService.getCapabilities()]);
+    setIpv4Lists(config.ipv4_lists);
+    setIpv6Lists(config.ipv6_lists);
+    setCapabilities(caps);
+    setReorderedRules([]);
+    setReorderError(null);
+    setError(null);
   }, []);
 
-  useEffect(() => {
-    const section = searchParams.get("section");
-    if (section === "ipv4" || section === "ipv6") {
-      setSelectedListType(section);
-    }
-  }, [searchParams]);
-
-  const fetchConfig = async (refresh: boolean = false) => {
+  const loadData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await prefixListService.getConfig(refresh);
-      setConfig(data);
-
-      // Reset reorder state when new config is loaded
-      setHasChanges(false);
-      setReorderedRules([]);
-      setOriginalRules([]);
-
-      // Auto-select first list if none selected
-      if (!selectedList) {
-        const lists = selectedListType === "ipv4" ? data.ipv4_lists : data.ipv6_lists;
-        if (lists.length > 0) {
-          setSelectedList(lists[0].name);
-        }
-      }
+      await applyConfig(false);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("page.loadFailed")
-      );
-      console.error("Error fetching prefix-list config:", err);
+      setError((err as ApiError).message || t("page.loadFailed"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [applyConfig, t]);
 
-  const fetchCapabilities = async () => {
+  /** Re-read after a save without swapping the page (and open dialogs) for the spinner. */
+  const reload = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const caps = await prefixListService.getCapabilities();
-      setCapabilities(caps);
+      await applyConfig(true);
     } catch (err) {
-      console.error("Error fetching capabilities:", err);
+      setError((err as ApiError).message || t("page.loadFailed"));
+    } finally {
+      setRefreshing(false);
     }
-  };
+  }, [applyConfig, t]);
 
-  const currentLists = selectedListType === "ipv4" ? config?.ipv4_lists || [] : config?.ipv6_lists || [];
-  const selectedListData = currentLists.find((list) => list.name === selectedList);
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
-  // Get current rules (reordered or original)
-  const currentRules = hasChanges && reorderedRules.length > 0
-    ? reorderedRules
-    : selectedListData?.rules || [];
+  const lists = selectedListType === "ipv4" ? ipv4Lists : ipv6Lists;
+  const selectedListData = lists.find((l) => l.name === selectedListName) ?? lists[0];
+  const hasReorder = reorderedRules.length > 0;
+  const currentRules = hasReorder ? reorderedRules : selectedListData?.rules || [];
+  const writeDisabled = refreshing || savingReorder;
 
-  // Filter lists based on search
-  const filteredLists = currentLists.filter((list) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      list.name.toLowerCase().includes(query) ||
-      list.description?.toLowerCase().includes(query)
-    );
+  const filteredLists = lists.filter((list) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return list.name.toLowerCase().includes(query) || (list.description ?? "").toLowerCase().includes(query);
   });
 
-  // Filter rules based on search
   const filteredRules = currentRules.filter((rule) => {
-    if (!ruleSearchQuery) return true;
-    const query = ruleSearchQuery.toLowerCase();
+    const query = ruleSearchQuery.trim().toLowerCase();
+    if (!query) return true;
     return (
       rule.rule_number.toString().includes(query) ||
-      rule.description?.toLowerCase().includes(query) ||
-      rule.action.toLowerCase().includes(query) ||
-      rule.prefix?.toLowerCase().includes(query)
+      (rule.description ?? "").toLowerCase().includes(query) ||
+      (rule.action ?? "").toLowerCase().includes(query) ||
+      (rule.prefix ?? "").toLowerCase().includes(query)
     );
   });
 
-  // Drag and drop handlers
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as number);
+  const openModal = (kind: ModalKind, list: PrefixList | null = null, rule: PrefixListRule | null = null) => {
+    setModal({ kind, list, rule });
+    setModalKey((key) => key + 1);
+    setModalOpen(true);
   };
+
+  const resetReorder = useCallback(() => {
+    setReorderedRules([]);
+    setReorderError(null);
+  }, []);
+
+  /** Tab click and `?section=` both switch here: the pending reorder, selection and searches belong to the old type. */
+  const switchListType = useCallback(
+    (type: PrefixListType) => {
+      resetReorder();
+      setSelectedListType(type);
+      setSelectedListName(null);
+      setSearchQuery("");
+      setRuleSearchQuery("");
+    },
+    [resetReorder],
+  );
+
+  // A `?section=` request (sidebar nav, search hit) is held until it applies,
+  // so a reorder save in flight delays it instead of dropping it, and a later
+  // tab click is not undone when the save ends.
+  const [requestedSection, setRequestedSection] = useState<string | null>(null);
+  useEffect(() => {
+    setRequestedSection(searchParams.get("section"));
+  }, [searchParams]);
+  useEffect(() => {
+    if (requestedSection === null) return;
+    const target = sectionTarget(requestedSection, selectedListType, savingReorder);
+    if (target === "wait") return;
+    setRequestedSection(null);
+    if (target) switchListType(target);
+  }, [requestedSection, selectedListType, savingReorder, switchListType]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveId(null);
-
     if (!over || active.id === over.id) return;
-
     const oldIndex = currentRules.findIndex((r) => r.rule_number === active.id);
     const newIndex = currentRules.findIndex((r) => r.rule_number === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const newRules = arrayMove(currentRules, oldIndex, newIndex);
-
-    // Store original rules if this is the first change
-    if (!hasChanges) {
-      setOriginalRules([...currentRules]);
+    if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+      const next = arrayMove(currentRules, oldIndex, newIndex);
+      // Dragged back to the stored order: nothing left to save.
+      if (reorderMoveCount(next.map((r) => r.rule_number)) === 0) resetReorder();
+      else setReorderedRules(next);
     }
-
-    setReorderedRules(newRules);
-    setHasChanges(true);
-  };
-
-  const handleCancelReorder = () => {
-    setReorderedRules([]);
-    setOriginalRules([]);
-    setHasChanges(false);
   };
 
   const handleSaveReorder = async () => {
-    if (!selectedList || reorderedRules.length === 0) return;
-
+    if (!selectedListData || !hasReorder) return;
     setSavingReorder(true);
+    setReorderError(null);
     try {
-      // Find the minimum rule number to preserve the starting point
-      const minRuleNumber = Math.min(...originalRules.map(r => r.rule_number));
-
-      // Calculate new rule numbers (renumber sequentially starting from original minimum)
-      const rulesWithNewNumbers = reorderedRules.map((rule, index) => ({
-        old_number: rule.rule_number,
-        new_number: minRuleNumber + index,
-        rule_data: rule,
-      }));
-
-      await prefixListService.reorderRules(selectedList, selectedListType, rulesWithNewNumbers);
-
-      // Refresh config and reset state
-      await fetchConfig(true);
+      // Every rule of the list, in the new order.
+      await prefixListService.reorderRules(
+        selectedListType,
+        selectedListData.name,
+        reorderedRules.map((r) => r.rule_number),
+      );
+      resetReorder();
+      void reload();
     } catch (err) {
-      console.error("Error saving reordered rules:", err);
-      setError(err instanceof Error ? err.message : t("page.reorderFailed"));
+      setReorderError((err as ApiError).message || t("page.reorderFailed"));
     } finally {
       setSavingReorder(false);
     }
   };
 
-  const handleListSelect = (name: string) => {
-    // Reset reorder state when changing lists
-    if (hasChanges) {
-      setHasChanges(false);
-      setReorderedRules([]);
-      setOriginalRules([]);
-    }
-    setSelectedList(name);
-    setRuleSearchQuery("");
-  };
-
   const handleTabChange = (value: string) => {
-    const newType = value as "ipv4" | "ipv6";
-    setSelectedListType(newType);
-
-    // Reset reorder state
-    setHasChanges(false);
-    setReorderedRules([]);
-    setOriginalRules([]);
-
-    // Select first list of new type
-    const lists = newType === "ipv4" ? config?.ipv4_lists || [] : config?.ipv6_lists || [];
-    if (lists.length > 0) {
-      setSelectedList(lists[0].name);
-    } else {
-      setSelectedList(null);
-    }
-    setSearchQuery("");
-    setRuleSearchQuery("");
+    if (savingReorder || value === selectedListType) return;
+    switchListType(value as PrefixListType);
   };
 
-  const handleDeleteList = (list: PrefixList) => {
-    setDeletingList(list);
+  const handleListSelect = (name: string) => {
+    resetReorder();
+    setSelectedListName(name);
+    setRuleSearchQuery("");
   };
 
   const handleListDeleted = () => {
-    // If deleted list was selected, select another one
-    if (selectedList === deletingList?.name) {
-      const remaining = currentLists.filter((list) => list.name !== deletingList?.name);
-      setSelectedList(remaining.length > 0 ? remaining[0].name : null);
-    }
-    fetchConfig(true);
+    if (selectedListData && modal?.list?.name === selectedListData.name) setSelectedListName(null);
+    resetReorder();
+    void reload();
+  };
+
+  const afterSave = () => {
+    resetReorder();
+    void reload();
   };
 
   const ruleIds = filteredRules.map((r) => r.rule_number);
+  const family = familyLabel(selectedListType);
 
   if (loading) {
     return (
@@ -284,9 +251,9 @@ function PrefixListPageInner() {
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <h2 className="text-xl font-semibold text-foreground">{t("page.errorLoading")}</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchConfig(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <p className="text-muted-foreground max-w-md whitespace-pre-wrap">{error}</p>
+            <Button onClick={() => void reload()} variant="outline" disabled={refreshing}>
+              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
               {tc("retry")}
             </Button>
           </div>
@@ -298,7 +265,7 @@ function PrefixListPageInner() {
   return (
     <AppLayout>
       <div className="flex h-full">
-        {/* Left Sidebar - Prefix List List */}
+        {/* Left Sidebar - Prefix Lists */}
         <div className="w-80 border-r border-border bg-card/50 flex flex-col">
           <div className="p-6 pb-4 shrink-0">
             <div className="flex items-center gap-3 mb-6">
@@ -308,56 +275,62 @@ function PrefixListPageInner() {
               <div>
                 <h1 className="text-lg font-semibold text-foreground">{t("page.title")}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {t("page.totals", { ipv4: config?.total_ipv4 || 0, ipv6: config?.total_ipv6 || 0 })}
+                  {t("page.totals", { ipv4: ipv4Lists.length, ipv6: ipv6Lists.length })}
                 </p>
               </div>
             </div>
 
-            {/* Tabs for IPv4/IPv6 */}
             <Tabs value={selectedListType} onValueChange={handleTabChange} className="mb-4">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="ipv4">IPv4</TabsTrigger>
-                <TabsTrigger value="ipv6">IPv6</TabsTrigger>
+                <TabsTrigger value="ipv4" disabled={savingReorder}>
+                  {familyLabel("ipv4")}
+                </TabsTrigger>
+                <TabsTrigger value="ipv6" disabled={savingReorder}>
+                  {familyLabel("ipv6")}
+                </TabsTrigger>
               </TabsList>
             </Tabs>
 
-            {/* Search Lists */}
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t("page.searchLists")}
+                aria-label={t("page.searchLists")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
 
-            <Button
-              onClick={() => setCreateModalOpen(true)}
-              className="w-full"
-              size="sm"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t("page.createList")}
-            </Button>
+            {hasWrite && (
+              <Button
+                onClick={() => openModal("createList")}
+                className="w-full"
+                size="sm"
+                disabled={writeDisabled || hasReorder}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t("page.createList")}
+              </Button>
+            )}
           </div>
 
           <Separator className="shrink-0" />
 
-          {/* Prefix List List */}
           <ScrollArea className="flex-1 px-3 min-h-0">
             <div className="space-y-1 py-3">
               {filteredLists.length === 0 ? (
                 <div className="px-2 py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? t("page.noListsMatch") : t("page.noListsConfigured")}
+                    {searchQuery.trim() ? t("page.noListsMatch") : t("page.noListsConfigured")}
                   </p>
-                  {!searchQuery && (
+                  {!searchQuery.trim() && hasWrite && (
                     <Button
                       variant="link"
                       size="sm"
-                      onClick={() => setCreateModalOpen(true)}
+                      onClick={() => openModal("createList")}
                       className="mt-2"
+                      disabled={writeDisabled}
                     >
                       {t("page.createFirst")}
                     </Button>
@@ -369,42 +342,43 @@ function PrefixListPageInner() {
                     key={list.name}
                     className={cn(
                       "group relative rounded-lg transition-all",
-                      selectedList === list.name
+                      selectedListData?.name === list.name
                         ? "bg-accent text-accent-foreground shadow-sm"
                         : "hover:bg-accent/50"
                     )}
                   >
                     <button
                       onClick={() => handleListSelect(list.name)}
-                      className="w-full text-left px-3 py-2.5 pr-10"
+                      disabled={savingReorder}
+                      className="w-full text-left px-3 py-2.5 pr-10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm font-mono truncate">
-                          {list.name}
-                        </span>
+                        <span className="font-medium text-sm font-mono truncate">{list.name}</span>
                         <Badge variant="secondary" className="ml-2 shrink-0">
                           {list.rules.length}
                         </Badge>
                       </div>
                       {list.description && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {list.description}
-                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{list.description}</p>
                       )}
                     </button>
-                    <div className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteList(list);
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    {hasWrite && (
+                      <div className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          aria-label={t("page.deleteList", { name: list.name })}
+                          disabled={writeDisabled || hasReorder}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openModal("deleteList", list);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -416,48 +390,51 @@ function PrefixListPageInner() {
         <div className="flex-1 flex flex-col">
           {selectedListData ? (
             <>
-              {/* Header */}
               <div className="p-6 pb-4 border-b border-border">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-3">
-                      <h2 className="text-2xl font-bold text-foreground font-mono">
-                        {selectedListData.name}
-                      </h2>
-                      <Badge variant="outline">
-                        {selectedListType.toUpperCase()}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingList(selectedListData)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <h2 className="text-2xl font-bold text-foreground font-mono">{selectedListData.name}</h2>
+                      <Badge variant="outline">{family}</Badge>
+                      {hasWrite && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={t("page.editList", { name: selectedListData.name })}
+                          disabled={writeDisabled || hasReorder}
+                          onClick={() => openModal("editList", selectedListData)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                     {selectedListData.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {selectedListData.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{selectedListData.description}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
-                      <RefreshCw className="h-4 w-4 mr-2" />
+                    <Button onClick={() => void reload()} variant="outline" size="sm" disabled={refreshing || savingReorder}>
+                      <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
                       {tc("refresh")}
                     </Button>
-                    <Button onClick={() => setAddRuleModalOpen(true)} size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("page.addRule")}
-                    </Button>
+                    {hasWrite && (
+                      <Button
+                        onClick={() => openModal("createRule", selectedListData)}
+                        size="sm"
+                        disabled={writeDisabled || hasReorder}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("page.addRule")}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
-                {/* Search Rules */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t("page.searchRules")}
+                    aria-label={t("page.searchRules")}
                     value={ruleSearchQuery}
                     onChange={(e) => setRuleSearchQuery(e.target.value)}
                     className="pl-10"
@@ -465,32 +442,29 @@ function PrefixListPageInner() {
                 </div>
               </div>
 
-              {/* Reorder Banner */}
-              {hasChanges && (
+              {hasReorder && (
                 <PrefixListReorderBanner
                   onSave={handleSaveReorder}
-                  onCancel={handleCancelReorder}
+                  onCancel={resetReorder}
                   saving={savingReorder}
-                  count={reorderedRules.length}
+                  count={reorderMoveCount(reorderedRules.map((r) => r.rule_number))}
+                  error={reorderError}
                 />
               )}
 
-              {/* Rules Table */}
               <div className="flex-1 p-6 pt-4 overflow-hidden">
                 {filteredRules.length === 0 ? (
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <ListFilter className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {ruleSearchQuery ? t("page.noRulesMatch") : t("page.noRulesConfigured")}
+                        {ruleSearchQuery.trim() ? t("page.noRulesMatch") : t("page.noRulesConfigured")}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
-                        {ruleSearchQuery
-                          ? t("page.adjustSearch")
-                          : t("page.addRulesHint")}
+                        {ruleSearchQuery.trim() ? t("page.adjustSearch") : t("page.addRulesHint")}
                       </p>
-                      {!ruleSearchQuery && (
-                        <Button onClick={() => setAddRuleModalOpen(true)}>
+                      {!ruleSearchQuery.trim() && hasWrite && (
+                        <Button onClick={() => openModal("createRule", selectedListData)} disabled={writeDisabled}>
                           <Plus className="h-4 w-4 mr-2" />
                           {t("page.addFirstRule")}
                         </Button>
@@ -500,12 +474,7 @@ function PrefixListPageInner() {
                 ) : (
                   <Card>
                     <ScrollArea className="h-[calc(100vh-350px)]">
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                      >
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -514,22 +483,22 @@ function PrefixListPageInner() {
                               <TableHead>{t("page.colAction")}</TableHead>
                               <TableHead>{tc("description")}</TableHead>
                               <TableHead>{t("page.colPrefix")}</TableHead>
-                              <TableHead>GE</TableHead>
-                              <TableHead>LE</TableHead>
+                              <TableHead>{t("page.colGe")}</TableHead>
+                              <TableHead>{t("page.colLe")}</TableHead>
                               <TableHead className="text-right">{tc("actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            <SortableContext
-                              items={ruleIds}
-                              strategy={verticalListSortingStrategy}
-                            >
+                            <SortableContext items={ruleIds} strategy={verticalListSortingStrategy}>
                               {filteredRules.map((rule) => (
                                 <PrefixListRuleRow
                                   key={rule.rule_number}
                                   rule={rule}
-                                  onEdit={setEditingRule}
-                                  onDelete={setDeletingRule}
+                                  onEdit={(r) => openModal("editRule", selectedListData, r)}
+                                  onDelete={(r) => openModal("deleteRule", selectedListData, r)}
+                                  canWrite={hasWrite}
+                                  dragDisabled={writeDisabled || ruleSearchQuery.trim() !== ""}
+                                  disabled={writeDisabled || hasReorder}
                                 />
                               ))}
                             </SortableContext>
@@ -545,16 +514,12 @@ function PrefixListPageInner() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-4">
                 <ListFilter className="h-16 w-16 text-muted-foreground mx-auto" />
-                <h2 className="text-xl font-semibold text-foreground">
-                  {t("page.noSelection")}
-                </h2>
+                <h2 className="text-xl font-semibold text-foreground">{t("page.noSelection")}</h2>
                 <p className="text-muted-foreground max-w-md">
-                  {currentLists.length === 0
-                    ? t("page.createToStart")
-                    : t("page.selectFromSidebar")}
+                  {lists.length === 0 ? t("page.createToStart") : t("page.selectFromSidebar")}
                 </p>
-                {currentLists.length === 0 && (
-                  <Button onClick={() => setCreateModalOpen(true)}>
+                {lists.length === 0 && hasWrite && (
+                  <Button onClick={() => openModal("createList")} disabled={writeDisabled}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("page.createList")}
                   </Button>
@@ -565,53 +530,61 @@ function PrefixListPageInner() {
         </div>
       </div>
 
-      {/* Modals */}
-      <CreatePrefixListModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        onSuccess={() => fetchConfig(true)}
-        listType={selectedListType}
-        capabilities={capabilities}
-      />
+      {modal?.kind === "createList" && (
+        <CreatePrefixListModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          listType={selectedListType}
+          existingNames={lists.map((l) => l.name)}
+          capabilities={capabilities}
+        />
+      )}
 
-      <EditPrefixListModal
-        open={editingList !== null}
-        onOpenChange={(open) => !open && setEditingList(null)}
-        onSuccess={() => fetchConfig(true)}
-        prefixList={editingList}
-      />
+      {modal?.kind === "editList" && modal.list && (
+        <EditPrefixListModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          prefixList={modal.list}
+          capabilities={capabilities}
+        />
+      )}
 
-      <DeletePrefixListModal
-        open={deletingList !== null}
-        onOpenChange={(open) => !open && setDeletingList(null)}
-        onSuccess={handleListDeleted}
-        prefixList={deletingList}
-      />
+      {modal?.kind === "deleteList" && modal.list && (
+        <DeletePrefixListModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={handleListDeleted}
+          prefixList={modal.list}
+        />
+      )}
 
-      {selectedListData && (
-        <>
-          <PrefixListRuleModal
-            open={addRuleModalOpen || editingRule !== null}
-            onOpenChange={(open) => {
-              if (!open) {
-                setAddRuleModalOpen(false);
-                setEditingRule(null);
-              }
-            }}
-            onSuccess={() => fetchConfig(true)}
-            prefixList={selectedListData}
-            existing={editingRule}
-          />
+      {(modal?.kind === "createRule" || modal?.kind === "editRule") && modal.list && (
+        <PrefixListRuleModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          prefixList={modal.list}
+          existing={modal.kind === "editRule" ? modal.rule : null}
+          capabilities={capabilities}
+        />
+      )}
 
-          <DeletePrefixListRuleModal
-            open={deletingRule !== null}
-            onOpenChange={(open) => !open && setDeletingRule(null)}
-            onSuccess={() => fetchConfig(true)}
-            rule={deletingRule}
-            listName={selectedList}
-            listType={selectedListType}
-          />
-        </>
+      {modal?.kind === "deleteRule" && modal.list && modal.rule && (
+        <DeletePrefixListRuleModal
+          key={modalKey}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onSuccess={afterSave}
+          rule={modal.rule}
+          listName={modal.list.name}
+          listType={modal.list.list_type}
+        />
       )}
     </AppLayout>
   );
