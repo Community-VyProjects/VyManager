@@ -182,11 +182,12 @@ function ipv6Groups(addr: string): number[] | null {
 }
 
 /**
- * IPv6 prefix as the lab takes it: a valid address, /0-128, and every bit
- * past the prefix length zero (2001:db8::1/48 is rejected).
+ * IPv6 prefix as the lab takes it: a valid address with no zone index, /0-128
+ * with no leading zero (/032 is rejected), and every bit past the prefix
+ * length zero (2001:db8::1/48 is rejected).
  */
 export function isIpv6Prefix(value: string): boolean {
-  const match = /^([^/]+)\/(\d{1,3})$/.exec(value);
+  const match = /^([^/%]+)\/(0|[1-9][0-9]{0,2})$/.exec(value);
   if (!match) return false;
   const length = Number(match[2]);
   const groups = ipv6Groups(match[1]);

@@ -230,7 +230,7 @@ describe("named list select", () => {
     assert.doesNotMatch(modal, /from "@\/components\/ui\/select"/);
     const page = readFileSync(join(FRONTEND, "src/components/ripng/RipngContent.tsx"), "utf8");
     assert.match(page, /InterfaceSelect/);
-    assert.match(page, /label: "default", value: "default"/);
+    assert.match(page, /label: tc\("shown\.default"\), value: "default"/);
     assert.match(page, /items\.includes\("default"\)/);
     assert.doesNotMatch(page, /showService/);
   });

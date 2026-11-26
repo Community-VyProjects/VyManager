@@ -36,7 +36,10 @@ RANGES: Dict[str, Dict[str, int]] = {
     "priority": {"min": 0, "max": 255},
 }
 
-_DECIMAL = re.compile(r"^\d{1,10}$")
+# ASCII: a Unicode digit (٣, ３０) is not a number the lab takes.
+_DECIMAL = re.compile(r"^\d{1,10}$", re.ASCII)
+# Prefix length as the lab takes it: no leading zero (/032 is rejected).
+_PREFIX_LENGTH = re.compile(r"0|[1-9]\d{0,2}", re.ASCII)
 
 
 def _number(key: str, value: str) -> str:
@@ -72,7 +75,9 @@ def _area_id(value: str) -> str:
 def _ipv6_prefix(value: str) -> str:
     text = str(value).strip()
     try:
-        if "/" not in text:
+        address, sep, length = text.partition("/")
+        # The lab rejects a zone index (fe80::%eth0/64) and /032.
+        if not sep or "%" in address or not _PREFIX_LENGTH.fullmatch(length):
             raise ValueError
         # strict: the lab rejects a prefix with host bits set (2001:db8::1/48).
         ipaddress.IPv6Network(text, strict=True)

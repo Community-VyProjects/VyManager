@@ -101,7 +101,7 @@ class VyOSResponse(BaseModel):
 
 @router.get("/capabilities")
 async def get_ripng_capabilities(request: Request):
-    """Return RIPng feature capabilities based on the device VyOS version."""
+    """Return RIPng feature capabilities; they are the same on every VyOS version."""
     await require_read_permission(request, FeatureGroup.RIPNG)
 
     try:

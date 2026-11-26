@@ -103,7 +103,7 @@ describe("settings", () => {
   it("checks the served ranges with strict digits", () => {
     assert.equal(ripngSettingsProblem(draft(), CAPS), null);
     assert.equal(ripngSettingsProblem(draft({ default_metric: "" }), CAPS), null);
-    for (const bad of ["0", "17", "1e1", "3.0", "-1", "3abc", "0x3"]) {
+    for (const bad of ["0", "17", "1e1", "3.0", "-1", "3abc", "0x3", "٣", "３"]) {
       assert.deepEqual(ripngSettingsProblem(draft({ default_metric: bad }), CAPS), { key: "metricRange", min: 1, max: 16 }, bad);
     }
     assert.deepEqual(
@@ -139,6 +139,8 @@ describe("lists", () => {
     assert.deepEqual(ripngListProblem("network", [], "2001:db8::1/32"), { key: "prefixInvalid" });
     assert.deepEqual(ripngListProblem("route", [], "10.0.0.0/8"), { key: "prefixInvalid" });
     assert.deepEqual(ripngListProblem("aggregateAddress", [], "2001:db8::"), { key: "prefixInvalid" });
+    assert.deepEqual(ripngListProblem("network", [], "2001:db8::/032"), { key: "prefixInvalid" });
+    assert.deepEqual(ripngListProblem("route", [], "fe80::%eth0/64"), { key: "prefixInvalid" });
     assert.deepEqual(ripngListProblem("network", ["2001:db8::/32"], " 2001:db8::/32"), { key: "prefixExists" });
     assert.deepEqual(ripngListProblem("passiveInterface", [], ""), { key: "selectInterface" });
     assert.deepEqual(ripngListProblem("passiveInterface", ["eth0"], "eth0"), { key: "interfaceExists" });
@@ -381,7 +383,8 @@ describe("screens", () => {
     assert.match(src, /event\.preventDefault\(\)/);
     assert.match(src, /setError\(\(err as ApiError\)\.message \|\| tc\("operationFailed"\)\)/);
     const page = read("RipngContent.tsx");
-    assert.match(page, /await DELETE_ACTIONS\[deleteTarget\.kind\]\(deleteTarget\.name\);\n\s*setDeleteOpen\(false\);/);
+    // The commit runs before the close, so a failed commit leaves the dialog open.
+    assert.match(page, /await DELETE_ACTIONS\[deleteTarget\.kind\]\(deleteTarget\.name\);\n[^\n]*\n\s*setDeleteOpen\(false\);/);
   });
 
   it("list removes go through the confirm dialog and wait while a commit runs", () => {
@@ -392,6 +395,29 @@ describe("screens", () => {
     assert.equal(page.match(/disabled=\{busy\}/g)?.length, 3);
     assert.match(page, /disabled=\{busy \|\| !inputValue\.trim\(\)\}/);
     assert.match(page, /if \(inputValue\.trim\(\) && !busy\)/);
+  });
+
+  it("a list commit gates every other write control on the page", () => {
+    const page = read("RipngContent.tsx");
+    assert.match(page, /const writeBusy = refreshing \|\| listBusy !== null;/);
+    // Only the Refresh button waits on the re-read alone.
+    assert.equal(page.match(/disabled=\{refreshing\}/g)?.length, 1);
+    // header delete, overview edit, 2 interface adds, 2 redistribute adds, global-filter edit, per-interface add,
+    // and the edit/delete pair on each of the three tables
+    assert.equal(page.match(/disabled=\{writeBusy\}/g)?.length, 14);
+    assert.match(page, /onClick=\{saveOverview\} disabled=\{overviewSaving \|\| writeBusy\}/);
+    assert.match(page, /onClick=\{saveDlGlobal\} disabled=\{dlGlobalSaving \|\| writeBusy\}/);
+  });
+
+  it("clears a list section error when its draft changes or one of its items is deleted", () => {
+    const page = read("RipngContent.tsx");
+    assert.match(page, /setListDrafts\(\(prev\) => \(\{ \.\.\.prev, \[kind\]: v \}\)\);\n\s*setListError\(kind, null\);/);
+    assert.match(page, /if \(isListKind\(deleteTarget\.kind\)\) setListError\(deleteTarget\.kind, null\);/);
+  });
+
+  it("labels the passive-interface default option from the shared catalog", () => {
+    const page = read("RipngContent.tsx");
+    assert.match(page, /\{ label: tc\("shown\.default"\), value: "default" \}/);
   });
 
   it("reports a failed picker list load unless it is a 403", () => {

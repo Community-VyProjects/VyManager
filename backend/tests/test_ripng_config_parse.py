@@ -6,10 +6,6 @@ from vyos_mappers.base import CommandMapperRegistry
 from vyos_mappers.ripng import RipNgMapper
 
 
-def get_ripng_mapper(version):
-    return RipNgMapper(version)
-
-
 def _tree():
     return {
         "protocols": {
@@ -44,7 +40,7 @@ def _tree():
 
 
 def test_parse_distinctive_fields():
-    parsed = get_ripng_mapper("1.5").parse_config(_tree())
+    parsed = RipNgMapper("1.5").parse_config(_tree())
     assert parsed["configured"] is True
     assert parsed["default_information_originate"] is True
     assert parsed["default_metric"] == 4
@@ -71,7 +67,7 @@ def test_parse_distinctive_fields():
 
 
 def test_empty_tree():
-    parsed = get_ripng_mapper("1.4").parse_config({})
+    parsed = RipNgMapper("1.4").parse_config({})
     assert parsed["configured"] is False
     assert parsed["default_information_originate"] is False
     assert parsed["aggregate_addresses"] == []
@@ -84,8 +80,8 @@ def test_empty_tree():
 
 @pytest.mark.parametrize("bare", [{}, None])
 def test_bare_protocols_ripng_is_configured(bare):
-    parsed = get_ripng_mapper("1.5").parse_config({"protocols": {"ripng": bare}})
-    empty = get_ripng_mapper("1.5").parse_config({"protocols": {}})
+    parsed = RipNgMapper("1.5").parse_config({"protocols": {"ripng": bare}})
+    empty = RipNgMapper("1.5").parse_config({"protocols": {}})
     assert parsed["configured"] is True
     assert empty["configured"] is False
     parsed.pop("configured")
@@ -96,13 +92,13 @@ def test_bare_protocols_ripng_is_configured(bare):
 @pytest.mark.parametrize("originate", [{}, None])
 def test_bare_default_information_originate_is_on(originate):
     tree = {"protocols": {"ripng": {"default-information": {"originate": originate}}}}
-    assert get_ripng_mapper("1.5").parse_config(tree)["default_information_originate"] is True
+    assert RipNgMapper("1.5").parse_config(tree)["default_information_originate"] is True
 
 
 @pytest.mark.parametrize("split", [{}, None])
 def test_bare_split_horizon_reads_unset(split):
     tree = {"protocols": {"ripng": {"interface": {"eth0": {"split-horizon": split}, "eth1": {}}}}}
-    parsed = get_ripng_mapper("1.5").parse_config(tree)
+    parsed = RipNgMapper("1.5").parse_config(tree)
     assert parsed["interfaces"] == [
         {"name": "eth0", "split_horizon": None},
         {"name": "eth1", "split_horizon": None},
@@ -112,7 +108,7 @@ def test_bare_split_horizon_reads_unset(split):
 @pytest.mark.parametrize("entry", [{}, None, {"access-list": {}, "prefix-list": None}])
 def test_bare_per_interface_distribute_list_is_listed(entry):
     tree = {"protocols": {"ripng": {"distribute-list": {"interface": {"eth0": entry}}}}}
-    parsed = get_ripng_mapper("1.5").parse_config(tree)
+    parsed = RipNgMapper("1.5").parse_config(tree)
     assert parsed["distribute_list"]["interface_filters"] == [{
         "interface": "eth0",
         "access_list_in": None,
@@ -127,7 +123,7 @@ def test_bare_per_interface_distribute_list_is_listed(entry):
 
 def test_bare_redistribute_and_timers():
     tree = {"protocols": {"ripng": {"redistribute": {"kernel": {}}, "timers": {}}}}
-    parsed = get_ripng_mapper("1.5").parse_config(tree)
+    parsed = RipNgMapper("1.5").parse_config(tree)
     assert parsed["redistribute"] == [{"protocol": "kernel", "metric": None, "route_map": None}]
     assert parsed["timers"] == {"update": None, "timeout": None, "garbage_collection": None}
 
@@ -136,19 +132,20 @@ def test_sample_tree_fits_the_router_model():
     from routers.ripng.ripng import RipNgConfig
 
     for tree in (_tree(), {}, {"protocols": {"ripng": {}}}):
-        parsed = get_ripng_mapper("1.5").parse_config(tree)
+        parsed = RipNgMapper("1.5").parse_config(tree)
         assert RipNgConfig(**parsed).model_dump() == parsed
 
 
-def test_registry_matches_factory():
-    factory = get_ripng_mapper("1.5").parse_config(_tree())
-    registry = CommandMapperRegistry.get_mapper("ripng", "1.5").parse_config(_tree())
-    assert registry["default_metric"] == factory["default_metric"] == 4
+@pytest.mark.parametrize("version", ["1.4", "1.5", "2026.09.23-0027-rolling"])
+def test_registry_returns_ripng_mapper(version):
+    mapper = CommandMapperRegistry.get_mapper("ripng", version)
+    assert type(mapper) is RipNgMapper
+    assert mapper.parse_config(_tree()) == RipNgMapper(version).parse_config(_tree())
 
 
 def test_get_config_returns_mapper_parse(monkeypatch):
     tree = _tree()
-    expected = get_ripng_mapper("1.5").parse_config(tree)
+    expected = RipNgMapper("1.5").parse_config(tree)
 
     async def allow(*_args, **_kwargs):
         return None

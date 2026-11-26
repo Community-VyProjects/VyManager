@@ -257,3 +257,24 @@ def test_range_prefix_without_host_bits_is_accepted(prefix):
 def test_range_prefix_with_host_bits_names_the_problem():
     with pytest.raises(ValueError, match="host bits"):
         Ospfv3BatchBuilder("1.4").set_area_range("1", "2001:db8::1/48")
+
+
+@pytest.mark.parametrize("method,args", [
+    ("set_interface_cost", ("eth0", "\u0663")),
+    ("set_interface_cost", ("eth0", "\uff13\uff10")),
+    ("set_interface_priority", ("eth0", "\u0661")),
+    ("set_area", ("\u0661",)),
+])
+def test_unicode_digits_are_rejected(method, args):
+    builder = Ospfv3BatchBuilder("1.5")
+    with pytest.raises(ValueError):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize("prefix", ["fe80::%eth0/64", "2001:db8::%1/32", "2001:db8::/032", "::/00", "2001:db8::/\uff13\uff12"])
+def test_range_prefix_with_zone_or_padded_length_is_rejected(prefix):
+    builder = Ospfv3BatchBuilder("1.5")
+    with pytest.raises(ValueError, match="IPv6 prefix"):
+        builder.set_area_range("1", prefix)
+    assert builder.get_operations() == []

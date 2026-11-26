@@ -62,6 +62,10 @@ import { DeleteRipngModal, type RipNgDeleteKind } from "./DeleteRipngModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
+const LIST_KINDS: readonly RipNgListKind[] = ["network", "aggregateAddress", "route", "passiveInterface"];
+const isListKind = (kind: RipNgDeleteKind): kind is RipNgListKind =>
+  (LIST_KINDS as readonly string[]).includes(kind);
+
 /** The commit each delete dialog runs, by the kind of object it removes. */
 const DELETE_ACTIONS: Record<RipNgDeleteKind, (name: string) => Promise<unknown>> = {
   interface: (name) => ripNgService.deleteInterface(name),
@@ -325,6 +329,7 @@ export function RipngContent() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     await DELETE_ACTIONS[deleteTarget.kind](deleteTarget.name);
+    if (isListKind(deleteTarget.kind)) setListError(deleteTarget.kind, null);
     setDeleteOpen(false);
     void reload();
   };
@@ -367,6 +372,9 @@ export function RipngContent() {
   // Derived values
   // ============================================================
 
+  // Write controls outside the list sections wait for a list commit and the re-read after any save.
+  const writeBusy = refreshing || listBusy !== null;
+
   const networkCount = config?.networks.length ?? 0;
   const aggregateCount = config?.aggregate_addresses.length ?? 0;
   const ifaceCount = config?.interfaces.length ?? 0;
@@ -401,7 +409,10 @@ export function RipngContent() {
   ) => {
     const inputId = `ripng-list-${kind}`;
     const inputValue = listDrafts[kind];
-    const onInputChange = (v: string) => setListDrafts((prev) => ({ ...prev, [kind]: v }));
+    const onInputChange = (v: string) => {
+      setListDrafts((prev) => ({ ...prev, [kind]: v }));
+      setListError(kind, null);
+    };
     const err = listErrorsByKind[kind] ?? null;
     // Every section waits while any list commit or the re-read after it runs; only the running one spins.
     const busy = listBusy !== null || refreshing;
@@ -430,7 +441,7 @@ export function RipngContent() {
                 placeholder={inputPlaceholder}
                 className="flex-1"
                 filter={(item) => !items.includes(item.name)}
-                noneOption={items.includes("default") ? undefined : { label: "default", value: "default" }}
+                noneOption={items.includes("default") ? undefined : { label: tc("shown.default"), value: "default" }}
               />
             ) : (
               <Input
@@ -531,7 +542,7 @@ export function RipngContent() {
                   size="sm"
                   className="text-destructive hover:text-destructive"
                   onClick={() => openDelete("ripng", "")}
-                  disabled={refreshing}
+                  disabled={writeBusy}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   {t("header.deleteRipng")}
@@ -645,14 +656,14 @@ export function RipngContent() {
                 <p className="text-sm text-muted-foreground">{t("overview.description")}</p>
                 {hasWritePermission && (
                   !overviewEditing ? (
-                    <Button size="sm" variant="outline" onClick={startEditOverview} disabled={refreshing}>
+                    <Button size="sm" variant="outline" onClick={startEditOverview} disabled={writeBusy}>
                       <Pencil className="h-4 w-4 mr-2" />
                       {tc("edit")}
                     </Button>
                   ) : (
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={cancelEditOverview} disabled={overviewSaving}>{tc("cancel")}</Button>
-                      <Button size="sm" onClick={saveOverview} disabled={overviewSaving}>
+                      <Button size="sm" onClick={saveOverview} disabled={overviewSaving || writeBusy}>
                         {overviewSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         {tc("save")}
                       </Button>
@@ -809,7 +820,7 @@ export function RipngContent() {
                   {t("interfaces.description")}
                 </p>
                 {hasWritePermission && (
-                  <Button size="sm" onClick={() => openIfaceModal(null)} disabled={refreshing}>
+                  <Button size="sm" onClick={() => openIfaceModal(null)} disabled={writeBusy}>
                     <Plus className="h-4 w-4 mr-2" />
                     {tc("addInterface")}
                   </Button>
@@ -825,7 +836,7 @@ export function RipngContent() {
                       {t("interfaces.emptyHint")}
                     </p>
                     {hasWritePermission && (
-                      <Button size="sm" onClick={() => openIfaceModal(null)} disabled={refreshing}>
+                      <Button size="sm" onClick={() => openIfaceModal(null)} disabled={writeBusy}>
                         <Plus className="h-4 w-4 mr-2" />
                         {tc("addInterface")}
                       </Button>
@@ -859,14 +870,14 @@ export function RipngContent() {
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
                                     variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
-                                    disabled={refreshing}
+                                    disabled={writeBusy}
                                     onClick={() => openIfaceModal(iface)}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
                                     variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
-                                    disabled={refreshing}
+                                    disabled={writeBusy}
                                     onClick={() => openDelete("interface", iface.name)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -892,7 +903,7 @@ export function RipngContent() {
                   {t("redistribute.description")}
                 </p>
                 {hasWritePermission && (
-                  <Button size="sm" onClick={() => openRedistModal(null)} disabled={refreshing}>
+                  <Button size="sm" onClick={() => openRedistModal(null)} disabled={writeBusy}>
                     <Plus className="h-4 w-4 mr-2" />
                     {tc("add")}
                   </Button>
@@ -905,7 +916,7 @@ export function RipngContent() {
                     <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
                     <p className="text-sm text-muted-foreground mb-2">{t("redistribute.empty")}</p>
                     {hasWritePermission && (
-                      <Button size="sm" onClick={() => openRedistModal(null)} disabled={refreshing}>
+                      <Button size="sm" onClick={() => openRedistModal(null)} disabled={writeBusy}>
                         <Plus className="h-4 w-4 mr-2" />
                         {tc("add")}
                       </Button>
@@ -943,14 +954,14 @@ export function RipngContent() {
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
                                     variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
-                                    disabled={refreshing}
+                                    disabled={writeBusy}
                                     onClick={() => openRedistModal(r)}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
                                     variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
-                                    disabled={refreshing}
+                                    disabled={writeBusy}
                                     onClick={() => openDelete("redistribution", r.protocol)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -981,14 +992,14 @@ export function RipngContent() {
                       <h3 className="text-sm font-medium text-muted-foreground">{t("filters.globalFilters")}</h3>
                       {hasWritePermission && (
                         !dlGlobalEditing ? (
-                          <Button size="sm" variant="outline" onClick={startEditDlGlobal} disabled={refreshing}>
+                          <Button size="sm" variant="outline" onClick={startEditDlGlobal} disabled={writeBusy}>
                             <Pencil className="h-4 w-4 mr-2" />
                             {tc("edit")}
                           </Button>
                         ) : (
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" onClick={cancelEditDlGlobal} disabled={dlGlobalSaving}>{tc("cancel")}</Button>
-                            <Button size="sm" onClick={saveDlGlobal} disabled={dlGlobalSaving}>
+                            <Button size="sm" onClick={saveDlGlobal} disabled={dlGlobalSaving || writeBusy}>
                               {dlGlobalSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                               {tc("save")}
                             </Button>
@@ -1040,7 +1051,7 @@ export function RipngContent() {
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-medium text-muted-foreground">{t("filters.perInterfaceFilters")}</h3>
                       {hasWritePermission && (
-                        <Button size="sm" onClick={() => openDlIfaceModal(null)} disabled={refreshing}>
+                        <Button size="sm" onClick={() => openDlIfaceModal(null)} disabled={writeBusy}>
                           <Plus className="h-4 w-4 mr-2" />
                           {tc("add")}
                         </Button>
@@ -1080,14 +1091,14 @@ export function RipngContent() {
                                       <div className="flex items-center justify-end gap-1">
                                         <Button
                                           variant="ghost" size="icon" className="h-8 w-8" aria-label={tc("edit")}
-                                          disabled={refreshing}
+                                          disabled={writeBusy}
                                           onClick={() => openDlIfaceModal(f)}
                                         >
                                           <Pencil className="h-4 w-4" />
                                         </Button>
                                         <Button
                                           variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={tc("delete")}
-                                          disabled={refreshing}
+                                          disabled={writeBusy}
                                           onClick={() => openDelete("interfaceFilter", f.interface)}
                                         >
                                           <Trash2 className="h-4 w-4" />

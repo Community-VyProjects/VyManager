@@ -436,6 +436,13 @@ describe("areas", () => {
     assert.ok(isIpv6Prefix("2001:db8:0:1::/64"));
     assert.ok(!isIpv6Prefix("2001:db8:0:1::/63"));
     assert.ok(isIpv6Prefix("2001:db8:0:1:0:0:0:1/128"));
+    // The lab rejects a zone index and a prefix length with a leading zero.
+    assert.ok(!isIpv6Prefix("fe80::%eth0/64"));
+    assert.ok(!isIpv6Prefix("2001:db8::%1/32"));
+    assert.ok(!isIpv6Prefix("2001:db8::/032"));
+    assert.ok(!isIpv6Prefix("::/00"));
+    assert.ok(!isIpv6Prefix("2001:db8::/３２"));
+    assert.ok(isIpv6Prefix("2001:db8::/32"));
     assert.ok(!isIpv6Prefix("1::2::3/64"));
     assert.ok(!isIpv6Prefix("1:2:3:4:5:6:7:8:9/64"));
     assert.ok(!isIpv6Prefix("12345::/16"));

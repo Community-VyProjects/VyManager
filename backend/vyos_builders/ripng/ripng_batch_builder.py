@@ -27,13 +27,16 @@ RANGES: Dict[str, Dict[str, int]] = {
     "timer": {"min": 5, "max": 2147483647},
 }
 
-_DECIMAL = re.compile(r"\d{1,10}")
+# ASCII: a Unicode digit (٣, ３０) is not a number the lab takes.
+_DECIMAL = re.compile(r"\d{1,10}", re.ASCII)
+# Prefix length as the lab takes it: no leading zero (/032 is rejected).
+_PREFIX_LENGTH = re.compile(r"0|[1-9]\d{0,2}", re.ASCII)
 # route-map and redistribute <proto> route-map node.def syntax.
 _ROUTE_MAP_NAME = re.compile(r"[-_a-zA-Z0-9][\w\-\.\+]*", re.ASCII)
 # distribute-list access-list takes a `policy access-list6` name. That node
-# has no name validator on the lab (free text); reject a blank, a space or a
-# comma so the op still names one list.
-_ACCESS_LIST_NAME = re.compile(r"[\w\-\.\+]+", re.ASCII)
+# has no name validator on the lab (free text); reject only a blank,
+# whitespace or a comma so the op still names one list.
+_ACCESS_LIST_NAME = re.compile(r"[^\s,]+")
 # distribute-list prefix-list takes a `policy prefix-list6` name, which the lab
 # limits to [-_a-zA-Z0-9]+ ("." and "+" are rejected).
 _PREFIX_LIST_NAME = re.compile(r"[-_a-zA-Z0-9]+", re.ASCII)
@@ -51,7 +54,9 @@ def _number(key: str, value: str) -> str:
 def _ipv6_prefix(value: str) -> str:
     text = str(value).strip()
     try:
-        if "/" not in text:
+        address, sep, length = text.partition("/")
+        # The lab rejects a zone index (fe80::%eth0/64) and /032.
+        if not sep or "%" in address or not _PREFIX_LENGTH.fullmatch(length):
             raise ValueError
         # strict: the lab rejects a prefix with host bits set (2001:db8::1/48).
         ipaddress.IPv6Network(text, strict=True)
@@ -70,7 +75,7 @@ def _route_map(value: str) -> str:
 def _access_list(value: str) -> str:
     text = str(value).strip()
     if not _ACCESS_LIST_NAME.fullmatch(text):
-        raise ValueError("access-list name may only contain letters, digits, hyphen, underscore, dot and plus")
+        raise ValueError("access-list name must not be blank or contain whitespace or a comma")
     return text
 
 

@@ -227,3 +227,45 @@ def test_mapper_has_no_versions_package_or_pass_through_init():
     assert importlib.util.find_spec("vyos_mappers.ripng.ripng_versions") is None
     assert "__init__" not in RipNgMapper.__dict__
     assert "parse_config" in RipNgMapper.__dict__
+
+
+@pytest.mark.parametrize("method,args", [
+    ("set_default_metric", ("\u0663",)),
+    ("set_default_metric", ("\uff13",)),
+    ("set_redistribute_metric", ("bgp", "\u0661")),
+    ("set_timers_update", ("\uff13\uff10",)),
+    ("set_timers_garbage_collection", ("\u0661\u0662\u0660",)),
+])
+def test_unicode_digits_are_rejected(method, args):
+    builder = RipNgBatchBuilder("1.5")
+    with pytest.raises(ValueError):
+        getattr(builder, method)(*args)
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize("method", ["set_network", "delete_network", "set_aggregate_address", "set_route"])
+@pytest.mark.parametrize("prefix", ["fe80::%eth0/64", "2001:db8::%1/32", "2001:db8::/032", "::/00", "2001:db8::/\uff13\uff12"])
+def test_prefix_with_zone_or_padded_length_is_rejected(method, prefix):
+    builder = RipNgBatchBuilder("1.5")
+    with pytest.raises(ValueError, match="IPv6 prefix"):
+        getattr(builder, method)(prefix)
+    assert builder.get_operations() == []
+
+
+@pytest.mark.parametrize("name", ["acl:6", "acl/6", "ACL.6", "acl#1"])
+def test_access_list_name_is_free_text(name):
+    builder = RipNgBatchBuilder("1.5")
+    builder.set_distribute_list_access_list_in(name)
+    builder.set_distribute_list_interface_access_list_out("eth0", name)
+    assert builder.get_operations() == [
+        {"op": "set", "path": BASE + ["distribute-list", "access-list", "in", name]},
+        {"op": "set", "path": BASE + ["distribute-list", "interface", "eth0", "access-list", "out", name]},
+    ]
+
+
+@pytest.mark.parametrize("name", ["", " ", "a b", "a\tb", "a,b"])
+def test_access_list_name_rejects_blank_whitespace_and_comma(name):
+    builder = RipNgBatchBuilder("1.5")
+    with pytest.raises(ValueError, match="access-list name"):
+        builder.set_distribute_list_access_list_out(name)
+    assert builder.get_operations() == []
