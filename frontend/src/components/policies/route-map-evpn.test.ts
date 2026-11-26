@@ -1,79 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  RouteMapService,
-  type RouteMapBatchRequest,
-} from "@/lib/api/route-map";
-import type { VyOSResponse } from "@/lib/types/api";
-import {
-  emptyEvpnMatchDraft,
-  emptyEvpnSetDraft,
-  evpnMatchDraftFrom,
-  evpnMatchFields,
-  evpnSetDraftFrom,
-  evpnSetFields,
-} from "./route-map-evpn";
+import { evpnRouteTypeLabel } from "./route-map-evpn";
 
-class RecordingRouteMap extends RouteMapService {
-  calls: RouteMapBatchRequest[] = [];
-  async batchConfigure(request: RouteMapBatchRequest): Promise<VyOSResponse> {
-    this.calls.push(request);
-    return { success: true } as VyOSResponse;
-  }
-}
-
-describe("route-map EVPN draft", () => {
-  it("omits every field when the draft is empty", () => {
-    assert.deepEqual(evpnMatchFields(emptyEvpnMatchDraft()), {});
-    assert.deepEqual(evpnSetFields(emptyEvpnSetDraft()), {});
+describe("evpnRouteTypeLabel", () => {
+  it("labels every named 1.4 and 1.5 route type", () => {
+    assert.deepEqual(evpnRouteTypeLabel("ead"), { key: "evpn.routeTypeEad", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("macip"), { key: "evpn.routeTypeMacip", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("multicast"), { key: "evpn.routeTypeMulticast", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("es"), { key: "evpn.routeTypeEs", alias: null });
+    assert.deepEqual(evpnRouteTypeLabel("prefix"), { key: "evpn.routeTypePrefix", alias: null });
   });
 
-  it("round-trips stored fields", () => {
-    const match = { evpn_default_route: true, evpn_rd: "65000:100", evpn_route_type: "macip", evpn_vni: 1 };
-    assert.deepEqual(evpnMatchFields(evpnMatchDraftFrom(match)), match);
-    const set = { evpn_gateway_ipv4: "192.0.2.1", evpn_gateway_ipv6: "2001:db8::1" };
-    assert.deepEqual(evpnSetFields(evpnSetDraftFrom(set)), set);
+  it("labels the 1.5 numeric aliases with their type's name and number", () => {
+    assert.deepEqual(evpnRouteTypeLabel("1"), { key: "evpn.routeTypeEad", alias: "1" });
+    assert.deepEqual(evpnRouteTypeLabel("2"), { key: "evpn.routeTypeMacip", alias: "2" });
+    assert.deepEqual(evpnRouteTypeLabel("3"), { key: "evpn.routeTypeMulticast", alias: "3" });
+    assert.deepEqual(evpnRouteTypeLabel("4"), { key: "evpn.routeTypeEs", alias: "4" });
+    assert.deepEqual(evpnRouteTypeLabel("5"), { key: "evpn.routeTypePrefix", alias: "5" });
   });
 
-  it("trims text and drops a non-numeric VNI", () => {
-    assert.deepEqual(
-      evpnMatchFields({ defaultRoute: false, rd: "  65000:1 ", routeType: "", vni: "abc" }),
-      { evpn_rd: "65000:1" },
-    );
-    assert.deepEqual(evpnSetFields({ gatewayIpv4: " 192.0.2.1 ", gatewayIpv6: "  " }), {
-      evpn_gateway_ipv4: "192.0.2.1",
-    });
-  });
-});
-
-describe("route-map EVPN ops", () => {
-  it("adds every EVPN leaf on a new rule", async () => {
-    const service = new RecordingRouteMap();
-    await service.addRule("RM", {
-      rule_number: 10,
-      action: "permit",
-      match: { evpn_default_route: true, evpn_rd: "65000:100", evpn_route_type: "prefix", evpn_vni: 100 },
-      set: { evpn_gateway_ipv4: "192.0.2.1", evpn_gateway_ipv6: "2001:db8::1" },
-    });
-    const ops = service.calls[0].operations;
-    for (const expected of [
-      { op: "set_match_evpn_default_route" },
-      { op: "set_match_evpn_rd", value: "65000:100" },
-      { op: "set_match_evpn_route_type", value: "prefix" },
-      { op: "set_match_evpn_vni", value: "100" },
-      { op: "set_evpn_gateway_ipv4", value: "192.0.2.1" },
-      { op: "set_evpn_gateway_ipv6", value: "2001:db8::1" },
-    ]) {
-      assert.ok(ops.some((o) => o.op === expected.op && o.value === expected.value), expected.op);
+  it("leaves an unknown value to show as itself", () => {
+    for (const type of ["6", "0", "toString", "constructor"]) {
+      assert.equal(evpnRouteTypeLabel(type), null, type);
     }
-  });
-
-  it("clears EVPN subtrees before rewriting an edited rule", async () => {
-    const service = new RecordingRouteMap();
-    await service.updateRule("RM", 10, { action: "permit", match: {}, set: {} }, {});
-    const ops = service.calls[0].operations.map((o) => o.op);
-    assert.ok(ops.includes("delete_match_evpn"));
-    assert.ok(ops.includes("delete_set_evpn"));
-    assert.ok(!ops.some((op) => op.startsWith("set_match_evpn") || op.startsWith("set_evpn")));
   });
 });

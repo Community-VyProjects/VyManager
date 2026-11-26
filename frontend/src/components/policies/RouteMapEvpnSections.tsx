@@ -4,49 +4,37 @@ import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NamedListSelect } from "@/components/ui/named-list-select";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { RouteMapCapabilities } from "@/lib/api/route-map";
-import type { EvpnMatchDraft, EvpnSetDraft } from "./route-map-evpn";
+import { routeMapRange, type RouteMapRuleForm } from "@/lib/api/route-map-save-ops";
+import { evpnRouteTypeLabel } from "./route-map-evpn";
 
-type RouteTypeLabelKey =
-  | "evpn.routeTypeEad"
-  | "evpn.routeTypeMacip"
-  | "evpn.routeTypeMulticast"
-  | "evpn.routeTypeEs"
-  | "evpn.routeTypePrefix";
-
-const ROUTE_TYPE_LABELS: Record<string, RouteTypeLabelKey> = {
-  ead: "evpn.routeTypeEad",
-  macip: "evpn.routeTypeMacip",
-  multicast: "evpn.routeTypeMulticast",
-  es: "evpn.routeTypeEs",
-  prefix: "evpn.routeTypePrefix",
-};
+interface EvpnSectionProps {
+  idPrefix: string;
+  form: RouteMapRuleForm;
+  set: <K extends keyof RouteMapRuleForm>(key: K, value: RouteMapRuleForm[K]) => void;
+  capabilities: RouteMapCapabilities | null;
+}
 
 /**
  * EVPN match conditions. Route types and the VNI range come from the
- * device's route-map capabilities; the section stays hidden until they are
- * known so the form never offers a value this device rejects.
+ * device's capabilities; the section is hidden when the device has no
+ * `match evpn`.
  */
-export function RouteMapEvpnMatchSection({
-  value,
-  onChange,
-  capability,
-}: {
-  value: EvpnMatchDraft;
-  onChange: (next: EvpnMatchDraft) => void;
-  capability: RouteMapCapabilities["features"]["match_evpn"] | undefined;
-}) {
+export function RouteMapEvpnMatchSection({ idPrefix, form, set, capabilities }: EvpnSectionProps) {
   const t = useTranslations("routeMapRuleModal");
-  const tc = useTranslations("common");
-  if (!capability?.supported) return null;
-  const { route_types: routeTypes, vni_min: vniMin, vni_max: vniMax } = capability;
-
-  const routeTypeLabel = (type: string) => {
-    const key = ROUTE_TYPE_LABELS[type];
-    return key ? t(key) : t("evpn.routeTypeNumbered", { n: type });
-  };
+  const evpn = capabilities?.features?.match_evpn;
+  if (evpn?.supported !== true) return null;
+  const routeTypes = capabilities?.values?.evpn_route_types || [];
+  const labels = Object.fromEntries(
+    routeTypes.map((type) => {
+      const label = evpnRouteTypeLabel(type);
+      if (!label) return [type, type];
+      return [type, label.alias ? t("evpn.routeTypeAlias", { number: label.alias, name: t(label.key) }) : t(label.key)];
+    }),
+  );
+  const vni = routeMapRange(capabilities, "evpn_vni");
 
   return (
     <AccordionItem value="evpn">
@@ -54,52 +42,43 @@ export function RouteMapEvpnMatchSection({
       <AccordionContent className="space-y-4 pt-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="matchEvpnRouteType">{t("evpn.routeType")}</Label>
-            <Select
-              value={value.routeType || "none"}
-              onValueChange={(v) => onChange({ ...value, routeType: v === "none" ? "" : v })}
-            >
-              <SelectTrigger id="matchEvpnRouteType">
-                <SelectValue placeholder={t("evpn.selectRouteType")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{tc("none")}</SelectItem>
-                {routeTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {routeTypeLabel(type)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="matchEvpnVni">{t("evpn.vni")}</Label>
-            <Input
-              id="matchEvpnVni"
-              type="number"
-              min={vniMin}
-              max={vniMax}
-              placeholder={`${vniMin}-${vniMax}`}
-              value={value.vni}
-              onChange={(e) => onChange({ ...value, vni: e.target.value })}
+            <Label htmlFor={`${idPrefix}-match-evpn-route-type`}>{t("evpn.routeType")}</Label>
+            <NamedListSelect
+              id={`${idPrefix}-match-evpn-route-type`}
+              value={form.match_evpn_route_type}
+              names={routeTypes}
+              labels={labels}
+              onValueChange={(v) => set("match_evpn_route_type", v)}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="matchEvpnRd">{t("evpn.rd")}</Label>
+            <Label htmlFor={`${idPrefix}-match-evpn-vni`}>{t("evpn.vni")}</Label>
             <Input
-              id="matchEvpnRd"
-              placeholder={t("evpn.rdPlaceholder")}
-              value={value.rd}
-              onChange={(e) => onChange({ ...value, rd: e.target.value })}
+              id={`${idPrefix}-match-evpn-vni`}
+              inputMode="numeric"
+              placeholder={vni ? t("rangePlaceholder", { min: vni.min, max: vni.max }) : undefined}
+              value={form.match_evpn_vni}
+              onChange={(e) => set("match_evpn_vni", e.target.value)}
+              className="font-mono"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}-match-evpn-rd`}>{t("evpn.rd")}</Label>
+            <Input
+              id={`${idPrefix}-match-evpn-rd`}
+              placeholder={t("example", { value: "65000:100" })}
+              value={form.match_evpn_rd}
+              onChange={(e) => set("match_evpn_rd", e.target.value)}
+              className="font-mono"
             />
           </div>
           <div className="flex items-center space-x-2 pt-6">
             <Checkbox
-              id="matchEvpnDefaultRoute"
-              checked={value.defaultRoute}
-              onCheckedChange={(checked) => onChange({ ...value, defaultRoute: checked === true })}
+              id={`${idPrefix}-match-evpn-default-route`}
+              checked={form.match_evpn_default_route}
+              onCheckedChange={(checked) => set("match_evpn_default_route", checked === true)}
             />
-            <Label htmlFor="matchEvpnDefaultRoute" className="text-sm font-normal">
+            <Label htmlFor={`${idPrefix}-match-evpn-default-route`} className="text-sm font-normal">
               {t("evpn.defaultRoute")}
             </Label>
           </div>
@@ -110,13 +89,7 @@ export function RouteMapEvpnMatchSection({
 }
 
 /** EVPN set actions. */
-export function RouteMapEvpnSetSection({
-  value,
-  onChange,
-}: {
-  value: EvpnSetDraft;
-  onChange: (next: EvpnSetDraft) => void;
-}) {
+export function RouteMapEvpnSetSection({ idPrefix, form, set }: Omit<EvpnSectionProps, "capabilities">) {
   const t = useTranslations("routeMapRuleModal");
 
   return (
@@ -125,21 +98,23 @@ export function RouteMapEvpnSetSection({
       <AccordionContent className="space-y-4 pt-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="setEvpnGatewayIpv4">{t("evpn.gatewayIpv4")}</Label>
+            <Label htmlFor={`${idPrefix}-set-evpn-gateway-ipv4`}>{t("evpn.gatewayIpv4")}</Label>
             <Input
-              id="setEvpnGatewayIpv4"
+              id={`${idPrefix}-set-evpn-gateway-ipv4`}
               placeholder={t("example", { value: "192.0.2.1" })}
-              value={value.gatewayIpv4}
-              onChange={(e) => onChange({ ...value, gatewayIpv4: e.target.value })}
+              value={form.set_evpn_gateway_ipv4}
+              onChange={(e) => set("set_evpn_gateway_ipv4", e.target.value)}
+              className="font-mono"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="setEvpnGatewayIpv6">{t("evpn.gatewayIpv6")}</Label>
+            <Label htmlFor={`${idPrefix}-set-evpn-gateway-ipv6`}>{t("evpn.gatewayIpv6")}</Label>
             <Input
-              id="setEvpnGatewayIpv6"
+              id={`${idPrefix}-set-evpn-gateway-ipv6`}
               placeholder={t("example", { value: "2001:db8::1" })}
-              value={value.gatewayIpv6}
-              onChange={(e) => onChange({ ...value, gatewayIpv6: e.target.value })}
+              value={form.set_evpn_gateway_ipv6}
+              onChange={(e) => set("set_evpn_gateway_ipv6", e.target.value)}
+              className="font-mono"
             />
           </div>
         </div>

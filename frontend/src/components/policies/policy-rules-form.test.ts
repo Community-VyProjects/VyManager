@@ -15,11 +15,6 @@ import {
   type LocalRouteRule,
 } from "@/lib/api/local-route";
 import type { AccessListCapabilitiesResponse, AccessListRule } from "@/lib/api/access-list";
-import {
-  RouteMapService,
-  type RouteMapBatchRequest,
-  type RouteMapRule,
-} from "@/lib/api/route-map";
 import type { VyOSResponse } from "@/lib/types/api";
 import type { PrefixListCapabilitiesResponse, PrefixListRule } from "@/lib/api/prefix-list";
 import { familyLabel, geLeBounds, sectionTarget, suggestedRuleNumber } from "./prefix-list-rule-form";
@@ -38,12 +33,6 @@ import {
   validateLocalRoute,
 } from "./local-route-form";
 import { endpointParts, suggestedRuleNumber as suggestedAccessRuleNumber } from "./access-list-rule-form";
-import {
-  emptyRouteMapRuleDraft,
-  routeMapRuleDraftFrom,
-  submitRouteMapCreate,
-  submitRouteMapUpdate,
-} from "./route-map-rule-form";
 
 class RecordingAsPath extends AsPathListService {
   calls: AsPathListBatchRequest[] = [];
@@ -69,14 +58,6 @@ class RecordingLocal extends LocalRouteService {
   }
 }
 
-class RecordingRouteMap extends RouteMapService {
-  calls: RouteMapBatchRequest[] = [];
-  async batchConfigure(request: RouteMapBatchRequest): Promise<VyOSResponse> {
-    this.calls.push(request);
-    return { success: true };
-  }
-}
-
 const storedAsPath: AsPathListRule = {
   rule_number: 10,
   description: "corp",
@@ -95,18 +76,6 @@ const storedLocal: LocalRouteRule = {
   destination_port: null,
   table: "main",
   vrf: null,
-};
-
-const storedMap: RouteMapRule = {
-  rule_number: 10,
-  description: "corp",
-  action: "permit",
-  call: null,
-  continue_rule: null,
-  on_match_goto: null,
-  on_match_next: false,
-  match: { as_path: "ASP" },
-  set: { local_preference: 100 },
 };
 
 describe("as-path list rule create", () => {
@@ -318,104 +287,5 @@ describe("access-list form helpers", () => {
       { key: "host", address: "10.0.0.1" },
     ]);
     assert.deepEqual(endpointParts(rule(), "destination"), []);
-  });
-});
-
-describe("route-map rule", () => {
-  it("emits only filled fields on create", async () => {
-    const service = new RecordingRouteMap();
-    const draft = emptyRouteMapRuleDraft();
-    draft.ruleNumber = 10;
-    draft.description = "corp";
-    draft.match = { as_path: "ASP" };
-    await submitRouteMapCreate("RM", draft, service);
-    assert.equal(service.calls[0].name, "RM");
-    assert.ok(service.calls[0].operations.some((op) => op.op === "set_rule"));
-    assert.ok(service.calls[0].operations.some((op) => op.op === "set_rule_description" && op.value === "corp"));
-  });
-
-  it("sends nothing when the operator changed nothing", async () => {
-    const service = new RecordingRouteMap();
-    const result = await submitRouteMapUpdate(
-      "RM",
-      storedMap,
-      routeMapRuleDraftFrom(storedMap),
-      service,
-    );
-    assert.equal(result, null);
-    assert.equal(service.calls.length, 0);
-  });
-
-  it("writes the stored rule number when the draft number was altered", async () => {
-    const service = new RecordingRouteMap();
-    const draft = routeMapRuleDraftFrom(storedMap);
-    draft.ruleNumber = 999;
-    draft.description = "new";
-    await submitRouteMapUpdate("RM", storedMap, draft, service);
-    assert.equal(service.calls[0].rule_number, 10);
-  });
-
-  it("emits ipv6 nexthop access-list, prefix-list, and blackhole", async () => {
-    const service = new RecordingRouteMap();
-    const draft = emptyRouteMapRuleDraft();
-    draft.ruleNumber = 10;
-    draft.match = {
-      ipv6_nexthop_access_list: "ACL6",
-      ipv6_nexthop_address: "2001:db8::1",
-      ipv6_nexthop_prefix_list: "PL6",
-      ipv6_nexthop_type: "blackhole",
-    };
-    await submitRouteMapCreate("RM", draft, service);
-    const ops = service.calls[0].operations;
-    assert.deepEqual(
-      ops.filter((op) => op.op.startsWith("set_match_ipv6_nexthop")),
-      [
-        { op: "set_match_ipv6_nexthop_access_list", value: "ACL6" },
-        { op: "set_match_ipv6_nexthop_address", value: "2001:db8::1" },
-        { op: "set_match_ipv6_nexthop_prefix_list", value: "PL6" },
-        { op: "set_match_ipv6_nexthop_type", value: "blackhole" },
-      ],
-    );
-    assert.equal(ops.some((op) => op.op.includes("prefix_len")), false);
-  });
-
-  it("emits rpki-extcommunity and source-peer on create", async () => {
-    const service = new RecordingRouteMap();
-    const draft = emptyRouteMapRuleDraft();
-    draft.ruleNumber = 10;
-    draft.match = { rpki_extcommunity: "notfound", source_peer: "192.0.2.1" };
-    await submitRouteMapCreate("RM", draft, service);
-    const ops = service.calls[0].operations;
-    assert.ok(ops.some((op) => op.op === "set_match_rpki_extcommunity" && op.value === "notfound"));
-    assert.ok(ops.some((op) => op.op === "set_match_source_peer" && op.value === "192.0.2.1"));
-  });
-
-  it("clears stored rpki-extcommunity and source-peer on update", async () => {
-    const service = new RecordingRouteMap();
-    const stored: RouteMapRule = {
-      ...storedMap,
-      match: { as_path: "ASP", rpki_extcommunity: "valid", source_peer: "eth0" },
-    };
-    const draft = routeMapRuleDraftFrom(stored);
-    draft.match = { as_path: "ASP" };
-    await submitRouteMapUpdate("RM", stored, draft, service);
-    const ops = service.calls[0].operations.map((op) => op.op);
-    assert.ok(ops.includes("delete_match_rpki_extcommunity"));
-    assert.ok(ops.includes("delete_match_source_peer"));
-    assert.equal(ops.includes("set_match_rpki_extcommunity"), false);
-    assert.equal(ops.includes("set_match_source_peer"), false);
-  });
-
-  it("does not delete leaves the stored rule lacks", async () => {
-    // A device without these nodes never reports them, and the backend
-    // rejects a delete of a node the device does not have.
-    const service = new RecordingRouteMap();
-    const draft = routeMapRuleDraftFrom(storedMap);
-    draft.match = { as_path: "OTHER" };
-    await submitRouteMapUpdate("RM", storedMap, draft, service);
-    const ops = service.calls[0].operations.map((op) => op.op);
-    assert.ok(ops.includes("delete_match_as_path"));
-    assert.equal(ops.includes("delete_match_rpki_extcommunity"), false);
-    assert.equal(ops.includes("delete_match_source_peer"), false);
   });
 });

@@ -158,6 +158,10 @@ jobs:
         working-directory: frontend
         run: npm run test:access-list-save
 
+      - name: Run route-map save op tests
+        working-directory: frontend
+        run: npm run test:route-map-save
+
       - name: Run PKI save op and dialog tests
         working-directory: frontend
         run: npm run test:pki-save

@@ -1,51 +1,87 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { routeMapMatchOverviewBadges } from "./route-map-overview";
+import {
+  routeMapMatchOverviewBadges,
+  routeMapRuleCounts,
+  routeMapSetOverviewBadges,
+  type RouteMapOverviewLabel,
+} from "./route-map-overview";
+
+const RM = (key: Extract<RouteMapOverviewLabel, { catalog: "routeMap" }>["key"]): RouteMapOverviewLabel => ({ catalog: "routeMap", key });
 
 describe("routeMapMatchOverviewBadges", () => {
   it("shows an IPv4 prefix-list match as ipPrefix", () => {
-    const badges = routeMapMatchOverviewBadges({
-      ip_address_prefix_list: "PL4",
-    });
-    assert.deepEqual(badges, [{ labelKey: "ipPrefix", value: "PL4" }]);
-  });
-
-  it("shows an IPv6 prefix-list match the same way as IPv4", () => {
-    const badges = routeMapMatchOverviewBadges({
-      ipv6_address_prefix_list: "PL6",
-    });
-    assert.deepEqual(badges, [{ labelKey: "ipv6Prefix", value: "PL6" }]);
-  });
-
-  it("shows IPv4 and IPv6 prefix-list matches together", () => {
-    const badges = routeMapMatchOverviewBadges({
-      ip_address_prefix_list: "PL4",
-      ipv6_address_prefix_list: "PL6",
-    });
-    assert.deepEqual(badges, [
-      { labelKey: "ipPrefix", value: "PL4" },
-      { labelKey: "ipv6Prefix", value: "PL6" },
+    assert.deepEqual(routeMapMatchOverviewBadges({ ip_address_prefix_list: "PL4" }), [
+      { label: RM("overview.ipPrefix"), value: "PL4" },
     ]);
   });
 
-  it("keeps AS Path, community, and protocol badges", () => {
-    const badges = routeMapMatchOverviewBadges({
-      as_path: "AS1",
-      community_list: "CL1",
-      protocol: "bgp",
-    });
-    assert.deepEqual(badges, [
-      { labelKey: "asPath", value: "AS1" },
-      { labelKey: "community", value: "CL1" },
-      { labelKey: "protocol", value: "bgp" },
+  it("shows an IPv6 prefix-list match the same way as IPv4", () => {
+    assert.deepEqual(routeMapMatchOverviewBadges({ ipv6_address_prefix_list: "PL6" }), [
+      { label: RM("overview.ipv6Prefix"), value: "PL6" },
+    ]);
+  });
+
+  it("shows IPv4 and IPv6 prefix-list matches together", () => {
+    assert.deepEqual(
+      routeMapMatchOverviewBadges({ ip_address_prefix_list: "PL4", ipv6_address_prefix_list: "PL6" }),
+      [
+        { label: RM("overview.ipPrefix"), value: "PL4" },
+        { label: RM("overview.ipv6Prefix"), value: "PL6" },
+      ],
+    );
+  });
+
+  it("keeps AS Path and community badges; protocol uses the rule modal's field label", () => {
+    assert.deepEqual(routeMapMatchOverviewBadges({ as_path: "AS1", community_list: "CL1", protocol: "bgp" }), [
+      { label: RM("overview.asPath"), value: "AS1" },
+      { label: RM("overview.community"), value: "CL1" },
+      { label: { catalog: "routeMapRuleModal", key: "field.protocol" }, value: "bgp" },
     ]);
   });
 
   it("omits empty prefix-list matches", () => {
-    const badges = routeMapMatchOverviewBadges({
-      ip_address_prefix_list: "",
-      ipv6_address_prefix_list: null,
-    });
-    assert.deepEqual(badges, []);
+    assert.deepEqual(routeMapMatchOverviewBadges({ ip_address_prefix_list: "", ipv6_address_prefix_list: null }), []);
+  });
+});
+
+describe("routeMapRuleCounts", () => {
+  it("counts values and set flags, not empty lists, false flags or nulls", () => {
+    const counts = routeMapRuleCounts({
+      match: { as_path: "AS1", community_exact_match: true, evpn_default_route: false, tag: null },
+      set: { community_add_values: [], extcommunity_rt: ["65000:1"], atomic_aggregate: false, weight: 0 },
+    } as never);
+    assert.deepEqual(counts, { match: 2, set: 2 });
+  });
+});
+
+describe("routeMapSetOverviewBadges", () => {
+  const field = (key: Extract<RouteMapOverviewLabel, { catalog: "routeMapRuleModal" }>["key"]): RouteMapOverviewLabel => ({
+    catalog: "routeMapRuleModal",
+    key,
+  });
+
+  it("names local preference (also 0), metric, prepend AS and the added communities, in the row's order", () => {
+    assert.deepEqual(
+      routeMapSetOverviewBadges({
+        community_add_values: ["65000:1", "no-export"],
+        as_path_prepend: "65001 65001",
+        metric: "+5",
+        local_preference: 0,
+      }),
+      [
+        { label: field("field.localPreference"), tone: "purple", value: "0" },
+        { label: field("field.metric"), tone: "yellow", value: "+5" },
+        { label: field("field.prependAs"), tone: "blue", value: "65001 65001" },
+        { label: field("field.communityAdd"), tone: "green", value: "65000:1, no-export" },
+      ],
+    );
+  });
+
+  it("omits unset actions and an empty community list", () => {
+    assert.deepEqual(
+      routeMapSetOverviewBadges({ local_preference: null, metric: null, as_path_prepend: "", community_add_values: [] }),
+      [],
+    );
   });
 });

@@ -91,7 +91,6 @@ from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from vyos_builders.qos import QoSBatchBuilder
 from vyos_builders.rip import RipBatchBuilder
 from vyos_builders.ripng import RipNgBatchBuilder
-from vyos_builders.route_map import RouteMapBatchBuilder
 from vyos_builders.router_advert import RouterAdvertBatchBuilder
 from vyos_builders.rpki import RpkiBatchBuilder
 from vyos_builders.salt_minion import SaltMinionBatchBuilder
@@ -120,7 +119,7 @@ router = APIRouter(prefix="/vyos/operations", tags=["operations"])
 # matches their real op contract. Excluded:
 #   - Interface sub-types, which use the service.create_*_batch() factory.
 #   - Explicit-dispatch handlers (firewall/groups, firewall/bridge, route,
-#     prefix-list, access-list, which inject top-level body fields into builder calls), where the builder
+#     prefix-list, access-list, route-map, which inject top-level body fields into builder calls), where the builder
 #     signature would not match how ops are actually invoked.
 _BUILDER_REGISTRY: dict[str, type] = {
     "as-path-list": AsPathListBatchBuilder,
@@ -173,7 +172,6 @@ _BUILDER_REGISTRY: dict[str, type] = {
     "qos": QoSBatchBuilder,
     "rip": RipBatchBuilder,
     "ripng": RipNgBatchBuilder,
-    "route-map": RouteMapBatchBuilder,
     "router-advert": RouterAdvertBatchBuilder,
     "rpki": RpkiBatchBuilder,
     "salt-minion": SaltMinionBatchBuilder,

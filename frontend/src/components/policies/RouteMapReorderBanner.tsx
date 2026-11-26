@@ -8,15 +8,13 @@ interface RouteMapReorderBannerProps {
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
+  /** Rules the save renumbers (those not already at their sorted slot). */
   count: number;
+  /** The rejected reorder's device error, if any. */
+  error: string | null;
 }
 
-export function RouteMapReorderBanner({
-  onSave,
-  onCancel,
-  saving,
-  count,
-}: RouteMapReorderBannerProps) {
+export function RouteMapReorderBanner({ onSave, onCancel, saving, count, error }: RouteMapReorderBannerProps) {
   const t = useTranslations("routeMap");
   const tc = useTranslations("common");
   return (
@@ -25,21 +23,12 @@ export function RouteMapReorderBanner({
         <div className="flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-primary" />
           <div>
-            <p className="text-sm font-medium text-foreground">
-              {t("reorder.title")}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t("reorder.renumber", { count })}
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("reorder.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("reorder.renumber", { count })}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            disabled={saving}
-          >
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
             <X className="h-4 w-4 mr-2" />
             {tc("cancel")}
           </Button>
@@ -49,6 +38,7 @@ export function RouteMapReorderBanner({
           </Button>
         </div>
       </div>
+      {error && <p className="mt-2 text-sm text-destructive whitespace-pre-wrap">{error}</p>}
     </div>
   );
 }

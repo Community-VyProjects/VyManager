@@ -1,470 +1,745 @@
-"""
-Route Map Command Mapper
+"""Route-map command mapper.
 
-Handles command path generation for route-map configuration.
-Version-specific logic is in version-specific files.
+One class holds the ``policy route-map`` commands both VyOS versions have,
+with the 1.4 values. ``match rpki-extcommunity`` and ``match source-peer``
+exist only on 1.5; their path methods live on the 1.5 subclass, and
+``_VERSIONED_NODES`` maps each node to the path method that defines it.
+Value lists that differ by version (EVPN route types, the table range, and
+whether ``set as-path prepend`` excludes ``prepend-last-as``) are methods the
+subclass overrides.
+
+Every leaf has a ``*_path`` method (the node, used to delete it) and, for a
+value leaf, a value form (the node plus the value, used to set it). A flag is
+set and deleted on the same path.
 """
 
-from typing import FrozenSet, List, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
+
 from ..base import BaseFeatureMapper
+
+# Version-only rule nodes (keys of RouteMapMapper._VERSIONED_NODES).
+MATCH_RPKI_EXTCOMMUNITY = "match rpki-extcommunity"
+MATCH_SOURCE_PEER = "match source-peer"
+
+# Lab `allowed:` / validator lists, the same on 1.4 and 1.5.
+RULE_ACTIONS: Tuple[str, ...] = ("permit", "deny")
+ORIGINS: Tuple[str, ...] = ("egp", "igp", "incomplete")
+RPKI_STATES: Tuple[str, ...] = ("invalid", "notfound", "valid")
+METRIC_TYPES: Tuple[str, ...] = ("type-1", "type-2")
+PROTOCOLS: Tuple[str, ...] = (
+    "babel", "bgp", "connected", "isis", "kernel", "ospf", "ospfv3", "rip", "ripng", "static", "table", "vnc",
+)
+NEXTHOP_TYPES: Tuple[str, ...] = ("blackhole",)
+EXTCOMMUNITY_BANDWIDTH_KEYWORDS: Tuple[str, ...] = ("cumulative", "num-multipaths")
+# ``set community add|replace`` well-known names. ``internet`` is left out:
+# the 1.4 validator takes it but the commit fails, and 1.5 rejects it.
+COMMUNITY_WELL_KNOWN: Tuple[str, ...] = (
+    "local-as", "no-advertise", "no-export", "graceful-shutdown", "accept-own",
+    "route-filter-translated-v4", "route-filter-v4", "route-filter-translated-v6", "route-filter-v6",
+    "llgr-stale", "no-llgr", "accept-own-nexthop", "blackhole", "no-peer",
+)
+# ``match evpn route-type`` on 1.4.
+EVPN_ROUTE_TYPES: Tuple[str, ...] = ("macip", "multicast", "prefix")
+# ``match evpn vni``: the node.def takes 0-16777214 on both builds and FRR's
+# grammar takes 1-16777215, so only the overlap commits.
+EVPN_VNI_RANGE: Tuple[int, int] = (1, 16777214)
+# ``set table`` on 1.4.
+TABLE_RANGE: Tuple[int, int] = (1, 200)
 
 
 class RouteMapMapper(BaseFeatureMapper):
-    """Base mapper with common operations"""
+    """Route-map commands both VyOS versions have."""
 
-    # Match leaves that exist on 1.5 and not on 1.4 (validateTmplPath on both).
-    _MATCH_1_5_ONLY = ("rpki-extcommunity", "source-peer")
+    _VERSIONED_NODES: Dict[str, str] = {
+        MATCH_RPKI_EXTCOMMUNITY: "get_match_rpki_extcommunity_path",
+        MATCH_SOURCE_PEER: "get_match_source_peer_path",
+    }
 
-    # Values ``match evpn route-type`` accepts, from each build's node.def
-    # validator regex. 1.5 adds ead, es and the numeric 1-5 aliases.
-    _EVPN_ROUTE_TYPES_1_4 = ("macip", "multicast", "prefix")
-    _EVPN_ROUTE_TYPES_1_5 = ("ead", "macip", "multicast", "es", "prefix", "1", "2", "3", "4", "5")
+    def versioned_nodes(self) -> FrozenSet[str]:
+        """Version-only rule nodes this device has.
 
-    # ``match evpn vni``: the VyOS node.def accepts 0-16777214 on both builds
-    # and FRR's grammar takes 1-16777215, so only the overlap commits.
-    EVPN_VNI_RANGE = (1, 16777214)
+        Each one is a path method on the version subclass. Capabilities and
+        the builder read this set instead of the version string.
+        """
+        return frozenset(
+            node
+            for node, method in self._VERSIONED_NODES.items()
+            if callable(getattr(self, method, None))
+        )
 
-    def __init__(self, version: str):
-        """Initialize with VyOS version."""
-        super().__init__(version)
+    def require_node(self, node: str) -> None:
+        if node not in self.versioned_nodes():
+            raise ValueError(f"route-map rule {node} is not supported on this device")
 
-    def versioned_match_nodes(self) -> FrozenSet[str]:
-        """Version-dependent match leaves this device has."""
-        if "1.4" in self.version:
-            return frozenset()
-        return frozenset(self._MATCH_1_5_ONLY)
+    # ========================================================================
+    # Value lists
+    # ========================================================================
+
+    def rule_actions(self) -> Tuple[str, ...]:
+        return RULE_ACTIONS
+
+    def origins(self) -> Tuple[str, ...]:
+        return ORIGINS
+
+    def rpki_states(self) -> Tuple[str, ...]:
+        return RPKI_STATES
+
+    def metric_types(self) -> Tuple[str, ...]:
+        return METRIC_TYPES
+
+    def protocols(self) -> Tuple[str, ...]:
+        return PROTOCOLS
+
+    def nexthop_types(self) -> Tuple[str, ...]:
+        return NEXTHOP_TYPES
+
+    def extcommunity_bandwidth_keywords(self) -> Tuple[str, ...]:
+        return EXTCOMMUNITY_BANDWIDTH_KEYWORDS
+
+    def community_well_known(self) -> Tuple[str, ...]:
+        return COMMUNITY_WELL_KNOWN
 
     def evpn_route_types(self) -> Tuple[str, ...]:
         """Values this device accepts for ``match evpn route-type``."""
-        if "1.4" in self.version:
-            return self._EVPN_ROUTE_TYPES_1_4
-        return self._EVPN_ROUTE_TYPES_1_5
+        return EVPN_ROUTE_TYPES
 
-    def _require_match(self, node: str) -> None:
-        if node not in self.versioned_match_nodes():
-            raise ValueError(f"route-map match {node} is not supported on this device")
+    def evpn_vni_range(self) -> Tuple[int, int]:
+        return EVPN_VNI_RANGE
+
+    def table_range(self) -> Tuple[int, int]:
+        """Range this device accepts for ``set table``."""
+        return TABLE_RANGE
+
+    def as_path_prepend_exclusive(self) -> bool:
+        """Whether ``set as-path prepend`` and ``prepend-last-as`` fail together."""
+        return False
 
     # ========================================================================
-    # Core Route Map Paths
+    # Config read
+    # ========================================================================
+
+    def parse_config(self, full_config: Dict[str, Any]) -> Dict[str, Any]:
+        from .config_parse import parse_config as parse_route_map_config
+
+        return parse_route_map_config(self, full_config)
+
+    def rule_trees(self, full_config: Dict[str, Any], name: str) -> Optional[Dict[int, Any]]:
+        """Raw rule subtrees of one route-map (reorder), or None when it is absent."""
+        from .config_parse import rule_trees
+
+        return rule_trees(full_config, name)
+
+    def rule_targets(self, tree: Any) -> Dict[str, int]:
+        """Rule numbers a raw rule subtree points at, keyed ``continue`` / ``on_match_goto``."""
+        from .config_parse import rule_targets
+
+        return rule_targets(tree)
+
+    def retarget_rule_tree(self, tree: Any, renumber: Dict[int, int]) -> Any:
+        """Copy of a raw rule subtree with ``continue`` / ``on-match goto`` renumbered (reorder)."""
+        from .config_parse import retarget_rule_tree
+
+        return retarget_rule_tree(tree, renumber)
+
+    def rule_tree_paths(self, name: str, rule: str, tree: Any) -> List[List[str]]:
+        """Set paths that recreate a rule from its config subtree (reorder).
+
+        A value leaf is one path with its value, a ``multi:`` leaf one path
+        per value, and a flag (``{}``) the path itself, so every leaf the
+        device holds is kept.
+        """
+        paths: List[List[str]] = []
+
+        def walk(prefix: List[str], node: Any) -> None:
+            if isinstance(node, dict):
+                if not node and prefix:
+                    paths.append(prefix)
+                for key, child in node.items():
+                    walk(prefix + [str(key)], child)
+            elif isinstance(node, list):
+                for item in node:
+                    paths.append(prefix + [str(item)])
+            elif node is not None:
+                paths.append(prefix + [str(node)])
+
+        base = self.get_rule_path(name, rule)
+        walk([], tree if isinstance(tree, dict) else {})
+        return [base] + [base + path for path in paths]
+
+    # ========================================================================
+    # Route-map
     # ========================================================================
 
     def get_route_map_path(self, name: str) -> List[str]:
-        """Get command path for route-map."""
         return ["policy", "route-map", name]
 
+    def get_route_map_description_path(self, name: str) -> List[str]:
+        return self.get_route_map_path(name) + ["description"]
+
     def get_route_map_description(self, name: str, description: str) -> List[str]:
-        """Get command path for route-map description."""
-        return ["policy", "route-map", name, "description", description]
+        return self.get_route_map_description_path(name) + [description]
 
     # ========================================================================
-    # Rule Paths
+    # Rule
     # ========================================================================
 
     def get_rule_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for rule."""
-        return ["policy", "route-map", name, "rule", rule]
+        return self.get_route_map_path(name) + ["rule", rule]
+
+    def _rule_node(self, name: str, rule: str, *words: str) -> List[str]:
+        return self.get_rule_path(name, rule) + list(words)
+
+    def get_rule_description_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "description")
 
     def get_rule_description(self, name: str, rule: str, description: str) -> List[str]:
-        """Get command path for rule description."""
-        return ["policy", "route-map", name, "rule", rule, "description", description]
+        return self.get_rule_description_path(name, rule) + [description]
+
+    def get_rule_action_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "action")
 
     def get_rule_action(self, name: str, rule: str, action: str) -> List[str]:
-        """Get command path for rule action (permit/deny)."""
-        return ["policy", "route-map", name, "rule", rule, "action", action]
+        return self.get_rule_action_path(name, rule) + [action]
+
+    def get_rule_call_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "call")
 
     def get_rule_call(self, name: str, rule: str, call_map: str) -> List[str]:
-        """Get command path for calling another route-map."""
-        return ["policy", "route-map", name, "rule", rule, "call", call_map]
+        return self.get_rule_call_path(name, rule) + [call_map]
+
+    def get_rule_continue_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "continue")
 
     def get_rule_continue(self, name: str, rule: str, continue_rule: str) -> List[str]:
-        """Get command path for continue to another rule."""
-        return ["policy", "route-map", name, "rule", rule, "continue", continue_rule]
+        return self.get_rule_continue_path(name, rule) + [continue_rule]
+
+    def get_rule_on_match_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "on-match")
+
+    def get_rule_on_match_goto_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "on-match", "goto")
 
     def get_rule_on_match_goto(self, name: str, rule: str, goto_rule: str) -> List[str]:
-        """Get command path for on-match goto."""
-        return ["policy", "route-map", name, "rule", rule, "on-match", "goto", goto_rule]
+        return self.get_rule_on_match_goto_path(name, rule) + [goto_rule]
 
-    def get_rule_on_match_next(self, name: str, rule: str) -> List[str]:
-        """Get command path for on-match next."""
-        return ["policy", "route-map", name, "rule", rule, "on-match", "next"]
+    def get_rule_on_match_next_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "on-match", "next")
 
     # ========================================================================
-    # Match Conditions - BGP Attributes
+    # Match - BGP attributes
     # ========================================================================
+
+    def get_match_path(self, name: str, rule: str) -> List[str]:
+        """The rule ``match`` node; deleting a child leaves it on the device."""
+        return self._rule_node(name, rule, "match")
+
+    def get_match_ip_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ip")
+
+    def get_match_ipv6_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ipv6")
+
+    def get_match_as_path_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "as-path")
 
     def get_match_as_path(self, name: str, rule: str, as_path: str) -> List[str]:
-        """Match BGP AS path list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "as-path", as_path]
+        return self.get_match_as_path_path(name, rule) + [as_path]
+
+    def get_match_community_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "community")
+
+    def get_match_community_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_community_path(name, rule) + ["community-list"]
 
     def get_match_community(self, name: str, rule: str, community: str) -> List[str]:
-        """Match BGP community list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "community", "community-list", community]
+        return self.get_match_community_list_path(name, rule) + [community]
 
-    def get_match_community_exact_match(self, name: str, rule: str) -> List[str]:
-        """Match BGP community exact match."""
-        return ["policy", "route-map", name, "rule", rule, "match", "community", "exact-match"]
+    def get_match_community_exact_match_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_community_path(name, rule) + ["exact-match"]
+
+    def get_match_extcommunity_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "extcommunity")
 
     def get_match_extcommunity(self, name: str, rule: str, extcommunity: str) -> List[str]:
-        """Match BGP extended community list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "extcommunity", extcommunity]
+        return self.get_match_extcommunity_path(name, rule) + [extcommunity]
+
+    def get_match_large_community_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "large-community")
+
+    def get_match_large_community_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_large_community_path(name, rule) + ["large-community-list"]
 
     def get_match_large_community(self, name: str, rule: str, large_community: str) -> List[str]:
-        """Match BGP large community list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "large-community", "large-community-list", large_community]
+        return self.get_match_large_community_list_path(name, rule) + [large_community]
 
-    def get_match_large_community_exact_match(self, name: str, rule: str) -> List[str]:
-        """Match BGP large community exact match."""
-        return ["policy", "route-map", name, "rule", rule, "match", "large-community", "exact-match"]
+    def get_match_local_preference_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "local-preference")
 
     def get_match_local_preference(self, name: str, rule: str, local_pref: str) -> List[str]:
-        """Match BGP local preference."""
-        return ["policy", "route-map", name, "rule", rule, "match", "local-preference", local_pref]
+        return self.get_match_local_preference_path(name, rule) + [local_pref]
+
+    def get_match_metric_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "metric")
 
     def get_match_metric(self, name: str, rule: str, metric: str) -> List[str]:
-        """Match metric."""
-        return ["policy", "route-map", name, "rule", rule, "match", "metric", metric]
+        return self.get_match_metric_path(name, rule) + [metric]
+
+    def get_match_origin_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "origin")
 
     def get_match_origin(self, name: str, rule: str, origin: str) -> List[str]:
-        """Match BGP origin (egp/igp/incomplete)."""
-        return ["policy", "route-map", name, "rule", rule, "match", "origin", origin]
+        return self.get_match_origin_path(name, rule) + [origin]
+
+    def get_match_peer_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "peer")
 
     def get_match_peer(self, name: str, rule: str, peer: str) -> List[str]:
-        """Match peer address."""
-        return ["policy", "route-map", name, "rule", rule, "match", "peer", peer]
+        return self.get_match_peer_path(name, rule) + [peer]
+
+    def get_match_rpki_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "rpki")
 
     def get_match_rpki(self, name: str, rule: str, rpki: str) -> List[str]:
-        """Match RPKI validation state."""
-        return ["policy", "route-map", name, "rule", rule, "match", "rpki", rpki]
-
-    def get_match_rpki_extcommunity(self, name: str, rule: str, state: str) -> List[str]:
-        """Match RPKI origin validation extended community."""
-        return self.get_match_rpki_extcommunity_path(name, rule) + [state]
-
-    def get_match_rpki_extcommunity_path(self, name: str, rule: str) -> List[str]:
-        self._require_match("rpki-extcommunity")
-        return ["policy", "route-map", name, "rule", rule, "match", "rpki-extcommunity"]
-
-    def get_match_source_peer(self, name: str, rule: str, peer: str) -> List[str]:
-        """Match BGP source peer (address, interface, or peer-group)."""
-        return self.get_match_source_peer_path(name, rule) + [peer]
-
-    def get_match_source_peer_path(self, name: str, rule: str) -> List[str]:
-        self._require_match("source-peer")
-        return ["policy", "route-map", name, "rule", rule, "match", "source-peer"]
+        return self.get_match_rpki_path(name, rule) + [rpki]
 
     # ========================================================================
-    # Match Conditions - EVPN
+    # Match - EVPN
     # ========================================================================
 
     def get_match_evpn_path(self, name: str, rule: str) -> List[str]:
-        """Match EVPN subtree."""
-        return ["policy", "route-map", name, "rule", rule, "match", "evpn"]
+        return self._rule_node(name, rule, "match", "evpn")
 
-    def get_match_evpn_default_route(self, name: str, rule: str) -> List[str]:
-        """Match the default EVPN type-5 route."""
+    def get_match_evpn_default_route_path(self, name: str, rule: str) -> List[str]:
         return self.get_match_evpn_path(name, rule) + ["default-route"]
 
+    def get_match_evpn_rd_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_evpn_path(name, rule) + ["rd"]
+
     def get_match_evpn_rd(self, name: str, rule: str, rd: str) -> List[str]:
-        """Match EVPN route distinguisher."""
-        return self.get_match_evpn_path(name, rule) + ["rd", rd]
+        return self.get_match_evpn_rd_path(name, rule) + [rd]
+
+    def get_match_evpn_route_type_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_evpn_path(name, rule) + ["route-type"]
 
     def get_match_evpn_route_type(self, name: str, rule: str, route_type: str) -> List[str]:
-        """Match EVPN route type."""
-        if route_type not in self.evpn_route_types():
-            raise ValueError(f"route-map match evpn route-type {route_type} is not supported on this device")
-        return self.get_match_evpn_path(name, rule) + ["route-type", route_type]
+        return self.get_match_evpn_route_type_path(name, rule) + [route_type]
+
+    def get_match_evpn_vni_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_evpn_path(name, rule) + ["vni"]
 
     def get_match_evpn_vni(self, name: str, rule: str, vni: str) -> List[str]:
-        """Match EVPN VXLAN network identifier."""
-        low, high = self.EVPN_VNI_RANGE
-        if not (vni.isascii() and vni.isdigit()) or not low <= int(vni) <= high:
-            raise ValueError(f"route-map match evpn vni must be {low}-{high}")
-        return self.get_match_evpn_path(name, rule) + ["vni", vni]
+        return self.get_match_evpn_vni_path(name, rule) + [vni]
 
     # ========================================================================
-    # Match Conditions - IP/IPv6 Address
+    # Match - IP / IPv6 address
     # ========================================================================
+
+    def get_match_ip_address_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ip", "address")
+
+    def get_match_ip_address_access_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_address_path(name, rule) + ["access-list"]
 
     def get_match_ip_address_access_list(self, name: str, rule: str, access_list: str) -> List[str]:
-        """Match IP address via access-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "address", "access-list", access_list]
+        return self.get_match_ip_address_access_list_path(name, rule) + [access_list]
+
+    def get_match_ip_address_prefix_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_address_path(name, rule) + ["prefix-list"]
 
     def get_match_ip_address_prefix_list(self, name: str, rule: str, prefix_list: str) -> List[str]:
-        """Match IP address via prefix-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "address", "prefix-list", prefix_list]
+        return self.get_match_ip_address_prefix_list_path(name, rule) + [prefix_list]
+
+    def get_match_ip_address_prefix_len_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_address_path(name, rule) + ["prefix-len"]
 
     def get_match_ip_address_prefix_len(self, name: str, rule: str, prefix_len: str) -> List[str]:
-        """Match IP address prefix length."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "address", "prefix-len", prefix_len]
+        return self.get_match_ip_address_prefix_len_path(name, rule) + [prefix_len]
+
+    def get_match_ipv6_address_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ipv6", "address")
+
+    def get_match_ipv6_address_access_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ipv6_address_path(name, rule) + ["access-list"]
 
     def get_match_ipv6_address_access_list(self, name: str, rule: str, access_list: str) -> List[str]:
-        """Match IPv6 address via access-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "address", "access-list", access_list]
+        return self.get_match_ipv6_address_access_list_path(name, rule) + [access_list]
+
+    def get_match_ipv6_address_prefix_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ipv6_address_path(name, rule) + ["prefix-list"]
 
     def get_match_ipv6_address_prefix_list(self, name: str, rule: str, prefix_list: str) -> List[str]:
-        """Match IPv6 address via prefix-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "address", "prefix-list", prefix_list]
+        return self.get_match_ipv6_address_prefix_list_path(name, rule) + [prefix_list]
+
+    def get_match_ipv6_address_prefix_len_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ipv6_address_path(name, rule) + ["prefix-len"]
 
     def get_match_ipv6_address_prefix_len(self, name: str, rule: str, prefix_len: str) -> List[str]:
-        """Match IPv6 address prefix length."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "address", "prefix-len", prefix_len]
+        return self.get_match_ipv6_address_prefix_len_path(name, rule) + [prefix_len]
 
     # ========================================================================
-    # Match Conditions - Next-Hop
+    # Match - next-hop
     # ========================================================================
+
+    def get_match_ip_nexthop_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ip", "nexthop")
+
+    def get_match_ip_nexthop_access_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_nexthop_path(name, rule) + ["access-list"]
 
     def get_match_ip_nexthop_access_list(self, name: str, rule: str, access_list: str) -> List[str]:
-        """Match IP next-hop via access-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "nexthop", "access-list", access_list]
+        return self.get_match_ip_nexthop_access_list_path(name, rule) + [access_list]
+
+    def get_match_ip_nexthop_address_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_nexthop_path(name, rule) + ["address"]
 
     def get_match_ip_nexthop_address(self, name: str, rule: str, address: str) -> List[str]:
-        """Match IP next-hop address."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "nexthop", "address", address]
+        return self.get_match_ip_nexthop_address_path(name, rule) + [address]
+
+    def get_match_ip_nexthop_prefix_len_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_nexthop_path(name, rule) + ["prefix-len"]
 
     def get_match_ip_nexthop_prefix_len(self, name: str, rule: str, prefix_len: str) -> List[str]:
-        """Match IP next-hop prefix length."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "nexthop", "prefix-len", prefix_len]
+        return self.get_match_ip_nexthop_prefix_len_path(name, rule) + [prefix_len]
+
+    def get_match_ip_nexthop_prefix_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_nexthop_path(name, rule) + ["prefix-list"]
 
     def get_match_ip_nexthop_prefix_list(self, name: str, rule: str, prefix_list: str) -> List[str]:
-        """Match IP next-hop via prefix-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "nexthop", "prefix-list", prefix_list]
+        return self.get_match_ip_nexthop_prefix_list_path(name, rule) + [prefix_list]
+
+    def get_match_ip_nexthop_type_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_nexthop_path(name, rule) + ["type"]
 
     def get_match_ip_nexthop_type(self, name: str, rule: str, nh_type: str) -> List[str]:
-        """Match IP next-hop type."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "nexthop", "type", nh_type]
+        return self.get_match_ip_nexthop_type_path(name, rule) + [nh_type]
 
-    def get_match_ipv6_nexthop_address(self, name: str, rule: str, address: str) -> List[str]:
-        """Match IPv6 next-hop address."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "nexthop", "address", address]
+    def get_match_ipv6_nexthop_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ipv6", "nexthop")
+
+    def get_match_ipv6_nexthop_access_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ipv6_nexthop_path(name, rule) + ["access-list"]
 
     def get_match_ipv6_nexthop_access_list(self, name: str, rule: str, access_list: str) -> List[str]:
-        """Match IPv6 next-hop via access-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "nexthop", "access-list", access_list]
+        return self.get_match_ipv6_nexthop_access_list_path(name, rule) + [access_list]
+
+    def get_match_ipv6_nexthop_address_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ipv6_nexthop_path(name, rule) + ["address"]
+
+    def get_match_ipv6_nexthop_address(self, name: str, rule: str, address: str) -> List[str]:
+        return self.get_match_ipv6_nexthop_address_path(name, rule) + [address]
+
+    def get_match_ipv6_nexthop_prefix_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ipv6_nexthop_path(name, rule) + ["prefix-list"]
 
     def get_match_ipv6_nexthop_prefix_list(self, name: str, rule: str, prefix_list: str) -> List[str]:
-        """Match IPv6 next-hop via prefix-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "nexthop", "prefix-list", prefix_list]
+        return self.get_match_ipv6_nexthop_prefix_list_path(name, rule) + [prefix_list]
+
+    def get_match_ipv6_nexthop_type_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ipv6_nexthop_path(name, rule) + ["type"]
 
     def get_match_ipv6_nexthop_type(self, name: str, rule: str, nh_type: str) -> List[str]:
-        """Match IPv6 next-hop type."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ipv6", "nexthop", "type", nh_type]
+        return self.get_match_ipv6_nexthop_type_path(name, rule) + [nh_type]
 
     # ========================================================================
-    # Match Conditions - Route Source
+    # Match - route source
     # ========================================================================
+
+    def get_match_ip_route_source_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "ip", "route-source")
+
+    def get_match_ip_route_source_access_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_route_source_path(name, rule) + ["access-list"]
 
     def get_match_ip_route_source_access_list(self, name: str, rule: str, access_list: str) -> List[str]:
-        """Match IP route source via access-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "route-source", "access-list", access_list]
+        return self.get_match_ip_route_source_access_list_path(name, rule) + [access_list]
+
+    def get_match_ip_route_source_prefix_list_path(self, name: str, rule: str) -> List[str]:
+        return self.get_match_ip_route_source_path(name, rule) + ["prefix-list"]
 
     def get_match_ip_route_source_prefix_list(self, name: str, rule: str, prefix_list: str) -> List[str]:
-        """Match IP route source via prefix-list."""
-        return ["policy", "route-map", name, "rule", rule, "match", "ip", "route-source", "prefix-list", prefix_list]
+        return self.get_match_ip_route_source_prefix_list_path(name, rule) + [prefix_list]
 
     # ========================================================================
-    # Match Conditions - Other
+    # Match - other
     # ========================================================================
+
+    def get_match_interface_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "interface")
 
     def get_match_interface(self, name: str, rule: str, interface: str) -> List[str]:
-        """Match interface."""
-        return ["policy", "route-map", name, "rule", rule, "match", "interface", interface]
+        return self.get_match_interface_path(name, rule) + [interface]
+
+    def get_match_protocol_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "protocol")
 
     def get_match_protocol(self, name: str, rule: str, protocol: str) -> List[str]:
-        """Match protocol."""
-        return ["policy", "route-map", name, "rule", rule, "match", "protocol", protocol]
+        return self.get_match_protocol_path(name, rule) + [protocol]
+
+    def get_match_source_vrf_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "source-vrf")
 
     def get_match_source_vrf(self, name: str, rule: str, vrf: str) -> List[str]:
-        """Match source VRF."""
-        return ["policy", "route-map", name, "rule", rule, "match", "source-vrf", vrf]
+        return self.get_match_source_vrf_path(name, rule) + [vrf]
+
+    def get_match_tag_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "match", "tag")
 
     def get_match_tag(self, name: str, rule: str, tag: str) -> List[str]:
-        """Match tag."""
-        return ["policy", "route-map", name, "rule", rule, "match", "tag", tag]
+        return self.get_match_tag_path(name, rule) + [tag]
 
     # ========================================================================
-    # Set Actions - BGP AS Path
+    # Set - AS path
     # ========================================================================
+
+    def get_set_path(self, name: str, rule: str) -> List[str]:
+        """The rule ``set`` node; deleting a child leaves it on the device."""
+        return self._rule_node(name, rule, "set")
+
+    def get_set_as_path_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "as-path")
+
+    def get_set_as_path_exclude_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "as-path", "exclude")
 
     def get_set_as_path_exclude(self, name: str, rule: str, as_path: str) -> List[str]:
-        """Set AS path exclude."""
-        return ["policy", "route-map", name, "rule", rule, "set", "as-path", "exclude", as_path]
+        return self.get_set_as_path_exclude_path(name, rule) + [as_path]
+
+    def get_set_as_path_prepend_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "as-path", "prepend")
 
     def get_set_as_path_prepend(self, name: str, rule: str, as_path: str) -> List[str]:
-        """Set AS path prepend."""
-        return ["policy", "route-map", name, "rule", rule, "set", "as-path", "prepend", as_path]
+        return self.get_set_as_path_prepend_path(name, rule) + [as_path]
+
+    def get_set_as_path_prepend_last_as_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "as-path", "prepend-last-as")
 
     def get_set_as_path_prepend_last_as(self, name: str, rule: str, count: str) -> List[str]:
-        """Set AS path prepend last-as."""
-        return ["policy", "route-map", name, "rule", rule, "set", "as-path", "prepend-last-as", count]
+        return self.get_set_as_path_prepend_last_as_path(name, rule) + [count]
 
     # ========================================================================
-    # Set Actions - BGP Communities
+    # Set - communities
     # ========================================================================
+
+    def get_set_community_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "community")
+
+    def get_set_community_add_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_community_path(name, rule) + ["add"]
 
     def get_set_community_add(self, name: str, rule: str, community: str) -> List[str]:
-        """Set community add."""
-        return ["policy", "route-map", name, "rule", rule, "set", "community", "add", community]
+        return self.get_set_community_add_path(name, rule) + [community]
+
+    def get_set_community_replace_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_community_path(name, rule) + ["replace"]
 
     def get_set_community_replace(self, name: str, rule: str, community: str) -> List[str]:
-        """Set community replace."""
-        return ["policy", "route-map", name, "rule", rule, "set", "community", "replace", community]
+        return self.get_set_community_replace_path(name, rule) + [community]
 
-    def get_set_community_delete(self, name: str, rule: str, community: str) -> List[str]:
-        """Set community delete."""
-        return ["policy", "route-map", name, "rule", rule, "set", "community", "delete", community]
+    def get_set_community_delete_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_community_path(name, rule) + ["delete"]
 
-    def get_set_community_none(self, name: str, rule: str) -> List[str]:
-        """Set community none."""
-        return ["policy", "route-map", name, "rule", rule, "set", "community", "none"]
+    def get_set_community_delete(self, name: str, rule: str, community_list: str) -> List[str]:
+        return self.get_set_community_delete_path(name, rule) + [community_list]
+
+    def get_set_community_none_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_community_path(name, rule) + ["none"]
+
+    def get_set_large_community_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "large-community")
+
+    def get_set_large_community_add_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_large_community_path(name, rule) + ["add"]
 
     def get_set_large_community_add(self, name: str, rule: str, community: str) -> List[str]:
-        """Set large-community add."""
-        return ["policy", "route-map", name, "rule", rule, "set", "large-community", "add", community]
+        return self.get_set_large_community_add_path(name, rule) + [community]
+
+    def get_set_large_community_replace_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_large_community_path(name, rule) + ["replace"]
 
     def get_set_large_community_replace(self, name: str, rule: str, community: str) -> List[str]:
-        """Set large-community replace."""
-        return ["policy", "route-map", name, "rule", rule, "set", "large-community", "replace", community]
+        return self.get_set_large_community_replace_path(name, rule) + [community]
 
-    def get_set_large_community_delete(self, name: str, rule: str, community: str) -> List[str]:
-        """Set large-community delete."""
-        return ["policy", "route-map", name, "rule", rule, "set", "large-community", "delete", community]
+    def get_set_large_community_delete_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_large_community_path(name, rule) + ["delete"]
 
-    def get_set_large_community_none(self, name: str, rule: str) -> List[str]:
-        """Set large-community none."""
-        return ["policy", "route-map", name, "rule", rule, "set", "large-community", "none"]
+    def get_set_large_community_delete(self, name: str, rule: str, community_list: str) -> List[str]:
+        return self.get_set_large_community_delete_path(name, rule) + [community_list]
+
+    def get_set_large_community_none_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_large_community_path(name, rule) + ["none"]
+
+    def get_set_extcommunity_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "extcommunity")
+
+    def get_set_extcommunity_bandwidth_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_extcommunity_path(name, rule) + ["bandwidth"]
 
     def get_set_extcommunity_bandwidth(self, name: str, rule: str, bandwidth: str) -> List[str]:
-        """Set extcommunity bandwidth."""
-        return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "bandwidth", bandwidth]
+        return self.get_set_extcommunity_bandwidth_path(name, rule) + [bandwidth]
 
-    def get_set_extcommunity_bandwidth_non_transitive(self, name: str, rule: str) -> List[str]:
-        """Encode the extcommunity bandwidth as non-transitive. VyOS requires bandwidth too."""
-        return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "bandwidth-non-transitive"]
+    def get_set_extcommunity_bandwidth_non_transitive_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_extcommunity_path(name, rule) + ["bandwidth-non-transitive"]
+
+    def get_set_extcommunity_rt_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_extcommunity_path(name, rule) + ["rt"]
 
     def get_set_extcommunity_rt(self, name: str, rule: str, rt: str) -> List[str]:
-        """Set extcommunity RT."""
-        return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "rt", rt]
+        return self.get_set_extcommunity_rt_path(name, rule) + [rt]
+
+    def get_set_extcommunity_soo_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_extcommunity_path(name, rule) + ["soo"]
 
     def get_set_extcommunity_soo(self, name: str, rule: str, soo: str) -> List[str]:
-        """Set extcommunity SOO."""
-        return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "soo", soo]
+        return self.get_set_extcommunity_soo_path(name, rule) + [soo]
 
-    def get_set_extcommunity_none(self, name: str, rule: str) -> List[str]:
-        """Set extcommunity none."""
-        return ["policy", "route-map", name, "rule", rule, "set", "extcommunity", "none"]
+    def get_set_extcommunity_none_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_extcommunity_path(name, rule) + ["none"]
 
     # ========================================================================
-    # Set Actions - BGP Attributes
+    # Set - BGP attributes
     # ========================================================================
 
-    def get_set_atomic_aggregate(self, name: str, rule: str) -> List[str]:
-        """Set atomic aggregate."""
-        return ["policy", "route-map", name, "rule", rule, "set", "atomic-aggregate"]
+    def get_set_atomic_aggregate_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "atomic-aggregate")
+
+    def get_set_aggregator_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "aggregator")
+
+    def get_set_aggregator_as_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_aggregator_path(name, rule) + ["as"]
 
     def get_set_aggregator_as(self, name: str, rule: str, as_number: str) -> List[str]:
-        """Set aggregator AS."""
-        return ["policy", "route-map", name, "rule", rule, "set", "aggregator", "as", as_number]
+        return self.get_set_aggregator_as_path(name, rule) + [as_number]
+
+    def get_set_aggregator_ip_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_aggregator_path(name, rule) + ["ip"]
 
     def get_set_aggregator_ip(self, name: str, rule: str, ip: str) -> List[str]:
-        """Set aggregator IP."""
-        return ["policy", "route-map", name, "rule", rule, "set", "aggregator", "ip", ip]
+        return self.get_set_aggregator_ip_path(name, rule) + [ip]
+
+    def get_set_local_preference_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "local-preference")
 
     def get_set_local_preference(self, name: str, rule: str, local_pref: str) -> List[str]:
-        """Set local preference."""
-        return ["policy", "route-map", name, "rule", rule, "set", "local-preference", local_pref]
+        return self.get_set_local_preference_path(name, rule) + [local_pref]
+
+    def get_set_origin_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "origin")
 
     def get_set_origin(self, name: str, rule: str, origin: str) -> List[str]:
-        """Set origin."""
-        return ["policy", "route-map", name, "rule", rule, "set", "origin", origin]
+        return self.get_set_origin_path(name, rule) + [origin]
+
+    def get_set_originator_id_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "originator-id")
 
     def get_set_originator_id(self, name: str, rule: str, originator_id: str) -> List[str]:
-        """Set originator ID."""
-        return ["policy", "route-map", name, "rule", rule, "set", "originator-id", originator_id]
+        return self.get_set_originator_id_path(name, rule) + [originator_id]
+
+    def get_set_weight_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "weight")
 
     def get_set_weight(self, name: str, rule: str, weight: str) -> List[str]:
-        """Set weight."""
-        return ["policy", "route-map", name, "rule", rule, "set", "weight", weight]
+        return self.get_set_weight_path(name, rule) + [weight]
 
     # ========================================================================
-    # Set Actions - Next-Hop
+    # Set - next-hop
     # ========================================================================
+
+    def get_set_ip_nexthop_path(self, name: str, rule: str) -> List[str]:
+        """``set ip-next-hop``: one value leaf (an IPv4 address, unchanged, or peer-address)."""
+        return self._rule_node(name, rule, "set", "ip-next-hop")
 
     def get_set_ip_nexthop(self, name: str, rule: str, nexthop: str) -> List[str]:
-        """Set IP next-hop."""
-        return ["policy", "route-map", name, "rule", rule, "set", "ip-next-hop", nexthop]
+        return self.get_set_ip_nexthop_path(name, rule) + [nexthop]
 
     def get_set_ip_nexthop_peer_address(self, name: str, rule: str) -> List[str]:
-        """Set IP next-hop to peer address."""
-        return ["policy", "route-map", name, "rule", rule, "set", "ip-next-hop", "peer-address"]
+        return self.get_set_ip_nexthop(name, rule, "peer-address")
 
     def get_set_ip_nexthop_unchanged(self, name: str, rule: str) -> List[str]:
-        """Set IP next-hop unchanged."""
-        return ["policy", "route-map", name, "rule", rule, "set", "ip-next-hop", "unchanged"]
+        return self.get_set_ip_nexthop(name, rule, "unchanged")
+
+    def get_set_ipv6_nexthop_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "ipv6-next-hop")
+
+    def get_set_ipv6_nexthop_global_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_ipv6_nexthop_path(name, rule) + ["global"]
 
     def get_set_ipv6_nexthop_global(self, name: str, rule: str, nexthop: str) -> List[str]:
-        """Set IPv6 next-hop global."""
-        return ["policy", "route-map", name, "rule", rule, "set", "ipv6-next-hop", "global", nexthop]
+        return self.get_set_ipv6_nexthop_global_path(name, rule) + [nexthop]
+
+    def get_set_ipv6_nexthop_local_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_ipv6_nexthop_path(name, rule) + ["local"]
 
     def get_set_ipv6_nexthop_local(self, name: str, rule: str, nexthop: str) -> List[str]:
-        """Set IPv6 next-hop local."""
-        return ["policy", "route-map", name, "rule", rule, "set", "ipv6-next-hop", "local", nexthop]
+        return self.get_set_ipv6_nexthop_local_path(name, rule) + [nexthop]
 
-    def get_set_ipv6_nexthop_peer_address(self, name: str, rule: str) -> List[str]:
-        """Set IPv6 next-hop to peer address."""
-        return ["policy", "route-map", name, "rule", rule, "set", "ipv6-next-hop", "peer-address"]
+    def get_set_ipv6_nexthop_peer_address_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_ipv6_nexthop_path(name, rule) + ["peer-address"]
 
-    def get_set_ipv6_nexthop_prefer_global(self, name: str, rule: str) -> List[str]:
-        """Set IPv6 next-hop prefer global."""
-        return ["policy", "route-map", name, "rule", rule, "set", "ipv6-next-hop", "prefer-global"]
+    def get_set_ipv6_nexthop_prefer_global_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_ipv6_nexthop_path(name, rule) + ["prefer-global"]
 
     def get_set_l3vpn_nexthop_path(self, name: str, rule: str) -> List[str]:
-        """Set L3VPN next-hop subtree."""
-        return ["policy", "route-map", name, "rule", rule, "set", "l3vpn-nexthop"]
+        return self._rule_node(name, rule, "set", "l3vpn-nexthop")
 
-    def get_set_l3vpn_nexthop_encapsulation_gre(self, name: str, rule: str) -> List[str]:
-        """Accept L3VPN traffic over GRE encapsulation."""
+    def get_set_l3vpn_nexthop_encapsulation_gre_path(self, name: str, rule: str) -> List[str]:
         return self.get_set_l3vpn_nexthop_path(name, rule) + ["encapsulation", "gre"]
 
     # ========================================================================
-    # Set Actions - EVPN
+    # Set - EVPN
     # ========================================================================
 
     def get_set_evpn_path(self, name: str, rule: str) -> List[str]:
-        """Set EVPN subtree."""
-        return ["policy", "route-map", name, "rule", rule, "set", "evpn"]
+        return self._rule_node(name, rule, "set", "evpn")
+
+    def get_set_evpn_gateway_ipv4_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_evpn_path(name, rule) + ["gateway", "ipv4"]
 
     def get_set_evpn_gateway_ipv4(self, name: str, rule: str, gateway: str) -> List[str]:
-        """Set EVPN gateway IPv4 address."""
-        return self.get_set_evpn_path(name, rule) + ["gateway", "ipv4", gateway]
+        return self.get_set_evpn_gateway_ipv4_path(name, rule) + [gateway]
+
+    def get_set_evpn_gateway_ipv6_path(self, name: str, rule: str) -> List[str]:
+        return self.get_set_evpn_path(name, rule) + ["gateway", "ipv6"]
 
     def get_set_evpn_gateway_ipv6(self, name: str, rule: str, gateway: str) -> List[str]:
-        """Set EVPN gateway IPv6 address."""
-        return self.get_set_evpn_path(name, rule) + ["gateway", "ipv6", gateway]
+        return self.get_set_evpn_gateway_ipv6_path(name, rule) + [gateway]
 
     # ========================================================================
-    # Set Actions - Route Properties
+    # Set - route properties
     # ========================================================================
+
+    def get_set_distance_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "distance")
 
     def get_set_distance(self, name: str, rule: str, distance: str) -> List[str]:
-        """Set distance."""
-        return ["policy", "route-map", name, "rule", rule, "set", "distance", distance]
+        return self.get_set_distance_path(name, rule) + [distance]
+
+    def get_set_metric_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "metric")
 
     def get_set_metric(self, name: str, rule: str, metric: str) -> List[str]:
-        """Set metric."""
-        return ["policy", "route-map", name, "rule", rule, "set", "metric", metric]
+        return self.get_set_metric_path(name, rule) + [metric]
+
+    def get_set_metric_type_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "metric-type")
 
     def get_set_metric_type(self, name: str, rule: str, metric_type: str) -> List[str]:
-        """Set metric type."""
-        return ["policy", "route-map", name, "rule", rule, "set", "metric-type", metric_type]
+        return self.get_set_metric_type_path(name, rule) + [metric_type]
+
+    def get_set_src_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "src")
 
     def get_set_src(self, name: str, rule: str, src: str) -> List[str]:
-        """Set source."""
-        return ["policy", "route-map", name, "rule", rule, "set", "src", src]
+        return self.get_set_src_path(name, rule) + [src]
+
+    def get_set_table_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "table")
 
     def get_set_table(self, name: str, rule: str, table: str) -> List[str]:
-        """Set table."""
-        return ["policy", "route-map", name, "rule", rule, "set", "table", table]
+        return self.get_set_table_path(name, rule) + [table]
+
+    def get_set_tag_path(self, name: str, rule: str) -> List[str]:
+        return self._rule_node(name, rule, "set", "tag")
 
     def get_set_tag(self, name: str, rule: str, tag: str) -> List[str]:
-        """Set tag."""
-        return ["policy", "route-map", name, "rule", rule, "set", "tag", tag]
+        return self.get_set_tag_path(name, rule) + [tag]
