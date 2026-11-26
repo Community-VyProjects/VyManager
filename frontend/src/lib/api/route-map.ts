@@ -170,6 +170,7 @@ export type RouteMapRangeKey =
   | "extcommunity_asn"
   | "extcommunity_asn_value"
   | "extcommunity_ip_value"
+  | "ip_access_list"
   | "evpn_vni"
   | "table";
 
@@ -208,8 +209,6 @@ export interface RouteMapCapabilities {
     community_well_known: string[];
   };
   ranges: Record<RouteMapRangeKey, RouteMapRange>;
-  /** IPv4 access-list numbers a `match ip ... access-list` takes. */
-  ip_access_list_ranges: RouteMapRange[];
   description_max_length: number;
   /** The device rejects `set as-path prepend` together with `prepend-last-as`. */
   as_path_prepend_exclusive: boolean;

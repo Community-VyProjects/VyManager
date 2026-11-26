@@ -12,7 +12,6 @@ import {
 } from "./route-map";
 import {
   emptyRuleForm,
-  ipAccessListNames,
   mapCreateOps,
   mapDeleteOps,
   mapUpdateOps,
@@ -83,15 +82,10 @@ function caps(v15: boolean): RouteMapCapabilities {
       extcommunity_asn: { min: 0, max: 65535 },
       extcommunity_asn_value: { min: 0, max: u32 },
       extcommunity_ip_value: { min: 0, max: 65535 },
+      ip_access_list: { min: 0, max: u32 },
       evpn_vni: { min: 1, max: 16777214 },
       table: { min: 1, max: v15 ? u32 : 200 },
     },
-    ip_access_list_ranges: [
-      { min: 1, max: 99 },
-      { min: 100, max: 199 },
-      { min: 1300, max: 1999 },
-      { min: 2000, max: 2699 },
-    ],
     description_max_length: 255,
     as_path_prepend_exclusive: v15,
   };
@@ -286,10 +280,10 @@ describe("rule ops", () => {
     ]);
   });
 
-  it("clearing every child of a parent node sends the parent's delete (a one-child node sends its leaf delete)", () => {
+  it("clearing every child of a node sends that node's delete while its parent keeps a sibling", () => {
     const loaded = rule(
-      { community_list: "CL", community_exact_match: true, ip_nexthop_address: "192.0.2.1", evpn_rd: "65000:1", large_community_list: "LCL" },
-      { aggregator_as: "65000", aggregator_ip: "192.0.2.1", l3vpn_nexthop_encapsulation_gre: true, evpn_gateway_ipv4: "192.0.2.9" },
+      { community_list: "CL", community_exact_match: true, ip_nexthop_address: "192.0.2.1", ip_address_prefix_len: 24, evpn_rd: "65000:1", large_community_list: "LCL", tag: 5 },
+      { aggregator_as: "65000", aggregator_ip: "192.0.2.1", l3vpn_nexthop_encapsulation_gre: true, evpn_gateway_ipv4: "192.0.2.9", tag: 5 },
     );
     assert.deepEqual(
       edit(loaded, {
@@ -305,11 +299,11 @@ describe("rule ops", () => {
       }).map((o) => o.op),
       [
         "delete_match_community",
-        "delete_match_large_community_list",
+        "delete_match_large_community",
         "delete_match_evpn",
         "delete_match_ip_nexthop",
         "delete_set_aggregator",
-        "delete_set_l3vpn_nexthop_encapsulation_gre",
+        "delete_set_l3vpn_nexthop",
         "delete_set_evpn",
       ],
     );
@@ -368,7 +362,7 @@ describe("rule ops", () => {
     const peer = rule({}, { ip_nexthop_peer_address: true });
     assert.equal(ruleFormFrom(peer).set_ip_nexthop, "peer-address");
     assert.deepEqual(edit(peer, { set_ip_nexthop: "192.0.2.2" }), [{ op: "set_ip_nexthop", value: "192.0.2.2" }]);
-    assert.deepEqual(edit(rule({}, { ip_nexthop_unchanged: true }), { set_ip_nexthop: "" }), [
+    assert.deepEqual(edit(rule({}, { ip_nexthop_unchanged: true, tag: 5 }), { set_ip_nexthop: "" }), [
       { op: "delete_set_ip_nexthop" },
     ]);
   });
@@ -398,6 +392,114 @@ describe("rule ops", () => {
   });
 });
 
+
+// ----------------------------------------------------------------------------
+// Container deletes: a child delete leaves its empty parent on the device at
+// every level (lab), so the highest node the edit empties is deleted and
+// nothing under it.
+// ----------------------------------------------------------------------------
+
+describe("container deletes", () => {
+  const ops = (match: Partial<MatchConditions>, set: Partial<SetActions>, change: Partial<RouteMapRuleForm>, extra: Partial<RouteMapRule> = {}) =>
+    edit(rule(match, set, extra), change).map((o) => (o.value === undefined ? o.op : `${o.op} ${o.value}`));
+
+  it("rule level: the last match leaf, set leaf or on-match child deletes match, set or on-match", () => {
+    assert.deepEqual(ops({ as_path: "ASP" }, {}, { match_as_path: "" }), ["delete_match"]);
+    assert.deepEqual(ops({}, { weight: 5 }, { set_weight: "" }), ["delete_set"]);
+    assert.deepEqual(ops({}, {}, { on_match_goto: "" }, { on_match_goto: 20 }), ["delete_rule_on_match"]);
+    assert.deepEqual(ops({}, {}, { on_match_next: false }, { on_match_next: true }), ["delete_rule_on_match"]);
+  });
+
+  it("the highest emptied node wins: emptying match ip deletes it alone; emptying all of match deletes match", () => {
+    const match = { ip_address_prefix_list: "PL", ip_address_prefix_len: 24, ip_nexthop_type: "blackhole", ipv6_address_prefix_list: "PL6" };
+    const clearIp = { match_ip_address_prefix_list: "", match_ip_address_prefix_len: "", match_ip_nexthop_type: "" };
+    assert.deepEqual(ops(match, {}, clearIp), ["delete_match_ip"]);
+    assert.deepEqual(ops(match, {}, { ...clearIp, match_ipv6_address_prefix_list: "" }), ["delete_match"]);
+    // The last set community value with nothing else under set: set itself.
+    assert.deepEqual(ops({}, { community_add_values: ["65000:1"] }, { set_community_add: [] }), ["delete_set"]);
+  });
+
+  it("match children: each node is deleted when emptied while a match sibling remains", () => {
+    const keep = { tag: 5 };
+    const cases: [Partial<MatchConditions>, Partial<RouteMapRuleForm>, string][] = [
+      [{ community_list: "CL" }, { match_community_list: "" }, "delete_match_community"],
+      [{ community_exact_match: true }, { match_community_exact_match: false }, "delete_match_community"],
+      [{ large_community_list: "LCL" }, { match_large_community_list: "" }, "delete_match_large_community"],
+      [{ evpn_vni: 100, evpn_default_route: true }, { match_evpn_vni: "", match_evpn_default_route: false }, "delete_match_evpn"],
+      [{ ip_route_source_prefix_list: "PL" }, { match_ip_route_source_prefix_list: "" }, "delete_match_ip"],
+      [{ ipv6_nexthop_address: "2001:db8::1" }, { match_ipv6_nexthop_address: "" }, "delete_match_ipv6"],
+    ];
+    for (const [match, change, expected] of cases) {
+      assert.deepEqual(ops({ ...match, ...keep }, {}, change), [expected], expected);
+    }
+  });
+
+  it("match ip and ipv6 children: each node is deleted when emptied while a sibling under ip or ipv6 remains", () => {
+    const cases: [Partial<MatchConditions>, Partial<RouteMapRuleForm>, string][] = [
+      [{ ip_address_access_list: "500", ip_nexthop_type: "blackhole" }, { match_ip_address_access_list: "" }, "delete_match_ip_address"],
+      [{ ip_nexthop_access_list: "2700", ip_address_prefix_len: 24 }, { match_ip_nexthop_access_list: "" }, "delete_match_ip_nexthop"],
+      [{ ip_route_source_access_list: "1", ip_address_prefix_len: 24 }, { match_ip_route_source_access_list: "" }, "delete_match_ip_route_source"],
+      [{ ipv6_address_prefix_len: 64, ipv6_nexthop_type: "blackhole" }, { match_ipv6_address_prefix_len: "" }, "delete_match_ipv6_address"],
+      [{ ipv6_nexthop_prefix_list: "PL6", ipv6_address_prefix_len: 64 }, { match_ipv6_nexthop_prefix_list: "" }, "delete_match_ipv6_nexthop"],
+    ];
+    for (const [match, change, expected] of cases) {
+      assert.deepEqual(ops(match, {}, change), [expected], expected);
+    }
+  });
+
+  it("set children: each node is deleted when emptied while a set sibling remains", () => {
+    const keep = { tag: 5 };
+    const cases: [Partial<SetActions>, Partial<RouteMapRuleForm>, string][] = [
+      [{ as_path_prepend: "65001", as_path_prepend_last_as: 2 }, { set_as_path_prepend: "", set_as_path_prepend_last_as: "" }, "delete_set_as_path"],
+      [{ as_path_exclude: "all" }, { set_as_path_exclude: "" }, "delete_set_as_path"],
+      [{ community_add_values: ["65000:1"] }, { set_community_add: [] }, "delete_set_community"],
+      [{ community_remove_all: true }, { set_community_none: false }, "delete_set_community"],
+      [{ large_community_replace_values: ["1:2:3"] }, { set_large_community_replace: [] }, "delete_set_large_community"],
+      [{ extcommunity_rt: ["65000:1"], extcommunity_soo: ["65000:2"] }, { set_extcommunity_rt: [], set_extcommunity_soo: [] }, "delete_set_extcommunity"],
+      [{ aggregator_as: "65000", aggregator_ip: "192.0.2.1" }, { set_aggregator_as: "", set_aggregator_ip: "" }, "delete_set_aggregator"],
+      [{ ipv6_nexthop_prefer_global: true }, { set_ipv6_nexthop_prefer_global: false }, "delete_set_ipv6_nexthop"],
+      [{ l3vpn_nexthop_encapsulation_gre: true }, { set_l3vpn_nexthop_encapsulation_gre: false }, "delete_set_l3vpn_nexthop"],
+      [{ evpn_gateway_ipv6: "2001:db8::1" }, { set_evpn_gateway_ipv6: "" }, "delete_set_evpn"],
+    ];
+    for (const [set, change, expected] of cases) {
+      assert.deepEqual(ops({}, { ...set, ...keep }, change), [expected], expected);
+    }
+  });
+
+  it("a remaining sibling keeps the node: only the child, leaf or value is deleted", () => {
+    assert.deepEqual(ops({ ip_address_prefix_list: "PL", ip_address_prefix_len: 24 }, {}, { match_ip_address_prefix_len: "" }), [
+      "delete_match_ip_address_prefix_len",
+    ]);
+    assert.deepEqual(ops({}, {}, { on_match_goto: "" }, { on_match_goto: 20, on_match_next: true }), ["delete_rule_on_match_goto"]);
+    assert.deepEqual(ops({}, { as_path_exclude: "65001", as_path_prepend: "65002" }, { set_as_path_exclude: "" }), [
+      "delete_set_as_path_exclude",
+    ]);
+    assert.deepEqual(ops({}, { community_add_values: ["65000:1", "65000:2"] }, { set_community_add: ["65000:2"] }), [
+      "delete_set_community_add 65000:1",
+    ]);
+    assert.deepEqual(ops({}, { community_add_values: ["65000:1"], community_delete: "CL" }, { set_community_add: [] }), [
+      "delete_set_community_add 65000:1",
+    ]);
+    // Emptying a container and setting a sibling in one edit: only the container goes.
+    assert.deepEqual(ops({ ip_address_prefix_list: "PL" }, {}, { match_ip_address_prefix_list: "", match_tag: "7" }), [
+      "delete_match_ip",
+      "set_match_tag 7",
+    ]);
+  });
+
+  it("an empty container the device already holds (parsed as absent) gets no op; filling it only sets", () => {
+    assert.deepEqual(ops({}, {}, {}), []);
+    assert.deepEqual(ops({}, {}, { match_ip_address_prefix_len: "24" }), ["set_match_ip_address_prefix_len 24"]);
+  });
+
+  it("a leaf the device version lacks is never deleted, and still keeps its parent", () => {
+    // Before capabilities load the 1.5-only leaves are gated; the stored value is left alone.
+    const loaded = rule({ source_peer: "192.0.2.1", as_path: "ASP" });
+    assert.deepEqual(ruleSaveOps(loaded, { ...ruleFormFrom(loaded), match_as_path: "" }, null), [
+      { op: "delete_match_as_path" },
+    ]);
+  });
+});
 // ----------------------------------------------------------------------------
 // Save checks
 // ----------------------------------------------------------------------------
@@ -489,15 +591,14 @@ describe("rule save checks", () => {
     assert.equal(check({ match_evpn_vni: "16777215" })?.key, "evpnVniRange");
   });
 
-  it("addresses and access-list numbers match the builder", () => {
+  it("addresses match the builder; any access-list number is taken", () => {
     assert.equal(check({ match_peer: "2001:db8::1" }), null);
     assert.equal(check({ match_peer: "eth0" })?.key, "matchPeerInvalid");
     assert.equal(check({ set_ip_nexthop: "010.0.0.1" })?.key, "ipNexthopInvalid");
     assert.equal(check({ set_ip_nexthop: "peer-address" }), null);
     assert.equal(check({ set_originator_id: "2001:db8::1" })?.key, "originatorIdInvalid");
-    assert.equal(check({ match_ip_address_access_list: "200" })?.key, "ipAddressAccessListInvalid");
-    assert.equal(check({ match_ip_nexthop_access_list: "1300" }), null);
-    assert.deepEqual(ipAccessListNames(["1", "200", "2699", "abc"], CAPS15), ["1", "2699"]);
+    // Any configured IPv4 access-list number (a u32 tag), also outside the val_help ranges (lab).
+    assert.equal(check({ match_ip_address_access_list: "500", match_ip_nexthop_access_list: "2700", match_ip_route_source_access_list: "1300" }), null);
     assert.equal(check({ set_metric: "-rtt" }), null);
     assert.equal(check({ set_metric: "+x" })?.key, "metricInvalid");
   });

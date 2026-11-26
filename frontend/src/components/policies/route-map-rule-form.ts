@@ -31,7 +31,7 @@ export interface RouteMapPickers {
   communityLists: string[];
   extcommunityLists: string[];
   largeCommunityLists: string[];
-  /** IPv4 access-list numbers inside the served `ip_access_list_ranges`. */
+  /** Configured IPv4 access-list numbers. */
   ipv4AccessLists: string[];
   ipv6AccessLists: string[];
   ipv4PrefixLists: string[];
@@ -70,14 +70,11 @@ const MATCH: RouteMapRuleProblemKey[] = [
   "matchPeerInvalid",
   "matchSourcePeerInvalid",
   "evpnVniRange",
-  "ipAddressAccessListInvalid",
   "ipAddressPrefixLenRange",
   "ipv6AddressPrefixLenRange",
-  "ipNexthopAccessListInvalid",
   "ipNexthopAddressInvalid",
   "ipNexthopPrefixLenRange",
   "ipv6NexthopAddressInvalid",
-  "ipRouteSourceAccessListInvalid",
 ];
 
 /** The tab holding the field a save check names, so the submit can switch to it. */

@@ -27,7 +27,6 @@ import {
   type RouteMapCapabilities,
   type RouteMapRule,
 } from "@/lib/api/route-map";
-import { ipAccessListNames } from "@/lib/api/route-map-save-ops";
 import { reorderMoveCount } from "@/lib/api/prefix-list-save-ops";
 import { asPathListService } from "@/lib/api/as-path-list";
 import { communityListService, extcommunityListService, largeCommunityListService } from "@/lib/api/policy-list";
@@ -56,7 +55,7 @@ interface ModalState {
   rule: RouteMapRule | null;
 }
 
-type PickerLists = Omit<RouteMapPickers, "routeMaps" | "ipv4AccessLists"> & { ipv4AccessListNumbers: string[] };
+type PickerLists = Omit<RouteMapPickers, "routeMaps">;
 
 export default function RouteMapPage() {
   const t = useTranslations("routeMap");
@@ -133,7 +132,7 @@ export default function RouteMapPage() {
       communityLists,
       extcommunityLists,
       largeCommunityLists,
-      ipv4AccessListNumbers: accessLists.ipv4,
+      ipv4AccessLists: accessLists.ipv4,
       ipv6AccessLists: accessLists.ipv6,
       ipv4PrefixLists: prefixLists.ipv4,
       ipv6PrefixLists: prefixLists.ipv6,
@@ -275,7 +274,7 @@ export default function RouteMapPage() {
           communityLists: lists.communityLists,
           extcommunityLists: lists.extcommunityLists,
           largeCommunityLists: lists.largeCommunityLists,
-          ipv4AccessLists: ipAccessListNames(lists.ipv4AccessListNumbers, capabilities),
+          ipv4AccessLists: lists.ipv4AccessLists,
           ipv6AccessLists: lists.ipv6AccessLists,
           ipv4PrefixLists: lists.ipv4PrefixLists,
           ipv6PrefixLists: lists.ipv6PrefixLists,

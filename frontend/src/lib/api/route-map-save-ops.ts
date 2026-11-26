@@ -272,7 +272,7 @@ type Node =
   | { kind: "ipNexthop" }
   /** A version-gated leaf this device does not offer: never emitted. */
   | { kind: "gated"; child: Node }
-  /** A plain parent node: clearing every child sends the parent's delete. */
+  /** A plain parent node: when the edit leaves it empty, its delete replaces every delete under it. */
   | { kind: "section"; del: string; children: Node[] };
 
 function nodeHasValue(node: Node, form: RouteMapRuleForm): boolean {
@@ -332,152 +332,149 @@ function gate(on: boolean, node: Node): Node {
   return on ? node : { kind: "gated", child: node };
 }
 
-/** Every leaf of a rule, grouped by its CLI parent node; leaves this version lacks are gated. */
+/** A plain CLI node with no value of its own. */
+function section(del: string, children: Node[]): Node {
+  return { kind: "section", del, children };
+}
+
+/**
+ * Every leaf of a rule, nested exactly as the CLI nests it below the rule;
+ * leaves this version lacks are gated. A child delete leaves its empty parent
+ * on the device at every level (lab), so the emit deletes the highest node
+ * the edit leaves empty and nothing under it.
+ */
 function ruleTree(caps: Caps): Node[] {
   const features = caps?.features;
   return [
     { kind: "single", key: "description", set: "set_rule_description", del: "delete_rule_description" },
     { kind: "single", key: "call", set: "set_rule_call", del: "delete_rule_call" },
     { kind: "single", key: "continue_rule", set: "set_rule_continue", del: "delete_rule_continue" },
-    { kind: "single", key: "on_match_goto", set: "set_rule_on_match_goto", del: "delete_rule_on_match_goto" },
-    { kind: "flag", key: "on_match_next", set: "set_rule_on_match_next", del: "delete_rule_on_match_next" },
+    section("delete_rule_on_match", [
+      { kind: "single", key: "on_match_goto", set: "set_rule_on_match_goto", del: "delete_rule_on_match_goto" },
+      { kind: "flag", key: "on_match_next", set: "set_rule_on_match_next", del: "delete_rule_on_match_next" },
+    ]),
 
-    // Match
-    m("as_path"),
-    {
-      kind: "section",
-      del: "delete_match_community",
-      children: [
+    section("delete_match", [
+      m("as_path"),
+      section("delete_match_community", [
         { kind: "single", key: "match_community_list", set: "set_match_community", del: "delete_match_community_list" },
-        { kind: "flag", key: "match_community_exact_match", set: "set_match_community_exact_match", del: "delete_match_community_exact_match" },
-      ],
-    },
-    m("extcommunity"),
-    // `match large-community` has one child: its leaf delete is sent (it commits on both labs).
-    {
-      kind: "single",
-      key: "match_large_community_list",
-      set: "set_match_large_community",
-      del: "delete_match_large_community_list",
-    },
-    m("local_preference"),
-    m("metric"),
-    m("origin"),
-    m("peer", ipKey),
-    m("rpki"),
-    gate(features?.match_rpki_extcommunity?.supported === true, m("rpki_extcommunity")),
-    gate(features?.match_source_peer?.supported === true, m("source_peer", ipKey)),
-    gate(features?.match_evpn?.supported === true, {
-      kind: "section",
-      del: "delete_match_evpn",
-      children: [
-        { kind: "flag", key: "match_evpn_default_route", set: "set_match_evpn_default_route", del: "delete_match_evpn_default_route" },
-        m("evpn_rd"),
-        m("evpn_route_type"),
-        m("evpn_vni"),
-      ],
-    }),
-    {
-      kind: "section",
-      del: "delete_match_ip_address",
-      children: [m("ip_address_access_list"), m("ip_address_prefix_list"), m("ip_address_prefix_len")],
-    },
-    {
-      kind: "section",
-      del: "delete_match_ipv6_address",
-      children: [m("ipv6_address_access_list"), m("ipv6_address_prefix_list"), m("ipv6_address_prefix_len")],
-    },
-    {
-      kind: "section",
-      del: "delete_match_ip_nexthop",
-      children: [
-        m("ip_nexthop_access_list"),
-        m("ip_nexthop_address"),
-        m("ip_nexthop_prefix_len"),
-        m("ip_nexthop_prefix_list"),
-        m("ip_nexthop_type"),
-      ],
-    },
-    {
-      kind: "section",
-      del: "delete_match_ipv6_nexthop",
-      children: [
-        m("ipv6_nexthop_access_list"),
-        m("ipv6_nexthop_address", ipv6Key),
-        m("ipv6_nexthop_prefix_list"),
-        m("ipv6_nexthop_type"),
-      ],
-    },
-    {
-      kind: "section",
-      del: "delete_match_ip_route_source",
-      children: [m("ip_route_source_access_list"), m("ip_route_source_prefix_list")],
-    },
-    m("interface"),
-    m("protocol"),
-    m("source_vrf"),
-    m("tag"),
+        {
+          kind: "flag",
+          key: "match_community_exact_match",
+          set: "set_match_community_exact_match",
+          del: "delete_match_community_exact_match",
+        },
+      ]),
+      m("extcommunity"),
+      section("delete_match_large_community", [
+        {
+          kind: "single",
+          key: "match_large_community_list",
+          set: "set_match_large_community",
+          del: "delete_match_large_community_list",
+        },
+      ]),
+      m("local_preference"),
+      m("metric"),
+      m("origin"),
+      m("peer", ipKey),
+      m("rpki"),
+      gate(features?.match_rpki_extcommunity?.supported === true, m("rpki_extcommunity")),
+      gate(features?.match_source_peer?.supported === true, m("source_peer", ipKey)),
+      gate(
+        features?.match_evpn?.supported === true,
+        section("delete_match_evpn", [
+          {
+            kind: "flag",
+            key: "match_evpn_default_route",
+            set: "set_match_evpn_default_route",
+            del: "delete_match_evpn_default_route",
+          },
+          m("evpn_rd"),
+          m("evpn_route_type"),
+          m("evpn_vni"),
+        ]),
+      ),
+      section("delete_match_ip", [
+        section("delete_match_ip_address", [
+          m("ip_address_access_list"),
+          m("ip_address_prefix_list"),
+          m("ip_address_prefix_len"),
+        ]),
+        section("delete_match_ip_nexthop", [
+          m("ip_nexthop_access_list"),
+          m("ip_nexthop_address"),
+          m("ip_nexthop_prefix_len"),
+          m("ip_nexthop_prefix_list"),
+          m("ip_nexthop_type"),
+        ]),
+        section("delete_match_ip_route_source", [m("ip_route_source_access_list"), m("ip_route_source_prefix_list")]),
+      ]),
+      section("delete_match_ipv6", [
+        section("delete_match_ipv6_address", [
+          m("ipv6_address_access_list"),
+          m("ipv6_address_prefix_list"),
+          m("ipv6_address_prefix_len"),
+        ]),
+        section("delete_match_ipv6_nexthop", [
+          m("ipv6_nexthop_access_list"),
+          m("ipv6_nexthop_address", ipv6Key),
+          m("ipv6_nexthop_prefix_list"),
+          m("ipv6_nexthop_type"),
+        ]),
+      ]),
+      m("interface"),
+      m("protocol"),
+      m("source_vrf"),
+      m("tag"),
+    ]),
 
-    // Set (`set as-path` has no parent delete: its three leaves go one by one)
-    { kind: "single", key: "set_as_path_exclude", set: "set_as_path_exclude", del: "delete_set_as_path_exclude" },
-    { kind: "single", key: "set_as_path_prepend", set: "set_as_path_prepend", del: "delete_set_as_path_prepend" },
-    s("as_path_prepend_last_as"),
-    {
-      kind: "section",
-      del: "delete_set_community",
-      children: [sList("community_add"), sList("community_replace"), s("community_delete"), sFlag("community_none")],
-    },
-    {
-      kind: "section",
-      del: "delete_set_large_community",
-      children: [
+    section("delete_set", [
+      section("delete_set_as_path", [s("as_path_exclude"), s("as_path_prepend"), s("as_path_prepend_last_as")]),
+      section("delete_set_community", [
+        sList("community_add"),
+        sList("community_replace"),
+        s("community_delete"),
+        sFlag("community_none"),
+      ]),
+      section("delete_set_large_community", [
         sList("large_community_add"),
         sList("large_community_replace"),
         s("large_community_delete"),
         sFlag("large_community_none"),
-      ],
-    },
-    {
-      kind: "section",
-      del: "delete_set_extcommunity",
-      children: [
+      ]),
+      section("delete_set_extcommunity", [
         s("extcommunity_bandwidth"),
         sFlag("extcommunity_bandwidth_non_transitive"),
         sList("extcommunity_rt"),
         sList("extcommunity_soo"),
         sFlag("extcommunity_none"),
-      ],
-    },
-    sFlag("atomic_aggregate"),
-    { kind: "section", del: "delete_set_aggregator", children: [s("aggregator_as"), s("aggregator_ip")] },
-    s("local_preference"),
-    s("origin"),
-    s("originator_id"),
-    s("weight"),
-    { kind: "ipNexthop" },
-    {
-      kind: "section",
-      del: "delete_set_ipv6_nexthop",
-      children: [
+      ]),
+      sFlag("atomic_aggregate"),
+      section("delete_set_aggregator", [s("aggregator_as"), s("aggregator_ip")]),
+      s("local_preference"),
+      s("origin"),
+      s("originator_id"),
+      s("weight"),
+      { kind: "ipNexthop" },
+      section("delete_set_ipv6_nexthop", [
         s("ipv6_nexthop_global", ipv6Key),
         s("ipv6_nexthop_local", ipv6Key),
         sFlag("ipv6_nexthop_peer_address"),
         sFlag("ipv6_nexthop_prefer_global"),
-      ],
-    },
-    // `set l3vpn-nexthop` has one child: its leaf delete is sent (it commits on both labs).
-    sFlag("l3vpn_nexthop_encapsulation_gre"),
-    {
-      kind: "section",
-      del: "delete_set_evpn",
-      children: [s("evpn_gateway_ipv4"), s("evpn_gateway_ipv6", ipv6Key)],
-    },
-    s("distance"),
-    s("metric"),
-    s("metric_type"),
-    s("src", ipKey),
-    s("table"),
-    s("tag"),
+      ]),
+      // `set l3vpn-nexthop encapsulation gre`: `encapsulation` has no op of its own,
+      // and with one child it is empty exactly when `l3vpn-nexthop` is.
+      section("delete_set_l3vpn_nexthop", [sFlag("l3vpn_nexthop_encapsulation_gre")]),
+      // `set evpn gateway ipv4|ipv6`: likewise for `gateway`.
+      section("delete_set_evpn", [s("evpn_gateway_ipv4"), s("evpn_gateway_ipv6", ipv6Key)]),
+      s("distance"),
+      s("metric"),
+      s("metric_type"),
+      s("src", ipKey),
+      s("table"),
+      s("tag"),
+    ]),
   ];
 }
 
@@ -511,7 +508,9 @@ export function ruleDeleteOps(): Op[] {
 /**
  * Ops for one rule: create (original null) or the diff of an edit, leaf by
  * leaf against the stored rule. Create and edit share this emit. An edit never
- * deletes the rule; every cleared leaf sends its delete in the same batch.
+ * deletes the rule; a cleared leaf sends, in the same batch, the delete of the
+ * highest node the edit leaves empty below the rule (the leaf itself when a
+ * sibling remains).
  * `set_rule` creates the route-map too, so a create needs no route-map op.
  */
 export function ruleSaveOps(original: RouteMapRule | null, updated: RouteMapRuleForm, caps: Caps): Op[] {
@@ -545,14 +544,11 @@ export type RouteMapRuleProblemKey =
   | "matchPeerInvalid"
   | "matchSourcePeerInvalid"
   | "evpnVniRange"
-  | "ipAddressAccessListInvalid"
   | "ipAddressPrefixLenRange"
   | "ipv6AddressPrefixLenRange"
-  | "ipNexthopAccessListInvalid"
   | "ipNexthopAddressInvalid"
   | "ipNexthopPrefixLenRange"
   | "ipv6NexthopAddressInvalid"
-  | "ipRouteSourceAccessListInvalid"
   | "asPathExcludeInvalid"
   | "asPathPrependInvalid"
   | "asPathPrependLastAsRange"
@@ -628,18 +624,6 @@ function inRange(value: string, range: RouteMapRange | null): boolean {
 function descriptionValid(value: string, caps: Caps): boolean {
   const max = descriptionMaxLength(caps);
   return !/[\r\n]/.test(value) && (max === undefined || [...value].length <= max);
-}
-
-/** An IPv4 access-list number a `match ip ... access-list` takes. */
-export function ipAccessListValid(value: string, caps: Caps): boolean {
-  if (!DECIMAL.test(value)) return false;
-  const n = Number(value);
-  return (caps?.ip_access_list_ranges || []).some((range) => n >= range.min && n <= range.max);
-}
-
-/** The configured IPv4 access-list numbers a route-map match can name. */
-export function ipAccessListNames(numbers: string[], caps: Caps): string[] {
-  return numbers.filter((number) => ipAccessListValid(number, caps));
 }
 
 function isIp(value: string): boolean {
@@ -735,14 +719,11 @@ export function routeMapRuleProblem(
     checkValue("match_peer", isIp, "matchPeerInvalid"),
     sourcePeer ? checkValue("match_source_peer", (v) => !/\s/.test(v), "matchSourcePeerInvalid") : null,
     evpn ? checkRange("match_evpn_vni", "evpn_vni", "evpnVniRange") : null,
-    checkValue("match_ip_address_access_list", (v) => ipAccessListValid(v, caps), "ipAddressAccessListInvalid"),
     checkRange("match_ip_address_prefix_len", "ip_prefix_len", "ipAddressPrefixLenRange"),
     checkRange("match_ipv6_address_prefix_len", "ipv6_prefix_len", "ipv6AddressPrefixLenRange"),
-    checkValue("match_ip_nexthop_access_list", (v) => ipAccessListValid(v, caps), "ipNexthopAccessListInvalid"),
     checkValue("match_ip_nexthop_address", isIpv4, "ipNexthopAddressInvalid"),
     checkRange("match_ip_nexthop_prefix_len", "ip_prefix_len", "ipNexthopPrefixLenRange"),
     checkValue("match_ipv6_nexthop_address", isIpv6Address, "ipv6NexthopAddressInvalid"),
-    checkValue("match_ip_route_source_access_list", (v) => ipAccessListValid(v, caps), "ipRouteSourceAccessListInvalid"),
   ];
 
   const asRange = routeMapRange(caps, "as_number");
