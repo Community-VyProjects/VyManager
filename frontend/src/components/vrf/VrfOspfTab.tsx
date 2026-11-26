@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Code, Globe, Settings2 } from "lucide-react";
 import {
   VrfInstance,
@@ -149,11 +148,11 @@ export function VrfOspfTab({ vrf, capabilities, canWrite, onRefresh }: VrfOspfTa
           <DialogHeader>
             <DialogTitle>{t("ospf.rawTitle", { vrf: vrf.name })}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="max-h-[60vh]">
+          <div className="max-h-[60vh] overflow-y-auto">
             <pre className="text-xs font-mono bg-muted p-4 rounded-lg overflow-x-auto">
               {JSON.stringify(ospf.raw_config, null, 2)}
             </pre>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

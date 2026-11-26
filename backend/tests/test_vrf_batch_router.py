@@ -131,10 +131,10 @@ def test_unresolvable_protocol_op_is_400(client, commit, version):
     """A packed protocol op whose value fits no mapper path raises
     ArityError in vrf_protocol; the client sent it, so it is a 400 naming the op."""
     commit["version"] = version
-    resp = _post(client, [{"op": "set_vrf_ospf_parameters_router_id", "value": "red"}])
+    resp = _post(client, [{"op": "set_vrf_ospf_area_type", "value": "red"}])
     assert resp.status_code == 400, resp.text
     assert resp.json()["detail"] == (
-        "Operation set_vrf_ospf_parameters_router_id has the wrong number of comma-separated values"
+        "Operation set_vrf_ospf_area_type has the wrong number of comma-separated values"
     )
     assert client.executed == []
 

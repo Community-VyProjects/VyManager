@@ -840,7 +840,7 @@
         "label": "被动"
       },
       "passiveInterface": {
-        "label": "被动接口"
+        "label": "默认被动"
       },
       "password": {
         "label": "密码"

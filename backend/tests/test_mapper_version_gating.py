@@ -50,9 +50,9 @@ def test_mappers_14_reject_redistribute_nhrp():
     bgp = get_bgp_mapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         bgp.get_af_redistribute("ipv4-unicast", "nhrp")
-    vrf_ospf = VrfBatchBuilder("1.4")
+    vrf_builder = VrfBatchBuilder("1.4")
     with pytest.raises(ValueError, match="not supported"):
-        vrf_ospf.set_vrf_ospf_redistribute("blue", "nhrp")
+        vrf_builder.set_vrf_ospf_redistribute("blue", "nhrp")
     vrf_bgp = VrfBgpMapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         vrf_bgp.get_bgp_af_redistribute("blue", "ipv4-unicast", "nhrp")

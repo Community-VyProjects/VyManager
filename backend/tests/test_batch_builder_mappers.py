@@ -68,8 +68,9 @@ def test_callers_do_not_use_get_all_mappers():
 
 
 def test_versioned_vrf_sub_mappers_receive_requested_version():
-    # The registry must hand the device version to these mappers. Their
-    # 1.4 redistribute allowlists depend on it.
+    # The registry must hand the device version to these mappers. The VRF
+    # IS-IS and BGP 1.4 redistribute allowlists depend on it, and the VRF
+    # OSPF area-type check reads the global OSPF mapper with it.
     for feature in ("vrf_ospf", "vrf_isis", "vrf_bgp"):
         for version in ("1.4", "1.5"):
             mapper = CommandMapperRegistry.get_mapper(feature, version)

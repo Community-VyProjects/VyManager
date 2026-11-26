@@ -98,7 +98,7 @@ export const OSPF_SCHEMA: SectionSpec[] = [
       { op: "vrf_ospf_default_metric", label: "Default metric", type: "number", path: ["default-metric"] },
       { op: "vrf_ospf_maximum_paths", label: "Maximum paths", type: "number", path: ["maximum-paths"] },
       { op: "vrf_ospf_auto_cost_reference_bandwidth", label: "Auto-cost ref bandwidth", type: "number", path: ["auto-cost", "reference-bandwidth"] },
-      { op: "vrf_ospf_passive_interface", label: "Passive interfaces", type: "list", path: ["passive-interface"] },
+      { op: "vrf_ospf_passive_interface_default", label: "Passive by default", type: "toggle", path: ["passive-interface"] },
       { op: "vrf_ospf_log_adjacency_changes", label: "Log adjacency changes", type: "toggle", path: ["log-adjacency-changes"] },
     ],
   },
