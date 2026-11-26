@@ -1,6 +1,4 @@
-"""Access List Mapper Module"""
-
+"""Access-list command mapper."""
 from .access_list import AccessListMapper
-from .access_list_versions import get_access_list_mapper
 
-__all__ = ["AccessListMapper", "get_access_list_mapper"]
+__all__ = ["AccessListMapper"]

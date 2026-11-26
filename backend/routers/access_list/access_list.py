@@ -1,24 +1,30 @@
 """
 Access List Router
 
-API endpoints for managing VyOS access-list configuration.
-Supports both IPv4 (access-list) and IPv6 (access-list6) with version-aware configuration.
+API endpoints for VyOS policy access-list (ipv4) and access-list6 (ipv6)
+configuration. The config read returns the mapper's parse unchanged.
 """
 
+import logging
+from typing import Any, Dict, List, Literal, Optional, cast
+
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
-from session_vyos_service import get_session_vyos_service
-from vyos_builders.access_list import AccessListBatchBuilder
+
+from batch_dispatch import call_item_batch_op
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import inspect
-import logging
-from batch_dispatch import resolve_batch_method
+from session_vyos_service import get_session_vyos_service
+from vyos_builders.access_list import AccessListBatchBuilder
+from vyos_mappers.access_list.access_list import AccessListMapper
+from vyos_mappers.base import CommandMapperRegistry
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/access-list", tags=["access-list"])
+
+ListType = Literal["ipv4", "ipv6"]
 
 
 # ============================================================================
@@ -27,29 +33,28 @@ router = APIRouter(prefix="/vyos/access-list", tags=["access-list"])
 
 
 class AccessListRule(BaseModel):
-    """Model for an access-list rule."""
     rule_number: int
-    action: str  # permit or deny
+    action: Optional[str] = None
     description: Optional[str] = None
-    source_type: Optional[str] = None  # any, host, inverse-mask, network
-    source_address: Optional[str] = None
-    source_mask: Optional[str] = None
-    source_exact_match: Optional[bool] = None  # IPv6 exact-match flag
-    destination_type: Optional[str] = None  # any, host, inverse-mask, network
-    destination_address: Optional[str] = None
-    destination_mask: Optional[str] = None
+    source_any: bool = False
+    source_host: Optional[str] = None
+    source_network: Optional[str] = None
+    source_inverse_mask: Optional[str] = None
+    source_exact_match: bool = False
+    destination_any: bool = False
+    destination_host: Optional[str] = None
+    destination_network: Optional[str] = None
+    destination_inverse_mask: Optional[str] = None
 
 
 class AccessList(BaseModel):
-    """Model for an access-list."""
-    number: str  # For IPv4, name for IPv6
+    number: str  # IPv4 list number, or the IPv6 list name
+    list_type: ListType
     description: Optional[str] = None
     rules: List[AccessListRule] = []
-    list_type: str  # ipv4 or ipv6
 
 
 class AccessListConfigResponse(BaseModel):
-    """Response containing all access-list configuration."""
     ipv4_lists: List[AccessList] = []
     ipv6_lists: List[AccessList] = []
     total_ipv4: int = 0
@@ -57,453 +62,176 @@ class AccessListConfigResponse(BaseModel):
 
 
 class AccessListBatchOperation(BaseModel):
-    """Single operation in a batch request."""
-    op: str = Field(..., description="Operation name")
+    op: str = Field(..., description="Builder operation name")
     value: Optional[str] = Field(None, description="Operation value")
-    value2: Optional[str] = Field(None, description="Second value (for inverse-mask, network)")
 
 
 class AccessListBatchRequest(BaseModel):
-    """Model for batch configuration."""
-    identifier: str = Field(..., description="Access list number (IPv4) or name (IPv6)")
-    list_type: str = Field(..., description="ipv4 or ipv6")
-    rule_number: Optional[int] = Field(None, description="Rule number for rule operations")
+    """One commit on one list. Rule ops need rule_number; list ops take none."""
+    list_type: ListType
+    name: str = Field(..., min_length=1, description="IPv4 list number or IPv6 list name")
+    rule_number: Optional[int] = Field(None, ge=1, le=65535)
     operations: List[AccessListBatchOperation]
 
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("name must not be blank")
+        return value
 
-class ReorderRuleItem(BaseModel):
-    """Model for a single rule in reorder request."""
-    old_number: int
-    new_number: int
-    rule_data: AccessListRule
 
+class ReorderRequest(BaseModel):
+    """New order of a list's rules; each listed number takes the next sorted slot."""
+    list_type: ListType
+    name: str = Field(..., min_length=1)
+    rule_numbers: List[int] = Field(..., min_length=1)
 
-class ReorderAccessListRequest(BaseModel):
-    """Model for reordering rules in an access-list."""
-    identifier: str = Field(..., description="Access list number (IPv4) or name (IPv6)")
-    list_type: str = Field(..., description="ipv4 or ipv6")
-    rules: List[ReorderRuleItem]
+    @field_validator("rule_numbers")
+    @classmethod
+    def no_duplicates(cls, value: List[int]) -> List[int]:
+        if len(set(value)) != len(value):
+            raise ValueError("rule_numbers must not repeat")
+        return value
 
 
 class VyOSResponse(BaseModel):
-    """Standard response from VyOS operations."""
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
+def _mapper(version: str) -> AccessListMapper:
+    return cast(AccessListMapper, CommandMapperRegistry.get_mapper("access_list", version))
+
+
 # ============================================================================
-# Endpoint 1: Capabilities
+# Endpoints
 # ============================================================================
 
 
 @router.get("/capabilities")
 async def get_access_list_capabilities(request: Request):
-    """
-    Get feature capabilities based on device VyOS version.
-
-    Returns feature flags indicating which operations are supported.
-    Allows frontends to conditionally enable/disable features.
-    """
-    # Check RBAC permission
+    """Feature flags, value lists and ranges for this device."""
     await require_read_permission(request, FeatureGroup.ACCESS_LIST)
 
     try:
         service = get_session_vyos_service(request)
-        version = service.get_version()
-        builder = AccessListBatchBuilder(version=version)
+        builder = AccessListBatchBuilder(version=service.get_version())
         capabilities = builder.get_capabilities()
 
-        # Add instance info
         if hasattr(request.state, "instance") and request.state.instance:
             capabilities["instance_name"] = request.state.instance.get("name")
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in access-list capabilities")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================================
-# Endpoint 2: Config (Generalized Data)
-# ============================================================================
 
 
 @router.get("/config", response_model=AccessListConfigResponse)
 async def get_access_list_config(http_request: Request, refresh: bool = False):
-    """
-    Get all access-list configurations from VyOS in a generalized format.
-
-    Args:
-        refresh: If True, force refresh from VyOS. If False, use cache.
-
-    Returns:
-        Generalized configuration data optimized for frontend consumption
-    """
-    # Check RBAC permission
+    """Every access-list and access-list6."""
     await require_read_permission(http_request, FeatureGroup.ACCESS_LIST)
 
     try:
         service = get_session_vyos_service(http_request)
+        mapper = _mapper(service.get_version())
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-        
-        ipv4_lists = []
-        ipv6_lists = []
-        
-        # Parse IPv4 access-lists
-        policy_config = full_config.get("policy", {})
-        access_lists = policy_config.get("access-list", {})
-        
-        for number, list_config in access_lists.items():
-            rules = []
-            rules_config = list_config.get("rule", {})
-            
-            for rule_num, rule_config in rules_config.items():
-                # Parse source
-                source_type = None
-                source_address = None
-                source_mask = None
-                source_data = rule_config.get("source", {})
-
-                if isinstance(source_data, dict):
-                    if "any" in source_data:
-                        source_type = "any"
-                    elif "host" in source_data:
-                        source_type = "host"
-                        host_val = source_data.get("host")
-                        source_address = host_val if isinstance(host_val, str) else None
-                    elif "inverse-mask" in source_data and "network" in source_data:
-                        # Inverse-mask format: {'inverse-mask': '0.0.0.255', 'network': '192.168.80.0'}
-                        source_type = "inverse-mask"
-                        source_address = source_data.get("network")
-                        source_mask = source_data.get("inverse-mask")
-                    elif "network" in source_data:
-                        source_type = "network"
-                        net_data = source_data.get("network", {})
-                        if isinstance(net_data, str):
-                            # Direct value (e.g., IPv6 CIDR)
-                            source_address = net_data
-                        elif isinstance(net_data, dict):
-                            # Nested structure: address -> mask -> {}
-                            for key, value in net_data.items():
-                                source_address = key
-                                if isinstance(value, dict) and value:
-                                    source_mask = list(value.keys())[0]
-                                break  # Only take first entry
-
-                # Parse destination
-                dest_type = None
-                dest_address = None
-                dest_mask = None
-                dest_data = rule_config.get("destination", {})
-
-                if isinstance(dest_data, dict):
-                    if "any" in dest_data:
-                        dest_type = "any"
-                    elif "host" in dest_data:
-                        dest_type = "host"
-                        host_val = dest_data.get("host")
-                        dest_address = host_val if isinstance(host_val, str) else None
-                    elif "inverse-mask" in dest_data and "network" in dest_data:
-                        # Inverse-mask format: {'inverse-mask': '0.0.0.255', 'network': '192.168.80.0'}
-                        dest_type = "inverse-mask"
-                        dest_address = dest_data.get("network")
-                        dest_mask = dest_data.get("inverse-mask")
-                    elif "network" in dest_data:
-                        dest_type = "network"
-                        net_data = dest_data.get("network", {})
-                        if isinstance(net_data, str):
-                            # Direct value (e.g., IPv6 CIDR)
-                            dest_address = net_data
-                        elif isinstance(net_data, dict):
-                            # Nested structure: address -> mask -> {}
-                            for key, value in net_data.items():
-                                dest_address = key
-                                if isinstance(value, dict) and value:
-                                    dest_mask = list(value.keys())[0]
-                                break  # Only take first entry
-                
-                rule = AccessListRule(
-                    rule_number=int(rule_num),
-                    action=rule_config.get("action", "permit"),
-                    description=rule_config.get("description"),
-                    source_type=source_type,
-                    source_address=source_address,
-                    source_mask=source_mask,
-                    destination_type=dest_type,
-                    destination_address=dest_address,
-                    destination_mask=dest_mask,
-                )
-                rules.append(rule)
-            
-            # Sort rules by rule number
-            rules.sort(key=lambda r: r.rule_number)
-            
-            access_list = AccessList(
-                number=number,
-                description=list_config.get("description"),
-                rules=rules,
-                list_type="ipv4",
-            )
-            ipv4_lists.append(access_list)
-        
-        # Parse IPv6 access-lists
-        access_lists6 = policy_config.get("access-list6", {})
-        
-        for name, list_config in access_lists6.items():
-            rules = []
-            rules_config = list_config.get("rule", {})
-            
-            for rule_num, rule_config in rules_config.items():
-                # Parse source (IPv6 supports any, exact-match, and network)
-                # Note: any can coexist with exact-match OR network
-                # But exact-match and network are mutually exclusive
-                source_type = None
-                source_address = None
-                source_exact_match = False
-                source_data = rule_config.get("source", {})
-
-                if isinstance(source_data, dict):
-                    # Check for "any" flag
-                    if "any" in source_data:
-                        source_type = "any"
-
-                    # Check for "exact-match" flag (can coexist with any)
-                    if "exact-match" in source_data:
-                        source_exact_match = True
-
-                    # Check for "network" (can coexist with any, but not exact-match)
-                    if "network" in source_data:
-                        net_val = source_data.get("network")
-                        source_address = net_val if isinstance(net_val, str) else None
-                        # If we have network but no "any", set source_type to "network"
-                        if not source_type:
-                            source_type = "network"
-
-                # NOTE: IPv6 access-lists do NOT have destination fields
-                # They only match on source
-
-                rule = AccessListRule(
-                    rule_number=int(rule_num),
-                    action=rule_config.get("action", "permit"),
-                    description=rule_config.get("description"),
-                    source_type=source_type,
-                    source_address=source_address,
-                    source_exact_match=source_exact_match,  # Store exact-match flag
-                    destination_type=None,  # IPv6 doesn't have destination
-                    destination_address=None,  # IPv6 doesn't have destination
-                )
-                rules.append(rule)
-            
-            # Sort rules by rule number
-            rules.sort(key=lambda r: r.rule_number)
-            
-            access_list = AccessList(
-                number=name,
-                description=list_config.get("description"),
-                rules=rules,
-                list_type="ipv6",
-            )
-            ipv6_lists.append(access_list)
-        
-        # Sort access lists by number/name
-        ipv4_lists.sort(key=lambda al: int(al.number) if al.number.isdigit() else 0)
-        ipv6_lists.sort(key=lambda al: al.number)
-        
-        return AccessListConfigResponse(
-            ipv4_lists=ipv4_lists,
-            ipv6_lists=ipv6_lists,
-            total_ipv4=len(ipv4_lists),
-            total_ipv6=len(ipv6_lists),
-        )
-    except Exception as e:
-        logger.exception("Unhandled error")
+        return AccessListConfigResponse(**mapper.parse_config(full_config or {}))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in access-list config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ============================================================================
-# Endpoint 3: Batch Operations
-# ============================================================================
-
-
-@router.post("/batch")
+@router.post("/batch", response_model=VyOSResponse)
 async def access_list_batch_configure(http_request: Request, body: AccessListBatchRequest):
-    """
-    Execute a batch of configuration operations.
+    """Run a batch of builder ops on one list in a single commit.
 
-    Allows multiple changes in a single VyOS commit for efficiency.
+    Every op takes list_type and name; an op with a ``rule`` parameter needs
+    rule_number and an op without one rejects it. The value fills the rest.
     """
-    # Check RBAC permission
     await require_write_permission(http_request, FeatureGroup.ACCESS_LIST)
 
     try:
         service = get_session_vyos_service(http_request)
-        version = service.get_version()
-        builder = AccessListBatchBuilder(version=version)
-        
-        # Process operations using inspect for dynamic method calls
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
-            sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
+        builder = AccessListBatchBuilder(version=service.get_version())
+        rule = str(body.rule_number) if body.rule_number else None
 
-            # Build arguments dynamically
-            args = []
+        try:
+            for operation in body.operations:
+                call_item_batch_op(
+                    builder,
+                    operation.op,
+                    body.list_type,
+                    operation.value,
+                    bound={"name": body.name, "rule": rule},
+                )
+        except ValueError as exc:
+            # The builder raises ValueError for a name, leaf or value the lab rejects.
+            raise HTTPException(status_code=400, detail=str(exc))
 
-            # Add identifier (number for IPv4, name for IPv6)
-            if "number" in params or "name" in params:
-                args.append(body.identifier)
-
-            # Add rule number if present in method signature
-            if "rule" in params and body.rule_number is not None:
-                args.append(str(body.rule_number))
-
-            # Add operation values
-            if operation.value and len(params) > len(args):
-                args.append(operation.value)
-
-            if operation.value2 and len(params) > len(args):
-                args.append(operation.value2)
-
-            method(*args)
-
-        # Execute batch
-        response = service.execute_batch(builder)
-
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": "Configuration updated"},
-            error=response.error if response.error else None
+            data={"message": "Configuration updated"} if response.status == 200 else None,
+            error=response.error or None,
         )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except Exception:
+        logger.exception("Unhandled error in access-list batch")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ============================================================================
-# Additional Helper Endpoints
-# ============================================================================
-# All operations use the batch endpoint above
-# No direct DELETE endpoints - use /batch for all operations
-# ============================================================================
+@router.post("/reorder", response_model=VyOSResponse)
+async def reorder_access_list_rules(http_request: Request, body: ReorderRequest):
+    """Renumber a list's rules in one commit.
 
-
-# ============================================================================
-# Reorder Endpoint
-# ============================================================================
-
-
-@router.post("/reorder")
-async def reorder_access_list_rules(http_request: Request, body: ReorderAccessListRequest):
+    The listed rules must be exactly the list's rules. Each moved rule is
+    deleted and recreated from its own config subtree under its new number,
+    so no leaf (IPv6 exact-match, a network beside any) is dropped.
     """
-    Reorder rules in an access-list.
-
-    This endpoint deletes all existing rules and recreates them with new numbers
-    in a single VyOS commit for atomicity.
-    """
-    # Check RBAC permission
     await require_write_permission(http_request, FeatureGroup.ACCESS_LIST)
 
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
+        mapper = _mapper(version)
         builder = AccessListBatchBuilder(version=version)
-        
-        # Step 1: Delete all rules in reverse order
-        rules_to_delete = sorted(
-            [item.old_number for item in body.rules],
-            reverse=True
-        )
-        
-        for old_number in rules_to_delete:
-            if body.list_type == "ipv4":
-                builder.delete_rule(body.identifier, str(old_number))
-            else:  # ipv6
-                builder.delete_rule6(body.identifier, str(old_number))
-        
-        # Step 2: Recreate rules with new numbers
-        for item in body.rules:
-            rule = item.rule_data
-            rule_str = str(item.new_number)
-            
-            if body.list_type == "ipv4":
-                # Create rule
-                builder.set_rule(body.identifier, rule_str)
-                
-                # Set action
-                builder.set_rule_action(body.identifier, rule_str, rule.action)
-                
-                # Set description
-                if rule.description:
-                    builder.set_rule_description(
-                        body.identifier, rule_str, rule.description
-                    )
-                
-                # Set source
-                if rule.source_type == "any":
-                    builder.set_rule_source_any(body.identifier, rule_str)
-                elif rule.source_type == "host" and rule.source_address:
-                    builder.set_rule_source_host(
-                        body.identifier, rule_str, rule.source_address
-                    )
-                elif rule.source_type == "inverse-mask" and rule.source_address and rule.source_mask:
-                    builder.set_rule_source_inverse_mask(
-                        body.identifier, rule_str, rule.source_address, rule.source_mask
-                    )
-                elif rule.source_type == "network" and rule.source_address and rule.source_mask:
-                    builder.set_rule_source_network(
-                        body.identifier, rule_str, rule.source_address, rule.source_mask
-                    )
-                
-                # Set destination
-                if rule.destination_type == "any":
-                    builder.set_rule_destination_any(body.identifier, rule_str)
-                elif rule.destination_type == "host" and rule.destination_address:
-                    builder.set_rule_destination_host(
-                        body.identifier, rule_str, rule.destination_address
-                    )
-                elif rule.destination_type == "inverse-mask" and rule.destination_address and rule.destination_mask:
-                    builder.set_rule_destination_inverse_mask(
-                        body.identifier, rule_str, rule.destination_address, rule.destination_mask
-                    )
-                elif rule.destination_type == "network" and rule.destination_address and rule.destination_mask:
-                    builder.set_rule_destination_network(
-                        body.identifier, rule_str, rule.destination_address, rule.destination_mask
-                    )
-            
-            else:  # ipv6
-                # Create rule
-                builder.set_rule6(body.identifier, rule_str)
-                
-                # Set action
-                builder.set_rule6_action(body.identifier, rule_str, rule.action)
-                
-                # Set description
-                if rule.description:
-                    builder.set_rule6_description(
-                        body.identifier, rule_str, rule.description
-                    )
-                
-                # Set source
-                if rule.source_type == "any":
-                    builder.set_rule6_source_any(body.identifier, rule_str)
-                elif rule.source_type == "network" and rule.source_address:
-                    builder.set_rule6_source_network(
-                        body.identifier, rule_str, rule.source_address
-                    )
 
-                # NOTE: IPv6 access-lists do NOT have destination fields
-        
-        # Execute batch
-        response = service.execute_batch(builder)
-        
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        trees = mapper.rule_trees(full_config or {}, body.list_type, body.name)
+        if trees is None:
+            raise HTTPException(status_code=404, detail=f"Access list {body.name} not found")
+        if set(trees) != set(body.rule_numbers):
+            raise HTTPException(status_code=400, detail="rule_numbers must list every rule of the list")
+
+        targets = sorted(body.rule_numbers)
+        moves = [(old, new) for old, new in zip(body.rule_numbers, targets) if old != new]
+        if not moves:
+            return VyOSResponse(success=True, data={"message": "Rules reordered"})
+
+        try:
+            for old, _ in moves:
+                builder.delete_rule(body.list_type, body.name, str(old))
+            for old, new in moves:
+                builder.restore_rule(body.list_type, body.name, str(new), trees[old])
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        response = await run_in_threadpool(service.execute_batch, builder)
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": f"Rules reordered in access-list {body.identifier}"},
-            error=response.error if response.error else None
+            data={"message": "Rules reordered"} if response.status == 200 else None,
+            error=response.error or None,
         )
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in access-list reorder")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -19,7 +19,6 @@ from fastapi import APIRouter, HTTPException, Request
 
 from batch_dispatch import INTERNAL_BUILDER_METHODS
 
-from vyos_builders.access_list import AccessListBatchBuilder
 from vyos_builders.as_path_list import AsPathListBatchBuilder
 from vyos_builders.babel import BabelBatchBuilder
 from vyos_builders.bfd import BfdBatchBuilder
@@ -121,10 +120,9 @@ router = APIRouter(prefix="/vyos/operations", tags=["operations"])
 # matches their real op contract. Excluded:
 #   - Interface sub-types, which use the service.create_*_batch() factory.
 #   - Explicit-dispatch handlers (firewall/groups, firewall/bridge, route,
-#     prefix-list, which inject top-level body fields into builder calls), where the builder
+#     prefix-list, access-list, which inject top-level body fields into builder calls), where the builder
 #     signature would not match how ops are actually invoked.
 _BUILDER_REGISTRY: dict[str, type] = {
-    "access-list": AccessListBatchBuilder,
     "as-path-list": AsPathListBatchBuilder,
     "babel": BabelBatchBuilder,
     "bfd": BfdBatchBuilder,
