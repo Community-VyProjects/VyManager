@@ -752,9 +752,11 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
     Returns the same ConfigDiffResponse shape as /vyos/config/diff so the
     frontend can reuse the same diff-rendering component.
     """
-    # Archive locations and archived files are SYSTEM data, like the sibling
-    # list and restore routes.
+    # The archive locations and the archive server are SYSTEM data, like the
+    # sibling list and restore routes; the diff itself carries the whole
+    # config, which /vyos/config/diff gates behind CONFIGURATION read.
     await require_read_permission(request, FeatureGroup.SYSTEM)
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         if not validate_filename(filename):
             raise HTTPException(status_code=400, detail="Invalid filename format")
@@ -792,8 +794,7 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
         except Exception as exc:
             raise HTTPException(status_code=422, detail=f"Failed to parse backup file: {exc}")
 
-        current_config = await run_in_threadpool(service.get_full_config, refresh=False)
-        added, removed, modified = deep_diff(backup_config, current_config)
+        added, removed, modified = deep_diff(backup_config, full_config)
 
         return {
             "has_changes": bool(added or removed or modified),
@@ -831,7 +832,10 @@ async def restore_config(http_request: Request, body: ConfigRestoreRequest):
 
     Uses VyOS config_file_load API with protocol-specific URL transformation.
     """
+    # SYSTEM write for the archive; CONFIGURATION write because the load
+    # commits a whole config, like the save and discard routes.
     await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    await require_write_permission(http_request, FeatureGroup.CONFIGURATION)
     try:
         if not validate_filename(body.filename):
             raise HTTPException(

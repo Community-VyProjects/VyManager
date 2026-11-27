@@ -37,6 +37,8 @@ import { cn } from "@/lib/utils";
 import { systemSettingsService, type ArchiveFile } from "@/lib/api/system-settings";
 import type { ConfigDiff } from "@/lib/api/config";
 import { useToast } from "@/hooks/useToast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 // ---------------------------------------------------------------------------
 // Diff content helpers (mirrored from ConfigDiffModal)
@@ -289,6 +291,11 @@ export function ArchiveRestoreModal({
   const t = useTranslations("systemFlowArchive");
   const tc = useTranslations("common");
   const { toast } = useToast();
+  // The diff carries the whole config (CONFIGURATION read) and the restore
+  // commits one (CONFIGURATION write), on top of this screen's SYSTEM rights.
+  const { canRead, canWrite } = usePermissions();
+  const canSeeDiff = canRead(FeatureGroup.CONFIGURATION);
+  const cannotRestore = isReadOnly || !canWrite(FeatureGroup.CONFIGURATION);
 
   const [files, setFiles] = useState<ArchiveFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -348,7 +355,7 @@ export function ArchiveRestoreModal({
 
   // Fetch diff whenever active filename changes
   useEffect(() => {
-    if (!location || !activeFilename) {
+    if (!location || !activeFilename || !canSeeDiff) {
       setDiff(null);
       setDiffError(null);
       return;
@@ -379,7 +386,7 @@ export function ArchiveRestoreModal({
     return () => {
       token.cancelled = true;
     };
-  }, [location, activeFilename]);
+  }, [location, activeFilename, canSeeDiff]);
 
   const handleRestore = async () => {
     if (!location || !activeFilename) return;
@@ -532,6 +539,12 @@ export function ArchiveRestoreModal({
               {activeFilename && !diffLoading && diff && (
                 <DiffPanel diff={diff} />
               )}
+
+              {activeFilename && !canSeeDiff && (
+                <div className="flex flex-col items-center justify-center h-full text-center gap-2">
+                  <p className="text-sm text-muted-foreground">{t("archive.diffNeedsConfigurationRead")}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -540,7 +553,7 @@ export function ArchiveRestoreModal({
               {tc("cancel")}
             </Button>
             <Button
-              disabled={!activeFilename || diffLoading || isReadOnly}
+              disabled={!activeFilename || diffLoading || cannotRestore}
               onClick={() => setShowConfirm(true)}
             >
               {t("archive.restoreSelected")}

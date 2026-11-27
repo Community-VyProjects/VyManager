@@ -150,23 +150,48 @@ def _system_client(monkeypatch, service, *, read=None, write=None):
     return TestClient(app)
 
 
-def test_the_archive_diff_needs_system_read(monkeypatch):
-    """Archive locations and archived files are SYSTEM data (list and restore check it too)."""
+def _granting(*granted):
+    """A permission check that allows only these feature groups, recording each check."""
     from fastapi import HTTPException
-    from rbac_permissions import FeatureGroup
 
     checked = []
 
-    async def read(_request, feature):
+    async def check(_request, feature):
         checked.append(feature)
-        raise HTTPException(status_code=403, detail="Forbidden")
+        if feature not in granted:
+            raise HTTPException(status_code=403, detail="Forbidden")
 
+    return check, checked
+
+
+def test_the_archive_diff_needs_system_and_configuration_read(monkeypatch):
+    """The archive is SYSTEM data; the diff carries the whole config (CONFIGURATION)."""
+    from rbac_permissions import FeatureGroup
+
+    read, checked = _granting(FeatureGroup.SYSTEM)
     client = _system_client(monkeypatch, object(), read=read)
     response = client.get("/vyos/system/config/archive-diff",
                           params={"archive_location": "sftp://b/cfg/", "filename": "config.boot"})
 
     assert response.status_code == 403
-    assert checked == [FeatureGroup.SYSTEM]
+    assert checked == [FeatureGroup.SYSTEM, FeatureGroup.CONFIGURATION]
+
+
+def test_a_restore_needs_configuration_write(monkeypatch):
+    """The load commits a whole config, like save and discard."""
+    from rbac_permissions import FeatureGroup
+
+    class FakeService:
+        def load_config_file(self, url):
+            raise AssertionError("loaded without CONFIGURATION write")
+
+    write, checked = _granting(FeatureGroup.SYSTEM)
+    client = _system_client(monkeypatch, FakeService(), write=write)
+    response = client.post("/vyos/system/config/restore",
+                           json={"archive_location": "sftp://b/cfg/", "filename": "config.boot.2026-11-27-0800"})
+
+    assert response.status_code == 403
+    assert checked == [FeatureGroup.SYSTEM, FeatureGroup.CONFIGURATION]
 
 
 def test_a_restore_whose_reply_data_is_text_is_still_a_success(monkeypatch):
