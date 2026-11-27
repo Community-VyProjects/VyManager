@@ -425,3 +425,23 @@ def test_connect_keeps_the_vyos_reply_text(monkeypatch):
     err = _connect_with(monkeypatch, ValueError("Failed to retrieve full config: HTTP Error 403: Valid API key is required"))
     assert err.status_code == 503
     assert "Valid API key is required" in err.detail
+
+
+def test_commit_confirm_url_brackets_an_ipv6_host(monkeypatch):
+    """pyvyos brackets an IPv6 host on the plain path; _post_api must too."""
+    urls = []
+
+    def post(url, data, verify, timeout):
+        urls.append(url)
+        return _JsonResp(200, {"success": True, "data": "", "error": None})
+
+    monkeypatch.setattr("vyos_service._requests.post", post)
+    service = VyOSService(VyOSDeviceConfig(
+        hostname="fd00::1", apikey="key", version="1.5", instance_id="inst-1451",
+        commit_confirm_enabled=True, commit_confirm_minutes=3,
+    ))
+    service._record_managed_config = lambda instance_id: None
+
+    assert service.execute_batch(_batch("1.5")).status == 200
+    assert urls == ["https://[fd00::1]:443/configure"]
+    commit_confirm_state.clear("inst-1451")

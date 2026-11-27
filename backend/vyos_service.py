@@ -5,7 +5,7 @@ Uses the new modular mapper and builder structure.
 Much cleaner and easier to maintain!
 """
 
-from typing import Optional, Union, Dict, Any, List
+from typing import Optional, Dict, Any, List, Protocol
 import json
 import logging
 import ssl as _ssl
@@ -17,8 +17,6 @@ from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
 from config_state import clear_managed_config, record_failed_commit, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
-from vyos_builders.dhcp_server import DHCPServerBatchBuilder
-from vyos_builders.firewall import FirewallGroupsBatchBuilder
 from vyos_builders.interfaces import (
     EthernetInterfaceBuilderMixin,
     DummyInterfaceBuilderMixin,
@@ -26,7 +24,6 @@ from vyos_builders.interfaces import (
     InputInterfaceBuilderMixin,
     L2TPv3InterfaceBuilderMixin,
     LoopbackInterfaceBuilderMixin,
-    MacsecInterfaceBuilderMixin,
     OpenvpnInterfaceBuilderMixin,
     PppoeInterfaceBuilderMixin,
     PseudoEthernetInterfaceBuilderMixin,
@@ -34,9 +31,6 @@ from vyos_builders.interfaces import (
     VppInterfaceBuilderMixin,
     VtiInterfaceBuilderMixin,
 )
-from vyos_builders.nat import NATBatchBuilder
-from vyos_builders.system import SystemPerformanceBatchBuilder
-from vyos_builders.wireguard import WireGuardBatchBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +106,14 @@ def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
     if isinstance(exc, _requests.exceptions.Timeout):
         return ApiResponse(status=504, request={}, result={}, error="Request timed out")
     return ApiResponse(status=502, request={}, result={}, error="The connection to the VyOS API was lost")
+
+
+class BatchOperations(Protocol):
+    """What execute_batch needs from a batch builder: every builder has these."""
+
+    def is_empty(self) -> bool: ...
+
+    def get_operations(self) -> List[Dict[str, Any]]: ...
 
 
 class VyOSDeviceConfig:
@@ -356,20 +358,7 @@ class VyOSService:
 
     def execute_batch(
         self,
-        batch: Union[
-            EthernetInterfaceBuilderMixin,
-            DummyInterfaceBuilderMixin,
-            InputInterfaceBuilderMixin,
-            FirewallGroupsBatchBuilder,
-            NATBatchBuilder,
-            DHCPServerBatchBuilder,
-            WireGuardBatchBuilder,
-            SystemPerformanceBatchBuilder,
-            LoopbackInterfaceBuilderMixin,
-            MacsecInterfaceBuilderMixin,
-            OpenvpnInterfaceBuilderMixin,
-            PppoeInterfaceBuilderMixin,
-        ],
+        batch: BatchOperations,
     ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op.
 
@@ -408,7 +397,8 @@ class VyOSService:
         Transport failures are logged and get a fixed message, so the device
         URL and the requests text never reach the client.
         """
-        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/{endpoint}"
+        # self.device.hostname is the host pyvyos formats, IPv6 in brackets.
+        url = f"{self.config.protocol}://{self.device.hostname}:{self.config.port}/{endpoint}"
         payload = {"data": json.dumps(data), "key": self.config.apikey}
         try:
             resp = _requests.post(
@@ -435,7 +425,7 @@ class VyOSService:
             )
         return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
 
-    def execute_batch_with_confirm(self, batch, instance_id: str) -> ApiResponse:
+    def execute_batch_with_confirm(self, batch: BatchOperations, instance_id: str) -> ApiResponse:
         """
         Execute a batch using VyOS commit-confirm.
 
