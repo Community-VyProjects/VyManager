@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { systemSettingsService, type ArchiveFile } from "@/lib/api/system-settings";
 import type { ConfigDiff } from "@/lib/api/config";
+import type { ApiError } from "@/lib/types/api";
 import { useToast } from "@/hooks/useToast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -300,6 +301,8 @@ export function ArchiveRestoreModal({
   const [files, setFiles] = useState<ArchiveFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState<"archive.noFiles" | "archive.listFailed" | null>(null);
+  // The backend's reason when the list failed (a changed SSH host key, say).
+  const [filesErrorDetail, setFilesErrorDetail] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const [selected, setSelected] = useState<string | null>(null);
@@ -341,6 +344,7 @@ export function ArchiveRestoreModal({
     }
     setFilesLoading(true);
     setFilesError(null);
+    setFilesErrorDetail(null);
     systemSettingsService
       .listArchiveFiles(location)
       .then((r) => {
@@ -349,7 +353,10 @@ export function ArchiveRestoreModal({
           setFilesError("archive.noFiles");
         }
       })
-      .catch(() => setFilesError("archive.listFailed"))
+      .catch((err: unknown) => {
+        setFilesError("archive.listFailed");
+        setFilesErrorDetail((err as ApiError)?.message || null);
+      })
       .finally(() => setFilesLoading(false));
   }, [location]);
 
@@ -358,6 +365,7 @@ export function ArchiveRestoreModal({
     if (!location || !activeFilename || !canSeeDiff) {
       setDiff(null);
       setDiffError(null);
+      setDiffLoading(false);
       return;
     }
 
@@ -374,9 +382,8 @@ export function ArchiveRestoreModal({
       })
       .catch((err: unknown) => {
         if (!token.cancelled) {
-          setDiffError(
-            err instanceof Error ? err.message : DIFF_LOAD_FAILED
-          );
+          // apiClient throws a plain ApiError object, not an Error.
+          setDiffError((err as ApiError)?.message || DIFF_LOAD_FAILED);
         }
       })
       .finally(() => {
@@ -401,8 +408,10 @@ export function ArchiveRestoreModal({
         onClose();
         onRestored();
       }
-    } catch {
-      toast.error(t("error"), t("archive.restoreUnexpected"));
+    } catch (err: unknown) {
+      // Keep the backend's reason, e.g. the 409 naming who started a
+      // pending commit-confirm on this router.
+      toast.error(t("error"), (err as ApiError)?.message || t("archive.restoreUnexpected"));
     } finally {
       setRestoring(false);
       setShowConfirm(false);
@@ -452,7 +461,7 @@ export function ArchiveRestoreModal({
               )}
 
               {!filesLoading && filesError && files.length === 0 && (
-                <p className="text-xs text-muted-foreground px-1">{t(filesError)}</p>
+                <p className="text-xs text-muted-foreground px-1">{filesErrorDetail ?? t(filesError)}</p>
               )}
 
               {!filesLoading && files.length > 0 && (
