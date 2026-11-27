@@ -55,7 +55,7 @@ def get_session_vyos_service(request: Request) -> VyOSService:
         @router.get("/interfaces")
         async def get_interfaces(request: Request):
             service = get_session_vyos_service(request)
-            config = service.get_full_config()
+            config = await run_in_threadpool(service.get_full_config)
             # ... use config
     """
     instance = require_session_instance(request)
@@ -109,7 +109,7 @@ def get_session_vyos_service(request: Request) -> VyOSService:
         _session_device_registry.register(instance_id, config)
         return _session_device_registry.get(instance_id)
 
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to create VyOS service for instance %s", instance.get("id", "unknown"))
         raise HTTPException(
             status_code=500,
