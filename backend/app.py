@@ -52,8 +52,8 @@ from routers.igmp_proxy import igmp_proxy
 from routers.ospf import ospf
 from routers.ospfv3 import ospfv3
 from routers.vrf import vrf
-from routers import system
-from routers import power as power_router
+from routers.system import system
+from routers.power import power as power_router
 from routers.config import config as config_router
 from routers import show as show_router
 from routers.site_updates import site_updates as site_updates_router

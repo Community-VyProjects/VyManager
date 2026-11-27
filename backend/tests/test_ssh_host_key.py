@@ -10,7 +10,7 @@ import pytest
 from fastapi import HTTPException
 
 import routers.container.container as container_router
-import routers.system as system_router
+import routers.system.system as system_router
 import utils.archive_url as archive_url
 import utils.ssh as ssh
 

@@ -92,7 +92,7 @@ def test_parse_config_management_archive_locations():
 
 
 def test_system_router_has_no_parse_helpers():
-    text = Path(__file__).resolve().parents[1].joinpath("routers/system.py").read_text()
+    text = Path(__file__).resolve().parents[1].joinpath("routers/system/system.py").read_text()
     assert "def _parse_" not in text
 
 
@@ -110,15 +110,15 @@ def test_get_config_returns_mapper_parse(monkeypatch):
         def get_full_config(self, refresh=False):
             return tree
 
-    monkeypatch.setattr("routers.system.require_read_permission", allow)
+    monkeypatch.setattr("routers.system.system.require_read_permission", allow)
     monkeypatch.setattr(
-        "routers.system.get_session_vyos_service",
+        "routers.system.system.get_session_vyos_service",
         lambda _req: FakeService(),
     )
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-    from routers.system import router
+    from routers.system.system import router
 
     app = FastAPI()
     app.include_router(router)

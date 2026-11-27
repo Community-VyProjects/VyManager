@@ -610,6 +610,7 @@ class VyOSService:
         Read fresh, under the write lock: the action can change on the router
         (CLI, another row) after any cached read. An unreadable router counts
         as the VyOS default action with unsaved changes, so the banner warns.
+        No saved baseline yet counts as unsaved for the same reason.
         The third value is the router's reply when it refused this read's key
         (401/403), else None: this read's own outcome, not a shared flag.
         """
@@ -621,7 +622,8 @@ class VyOSService:
             logger.warning("Could not read the router before arming a commit-confirm for instance %s", instance_id)
             return commit_confirm_state.DEFAULT_ACTION, True, None
         baseline = reconcile_baseline(instance_id, before)
-        return commit_confirm_state.router_action(before), baseline is not None and baseline != before, None
+        # No saved baseline yet: unknown, counted as unsaved so the banner warns.
+        return commit_confirm_state.router_action(before), baseline is None or baseline != before, None
 
     def confirm_commit(self, instance_id: str) -> ApiResponse:
         """
@@ -753,7 +755,7 @@ class VyOSService:
         saved config), so that save is refused with a 409 until it is
         confirmed or runs out.
         """
-        if file is not None and file != BOOT_CONFIG:
+        if file and file != BOOT_CONFIG:  # pyvyos saves the boot config for a falsy file
             return self._config_file_call("save", lambda: self.device.config_file_save(file=file))
         with self._write_lock():
             self._refuse_during_commit_confirm()

@@ -32,7 +32,7 @@ PERMANENT_GLOBAL = {
         "Background banner poller: no request, no org context - it "
         "iterates every instance with active subscribers, a "
         "deployment-wide system service. It passes db_pool.acquire into "
-        "routers/power.py get_scheduled_power_status, so that power "
+        "routers/power/power.py get_scheduled_power_status, so that power "
         "status SQL (keyed on the instance id) runs unscoped from the "
         "poller only. The request-path streams in the same file use "
         "org-scoped connections per tick.",

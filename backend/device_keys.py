@@ -11,8 +11,9 @@ The key is the normalized ``host:port``. Two different names for one router
 A row names its host (``note``) whenever VyManager learns it: on every request
 that carries it (``require_session_instance``) and when a service is built.
 It joins the router's shared state only once its own credentials have worked
-against that router (``verified``: the router answered a config read or a
-commit with something other than an auth error), so a row cannot see another
+against that router (``verified``: VyOS itself answered it, a parsed config
+read or a commit reply in the VyOS API's own body; a 401/403 un-verifies it,
+and a proxy's 5xx or HTML page does neither), so a row cannot see another
 organization's banner or snapshots by typing that router's address. Until
 then it keys by its own id. The router answers before VyManager records any
 state for a request, so a row is verified before it writes shared state, with

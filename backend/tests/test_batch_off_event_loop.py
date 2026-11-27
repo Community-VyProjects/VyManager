@@ -306,10 +306,10 @@ CONTAINER_OFFLOADED = [
 
 # reboot_system and poweroff_system send through _run_power_action.
 POWER_OFFLOADED = [
-    ("_run_power_action", "routers/power.py", "reboot", 1),
-    ("_run_power_action", "routers/power.py", "poweroff", 1),
-    ("get_scheduled_power_status", "routers/power.py", "show", 1),
-    ("get_vyos_timezone", "routers/power.py", "get_full_config", 1),
+    ("_run_power_action", "routers/power/power.py", "reboot", 1),
+    ("_run_power_action", "routers/power/power.py", "poweroff", 1),
+    ("get_scheduled_power_status", "routers/power/power.py", "show", 1),
+    ("get_vyos_timezone", "routers/power/power.py", "get_full_config", 1),
 ]
 
 # handler, file, blocking attribute, expected offload count

@@ -321,6 +321,32 @@ def test_a_vyos_rejection_still_verifies_the_row():
     assert device_keys.key_for(ROW_OTHER) == "router.lab:443"
 
 
+def test_an_empty_file_name_saves_the_boot_config_and_is_blocked(router):
+    """pyvyos drops a falsy file and saves /config/config.boot."""
+    _alice_arms()
+    saver = _service(ROW_B)
+    cast(Any, saver.device).config_file_save = lambda **kwargs: pytest.fail("reached the router")
+
+    with pytest.raises(HTTPException) as exc:
+        saver.config_file_save(file="")
+    assert exc.value.status_code == 409
+
+
+def test_with_no_saved_baseline_the_arm_counts_unsaved_changes():
+    service = _service(ROW_A, confirm=True, config={"system": {"host-name": "lab"}})
+
+    assert service._before_arming(ROW_A)[1] is True
+
+
+def test_the_shared_diff_treats_a_single_value_list_as_that_value():
+    from routers.config.config import deep_diff
+
+    assert deep_diff({"ntp": {"server": ["a"]}}, {"ntp": {"server": "a"}}) == ({}, {}, {})
+    assert deep_diff({"ntp": {"server": ["a", "b"]}}, {"ntp": {"server": "a"}})[2] == {
+        "ntp.server": {"old": "a", "new": ["a", "b"]},
+    }
+
+
 def test_deleting_a_site_forgets_its_instances(monkeypatch):
     import routers.session.session as session_router
 

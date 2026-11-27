@@ -15,6 +15,7 @@ from typing import Optional, Dict, List, Any
 import inspect
 import logging
 
+from routers.config.config import deep_diff
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -743,39 +744,6 @@ async def list_archive_files_endpoint(request: Request, archive_location: str):
 # =============================================================================
 
 
-def _normalize(v: Any) -> Any:
-    """Unwrap single-element lists so ["us"] == "us" when diffing."""
-    if isinstance(v, list) and len(v) == 1:
-        return v[0]
-    return v
-
-
-def _deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
-    """Recursively compare two configuration dicts. Returns (added, removed, modified)."""
-    added: Dict[str, Any] = {}
-    removed: Dict[str, Any] = {}
-    modified: Dict[str, Any] = {}
-
-    for key in current:
-        full = f"{path}.{key}" if path else key
-        if key not in saved:
-            added[full] = current[key]
-        elif isinstance(current[key], dict) and isinstance(saved[key], dict):
-            a, r, m = _deep_diff(current[key], saved[key], full)
-            added.update(a)
-            removed.update(r)
-            modified.update(m)
-        elif _normalize(current[key]) != _normalize(saved[key]):
-            modified[full] = {"old": saved[key], "new": current[key]}
-
-    for key in saved:
-        if key not in current:
-            full = f"{path}.{key}" if path else key
-            removed[full] = saved[key]
-
-    return added, removed, modified
-
-
 @router.get("/config/archive-diff")
 async def get_archive_diff(request: Request, archive_location: str, filename: str):
     """
@@ -823,7 +791,7 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
             raise HTTPException(status_code=422, detail=f"Failed to parse backup file: {exc}")
 
         current_config = await run_in_threadpool(service.get_full_config, refresh=False)
-        added, removed, modified = _deep_diff(backup_config, current_config)
+        added, removed, modified = deep_diff(backup_config, current_config)
 
         return {
             "has_changes": bool(added or removed or modified),

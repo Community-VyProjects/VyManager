@@ -31,7 +31,7 @@ from events.event_manager import (
 )
 import commit_confirm_state
 import device_keys
-from routers.power import get_scheduled_power_status
+from routers.power.power import get_scheduled_power_status
 
 logger = logging.getLogger(__name__)
 

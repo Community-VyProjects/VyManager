@@ -51,9 +51,19 @@ class SaveConfigResponse(BaseModel):
 # Helper Functions
 # ========================================================================
 
+def _normalize(value: Any) -> Any:
+    """Unwrap a single-element list so ["us"] == "us": a parsed config.boot
+    (an archive) gives one value of a multi leaf as a list, the live JSON as
+    a string, or the other way round."""
+    if isinstance(value, list) and len(value) == 1:
+        return value[0]
+    return value
+
+
 def deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
     """
-    Recursively compare two configuration dictionaries.
+    Recursively compare two configuration dictionaries (the unsaved-changes
+    banner and the archive diff share it).
 
     Returns:
         tuple: (added, removed, modified)
@@ -74,7 +84,7 @@ def deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
             added.update(sub_added)
             removed.update(sub_removed)
             modified.update(sub_modified)
-        elif current[key] != saved[key]:
+        elif _normalize(current[key]) != _normalize(saved[key]):
             # Value changed
             modified[f"{path}.{key}" if path else key] = {
                 "old": saved[key],

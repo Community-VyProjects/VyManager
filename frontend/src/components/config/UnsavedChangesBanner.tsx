@@ -18,6 +18,8 @@ import {
 } from "./commit-confirm-banner";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
 
 interface UnsavedChangesBannerProps {
@@ -40,6 +42,10 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
+  // Confirm, save and discard need CONFIGURATION write (the routes check it);
+  // the countdown and the diff still show for every row on the router.
+  const { canWrite } = usePermissions();
+  const canChange = canWrite(FeatureGroup.CONFIGURATION);
 
   // Sync SSE-driven props into local state
   useEffect(() => {
@@ -206,15 +212,17 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                   {error}
                 </span>
               )}
-              <Button
-                size="sm"
-                onClick={handleConfirm}
-                disabled={confirming}
-                className="bg-white text-amber-600 hover:bg-amber-50 font-semibold"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                {confirming ? t("banner.confirming") : t("banner.confirm")}
-              </Button>
+              {canChange && (
+                <Button
+                  size="sm"
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                  className="bg-white text-amber-600 hover:bg-amber-50 font-semibold"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {confirming ? t("banner.confirming") : t("banner.confirm")}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -286,26 +294,30 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                 {t("banner.showDiffs")}
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDiscardDialog(true)}
-                disabled={discarding}
-                className="bg-red-500/20 text-white border-red-400/40 hover:bg-red-500/30 hover:text-white font-medium shadow-sm"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                {t("banner.discard")}
-              </Button>
+              {canChange && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDiscardDialog(true)}
+                    disabled={discarding}
+                    className="bg-red-500/20 text-white border-red-400/40 hover:bg-red-500/30 hover:text-white font-medium shadow-sm"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    {t("banner.discard")}
+                  </Button>
 
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? tc("saving") : t("banner.save")}
-              </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-white text-blue-600 hover:bg-blue-50 font-semibold"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? tc("saving") : t("banner.save")}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

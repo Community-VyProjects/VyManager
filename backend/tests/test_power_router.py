@@ -19,7 +19,7 @@ from rbac_permissions import FeatureGroup
 from vyos_mappers import CommandMapperRegistry
 from vyos_mappers.power import PowerMapper
 
-ROUTER = "routers.power"
+ROUTER = "routers.power.power"
 ROUTES = ["/vyos/power/reboot", "/vyos/power/poweroff"]
 
 
@@ -108,7 +108,7 @@ def client(monkeypatch, device, db):
     monkeypatch.setattr(f"{ROUTER}.request_scoped_conn", scoped_conn)
     monkeypatch.setattr(f"{ROUTER}.event_manager", SimpleNamespace(emit=lambda *_a: None, emit_to_instance=lambda *_a: None))
 
-    from routers.power import router
+    from routers.power.power import router
 
     app = FastAPI()
 
