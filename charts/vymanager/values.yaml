@@ -58,10 +58,10 @@ frontend:
   replicaCount: 1
   image:
     repository: ghcr.io/community-vyprojects/vymanager-frontend
-    tag: beta
-    # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
-    # a newer image. A version tag such as 1.2.3 may use IfNotPresent.
-    pullPolicy: Always
+    # Empty means v<Chart.AppVersion>, the release this chart ships with.
+    # A moving tag such as beta is always pulled with pullPolicy Always.
+    tag: ""
+    pullPolicy: IfNotPresent
   podAnnotations: {}
   podLabels: {}
   podSecurityContext: {}
@@ -108,10 +108,10 @@ backend:
   replicaCount: 1
   image:
     repository: ghcr.io/community-vyprojects/vymanager-backend
-    tag: beta
-    # beta moves. IfNotPresent keeps the first pull, so an upgrade misses
-    # a newer image. A version tag such as 1.2.3 may use IfNotPresent.
-    pullPolicy: Always
+    # Empty means v<Chart.AppVersion>, the release this chart ships with.
+    # A moving tag such as beta is always pulled with pullPolicy Always.
+    tag: ""
+    pullPolicy: IfNotPresent
   podAnnotations: {}
   podLabels: {}
   podSecurityContext: {}

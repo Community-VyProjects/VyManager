@@ -83,7 +83,7 @@
       "required": ["replicaCount", "image", "service", "config"],
       "properties": {
         "replicaCount": { "type": "integer", "minimum": 1 },
-        "image": { "$ref": "#/$defs/image" },
+        "image": { "$ref": "#/$defs/appImage" },
         "resources": { "type": "object" }
       }
     },
@@ -92,7 +92,7 @@
       "required": ["replicaCount", "image", "service", "config"],
       "properties": {
         "replicaCount": { "type": "integer", "minimum": 1 },
-        "image": { "$ref": "#/$defs/image" },
+        "image": { "$ref": "#/$defs/appImage" },
         "resources": { "type": "object" }
       }
     },
@@ -124,6 +124,15 @@
     }
   },
   "$defs": {
+    "appImage": {
+      "type": "object",
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
     "image": {
       "type": "object",
       "required": ["repository", "tag", "pullPolicy"],
