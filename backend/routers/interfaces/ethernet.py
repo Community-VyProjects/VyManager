@@ -2934,6 +2934,9 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
             data=result_data,
             error=response.error if response.error else None
         )
+    except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
+        raise
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:

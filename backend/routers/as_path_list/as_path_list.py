@@ -313,6 +313,9 @@ async def reorder_as_path_list_rules(http_request: Request, body: ReorderAsPathL
             data={"message": f"Successfully reordered {len(body.rules)} rules in AS path list {body.as_path_list_name}"},
             error=response.error if response.error else None
         )
+    except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

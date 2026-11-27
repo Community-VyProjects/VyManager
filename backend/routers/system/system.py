@@ -591,6 +591,9 @@ async def update_general_settings(
             data={"message": "General settings updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
+        raise
     except Exception:
         logger.exception("Unhandled error in update_general_settings")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -643,6 +646,9 @@ async def update_login_settings(
             data={"message": "Login settings updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
+        raise
     except Exception:
         logger.exception("Unhandled error in update_login_settings")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -687,6 +693,9 @@ async def update_watchdog_settings(
             data={"message": "Watchdog settings updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
+        raise
     except Exception:
         logger.exception("Unhandled error in update_watchdog_settings")
         raise HTTPException(status_code=500, detail="Internal server error")

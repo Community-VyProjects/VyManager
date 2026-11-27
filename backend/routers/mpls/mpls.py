@@ -246,6 +246,9 @@ async def mpls_batch_configure(http_request: Request, body: MplsBatchRequest):
             data={"message": "MPLS configuration updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
+        raise
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception as e:

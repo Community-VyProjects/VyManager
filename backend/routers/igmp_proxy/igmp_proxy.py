@@ -171,6 +171,9 @@ async def igmp_proxy_batch_configure(http_request: Request, body: IgmpProxyBatch
             data={"message": "IGMP proxy configuration updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
+        raise
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:
