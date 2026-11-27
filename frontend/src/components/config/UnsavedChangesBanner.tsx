@@ -85,9 +85,9 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       toast.success(t("banner.confirmedTitle"), t("banner.confirmedMessage"));
       // Keep this row's settings: the unsaved-changes banner warns before the next arm.
       setCc((prev) => ({ active: false, enabled: prev?.enabled, action: prev?.action }));
-      // SSE will push updated diff shortly; also fetch eagerly
-      const newDiff = await configService.getDiff();
-      setDiff(newDiff);
+      // SSE will push the updated diff shortly; the eager fetch is best
+      // effort, so its failure never reads as a failed confirm or save.
+      configService.getDiff().then(setDiff).catch(() => undefined);
     } catch (err) {
       const msg = thrownMessage(err, t("banner.confirmFailed"));
       setError(msg);
@@ -109,9 +109,9 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         return;
       }
       toast.success(t("banner.savedTitle"), t("banner.savedMessage"));
-      // SSE will push updated diff shortly; also fetch eagerly
-      const newDiff = await configService.getDiff();
-      setDiff(newDiff);
+      // SSE will push the updated diff shortly; the eager fetch is best
+      // effort, so its failure never reads as a failed confirm or save.
+      configService.getDiff().then(setDiff).catch(() => undefined);
       setError(null);
     } catch (err) {
       const msg = thrownMessage(err, t("banner.saveFailed"));

@@ -463,9 +463,9 @@ export function ArchiveRestoreModal({
 
               {!filesLoading && filesError && files.length === 0 && (
                 <p className="text-xs text-muted-foreground px-1">
-                    {t(filesError)}
-                    {filesErrorDetail && <span className="block">{filesErrorDetail}</span>}
-                  </p>
+                  {t(filesError)}
+                  {filesErrorDetail && <span className="block">{filesErrorDetail}</span>}
+                </p>
               )}
 
               {!filesLoading && files.length > 0 && (
