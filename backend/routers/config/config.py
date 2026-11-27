@@ -14,7 +14,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 import commit_confirm_state
 import logging
-from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
+from events.event_manager import event_manager, EVENT_CONFIG_DIFF
 from config_state import (
     get_saved_config,
     reconcile_baseline,
@@ -241,7 +241,7 @@ async def save_config(request: Request):
         instance_id = request.state.instance['id']
 
         # Always the device default path. A client-supplied file is not accepted.
-        response = service.config_file_save()
+        response = await run_in_threadpool(service.config_file_save)
 
         if response.status != 200:
             return SaveConfigResponse(
@@ -408,10 +408,7 @@ async def confirm_commit(request: Request):
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
         set_managed_config(instance_id, current_config)
 
-        # Notify SSE subscribers
-        event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
-        event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
-
+        # confirm_commit already notified the banner subscribers.
         return SaveConfigResponse(
             success=True,
             message="Commit confirmed — changes are live. Save configuration when ready.",

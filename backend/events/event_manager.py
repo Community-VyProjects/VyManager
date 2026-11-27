@@ -9,6 +9,13 @@ Two update paths:
   1. Immediate — mutation endpoints call emit() after changes.
   2. Background — a poller detects external changes (e.g. CLI edits)
      and emits only when state actually differs from the last push.
+
+Subscriber queues are asyncio queues owned by the event loop. emit() is
+also called from threadpool workers (VyOSService.execute_batch runs under
+run_in_threadpool), and asyncio queues are not thread-safe: a put from a
+worker thread does not wake the SSE generator waiting in queue.get(). So
+every delivery runs on the loop, handed over with call_soon_threadsafe
+when emit() is called from another thread.
 """
 
 import asyncio
@@ -48,15 +55,19 @@ class EventManager:
 
     def __init__(self) -> None:
         self._channels: Dict[str, _InstanceChannel] = {}
-        self._poller_task: Optional[asyncio.Task] = None
-        self._poll_interval: int = 10  # seconds
+        # The loop that owns the subscriber queues, recorded on subscribe.
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     # ------------------------------------------------------------------
     # Subscribe / unsubscribe
     # ------------------------------------------------------------------
 
     def subscribe(self, instance_id: str) -> asyncio.Queue:
-        """Add a new subscriber for an instance, returning its queue."""
+        """Add a new subscriber for an instance, returning its queue.
+
+        Called from the SSE route on the event loop.
+        """
+        self._loop = asyncio.get_running_loop()
         channel = self._channels.setdefault(instance_id, _InstanceChannel())
         queue: asyncio.Queue = asyncio.Queue()
         channel.subscribers.add(queue)
@@ -82,55 +93,36 @@ class EventManager:
         """
         Push an event to all subscribers of an instance.
 
-        Called from mutation endpoints for instant updates and from the
-        background poller when external changes are detected.
+        Called from mutation endpoints for instant updates (on the loop or
+        from a threadpool worker) and from the background poller when
+        external changes are detected.
         """
-        channel = self._channels.get(instance_id)
-        if not channel or not channel.subscribers:
-            return
+        loop = self._loop
+        if loop is None:
+            return  # Nobody has ever subscribed.
 
         payload = json.dumps({"type": event_type, "data": data})
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
 
-        dead_queues: list[asyncio.Queue] = []
-        for queue in channel.subscribers:
-            try:
-                queue.put_nowait(payload)
-            except asyncio.QueueFull:
-                dead_queues.append(queue)
-
-        for q in dead_queues:
-            channel.subscribers.discard(q)
-
-    def emit_all_banner_state(
-        self,
-        instance_id: str,
-        config_diff: Any,
-        commit_confirm: Any,
-        power_status: Any,
-    ) -> None:
-        """Emit a combined banner_state event with all three payloads."""
-        channel = self._channels.get(instance_id)
-        if not channel or not channel.subscribers:
+        if running is loop:
+            self._deliver(instance_id, payload)
             return
+        try:
+            loop.call_soon_threadsafe(self._deliver, instance_id, payload)
+        except RuntimeError:
+            # The loop is closed (shutdown); there is no stream left to wake.
+            logger.debug("Dropped %s event for instance %s: event loop closed", event_type, instance_id)
 
-        payload = json.dumps({
-            "type": "banner_state",
-            "data": {
-                "config_diff": config_diff,
-                "commit_confirm": commit_confirm,
-                "power_status": power_status,
-            },
-        })
-
-        dead_queues: list[asyncio.Queue] = []
+    def _deliver(self, instance_id: str, payload: str) -> None:
+        """Put one payload on every subscriber queue. Runs on the loop."""
+        channel = self._channels.get(instance_id)
+        if not channel:
+            return
         for queue in channel.subscribers:
-            try:
-                queue.put_nowait(payload)
-            except asyncio.QueueFull:
-                dead_queues.append(queue)
-
-        for q in dead_queues:
-            channel.subscribers.discard(q)
+            queue.put_nowait(payload)
 
     # ------------------------------------------------------------------
     # Background poller
@@ -157,14 +149,6 @@ class EventManager:
     def get_subscribed_instance_ids(self) -> list[str]:
         """Return instance IDs that have at least one subscriber."""
         return [iid for iid, ch in self._channels.items() if ch.subscribers]
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-
-    def has_subscribers(self, instance_id: str) -> bool:
-        channel = self._channels.get(instance_id)
-        return bool(channel and channel.subscribers)
 
 
 # Singleton
