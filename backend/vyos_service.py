@@ -451,6 +451,7 @@ class VyOSService:
         """
         return self.device.generate(path=path)
 
+
 class VyOSDeviceRegistry:
     """Registry for managing multiple VyOS devices."""
 

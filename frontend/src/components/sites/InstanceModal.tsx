@@ -148,7 +148,7 @@ export function InstanceModal({
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+            <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3">
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-destructive">{error}</p>
