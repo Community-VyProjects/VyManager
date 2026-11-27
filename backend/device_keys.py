@@ -15,7 +15,10 @@ against that router (``verified``: the router answered a config read or a
 commit with something other than an auth error), so a row cannot see another
 organization's banner or snapshots by typing that router's address. Until
 then it keys by its own id. The router answers before VyManager records any
-state for a request, so a row is verified before it writes shared state.
+state for a request, so a row is verified before it writes shared state, with
+one exception: a commit-confirm armed through a lost reply (502/504) is stored
+under the router the row names even if it is not verified, since the timer may
+be running there; that session names no starter row.
 
 A pending commit-confirm still blocks an unverified row's commits
 (``candidate_key``, and the write lock is keyed the same way): the router

@@ -96,6 +96,14 @@ def _causes(exc: BaseException):
         todo.extend([item.__cause__, item.__context__, getattr(item, "reason", None), *item.args])
 
 
+class RouterRefusedRead(ValueError):
+    """A config read the router refused (401/403); keeps its reply."""
+
+    def __init__(self, response: ApiResponse, message: str) -> None:
+        super().__init__(message)
+        self.response = response
+
+
 def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
     """Map a requests failure to a status without the device URL in the text.
 
@@ -170,8 +178,6 @@ class VyOSService:
         )
         # Cache for full configuration (for read operations)
         self._cached_config: Optional[Dict[str, Any]] = None
-        # The router refused this row's key on its last answer (401/403).
-        self._refused = False
         if device_config.instance_id:
             device_keys.note(device_config.instance_id, device_config.hostname, device_config.port)
 
@@ -190,8 +196,7 @@ class VyOSService:
         """
         if not self.config.instance_id:
             return
-        self._refused = status in (401, 403)
-        if self._refused:
+        if status in (401, 403):
             device_keys.rejected(self.config.instance_id)
             self._cached_config = None
         else:
@@ -527,16 +532,12 @@ class VyOSService:
         operations = batch.get_operations()
         with self._write_lock():
             self._refuse_during_commit_confirm()
-            self._refused = False
-            action, unsaved_before = self._before_arming(instance_id)
-            if self._refused:
+            action, unsaved_before, refused = self._before_arming(instance_id)
+            if refused is not None:
                 # The router just refused this key: a commit with it would be
                 # refused too, and a lost reply would block the router for
-                # nothing. Nothing was sent.
-                return ApiResponse(
-                    status=401, request={}, result={},
-                    error="The router refused this instance's API key; nothing was committed.",
-                )
+                # nothing. Nothing was sent; the router's status and text stand.
+                return refused
             response = self._post_api(
                 "configure",
                 {"commands": operations, "confirm_time": confirm_time_minutes},
@@ -563,14 +564,18 @@ class VyOSService:
         Read fresh, under the write lock: the action can change on the router
         (CLI, another row) after any cached read. An unreadable router counts
         as the VyOS default action with unsaved changes, so the banner warns.
+        The third value is the router's reply when it refused this read's key
+        (401/403), else None: this read's own outcome, not a shared flag.
         """
         try:
             before = self.get_full_config(refresh=True)
+        except RouterRefusedRead as exc:
+            return commit_confirm_state.DEFAULT_ACTION, True, exc.response
         except Exception:
             logger.warning("Could not read the router before arming a commit-confirm for instance %s", instance_id)
-            return commit_confirm_state.DEFAULT_ACTION, True
+            return commit_confirm_state.DEFAULT_ACTION, True, None
         baseline = reconcile_baseline(instance_id, before)
-        return commit_confirm_state.router_action(before), baseline is not None and baseline != before
+        return commit_confirm_state.router_action(before), baseline is not None and baseline != before, None
 
     def confirm_commit(self, instance_id: str) -> ApiResponse:
         """
@@ -659,6 +664,8 @@ class VyOSService:
         self._router_answered(response.status)
         if response.status != 200:
             error_msg = response.error if response.error else "Unknown error"
+            if response.status in (401, 403):
+                raise RouterRefusedRead(response, f"Failed to retrieve full config: {error_msg}")
             raise ValueError(f"Failed to retrieve full config: {error_msg}")
 
         # Parse JSON from result

@@ -559,7 +559,7 @@ def test_a_lost_reply_from_an_unverified_row_blocks_the_whole_router(monkeypatch
 
     monkeypatch.setattr("vyos_service._requests.post", lost)
     unverified = _service(ROW_A, confirm=True, verified=False)
-    monkeypatch.setattr(unverified, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True))
+    monkeypatch.setattr(unverified, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True, None))
     other = _service(ROW_B)
 
     assert unverified.execute_batch(_Batch()).status == 504
@@ -628,20 +628,22 @@ def test_after_a_restart_an_unverified_starter_stays_unverified(monkeypatch):
     assert commit_confirm_state.blocking(ROW_OTHER) is not None
 
 
-def test_a_refused_pre_arm_read_sends_no_commit(monkeypatch):
+@pytest.mark.parametrize("status", [401, 403])
+def test_a_refused_pre_arm_read_sends_no_commit(monkeypatch, status):
     service = VyOSService(VyOSDeviceConfig(
         hostname="router.lab", apikey="bad", version="1.5", instance_id=ROW_OTHER,
         commit_confirm_enabled=True, commit_confirm_minutes=2,
     ))
     cast(Any, service.device).show = lambda path=None: ApiResponse(
-        status=401, request={}, result={}, error="HTTP Error 401: Valid API key is required")
+        status=status, request={}, result={}, error=f"HTTP Error {status}: Valid API key is required")
     posts = []
     monkeypatch.setattr(service, "_post_api", lambda endpoint, data: posts.append(data))
 
     response = service.execute_batch(_Batch())
 
-    assert response.status == 401 and posts == []
-    assert commit_confirm_state.blocking(ROW_A) is None
+    assert posts == []
+    assert response.status == status and response.error == f"HTTP Error {status}: Valid API key is required"
+    assert commit_confirm_state.blocking(ROW_OTHER) is None
 
 
 def test_a_lost_reply_arm_signals_every_row_on_the_router(monkeypatch):
@@ -654,7 +656,7 @@ def test_a_lost_reply_arm_signals_every_row_on_the_router(monkeypatch):
     monkeypatch.setattr("vyos_service._requests.post", lost)
     unverified = _service(ROW_OTHER, confirm=True, verified=False)
     _service(ROW_A)
-    monkeypatch.setattr(unverified, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True))
+    monkeypatch.setattr(unverified, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True, None))
 
     assert unverified.execute_batch(_Batch()).status == 504
 

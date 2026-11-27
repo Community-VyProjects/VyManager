@@ -58,7 +58,8 @@ class EventManager:
     Central pub/sub hub for banner SSE events.
 
     One channel per instance row. emit() fans an event out to every verified
-    row on the same router (device_keys); emit_to_instance() reaches one row.
+    row on the same router (device_keys); emit_to_router() also reaches a row
+    not verified yet; emit_to_instance() reaches one row.
     """
 
     def __init__(self) -> None:
@@ -116,8 +117,8 @@ class EventManager:
         self._deliver(device_keys.instances_on(device_keys.key_for(instance_id)), event_type, data)
 
     def emit_to_router(self, instance_id: str, event_type: str, data: Any) -> None:
-        """Push a refetch signal (``data`` None) to this row and every verified
-        row on the router it names, verified or not.
+        """Push a refetch signal (``data`` None) to this row, verified or not,
+        and to every verified row on the router it names.
 
         For state that lives on the named router even before the row is
         verified (a commit-confirm armed through a lost reply). Carry no data:
