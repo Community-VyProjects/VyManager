@@ -59,7 +59,8 @@ UNANSWERED_COMMIT_CONFIRM_NOTICE = (
 )
 
 # Transport errors raised before the request was sent: the URL was invalid,
-# the connect timed out or was refused, or the name did not resolve.
+# the connect timed out or was refused, the name did not resolve, or the
+# certificate was rejected.
 _NOT_SENT_ERRORS = (
     _requests.exceptions.ConnectTimeout,
     _requests.exceptions.InvalidURL,
@@ -68,9 +69,10 @@ _NOT_SENT_ERRORS = (
     _ssl.SSLCertVerificationError,  # ssl.CertificateError is the same class
 )
 
-# A TLS error is ambiguous: urllib3 raises SSLError both for a failed
-# handshake and for a fault while reading the reply. Only the handshake
-# (urllib3 runs it in _validate_conn, before sending) means nothing was sent.
+# urllib3 raises the same types (SSLError, ReadTimeout, ProtocolError) for a
+# failure in the TLS handshake and for one while reading the reply. Only the
+# traceback tells them apart: urllib3 runs the handshake in _validate_conn,
+# before it sends the request, so any error raised there means nothing was sent.
 _HANDSHAKE_FRAMES = {"_validate_conn", "do_handshake", "wrap_socket", "_ssl_wrap_socket_and_match_hostname"}
 
 
@@ -105,11 +107,7 @@ def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
     connection broke after the request may have been sent.
     """
     logger.warning("VyOS API /%s request failed: %s", endpoint, type(exc).__name__, exc_info=True)
-    if any(
-        isinstance(cause, _NOT_SENT_ERRORS)
-        or (isinstance(cause, _ssl.SSLError) and _raised_in_handshake(cause))
-        for cause in _causes(exc)
-    ):
+    if any(isinstance(cause, _NOT_SENT_ERRORS) or _raised_in_handshake(cause) for cause in _causes(exc)):
         return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
     if isinstance(exc, _requests.exceptions.Timeout):
         return ApiResponse(status=504, request={}, result={}, error="Request timed out")
