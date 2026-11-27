@@ -44,7 +44,7 @@ def get_session_vyos_service(request: Request) -> VyOSService:
     This function:
     1. Checks if user has an active session (set by SessionMiddleware)
     2. Retrieves instance details from request.state.instance
-    3. Creates or returns cached VyOS service for that instance
+    3. Creates or returns cached VyOS service for that instance, with no device I/O
     4. Returns the service for use in route handlers
 
     Raises:
@@ -103,18 +103,11 @@ def get_session_vyos_service(request: Request) -> VyOSService:
             instance_id=instance_id,
         )
 
-        # Register the service
+        # Register the service. Config is not pre-fetched here: this lookup
+        # runs on the event loop, and the first get_full_config call (offloaded
+        # by the routers) fills the cache.
         _session_device_registry.register(instance_id, config)
-        service = _session_device_registry.get(instance_id)
-
-        # Pre-cache the full configuration for performance
-        try:
-            service.get_full_config()
-        except Exception as e:
-            # Log warning but don't fail - config will be fetched on first use
-            logger.warning("Could not pre-cache config for instance %s: %s", instance_id, type(e).__name__)
-
-        return service
+        return _session_device_registry.get(instance_id)
 
     except Exception as e:
         logger.exception("Failed to create VyOS service for instance %s", instance.get("id", "unknown"))

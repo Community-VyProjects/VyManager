@@ -404,3 +404,23 @@ def test_commit_confirm_status_reads_state_without_building_a_service(monkeypatc
     request = cast(Request, SimpleNamespace(state=SimpleNamespace(instance={"id": "inst-none"})))
 
     assert asyncio.run(config_router.get_commit_confirm_status(request)).active is False
+
+
+def test_new_session_service_does_no_device_io(monkeypatch):
+    """A registry miss builds the service on the event loop; it must not read the config (#1411)."""
+    import session_vyos_service
+    from vyos_service import VyOSService
+
+    monkeypatch.setattr(
+        VyOSService, "get_full_config",
+        lambda self, refresh=False: pytest.fail("lookup must not fetch config"),
+    )
+    api_key = SimpleNamespace(value="k")
+    request = cast(Request, SimpleNamespace(state=SimpleNamespace(instance={
+        "id": "inst-1411", "host": "192.0.2.1", "api_key": api_key, "vyos_version": "1.5",
+    })))
+    try:
+        service = session_vyos_service.get_session_vyos_service(request)
+        assert service.config.instance_id == "inst-1411"
+    finally:
+        session_vyos_service.clear_session_cache("inst-1411")
