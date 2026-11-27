@@ -236,8 +236,10 @@ def test_a_reply_that_is_not_vyos_neither_verifies_nor_unverifies(reply, already
     assert device_keys.key_for(row) == ("router.lab:443" if already_verified else row)
 
 
-def test_a_post_reply_without_the_vyos_body_verifies_no_row(monkeypatch):
-    service = _service(ROW_OTHER, verified=False)
+@pytest.mark.parametrize("already_verified", [False, True])
+def test_a_post_reply_without_the_vyos_body_neither_verifies_nor_unverifies(monkeypatch, already_verified):
+    row = ROW_A if already_verified else ROW_OTHER
+    service = _service(row, verified=already_verified)
 
     class _ProxyJson:
         status_code = 502
@@ -246,9 +248,47 @@ def test_a_post_reply_without_the_vyos_body_verifies_no_row(monkeypatch):
             return {"message": "bad gateway"}  # JSON, but not VyOS's reply
 
     monkeypatch.setattr("vyos_service._requests.post", lambda *args, **kwargs: _ProxyJson())
-    service._post_api("configure", {"commands": []})
+    assert service._post_api("configure", {"commands": []}).status == 502
 
-    assert device_keys.key_for(ROW_OTHER) == ROW_OTHER
+    assert device_keys.key_for(row) == ("router.lab:443" if already_verified else row)
+
+
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.parametrize("body", [{"message": "Forbidden"}, None], ids=["proxy-json", "html"])
+def test_a_refused_arm_records_no_session_whatever_the_body(monkeypatch, status, body):
+    """Refused before anything ran: never an armed timer."""
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+
+    class _Refused:
+        status_code = status
+
+        def json(self):
+            if body is None:
+                raise ValueError("not JSON")
+            return body
+
+    monkeypatch.setattr("vyos_service._requests.post", lambda *args, **kwargs: _Refused())
+    service = _service(ROW_A, confirm=True)
+    _service(ROW_B)
+    monkeypatch.setattr(service, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True, None))
+
+    assert service.execute_batch(_Batch()).status == status
+    assert commit_confirm_state.blocking(ROW_B) is None
+
+
+@pytest.mark.parametrize("error, status", [
+    ("API Error 200: Configuration path is not valid", 400),
+    ("Invalid response format: Expecting value", 502),
+    ("Validation Error: Invalid response structure", 502),
+])
+def test_a_pyvyos_200_error_is_a_rejection_only_when_vyos_said_so(error, status):
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_OTHER))
+    reply = lambda **kwargs: ApiResponse(status=200, request={}, result={}, error=error)  # noqa: E731
+    cast(Any, service.device).configure_multiple_op = reply
+    cast(Any, service.device).config_file_save = reply
+
+    assert service.commit_operations([{"op": "set", "path": ["x"]}]).status == status
+    assert service.config_file_save().status == status
 
 
 def test_a_vyos_rejection_still_verifies_the_row():

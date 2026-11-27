@@ -96,12 +96,24 @@ def _causes(exc: BaseException):
         todo.extend([item.__cause__, item.__context__, getattr(item, "reason", None), *item.args])
 
 
+# pyvyos _validate_response's errors for a 200 whose body is not the VyOS API's.
+_NOT_A_VYOS_REPLY = ("Invalid response format", "Validation Error", "Unexpected error")
+
+
 def _vyos_replied(response: ApiResponse) -> bool:
     """pyvyos parsed a VyOS reply: HTTP 200 with the API's JSON body (success
     or a VyOS error). Anything else may come from a proxy in front of it."""
     if response.status != 200:
         return False
-    return not response.error or str(response.error).startswith("API Error")
+    return not response.error or not str(response.error).startswith(_NOT_A_VYOS_REPLY)
+
+
+def _classify_200_error(response: ApiResponse) -> None:
+    """A pyvyos 200 with an error is VyOS's rejection (400), unless pyvyos
+    says the body was not VyOS's reply (a proxy page or a proxy's JSON): then
+    the outcome is unknown (502), as on the _post_api path."""
+    if response.status == 200 and response.error:
+        response.status = 502 if str(response.error).startswith(_NOT_A_VYOS_REPLY) else 400
 
 
 class RouterRefusedRead(ValueError):
@@ -439,8 +451,7 @@ class VyOSService:
             except _requests.exceptions.RequestException as exc:
                 return _transport_failure(exc, "configure")
             self._router_answered(response.status, _vyos_replied(response))
-        if response.status == 200 and response.error:
-            response.status = 400
+        _classify_200_error(response)
         return response
 
     def execute_batch(
@@ -510,7 +521,14 @@ class VyOSService:
         # the commit may or may not have run: an unknown outcome.
         vyos_replied = isinstance(body, dict) and "success" in body
         self._router_answered(resp.status_code, vyos_replied)
-        if not isinstance(body, dict) or not vyos_replied:
+        if resp.status_code in (401, 403) and not vyos_replied:
+            # Refused before anything ran, whoever refused it (VyOS or a proxy):
+            # never sent, as on the pyvyos path, never an unknown outcome.
+            return ApiResponse(
+                status=resp.status_code, request={}, result={},
+                error=f"HTTP Error {resp.status_code}: the request was refused",
+            )
+        if not vyos_replied or not isinstance(body, dict):
             logger.warning("VyOS API /%s returned HTTP %s without the VyOS reply body", endpoint, resp.status_code)
             status = 504 if resp.status_code == 504 else 502
             return ApiResponse(status=status, request={}, result={}, error="Unexpected response from the VyOS API")
@@ -650,8 +668,7 @@ class VyOSService:
         except _requests.exceptions.RequestException as exc:
             return _transport_failure(exc, f"config-file {op}")
         self._router_answered(response.status, _vyos_replied(response))
-        if response.status == 200 and response.error:
-            response.status = 400
+        _classify_200_error(response)
         return response
 
     def get_full_config(self, refresh: bool = False) -> Dict[str, Any]:
