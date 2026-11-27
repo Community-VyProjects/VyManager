@@ -529,6 +529,20 @@ def test_with_nothing_pending_the_status_says_what_the_next_save_arms():
     assert commit_confirm_state.status(ROW_A, None) == {"active": False, "enabled": False, "action": None}
 
 
+def test_a_real_config_read_records_the_routers_action_for_every_row():
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_A))
+    cast(Any, service.device).show = lambda path=None: ApiResponse(
+        status=200, request={}, result=cast(Any, '{"system": {"config-management": {"commit-confirm": {"action": "reload"}}}}'),
+        error="",
+    )
+    other = _service(ROW_B)
+
+    service.get_full_config(refresh=True)
+
+    assert commit_confirm_state.known_action(ROW_A) == "reload"
+    assert commit_confirm_state.status(ROW_B, other, enabled=True)["action"] == "reload"
+
+
 def test_an_unverified_row_learns_no_action():
     _service(ROW_A, config=RELOAD).get_full_config()
     stranger = _service(ROW_OTHER, verified=False)

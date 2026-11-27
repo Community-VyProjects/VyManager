@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-from session_vyos_service import cached_session_service, get_session_vyos_service, require_session_instance
+from session_vyos_service import get_session_vyos_service, require_session_instance
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import commit_confirm_state
@@ -377,13 +377,12 @@ async def get_commit_confirm_status(request: Request):
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         # Same no-instance 400 as the sibling handlers, without building a
-        # service: the action shown before arming comes from the cached
-        # config of a service another request built, if any.
+        # service: whether this row arms one comes from the instance row, and
+        # the router's action from its last config read (known_action).
         instance = require_session_instance(request)
         enabled = bool(instance.get("commit_confirm_enabled")) and commit_confirm_state.supports_commit_confirm(
             instance.get("vyos_version"))
-        return CommitConfirmStatusResponse(**commit_confirm_state.status(
-            instance["id"], cached_session_service(instance["id"]), enabled=enabled))
+        return CommitConfirmStatusResponse(**commit_confirm_state.status(instance["id"], enabled=enabled))
     except HTTPException:
         raise
     except Exception:
