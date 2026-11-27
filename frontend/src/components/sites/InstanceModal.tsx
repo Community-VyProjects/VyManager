@@ -30,6 +30,8 @@ import { ApiError } from "@/lib/types/api";
 import { modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 import { type InstanceEditorTab } from "@/lib/query-tabs";
 import {
+  commitConfirmSupported,
+  draftCommitConfirmEnabled,
   emptyInstanceDraft,
   instanceDraftFrom,
   submitInstanceCreate,
@@ -245,24 +247,24 @@ export function InstanceModal({
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="commitConfirmEnabled"
-                    checked={draft.commitConfirmEnabled}
+                    checked={draftCommitConfirmEnabled(draft)}
                     onCheckedChange={(checked) =>
                       patch({ commitConfirmEnabled: checked as boolean })
                     }
-                    disabled={loading || draft.vyosVersion === "1.4"}
+                    disabled={loading || !commitConfirmSupported(draft.vyosVersion)}
                   />
                   <div>
                     <Label htmlFor="commitConfirmEnabled" className="cursor-pointer">
                       {t("instanceModal.commitConfirmEnable")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      {draft.vyosVersion === "1.4"
+                      {!commitConfirmSupported(draft.vyosVersion)
                         ? t("instanceModal.commitConfirmUnsupported")
                         : t("instanceModal.commitConfirmHint")}
                     </p>
                   </div>
                 </div>
-                {draft.commitConfirmEnabled && (
+                {draftCommitConfirmEnabled(draft) && (
                   <div className="flex items-center gap-3 pl-6">
                     <Label htmlFor="commitConfirmMinutes" className="whitespace-nowrap text-sm">
                       {t("instanceModal.confirmWindow")}

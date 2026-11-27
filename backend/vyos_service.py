@@ -295,11 +295,16 @@ class VyOSService:
     ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op.
 
-        If commit-confirm is enabled for this instance (and the VyOS version
-        supports it), the batch is executed with a rollback timer automatically.
-        No router changes are needed — the feature is fully transparent.
+        If commit-confirm is enabled for this instance and the VyOS version
+        supports it, the batch is executed with a rollback timer automatically.
+        On a version without commit-confirm the flag is ignored and the batch
+        commits normally. No router changes are needed.
         """
-        if self.config.commit_confirm_enabled and self.config.instance_id:
+        if (
+            self.config.commit_confirm_enabled
+            and self.config.instance_id
+            and commit_confirm_state.supports_commit_confirm(self.config.version)
+        ):
             return self.execute_batch_with_confirm(batch, self.config.instance_id)
 
         if batch.is_empty():
@@ -316,7 +321,6 @@ class VyOSService:
         self,
         batch,
         instance_id: str,
-        confirm_time_minutes: int = 5,
         action: str = "reload",
     ) -> ApiResponse:
         """
@@ -324,20 +328,19 @@ class VyOSService:
 
         Applies operations to the running config with an automatic rollback
         timer. The caller must confirm via confirm_commit() before the timer
-        expires, otherwise VyOS will revert the changes.
+        expires, otherwise VyOS will revert the changes. Only execute_batch
+        calls this, after checking the instance flag and the version; this
+        method never calls back into execute_batch.
 
         Raises:
             HTTPException 409: If a commit-confirm is already active for this instance.
-            ValueError: If the batch is empty.
+            ValueError: If the batch is empty, or the VyOS version cannot arm a
+                commit-confirm (the 1.4 API would commit with no timer).
         """
         from fastapi import HTTPException
 
-        # Fall back to regular commit if feature is disabled or VyOS version
-        # doesn't support commit-confirm (requires 1.5+).
-        version = self.config.version or ""
-        supports_commit_confirm = "1.5" in version or "1.6" in version
-        if not self.config.commit_confirm_enabled or not supports_commit_confirm:
-            return self.execute_batch(batch)
+        if not commit_confirm_state.supports_commit_confirm(self.config.version):
+            raise ValueError("Commit-confirm is not supported on this VyOS version")
 
         if commit_confirm_state.is_active(instance_id):
             session = commit_confirm_state.get_active(instance_id)

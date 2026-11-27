@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/session";
 import {
   buildInstanceCreate,
+  commitConfirmSupported,
   emptyInstanceDraft,
   emptySiteDraft,
   instanceDraftFrom,
@@ -246,5 +247,52 @@ describe("instance update", () => {
     draft.sshUsername = "";
     await submitInstanceUpdate(storedInstance, draft, service);
     assert.deepEqual(service.updatedInstances[0].data, { ssh_username: null });
+  });
+});
+
+describe("commit-confirm on 1.4", () => {
+  it("reads only a version containing 1.4 as unsupported", () => {
+    assert.equal(commitConfirmSupported("1.4"), false);
+    assert.equal(commitConfirmSupported("1.4.3"), false);
+    assert.equal(commitConfirmSupported("1.5"), true);
+    assert.equal(commitConfirmSupported("2026.09.23-0027-rolling"), true);
+  });
+
+  it("never creates a 1.4 instance with commit-confirm on", () => {
+    const draft = emptyInstanceDraft();
+    draft.vyosVersion = "1.4";
+    draft.commitConfirmEnabled = true;
+    assert.equal(buildInstanceCreate(draft, "site-1").commit_confirm_enabled, false);
+  });
+
+  it("turns commit-confirm off when the version moves to 1.4", async () => {
+    const service = new RecordingSessionService();
+    const stored = { ...storedInstance, commit_confirm_enabled: true };
+    const draft = instanceDraftFrom(stored);
+    draft.vyosVersion = "1.4";
+    await submitInstanceUpdate(stored, draft, service);
+    assert.deepEqual(service.updatedInstances[0].data, {
+      vyos_version: "1.4",
+      commit_confirm_enabled: false,
+    });
+  });
+
+  it("clears a stored 1.4 row that still has commit-confirm on", async () => {
+    const service = new RecordingSessionService();
+    const stored = { ...storedInstance, vyos_version: "1.4", commit_confirm_enabled: true };
+    const draft = instanceDraftFrom(stored);
+    draft.name = "edge-2";
+    await submitInstanceUpdate(stored, draft, service);
+    assert.deepEqual(service.updatedInstances[0].data, {
+      name: "edge-2",
+      commit_confirm_enabled: false,
+    });
+  });
+
+  it("keeps commit-confirm on a 1.5 instance", async () => {
+    const service = new RecordingSessionService();
+    const stored = { ...storedInstance, commit_confirm_enabled: true };
+    const result = await submitInstanceUpdate(stored, instanceDraftFrom(stored), service);
+    assert.equal(result, null);
   });
 });

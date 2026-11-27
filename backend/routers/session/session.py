@@ -26,6 +26,7 @@ from session_vyos_service import clear_session_cache
 from utils.ssh import forget_replaced_router_pin
 from session_cookie import get_session_cookie, verify_session_cookie
 import appliance_mode
+import commit_confirm_state
 from fastapi_permissions import require_super_admin
 from rbac_permissions import is_super_admin
 from backup_crypto import (
@@ -38,6 +39,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/session", tags=["session"])
+
+_COMMIT_CONFIRM_UNSUPPORTED = "Commit-confirm needs VyOS 1.5 or later"
 
 AUTH_SESSION_IDLE_MINUTES = int(os.getenv("SESSION_INACTIVITY_TIMEOUT", "30"))
 
@@ -1094,6 +1097,9 @@ async def create_instance(request: Request, body: InstanceCreateRequest, conn: a
             raise HTTPException(status_code=404, detail="Site not found")
         await assert_row_in_acting_org(request, conn, site_org)
 
+        if body.commit_confirm_enabled and not commit_confirm_state.supports_commit_confirm(body.vyos_version):
+            raise HTTPException(status_code=400, detail=_COMMIT_CONFIRM_UNSUPPORTED)
+
         # Generate instance ID
         import secrets
         import string
@@ -1196,7 +1202,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
 
         # Verify instance exists and its site is in the caller's organization
         previous = await conn.fetchrow(
-            'SELECT i.host, i."sshPort", s."orgId" AS org_id'
+            'SELECT i.host, i."sshPort", i."vyosVersion", i."commitConfirmEnabled", s."orgId" AS org_id'
             ' FROM instances i JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
             instance_id,
         )
@@ -1205,6 +1211,15 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
         if instance_org is None:
             raise HTTPException(status_code=404, detail="Instance not found")
         await assert_row_in_acting_org(request, conn, instance_org)
+
+        # Commit-confirm cannot be armed on 1.4. Refuse turning it on there, and
+        # turn it off when the version moves to 1.4 or a stored row still has it.
+        next_version = body.vyos_version if body.vyos_version is not None else previous["vyosVersion"]
+        if not commit_confirm_state.supports_commit_confirm(next_version):
+            if body.commit_confirm_enabled:
+                raise HTTPException(status_code=400, detail=_COMMIT_CONFIRM_UNSUPPORTED)
+            if body.commit_confirm_enabled is None and previous["commitConfirmEnabled"]:
+                body.commit_confirm_enabled = False
 
         # If moving to a different site, verify the target site exists and
         # is in the caller's organization (no cross-org moves).

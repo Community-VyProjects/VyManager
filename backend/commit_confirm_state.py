@@ -41,6 +41,16 @@ class CommitConfirmSession:
         }
 
 
+def supports_commit_confirm(version: Optional[str]) -> bool:
+    """Whether the VyOS HTTP API on this version can arm a commit-confirm.
+
+    The 1.4 API ignores ``confirm_time`` and commits with no timer, and has no
+    ``confirm`` op. Only a string that contains ``1.4`` is 1.4; a rolling
+    string is 1.5, as the version-gated mappers read it.
+    """
+    return "1.4" not in (version or "")
+
+
 # In-memory store keyed by instance_id
 _sessions: Dict[str, CommitConfirmSession] = {}
 

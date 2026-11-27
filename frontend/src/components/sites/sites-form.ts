@@ -165,6 +165,20 @@ export function instanceDraftFrom(instance: Instance): InstanceDraft {
   };
 }
 
+/**
+ * The 1.4 API commits with no timer when asked for commit-confirm, so the
+ * option is off there. Only a version containing "1.4" is 1.4, as the backend
+ * reads it.
+ */
+export function commitConfirmSupported(vyosVersion: string): boolean {
+  return !vyosVersion.includes("1.4");
+}
+
+/** The commit-confirm flag the draft would store: never on for 1.4. */
+export function draftCommitConfirmEnabled(draft: InstanceDraft): boolean {
+  return draft.commitConfirmEnabled && commitConfirmSupported(draft.vyosVersion);
+}
+
 export function validateInstanceShared(draft: InstanceDraft): SitesFormError | null {
   if (!draft.name.trim()) return "instanceNameRequired";
   if (!draft.host.trim()) return "hostRequired";
@@ -197,7 +211,7 @@ export function buildInstanceCreate(draft: InstanceDraft, siteId: string): Insta
     is_active: draft.isActive,
     ssh_port: sshPort,
     ssh_username: draft.sshUsername.trim() || undefined,
-    commit_confirm_enabled: draft.commitConfirmEnabled,
+    commit_confirm_enabled: draftCommitConfirmEnabled(draft),
     commit_confirm_minutes: parseInt(draft.commitConfirmMinutes, 10) || 5,
     timeout: parseInt(draft.timeout, 10) || 10,
   };
@@ -233,8 +247,9 @@ export function buildInstanceUpdate(
   const previousUsername = emptyToNull(storedText(existing.ssh_username));
   if (nextUsername !== previousUsername) data.ssh_username = nextUsername;
 
-  if (draft.commitConfirmEnabled !== (existing.commit_confirm_enabled ?? false)) {
-    data.commit_confirm_enabled = draft.commitConfirmEnabled;
+  const commitConfirmEnabled = draftCommitConfirmEnabled(draft);
+  if (commitConfirmEnabled !== (existing.commit_confirm_enabled ?? false)) {
+    data.commit_confirm_enabled = commitConfirmEnabled;
   }
   const minutes = parseInt(draft.commitConfirmMinutes, 10) || 5;
   if (minutes !== (existing.commit_confirm_minutes ?? 5)) {

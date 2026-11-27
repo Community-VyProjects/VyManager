@@ -1036,7 +1036,13 @@ def test_update_instance_drops_the_old_router_pin(monkeypatch):
 
         async def fetchrow(self, query, *args):
             if "org_id" in query:
-                return {"host": "10.0.0.1", "sshPort": 22, "org_id": "org-1"}
+                return {
+                    "host": "10.0.0.1",
+                    "sshPort": 22,
+                    "vyosVersion": "1.4",
+                    "commitConfirmEnabled": False,
+                    "org_id": "org-1",
+                }
             now = datetime.now(timezone.utc)
             return {
                 "id": "inst",
@@ -1079,7 +1085,13 @@ def test_update_instance_drops_the_old_router_pin(monkeypatch):
 
     async def same_row(query, *args):
         if "org_id" in query:
-            return {"host": "10.0.0.1", "sshPort": 22, "org_id": "org-1"}
+            return {
+                "host": "10.0.0.1",
+                "sshPort": 22,
+                "vyosVersion": "1.4",
+                "commitConfirmEnabled": False,
+                "org_id": "org-1",
+            }
         now = datetime.now(timezone.utc)
         row = {
             "id": "inst",
