@@ -14,6 +14,7 @@ from fastapi import HTTPException, Request
 from pyvyos.core.rest_client import ApiResponse
 
 import commit_confirm_state
+import config_state
 from routers.session import session as session_router
 from vyos_builders.nat import NATBatchBuilder
 from vyos_service import VyOSDeviceConfig, VyOSService
@@ -44,6 +45,8 @@ def _service(version: str) -> VyOSService:
         commit_confirm_minutes=3,
     ))
     service._record_managed_config = lambda instance_id: None
+    # A failed commit re-reads the config; nothing changed on this stub router.
+    service.get_full_config = lambda refresh=False: {}
     return service
 
 
@@ -135,18 +138,29 @@ def test_rejected_commit_confirm_returns_the_vyos_error_not_a_transport_error(mo
         ),
     )
 
-    response = service.execute_batch(_batch("1.5"))
+    config_state.set_saved_config("inst-1451", {})
+    config_state.set_managed_config("inst-1451", {})
+    try:
+        response = service.execute_batch(_batch("1.5"))
+        managed = config_state.get_managed_config("inst-1451")
+    finally:
+        config_state.clear_saved_config("inst-1451")
 
     assert response.status == 400
-    assert "dhcp-server" in response.error
+    assert response.error == "[[service dhcp-server]] failed\nCommit failed\n"
+    assert managed == {}
     assert commit_confirm_state.is_active("inst-1451") is False
 
 
 def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
     import requests
+    import urllib3
+    from urllib3.connection import HTTPSConnection
 
     def _refused(url, data, verify, timeout):
-        raise requests.exceptions.ConnectionError(f"HTTPSConnectionPool(host='lab', port=443): {url}")
+        pool = urllib3.HTTPSConnectionPool("lab", 443)
+        reason = urllib3.exceptions.NewConnectionError(HTTPSConnection("lab", 443), "Failed to establish a new connection: [Errno 111] Connection refused")
+        raise requests.exceptions.ConnectionError(urllib3.exceptions.MaxRetryError(pool, url, reason))
 
     monkeypatch.setattr("vyos_service._requests.post", _refused)
 
@@ -157,13 +171,31 @@ def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
     assert commit_confirm_state.is_active("inst-1451") is False
 
 
-def test_non_json_reply_is_a_502(monkeypatch):
+def test_dropped_connection_returns_a_fixed_message_without_the_url(monkeypatch):
+    import requests
+
+    def _dropped(url, data, verify, timeout):
+        raise requests.exceptions.ConnectionError(f"('Connection aborted.', RemoteDisconnected()) {url}")
+
+    monkeypatch.setattr("vyos_service._requests.post", _dropped)
+
+    response = _service("1.5").execute_batch(_batch("1.5"))
+
+    assert response.status == 502
+    assert "lab" not in response.error and "Connection aborted" not in response.error
+
+
+def test_non_json_reply_is_a_502_with_an_unknown_outcome(monkeypatch):
+    """An unparsable reply says nothing about the commit, so the timer may be armed."""
+    from vyos_service import UNANSWERED_COMMIT_CONFIRM_NOTICE
+
     monkeypatch.setattr("vyos_service._requests.post", lambda url, data, verify, timeout: _JsonResp(502, None))
 
     response = _service("1.5").execute_batch(_batch("1.5"))
 
     assert response.status == 502
-    assert commit_confirm_state.is_active("inst-1451") is False
+    assert response.error.startswith(UNANSWERED_COMMIT_CONFIRM_NOTICE)
+    assert commit_confirm_state.is_active("inst-1451") is True
 
 
 def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch):
@@ -393,3 +425,22 @@ def test_connect_keeps_the_vyos_reply_text(monkeypatch):
     err = _connect_with(monkeypatch, ValueError("Failed to retrieve full config: HTTP Error 403: Valid API key is required"))
     assert err.status_code == 503
     assert "Valid API key is required" in err.detail
+
+
+def test_commit_confirm_url_brackets_an_ipv6_host(monkeypatch):
+    """pyvyos brackets an IPv6 host on the plain path; _post_api must too."""
+    urls = []
+
+    def post(url, data, verify, timeout):
+        urls.append(url)
+        return _JsonResp(200, {"success": True, "data": "", "error": None})
+
+    monkeypatch.setattr("vyos_service._requests.post", post)
+    service = VyOSService(VyOSDeviceConfig(
+        hostname="fd00::1", apikey="key", version="1.5", instance_id="inst-1451",
+        commit_confirm_enabled=True, commit_confirm_minutes=3,
+    ))
+    service._record_managed_config = lambda instance_id: None
+
+    assert service.execute_batch(_batch("1.5")).status == 200
+    assert urls == ["https://[fd00::1]:443/configure"]

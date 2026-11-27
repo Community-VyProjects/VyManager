@@ -20,6 +20,8 @@ def _service() -> VyOSService:
         instance_id="inst",
     ))
     service._record_managed_config = lambda instance_id: recorded.append(instance_id)
+    # A failed commit re-reads the config; nothing changed on this stub router.
+    service.get_full_config = lambda refresh=False: {}
     return service
 
 
@@ -42,7 +44,7 @@ def test_execute_batch_rejects_http_200_with_vyos_error():
     response = service.execute_batch(batch)
 
     assert response.status == 400
-    assert "translation requires" in response.error
+    assert response.error == "translation requires address and/or port"
     assert recorded == []
 
 

@@ -21,7 +21,7 @@ hands back the baseline to diff against.
 
 import threading
 from copy import deepcopy
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # Guards both snapshot dicts. The banner poller and request handlers reconcile
 # concurrently, and reconciliation is a read-modify-write of both.
@@ -57,6 +57,69 @@ def set_managed_config(instance_id: str, config: Dict[str, Any]) -> None:
     """Record the live state produced by a successful VyManager operation."""
     with _lock:
         _managed_config_snapshots[instance_id] = deepcopy(config)
+
+
+def _node_at(tree: Any, path: List[str]) -> Any:
+    node = tree
+    for name in path:
+        if not isinstance(node, dict) or name not in node:
+            return _MISSING
+        node = node[name]
+    return node
+
+
+def _replace_node(tree: Dict[str, Any], path: List[str], value: Any) -> None:
+    """Set ``tree[path]`` to ``value``, or remove it when ``value`` is _MISSING."""
+    node = tree
+    for name in path[:-1]:
+        child = node.get(name)
+        if not isinstance(child, dict):
+            if value is _MISSING:
+                return
+            child = {}
+            node[name] = child
+        node = child
+    if value is _MISSING:
+        node.pop(path[-1], None)
+    else:
+        node[path[-1]] = deepcopy(value)
+
+
+def record_failed_commit(
+    instance_id: str, current: Dict[str, Any], node_paths: List[List[str]],
+) -> bool:
+    """Record the part of a failed commit that still reached the router.
+
+    VyOS commits feature by feature, so a rejected commit can leave some of
+    its nodes changed in live config. Those nodes are VyManager's change: they
+    are copied from ``current`` into the managed snapshot, so reconciliation
+    keeps them in the unsaved-changes banner instead of folding them into the
+    baseline as an external edit. Nodes the batch did not touch are left
+    alone, so a real external edit made meanwhile is still treated as one.
+
+    Without a managed snapshot the saved baseline is the reference (an
+    earlier unsaved edit to the same node then also counts as landed); it is
+    left alone, because reconciliation does not move a baseline it has no
+    managed snapshot for, so the landed nodes still show in the banner.
+
+    Returns True when a touched node differs from the reference, False when
+    none does or there is no baseline yet (nothing to show a change against).
+    """
+    with _lock:
+        managed = _managed_config_snapshots.get(instance_id)
+        reference = managed if managed is not None else _saved_config_snapshots.get(instance_id)
+        if reference is None:
+            return False
+        landed = [
+            path for path in node_paths
+            if path and _node_at(current, path) != _node_at(reference, path)
+        ]
+        if landed and managed is not None:
+            updated = deepcopy(managed)
+            for path in landed:
+                _replace_node(updated, path, _node_at(current, path))
+            _managed_config_snapshots[instance_id] = updated
+        return bool(landed)
 
 
 def clear_managed_config(instance_id: str) -> None:

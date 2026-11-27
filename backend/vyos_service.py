@@ -5,18 +5,18 @@ Uses the new modular mapper and builder structure.
 Much cleaner and easier to maintain!
 """
 
-from typing import Optional, Union, Dict, Any, List
+from typing import Optional, Dict, Any, List, Protocol
 import json
 import logging
+import ssl as _ssl
 import requests as _requests
+import urllib3 as _urllib3
 
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
-from config_state import clear_managed_config, set_managed_config
+from config_state import clear_managed_config, record_failed_commit, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
-from vyos_builders.dhcp_server import DHCPServerBatchBuilder
-from vyos_builders.firewall import FirewallGroupsBatchBuilder
 from vyos_builders.interfaces import (
     EthernetInterfaceBuilderMixin,
     DummyInterfaceBuilderMixin,
@@ -24,7 +24,6 @@ from vyos_builders.interfaces import (
     InputInterfaceBuilderMixin,
     L2TPv3InterfaceBuilderMixin,
     LoopbackInterfaceBuilderMixin,
-    MacsecInterfaceBuilderMixin,
     OpenvpnInterfaceBuilderMixin,
     PppoeInterfaceBuilderMixin,
     PseudoEthernetInterfaceBuilderMixin,
@@ -32,11 +31,89 @@ from vyos_builders.interfaces import (
     VppInterfaceBuilderMixin,
     VtiInterfaceBuilderMixin,
 )
-from vyos_builders.nat import NATBatchBuilder
-from vyos_builders.system import SystemPerformanceBatchBuilder
-from vyos_builders.wireguard import WireGuardBatchBuilder
 
 logger = logging.getLogger(__name__)
+
+# Put in front of the error when a failed commit may still have changed the router.
+PARTIAL_COMMIT_NOTICE = (
+    "Part of this change reached the router before the commit failed. "
+    "It is listed under unsaved changes."
+)
+UNREAD_COMMIT_NOTICE = (
+    "The router could not be read after the commit failed, so part of this "
+    "change may be live. Check unsaved changes."
+)
+UNANSWERED_COMMIT_NOTICE = (
+    "The router did not answer, so this change may still be applied. "
+    "If it is, it will show under unsaved changes."
+)
+UNANSWERED_COMMIT_CONFIRM_NOTICE = (
+    "The router did not answer, so this change and its commit-confirm timer "
+    "may be active. If the change is live, confirm it before the timer runs out."
+)
+
+# Transport errors raised before the request was sent: the URL was invalid,
+# the connect timed out or was refused, the name did not resolve, or the
+# certificate was rejected.
+_NOT_SENT_ERRORS = (
+    _requests.exceptions.ConnectTimeout,
+    _requests.exceptions.InvalidURL,
+    _urllib3.exceptions.NewConnectionError,  # includes NameResolutionError
+    _urllib3.exceptions.ConnectTimeoutError,
+    _ssl.SSLCertVerificationError,  # ssl.CertificateError is the same class
+)
+
+# urllib3 raises the same types (SSLError, ReadTimeout, ProtocolError) for a
+# failure in the TLS handshake and for one while reading the reply. Only the
+# traceback tells them apart: urllib3 runs the handshake in _validate_conn,
+# before it sends the request, so any error raised there means nothing was sent.
+_HANDSHAKE_FRAMES = {"_validate_conn", "do_handshake", "wrap_socket", "_ssl_wrap_socket_and_match_hostname"}
+
+
+def _raised_in_handshake(exc: BaseException) -> bool:
+    tb = exc.__traceback__
+    while tb is not None:
+        if tb.tb_frame.f_code.co_name in _HANDSHAKE_FRAMES:
+            return True
+        tb = tb.tb_next
+    return False
+
+
+def _causes(exc: BaseException):
+    """exc and what it wraps: pyvyos re-raises inside ``except``, so the
+    original is ``__context__``; requests and urllib3 wrap the reason in
+    ``args`` and ``MaxRetryError.reason``."""
+    seen: set = set()
+    todo: List[Any] = [exc]
+    while todo:
+        item = todo.pop()
+        if not isinstance(item, BaseException) or id(item) in seen:
+            continue
+        seen.add(id(item))
+        yield item
+        todo.extend([item.__cause__, item.__context__, getattr(item, "reason", None), *item.args])
+
+
+def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
+    """Map a requests failure to a status without the device URL in the text.
+
+    504: the reply timed out; 503: the request was never sent; 502: the
+    connection broke after the request may have been sent.
+    """
+    logger.warning("VyOS API /%s request failed: %s", endpoint, type(exc).__name__, exc_info=True)
+    if any(isinstance(cause, _NOT_SENT_ERRORS) or _raised_in_handshake(cause) for cause in _causes(exc)):
+        return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
+    if isinstance(exc, _requests.exceptions.Timeout):
+        return ApiResponse(status=504, request={}, result={}, error="Request timed out")
+    return ApiResponse(status=502, request={}, result={}, error="The connection to the VyOS API was lost")
+
+
+class BatchOperations(Protocol):
+    """What execute_batch needs from a batch builder: every builder has these."""
+
+    def is_empty(self) -> bool: ...
+
+    def get_operations(self) -> List[Dict[str, Any]]: ...
 
 
 class VyOSDeviceConfig:
@@ -206,34 +283,82 @@ class VyOSService:
                 instance_id,
             )
 
+    def _note_failed_commit(
+        self,
+        instance_id: str,
+        operations: List[Dict[str, Any]],
+        response: ApiResponse,
+        commit_confirm: bool = False,
+    ) -> None:
+        """After a failed commit, keep whatever still reached the router visible.
+
+        VyOS commits feature by feature, so a rejected batch can be partly
+        live, and a batch whose reply was lost can be fully live. The nodes
+        this batch touched are recorded as VyManager's change, so the
+        unsaved-changes banner shows them, and the error says so.
+        """
+        if response.status in (401, 403, 503):
+            return  # Never sent, or refused before VyOS ran anything.
+
+        if response.status in (502, 504):
+            # The router may still be applying the commit, so a re-read now
+            # proves nothing. Drop the managed snapshot: reconciliation then
+            # leaves the baseline alone, and whatever lands shows as unsaved.
+            clear_managed_config(instance_id)
+            notice = UNANSWERED_COMMIT_NOTICE
+            if commit_confirm:
+                # The timer may be armed on the router. Show the countdown so
+                # it can be confirmed; confirming with nothing pending is a no-op.
+                commit_confirm_state.set_active(instance_id, self.config.commit_confirm_minutes)
+                notice = UNANSWERED_COMMIT_CONFIRM_NOTICE
+                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
+            self._prefix_error(response, notice)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+            return
+
+        # VyOS answered with an error. The node an op touches is its parent,
+        # which covers a leaf's value, a multi value, and a created or deleted
+        # tag value; a one-element path is the node itself.
+        node_paths = []
+        for op in operations:
+            path = [str(part) for part in op.get("path", [])]
+            node_paths.append(path[:-1] if len(path) > 1 else path)
+        try:
+            current = self.get_full_config(refresh=True)
+        except Exception:
+            logger.exception("Could not re-read config for instance %s after a failed commit", instance_id)
+            clear_managed_config(instance_id)
+            self._prefix_error(response, UNREAD_COMMIT_NOTICE)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+            return
+
+        if record_failed_commit(instance_id, current, node_paths):
+            self._prefix_error(response, PARTIAL_COMMIT_NOTICE)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+
+    @staticmethod
+    def _prefix_error(response: ApiResponse, notice: str) -> None:
+        response.error = f"{notice}\n{response.error}" if response.error else notice
+
     def commit_operations(self, operations: List[Dict[str, Any]]) -> ApiResponse:
         """The only call to device.configure_multiple_op.
 
         pyvyos keeps HTTP 200 when VyOS rejects the commit. commit-confirm
         already returns 400 in that case. Do the same here so every caller
-        can treat status 200 as applied.
+        can treat status 200 as applied. pyvyos raises on transport failures;
+        those become a status as well (see _transport_failure).
         """
-        response = self.device.configure_multiple_op(op_path=operations)
+        try:
+            response = self.device.configure_multiple_op(op_path=operations)
+        except _requests.exceptions.RequestException as exc:
+            return _transport_failure(exc, "configure")
         if response.status == 200 and response.error:
             response.status = 400
         return response
 
     def execute_batch(
         self,
-        batch: Union[
-            EthernetInterfaceBuilderMixin,
-            DummyInterfaceBuilderMixin,
-            InputInterfaceBuilderMixin,
-            FirewallGroupsBatchBuilder,
-            NATBatchBuilder,
-            DHCPServerBatchBuilder,
-            WireGuardBatchBuilder,
-            SystemPerformanceBatchBuilder,
-            LoopbackInterfaceBuilderMixin,
-            MacsecInterfaceBuilderMixin,
-            OpenvpnInterfaceBuilderMixin,
-            PppoeInterfaceBuilderMixin,
-        ],
+        batch: BatchOperations,
     ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op.
 
@@ -254,9 +379,12 @@ class VyOSService:
 
         operations = batch.get_operations()
         response = self.commit_operations(operations)
-        if response.status == 200 and self.config.instance_id:
-            self._record_managed_config(self.config.instance_id)
-            event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
+        if self.config.instance_id:
+            if response.status == 200:
+                self._record_managed_config(self.config.instance_id)
+                event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
+            else:
+                self._note_failed_commit(self.config.instance_id, operations, response)
         return response
 
     def _post_api(self, endpoint: str, data: Dict[str, Any]) -> ApiResponse:
@@ -264,11 +392,13 @@ class VyOSService:
 
         VyOS answers a rejected request with HTTP 400 and a JSON body that
         carries the error, so the body is read before the status: status 200
-        means ``success`` was true, status 400 carries the VyOS error text.
+        means ``success`` was true, status 400 carries the VyOS error text,
+        and 401/403 (bad API key) keep their status and text.
         Transport failures are logged and get a fixed message, so the device
         URL and the requests text never reach the client.
         """
-        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/{endpoint}"
+        # self.device.hostname is the host pyvyos formats, IPv6 in brackets.
+        url = f"{self.config.protocol}://{self.device.hostname}:{self.config.port}/{endpoint}"
         payload = {"data": json.dumps(data), "key": self.config.apikey}
         try:
             resp = _requests.post(
@@ -277,11 +407,8 @@ class VyOSService:
                 verify=self.config.verify,
                 timeout=self.config.timeout,
             )
-        except _requests.exceptions.Timeout:
-            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
-        except _requests.exceptions.RequestException:
-            logger.exception("VyOS API /%s request failed", endpoint)
-            return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
+        except _requests.exceptions.RequestException as exc:
+            return _transport_failure(exc, endpoint)
 
         try:
             body = resp.json()
@@ -291,12 +418,14 @@ class VyOSService:
             logger.warning("VyOS API /%s returned HTTP %s without a JSON body", endpoint, resp.status_code)
             return ApiResponse(status=502, request={}, result={}, error="Unexpected response from the VyOS API")
         if not body.get("success"):
+            # 401/403 (bad API key) is kept, as pyvyos does on the plain path.
+            status = resp.status_code if resp.status_code in (401, 403) else 400
             return ApiResponse(
-                status=400, request={}, result={}, error=body.get("error") or "Unknown error from VyOS API",
+                status=status, request={}, result={}, error=body.get("error") or "Unknown error from VyOS API",
             )
         return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
 
-    def execute_batch_with_confirm(self, batch, instance_id: str) -> ApiResponse:
+    def execute_batch_with_confirm(self, batch: BatchOperations, instance_id: str) -> ApiResponse:
         """
         Execute a batch using VyOS commit-confirm.
 
@@ -332,11 +461,15 @@ class VyOSService:
         # internally as {"commands": [...], "confirm_time": 0} — discarding any
         # confirm_time we'd try to include. We must build this payload manually so
         # the timer is armed atomically with the same commit that applies the ops.
+        operations = batch.get_operations()
         response = self._post_api(
             "configure",
-            {"commands": batch.get_operations(), "confirm_time": confirm_time_minutes},
+            {"commands": operations, "confirm_time": confirm_time_minutes},
         )
         if response.status != 200:
+            # A rejected commit arms no timer, so whatever landed stays live
+            # with no rollback. A lost reply may have armed one.
+            self._note_failed_commit(instance_id, operations, response, commit_confirm=True)
             return response
 
         commit_confirm_state.set_active(instance_id, confirm_time_minutes)
