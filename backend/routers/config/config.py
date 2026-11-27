@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-from session_vyos_service import get_session_vyos_service
+from session_vyos_service import get_session_vyos_service, require_session_instance
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import commit_confirm_state
@@ -347,9 +347,8 @@ async def get_commit_confirm_status(request: Request):
     """
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        # Same no-instance 400 as the sibling handlers.
-        get_session_vyos_service(request)
-        instance_id = request.state.instance["id"]
+        # Same no-instance 400 as the sibling handlers, without building a service.
+        instance_id = require_session_instance(request)["id"]
         session = commit_confirm_state.get_active(instance_id)
         if session is None:
             return CommitConfirmStatusResponse(active=False)

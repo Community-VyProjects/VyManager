@@ -18,6 +18,25 @@ logger = logging.getLogger(__name__)
 _session_device_registry = VyOSDeviceRegistry()
 
 
+def require_session_instance(request: Request) -> dict:
+    """Return the request's active instance, or raise the no-instance 400.
+
+    Reads request state only, so a route that needs the instance id but no
+    device I/O can call it on the event loop.
+    """
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "No active instance",
+                "message": "You must connect to a VyOS instance first.",
+                "redirect": appliance_mode.no_instance_redirect(),
+            },
+        )
+    return instance
+
+
 def get_session_vyos_service(request: Request) -> VyOSService:
     """
     Get VyOS service for the user's active session.
@@ -39,18 +58,7 @@ def get_session_vyos_service(request: Request) -> VyOSService:
             config = service.get_full_config()
             # ... use config
     """
-    # Check if user has an active instance
-    if not hasattr(request.state, "instance") or not request.state.instance:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "No active instance",
-                "message": "You must connect to a VyOS instance first.",
-                "redirect": appliance_mode.no_instance_redirect(),
-            },
-        )
-
-    instance = request.state.instance
+    instance = require_session_instance(request)
 
     # Validate instance has required fields
     required_fields = ["id", "host", "api_key"]  # api_key is the VyOS API key
