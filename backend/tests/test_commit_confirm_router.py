@@ -665,6 +665,43 @@ def test_with_nothing_pending_the_status_says_what_the_next_save_arms():
     assert commit_confirm_state.status(ROW_A, None) == {"active": False, "enabled": False, "action": None}
 
 
+def test_a_read_returns_its_own_result_when_the_cache_is_dropped_meanwhile(monkeypatch):
+    """The poller (or a refused key) drops the cache from another thread."""
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_A))
+    original = commit_confirm_state.note_router_config
+
+    def dropped_meanwhile(instance_id, config):
+        service._cached_config = None
+        original(instance_id, config)
+
+    cast(Any, service.device).show = lambda path=None: ApiResponse(
+        status=200, request={}, result=cast(Any, '{"system": {"host-name": "lab"}}'), error="")
+    monkeypatch.setattr(commit_confirm_state, "note_router_config", dropped_meanwhile)
+
+    assert service.get_full_config(refresh=True) == {"system": {"host-name": "lab"}}
+
+
+def test_a_cached_read_never_returns_none_when_the_cache_is_dropped_meanwhile():
+    class _Flaky:
+        """A cache dropped between the check and the return."""
+        def __init__(self):
+            self.reads = 0
+
+        def __get__(self, obj, objtype=None):
+            self.reads += 1
+            return {"system": {}} if self.reads == 1 else None
+
+    class _Service(VyOSService):
+        _cached_config = _Flaky()  # type: ignore[assignment]
+
+        def __init__(self):
+            pass
+
+    service = _Service()
+
+    assert service.get_full_config() == {"system": {}}
+
+
 def test_a_real_config_read_records_the_routers_action_for_every_row():
     service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_A))
     cast(Any, service.device).show = lambda path=None: ApiResponse(

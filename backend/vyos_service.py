@@ -701,9 +701,12 @@ class VyOSService:
             >>> config = service.get_full_config()
             >>> ethernet_config = config.get("interfaces", {}).get("ethernet", {})
         """
-        # Return cached config if available and not forcing refresh
-        if self._cached_config is not None and not refresh:
-            return self._cached_config
+        # Return cached config if available and not forcing refresh. Read the
+        # attribute once: the poller and a refused key drop it from other
+        # threads, so a second read could see None.
+        cached = self._cached_config
+        if cached is not None and not refresh:
+            return cached
 
         # Fetch full config using pyvyos show() with JSON output
         response = self.device.show(path=["configuration", "json", "pretty"])
@@ -729,9 +732,10 @@ class VyOSService:
         # Only a parsed config read proves the key works on this router.
         self._router_answered(response.status, True)
         if self.config.instance_id:
-            commit_confirm_state.note_router_config(self.config.instance_id, self._cached_config)
+            commit_confirm_state.note_router_config(self.config.instance_id, parsed)
 
-        return self._cached_config
+        # This read's own result, whatever another thread did to the cache since.
+        return parsed
 
     def config_file_save(self, file: Optional[str] = None) -> ApiResponse:
         """
