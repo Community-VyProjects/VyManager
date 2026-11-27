@@ -401,11 +401,20 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
             # Test connection by fetching config (this will raise exception if connection fails)
             await run_in_threadpool(vyos_service.get_full_config)
 
-        except Exception as e:
-            error_msg = str(e)
+        except ValueError as e:
+            # get_full_config raises ValueError with the VyOS reply text (a
+            # rejected API key, an unparsable config), which the operator needs.
             raise HTTPException(
                 status_code=503,
-                detail=f"Failed to connect to VyOS instance: {error_msg}. Please verify the host, port, API key, and network connectivity.",
+                detail=f"Failed to connect to VyOS instance: {e}. Please verify the host, port, API key, and network connectivity.",
+            )
+        except Exception:
+            # Transport failures carry the device URL and requests internals;
+            # log them and return a fixed message.
+            logger.exception("VyOS connection test failed for instance %s", body.instance_id)
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to connect to VyOS instance: the VyOS API could not be reached. Please verify the host, port, API key, and network connectivity.",
             )
 
         # Get current auth session token from cookie and verify its signature

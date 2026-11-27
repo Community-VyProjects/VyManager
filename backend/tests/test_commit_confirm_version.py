@@ -339,3 +339,57 @@ def test_create_allows_commit_confirm_on_1_5(_session_stubs):
     response = _create(conn, vyos_version="1.5", commit_confirm_enabled=True)
     assert response.id == "inst-1"
     assert len(conn.inserts) == 1
+
+
+# ---------------------------------------------------------------------------
+# Connect test keeps transport internals out of the reply (#1587)
+# ---------------------------------------------------------------------------
+
+
+def _connect_with(monkeypatch, failure: Exception):
+    from contextlib import asynccontextmanager
+
+    class _ConnectConn:
+        async def fetchval(self, query, *args):
+            return "ADMIN"
+
+        async def fetchrow(self, query, *args):
+            return {
+                "id": "inst-1", "name": "edge", "host": "10.9.9.9", "port": 443, "siteId": "site-1",
+                "isActive": True, "apiKey": "k", "protocol": "https", "verifySsl": False,
+                "vyosVersion": "1.5", "timeout": 10, "site_name": "HQ", "role": "ADMIN",
+            }
+
+    @asynccontextmanager
+    async def _unit_of_work(request):
+        yield _ConnectConn()
+
+    class _FailingService:
+        def __init__(self, config):
+            pass
+
+        def get_full_config(self):
+            raise failure
+
+    monkeypatch.setattr(session_router, "org_unit_of_work", _unit_of_work)
+    monkeypatch.setattr(session_router, "VyOSService", _FailingService)
+    body = session_router.ConnectRequest(instance_id="inst-1")
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(session_router.connect_to_instance(_request(), body))
+    return exc.value
+
+
+def test_connect_transport_failure_hides_the_device_url(monkeypatch):
+    err = _connect_with(monkeypatch, ConnectionError(
+        "Network error: HTTPSConnectionPool(host='10.9.9.9', port=443): Max retries exceeded with url: /retrieve",
+    ))
+    assert err.status_code == 503
+    assert "10.9.9.9" not in err.detail
+    assert "HTTPSConnectionPool" not in err.detail
+    assert err.detail.startswith("Failed to connect to VyOS instance")
+
+
+def test_connect_keeps_the_vyos_reply_text(monkeypatch):
+    err = _connect_with(monkeypatch, ValueError("Failed to retrieve full config: HTTP Error 403: Valid API key is required"))
+    assert err.status_code == 503
+    assert "Valid API key is required" in err.detail
