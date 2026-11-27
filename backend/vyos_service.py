@@ -407,15 +407,6 @@ class VyOSService:
 
         return self._cached_config
 
-    def refresh_config(self) -> Dict[str, Any]:
-        """
-        Force refresh of the cached configuration from VyOS.
-
-        Returns:
-            Refreshed full configuration dictionary
-        """
-        return self.get_full_config(refresh=True)
-
     def config_file_save(self, file: Optional[str] = None) -> ApiResponse:
         """
         Save the running configuration to a file.
