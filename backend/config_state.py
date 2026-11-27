@@ -25,7 +25,7 @@ import threading
 from copy import deepcopy
 from typing import Any, Dict, List
 
-from device_keys import key_for
+from device_keys import candidate_key, key_for
 
 # Guards both snapshot dicts. The banner poller and request handlers reconcile
 # concurrently, and reconciliation is a read-modify-write of both.
@@ -130,7 +130,7 @@ def record_failed_commit(
         return bool(landed)
 
 
-def clear_managed_config(instance_id: str) -> None:
+def clear_managed_config(instance_id: str, on_named_router: bool = False) -> None:
     """Remove the managed marker when a post-mutation read cannot be trusted.
 
     A stale managed snapshot is worse than none: reconciliation would see live
@@ -138,8 +138,12 @@ def clear_managed_config(instance_id: str) -> None:
     fold it into the baseline, hiding the edit from the unsaved-changes
     banner. With no managed snapshot, :func:`reconcile_baseline` leaves the
     baseline alone and the edit stays visible.
+
+    ``on_named_router``: clear the router the row names even if the row is not
+    verified yet (a commit that went there with an unanswered reply).
+    Dropping a marker reveals nothing, so this is safe for any row.
     """
-    key = key_for(instance_id)
+    key = candidate_key(instance_id) if on_named_router else key_for(instance_id)
     with _lock:
         _managed_config_snapshots.pop(key, None)
 

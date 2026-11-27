@@ -73,7 +73,7 @@ def _service(instance_id, host="router.lab", *, confirm=False, config=None, veri
 
     def read(refresh=False):
         service._cached_config = router["config"]
-        service._router_answered(200)
+        service._router_answered(200, True)
         commit_confirm_state.note_router_config(instance_id, router["config"])
         return router["config"]
 
@@ -209,6 +209,51 @@ def test_a_revoked_key_takes_the_row_out_of_the_routers_state(monkeypatch):
 
     assert device_keys.key_for(ROW_A) == ROW_A
     assert service._cached_config is None
+
+
+@pytest.mark.parametrize("reply", [
+    ApiResponse(status=502, request={}, result={}, error="HTTP Error 502: <html>Bad Gateway</html>"),
+    ApiResponse(status=504, request={}, result={}, error="HTTP Error 504: Gateway Time-out"),
+    ApiResponse(status=200, request={}, result={}, error="Invalid response format: Expecting value"),
+    ApiResponse(status=500, request={}, result={}, error="Unexpected error: boom"),
+], ids=["proxy-502", "proxy-504", "html-200", "pyvyos-500"])
+def test_a_reply_that_is_not_vyos_verifies_no_row(monkeypatch, reply):
+    """A proxy in front of the router answers without checking the key."""
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="wrong", version="1.5", instance_id=ROW_OTHER))
+    cast(Any, service.device).show = lambda path=None: reply
+    cast(Any, service.device).configure_multiple_op = lambda op_path=None: reply
+    cast(Any, service.device).config_file_save = lambda file=None: reply
+
+    with pytest.raises(ValueError):
+        service.get_full_config(refresh=True)
+    service.commit_operations([{"op": "set", "path": ["system", "host-name", "x"]}])
+    service.config_file_save()
+
+    assert device_keys.key_for(ROW_OTHER) == ROW_OTHER
+
+
+def test_a_post_reply_without_the_vyos_body_verifies_no_row(monkeypatch):
+    service = _service(ROW_OTHER, verified=False)
+
+    class _Html:
+        status_code = 502
+
+        def json(self):
+            return {"message": "bad gateway"}  # JSON, but not VyOS's reply
+
+    monkeypatch.setattr("vyos_service._requests.post", lambda *args, **kwargs: _Html())
+    service._post_api("configure", {"commands": []})
+
+    assert device_keys.key_for(ROW_OTHER) == ROW_OTHER
+
+
+def test_a_vyos_rejection_still_verifies_the_row():
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_OTHER))
+    cast(Any, service.device).configure_multiple_op = lambda op_path=None: ApiResponse(
+        status=200, request={}, result={}, error="API Error 200: Configuration path is not valid")
+
+    assert service.commit_operations([{"op": "set", "path": ["bad"]}]).status == 400
+    assert device_keys.key_for(ROW_OTHER) == "router.lab:443"
 
 
 def test_deleting_a_site_forgets_its_instances(monkeypatch):
@@ -672,7 +717,7 @@ def test_an_unverified_row_can_confirm_the_timer_its_lost_reply_armed(monkeypatc
 
     def confirmed(endpoint, data):
         posts.append(data)
-        service._router_answered(200)
+        service._router_answered(200, True)
         return ApiResponse(status=200, request={}, result=cast(Any, "Reboot timer stopped\n"), error="")
 
     monkeypatch.setattr(service, "_post_api", confirmed)
@@ -836,7 +881,7 @@ def test_a_row_refused_during_the_tick_gets_nothing_read_with_another_key(monkey
 
     async def diff_for(instance_id, service):
         if instance_id == ROW_A:
-            service._router_answered(401)  # row A's key was revoked on the router
+            service._router_answered(401, False)  # row A's key was revoked on the router
             raise ValueError("Failed to retrieve full config: HTTP Error 401")
         return {"has_changes": True}
 
@@ -859,6 +904,36 @@ def test_after_a_poll_every_row_still_shows_the_routers_action(monkeypatch):
     states = {iid: data for iid, kind, data in emitted if kind == "commit_confirm"}
     assert b._cached_config is None
     assert states[ROW_B]["commit_confirm"]["action"] == "reload"
+
+
+def test_only_the_reading_row_gets_the_diff_data(monkeypatch):
+    """The others read it with their own key: a revoked key is refused there."""
+    a, b = _service(ROW_A), _service(ROW_B)
+
+    async def diff_for(instance_id, service):
+        return {"has_changes": True}
+
+    emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
+
+    diffs = {iid: data for iid, kind, data in emitted if kind == "config_diff"}
+    assert diffs == {ROW_A: {"config_diff": {"has_changes": True}}, ROW_B: None}
+
+
+def test_a_lost_reply_from_an_unverified_row_clears_the_routers_managed_snapshot(monkeypatch):
+    monkeypatch.setattr("vyos_service.event_manager.emit_to_router", lambda *args: None)
+
+    def lost(url, data, verify, timeout):
+        raise requests.exceptions.ReadTimeout("Read timed out.")
+
+    monkeypatch.setattr("vyos_service._requests.post", lost)
+    _service(ROW_A)
+    config_state.set_managed_config(ROW_A, {"system": {"host-name": "before"}})
+    unverified = _service(ROW_OTHER, confirm=True, verified=False)
+    monkeypatch.setattr(unverified, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True, None))
+
+    assert unverified.execute_batch(_Batch()).status == 504
+
+    assert config_state.get_managed_config(ROW_A) is None
 
 
 def test_the_poller_sends_no_commit_confirm_state_for_a_row_without_a_service(monkeypatch):

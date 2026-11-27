@@ -303,8 +303,9 @@ async def _poll_banner_state_for_device(
 
     ``instance_ids`` are the subscribed rows verified on one router (see
     ``device_keys``; an unverified row is polled alone). The config diff is
-    router state, so it is read once for all of them: each has shown its own
-    credentials reach this router, so none sees more than it could read.
+    router state, so it is read once, through one row; only that row gets
+    the data. The others get a refetch signal when it changed and read it
+    with their own key, so a key revoked since it was verified is refused.
     """
     group_key = device_keys.key_for(instance_ids[0])
 
@@ -317,10 +318,12 @@ async def _poll_banner_state_for_device(
             continue
     config_diff_data = None
     fresh = None
+    reader = None
     for iid, service in services:
         try:
             config_diff_data = await _config_diff_for(iid, service)
             fresh = getattr(service, "_cached_config", None)
+            reader = iid
             break
         except Exception:
             logger.debug("Poller: failed to get config diff through instance %s", iid)
@@ -336,7 +339,11 @@ async def _poll_banner_state_for_device(
                     service._cached_config = None
         for iid in instance_ids:
             if event_manager.update_last_state(iid, EVENT_CONFIG_DIFF, config_diff_data):
-                event_manager.emit_to_instance(iid, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
+                # Only the row whose key made this read gets its data. The
+                # others get the refetch signal and read with their own key,
+                # so a key revoked on the router is refused, not served.
+                payload = {"config_diff": config_diff_data} if iid == reader else None
+                event_manager.emit_to_instance(iid, EVENT_CONFIG_DIFF, payload)
 
     # --- Commit confirm (per row: whether the row arms one is a row setting) ---
     for iid in instance_ids:

@@ -96,6 +96,14 @@ def _causes(exc: BaseException):
         todo.extend([item.__cause__, item.__context__, getattr(item, "reason", None), *item.args])
 
 
+def _vyos_replied(response: ApiResponse) -> bool:
+    """pyvyos parsed a VyOS reply: HTTP 200 with the API's JSON body (success
+    or a VyOS error). Anything else may come from a proxy in front of it."""
+    if response.status != 200:
+        return False
+    return not response.error or str(response.error).startswith("API Error")
+
+
 class RouterRefusedRead(ValueError):
     """A config read the router refused (401/403); keeps its reply."""
 
@@ -187,19 +195,22 @@ class VyOSService:
             return _NO_LOCK
         return device_keys.write_lock(self.config.instance_id)
 
-    def _router_answered(self, status: int) -> None:
-        """The router answered this row's credentials.
+    def _router_answered(self, status: int, vyos_replied: bool) -> None:
+        """What the router's answer says about this row's credentials.
 
-        Accepted: the row shares the router's state. Refused (401/403, a key
-        revoked or changed on the router): it stops sharing it, and its cached
-        config, read while the key still worked, is dropped.
+        Refused (401/403, a key revoked or changed on the router): the row
+        stops sharing the router's state, and its cached config, read while
+        the key still worked, is dropped. Accepted only when VyOS itself
+        answered (``vyos_replied``: its JSON reply, or a parsed config read):
+        a proxy's 5xx or HTML page, or a failed read, proves nothing about the
+        key, so it neither verifies nor un-verifies the row.
         """
         if not self.config.instance_id:
             return
         if status in (401, 403):
             device_keys.rejected(self.config.instance_id)
             self._cached_config = None
-        else:
+        elif vyos_replied:
             device_keys.verified(self.config.instance_id)
 
     def _refuse_during_commit_confirm(self) -> None:
@@ -370,7 +381,8 @@ class VyOSService:
             # The router may still be applying the commit, so a re-read now
             # proves nothing. Drop the managed snapshot: reconciliation then
             # leaves the baseline alone, and whatever lands shows as unsaved.
-            clear_managed_config(instance_id)
+            # The post went to the router the row names, verified or not.
+            clear_managed_config(instance_id, on_named_router=True)
             notice = UNANSWERED_COMMIT_NOTICE
             if commit_confirm:
                 # The timer may be armed on the router. Show the countdown so
@@ -382,7 +394,7 @@ class VyOSService:
                 # even if this one is not verified yet.
                 event_manager.emit_to_router(instance_id, EVENT_COMMIT_CONFIRM, None)
             self._prefix_error(response, notice)
-            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+            event_manager.emit_to_router(instance_id, EVENT_CONFIG_DIFF, None)
             return
 
         # VyOS answered with an error. The node an op touches is its parent,
@@ -425,7 +437,7 @@ class VyOSService:
                 response = self.device.configure_multiple_op(op_path=operations)
             except _requests.exceptions.RequestException as exc:
                 return _transport_failure(exc, "configure")
-            self._router_answered(response.status)
+            self._router_answered(response.status, _vyos_replied(response))
         if response.status == 200 and response.error:
             response.status = 400
         return response
@@ -492,8 +504,8 @@ class VyOSService:
             body = resp.json()
         except ValueError:
             body = None
-        if isinstance(body, dict):
-            self._router_answered(resp.status_code)
+        # VyOS answers every request with {"success", "data", "error"}.
+        self._router_answered(resp.status_code, isinstance(body, dict) and "success" in body)
         if not isinstance(body, dict):
             logger.warning("VyOS API /%s returned HTTP %s without a JSON body", endpoint, resp.status_code)
             return ApiResponse(status=502, request={}, result={}, error="Unexpected response from the VyOS API")
@@ -632,7 +644,7 @@ class VyOSService:
             response = call()
         except _requests.exceptions.RequestException as exc:
             return _transport_failure(exc, f"config-file {op}")
-        self._router_answered(response.status)
+        self._router_answered(response.status, _vyos_replied(response))
         if response.status == 200 and response.error:
             response.status = 400
         return response
@@ -661,8 +673,8 @@ class VyOSService:
         # Fetch full config using pyvyos show() with JSON output
         response = self.device.show(path=["configuration", "json", "pretty"])
 
-        self._router_answered(response.status)
-        if response.status != 200:
+        if response.status != 200 or response.error:
+            self._router_answered(response.status, False)
             error_msg = response.error if response.error else "Unknown error"
             if response.status in (401, 403):
                 raise RouterRefusedRead(response, f"Failed to retrieve full config: {error_msg}")
@@ -673,10 +685,15 @@ class VyOSService:
         config_json = response.result
 
         try:
-            self._cached_config = json.loads(config_json)
-        except json.JSONDecodeError as e:
+            parsed = json.loads(config_json)
+        except (json.JSONDecodeError, TypeError) as e:
             raise ValueError(f"Failed to parse configuration JSON: {e}")
-        if self.config.instance_id and isinstance(self._cached_config, dict):
+        if not isinstance(parsed, dict):
+            raise ValueError("Failed to parse configuration JSON: not an object")
+        self._cached_config = parsed
+        # Only a parsed config read proves the key works on this router.
+        self._router_answered(response.status, True)
+        if self.config.instance_id:
             commit_confirm_state.note_router_config(self.config.instance_id, self._cached_config)
 
         return self._cached_config
