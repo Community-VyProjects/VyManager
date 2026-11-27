@@ -63,12 +63,13 @@ export function IPPoolModal({
     setError(null);
 
     try {
-      if (isEdit) await l2tpService.deleteIPPool(existingPool!.name);
-
-      const result = await l2tpService.createIPPool(name.trim(), {
+      const config = {
         range: range || undefined,
         next_pool: nextPool || undefined,
-      });
+      };
+      const result = isEdit
+        ? await l2tpService.updateIPPool(existingPool!, config)
+        : await l2tpService.createIPPool(name.trim(), config);
 
       if (result.success) {
         onOpenChange(false);
