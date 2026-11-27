@@ -13,7 +13,7 @@ import requests as _requests
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
-from config_state import clear_managed_config, set_managed_config
+from config_state import clear_managed_config, record_failed_commit, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 from vyos_builders.dhcp_server import DHCPServerBatchBuilder
 from vyos_builders.firewall import FirewallGroupsBatchBuilder
@@ -37,6 +37,16 @@ from vyos_builders.system import SystemPerformanceBatchBuilder
 from vyos_builders.wireguard import WireGuardBatchBuilder
 
 logger = logging.getLogger(__name__)
+
+# Put in front of the VyOS error when a failed commit still changed the router.
+PARTIAL_COMMIT_NOTICE = (
+    "Part of this change reached the router before the commit failed. "
+    "It is listed under unsaved changes."
+)
+UNKNOWN_COMMIT_NOTICE = (
+    "The router could not be read after the commit failed, so part of this "
+    "change may be live. Check unsaved changes."
+)
 
 
 class VyOSDeviceConfig:
@@ -206,6 +216,35 @@ class VyOSService:
                 instance_id,
             )
 
+    def _note_failed_commit(self, instance_id: str, operations: List[Dict[str, Any]], response: ApiResponse) -> None:
+        """After a failed commit, keep whatever still reached the router visible.
+
+        VyOS commits feature by feature, so a rejected batch can be partly
+        live, and a timed-out one can be fully live. Re-read the config and
+        record the nodes this batch touched as VyManager's change, so the
+        unsaved-changes banner shows them, and say so in the error.
+        """
+        # The node an op touches: its parent, which covers a leaf's value, a
+        # multi value, and a created or deleted tag value.
+        node_paths = []
+        for op in operations:
+            path = [str(part) for part in op.get("path", [])]
+            node_paths.append(path[:-1] if len(path) > 1 else path)
+        try:
+            current = self.get_full_config(refresh=True)
+        except Exception:
+            logger.exception("Could not re-read config for instance %s after a failed commit", instance_id)
+            clear_managed_config(instance_id)
+            landed = None
+        else:
+            landed = record_failed_commit(instance_id, current, node_paths)
+
+        if landed is False:
+            return
+        notice = PARTIAL_COMMIT_NOTICE if landed else UNKNOWN_COMMIT_NOTICE
+        response.error = f"{notice}\n{response.error}" if response.error else notice
+        event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+
     def commit_operations(self, operations: List[Dict[str, Any]]) -> ApiResponse:
         """The only call to device.configure_multiple_op.
 
@@ -254,9 +293,12 @@ class VyOSService:
 
         operations = batch.get_operations()
         response = self.commit_operations(operations)
-        if response.status == 200 and self.config.instance_id:
-            self._record_managed_config(self.config.instance_id)
-            event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
+        if self.config.instance_id:
+            if response.status == 200:
+                self._record_managed_config(self.config.instance_id)
+                event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
+            else:
+                self._note_failed_commit(self.config.instance_id, operations, response)
         return response
 
     def _post_api(self, endpoint: str, data: Dict[str, Any]) -> ApiResponse:
@@ -332,11 +374,17 @@ class VyOSService:
         # internally as {"commands": [...], "confirm_time": 0} — discarding any
         # confirm_time we'd try to include. We must build this payload manually so
         # the timer is armed atomically with the same commit that applies the ops.
+        operations = batch.get_operations()
         response = self._post_api(
             "configure",
-            {"commands": batch.get_operations(), "confirm_time": confirm_time_minutes},
+            {"commands": operations, "confirm_time": confirm_time_minutes},
         )
         if response.status != 200:
+            # No timer is armed when the commit fails, so whatever landed
+            # stays live with no rollback. A 503 from _post_api means the
+            # request never reached the router, so nothing can have landed.
+            if response.status != 503:
+                self._note_failed_commit(instance_id, operations, response)
             return response
 
         commit_confirm_state.set_active(instance_id, confirm_time_minutes)
