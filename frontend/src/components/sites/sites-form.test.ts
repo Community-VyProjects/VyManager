@@ -168,7 +168,6 @@ describe("instance create", () => {
       ssh_port: 22,
       ssh_username: undefined,
       commit_confirm_enabled: false,
-      commit_confirm_minutes: 5,
       timeout: 10,
     });
   });
@@ -287,6 +286,61 @@ describe("commit-confirm on 1.4", () => {
       name: "edge-2",
       commit_confirm_enabled: false,
     });
+  });
+
+  it("creates a 1.5 or rolling instance with commit-confirm and its window", () => {
+    for (const version of ["1.5", "2026.09.23-0027-rolling"]) {
+      const draft = emptyInstanceDraft();
+      draft.vyosVersion = version;
+      draft.commitConfirmEnabled = true;
+      draft.commitConfirmMinutes = "7";
+      const payload = buildInstanceCreate(draft, "site-1");
+      assert.equal(payload.commit_confirm_enabled, true);
+      assert.equal(payload.commit_confirm_minutes, 7);
+    }
+  });
+
+  it("turns commit-confirm on for a rolling instance", async () => {
+    const service = new RecordingSessionService();
+    const stored = { ...storedInstance, vyos_version: "2026.09.23-0027-rolling" };
+    const draft = instanceDraftFrom(stored);
+    draft.commitConfirmEnabled = true;
+    draft.commitConfirmMinutes = "10";
+    await submitInstanceUpdate(stored, draft, service);
+    assert.deepEqual(service.updatedInstances[0].data, {
+      commit_confirm_enabled: true,
+      commit_confirm_minutes: 10,
+    });
+  });
+
+  it("does not send a hidden confirm window", async () => {
+    const service = new RecordingSessionService();
+    const draft = instanceDraftFrom(storedInstance);
+    draft.commitConfirmMinutes = "99";
+    assert.equal(validateInstanceShared(draft), null);
+    const result = await submitInstanceUpdate(storedInstance, draft, service);
+    assert.equal(result, null);
+  });
+
+  it("rejects a confirm window outside 1-60 while commit-confirm is on", () => {
+    const draft = instanceDraftFrom(storedInstance);
+    draft.commitConfirmEnabled = true;
+    for (const minutes of ["0", "61", ""]) {
+      draft.commitConfirmMinutes = minutes;
+      assert.equal(validateInstanceShared(draft), "commitConfirmMinutesRange");
+    }
+    draft.commitConfirmMinutes = "60";
+    assert.equal(validateInstanceShared(draft), null);
+  });
+
+  it("rejects a timeout outside 1-300", () => {
+    const draft = instanceDraftFrom(storedInstance);
+    for (const timeout of ["0", "301", ""]) {
+      draft.timeout = timeout;
+      assert.equal(validateInstanceShared(draft), "timeoutRange");
+    }
+    draft.timeout = "300";
+    assert.equal(validateInstanceShared(draft), null);
   });
 
   it("keeps commit-confirm on a 1.5 instance", async () => {

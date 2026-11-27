@@ -317,30 +317,58 @@ class VyOSService:
             event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
         return response
 
-    def execute_batch_with_confirm(
-        self,
-        batch,
-        instance_id: str,
-        action: str = "reload",
-    ) -> ApiResponse:
+    def _post_api(self, endpoint: str, data: Dict[str, Any]) -> ApiResponse:
+        """POST one form-encoded request to the VyOS HTTP API.
+
+        VyOS answers a rejected request with HTTP 400 and a JSON body that
+        carries the error, so the body is read before the status: status 200
+        means ``success`` was true, status 400 carries the VyOS error text.
+        Transport failures are logged and get a fixed message, so the device
+        URL and the requests text never reach the client.
+        """
+        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/{endpoint}"
+        payload = {"data": json.dumps(data), "key": self.config.apikey}
+        try:
+            resp = _requests.post(
+                url,
+                data=payload,
+                verify=self.config.verify,
+                timeout=self.config.timeout,
+            )
+        except _requests.exceptions.Timeout:
+            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
+        except _requests.exceptions.RequestException:
+            logger.exception("VyOS API /%s request failed", endpoint)
+            return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
+
+        try:
+            body = resp.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            logger.warning("VyOS API /%s returned HTTP %s without a JSON body", endpoint, resp.status_code)
+            return ApiResponse(status=502, request={}, result={}, error="Unexpected response from the VyOS API")
+        if not body.get("success"):
+            return ApiResponse(
+                status=400, request={}, result={}, error=body.get("error") or "Unknown error from VyOS API",
+            )
+        return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
+
+    def execute_batch_with_confirm(self, batch, instance_id: str) -> ApiResponse:
         """
         Execute a batch using VyOS commit-confirm.
 
         Applies operations to the running config with an automatic rollback
         timer. The caller must confirm via confirm_commit() before the timer
-        expires, otherwise VyOS will revert the changes. Only execute_batch
-        calls this, after checking the instance flag and the version; this
-        method never calls back into execute_batch.
+        expires, otherwise VyOS will revert the changes. execute_batch is the
+        only caller and the only place that checks the instance flag and the
+        version; this method never calls back into execute_batch.
 
         Raises:
             HTTPException 409: If a commit-confirm is already active for this instance.
-            ValueError: If the batch is empty, or the VyOS version cannot arm a
-                commit-confirm (the 1.4 API would commit with no timer).
+            ValueError: If the batch is empty.
         """
         from fastapi import HTTPException
-
-        if not commit_confirm_state.supports_commit_confirm(self.config.version):
-            raise ValueError("Commit-confirm is not supported on this VyOS version")
 
         if commit_confirm_state.is_active(instance_id):
             session = commit_confirm_state.get_active(instance_id)
@@ -356,41 +384,24 @@ class VyOSService:
             raise ValueError("Cannot execute empty batch")
 
         confirm_time_minutes = self.config.commit_confirm_minutes
-        operations = batch.get_operations()
 
         # VyOS ConfigureListModel format: {"commands": [...], "confirm_time": N}
         # pyvyos's configure_multiple_op sends a raw JSON array, which VyOS wraps
         # internally as {"commands": [...], "confirm_time": 0} — discarding any
         # confirm_time we'd try to include. We must build this payload manually so
         # the timer is armed atomically with the same commit that applies the ops.
-        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/configure"
-        payload = {
-            "data": json.dumps({"commands": operations, "confirm_time": confirm_time_minutes}),
-            "key": self.config.apikey,
-        }
+        response = self._post_api(
+            "configure",
+            {"commands": batch.get_operations(), "confirm_time": confirm_time_minutes},
+        )
+        if response.status != 200:
+            return response
 
-        try:
-            resp = _requests.post(
-                url,
-                data=payload,
-                verify=self.config.verify,
-                timeout=self.config.timeout,
-            )
-            resp.raise_for_status()
-            body = resp.json()
-            if not body.get("success"):
-                error_msg = body.get("error", "Unknown error from VyOS API")
-                return ApiResponse(status=400, request={}, result={}, error=error_msg)
-        except _requests.exceptions.Timeout:
-            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
-        except _requests.exceptions.RequestException as exc:
-            return ApiResponse(status=503, request={}, result={}, error=str(exc))
-
-        commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+        commit_confirm_state.set_active(instance_id, confirm_time_minutes)
         self._record_managed_config(instance_id)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
         event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
-        return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
+        return response
 
     def confirm_commit(self, instance_id: str) -> ApiResponse:
         """
@@ -408,33 +419,12 @@ class VyOSService:
             )
 
         # Tested format: confirm goes to /config-file with op: confirm
-        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/config-file"
-        payload = {
-            "data": json.dumps({"op": "confirm"}),
-            "key": self.config.apikey,
-        }
-
-        try:
-            resp = _requests.post(
-                url,
-                data=payload,
-                verify=self.config.verify,
-                timeout=self.config.timeout,
-            )
-            resp.raise_for_status()
-            body = resp.json()
-            if body.get("success"):
-                commit_confirm_state.clear(instance_id)
-                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
-                event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
-                return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
-            else:
-                error_msg = body.get("error", "Unknown error from VyOS API")
-                return ApiResponse(status=400, request={}, result={}, error=error_msg)
-        except _requests.exceptions.Timeout:
-            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
-        except _requests.exceptions.RequestException as exc:
-            return ApiResponse(status=503, request={}, result={}, error=str(exc))
+        response = self._post_api("config-file", {"op": "confirm"})
+        if response.status == 200:
+            commit_confirm_state.clear(instance_id)
+            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+        return response
 
     def configure_batch(self, commands: List[str]) -> Dict[str, Any]:
         """

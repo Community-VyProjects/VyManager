@@ -19,12 +19,14 @@
   "unreachable": "Unreachable",
   "validation": {
     "apiKeyRequired": "API Key is required",
+    "commitConfirmMinutesRange": "Confirm window must be between 1 and 60 minutes",
     "hostRequired": "Host is required",
     "instanceNameRequired": "Instance name is required",
     "portRange": "Port must be between 1 and 65535",
     "siteNameRequired": "Site name is required",
     "siteRequired": "Site is required",
-    "sshPortRange": "SSH port must be between 1 and 65535"
+    "sshPortRange": "SSH port must be between 1 and 65535",
+    "timeoutRange": "Timeout must be between 1 and 300 seconds"
   },
   "page": {
     "addFirstInstance": "Add First Instance",

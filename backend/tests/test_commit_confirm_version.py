@@ -53,6 +53,17 @@ def _batch(version: str) -> NATBatchBuilder:
     return batch
 
 
+class _JsonResp:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self._body = body
+
+    def json(self):
+        if self._body is None:
+            raise ValueError("no JSON")
+        return self._body
+
+
 @pytest.fixture(autouse=True)
 def _clear_confirm_state():
     commit_confirm_state.clear("inst-1451")
@@ -84,14 +95,14 @@ def test_1_4_empty_batch_stays_a_value_error():
         _service("1.4").execute_batch(NATBatchBuilder("1.4"))
 
 
-def test_execute_batch_with_confirm_refuses_1_4_instead_of_recursing(monkeypatch):
+def test_1_4_batch_with_flag_on_never_reaches_the_confirm_path(monkeypatch):
     service = _service("1.4")
-    service.execute_batch = lambda batch: pytest.fail("must not call back into execute_batch")
-    monkeypatch.setattr("vyos_service._requests.post", _no_confirm_post)
+    service.execute_batch_with_confirm = lambda batch, instance_id: pytest.fail("1.4 has no commit-confirm")
+    service.device.configure_multiple_op = lambda op_path: ApiResponse(
+        status=200, request={}, result={}, error=False,
+    )
 
-    with pytest.raises(ValueError, match="not supported"):
-        service.execute_batch_with_confirm(_batch("1.4"), "inst-1451")
-    assert commit_confirm_state.is_active("inst-1451") is False
+    assert service.execute_batch(_batch("1.4")).status == 200
 
 
 @pytest.mark.parametrize("version", ["1.5", "2026.09.23-0027-rolling"])
@@ -100,16 +111,9 @@ def test_1_5_and_rolling_batch_arms_the_timer(monkeypatch, version):
     service.device.configure_multiple_op = lambda op_path: pytest.fail("commit-confirm goes through /configure")
     posted = []
 
-    class _Resp:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {"success": True, "data": "Initialized commit-confirm", "error": None}
-
     def _post(url, data, verify, timeout):
         posted.append((url, data["data"]))
-        return _Resp()
+        return _JsonResp(200, {"success": True, "data": "Initialized commit-confirm", "error": None})
 
     monkeypatch.setattr("vyos_service._requests.post", _post)
 
@@ -120,6 +124,75 @@ def test_1_5_and_rolling_batch_arms_the_timer(monkeypatch, version):
     assert posted[0][0].endswith("/configure")
     assert '"confirm_time": 3' in posted[0][1]
     assert commit_confirm_state.is_active("inst-1451") is True
+
+
+def test_rejected_commit_confirm_returns_the_vyos_error_not_a_transport_error(monkeypatch):
+    service = _service("1.5")
+    monkeypatch.setattr(
+        "vyos_service._requests.post",
+        lambda url, data, verify, timeout: _JsonResp(
+            400, {"success": False, "error": "[[service dhcp-server]] failed\nCommit failed\n", "data": None},
+        ),
+    )
+
+    response = service.execute_batch(_batch("1.5"))
+
+    assert response.status == 400
+    assert "dhcp-server" in response.error
+    assert commit_confirm_state.is_active("inst-1451") is False
+
+
+def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
+    import requests
+
+    def _refused(url, data, verify, timeout):
+        raise requests.exceptions.ConnectionError(f"HTTPSConnectionPool(host='lab', port=443): {url}")
+
+    monkeypatch.setattr("vyos_service._requests.post", _refused)
+
+    response = _service("1.5").execute_batch(_batch("1.5"))
+
+    assert response.status == 503
+    assert response.error == "Could not reach the VyOS API"
+    assert commit_confirm_state.is_active("inst-1451") is False
+
+
+def test_non_json_reply_is_a_502(monkeypatch):
+    monkeypatch.setattr("vyos_service._requests.post", lambda url, data, verify, timeout: _JsonResp(502, None))
+
+    response = _service("1.5").execute_batch(_batch("1.5"))
+
+    assert response.status == 502
+    assert commit_confirm_state.is_active("inst-1451") is False
+
+
+def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch):
+    commit_confirm_state.set_active("inst-1451", 3)
+    monkeypatch.setattr(
+        "vyos_service._requests.post",
+        lambda url, data, verify, timeout: _JsonResp(
+            400, {"success": False, "error": "'confirm' is not a valid operation", "data": None},
+        ),
+    )
+
+    response = _service("1.5").confirm_commit("inst-1451")
+
+    assert response.status == 400
+    assert response.error == "'confirm' is not a valid operation"
+    assert commit_confirm_state.is_active("inst-1451") is True
+
+
+def test_confirm_clears_the_timer(monkeypatch):
+    commit_confirm_state.set_active("inst-1451", 3)
+    monkeypatch.setattr(
+        "vyos_service._requests.post",
+        lambda url, data, verify, timeout: _JsonResp(200, {"success": True, "data": "Reload timer stopped\n"}),
+    )
+
+    response = _service("1.5").confirm_commit("inst-1451")
+
+    assert response.status == 200
+    assert commit_confirm_state.is_active("inst-1451") is False
 
 
 # ---------------------------------------------------------------------------
@@ -139,6 +212,7 @@ class _Conn:
             "org_id": "org-1",
         }
         self.updates: list[tuple[str, tuple]] = []
+        self.inserts: list[tuple[str, tuple]] = []
 
     async def fetchval(self, query, *args):
         return "ADMIN"
@@ -148,6 +222,8 @@ class _Conn:
             return self.stored
         if query.lstrip().startswith("UPDATE"):
             self.updates.append((query, args))
+        if query.lstrip().startswith("INSERT"):
+            self.inserts.append((query, args))
         return {
             "id": "inst-1",
             "siteId": "site-1",
@@ -216,6 +292,7 @@ def test_update_refuses_moving_to_1_4_with_commit_confirm_on(_session_stubs):
     with pytest.raises(HTTPException) as exc:
         _update(conn, vyos_version="1.4", commit_confirm_enabled=True)
     assert exc.value.status_code == 400
+    assert conn.updates == []
 
 
 def test_update_turns_commit_confirm_off_when_the_version_moves_to_1_4(_session_stubs):
@@ -254,9 +331,11 @@ def test_create_refuses_commit_confirm_on_1_4(_session_stubs):
     with pytest.raises(HTTPException) as exc:
         _create(conn, vyos_version="1.4", commit_confirm_enabled=True)
     assert exc.value.status_code == 400
+    assert conn.inserts == []
 
 
 def test_create_allows_commit_confirm_on_1_5(_session_stubs):
     conn = _Conn("1.5", False)
     response = _create(conn, vyos_version="1.5", commit_confirm_enabled=True)
     assert response.id == "inst-1"
+    assert len(conn.inserts) == 1

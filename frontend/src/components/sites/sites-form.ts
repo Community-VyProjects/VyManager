@@ -2,7 +2,8 @@
  * Draft, validation and submit logic for the unified site and instance modals.
  *
  * Create sends the fields the operator filled in. Update diffs the draft
- * against the stored record so an unchanged record sends nothing, a cleared
+ * against the stored record so an unchanged record sends nothing (except a
+ * stored 1.4 row that still has commit-confirm on, which is turned off), a cleared
  * optional field is sent as null, and an already-empty one is omitted. The
  * write target is the stored id, never a draft identity field. Name is a
  * mutable label, not identity. A blank API key on edit is omitted so the
@@ -31,17 +32,31 @@ export type SitesFormError =
   | "portRange"
   | "sshPortRange"
   | "siteRequired"
-  | "apiKeyRequired";
+  | "apiKeyRequired"
+  | "commitConfirmMinutesRange"
+  | "timeoutRange";
 
 const emptyToNull = (value: string): string | null => value.trim() || null;
 
 const storedText = (value: string | null | undefined): string => value ?? "";
 
-const parsePort = (value: string): number | null => {
+const parseIntInRange = (value: string, min: number, max: number): number | null => {
   const parsed = parseInt(value, 10);
-  if (Number.isNaN(parsed) || parsed < 1 || parsed > 65535) return null;
+  if (Number.isNaN(parsed) || parsed < min || parsed > max) return null;
   return parsed;
 };
+
+const parsePort = (value: string): number | null => parseIntInRange(value, 1, 65535);
+
+/** Backend bounds on the instance request models (session router). */
+const COMMIT_CONFIRM_MINUTES = { min: 1, max: 60 } as const;
+const TIMEOUT_SECONDS = { min: 1, max: 300 } as const;
+
+const parseCommitConfirmMinutes = (value: string): number | null =>
+  parseIntInRange(value, COMMIT_CONFIRM_MINUTES.min, COMMIT_CONFIRM_MINUTES.max);
+
+const parseTimeout = (value: string): number | null =>
+  parseIntInRange(value, TIMEOUT_SECONDS.min, TIMEOUT_SECONDS.max);
 
 // ============================================================================
 // Site
@@ -184,6 +199,10 @@ export function validateInstanceShared(draft: InstanceDraft): SitesFormError | n
   if (!draft.host.trim()) return "hostRequired";
   if (parsePort(draft.port) == null) return "portRange";
   if (parsePort(draft.sshPort) == null) return "sshPortRange";
+  if (parseTimeout(draft.timeout) == null) return "timeoutRange";
+  if (draftCommitConfirmEnabled(draft) && parseCommitConfirmMinutes(draft.commitConfirmMinutes) == null) {
+    return "commitConfirmMinutesRange";
+  }
   return null;
 }
 
@@ -212,8 +231,11 @@ export function buildInstanceCreate(draft: InstanceDraft, siteId: string): Insta
     ssh_port: sshPort,
     ssh_username: draft.sshUsername.trim() || undefined,
     commit_confirm_enabled: draftCommitConfirmEnabled(draft),
-    commit_confirm_minutes: parseInt(draft.commitConfirmMinutes, 10) || 5,
-    timeout: parseInt(draft.timeout, 10) || 10,
+    // The window is only shown and checked while commit-confirm is on.
+    ...(draftCommitConfirmEnabled(draft)
+      ? { commit_confirm_minutes: parseCommitConfirmMinutes(draft.commitConfirmMinutes) ?? 5 }
+      : {}),
+    timeout: parseTimeout(draft.timeout) ?? 10,
   };
 }
 
@@ -251,11 +273,11 @@ export function buildInstanceUpdate(
   if (commitConfirmEnabled !== (existing.commit_confirm_enabled ?? false)) {
     data.commit_confirm_enabled = commitConfirmEnabled;
   }
-  const minutes = parseInt(draft.commitConfirmMinutes, 10) || 5;
-  if (minutes !== (existing.commit_confirm_minutes ?? 5)) {
+  const minutes = parseCommitConfirmMinutes(draft.commitConfirmMinutes);
+  if (commitConfirmEnabled && minutes != null && minutes !== (existing.commit_confirm_minutes ?? 5)) {
     data.commit_confirm_minutes = minutes;
   }
-  const timeout = parseInt(draft.timeout, 10) || 10;
+  const timeout = parseTimeout(draft.timeout) ?? existing.timeout ?? 10;
   if (timeout !== (existing.timeout ?? 10)) data.timeout = timeout;
 
   if (draft.apiKey.trim()) data.api_key = draft.apiKey.trim();

@@ -1168,7 +1168,7 @@ async def create_instance(request: Request, body: InstanceCreateRequest, conn: a
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -1345,7 +1345,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
         if not instance:
             raise HTTPException(status_code=404, detail="Instance not found")
 
-        if previous and (
+        if (
             previous["host"] != instance["host"]
             or previous["sshPort"] != instance["sshPort"]
         ):
@@ -1384,7 +1384,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
