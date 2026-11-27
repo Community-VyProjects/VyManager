@@ -652,6 +652,8 @@ class VyOSService:
             self._cached_config = json.loads(config_json)
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse configuration JSON: {e}")
+        if self.config.instance_id and isinstance(self._cached_config, dict):
+            commit_confirm_state.note_router_config(self.config.instance_id, self._cached_config)
 
         return self._cached_config
 

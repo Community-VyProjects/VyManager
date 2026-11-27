@@ -74,6 +74,7 @@ def _service(instance_id, host="router.lab", *, confirm=False, config=None, veri
     def read(refresh=False):
         service._cached_config = router["config"]
         service._router_answered(200)
+        commit_confirm_state.note_router_config(instance_id, router["config"])
         return router["config"]
 
     service.get_full_config = read
@@ -244,6 +245,58 @@ def test_deleting_a_site_forgets_its_instances(monkeypatch):
     asyncio.run(session_router.delete_site(request, "site-1", cast(Any, _Conn())))
 
     assert device_keys.key_for(ROW_A) == ROW_A
+    assert device_keys.orgs_on("router.lab:443") == set()
+
+
+def test_a_replace_restore_forgets_every_instance_it_wiped(monkeypatch):
+    """Rows the backup does not bring back are gone too."""
+    import routers.session.session as session_router
+
+    class _Tx:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+    class _Conn:
+        async def fetch(self, query, *args):
+            return [{"id": ROW_A}, {"id": ROW_B}] if 'FROM "instances"' in query else []
+
+        async def execute(self, query, *args):
+            return "DELETE 2"
+
+        async def fetchval(self, query, *args):
+            return True
+
+        def transaction(self):
+            return _Tx()
+
+    async def allowed(conn, request):
+        return None
+
+    async def no_columns(conn, table):
+        return {}
+
+    async def contents():
+        return b""
+
+    payload = {"tables": {"users": [{"role": "ADMIN"}], "instances": []}}
+    monkeypatch.setattr(session_router, "_require_backup_admin", allowed)
+    monkeypatch.setattr(session_router, "decrypt_backup", lambda data, passphrase: payload)
+    monkeypatch.setattr(session_router, "_decode_and_validate", lambda data: None)
+    monkeypatch.setattr(session_router, "_table_columns", no_columns)
+    for row in (ROW_A, ROW_B):
+        device_keys.note(row, "router.lab", 443, "org-2")
+        device_keys.verified(row)
+
+    asyncio.run(session_router.restore_backup(
+        cast(Any, SimpleNamespace(state=SimpleNamespace())),
+        file=cast(Any, SimpleNamespace(read=contents)),
+        passphrase="p", mode="replace", confirm="replace", conn=cast(Any, _Conn()),
+    ))
+
+    assert device_keys.key_for(ROW_A) == ROW_A and device_keys.key_for(ROW_B) == ROW_B
     assert device_keys.orgs_on("router.lab:443") == set()
 
 
@@ -461,15 +514,26 @@ def test_the_session_says_whether_unsaved_changes_were_already_live(router):
 
 
 def test_with_nothing_pending_the_status_says_what_the_next_save_arms():
-    service = _service(ROW_A, confirm=True)
-    service._cached_config = RELOAD
+    service = _service(ROW_A, confirm=True, config=RELOAD)
     plain = _service(ROW_B)
+    assert commit_confirm_state.status(ROW_A, service)["action"] is None  # no read yet
+
+    service.get_full_config()
 
     assert commit_confirm_state.status(ROW_A, service) == {"active": False, "enabled": True, "action": "reload"}
     assert commit_confirm_state.status(ROW_B, plain) == {"active": False, "enabled": False, "action": None}
+    # The action is the router's: a row whose cache was dropped still knows it.
     service._cached_config = None
-    assert commit_confirm_state.status(ROW_A, service)["action"] is None
+    assert commit_confirm_state.status(ROW_A, service)["action"] == "reload"
+    assert commit_confirm_state.status(ROW_B, plain, enabled=True)["action"] == "reload"
     assert commit_confirm_state.status(ROW_A, None) == {"active": False, "enabled": False, "action": None}
+
+
+def test_an_unverified_row_learns_no_action():
+    _service(ROW_A, config=RELOAD).get_full_config()
+    stranger = _service(ROW_OTHER, verified=False)
+
+    assert commit_confirm_state.status(ROW_OTHER, stranger, enabled=True)["action"] is None
 
 
 def test_while_pending_enabled_is_still_the_rows_own_setting(router):
@@ -619,6 +683,36 @@ def test_one_failing_row_does_not_stop_the_poll_for_the_others(monkeypatch):
     emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
 
     assert {iid for iid, kind, _ in emitted if kind == "config_diff"} == {ROW_A, ROW_B}
+
+
+def test_a_row_refused_during_the_tick_gets_nothing_read_with_another_key(monkeypatch):
+    a, b = _service(ROW_A), _service(ROW_B)
+
+    async def diff_for(instance_id, service):
+        if instance_id == ROW_A:
+            service._router_answered(401)  # row A's key was revoked on the router
+            raise ValueError("Failed to retrieve full config: HTTP Error 401")
+        return {"has_changes": True}
+
+    emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
+
+    assert {iid for iid, kind, _ in emitted if kind == "config_diff"} == {ROW_B}
+    assert all(iid == ROW_B for iid, _kind, _ in emitted)
+
+
+def test_after_a_poll_every_row_still_shows_the_routers_action(monkeypatch):
+    a = _service(ROW_A, confirm=True, config=RELOAD)
+    b = _service(ROW_B, confirm=True)
+
+    async def diff_for(instance_id, service):
+        service.get_full_config(refresh=True)
+        return {"has_changes": False}
+
+    emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
+
+    states = {iid: data for iid, kind, data in emitted if kind == "commit_confirm"}
+    assert b._cached_config is None
+    assert states[ROW_B]["commit_confirm"]["action"] == "reload"
 
 
 def test_the_poller_sends_no_commit_confirm_state_for_a_row_without_a_service(monkeypatch):

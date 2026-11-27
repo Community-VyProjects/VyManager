@@ -15,6 +15,7 @@ def _reset_router_state() -> None:
         device_keys._write_locks.clear()
     with commit_confirm_state._lock:
         commit_confirm_state._sessions.clear()
+        commit_confirm_state._known_actions.clear()
     commit_confirm_state.detach_store()
     with config_state._lock:
         config_state._saved_config_snapshots.clear()

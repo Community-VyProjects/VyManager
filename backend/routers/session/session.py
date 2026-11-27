@@ -1782,6 +1782,8 @@ async def restore_backup(
 
     async with conn.transaction():
         if mode == "replace":
+            # Every instance goes away, not only those the backup brings back.
+            affected_instance_ids.extend(row["id"] for row in await conn.fetch('SELECT id FROM "instances"'))
             for table in reversed(BACKUP_TABLES):
                 await conn.execute(f'DELETE FROM "{table}"')
 
@@ -1832,7 +1834,7 @@ async def restore_backup(
             if skipped:
                 skipped_counts[table] = skipped
 
-    for instance_id in affected_instance_ids:
+    for instance_id in set(affected_instance_ids):
         if instance_id:
             clear_session_cache(instance_id)
 

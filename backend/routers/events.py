@@ -306,6 +306,8 @@ async def _poll_banner_state_for_device(
     router state, so it is read once for all of them: each has shown its own
     credentials reach this router, so none sees more than it could read.
     """
+    group_key = device_keys.key_for(instance_ids[0])
+
     # --- Config diff: read once, through the first row whose read works ---
     services = []
     for iid in instance_ids:
@@ -322,6 +324,9 @@ async def _poll_banner_state_for_device(
             break
         except Exception:
             logger.debug("Poller: failed to get config diff through instance %s", iid)
+    # A row whose key the router refused during this tick (device_keys.rejected)
+    # is no longer on the router's key: it gets nothing read with another key.
+    instance_ids = [iid for iid in instance_ids if device_keys.key_for(iid) == group_key]
     if config_diff_data is not None:
         if fresh is not None:
             # The router changed under the other rows' cached reads: drop them,

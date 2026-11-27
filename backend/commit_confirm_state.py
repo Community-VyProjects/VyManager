@@ -122,6 +122,24 @@ def router_action(config: Optional[Dict[str, Any]]) -> str:
 _lock = threading.Lock()
 # In-memory store keyed by router (device_keys.key_for).
 _sessions: Dict[str, CommitConfirmSession] = {}
+# The action each router's last config read showed, keyed like _sessions, so
+# every verified row on it shows the same action without its own fresh read.
+_known_actions: Dict[str, str] = {}
+
+
+def note_router_config(instance_id: str, config: Dict[str, Any]) -> None:
+    """Record the action a config read through this row showed (after the read)."""
+    key = device_keys.key_for(instance_id)
+    if key == instance_id:
+        return  # not verified: nothing shared to record
+    with _lock:
+        _known_actions[key] = router_action(config)
+
+
+def known_action(instance_id: str) -> Optional[str]:
+    """The action the router's last read showed; None before any read."""
+    with _lock:
+        return _known_actions.get(device_keys.key_for(instance_id))
 
 
 def set_active(
@@ -203,9 +221,9 @@ def status(instance_id: str, service: Any = None, enabled: Optional[bool] = None
     With nothing pending it still says whether this row arms one on every
     save (``enabled``: given by the caller from the instance row, or read from
     the service's settings) and what the router does when a timer runs out,
-    so the unsaved-changes banner can warn before arming. The action comes
-    from the service's cached config (no router I/O here); None when nothing
-    is cached.
+    so the unsaved-changes banner can warn before arming. The action is the
+    one the router's last config read showed (``known_action``, no router
+    I/O here); None before any read.
     """
     if enabled is None:
         config = getattr(service, "config", None)
@@ -217,11 +235,10 @@ def status(instance_id: str, service: Any = None, enabled: Optional[bool] = None
     session = get_active(instance_id)
     if session is not None:
         return {**session.to_dict(), "enabled": enabled}
-    cached = getattr(service, "_cached_config", None)
     return {
         "active": False,
         "enabled": enabled,
-        "action": router_action(cached) if enabled and cached is not None else None,
+        "action": known_action(instance_id) if enabled else None,
     }
 
 
