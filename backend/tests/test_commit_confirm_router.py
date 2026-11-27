@@ -276,19 +276,40 @@ def test_a_refused_arm_records_no_session_whatever_the_body(monkeypatch, status,
     assert commit_confirm_state.blocking(ROW_B) is None
 
 
-@pytest.mark.parametrize("error, status", [
-    ("API Error 200: Configuration path is not valid", 400),
-    ("Invalid response format: Expecting value", 502),
-    ("Validation Error: Invalid response structure", 502),
-])
-def test_a_pyvyos_200_error_is_a_rejection_only_when_vyos_said_so(error, status):
-    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_OTHER))
-    reply = lambda **kwargs: ApiResponse(status=200, request={}, result={}, error=error)  # noqa: E731
-    cast(Any, service.device).configure_multiple_op = reply
-    cast(Any, service.device).config_file_save = reply
+def _pyvyos_reply(status_code, body: bytes) -> ApiResponse:
+    """What pyvyos itself makes of this HTTP reply (its real parser)."""
+    from pyvyos.core.rest_client import RestClient
 
-    assert service.commit_operations([{"op": "set", "path": ["x"]}]).status == status
-    assert service.config_file_save().status == status
+    resp = requests.Response()
+    resp.status_code = status_code
+    resp._content = body
+    resp.url = "https://router.lab/configure"
+    status, result, error = RestClient._validate_response(resp)
+    return ApiResponse(status=cast(int, status), request={}, result=result, error=cast(Any, error))
+
+
+@pytest.mark.parametrize("status_code, body, expected, verifies", [
+    (200, b'{"success": false, "data": null, "error": "Configuration path is not valid"}', 400, True),
+    (400, b'{"success": false, "data": null, "error": "Configuration path is not valid"}', 400, False),
+    (200, b"<html>proxy</html>", 502, False),
+    (200, b'{"message": "ok"}', 502, False),
+    (200, b"[]", 502, False),
+    (200, b"null", 502, False),
+    (502, b"<html>Bad Gateway</html>", 502, False),
+], ids=["vyos-200-error", "vyos-400", "html-200", "proxy-json-200", "json-list-200", "json-null-200", "proxy-502"])
+def test_pyvyos_replies_are_classified_by_who_sent_them(status_code, body, expected, verifies):
+    """Run through pyvyos's own parser, so a marker cannot drift from it."""
+    reply = _pyvyos_reply(status_code, body)
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_OTHER))
+    cast(Any, service.device).configure_multiple_op = lambda **kwargs: _pyvyos_reply(status_code, body)
+    cast(Any, service.device).config_file_save = lambda **kwargs: _pyvyos_reply(status_code, body)
+
+    assert service.commit_operations([{"op": "set", "path": ["x"]}]).status == expected
+    assert service.config_file_save().status == expected
+    assert (device_keys.key_for(ROW_OTHER) == "router.lab:443") is verifies
+    if body in (b"[]", b"null"):
+        # pyvyos's "Unexpected error" path, at status 500 rather than 200.
+        assert reply.status == 500 and str(reply.error).startswith("Unexpected error")
 
 
 def test_a_vyos_rejection_still_verifies_the_row():

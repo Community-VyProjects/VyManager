@@ -96,7 +96,11 @@ def _causes(exc: BaseException):
         todo.extend([item.__cause__, item.__context__, getattr(item, "reason", None), *item.args])
 
 
-# pyvyos _validate_response's errors for a 200 whose body is not the VyOS API's.
+# pyvyos _validate_response's errors for a body that is not the VyOS API's:
+# "Invalid response format" (not JSON) and "Validation Error" (JSON without
+# VyOS's keys) keep status 200; "Unexpected error" (JSON that is not an
+# object) comes back as status 500. VyOS's own errors read "API Error ..."
+# (200) or "HTTP Error <status>: ..." (its 4xx/5xx).
 _NOT_A_VYOS_REPLY = ("Invalid response format", "Validation Error", "Unexpected error")
 
 
@@ -110,10 +114,13 @@ def _vyos_replied(response: ApiResponse) -> bool:
 
 def _classify_200_error(response: ApiResponse) -> None:
     """A pyvyos 200 with an error is VyOS's rejection (400), unless pyvyos
-    says the body was not VyOS's reply (a proxy page or a proxy's JSON): then
-    the outcome is unknown (502), as on the _post_api path."""
-    if response.status == 200 and response.error:
-        response.status = 502 if str(response.error).startswith(_NOT_A_VYOS_REPLY) else 400
+    says the body was not VyOS's reply (a proxy page or a proxy's JSON, at
+    status 200 or, for "Unexpected error", 500): then the outcome is unknown
+    (502), as on the _post_api path."""
+    if response.error and str(response.error).startswith(_NOT_A_VYOS_REPLY):
+        response.status = 502
+    elif response.status == 200 and response.error:
+        response.status = 400
 
 
 class RouterRefusedRead(ValueError):
@@ -438,7 +445,8 @@ class VyOSService:
         VyOS rejects a commit with HTTP 400 (pyvyos: "HTTP Error 400: ...");
         an older reply shape keeps HTTP 200 with the error ("API Error ..."),
         which becomes 400 here, as commit-confirm does, so every caller can
-        treat status 200 as applied. A 400 through pyvyos's HTTPError path
+        treat status 200 as applied. A body pyvyos says is not VyOS's (see
+        _NOT_A_VYOS_REPLY) becomes 502, an unknown outcome. A 400 through pyvyos's HTTPError path
         cannot be told from a proxy's, so it does not verify the row. pyvyos raises on transport failures;
         those become a status as well (see _transport_failure).
 
@@ -495,7 +503,10 @@ class VyOSService:
         VyOS answers a rejected request with HTTP 400 and a JSON body that
         carries the error, so the body is read before the status: status 200
         means ``success`` was true, status 400 carries the VyOS error text,
-        and 401/403 (bad API key) keep their status and text.
+        and 401/403 (bad API key) keep their status (with VyOS's text, or a
+        fixed text when the refusal came from something in front of it: never
+        sent either way). Any other reply without VyOS's body (HTML, a proxy's
+        JSON) is an unknown outcome: 504 for a gateway timeout, else 502.
         Transport failures are logged and get a fixed message, so the device
         URL and the requests text never reach the client.
         """
