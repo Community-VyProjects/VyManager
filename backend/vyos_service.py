@@ -20,7 +20,6 @@ from vyos_builders.firewall import FirewallGroupsBatchBuilder
 from vyos_builders.interfaces import (
     EthernetInterfaceBuilderMixin,
     DummyInterfaceBuilderMixin,
-    BondingInterfaceBuilderMixin,
     GeneveInterfaceBuilderMixin,
     InputInterfaceBuilderMixin,
     L2TPv3InterfaceBuilderMixin,
@@ -29,11 +28,9 @@ from vyos_builders.interfaces import (
     OpenvpnInterfaceBuilderMixin,
     PppoeInterfaceBuilderMixin,
     PseudoEthernetInterfaceBuilderMixin,
-    SstpcInterfaceBuilderMixin,
     VirtualEthernetInterfaceBuilderMixin,
     VppInterfaceBuilderMixin,
     VtiInterfaceBuilderMixin,
-    WirelessInterfaceBuilderMixin,
 )
 from vyos_builders.nat import NATBatchBuilder
 from vyos_builders.system import SystemPerformanceBatchBuilder
@@ -141,14 +138,6 @@ class VyOSService:
         """
         return LoopbackInterfaceBuilderMixin(self.config.version)
 
-    def create_macsec_batch(self) -> MacsecInterfaceBuilderMixin:
-        """
-        Create a batch builder for MACsec interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return MacsecInterfaceBuilderMixin(self.config.version)
-
     def create_openvpn_batch(self) -> OpenvpnInterfaceBuilderMixin:
         """
         Create a batch builder for OpenVPN interfaces.
@@ -173,14 +162,6 @@ class VyOSService:
         """
         return PseudoEthernetInterfaceBuilderMixin(self.config.version)
 
-    def create_sstpc_batch(self) -> SstpcInterfaceBuilderMixin:
-        """
-        Create a batch builder for SSTPC interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return SstpcInterfaceBuilderMixin(self.config.version)
-
     def create_virtual_ethernet_batch(self) -> VirtualEthernetInterfaceBuilderMixin:
         """
         Create a batch builder for virtual-ethernet interfaces.
@@ -204,45 +185,6 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return VtiInterfaceBuilderMixin(self.config.version)
-
-    def create_wireless_batch(self) -> WirelessInterfaceBuilderMixin:
-        """
-        Create a batch builder for wireless interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return WirelessInterfaceBuilderMixin(self.config.version)
-
-    def create_bonding_batch(self) -> BondingInterfaceBuilderMixin:
-        """
-        Create a batch builder for bonding interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return BondingInterfaceBuilderMixin(self.config.version)
-
-    def create_firewall_groups_batch(self) -> FirewallGroupsBatchBuilder:
-        """
-        Create a batch builder for firewall groups.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return FirewallGroupsBatchBuilder(self.config.version)
-
-    def create_nat_batch(self) -> NATBatchBuilder:
-        """
-        Create a batch builder for NAT configuration.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return NATBatchBuilder(self.config.version)
-
-    def create_system_performance_batch(self) -> SystemPerformanceBatchBuilder:
-        """
-        Create a batch builder for system option performance.
-        Version-aware (1.4: throughput/latency; 1.5: five profiles).
-        """
-        return SystemPerformanceBatchBuilder(self.config.version)
 
     def _record_managed_config(self, instance_id: str) -> None:
         """Record post-mutation live config as VyManager-produced state.
@@ -295,11 +237,16 @@ class VyOSService:
     ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op.
 
-        If commit-confirm is enabled for this instance (and the VyOS version
-        supports it), the batch is executed with a rollback timer automatically.
-        No router changes are needed — the feature is fully transparent.
+        If commit-confirm is enabled for this instance and the VyOS version
+        supports it, the batch is executed with a rollback timer automatically.
+        On a version without commit-confirm the flag is ignored and the batch
+        commits normally. No router changes are needed.
         """
-        if self.config.commit_confirm_enabled and self.config.instance_id:
+        if (
+            self.config.commit_confirm_enabled
+            and self.config.instance_id
+            and commit_confirm_state.supports_commit_confirm(self.config.version)
+        ):
             return self.execute_batch_with_confirm(batch, self.config.instance_id)
 
         if batch.is_empty():
@@ -312,32 +259,58 @@ class VyOSService:
             event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
         return response
 
-    def execute_batch_with_confirm(
-        self,
-        batch,
-        instance_id: str,
-        confirm_time_minutes: int = 5,
-        action: str = "reload",
-    ) -> ApiResponse:
+    def _post_api(self, endpoint: str, data: Dict[str, Any]) -> ApiResponse:
+        """POST one form-encoded request to the VyOS HTTP API.
+
+        VyOS answers a rejected request with HTTP 400 and a JSON body that
+        carries the error, so the body is read before the status: status 200
+        means ``success`` was true, status 400 carries the VyOS error text.
+        Transport failures are logged and get a fixed message, so the device
+        URL and the requests text never reach the client.
+        """
+        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/{endpoint}"
+        payload = {"data": json.dumps(data), "key": self.config.apikey}
+        try:
+            resp = _requests.post(
+                url,
+                data=payload,
+                verify=self.config.verify,
+                timeout=self.config.timeout,
+            )
+        except _requests.exceptions.Timeout:
+            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
+        except _requests.exceptions.RequestException:
+            logger.exception("VyOS API /%s request failed", endpoint)
+            return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
+
+        try:
+            body = resp.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            logger.warning("VyOS API /%s returned HTTP %s without a JSON body", endpoint, resp.status_code)
+            return ApiResponse(status=502, request={}, result={}, error="Unexpected response from the VyOS API")
+        if not body.get("success"):
+            return ApiResponse(
+                status=400, request={}, result={}, error=body.get("error") or "Unknown error from VyOS API",
+            )
+        return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
+
+    def execute_batch_with_confirm(self, batch, instance_id: str) -> ApiResponse:
         """
         Execute a batch using VyOS commit-confirm.
 
         Applies operations to the running config with an automatic rollback
         timer. The caller must confirm via confirm_commit() before the timer
-        expires, otherwise VyOS will revert the changes.
+        expires, otherwise VyOS will revert the changes. execute_batch is the
+        only caller and the only place that checks the instance flag and the
+        version; this method never calls back into execute_batch.
 
         Raises:
             HTTPException 409: If a commit-confirm is already active for this instance.
             ValueError: If the batch is empty.
         """
         from fastapi import HTTPException
-
-        # Fall back to regular commit if feature is disabled or VyOS version
-        # doesn't support commit-confirm (requires 1.5+).
-        version = self.config.version or ""
-        supports_commit_confirm = "1.5" in version or "1.6" in version
-        if not self.config.commit_confirm_enabled or not supports_commit_confirm:
-            return self.execute_batch(batch)
 
         if commit_confirm_state.is_active(instance_id):
             session = commit_confirm_state.get_active(instance_id)
@@ -353,41 +326,24 @@ class VyOSService:
             raise ValueError("Cannot execute empty batch")
 
         confirm_time_minutes = self.config.commit_confirm_minutes
-        operations = batch.get_operations()
 
         # VyOS ConfigureListModel format: {"commands": [...], "confirm_time": N}
         # pyvyos's configure_multiple_op sends a raw JSON array, which VyOS wraps
         # internally as {"commands": [...], "confirm_time": 0} — discarding any
         # confirm_time we'd try to include. We must build this payload manually so
         # the timer is armed atomically with the same commit that applies the ops.
-        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/configure"
-        payload = {
-            "data": json.dumps({"commands": operations, "confirm_time": confirm_time_minutes}),
-            "key": self.config.apikey,
-        }
+        response = self._post_api(
+            "configure",
+            {"commands": batch.get_operations(), "confirm_time": confirm_time_minutes},
+        )
+        if response.status != 200:
+            return response
 
-        try:
-            resp = _requests.post(
-                url,
-                data=payload,
-                verify=self.config.verify,
-                timeout=self.config.timeout,
-            )
-            resp.raise_for_status()
-            body = resp.json()
-            if not body.get("success"):
-                error_msg = body.get("error", "Unknown error from VyOS API")
-                return ApiResponse(status=400, request={}, result={}, error=error_msg)
-        except _requests.exceptions.Timeout:
-            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
-        except _requests.exceptions.RequestException as exc:
-            return ApiResponse(status=503, request={}, result={}, error=str(exc))
-
-        commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+        commit_confirm_state.set_active(instance_id, confirm_time_minutes)
         self._record_managed_config(instance_id)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
         event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
-        return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
+        return response
 
     def confirm_commit(self, instance_id: str) -> ApiResponse:
         """
@@ -405,112 +361,12 @@ class VyOSService:
             )
 
         # Tested format: confirm goes to /config-file with op: confirm
-        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/config-file"
-        payload = {
-            "data": json.dumps({"op": "confirm"}),
-            "key": self.config.apikey,
-        }
-
-        try:
-            resp = _requests.post(
-                url,
-                data=payload,
-                verify=self.config.verify,
-                timeout=self.config.timeout,
-            )
-            resp.raise_for_status()
-            body = resp.json()
-            if body.get("success"):
-                commit_confirm_state.clear(instance_id)
-                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
-                event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
-                return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
-            else:
-                error_msg = body.get("error", "Unknown error from VyOS API")
-                return ApiResponse(status=400, request={}, result={}, error=error_msg)
-        except _requests.exceptions.Timeout:
-            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
-        except _requests.exceptions.RequestException as exc:
-            return ApiResponse(status=503, request={}, result={}, error=str(exc))
-
-    def configure_batch(self, commands: List[str]) -> Dict[str, Any]:
-        """
-        Execute a batch of VyOS configuration commands.
-
-        Args:
-            commands: List of VyOS command strings
-                     (e.g., ["set firewall group address-group TEST", "set firewall group address-group TEST description 'Test'"])
-
-        Returns:
-            Dictionary with success status and optional error message
-
-        Example:
-            >>> commands = ["set firewall group address-group TEST", "set firewall group address-group TEST address 10.0.0.1"]
-            >>> result = service.configure_batch(commands)
-            >>> result["success"]
-            True
-        """
-        if not commands:
-            return {"success": False, "error": "No commands provided"}
-
-        try:
-            # Parse commands into operations for configure_multiple_op
-            operations = []
-            for cmd in commands:
-                # Parse command string (e.g., "set firewall group address-group TEST description 'value'")
-                parts = cmd.split(maxsplit=1)
-                if len(parts) < 2:
-                    continue
-
-                op_type = parts[0]  # "set" or "delete"
-                path_str = parts[1]  # "firewall group address-group TEST description 'value'"
-
-                # Parse the path, handling quoted values
-                path_parts = []
-                current = ""
-                in_quotes = False
-                quote_char = None
-
-                for char in path_str:
-                    if char in ("'", '"') and not in_quotes:
-                        in_quotes = True
-                        quote_char = char
-                    elif char == quote_char and in_quotes:
-                        in_quotes = False
-                        quote_char = None
-                        if current:
-                            path_parts.append(current)
-                            current = ""
-                    elif char == " " and not in_quotes:
-                        if current:
-                            path_parts.append(current)
-                            current = ""
-                    else:
-                        current += char
-
-                if current:
-                    path_parts.append(current)
-
-                operations.append({"op": op_type, "path": path_parts})
-
-            # Execute using configure_multiple_op
-            if operations:
-                response = self.commit_operations(operations)
-
-                if response.status == 200:
-                    if self.config.instance_id:
-                        self._record_managed_config(self.config.instance_id)
-                    # Handle empty string responses from VyOS
-                    result_data = response.result if response.result and response.result != '' else None
-                    return {"success": True, "data": result_data}
-                else:
-                    error_msg = response.error if response.error else "Unknown error"
-                    return {"success": False, "error": error_msg}
-            else:
-                return {"success": False, "error": "No valid operations parsed from commands"}
-
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        response = self._post_api("config-file", {"op": "confirm"})
+        if response.status == 200:
+            commit_confirm_state.clear(instance_id)
+            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+        return response
 
     def get_full_config(self, refresh: bool = False) -> Dict[str, Any]:
         """
@@ -551,15 +407,6 @@ class VyOSService:
 
         return self._cached_config
 
-    def refresh_config(self) -> Dict[str, Any]:
-        """
-        Force refresh of the cached configuration from VyOS.
-
-        Returns:
-            Refreshed full configuration dictionary
-        """
-        return self.get_full_config(refresh=True)
-
     def config_file_save(self, file: Optional[str] = None) -> ApiResponse:
         """
         Save the running configuration to a file.
@@ -595,33 +442,6 @@ class VyOSService:
         """
         return self.device.generate(path=path)
 
-    def show_config(self, path: Optional[List[str]] = None) -> Dict[str, Any]:
-        """
-        Retrieve configuration from VyOS using pyvyos.
-
-        DEPRECATED: Use get_full_config() for read operations instead.
-        This method is kept for backward compatibility.
-
-        Args:
-            path: Configuration path as list (e.g., ['interfaces', 'ethernet'])
-                  If None, retrieves entire configuration
-
-        Returns:
-            Configuration data as dictionary
-
-        Example:
-            >>> service.show_config(["interfaces", "ethernet"])
-            {'eth0': {'address': ['10.0.0.1/24'], 'description': 'WAN'}}
-        """
-        # Use pyvyos retrieve_show_config with path parameter
-        response = self.device.retrieve_show_config(path=path)
-
-        if response.status != 200:
-            error_msg = response.error if response.error else "Unknown error"
-            raise ValueError(f"Failed to retrieve config: {error_msg}")
-
-        return response.result.get("data", {})
-
 
 class VyOSDeviceRegistry:
     """Registry for managing multiple VyOS devices."""
@@ -642,10 +462,6 @@ class VyOSDeviceRegistry:
     def unregister(self, name: str) -> None:
         """Unregister a device."""
         self._devices.pop(name, None)
-
-    def list_devices(self) -> list:
-        """Get list of registered device names."""
-        return list(self._devices.keys())
 
     def clear(self) -> None:
         """Clear all registered devices."""

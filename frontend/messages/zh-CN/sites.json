@@ -19,12 +19,14 @@
   "unreachable": "不可达",
   "validation": {
     "apiKeyRequired": "API 密钥为必填项",
+    "commitConfirmMinutesRange": "确认时限必须在 1 到 60 分钟之间",
     "hostRequired": "主机为必填项",
     "instanceNameRequired": "实例名称为必填项",
     "portRange": "端口必须在 1 到 65535 之间",
     "siteNameRequired": "站点名称为必填项",
     "siteRequired": "必须选择站点",
-    "sshPortRange": "SSH 端口必须在 1 到 65535 之间"
+    "sshPortRange": "SSH 端口必须在 1 到 65535 之间",
+    "timeoutRange": "超时必须在 1 到 300 秒之间"
   },
   "page": {
     "addFirstInstance": "添加第一个实例",
