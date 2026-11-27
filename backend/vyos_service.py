@@ -59,11 +59,7 @@ UNANSWERED_COMMIT_CONFIRM_NOTICE = (
 )
 
 # Transport errors raised before the request was sent: the URL was invalid,
-# the connect timed out or was refused, the name did not resolve, or the
-# certificate was rejected. Anything else
-# may have reached the router.
-# Only a certificate check failure counts for TLS: urllib3 also raises
-# SSLError for a TLS error while reading the reply, after the request went out.
+# the connect timed out or was refused, or the name did not resolve.
 _NOT_SENT_ERRORS = (
     _requests.exceptions.ConnectTimeout,
     _requests.exceptions.InvalidURL,
@@ -71,6 +67,20 @@ _NOT_SENT_ERRORS = (
     _urllib3.exceptions.ConnectTimeoutError,
     _ssl.SSLCertVerificationError,  # ssl.CertificateError is the same class
 )
+
+# A TLS error is ambiguous: urllib3 raises SSLError both for a failed
+# handshake and for a fault while reading the reply. Only the handshake
+# (urllib3 runs it in _validate_conn, before sending) means nothing was sent.
+_HANDSHAKE_FRAMES = {"_validate_conn", "do_handshake", "wrap_socket", "_ssl_wrap_socket_and_match_hostname"}
+
+
+def _raised_in_handshake(exc: BaseException) -> bool:
+    tb = exc.__traceback__
+    while tb is not None:
+        if tb.tb_frame.f_code.co_name in _HANDSHAKE_FRAMES:
+            return True
+        tb = tb.tb_next
+    return False
 
 
 def _causes(exc: BaseException):
@@ -95,7 +105,11 @@ def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
     connection broke after the request may have been sent.
     """
     logger.warning("VyOS API /%s request failed: %s", endpoint, type(exc).__name__, exc_info=True)
-    if any(isinstance(cause, _NOT_SENT_ERRORS) for cause in _causes(exc)):
+    if any(
+        isinstance(cause, _NOT_SENT_ERRORS)
+        or (isinstance(cause, _ssl.SSLError) and _raised_in_handshake(cause))
+        for cause in _causes(exc)
+    ):
         return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
     if isinstance(exc, _requests.exceptions.Timeout):
         return ApiResponse(status=504, request={}, result={}, error="Request timed out")

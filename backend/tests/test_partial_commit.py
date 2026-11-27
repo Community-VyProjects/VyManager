@@ -193,6 +193,38 @@ def _not_sent_errors():
     }
 
 
+def _real_handshake_failure():
+    """A real requests error from an https request to a plain-TCP port.
+
+    The TLS handshake fails (WRONG_VERSION_NUMBER) before the request is
+    sent; only the traceback says so, since the read-phase error has the
+    same types.
+    """
+    import socket
+    import threading
+
+    import requests
+
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen()
+
+    def answer():
+        conn, _ = server.accept()
+        conn.recv(4096)
+        conn.sendall(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+        conn.close()
+
+    threading.Thread(target=answer, daemon=True).start()
+    try:
+        requests.post(f"https://127.0.0.1:{server.getsockname()[1]}/configure", data={}, verify=False, timeout=5)
+    except requests.exceptions.SSLError as exc:
+        return exc
+    finally:
+        server.close()
+    pytest.fail("the handshake should have failed")
+
+
 def _tls_error_after_sending():
     """urllib3 raises SSLError for a TLS fault while reading the reply too."""
     import ssl
@@ -223,12 +255,16 @@ def _as_pyvyos_raises(exc):
             return wrapped
 
 
-@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls_cert", "bad_url"])
+def _never_sent(kind):
+    return _real_handshake_failure() if kind == "tls_handshake" else _not_sent_errors()[kind]
+
+
+@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls_cert", "tls_handshake", "bad_url"])
 def test_a_commit_that_was_never_sent_adds_no_notice(monkeypatch, kind):
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing was sent"))
     service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID))
     service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
-    _raising_device(service, _as_pyvyos_raises(_not_sent_errors()[kind]))
+    _raising_device(service, _as_pyvyos_raises(_never_sent(kind)))
     config_state.set_managed_config(IID, BEFORE)
 
     response = service.execute_batch(BATCH)
@@ -238,10 +274,10 @@ def test_a_commit_that_was_never_sent_adds_no_notice(monkeypatch, kind):
     assert config_state.get_managed_config(IID) == BEFORE
 
 
-@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls_cert", "bad_url"])
+@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls_cert", "tls_handshake", "bad_url"])
 def test_a_commit_confirm_that_was_never_sent_arms_nothing(monkeypatch, kind):
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing was sent"))
-    error = _not_sent_errors()[kind]
+    error = _never_sent(kind)
 
     def post(url, data, verify, timeout):
         raise error
@@ -311,7 +347,7 @@ def test_without_a_managed_snapshot_the_saved_baseline_decides(monkeypatch):
 
 @pytest.mark.parametrize(
     ("kind", "status"),
-    [("read_timeout", 504), ("dropped", 502)],
+    [("read_timeout", 504), ("dropped", 502), ("tls_after_sending", 502)],
 )
 def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, kind, status):
     import requests
@@ -319,6 +355,7 @@ def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, kind, sta
     errors = {
         "read_timeout": requests.exceptions.ReadTimeout("Read timed out. (read timeout=10)"),
         "dropped": requests.exceptions.ConnectionError("('Connection aborted.', RemoteDisconnected())"),
+        "tls_after_sending": _tls_error_after_sending(),
     }
     emitted = []
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: emitted.append(args[1]))
