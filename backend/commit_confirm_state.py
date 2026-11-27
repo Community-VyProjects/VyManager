@@ -47,7 +47,9 @@ current_actor: contextvars.ContextVar[Optional[Actor]] = contextvars.ContextVar(
 @dataclass
 class CommitConfirmSession:
     device_key: str
-    instance_id: Optional[str]  # the row it was started from; None once that row is deleted
+    # The row it was started from, if verified then; None once that row is
+    # deleted, or when an unverified row's lost reply armed it.
+    instance_id: Optional[str]
     started_at: datetime
     expires_at: datetime
     confirm_time_minutes: int
@@ -120,7 +122,8 @@ def router_action(config: Optional[Dict[str, Any]]) -> str:
 
 
 _lock = threading.Lock()
-# In-memory store keyed by router (device_keys.key_for).
+# In-memory store keyed by router: the router the row names
+# (device_keys.candidate_key), which is key_for once the row is verified.
 _sessions: Dict[str, CommitConfirmSession] = {}
 # The action each router's last config read showed, keyed like _sessions, so
 # every verified row on it shows the same action without its own fresh read.
@@ -157,9 +160,12 @@ def set_active(
     """
     now = datetime.now(timezone.utc)
     actor = current_actor.get()
+    router = device_keys.candidate_key(instance_id)
     session = CommitConfirmSession(
-        device_key=device_keys.candidate_key(instance_id),
-        instance_id=instance_id,
+        device_key=router,
+        # Only a row whose credentials worked here is recorded as the starter:
+        # after a restart the starter is registered on the router from this.
+        instance_id=instance_id if device_keys.key_for(instance_id) == router else None,
         started_at=now,
         expires_at=now + timedelta(minutes=confirm_time_minutes),
         confirm_time_minutes=confirm_time_minutes,
@@ -204,11 +210,6 @@ def blocking(instance_id: str) -> Optional[CommitConfirmSession]:
     verified yet: the router would archive the commit whoever sent it.
     """
     return get_active(instance_id) or _active_on(device_keys.candidate_key(instance_id))
-
-
-def is_active(instance_id: str) -> bool:
-    """Return True if this instance's router has a pending commit-confirm."""
-    return get_active(instance_id) is not None
 
 
 def clear(instance_id: str) -> None:

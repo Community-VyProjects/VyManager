@@ -27,7 +27,7 @@ from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
 import config_state
 import device_keys
-from events.event_manager import EventManager
+from events.event_manager import EVENT_COMMIT_CONFIRM, EventManager, event_manager
 from routers.config.config import CommitConfirmStatusResponse, _discard_unsaved, _save_boot_config
 from session_vyos_service import clear_session_cache, require_session_instance
 from vyos_service import VyOSDeviceConfig, VyOSService
@@ -380,7 +380,7 @@ def test_any_sharing_row_can_confirm_and_confirming_twice_is_a_409(router):
     b = _service(ROW_B)
 
     assert b.confirm_commit(ROW_B).status == 200
-    assert commit_confirm_state.is_active(ROW_A) is False
+    assert commit_confirm_state.blocking(ROW_A) is None
     with pytest.raises(HTTPException) as caught:
         b.confirm_commit(ROW_B)
     assert caught.value.detail == "No commit-confirm is pending on this router."
@@ -571,6 +571,95 @@ def test_a_lost_reply_from_an_unverified_row_blocks_the_whole_router(monkeypatch
     # Once a read verifies the row, its own countdown is still there.
     device_keys.verified(ROW_A)
     assert _active(ROW_A) is not None
+
+
+def test_a_lost_reply_from_an_unverified_row_names_no_starter_row():
+    """After a restart the starter is registered on the router from this."""
+    _service(ROW_OTHER, verified=False)
+    session = commit_confirm_state.set_active(ROW_OTHER, 2)
+
+    assert session.device_key == "router.lab:443"
+    assert session.instance_id is None
+    assert commit_confirm_state.set_active(ROW_A, 2).instance_id == ROW_A
+
+
+def test_after_a_restart_an_unverified_starter_stays_unverified(monkeypatch):
+    now = datetime.now(timezone.utc)
+    row = {
+        "deviceKey": "router.lab:443", "instanceId": None,
+        "startedAt": (now - timedelta(seconds=10)).replace(tzinfo=None),
+        "expiresAt": (now + timedelta(minutes=2)).replace(tzinfo=None),
+        "confirmMinutes": 2, "action": "reboot", "startedById": "u-c", "startedByName": "Carol",
+        "startedByOrgId": "org-2", "unsavedBefore": True,
+    }
+
+    class _Conn:
+        async def execute(self, *args):
+            return None
+
+        async def fetch(self, *args):
+            return [row]
+
+    class _Acquire:
+        async def __aenter__(self):
+            return _Conn()
+
+        async def __aexit__(self, *exc):
+            return False
+
+    pool = SimpleNamespace(acquire=lambda: _Acquire())
+    with device_keys._lock:
+        device_keys._key_by_instance.clear()
+        device_keys._candidate_by_instance.clear()
+    with commit_confirm_state._lock:
+        commit_confirm_state._sessions.clear()
+
+    async def load():
+        try:
+            return await commit_confirm_state.load_and_attach(pool)
+        finally:
+            commit_confirm_state._store.detach()
+
+    assert asyncio.run(load()) == 1
+    stranger = _service(ROW_OTHER, verified=False)
+
+    assert device_keys.key_for(ROW_OTHER) == ROW_OTHER
+    assert commit_confirm_state.status(ROW_OTHER, stranger, enabled=True)["active"] is False
+    assert commit_confirm_state.blocking(ROW_OTHER) is not None
+
+
+def test_a_refused_pre_arm_read_sends_no_commit(monkeypatch):
+    service = VyOSService(VyOSDeviceConfig(
+        hostname="router.lab", apikey="bad", version="1.5", instance_id=ROW_OTHER,
+        commit_confirm_enabled=True, commit_confirm_minutes=2,
+    ))
+    cast(Any, service.device).show = lambda path=None: ApiResponse(
+        status=401, request={}, result={}, error="HTTP Error 401: Valid API key is required")
+    posts = []
+    monkeypatch.setattr(service, "_post_api", lambda endpoint, data: posts.append(data))
+
+    response = service.execute_batch(_Batch())
+
+    assert response.status == 401 and posts == []
+    assert commit_confirm_state.blocking(ROW_A) is None
+
+
+def test_a_lost_reply_arm_signals_every_row_on_the_router(monkeypatch):
+    delivered = []
+    monkeypatch.setattr(event_manager, "_deliver", lambda rows, kind, data: delivered.append((set(rows), kind)))
+
+    def lost(url, data, verify, timeout):
+        raise requests.exceptions.ReadTimeout("Read timed out.")
+
+    monkeypatch.setattr("vyos_service._requests.post", lost)
+    unverified = _service(ROW_OTHER, confirm=True, verified=False)
+    _service(ROW_A)
+    monkeypatch.setattr(unverified, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True))
+
+    assert unverified.execute_batch(_Batch()).status == 504
+
+    rows = next(rows for rows, kind in delivered if kind == EVENT_COMMIT_CONFIRM)
+    assert {ROW_OTHER, ROW_A} <= rows
 
 
 def test_an_unverified_row_can_confirm_the_timer_its_lost_reply_armed(monkeypatch):

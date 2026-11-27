@@ -19,8 +19,9 @@ state for a request, so a row is verified before it writes shared state.
 
 A pending commit-confirm still blocks an unverified row's commits
 (``candidate_key``, and the write lock is keyed the same way): the router
-would archive the commit whoever sent it. Rows loaded with a pending
-commit-confirm at startup were verified when it started (``register_key``).
+would archive the commit whoever sent it. At startup the row that started a
+pending commit-confirm is registered on its router (``register_key``) only
+if it was verified when it armed it; otherwise the session names no row.
 """
 
 import ipaddress

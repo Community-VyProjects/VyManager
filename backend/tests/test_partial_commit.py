@@ -366,7 +366,7 @@ def test_a_commit_confirm_that_was_never_sent_arms_nothing(monkeypatch, kind):
     assert reads == ["before arming"]  # no re-read after a request that was never sent
 
     assert response.status == 503
-    assert commit_confirm_state.is_active(IID) is False
+    assert commit_confirm_state.blocking(IID) is None
 
 
 def test_a_tls_error_after_sending_is_an_unknown_outcome(monkeypatch):
@@ -407,7 +407,7 @@ def test_a_rejected_api_key_adds_no_notice(monkeypatch):
     response = confirm.execute_batch(BATCH)
 
     assert (response.status, response.error) == (401, "Valid API key is required")
-    assert commit_confirm_state.is_active(IID) is False
+    assert commit_confirm_state.blocking(IID) is None
 
 
 def test_without_a_managed_snapshot_the_saved_baseline_decides(monkeypatch):
@@ -435,6 +435,7 @@ def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, kind, sta
     }
     emitted = []
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: emitted.append(args[1]))
+    monkeypatch.setattr("vyos_service.event_manager.emit_to_router", lambda *args: emitted.append(args[1]))
 
     def post(url, data, verify, timeout):
         raise errors[kind]
@@ -447,7 +448,7 @@ def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, kind, sta
 
     assert response.status == status
     assert response.error.startswith(UNANSWERED_COMMIT_CONFIRM_NOTICE)
-    assert commit_confirm_state.is_active(IID) is True
+    assert commit_confirm_state.blocking(IID) is not None
     assert "commit_confirm" in emitted and "config_diff" in emitted
 
 

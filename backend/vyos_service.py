@@ -170,6 +170,8 @@ class VyOSService:
         )
         # Cache for full configuration (for read operations)
         self._cached_config: Optional[Dict[str, Any]] = None
+        # The router refused this row's key on its last answer (401/403).
+        self._refused = False
         if device_config.instance_id:
             device_keys.note(device_config.instance_id, device_config.hostname, device_config.port)
 
@@ -188,7 +190,8 @@ class VyOSService:
         """
         if not self.config.instance_id:
             return
-        if status in (401, 403):
+        self._refused = status in (401, 403)
+        if self._refused:
             device_keys.rejected(self.config.instance_id)
             self._cached_config = None
         else:
@@ -370,7 +373,9 @@ class VyOSService:
                 commit_confirm_state.set_active(
                     instance_id, self.config.commit_confirm_minutes, action, unsaved_before)
                 notice = UNANSWERED_COMMIT_CONFIRM_NOTICE
-                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
+                # Stored under the router the post went to: reach its rows
+                # even if this one is not verified yet.
+                event_manager.emit_to_router(instance_id, EVENT_COMMIT_CONFIRM, None)
             self._prefix_error(response, notice)
             event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
             return
@@ -522,7 +527,16 @@ class VyOSService:
         operations = batch.get_operations()
         with self._write_lock():
             self._refuse_during_commit_confirm()
+            self._refused = False
             action, unsaved_before = self._before_arming(instance_id)
+            if self._refused:
+                # The router just refused this key: a commit with it would be
+                # refused too, and a lost reply would block the router for
+                # nothing. Nothing was sent.
+                return ApiResponse(
+                    status=401, request={}, result={},
+                    error="The router refused this instance's API key; nothing was committed.",
+                )
             response = self._post_api(
                 "configure",
                 {"commands": operations, "confirm_time": confirm_time_minutes},

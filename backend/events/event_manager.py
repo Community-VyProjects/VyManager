@@ -115,6 +115,17 @@ class EventManager:
         """
         self._deliver(device_keys.instances_on(device_keys.key_for(instance_id)), event_type, data)
 
+    def emit_to_router(self, instance_id: str, event_type: str, data: Any) -> None:
+        """Push a refetch signal (``data`` None) to this row and every verified
+        row on the router it names, verified or not.
+
+        For state that lives on the named router even before the row is
+        verified (a commit-confirm armed through a lost reply). Carry no data:
+        each row refetches what it may see.
+        """
+        rows = device_keys.instances_on(device_keys.candidate_key(instance_id)) | {instance_id}
+        self._deliver(rows, event_type, data)
+
     def emit_to_instance(self, instance_id: str, event_type: str, data: Any) -> None:
         """Push an event to the subscribers of this one instance row."""
         self._deliver({instance_id}, event_type, data)
