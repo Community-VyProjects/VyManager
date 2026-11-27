@@ -14,6 +14,7 @@ from fastapi import HTTPException, Request
 from pyvyos.core.rest_client import ApiResponse
 
 import commit_confirm_state
+import config_state
 from routers.session import session as session_router
 from vyos_builders.nat import NATBatchBuilder
 from vyos_service import VyOSDeviceConfig, VyOSService
@@ -44,6 +45,8 @@ def _service(version: str) -> VyOSService:
         commit_confirm_minutes=3,
     ))
     service._record_managed_config = lambda instance_id: None
+    # A failed commit re-reads the config; nothing changed on this stub router.
+    service.get_full_config = lambda refresh=False: {}
     return service
 
 
@@ -135,10 +138,17 @@ def test_rejected_commit_confirm_returns_the_vyos_error_not_a_transport_error(mo
         ),
     )
 
-    response = service.execute_batch(_batch("1.5"))
+    config_state.set_saved_config("inst-1451", {})
+    config_state.set_managed_config("inst-1451", {})
+    try:
+        response = service.execute_batch(_batch("1.5"))
+        managed = config_state.get_managed_config("inst-1451")
+    finally:
+        config_state.clear_saved_config("inst-1451")
 
     assert response.status == 400
-    assert "dhcp-server" in response.error
+    assert response.error == "[[service dhcp-server]] failed\nCommit failed\n"
+    assert managed == {}
     assert commit_confirm_state.is_active("inst-1451") is False
 
 
