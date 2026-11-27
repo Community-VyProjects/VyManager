@@ -136,15 +136,7 @@ export function OpenfabricContent() {
     try {
       setNetSaving(true);
       setNetError(null);
-      const newNet = netValue.trim();
-      const oldNet = config?.net;
-
-      if (oldNet && oldNet !== newNet) {
-        await openfabricService.deleteNet(oldNet);
-      }
-      if (newNet) {
-        await openfabricService.setNet(newNet);
-      }
+      await openfabricService.updateNet(config?.net, netValue.trim());
 
       await loadData(true);
       setNetEditing(false);
