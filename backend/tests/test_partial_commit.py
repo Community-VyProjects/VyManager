@@ -177,8 +177,10 @@ def _not_sent_errors():
 
     import socket
 
+    from urllib3.connection import HTTPSConnection
+
     pool = urllib3.HTTPSConnectionPool("lab", 443)
-    conn = urllib3.connection.HTTPSConnection("lab", 443)
+    conn = HTTPSConnection("lab", 443)
     refused = urllib3.exceptions.NewConnectionError(conn, "Failed to establish a new connection: [Errno 111] Connection refused")
     unresolved = urllib3.exceptions.NameResolutionError("lab", conn, socket.gaierror(-5, "No address associated with hostname"))
     return {
