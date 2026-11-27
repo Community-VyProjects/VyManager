@@ -184,7 +184,8 @@ def _passes_http_exception(handler):
 
 def _swallows(block):
     """True when an HTTPException raised in this try's body is replaced."""
-    if any(isinstance(node, (ast.Return, ast.Raise)) for part in block.finalbody for node in ast.walk(part)):
+    leaves = (ast.Return, ast.Raise, ast.Break, ast.Continue)
+    if any(isinstance(node, leaves) for part in block.finalbody for node in ast.walk(part)):
         return True
     for handler in block.handlers:
         caught = _caught(handler)
@@ -203,10 +204,10 @@ def scan_source(source, label="<source>"):
         if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         for block in ast.walk(function):
-            if not isinstance(block, ast.Try):
+            if not isinstance(block, (ast.Try, ast.TryStar)):
                 continue
             body_names = set().union(*(_names(statement) for statement in block.body))
-            if not (body_names & reach) - {function.name}:
+            if not body_names & reach:
                 continue
             where = f"{label}:{function.name}:{block.lineno}"
             inspected.append(where)
@@ -238,6 +239,7 @@ def test_no_router_catches_the_409_around_a_commit():
         "update_login_settings",
         "update_watchdog_settings",
         "configure_interface_batch",
+        "confirm_commit",
     } <= inspected_functions
     assert len(inspected) >= 50
 
@@ -266,6 +268,7 @@ SWALLOWING = [
     "    except Exception as e:\n        if isinstance(e, ValueError):\n            raise HTTPException(400)\n        raise HTTPException(500)",
     "    except Exception as e:\n        if isinstance(e, HTTPException):\n            raise HTTPException(500)\n        raise HTTPException(500)",
     "    except HTTPException:\n        raise\n    finally:\n        return None",
+    "    except* Exception:\n        raise HTTPException(500)",
 ]
 COMMITS = ["service.execute_batch(builder)", "run_in_threadpool(service.config_file_save)", "_local_commit(service)"]
 LOCAL_HELPER = "def _local_commit(service):\n    return service.commit_operations([])\n"
@@ -293,3 +296,37 @@ def test_scan_ignores_a_try_that_does_not_commit():
     source = "def handler(service):\n    try:\n        return service.get_version()\n    except Exception:\n        raise HTTPException(500)\n"
 
     assert scan_source(source) == ([], [])
+
+
+@pytest.mark.parametrize("leave", ["break", "continue"])
+def test_scan_flags_a_finally_that_leaves_a_loop(leave):
+    source = (
+        "def handler(service, builder):\n"
+        "    for _attempt in range(2):\n"
+        "        try:\n"
+        "            service.execute_batch(builder)\n"
+        "        except HTTPException:\n"
+        "            raise\n"
+        "        finally:\n"
+        f"            {leave}\n"
+    )
+
+    inspected, swallowing = scan_source(source)
+
+    assert len(inspected) == 1
+    assert swallowing == inspected
+
+
+def test_scan_inspects_a_handler_named_like_the_commit_it_calls():
+    source = (
+        "def confirm_commit(service):\n"
+        "    try:\n"
+        "        return service.confirm_commit()\n"
+        "    except Exception:\n"
+        "        raise HTTPException(500)\n"
+    )
+
+    inspected, swallowing = scan_source(source)
+
+    assert len(inspected) == 1
+    assert swallowing == inspected
