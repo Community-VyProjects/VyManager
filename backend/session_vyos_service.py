@@ -18,6 +18,25 @@ logger = logging.getLogger(__name__)
 _session_device_registry = VyOSDeviceRegistry()
 
 
+def require_session_instance(request: Request) -> dict:
+    """Return the request's active instance, or raise the no-instance 400.
+
+    Reads request state only, so a route that needs the instance id but no
+    device I/O can call it on the event loop.
+    """
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "No active instance",
+                "message": "You must connect to a VyOS instance first.",
+                "redirect": appliance_mode.no_instance_redirect(),
+            },
+        )
+    return instance
+
+
 def get_session_vyos_service(request: Request) -> VyOSService:
     """
     Get VyOS service for the user's active session.
@@ -25,7 +44,7 @@ def get_session_vyos_service(request: Request) -> VyOSService:
     This function:
     1. Checks if user has an active session (set by SessionMiddleware)
     2. Retrieves instance details from request.state.instance
-    3. Creates or returns cached VyOS service for that instance
+    3. Creates or returns cached VyOS service for that instance, with no device I/O
     4. Returns the service for use in route handlers
 
     Raises:
@@ -36,21 +55,10 @@ def get_session_vyos_service(request: Request) -> VyOSService:
         @router.get("/interfaces")
         async def get_interfaces(request: Request):
             service = get_session_vyos_service(request)
-            config = service.get_full_config()
+            config = await run_in_threadpool(service.get_full_config)
             # ... use config
     """
-    # Check if user has an active instance
-    if not hasattr(request.state, "instance") or not request.state.instance:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "No active instance",
-                "message": "You must connect to a VyOS instance first.",
-                "redirect": appliance_mode.no_instance_redirect(),
-            },
-        )
-
-    instance = request.state.instance
+    instance = require_session_instance(request)
 
     # Validate instance has required fields
     required_fields = ["id", "host", "api_key"]  # api_key is the VyOS API key
@@ -95,20 +103,13 @@ def get_session_vyos_service(request: Request) -> VyOSService:
             instance_id=instance_id,
         )
 
-        # Register the service
+        # Register the service. Config is not pre-fetched here: this lookup
+        # runs on the event loop, and the first get_full_config call (offloaded
+        # by the routers) fills the cache.
         _session_device_registry.register(instance_id, config)
-        service = _session_device_registry.get(instance_id)
+        return _session_device_registry.get(instance_id)
 
-        # Pre-cache the full configuration for performance
-        try:
-            service.get_full_config()
-        except Exception as e:
-            # Log warning but don't fail - config will be fetched on first use
-            logger.warning("Could not pre-cache config for instance %s: %s", instance_id, type(e).__name__)
-
-        return service
-
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to create VyOS service for instance %s", instance.get("id", "unknown"))
         raise HTTPException(
             status_code=500,

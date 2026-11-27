@@ -20,13 +20,12 @@ Rule-based features (firewall, NAT, policies) additionally expose a `/reorder` e
 
 VyOS distinguishes the running config from the saved boot config. VyManager tracks this per instance under `/vyos/config`:
 
-- `GET /vyos/config/snapshot` — the config as of the last save.
-- `GET /vyos/config/diff` — structured diff of running config vs. that snapshot: what is unsaved.
-- `POST /vyos/config/save` — write the running config to `/config/config.boot` and reset the snapshot.
+- `GET /vyos/config/diff` — structured diff of running config vs. the config as of the last save: what is unsaved.
+- `POST /vyos/config/save` — write the running config to `/config/config.boot` and reset the saved baseline.
 - `POST /vyos/config/discard` — revert all unsaved changes by computing and applying the reverse of the diff.
 - `POST /vyos/config/refresh` — drop the backend's cached config and re-read from the router.
 
-The UI polls the diff endpoint to show the unsaved-changes indicator.
+The unsaved-changes banner listens on the `/vyos/events/banners` SSE stream: a `config_diff` event that carries the diff is applied as is, and one without a payload makes the banner fetch the diff endpoint.
 
 ## No pagination
 

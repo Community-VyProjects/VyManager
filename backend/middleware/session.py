@@ -8,14 +8,11 @@ instance available to all route handlers.
 
 import logging
 
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 import asyncpg
 from typing import Optional
 from session_cookie import get_session_cookie, verify_session_cookie
-
-
-logger = logging.getLogger(__name__)
 
 
 logger = logging.getLogger(__name__)
@@ -61,9 +58,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
     # These are background polling endpoints - not real user activity
     POLLING_ENDPOINTS = {
         "/vyos/config/diff",
-        "/vyos/config/snapshot",
         "/session/current",
         "/vyos/power/status",
+        "/vyos/events/banners",  # SSE stream - long-lived connection
     }
 
     def __init__(self, app):
@@ -331,36 +328,3 @@ class SessionMiddleware(BaseHTTPMiddleware):
         # Continue with the request
         response = await call_next(request)
         return response
-
-
-def require_active_instance(request: Request):
-    """
-    Helper function to require an active instance.
-
-    Use this in route handlers that need an active VyOS instance.
-
-    Example:
-        @router.get("/interfaces")
-        async def get_interfaces(request: Request):
-            instance = require_active_instance(request)
-            # Use instance details...
-    """
-    if not hasattr(request.state, "instance") or not request.state.instance:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "No active instance",
-                "message": "You must connect to a VyOS instance first. Use POST /session/connect.",
-            },
-        )
-
-    if not request.state.instance["is_active"]:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "Instance is inactive",
-                "message": f"Instance '{request.state.instance['name']}' is currently inactive.",
-            },
-        )
-
-    return request.state.instance

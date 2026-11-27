@@ -42,6 +42,17 @@ def set_saved_config(instance_id: str, config: Dict[str, Any]) -> None:
         _managed_config_snapshots[instance_id] = deepcopy(snapshot)
 
 
+def clear_saved_config(instance_id: str) -> None:
+    """Drop both snapshots when live config could not be read after a save or discard.
+
+    The next diff then seeds a new baseline from live config instead of
+    diffing against one that no longer matches the router.
+    """
+    with _lock:
+        _saved_config_snapshots.pop(instance_id, None)
+        _managed_config_snapshots.pop(instance_id, None)
+
+
 def set_managed_config(instance_id: str, config: Dict[str, Any]) -> None:
     """Record the live state produced by a successful VyManager operation."""
     with _lock:

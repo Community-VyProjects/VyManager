@@ -1,7 +1,7 @@
 """
 Configuration Management Router
 
-Handles configuration snapshots, diffs, and save operations.
+Handles the unsaved-changes diff, save, discard, and commit-confirm.
 Tracks changes between running config and last saved state.
 """
 
@@ -9,16 +9,16 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-from session_vyos_service import get_session_vyos_service
+from session_vyos_service import get_session_vyos_service, require_session_instance
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import commit_confirm_state
 import logging
-from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
+from events.event_manager import event_manager, EVENT_CONFIG_DIFF
 from config_state import (
-    get_saved_config,
+    clear_saved_config,
+    get_managed_config,
     reconcile_baseline,
-    set_managed_config,
     set_saved_config,
 )
 logger = logging.getLogger(__name__)
@@ -29,13 +29,6 @@ router = APIRouter(prefix="/vyos/config", tags=["config"])
 # ========================================================================
 # Pydantic Models
 # ========================================================================
-
-class ConfigSnapshotResponse(BaseModel):
-    """Response containing a configuration snapshot."""
-    config: Dict[str, Any]
-    timestamp: Optional[str] = None
-    saved: bool = False
-
 
 class ConfigDiffResponse(BaseModel):
     """Response containing configuration differences."""
@@ -142,40 +135,33 @@ def _build_discard_operations(added: dict, removed: dict, modified: dict) -> lis
     return operations
 
 
+async def _reseed_baseline(service, instance_id: str, fallback: Optional[Dict[str, Any]]) -> None:
+    """Make live config the saved baseline after a save or a discard.
+
+    The save or discard already happened on the router, so a failed re-read
+    must not fail the request. Fall back to the config this operation is
+    known to have left on the router (``fallback``). Only with no known state
+    is the baseline dropped; reseeding it later from live config could
+    swallow a VyManager edit committed in between.
+    """
+    try:
+        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
+    except Exception:
+        logger.exception(
+            "Could not re-read config for instance %s after save/discard; using the last known state",
+            instance_id,
+        )
+        if fallback is None:
+            clear_saved_config(instance_id)
+        else:
+            set_saved_config(instance_id, fallback)
+        return
+    set_saved_config(instance_id, current_config)
+
+
 # ========================================================================
 # Endpoints
 # ========================================================================
-
-@router.get("/snapshot", response_model=ConfigSnapshotResponse)
-async def get_config_snapshot(request: Request):
-    """
-    Get the last saved configuration snapshot for the active instance.
-
-    This represents the state of the configuration when it was last saved to disk.
-    Used to compare against the current running config to detect unsaved changes.
-    """
-    await require_read_permission(request, FeatureGroup.CONFIGURATION)
-    try:
-        service = get_session_vyos_service(request)
-        instance_id = request.state.instance['id']
-
-        # If no snapshot exists for this instance, get current config and mark it as saved
-        snapshot = get_saved_config(instance_id)
-        if snapshot is None:
-            snapshot = await run_in_threadpool(service.get_full_config, refresh=True)
-            set_saved_config(instance_id, snapshot)
-
-        return ConfigSnapshotResponse(
-            config=snapshot,
-            saved=True
-        )
-    except HTTPException:
-        raise  # Re-raise HTTP exceptions as-is
-    except Exception as e:
-        print(f"[ConfigRouter] Error in /config/snapshot: {type(e).__name__}: {str(e)}")
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/diff", response_model=ConfigDiffResponse)
 async def get_config_diff(request: Request):
@@ -220,8 +206,7 @@ async def get_config_diff(request: Request):
         )
     except HTTPException:
         raise  # Re-raise HTTP exceptions as-is
-    except Exception as e:
-        print(f"[ConfigRouter] Error in /config/diff: {type(e).__name__}: {str(e)}")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -241,7 +226,7 @@ async def save_config(request: Request):
         instance_id = request.state.instance['id']
 
         # Always the device default path. A client-supplied file is not accepted.
-        response = service.config_file_save()
+        response = await run_in_threadpool(service.config_file_save)
 
         if response.status != 200:
             return SaveConfigResponse(
@@ -250,9 +235,9 @@ async def save_config(request: Request):
                 error=response.error or "Unknown error"
             )
 
-        # Update snapshot to current config after successful save
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-        set_saved_config(instance_id, current_config)
+        # The baseline becomes the config just written to disk. If it cannot
+        # be re-read, the last config VyManager produced is the best record.
+        await _reseed_baseline(service, instance_id, get_managed_config(instance_id))
 
         # Notify SSE subscribers that diff has changed (now empty after save)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
@@ -263,8 +248,7 @@ async def save_config(request: Request):
         )
     except HTTPException:
         raise  # Re-raise HTTP exceptions as-is
-    except Exception as e:
-        print(f"[ConfigRouter] Error in /config/save: {type(e).__name__}: {str(e)}")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -306,8 +290,8 @@ async def discard_config(request: Request):
                 error=response.error or "Unknown error"
             )
 
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-        set_saved_config(instance_id, current_config)
+        # The discard restored the reconciled baseline.
+        await _reseed_baseline(service, instance_id, baseline)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
 
         return SaveConfigResponse(
@@ -316,8 +300,7 @@ async def discard_config(request: Request):
         )
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[ConfigRouter] Error in /config/discard: {type(e).__name__}: {str(e)}")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -334,8 +317,9 @@ async def refresh_config(request: Request):
         service = get_session_vyos_service(request)
         await run_in_threadpool(service.get_full_config, refresh=True)
         return SaveConfigResponse(success=True, message="Configuration cache refreshed")
-    except Exception as e:
-        print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -353,11 +337,6 @@ class CommitConfirmStatusResponse(BaseModel):
     expires_at: Optional[str] = None
 
 
-class CommitConfirmRequest(BaseModel):
-    confirm_time_minutes: int = 5
-    action: str = "reload"
-
-
 @router.get("/commit-confirm/status", response_model=CommitConfirmStatusResponse)
 async def get_commit_confirm_status(request: Request):
     """
@@ -368,7 +347,8 @@ async def get_commit_confirm_status(request: Request):
     """
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        instance_id = request.state.instance["id"]
+        # Same no-instance 400 as the sibling handlers, without building a service.
+        instance_id = require_session_instance(request)["id"]
         session = commit_confirm_state.get_active(instance_id)
         if session is None:
             return CommitConfirmStatusResponse(active=False)
@@ -385,8 +365,8 @@ async def confirm_commit(request: Request):
     """
     Confirm the active commit-confirm, stopping the rollback timer.
 
-    This makes the previously applied changes permanent and saves the
-    configuration to disk.
+    This makes the previously applied changes permanent. It does not save
+    them to disk; the unsaved-changes banner still offers Save.
     """
     await require_write_permission(request, FeatureGroup.CONFIGURATION)
     try:
@@ -402,16 +382,9 @@ async def confirm_commit(request: Request):
                 error=response.error or "Unknown error",
             )
 
-        # Refresh the config cache so the unsaved-changes banner reflects
-        # the new running config, prompting the user to save when ready.
-        # The confirmed commit is a VyManager change, so record it as managed.
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-        set_managed_config(instance_id, current_config)
-
-        # Notify SSE subscribers
-        event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
-        event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
-
+        # A confirm changes no config: the commit-confirm commit already
+        # recorded its managed snapshot, and confirm_commit notified the
+        # banner subscribers.
         return SaveConfigResponse(
             success=True,
             message="Commit confirmed — changes are live. Save configuration when ready.",
