@@ -17,7 +17,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from session_vyos_service import get_session_vyos_service, _session_device_registry
+from session_vyos_service import cached_session_service, get_session_vyos_service, _session_device_registry
 from fastapi_permissions import has_permission, require_read_permission
 from org_scope import org_id_from_state, request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
@@ -265,11 +265,8 @@ async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
 
 
 def _get_commit_confirm_state(instance_id: str) -> Dict[str, Any]:
-    """Get commit-confirm state from the in-memory tracker."""
-    session = commit_confirm_state.get_active(instance_id)
-    if session is None:
-        return {"active": False}
-    return session.to_dict()
+    """Get the row's commit-confirm state (commit_confirm_state.status), no device I/O."""
+    return commit_confirm_state.status(instance_id, cached_session_service(instance_id))
 
 
 async def _get_power_status_state(request: Request) -> Dict[str, Any]:
@@ -304,34 +301,45 @@ async def _poll_banner_state_for_device(
     Poll the banner state of one router and emit events to each of its
     subscribed instance rows only if that row's state has changed.
 
-    The config diff and the commit-confirm are router state (see
-    ``device_keys``), so they are read once for all rows on the router.
+    ``instance_ids`` are the subscribed rows verified on one router (see
+    ``device_keys``; an unverified row is polled alone). The config diff is
+    router state, so it is read once for all of them: each has shown its own
+    credentials reach this router, so none sees more than it could read.
     """
-    # --- Config diff ---
-    try:
-        service = None
+    # --- Config diff: read once, through the first row whose read works ---
+    services = []
+    for iid in instance_ids:
+        try:
+            services.append((iid, _session_device_registry.get(iid)))
+        except KeyError:
+            continue
+    config_diff_data = None
+    fresh = None
+    for iid, service in services:
+        try:
+            config_diff_data = await _config_diff_for(iid, service)
+            fresh = getattr(service, "_cached_config", None)
+            break
+        except Exception:
+            logger.debug("Poller: failed to get config diff through instance %s", iid)
+    if config_diff_data is not None:
+        if fresh is not None:
+            # The rows share the router, so the others' cached reads stay as
+            # fresh as the one that was polled.
+            for _iid, service in services:
+                service._cached_config = fresh
         for iid in instance_ids:
-            try:
-                service = _session_device_registry.get(iid)
-                break
-            except KeyError:
-                continue
-        if service is not None:
-            config_diff_data = await _config_diff_for(instance_ids[0], service)
-            for iid in instance_ids:
-                if event_manager.update_last_state(iid, EVENT_CONFIG_DIFF, config_diff_data):
-                    event_manager.emit_to_instance(iid, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
-    except Exception:
-        logger.debug("Poller: failed to get config diff for instances %s", instance_ids)
+            if event_manager.update_last_state(iid, EVENT_CONFIG_DIFF, config_diff_data):
+                event_manager.emit_to_instance(iid, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
 
-    # --- Commit confirm ---
-    try:
-        cc_data = _get_commit_confirm_state(instance_ids[0])
-        for iid in instance_ids:
+    # --- Commit confirm (per row: whether the row arms one is a row setting) ---
+    for iid in instance_ids:
+        try:
+            cc_data = _get_commit_confirm_state(iid)
             if event_manager.update_last_state(iid, EVENT_COMMIT_CONFIRM, cc_data):
                 event_manager.emit_to_instance(iid, EVENT_COMMIT_CONFIRM, {"commit_confirm": cc_data})
-    except Exception:
-        logger.debug("Poller: failed to get commit-confirm for instances %s", instance_ids)
+        except Exception:
+            logger.debug("Poller: failed to get commit-confirm for instance %s", iid)
 
     # --- Power status (scheduled per instance row) ---
     db_pool = app_state.db_pool

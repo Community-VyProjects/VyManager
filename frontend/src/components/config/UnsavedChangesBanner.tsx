@@ -10,7 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { configService, type ConfigDiff, type CommitConfirmStatus } from "@/lib/api/config";
 import { ConfigDiffModal } from "./ConfigDiffModal";
-import { commitConfirmActionKey, commitConfirmRebootWarns, commitConfirmStarter } from "./commit-confirm-banner";
+import {
+  commitConfirmActionKey,
+  commitConfirmRebootWarns,
+  commitConfirmStarter,
+  commitConfirmWarnsBeforeArming,
+} from "./commit-confirm-banner";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
 import { ApiError } from "@/lib/types/api";
@@ -150,7 +155,8 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   if (cc?.active) {
     const isUrgent = secondsRemaining <= 60;
     const actionKey = commitConfirmActionKey(cc.action);
-    const actionLabel = actionKey ? t(`banner.${actionKey}`) : (cc.action ?? "");
+    // An unknown action is a non-null string the router sent; show it as is.
+    const actionLabel = actionKey ? t(`banner.${actionKey}`) : String(cc.action);
     const starter = commitConfirmStarter(cc);
     return (
       <>
@@ -187,7 +193,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                   )}
                   {starter?.key === "startedByOther" && <> · {t("banner.startedByOther")}</>}
                 </p>
-                {commitConfirmRebootWarns(cc.action) && (
+                {commitConfirmRebootWarns(cc.action) && cc.unsaved_before && (
                   <p className="text-xs font-medium text-white">{t("banner.rebootWarning")}</p>
                 )}
               </div>
@@ -256,6 +262,9 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                     ? t("banner.withDetails", { summary: changeSummary, details: changeDetails })
                     : changeSummary}
                 </p>
+                {commitConfirmWarnsBeforeArming(cc) && (
+                  <p className="text-xs font-medium text-white">{t("banner.rebootRiskBeforeArming")}</p>
+                )}
               </div>
             </div>
 

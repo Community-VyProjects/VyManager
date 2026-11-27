@@ -24,14 +24,20 @@ export interface SaveConfigResponse {
 
 export interface CommitConfirmStatus {
   active: boolean;
-  instance_id?: string | null;
+  /** This instance arms a commit-confirm on every save (and the router supports it). */
+  enabled?: boolean;
   confirm_time_minutes?: number | null;
+  /** The router's commit-confirm action; null when not known yet. */
   action?: string | null;
+  started_at?: string | null;
   seconds_remaining?: number | null;
   expires_at?: string | null;
-  started_by_id?: string | null;
   /** Left out when another organization's instance row shares the router. */
   started_by_name?: string | null;
+  /** A starter was recorded (the name may still be withheld). */
+  started_by_known?: boolean;
+  /** Unsaved changes were already live when the timer was armed. */
+  unsaved_before?: boolean;
 }
 
 // ============================================================================

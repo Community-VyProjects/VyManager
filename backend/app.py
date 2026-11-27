@@ -282,7 +282,8 @@ async def lifespan(app: FastAPI):
     # Shutdown
     print("\n🛑 Shutting down VyManager API...")
 
-    commit_confirm_state.detach_store()
+    # Finish commit-confirm writes already made before the pool closes.
+    await commit_confirm_state.flush_and_detach_store()
 
     # Stop the revocation bus listener
     try:

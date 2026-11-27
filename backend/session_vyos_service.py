@@ -5,6 +5,8 @@ Provides VyOS service instances based on the user's active session.
 Replaces the single-device pattern with dynamic multi-instance support.
 """
 
+from typing import Optional
+
 from fastapi import Request, HTTPException
 from vyos_service import VyOSService, VyOSDeviceConfig, VyOSDeviceRegistry
 import appliance_mode
@@ -27,8 +29,9 @@ def require_session_instance(request: Request) -> dict:
     device I/O can call it on the event loop.
 
     Every route that reaches the router comes through here, so it also
-    records which router the instance points at (``device_keys``) and who
-    is asking (``commit_confirm_state.current_actor``, read when a
+    notes which router the instance names and its organization
+    (``device_keys``; the row shares that router's state once its own
+    credentials have worked there) and who is asking (``commit_confirm_state.current_actor``, read when a
     commit-confirm is started from the threadpool).
     """
     instance = getattr(request.state, "instance", None)
@@ -44,7 +47,7 @@ def require_session_instance(request: Request) -> dict:
     org = getattr(request.state, "org", None)
     org_id = org.get("id") if isinstance(org, dict) else None
     if instance.get("host"):
-        device_keys.register(instance["id"], instance["host"], instance.get("port"), org_id)
+        device_keys.note(instance["id"], instance["host"], instance.get("port"), org_id)
     user = getattr(request.state, "user", None)
     if isinstance(user, dict):
         commit_confirm_state.current_actor.set(commit_confirm_state.Actor(
@@ -133,13 +136,24 @@ def get_session_vyos_service(request: Request) -> VyOSService:
         )
 
 
+def cached_session_service(instance_id: str) -> Optional[VyOSService]:
+    """The instance's service if one was built already; never builds one."""
+    try:
+        return _session_device_registry.get(instance_id)
+    except KeyError:
+        return None
+
+
 def clear_session_cache(instance_id: str) -> None:
     """
     Clear cached VyOS service for a specific instance.
 
-    Useful when instance credentials change or to force reconnection.
+    Useful when instance credentials change or to force reconnection. The
+    row also leaves its router's shared state until its new settings are
+    verified against the router (device_keys).
     """
     _session_device_registry.unregister(instance_id)
+    device_keys.forget(instance_id)
 
 
 def clear_all_session_caches() -> None:

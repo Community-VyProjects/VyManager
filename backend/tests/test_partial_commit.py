@@ -52,13 +52,29 @@ BATCH: Any = _Batch([
 @pytest.fixture(autouse=True)
 def _baseline():
     # Every service here points at host "lab"; state is keyed by the router.
-    device_keys.register(IID, "lab", 443)
+    device_keys.note(IID, "lab", 443)
+    device_keys.verified(IID)
     config_state.set_saved_config(IID, BEFORE)
     commit_confirm_state.clear(IID)
     yield
     config_state.clear_saved_config(IID)
     commit_confirm_state.clear(IID)
     device_keys.forget(IID)
+
+
+def _reads_before_arming(service):
+    """The commit-confirm path reads the router once before arming (its action);
+    any later read fails the test."""
+    reads = []
+
+    def read(refresh=False):
+        if reads:
+            pytest.fail("nothing was sent, so nothing to re-read")
+        reads.append("before arming")
+        return BEFORE
+
+    service.get_full_config = read
+    return reads
 
 
 def _service(live, *, commit_status=400, commit_error="[[service dhcp-server]] failed\nCommit failed\n", read_fails=False):
@@ -343,10 +359,11 @@ def test_a_commit_confirm_that_was_never_sent_arms_nothing(monkeypatch, kind):
     monkeypatch.setattr("vyos_service._requests.post", post)
     service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID,
                                            commit_confirm_enabled=True))
-    service._cached_config = {}  # the commit-confirm action is read from the cached config
-    service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
+    reads = _reads_before_arming(service)
 
     response = service.execute_batch(BATCH)
+
+    assert reads == ["before arming"]  # no re-read after a request that was never sent
 
     assert response.status == 503
     assert commit_confirm_state.is_active(IID) is False
@@ -439,6 +456,8 @@ def test_commit_confirm_failure_records_the_landed_part(monkeypatch):
     live = _partly_live()
     service = _service(live)
     service.config.commit_confirm_enabled = True
+    reads = iter([BEFORE, live])  # read before arming, then the re-read after the failure
+    service.get_full_config = lambda refresh=False: next(reads)
     service._post_api = lambda endpoint, data: ApiResponse(
         status=400, request={}, result={}, error="[ service dhcp-server ]\nCommit failed",
     )
@@ -472,7 +491,7 @@ def test_commit_confirm_request_that_never_reached_the_router_adds_no_notice(mon
     service._post_api = lambda endpoint, data: ApiResponse(
         status=503, request={}, result={}, error="Could not reach the VyOS API",
     )
-    service._cached_config = {}  # the commit-confirm action is read from the cached config
-    service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
+    reads = _reads_before_arming(service)
 
     assert service.execute_batch(BATCH).error == "Could not reach the VyOS API"
+    assert reads == ["before arming"]

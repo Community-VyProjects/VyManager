@@ -264,7 +264,7 @@ def test_poller_wraps_config_events_and_signals_power(poller, db, device):
     sent = poller.call()
     assert set(sent) == {"config_diff", "commit_confirm", "power_status"}
     assert sent["config_diff"]["config_diff"]["has_changes"] is False
-    assert sent["commit_confirm"] == {"commit_confirm": {"active": False}}
+    assert sent["commit_confirm"] == {"commit_confirm": {"active": False, "enabled": False, "action": None}}
     # power status names and ids never go to subscribers without POWER read
     assert sent["power_status"] is None
     assert poller.states["power_status"]["scheduled"] is True

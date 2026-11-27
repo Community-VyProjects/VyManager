@@ -21,7 +21,6 @@
     "countdown": "Auto-{action} in <countdown>{time}</countdown> · {minutes} min window",
     "actionReload": "reload",
     "actionReboot": "reboot",
-    "actionRollback": "rollback",
     "confirming": "Confirming...",
     "confirm": "Confirm Changes",
     "confirmFailed": "Failed to confirm commit",
@@ -51,6 +50,7 @@
     "discarding": "Discarding...",
     "startedBy": "started by {name}",
     "startedByOther": "started by another VyManager user",
-    "rebootWarning": "If it is not confirmed, the router reboots into its saved config and every unsaved change is lost, not only this one."
+    "rebootWarning": "If it is not confirmed, the router reboots into its saved config: the changes that were unsaved before it are lost too, not only this one.",
+    "rebootRiskBeforeArming": "Commit-confirm is on and this router reboots into its saved config if a change is not confirmed: save these changes first, or an unconfirmed change loses them too."
   }
 }

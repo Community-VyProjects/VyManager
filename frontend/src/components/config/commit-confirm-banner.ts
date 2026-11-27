@@ -3,7 +3,7 @@ import type { CommitConfirmStatus } from "@/lib/api/config";
 /** What VyOS does when the timer runs out if the router sets no action. */
 export const DEFAULT_COMMIT_CONFIRM_ACTION = "reboot";
 
-export type CommitConfirmActionKey = "actionReboot" | "actionReload" | "actionRollback";
+export type CommitConfirmActionKey = "actionReboot" | "actionReload";
 
 /** The banner message key for the router's commit-confirm action, or null for an unknown one. */
 export function commitConfirmActionKey(action?: string | null): CommitConfirmActionKey | null {
@@ -12,16 +12,22 @@ export function commitConfirmActionKey(action?: string | null): CommitConfirmAct
       return "actionReboot";
     case "reload":
       return "actionReload";
-    case "rollback":
-      return "actionRollback";
     default:
       return null;
   }
 }
 
-/** A reboot boots the saved config, so unsaved changes are lost with the pending one. */
+/** A reboot revert boots the saved config, so unsaved changes are lost with the pending one. */
 export function commitConfirmRebootWarns(action?: string | null): boolean {
   return (action ?? DEFAULT_COMMIT_CONFIRM_ACTION) === "reboot";
+}
+
+/**
+ * Warn in the unsaved-changes banner before the next save arms a timer:
+ * this instance arms one on every save and the router reboots on expiry.
+ */
+export function commitConfirmWarnsBeforeArming(cc: CommitConfirmStatus | null): boolean {
+  return !!cc && !cc.active && !!cc.enabled && commitConfirmRebootWarns(cc.action);
 }
 
 export type CommitConfirmStarter =
@@ -35,6 +41,6 @@ export type CommitConfirmStarter =
  */
 export function commitConfirmStarter(cc: CommitConfirmStatus): CommitConfirmStarter {
   if (cc.started_by_name) return { key: "startedBy", name: cc.started_by_name };
-  if (cc.started_by_id) return { key: "startedByOther" };
+  if (cc.started_by_known) return { key: "startedByOther" };
   return null;
 }

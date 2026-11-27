@@ -331,10 +331,11 @@ model SshHostKey {
 // CommitConfirmSession - The pending commit-confirm on one router, so a
 // backend restart keeps the countdown and the commit block (the router has no
 // call that reports a pending timer). Keyed by the normalized "host:port", so
-// every instance row on that router shares it. Written by the backend only.
+// every instance row on that router shares it; deleting the row it was started
+// from keeps it. Written by the backend only.
 model CommitConfirmSession {
   deviceKey      String   @id
-  instanceId     String // the instance row it was started from
+  instanceId     String? // the instance row it was started from
   startedAt      DateTime
   expiresAt      DateTime
   confirmMinutes Int
@@ -342,8 +343,9 @@ model CommitConfirmSession {
   startedById    String?
   startedByName  String?
   startedByOrgId String?
+  unsavedBefore  Boolean  @default(false) // unsaved changes existed when it was armed
 
-  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  instance Instance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
 
   @@map("commit_confirm_sessions")
 }

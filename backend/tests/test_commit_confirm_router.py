@@ -1,15 +1,17 @@
 """Commit-confirm state and config snapshots belong to the router (#1701, #1702).
 
 Lab (rolling): a commit during a pending commit-confirm is archived and makes
-the pending change permanent, and the router's commit-confirm action defaults
-to ``reboot`` (boots the saved config). Before this change the commit-confirm
-lock, the snapshots and the banner channel were per instance row, so a second
-row on the same router (another site or organization) could commit during the
-window; the state lived only in memory, so a backend restart lost the
-countdown; and the banner always said "reload".
+the pending change permanent; the router's commit-confirm action defaults to
+``reboot`` (boots the saved config), and a boot-config save during the window
+makes the pending change survive that revert. Before this change the
+commit-confirm lock, the snapshots and the banner channel were per instance
+row, so a second row on the same router (another site or organization) could
+commit during the window; the state lived only in memory, so a backend
+restart lost the countdown; and the banner always said "reload".
 """
 
 import asyncio
+import contextvars
 import os
 import threading
 import time
@@ -18,6 +20,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
+import requests
 from fastapi import HTTPException
 from pyvyos.core.rest_client import ApiResponse
 
@@ -25,7 +28,8 @@ import commit_confirm_state
 import config_state
 import device_keys
 from events.event_manager import EventManager
-from session_vyos_service import require_session_instance
+from routers.config.config import CommitConfirmStatusResponse, _discard_unsaved, _save_boot_config
+from session_vyos_service import clear_session_cache, require_session_instance
 from vyos_service import VyOSDeviceConfig, VyOSService
 
 requires_db = pytest.mark.skipif(
@@ -35,6 +39,7 @@ requires_db = pytest.mark.skipif(
 
 ROW_A, ROW_B, ROW_OTHER = "row-a", "row-b", "row-other"
 OPS = [{"op": "set", "path": ["interfaces", "dummy", "dum1", "description", "x"]}]
+RELOAD = {"system": {"config-management": {"commit-confirm": {"action": "reload"}}}}
 
 
 class _Batch:
@@ -54,13 +59,27 @@ class _Reply:
         return self._body
 
 
-def _service(instance_id, host="router.lab", *, confirm=False, config=None):
+def _ok() -> ApiResponse:
+    return ApiResponse(status=200, request={}, result={}, error="")
+
+
+def _service(instance_id, host="router.lab", *, confirm=False, config=None, verified=True):
+    """A service whose router config reads return ``config`` ({} by default)."""
     service = VyOSService(VyOSDeviceConfig(
         hostname=host, apikey="k", version="1.5", instance_id=instance_id,
         commit_confirm_enabled=confirm, commit_confirm_minutes=3,
     ))
-    service._cached_config = config if config is not None else {}
-    service.get_full_config = lambda refresh=False: cast(dict, service._cached_config)
+    router = {"config": config if config is not None else {}}
+
+    def read(refresh=False):
+        service._cached_config = router["config"]
+        service._router_answered(200)
+        return router["config"]
+
+    service.get_full_config = read
+    cast(Any, service).router = router
+    if verified:
+        device_keys.verified(instance_id)
     return service
 
 
@@ -70,13 +89,9 @@ def _active(instance_id) -> commit_confirm_state.CommitConfirmSession:
     return session
 
 
-def _ok() -> ApiResponse:
-    return ApiResponse(status=200, request={}, result={}, error="")
-
-
 @pytest.fixture
 def router(monkeypatch):
-    """Every POST/configure to the fake router, and what it answers."""
+    """Every POST/configure to the fake router; it accepts them."""
     calls = []
 
     def post(url, data, verify, timeout):
@@ -88,8 +103,39 @@ def router(monkeypatch):
     return calls
 
 
+def _request(instance_id, host, org_id, user=None) -> Any:
+    return SimpleNamespace(state=SimpleNamespace(
+        instance={"id": instance_id, "host": host, "port": 443, "api_key": "k"},
+        org={"id": org_id, "name": org_id},
+        user=user,
+    ))
+
+
+def _in_request(request, work):
+    """What a route does: resolve the instance, then run ``work`` on a worker
+    with the request's context (as run_in_threadpool copies it)."""
+    result = {}
+
+    def handler():
+        require_session_instance(request)
+        ctx = contextvars.copy_context()
+        thread = threading.Thread(target=lambda: ctx.run(lambda: result.update(value=work())))
+        thread.start()
+        thread.join(5)
+
+    contextvars.copy_context().run(handler)
+    return result.get("value")
+
+
+def _alice_arms(org="org-1", config=None):
+    return _in_request(
+        _request(ROW_A, "router.lab", org, {"id": "u1", "name": "Alice"}),
+        lambda: _service(ROW_A, confirm=True, config=config).execute_batch(_Batch()).status,
+    )
+
+
 # ---------------------------------------------------------------------------
-# The router key
+# The router key and who shares it
 # ---------------------------------------------------------------------------
 
 
@@ -104,9 +150,53 @@ def test_the_router_key_is_a_normalized_host_and_port(host, port, key):
     assert device_keys.device_key(host, port) == key
 
 
-def test_an_unregistered_instance_keys_by_its_id():
-    assert device_keys.key_for("never-seen") == "never-seen"
-    assert device_keys.instances_on("never-seen") == {"never-seen"}
+def test_a_row_shares_its_router_only_after_the_router_answered_its_credentials():
+    device_keys.note(ROW_A, "router.lab", 443)
+    assert device_keys.key_for(ROW_A) == ROW_A
+    assert device_keys.candidate_key(ROW_A) == "router.lab:443"
+
+    device_keys.verified(ROW_A)
+
+    assert device_keys.key_for(ROW_A) == "router.lab:443"
+
+
+def test_a_rejected_api_key_does_not_verify_the_row(monkeypatch):
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="wrong", version="1.5", instance_id=ROW_B))
+    cast(Any, service.device).configure_multiple_op = lambda op_path=None: ApiResponse(
+        status=401, request={}, result={}, error="HTTP Error 401: Valid API key is required",
+    )
+    service.get_full_config = lambda refresh=False: pytest.fail("a 401 needs no re-read")
+
+    assert service.execute_batch(_Batch()).status == 401
+    assert device_keys.key_for(ROW_B) == ROW_B
+
+
+def test_a_changed_host_leaves_the_old_routers_state_until_verified_again():
+    device_keys.note(ROW_A, "router.lab", 443)
+    device_keys.verified(ROW_A)
+
+    device_keys.note(ROW_A, "other.lab", 443)
+
+    assert device_keys.key_for(ROW_A) == ROW_A
+    assert device_keys.candidate_key(ROW_A) == "other.lab:443"
+
+
+def test_updating_or_deleting_an_instance_forgets_its_row():
+    device_keys.note(ROW_A, "router.lab", 443, "org-2")
+    device_keys.verified(ROW_A)
+
+    clear_session_cache(ROW_A)
+
+    assert device_keys.key_for(ROW_A) == ROW_A
+    assert device_keys.orgs_on("router.lab:443") == set()
+
+
+def test_require_session_instance_notes_the_router_and_the_org():
+    require_session_instance(_request(ROW_A, "Router.Lab", "org-1"))
+
+    assert device_keys.candidate_key(ROW_A) == "router.lab:443"
+    assert device_keys.key_for(ROW_A) == ROW_A  # not verified by a request alone
 
 
 # ---------------------------------------------------------------------------
@@ -115,29 +205,43 @@ def test_an_unregistered_instance_keys_by_its_id():
 
 
 def test_a_second_row_on_the_router_cannot_commit_during_the_window(router):
-    a = _service(ROW_A, confirm=True)
-    b = _service(ROW_B, host="ROUTER.lab")  # same router, plain commits
-    assert a.execute_batch(_Batch()).status == 200
+    assert _alice_arms() == 200
     assert len(router) == 1
+    b = _service(ROW_B, host="ROUTER.lab")  # same router, plain commits
     cast(Any, b.device).configure_multiple_op = lambda op_path=None: pytest.fail("nothing may reach the router")
+    cast(Any, b.device).config_file_save = lambda file=None: pytest.fail("nothing may reach the router")
+    cast(Any, b.device).config_file_load = lambda file=None: pytest.fail("nothing may reach the router")
 
     for attempt in (
         lambda: b.execute_batch(_Batch()),
         lambda: b.commit_operations(OPS),  # discard
         lambda: b.config_file_save(),  # save to the boot config
+        lambda: b.config_file_save(file="/config/config.boot"),
         lambda: b.load_config_file("/config/archive/x"),  # archive restore
     ):
         with pytest.raises(HTTPException) as caught:
             attempt()
         assert caught.value.status_code == 409
-        assert "pending on this router" in caught.value.detail
+        assert caught.value.detail.startswith("A commit-confirm started by Alice is pending on this router.")
+        assert "Confirm it or wait 1" in caught.value.detail
 
-    assert commit_confirm_state.get_active(ROW_B) is commit_confirm_state.get_active(ROW_A)
+
+def test_an_unverified_row_is_blocked_but_learns_nothing_more(router):
+    _alice_arms()
+    stranger = _service(ROW_OTHER, verified=False)  # names the router, never answered by it
+    cast(Any, stranger.device).configure_multiple_op = lambda op_path=None: pytest.fail("nothing may reach the router")
+
+    with pytest.raises(HTTPException) as caught:
+        stranger.execute_batch(_Batch())
+
+    assert caught.value.status_code == 409
+    assert "Alice" not in caught.value.detail
+    assert commit_confirm_state.status(ROW_OTHER)["active"] is False
 
 
 def test_a_save_to_another_file_is_not_blocked(router):
-    a = _service(ROW_A, confirm=True)
-    a.execute_batch(_Batch())
+    _alice_arms()
+    a = _service(ROW_A)
     saved = []
     cast(Any, a.device).config_file_save = lambda file=None: saved.append(file) or _ok()
 
@@ -146,7 +250,7 @@ def test_a_save_to_another_file_is_not_blocked(router):
 
 
 def test_another_router_is_not_blocked(router):
-    _service(ROW_A, confirm=True).execute_batch(_Batch())
+    _alice_arms()
     other = _service(ROW_OTHER, host="other.lab")
     cast(Any, other.device).configure_multiple_op = lambda op_path=None: _ok()
 
@@ -154,7 +258,7 @@ def test_another_router_is_not_blocked(router):
 
 
 def test_a_second_commit_confirm_from_another_row_gets_a_409_and_sends_nothing(router):
-    _service(ROW_A, confirm=True).execute_batch(_Batch())
+    _alice_arms()
 
     with pytest.raises(HTTPException) as caught:
         _service(ROW_B, confirm=True).execute_batch(_Batch())
@@ -163,11 +267,15 @@ def test_a_second_commit_confirm_from_another_row_gets_a_409_and_sends_nothing(r
     assert len(router) == 1
 
 
-def test_any_row_on_the_router_can_confirm(router):
-    _service(ROW_A, confirm=True).execute_batch(_Batch())
+def test_any_sharing_row_can_confirm_and_confirming_twice_is_a_409(router):
+    _alice_arms()
+    b = _service(ROW_B)
 
-    assert _service(ROW_B).confirm_commit(ROW_B).status == 200
+    assert b.confirm_commit(ROW_B).status == 200
     assert commit_confirm_state.is_active(ROW_A) is False
+    with pytest.raises(HTTPException) as caught:
+        b.confirm_commit(ROW_B)
+    assert caught.value.detail == "No commit-confirm is pending on this router."
 
 
 def test_two_rows_committing_at_once_arm_exactly_one_timer(monkeypatch):
@@ -203,14 +311,57 @@ def test_two_rows_committing_at_once_arm_exactly_one_timer(monkeypatch):
     assert len(posts) == 1
 
 
+def test_save_and_its_reseed_are_one_step_on_the_router(router):
+    """Another row's commit cannot land between a save and its baseline re-read."""
+    a, b = _service(ROW_A), _service(ROW_B)
+    order = []
+    cast(Any, a.device).config_file_save = lambda file=None: order.append("save") or _ok()
+    reread = threading.Event()
+
+    def slow_read(refresh=False):
+        order.append("reread")
+        reread.set()
+        time.sleep(0.3)
+        return {}
+
+    a.get_full_config = slow_read
+    cast(Any, b.device).configure_multiple_op = lambda op_path=None: order.append("commit") or _ok()
+
+    saver = threading.Thread(target=_save_boot_config, args=(a, ROW_A))
+    saver.start()
+    reread.wait(2)
+    b.commit_operations(OPS)
+    saver.join(5)
+
+    assert order == ["save", "reread", "commit"]
+
+
+def test_discard_runs_under_the_routers_write_lock(router):
+    a = _service(ROW_A, config={"system": {"host-name": "edited"}})
+    config_state.set_saved_config(ROW_A, {"system": {"host-name": "lab"}})
+    config_state.set_managed_config(ROW_A, {"system": {"host-name": "edited"}})
+    held = []
+    lock = device_keys.write_lock(ROW_A)
+
+    def commit(op_path=None):
+        held.append(cast(Any, lock)._is_owned())
+        return _ok()
+
+    cast(Any, a.device).configure_multiple_op = commit
+    response = _discard_unsaved(a, ROW_A)
+
+    assert response is not None and response.status == 200
+    assert held == [True]
+
+
 # ---------------------------------------------------------------------------
-# The router's action and who started it
+# The router's action, read fresh before arming, and the unsaved warning
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(("config", "action"), [
     ({}, "reboot"),
-    ({"system": {"config-management": {"commit-confirm": {"action": "reload"}}}}, "reload"),
+    (RELOAD, "reload"),
     ({"system": {"config-management": {}}}, "reboot"),
 ])
 def test_the_session_carries_the_routers_action(router, config, action):
@@ -219,90 +370,111 @@ def test_the_session_carries_the_routers_action(router, config, action):
     assert _active(ROW_A).action == action
 
 
-def test_an_unreadable_router_config_assumes_reboot(router):
-    service = _service(ROW_A, confirm=True)
-    service._cached_config = None
-    def unreadable(refresh=False):
-        raise ConnectionError("down")
-
-    service.get_full_config = unreadable
+def test_the_action_is_read_fresh_not_from_a_stale_cache(router):
+    service = _service(ROW_A, confirm=True, config={})  # the router: no action, so reboot
+    service._cached_config = RELOAD  # an old read said reload
 
     service.execute_batch(_Batch())
 
     assert _active(ROW_A).action == "reboot"
 
 
-def _request(instance_id, host, org_id, user=None) -> Any:
-    return SimpleNamespace(state=SimpleNamespace(
-        instance={"id": instance_id, "host": host, "port": 443, "api_key": "k"},
-        org={"id": org_id, "name": org_id},
-        user=user,
-    ))
+def test_an_unreadable_router_assumes_reboot_and_unsaved_changes(router):
+    service = _service(ROW_A, confirm=True)
+
+    def unreadable(refresh=False):
+        raise ConnectionError("down")
+
+    service.get_full_config = unreadable
+    service.execute_batch(_Batch())
+
+    session = _active(ROW_A)
+    assert (session.action, session.unsaved_before) == ("reboot", True)
 
 
-def test_the_starter_is_named_to_rows_of_the_same_organization(router):
-    ctx = _run_in_request(_request(ROW_A, "router.lab", "org-1", {"id": "u1", "name": "Alice"}), ROW_A)
-    require_session_instance(_request(ROW_B, "router.lab", "org-1"))
+def test_the_session_says_whether_unsaved_changes_were_already_live(router):
+    clean = _service(ROW_A, confirm=True, config={"system": {"host-name": "lab"}})
+    config_state.set_saved_config(ROW_A, {"system": {"host-name": "lab"}})
+    clean.execute_batch(_Batch())
+    assert _active(ROW_A).unsaved_before is False
+    commit_confirm_state.clear(ROW_A)
 
-    session = _active(ROW_B)
-    assert ctx["started"] is True
-    assert (session.started_by_id, session.to_dict()["started_by_name"]) == ("u1", "Alice")
-
-
-def test_the_starter_is_anonymous_when_another_organization_shares_the_router(router):
-    _run_in_request(_request(ROW_A, "router.lab", "org-1", {"id": "u1", "name": "Alice"}), ROW_A)
-    require_session_instance(_request(ROW_B, "router.lab", "org-2"))
-
-    data = _active(ROW_B).to_dict()
-    assert data["started_by_id"] == "u1"
-    assert data["started_by_name"] is None
-    with pytest.raises(HTTPException) as caught:
-        _service(ROW_B).execute_batch(_Batch())
-    assert "Alice" not in caught.value.detail
+    cast(Any, clean).router["config"] = {"system": {"host-name": "edited-not-saved"}}
+    config_state.set_managed_config(ROW_A, {"system": {"host-name": "edited-not-saved"}})
+    clean.execute_batch(_Batch())
+    assert _active(ROW_A).unsaved_before is True
 
 
-def _run_in_request(request, instance_id):
-    """What a route does: resolve the instance, then commit from the threadpool."""
-    import contextvars
+def test_with_nothing_pending_the_status_says_what_the_next_save_arms():
+    service = _service(ROW_A, confirm=True)
+    service._cached_config = RELOAD
+    plain = _service(ROW_B)
 
-    result = {}
-
-    def handler():
-        require_session_instance(request)
-        ctx = contextvars.copy_context()  # run_in_threadpool copies the context
-        thread = threading.Thread(target=lambda: ctx.run(
-            lambda: result.update(started=_service(instance_id, confirm=True).execute_batch(_Batch()).status == 200),
-        ))
-        thread.start()
-        thread.join(5)
-
-    contextvars.copy_context().run(handler)
-    return result
+    assert commit_confirm_state.status(ROW_A, service) == {"active": False, "enabled": True, "action": "reload"}
+    assert commit_confirm_state.status(ROW_B, plain) == {"active": False, "enabled": False, "action": None}
+    service._cached_config = None
+    assert commit_confirm_state.status(ROW_A, service)["action"] is None
+    assert commit_confirm_state.status(ROW_A, None) == {"active": False, "enabled": False, "action": None}
 
 
-def test_a_row_with_no_known_organization_does_not_hide_the_starter(router):
-    """A service or a startup load registers a row before its org is known."""
-    _run_in_request(_request(ROW_A, "router.lab", "org-1", {"id": "u1", "name": "Alice"}), ROW_A)
-    _service(ROW_B)  # registered without an org
+def test_the_status_route_keeps_every_field_the_stream_sends(router):
+    _alice_arms()
+    data = commit_confirm_state.status(ROW_A)
 
-    assert _active(ROW_B).to_dict()["started_by_name"] == "Alice"
-
-
-def test_require_session_instance_registers_the_router():
-    require_session_instance(_request(ROW_A, "Router.Lab", "org-1"))
-    require_session_instance(_request(ROW_B, "router.lab", "org-1"))
-
-    assert device_keys.key_for(ROW_A) == device_keys.key_for(ROW_B) == "router.lab:443"
+    assert CommitConfirmStatusResponse(**data).model_dump() == data
 
 
 # ---------------------------------------------------------------------------
-# Snapshots and banner events are shared by the router's rows
+# Who started it, and what another organization may see
+# ---------------------------------------------------------------------------
+
+
+def test_the_starter_is_named_to_rows_of_the_same_organization(router):
+    _alice_arms()
+    require_session_instance(_request(ROW_B, "router.lab", "org-1"))
+    _service(ROW_B)
+
+    data = commit_confirm_state.status(ROW_B)
+    assert (data["started_by_name"], data["started_by_known"]) == ("Alice", True)
+
+
+def test_no_user_or_instance_id_reaches_any_row(router):
+    _alice_arms()
+
+    data = commit_confirm_state.status(ROW_A)
+
+    assert "u1" not in str(data) and ROW_A not in str(data)
+    assert not {"started_by_id", "instance_id"} & set(data)
+
+
+def test_the_starter_is_anonymous_when_another_organization_shares_the_router(router):
+    _alice_arms()
+    require_session_instance(_request(ROW_B, "router.lab", "org-2"))
+    b = _service(ROW_B)
+
+    data = commit_confirm_state.status(ROW_B)
+    assert (data["started_by_name"], data["started_by_known"]) == (None, True)
+    with pytest.raises(HTTPException) as caught:
+        b.execute_batch(_Batch())
+    assert "Alice" not in caught.value.detail
+
+
+def test_a_row_with_no_known_organization_does_not_hide_the_starter(router):
+    """A service or a startup load notes a row before its org is known."""
+    _alice_arms()
+    _service(ROW_B)
+
+    assert commit_confirm_state.status(ROW_B)["started_by_name"] == "Alice"
+
+
+# ---------------------------------------------------------------------------
+# Snapshots and banner events are shared by the router's verified rows
 # ---------------------------------------------------------------------------
 
 
 def test_one_rows_edit_is_not_an_external_change_for_the_other_row():
-    device_keys.register(ROW_A, "router.lab", 443)
-    device_keys.register(ROW_B, "router.lab", 443)
+    _service(ROW_A)
+    _service(ROW_B)
     before = {"system": {"host-name": "lab"}}
     after = {"system": {"host-name": "edited-in-vymanager"}}
     config_state.set_saved_config(ROW_A, before)
@@ -313,53 +485,120 @@ def test_one_rows_edit_is_not_an_external_change_for_the_other_row():
     assert baseline == before  # still unsaved, not folded in as external
 
 
-def test_events_reach_every_row_on_the_router():
+def test_events_reach_every_verified_row_on_the_router_even_from_a_worker():
     async def main():
         manager = EventManager()
-        device_keys.register(ROW_A, "router.lab", 443)
-        device_keys.register(ROW_B, "router.lab", 443)
-        device_keys.register(ROW_OTHER, "other.lab", 443)
-        queues = {iid: manager.subscribe(iid) for iid in (ROW_A, ROW_B, ROW_OTHER)}
+        _service(ROW_A)
+        _service(ROW_B)
+        _service(ROW_OTHER, host="other.lab")
+        _service("row-unverified", verified=False)
+        queues = {iid: manager.subscribe(iid) for iid in (ROW_A, ROW_B, ROW_OTHER, "row-unverified")}
 
-        manager.emit(ROW_A, "config_diff", None)
+        await asyncio.to_thread(manager.emit, ROW_A, "config_diff", None)  # as execute_batch does
         manager.emit_to_instance(ROW_A, "power_status", None)
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.05)
 
         return {iid: [q.get_nowait() for _ in range(q.qsize())] for iid, q in queues.items()}
 
     got = asyncio.run(main())
     assert len(got[ROW_A]) == 2
     assert len(got[ROW_B]) == 1 and "config_diff" in got[ROW_B][0]
-    assert got[ROW_OTHER] == []
+    assert got[ROW_OTHER] == [] and got["row-unverified"] == []
 
 
-def test_the_poller_reads_each_router_once(monkeypatch):
+def _poll(monkeypatch, services, diff_for):
     import routers.events as events
 
-    device_keys.register(ROW_A, "router.lab", 443)
-    device_keys.register(ROW_B, "router.lab", 443)
-    reads, emitted = [], []
-
-    async def diff_for(instance_id, service):
-        reads.append(instance_id)
-        return {"has_changes": False}
+    emitted = []
 
     class Registry:
         def get(self, instance_id):
-            return object()
+            if instance_id not in services:
+                raise KeyError(instance_id)
+            return services[instance_id]
 
     monkeypatch.setattr(events, "_config_diff_for", diff_for)
     monkeypatch.setattr(events, "_session_device_registry", Registry())
     monkeypatch.setattr(events.event_manager, "update_last_state", lambda iid, kind, value: True)
-    monkeypatch.setattr(events.event_manager, "emit_to_instance", lambda iid, kind, data: emitted.append((iid, kind)))
+    monkeypatch.setattr(events.event_manager, "emit_to_instance", lambda iid, kind, data: emitted.append((iid, kind, data)))
+    asyncio.run(events._poll_banner_state_for_device(sorted(services), SimpleNamespace(db_pool=None)))
+    return emitted
 
-    asyncio.run(events._poll_banner_state_for_device([ROW_A, ROW_B], SimpleNamespace(db_pool=None)))
+
+def test_the_poller_reads_each_router_once_and_refreshes_every_rows_cache(monkeypatch):
+    a, b = _service(ROW_A), _service(ROW_B)
+    reads = []
+
+    async def diff_for(instance_id, service):
+        reads.append(instance_id)
+        service._cached_config = {"fresh": True}
+        return {"has_changes": False}
+
+    emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
 
     assert reads == [ROW_A]
-    assert sorted(emitted) == sorted([
+    assert b._cached_config == {"fresh": True}
+    assert sorted((iid, kind) for iid, kind, _ in emitted) == sorted([
         (ROW_A, "config_diff"), (ROW_B, "config_diff"),
         (ROW_A, "commit_confirm"), (ROW_B, "commit_confirm"),
     ])
+
+
+def test_one_failing_row_does_not_stop_the_poll_for_the_others(monkeypatch):
+    a, b = _service(ROW_A), _service(ROW_B)
+
+    async def diff_for(instance_id, service):
+        if instance_id == ROW_A:
+            raise ConnectionError("this row's read fails")
+        return {"has_changes": True}
+
+    emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
+
+    assert {iid for iid, kind, _ in emitted if kind == "config_diff"} == {ROW_A, ROW_B}
+
+
+# ---------------------------------------------------------------------------
+# Archive restore is a commit VyManager made
+# ---------------------------------------------------------------------------
+
+
+def test_a_restore_is_recorded_as_vymanagers_change(monkeypatch):
+    emitted = []
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: emitted.append(args[1]))
+    a = _service(ROW_A, config={"system": {"host-name": "restored"}})
+    cast(Any, a.device).config_file_load = lambda file=None: _ok()
+
+    assert a.load_config_file("/config/archive/x").status == 200
+    assert config_state.get_managed_config(ROW_A) == {"system": {"host-name": "restored"}}
+    assert emitted == ["config_diff"]
+
+
+@pytest.mark.parametrize(("raised", "status"), [
+    (requests.exceptions.ReadTimeout("Read timed out."), 504),
+    (requests.exceptions.ConnectionError("('Connection aborted.', RemoteDisconnected())"), 502),
+])
+def test_a_failed_restore_keeps_whatever_landed_visible(monkeypatch, raised, status):
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+    a = _service(ROW_A)
+    config_state.set_saved_config(ROW_A, {"a": 1})
+
+    def load(file=None):
+        raise raised
+
+    cast(Any, a.device).config_file_load = load
+    response = a.load_config_file("/config/archive/x")
+
+    assert response.status == status
+    assert config_state.get_managed_config(ROW_A) is None
+
+
+def test_a_reply_with_an_error_is_not_a_successful_save(router):
+    a = _service(ROW_A)
+    cast(Any, a.device).config_file_save = lambda file=None: ApiResponse(
+        status=200, request={}, result={}, error="Saving failed",
+    )
+
+    assert a.config_file_save().status == 400
 
 
 # ---------------------------------------------------------------------------
@@ -371,70 +610,94 @@ def _utc_naive(minutes):
     return (datetime.now(timezone.utc) + timedelta(minutes=minutes)).replace(tzinfo=None)
 
 
+def _restart():
+    """Forget everything in memory, as a new process would."""
+    commit_confirm_state.detach_store()
+    with commit_confirm_state._lock:
+        commit_confirm_state._sessions.clear()
+    with device_keys._lock:
+        device_keys._candidate_by_instance.clear()
+        device_keys._key_by_instance.clear()
+
+
 @requires_db
-def test_a_pending_commit_confirm_survives_a_restart():
+def test_a_pending_commit_confirm_survives_a_restart_and_its_starters_row():
     import asyncpg
 
     async def main():
-        pool = await asyncpg.create_pool(os.environ["DATABASE_URL"], min_size=1, max_size=2)
+        pool = await asyncpg.create_pool(os.environ["DATABASE_URL"], min_size=1, max_size=4)
         suffix = os.urandom(4).hex()
-        org, site, row = f"org-{suffix}", f"site-{suffix}", f"inst-{suffix}"
-        key = device_keys.device_key(f"r-{suffix}.lab", 443)
+        org, site, row, row2 = f"org-{suffix}", f"site-{suffix}", f"inst-{suffix}", f"inst2-{suffix}"
+        host = f"r-{suffix}.lab"
+        key = device_keys.device_key(host, 443)
+
+        async def rows(where_key):
+            async with pool.acquire() as conn:
+                return await conn.fetch('SELECT * FROM commit_confirm_sessions WHERE "deviceKey" = $1', where_key)
+
         try:
             async with pool.acquire() as conn:
                 await conn.execute(
                     'INSERT INTO organizations (id, name, "updatedAt") VALUES ($1, $1, now())', org)
                 await conn.execute(
                     'INSERT INTO sites (id, name, "orgId", "updatedAt") VALUES ($1, $1, $2, now())', site, org)
-                await conn.execute(
-                    'INSERT INTO instances (id, "siteId", name, host, username, password, "updatedAt") '
-                    "VALUES ($1, $2, $1, $3, '', '', now())", row, site, f"r-{suffix}.lab")
+                for instance in (row, row2):
+                    await conn.execute(
+                        'INSERT INTO instances (id, "siteId", name, host, username, password, "updatedAt") '
+                        "VALUES ($1, $2, $1, $3, '', '', now())", instance, site, host)
                 # An expired leftover from before the restart.
                 await conn.execute(
                     'INSERT INTO commit_confirm_sessions ("deviceKey", "instanceId", "startedAt", "expiresAt", '
                     '"confirmMinutes", action) VALUES ($1, $2, $3, $4, 1, $5)',
-                    f"gone-{suffix}:443", row,
-                    _utc_naive(-5), _utc_naive(-4), "reboot")
+                    f"gone-{suffix}:443", row, _utc_naive(-5), _utc_naive(-4), "reboot")
 
             await commit_confirm_state.load_and_attach(pool)
-            device_keys.register(row, f"r-{suffix}.lab", 443)
+            assert await rows(f"gone-{suffix}:443") == []
+            for instance in (row, row2):
+                device_keys.note(instance, host, 443)
+                device_keys.verified(instance)
             token = commit_confirm_state.current_actor.set(
                 commit_confirm_state.Actor(user_id=None, name="Alice", org_id=org))
             try:
-                # From a worker thread, as execute_batch runs.
-                started = await asyncio.to_thread(commit_confirm_state.set_active, row, 3, "reload")
+                # From worker threads, as execute_batch runs: arm, confirm,
+                # arm again at once. Writes must land in that order.
+                first = await asyncio.to_thread(commit_confirm_state.set_active, row, 3, "reload", True)
+                await asyncio.to_thread(commit_confirm_state.clear, row)
+                started = await asyncio.to_thread(commit_confirm_state.set_active, row, 3, "reload", True)
             finally:
                 commit_confirm_state.current_actor.reset(token)
-            await asyncio.sleep(0.3)
-
-            # "Restart": forget everything in memory and load again.
-            commit_confirm_state.detach_store()
-            with commit_confirm_state._lock:
-                commit_confirm_state._sessions.clear()
-            with device_keys._lock:
-                device_keys._key_by_instance.clear()
-            assert commit_confirm_state.get_active(row) is None
-
+            assert started.started_at != first.started_at
+            await commit_confirm_state.flush_and_detach_store()
             await commit_confirm_state.load_and_attach(pool)
-            loaded = commit_confirm_state.get_active(row)
+
+            # Deleting the row it was started from keeps the router's session.
+            async with pool.acquire() as conn:
+                await conn.execute("DELETE FROM instances WHERE id = $1", row)
+            [kept] = await rows(key)
+            assert kept["instanceId"] is None
+
+            _restart()
+            assert commit_confirm_state.get_active(row2) is None
+            await commit_confirm_state.load_and_attach(pool)
+            device_keys.note(row2, host, 443)  # the other row's first request
+            device_keys.verified(row2)
+            loaded = commit_confirm_state.get_active(row2)
             assert loaded is not None
-            assert (loaded.device_key, loaded.action, loaded.started_by_name) == (key, "reload", "Alice")
+            assert (loaded.device_key, loaded.action, loaded.started_by_name, loaded.unsaved_before) == (
+                key, "reload", "Alice", True)
             assert abs((loaded.expires_at - started.expires_at).total_seconds()) < 0.01
             assert 170 <= loaded.seconds_remaining() <= 180
-            async with pool.acquire() as conn:
-                assert await conn.fetchval(
-                    'SELECT count(*) FROM commit_confirm_sessions WHERE "deviceKey" = $1', f"gone-{suffix}:443") == 0
 
-            # Confirming deletes the row.
-            await asyncio.to_thread(commit_confirm_state.clear, row)
-            await asyncio.sleep(0.3)
-            async with pool.acquire() as conn:
-                assert await conn.fetchval(
-                    'SELECT count(*) FROM commit_confirm_sessions WHERE "deviceKey" = $1', key) == 0
+            # Running out of time deletes the row.
+            loaded.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+            assert commit_confirm_state.get_active(row2) is None
+            await commit_confirm_state.flush_and_detach_store()
+            assert await rows(key) == []
         finally:
             commit_confirm_state.detach_store()
             async with pool.acquire() as conn:
-                await conn.execute("DELETE FROM instances WHERE id = $1", row)
+                await conn.execute('DELETE FROM commit_confirm_sessions WHERE "deviceKey" = $1', key)
+                await conn.execute('DELETE FROM instances WHERE "siteId" = $1', site)
                 await conn.execute("DELETE FROM sites WHERE id = $1", site)
                 await conn.execute("DELETE FROM organizations WHERE id = $1", org)
             await pool.close()
@@ -443,8 +706,7 @@ def test_a_pending_commit_confirm_survives_a_restart():
 
 
 def test_without_a_database_the_state_still_works_in_memory():
-    device_keys.register(ROW_A, "router.lab", 443)
-    commit_confirm_state.detach_store()
+    _service(ROW_A)
 
     commit_confirm_state.set_active(ROW_A, 1, "reboot")
 

@@ -14,6 +14,7 @@ from fastapi import HTTPException, Request
 from pyvyos.core.rest_client import ApiResponse
 
 import commit_confirm_state
+import device_keys
 import config_state
 from routers.session import session as session_router
 from vyos_builders.nat import NATBatchBuilder
@@ -47,6 +48,7 @@ def _service(version: str) -> VyOSService:
     service._record_managed_config = lambda instance_id: None
     # A failed commit re-reads the config; nothing changed on this stub router.
     service.get_full_config = lambda refresh=False: {}
+    device_keys.verified("inst-1451")  # its credentials reach the router (device_keys)
     return service
 
 

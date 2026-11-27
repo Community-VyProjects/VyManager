@@ -106,7 +106,7 @@ def client(monkeypatch, device, db):
     monkeypatch.setattr(f"{ROUTER}.require_read_permission", _gate("read"))
     monkeypatch.setattr(f"{ROUTER}.get_session_vyos_service", lambda _req: Service())
     monkeypatch.setattr(f"{ROUTER}.request_scoped_conn", scoped_conn)
-    monkeypatch.setattr(f"{ROUTER}.event_manager", SimpleNamespace(emit=lambda *_a: None))
+    monkeypatch.setattr(f"{ROUTER}.event_manager", SimpleNamespace(emit=lambda *_a: None, emit_to_instance=lambda *_a: None))
 
     from routers.power import router
 

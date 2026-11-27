@@ -17,7 +17,7 @@ from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
 import device_keys
-from config_state import clear_managed_config, record_failed_commit, set_managed_config
+from config_state import clear_managed_config, reconcile_baseline, record_failed_commit, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 from vyos_builders.interfaces import (
     EthernetInterfaceBuilderMixin,
@@ -112,6 +112,9 @@ def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
 
 _NO_LOCK = contextlib.nullcontext()
 
+# The config the router boots; a save to it is what a reboot revert loads.
+BOOT_CONFIG = "/config/config.boot"
+
 
 class BatchOperations(Protocol):
     """What execute_batch needs from a batch builder: every builder has these."""
@@ -168,13 +171,18 @@ class VyOSService:
         # Cache for full configuration (for read operations)
         self._cached_config: Optional[Dict[str, Any]] = None
         if device_config.instance_id:
-            device_keys.register(device_config.instance_id, device_config.hostname, device_config.port)
+            device_keys.note(device_config.instance_id, device_config.hostname, device_config.port)
 
     def _write_lock(self) -> Any:
         """The router's write lock (see device_keys.write_lock); a no-op lock without an instance."""
         if not self.config.instance_id:
             return _NO_LOCK
         return device_keys.write_lock(self.config.instance_id)
+
+    def _router_answered(self, status: int) -> None:
+        """The router answered with this row's credentials: it shares the router's state."""
+        if self.config.instance_id and status not in (401, 403):
+            device_keys.verified(self.config.instance_id)
 
     def _refuse_during_commit_confirm(self) -> None:
         """409 when a commit-confirm is pending on this router.
@@ -185,10 +193,13 @@ class VyOSService:
         """
         from fastapi import HTTPException
 
-        session = commit_confirm_state.get_active(self.config.instance_id) if self.config.instance_id else None
+        instance_id = self.config.instance_id
+        session = commit_confirm_state.blocking(instance_id) if instance_id else None
         if session is None:
             return
-        starter = session.starter_label()
+        # A row that has not shown it can reach this router learns nothing more.
+        shares = device_keys.key_for(instance_id) == session.device_key
+        starter = session.starter_label() if shares else None
         who = f" started by {starter}" if starter else ""
         raise HTTPException(
             status_code=409,
@@ -392,6 +403,7 @@ class VyOSService:
                 response = self.device.configure_multiple_op(op_path=operations)
             except _requests.exceptions.RequestException as exc:
                 return _transport_failure(exc, "configure")
+            self._router_answered(response.status)
         if response.status == 200 and response.error:
             response.status = 400
         return response
@@ -458,6 +470,8 @@ class VyOSService:
             body = resp.json()
         except ValueError:
             body = None
+        if isinstance(body, dict):
+            self._router_answered(resp.status_code)
         if not isinstance(body, dict):
             logger.warning("VyOS API /%s returned HTTP %s without a JSON body", endpoint, resp.status_code)
             return ApiResponse(status=502, request={}, result={}, error="Unexpected response from the VyOS API")
@@ -496,7 +510,7 @@ class VyOSService:
         operations = batch.get_operations()
         with self._write_lock():
             self._refuse_during_commit_confirm()
-            action = self._commit_confirm_action()
+            action, unsaved_before = self._before_arming(instance_id)
             response = self._post_api(
                 "configure",
                 {"commands": operations, "confirm_time": confirm_time_minutes},
@@ -507,20 +521,27 @@ class VyOSService:
                 self._note_failed_commit(instance_id, operations, response, commit_confirm=True, action=action)
                 return response
 
-            commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+            commit_confirm_state.set_active(instance_id, confirm_time_minutes, action, unsaved_before)
             self._record_managed_config(instance_id)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
         event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
         return response
 
-    def _commit_confirm_action(self) -> str:
-        """What the router does when the timer runs out (reboot unless it sets reload)."""
+    def _before_arming(self, instance_id: str) -> tuple:
+        """Read the router just before arming: its commit-confirm action, and
+        whether unsaved changes are already live (a reboot revert loses them).
+
+        Read fresh, under the write lock: the action can change on the router
+        (CLI, another row) after any cached read. An unreadable router counts
+        as the VyOS default action with unsaved changes, so the banner warns.
+        """
         try:
-            config = self._cached_config if self._cached_config is not None else self.get_full_config()
+            before = self.get_full_config(refresh=True)
         except Exception:
-            logger.warning("Could not read the commit-confirm action for instance %s", self.config.instance_id)
-            return commit_confirm_state.DEFAULT_ACTION
-        return commit_confirm_state.router_action(config)
+            logger.warning("Could not read the router before arming a commit-confirm for instance %s", instance_id)
+            return commit_confirm_state.DEFAULT_ACTION, True
+        baseline = reconcile_baseline(instance_id, before)
+        return commit_confirm_state.router_action(before), baseline is not None and baseline != before
 
     def confirm_commit(self, instance_id: str) -> ApiResponse:
         """
@@ -553,9 +574,31 @@ class VyOSService:
         A load is a commit, so it holds the router's write lock and is
         refused while a commit-confirm is pending, like every other commit.
         """
+        instance_id = self.config.instance_id
         with self._write_lock():
             self._refuse_during_commit_confirm()
-            return self.device.config_file_load(file=file)
+            response = self._config_file_call("load", lambda: self.device.config_file_load(file=file))
+            if instance_id:
+                if response.status == 200:
+                    self._record_managed_config(instance_id)
+                elif response.status not in (401, 403, 503):
+                    # A failed or unanswered load may have changed anything;
+                    # with no managed snapshot the banner keeps showing it.
+                    clear_managed_config(instance_id)
+        if instance_id and response.status not in (401, 403, 503):
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+        return response
+
+    def _config_file_call(self, op: str, call) -> ApiResponse:
+        """One /config-file call through pyvyos, with the same status rules as commit_operations."""
+        try:
+            response = call()
+        except _requests.exceptions.RequestException as exc:
+            return _transport_failure(exc, f"config-file {op}")
+        self._router_answered(response.status)
+        if response.status == 200 and response.error:
+            response.status = 400
+        return response
 
     def get_full_config(self, refresh: bool = False) -> Dict[str, Any]:
         """
@@ -584,6 +627,7 @@ class VyOSService:
         if response.status != 200:
             error_msg = response.error if response.error else "Unknown error"
             raise ValueError(f"Failed to retrieve full config: {error_msg}")
+        self._router_answered(response.status)
 
         # Parse JSON from result
         # response.result is already the JSON string
@@ -618,11 +662,11 @@ class VyOSService:
         saved config), so that save is refused with a 409 until it is
         confirmed or runs out.
         """
-        if file is not None:
-            return self.device.config_file_save(file=file)
+        if file is not None and file != BOOT_CONFIG:
+            return self._config_file_call("save", lambda: self.device.config_file_save(file=file))
         with self._write_lock():
             self._refuse_during_commit_confirm()
-            return self.device.config_file_save(file=file)
+            return self._config_file_call("save", lambda: self.device.config_file_save(file=file))
 
     def generate(self, path: List[str]) -> ApiResponse:
         """

@@ -403,7 +403,8 @@ async def _run_power_action(
         await _store_schedule(request, kind, scheduled_time, user, instance_id)
 
     # Notify SSE subscribers of power status change
-    event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
+    # Power actions are scheduled per instance row, not per router.
+    event_manager.emit_to_instance(instance_id, EVENT_POWER_STATUS, None)
     return scheduled_time
 
 

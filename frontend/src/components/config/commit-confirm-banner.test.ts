@@ -4,6 +4,7 @@ import {
   commitConfirmActionKey,
   commitConfirmRebootWarns,
   commitConfirmStarter,
+  commitConfirmWarnsBeforeArming,
 } from "./commit-confirm-banner";
 
 describe("commit-confirm banner", () => {
@@ -15,19 +16,28 @@ describe("commit-confirm banner", () => {
     assert.equal(commitConfirmActionKey("something-new"), null);
   });
 
-  it("warns that unsaved changes are lost only when the router reboots", () => {
+  it("treats only a reboot revert as losing unsaved changes", () => {
     assert.equal(commitConfirmRebootWarns("reboot"), true);
     assert.equal(commitConfirmRebootWarns(null), true);
     assert.equal(commitConfirmRebootWarns("reload"), false);
   });
 
+  it("warns before arming only when this instance arms a reboot-action timer", () => {
+    assert.equal(commitConfirmWarnsBeforeArming({ active: false, enabled: true, action: "reboot" }), true);
+    assert.equal(commitConfirmWarnsBeforeArming({ active: false, enabled: true, action: null }), true);
+    assert.equal(commitConfirmWarnsBeforeArming({ active: false, enabled: true, action: "reload" }), false);
+    assert.equal(commitConfirmWarnsBeforeArming({ active: false, enabled: false, action: "reboot" }), false);
+    assert.equal(commitConfirmWarnsBeforeArming({ active: true, enabled: true, action: "reboot" }), false);
+    assert.equal(commitConfirmWarnsBeforeArming(null), false);
+  });
+
   it("shows the starter's name, or an anonymous starter from another organization", () => {
     assert.deepEqual(
-      commitConfirmStarter({ active: true, started_by_id: "u1", started_by_name: "Alice" }),
+      commitConfirmStarter({ active: true, started_by_known: true, started_by_name: "Alice" }),
       { key: "startedBy", name: "Alice" },
     );
     assert.deepEqual(
-      commitConfirmStarter({ active: true, started_by_id: "u2", started_by_name: null }),
+      commitConfirmStarter({ active: true, started_by_known: true, started_by_name: null }),
       { key: "startedByOther" },
     );
     assert.equal(commitConfirmStarter({ active: true }), null);
