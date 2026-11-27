@@ -77,7 +77,8 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         return;
       }
       toast.success(t("banner.confirmedTitle"), t("banner.confirmedMessage"));
-      setCc({ active: false });
+      // Keep this row's settings: the unsaved-changes banner warns before the next arm.
+      setCc((prev) => ({ active: false, enabled: prev?.enabled, action: prev?.action }));
       // SSE will push updated diff shortly; also fetch eagerly
       const newDiff = await configService.getDiff();
       setDiff(newDiff);

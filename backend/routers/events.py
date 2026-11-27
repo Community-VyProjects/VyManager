@@ -324,16 +324,21 @@ async def _poll_banner_state_for_device(
             logger.debug("Poller: failed to get config diff through instance %s", iid)
     if config_diff_data is not None:
         if fresh is not None:
-            # The rows share the router, so the others' cached reads stay as
-            # fresh as the one that was polled.
+            # The router changed under the other rows' cached reads: drop them,
+            # so each row's next read goes out with its own credentials.
             for _iid, service in services:
-                service._cached_config = fresh
+                if getattr(service, "_cached_config", None) is not fresh:
+                    service._cached_config = None
         for iid in instance_ids:
             if event_manager.update_last_state(iid, EVENT_CONFIG_DIFF, config_diff_data):
                 event_manager.emit_to_instance(iid, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
 
     # --- Commit confirm (per row: whether the row arms one is a row setting) ---
     for iid in instance_ids:
+        if cached_session_service(iid) is None:
+            # Without the row's service its settings are unknown here; the
+            # status route (which reads the instance row) stays the source.
+            continue
         try:
             cc_data = _get_commit_confirm_state(iid)
             if event_manager.update_last_state(iid, EVENT_COMMIT_CONFIRM, cc_data):

@@ -192,6 +192,61 @@ def test_updating_or_deleting_an_instance_forgets_its_row():
     assert device_keys.orgs_on("router.lab:443") == set()
 
 
+def test_a_revoked_key_takes_the_row_out_of_the_routers_state(monkeypatch):
+    """The key worked once; the router now refuses it (revoked or changed there)."""
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_A))
+    answers = iter([
+        ApiResponse(status=200, request={}, result=cast(Any, "{}"), error=""),
+        ApiResponse(status=401, request={}, result={}, error="HTTP Error 401: Valid API key is required"),
+    ])
+    cast(Any, service.device).show = lambda path=None: next(answers)
+    service.get_full_config(refresh=True)
+    assert device_keys.key_for(ROW_A) == "router.lab:443"
+
+    with pytest.raises(ValueError):
+        service.get_full_config(refresh=True)
+
+    assert device_keys.key_for(ROW_A) == ROW_A
+    assert service._cached_config is None
+
+
+def test_deleting_a_site_forgets_its_instances(monkeypatch):
+    import routers.session.session as session_router
+
+    class _Tx:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+    class _Conn:
+        async def fetchval(self, query, *args):
+            return "ADMIN" if "FROM users" in query else "org-2"
+
+        async def fetch(self, query, *args):
+            return [{"id": ROW_A}]
+
+        async def execute(self, query, *args):
+            return "DELETE 1"
+
+        def transaction(self):
+            return _Tx()
+
+    async def same_org(request, conn, org_id):
+        return None
+
+    monkeypatch.setattr(session_router, "assert_row_in_acting_org", same_org)
+    device_keys.note(ROW_A, "router.lab", 443, "org-2")
+    device_keys.verified(ROW_A)
+    request = cast(Any, SimpleNamespace(state=SimpleNamespace(user={"id": "admin"})))
+
+    asyncio.run(session_router.delete_site(request, "site-1", cast(Any, _Conn())))
+
+    assert device_keys.key_for(ROW_A) == ROW_A
+    assert device_keys.orgs_on("router.lab:443") == set()
+
+
 def test_require_session_instance_notes_the_router_and_the_org():
     require_session_instance(_request(ROW_A, "Router.Lab", "org-1"))
 
@@ -417,6 +472,13 @@ def test_with_nothing_pending_the_status_says_what_the_next_save_arms():
     assert commit_confirm_state.status(ROW_A, None) == {"active": False, "enabled": False, "action": None}
 
 
+def test_while_pending_enabled_is_still_the_rows_own_setting(router):
+    _alice_arms()
+
+    assert commit_confirm_state.status(ROW_A, enabled=True)["enabled"] is True
+    assert commit_confirm_state.status(ROW_B, _service(ROW_B))["enabled"] is False
+
+
 def test_the_status_route_keeps_every_field_the_stream_sends(router):
     _alice_arms()
     data = commit_confirm_state.status(ROW_A)
@@ -519,13 +581,14 @@ def _poll(monkeypatch, services, diff_for):
 
     monkeypatch.setattr(events, "_config_diff_for", diff_for)
     monkeypatch.setattr(events, "_session_device_registry", Registry())
+    monkeypatch.setattr(events, "cached_session_service", services.get)
     monkeypatch.setattr(events.event_manager, "update_last_state", lambda iid, kind, value: True)
     monkeypatch.setattr(events.event_manager, "emit_to_instance", lambda iid, kind, data: emitted.append((iid, kind, data)))
     asyncio.run(events._poll_banner_state_for_device(sorted(services), SimpleNamespace(db_pool=None)))
     return emitted
 
 
-def test_the_poller_reads_each_router_once_and_refreshes_every_rows_cache(monkeypatch):
+def test_the_poller_reads_each_router_once_and_drops_the_other_rows_caches(monkeypatch):
     a, b = _service(ROW_A), _service(ROW_B)
     reads = []
 
@@ -537,7 +600,8 @@ def test_the_poller_reads_each_router_once_and_refreshes_every_rows_cache(monkey
     emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
 
     assert reads == [ROW_A]
-    assert b._cached_config == {"fresh": True}
+    # Row B's next read goes out with its own credentials, not row A's.
+    assert b._cached_config is None
     assert sorted((iid, kind) for iid, kind, _ in emitted) == sorted([
         (ROW_A, "config_diff"), (ROW_B, "config_diff"),
         (ROW_A, "commit_confirm"), (ROW_B, "commit_confirm"),
@@ -555,6 +619,41 @@ def test_one_failing_row_does_not_stop_the_poll_for_the_others(monkeypatch):
     emitted = _poll(monkeypatch, {ROW_A: a, ROW_B: b}, diff_for)
 
     assert {iid for iid, kind, _ in emitted if kind == "config_diff"} == {ROW_A, ROW_B}
+
+
+def test_the_poller_sends_no_commit_confirm_state_for_a_row_without_a_service(monkeypatch):
+    """Its settings are unknown there; a guessed enabled:false would hide the warning."""
+    a = _service(ROW_A)
+
+    async def diff_for(instance_id, service):
+        return {"has_changes": False}
+
+    import routers.events as events
+
+    monkeypatch.setattr(events, "cached_session_service", {ROW_A: a}.get)
+    emitted = []
+    monkeypatch.setattr(events, "_config_diff_for", diff_for)
+    monkeypatch.setattr(events, "_session_device_registry", SimpleNamespace(get={ROW_A: a}.__getitem__))
+    monkeypatch.setattr(events.event_manager, "update_last_state", lambda iid, kind, value: True)
+    monkeypatch.setattr(events.event_manager, "emit_to_instance", lambda iid, kind, data: emitted.append((iid, kind)))
+    asyncio.run(events._poll_banner_state_for_device([ROW_A, ROW_B], SimpleNamespace(db_pool=None)))
+
+    assert (ROW_A, "commit_confirm") in emitted and (ROW_B, "commit_confirm") not in emitted
+
+
+def test_a_lost_commit_confirm_reply_keeps_the_unsaved_warning(monkeypatch):
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+
+    def lost(url, data, verify, timeout):
+        raise requests.exceptions.ReadTimeout("Read timed out.")
+
+    monkeypatch.setattr("vyos_service._requests.post", lost)
+    service = _service(ROW_A, confirm=True, config={"system": {"host-name": "edited"}})
+    config_state.set_saved_config(ROW_A, {"system": {"host-name": "lab"}})
+    config_state.set_managed_config(ROW_A, {"system": {"host-name": "edited"}})
+
+    assert service.execute_batch(_Batch()).status == 504
+    assert _active(ROW_A).unsaved_before is True
 
 
 # ---------------------------------------------------------------------------

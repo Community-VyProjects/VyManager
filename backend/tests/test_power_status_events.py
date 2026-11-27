@@ -238,6 +238,7 @@ def poller(monkeypatch, db, service, loop_thread):
             return registry["service"]
 
     monkeypatch.setattr(events, "_session_device_registry", Registry())
+    monkeypatch.setattr(events, "cached_session_service", lambda _iid: registry["service"])
     monkeypatch.setattr(
         events,
         "event_manager",

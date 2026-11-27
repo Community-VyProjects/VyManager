@@ -1042,6 +1042,9 @@ async def delete_site(request: Request, site_id: str, conn: asyncpg.Connection =
         await assert_row_in_acting_org(request, conn, site_org)
 
         async with conn.transaction():
+            instance_ids = [
+                row["id"] for row in await conn.fetch('SELECT id FROM instances WHERE "siteId" = $1', site_id)
+            ]
             # Delete will cascade to instances and user_instance_roles
             result = await conn.execute(
                 """
@@ -1053,10 +1056,15 @@ async def delete_site(request: Request, site_id: str, conn: asyncpg.Connection =
             if result == "DELETE 0":
                 raise HTTPException(status_code=404, detail="Site not found")
 
-            return ApiResponse(
-                success=True,
-                message="Site deleted successfully",
-            )
+        # The cascade removed the site's instances: drop their services and
+        # their router registrations, as delete_instance does.
+        for instance_id in instance_ids:
+            clear_session_cache(instance_id)
+
+        return ApiResponse(
+            success=True,
+            message="Site deleted successfully",
+        )
 
     except HTTPException:
         raise

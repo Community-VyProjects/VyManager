@@ -80,14 +80,14 @@ class CommitConfirmSession:
         return self.started_by_name
 
     def to_dict(self) -> dict:
-        """What every row on the router may see: no user or instance ids.
+        """What every row on the router may see: no user or instance ids
+        (``status`` adds the row's own ``enabled``).
 
         ``started_by_known`` says someone was recorded as the starter, so the
         banner can say "another VyManager user" when the name is withheld.
         """
         return {
             "active": True,
-            "enabled": True,
             "confirm_time_minutes": self.confirm_time_minutes,
             "action": self.action,
             "started_at": self.started_at.isoformat(),
@@ -207,9 +207,6 @@ def status(instance_id: str, service: Any = None, enabled: Optional[bool] = None
     from the service's cached config (no router I/O here); None when nothing
     is cached.
     """
-    session = get_active(instance_id)
-    if session is not None:
-        return session.to_dict()
     if enabled is None:
         config = getattr(service, "config", None)
         enabled = bool(
@@ -217,6 +214,9 @@ def status(instance_id: str, service: Any = None, enabled: Optional[bool] = None
             and getattr(config, "commit_confirm_enabled", False)
             and supports_commit_confirm(getattr(config, "version", None))
         )
+    session = get_active(instance_id)
+    if session is not None:
+        return {**session.to_dict(), "enabled": enabled}
     cached = getattr(service, "_cached_config", None)
     return {
         "active": False,
@@ -252,12 +252,14 @@ class _Store:
         """Wait for the writes already made (shutdown, before the pool closes)."""
         await asyncio.sleep(0)  # let writes handed over from workers start
         last = self._last
-        self._pool, self._loop = None, None
+        self.detach()
         if last is not None:
             await asyncio.wait({last}, timeout=5)
 
     def detach(self) -> None:
-        self._pool, self._loop = None, None
+        # The chain belongs to this loop; a later attach starts a new one.
+        self._pool, self._loop, self._last = None, None, None
+        self._tasks = set()
 
     def _start(self, pool: Any, write) -> None:
         """Runs on the loop: chain the write after the previous one."""

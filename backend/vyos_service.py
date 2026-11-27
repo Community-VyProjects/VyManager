@@ -180,8 +180,18 @@ class VyOSService:
         return device_keys.write_lock(self.config.instance_id)
 
     def _router_answered(self, status: int) -> None:
-        """The router answered with this row's credentials: it shares the router's state."""
-        if self.config.instance_id and status not in (401, 403):
+        """The router answered this row's credentials.
+
+        Accepted: the row shares the router's state. Refused (401/403, a key
+        revoked or changed on the router): it stops sharing it, and its cached
+        config, read while the key still worked, is dropped.
+        """
+        if not self.config.instance_id:
+            return
+        if status in (401, 403):
+            device_keys.rejected(self.config.instance_id)
+            self._cached_config = None
+        else:
             device_keys.verified(self.config.instance_id)
 
     def _refuse_during_commit_confirm(self) -> None:
@@ -336,6 +346,7 @@ class VyOSService:
         response: ApiResponse,
         commit_confirm: bool = False,
         action: str = commit_confirm_state.DEFAULT_ACTION,
+        unsaved_before: bool = True,
     ) -> None:
         """After a failed commit, keep whatever still reached the router visible.
 
@@ -356,7 +367,8 @@ class VyOSService:
             if commit_confirm:
                 # The timer may be armed on the router. Show the countdown so
                 # it can be confirmed; confirming with nothing pending is a no-op.
-                commit_confirm_state.set_active(instance_id, self.config.commit_confirm_minutes, action)
+                commit_confirm_state.set_active(
+                    instance_id, self.config.commit_confirm_minutes, action, unsaved_before)
                 notice = UNANSWERED_COMMIT_CONFIRM_NOTICE
                 event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
             self._prefix_error(response, notice)
@@ -518,7 +530,10 @@ class VyOSService:
             if response.status != 200:
                 # A rejected commit arms no timer, so whatever landed stays live
                 # with no rollback. A lost reply may have armed one.
-                self._note_failed_commit(instance_id, operations, response, commit_confirm=True, action=action)
+                self._note_failed_commit(
+                    instance_id, operations, response,
+                    commit_confirm=True, action=action, unsaved_before=unsaved_before,
+                )
                 return response
 
             commit_confirm_state.set_active(instance_id, confirm_time_minutes, action, unsaved_before)
@@ -624,10 +639,10 @@ class VyOSService:
         # Fetch full config using pyvyos show() with JSON output
         response = self.device.show(path=["configuration", "json", "pretty"])
 
+        self._router_answered(response.status)
         if response.status != 200:
             error_msg = response.error if response.error else "Unknown error"
             raise ValueError(f"Failed to retrieve full config: {error_msg}")
-        self._router_answered(response.status)
 
         # Parse JSON from result
         # response.result is already the JSON string

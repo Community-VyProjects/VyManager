@@ -71,6 +71,12 @@ def verified(instance_id: str) -> None:
             _key_by_instance[instance_id] = candidate
 
 
+def rejected(instance_id: str) -> None:
+    """The router refused the row's credentials (401/403): it stops sharing the router's state."""
+    with _lock:
+        _key_by_instance.pop(instance_id, None)
+
+
 def register_key(instance_id: str, key: str) -> None:
     """A row known to share ``key`` (it started a commit-confirm persisted under it)."""
     with _lock:
