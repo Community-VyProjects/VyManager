@@ -238,6 +238,15 @@ async def lifespan(app: FastAPI):
                 print("  ✓ Appliance instance seeded")
             except Exception as seed_err:
                 print(f"  ✗ Appliance seed failed: {seed_err}")
+        try:
+            from org_scope import multi_org_warning
+            async with db_pool.acquire() as conn:
+                warning = multi_org_warning(
+                    await conn.fetchval("SELECT COUNT(*) FROM organizations"))
+            if warning:
+                print(f"  ⚠ {warning}")
+        except Exception as org_err:
+            print(f"  ⚠ Organization count check failed: {org_err}")
     except Exception as e:
         print(f"  ✗ Failed to create database connection pool: {e}")
         print("  ⚠ API will start but authentication will fail")
