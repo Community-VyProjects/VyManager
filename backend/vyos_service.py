@@ -381,8 +381,7 @@ class VyOSService:
             # The router may still be applying the commit, so a re-read now
             # proves nothing. Drop the managed snapshot: reconciliation then
             # leaves the baseline alone, and whatever lands shows as unsaved.
-            # The post went to the router the row names, verified or not.
-            clear_managed_config(instance_id, on_named_router=True)
+            clear_managed_config(instance_id)
             notice = UNANSWERED_COMMIT_NOTICE
             if commit_confirm:
                 # The timer may be armed on the router. Show the countdown so
@@ -390,11 +389,11 @@ class VyOSService:
                 commit_confirm_state.set_active(
                     instance_id, self.config.commit_confirm_minutes, action, unsaved_before)
                 notice = UNANSWERED_COMMIT_CONFIRM_NOTICE
-                # Stored under the router the post went to: reach its rows
-                # even if this one is not verified yet.
-                event_manager.emit_to_router(instance_id, EVENT_COMMIT_CONFIRM, None)
+                # Stored under the router the post went to; emit's refetch
+                # signal reaches its rows even if this one is not verified.
+                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
             self._prefix_error(response, notice)
-            event_manager.emit_to_router(instance_id, EVENT_CONFIG_DIFF, None)
+            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
             return
 
         # VyOS answered with an error. The node an op touches is its parent,
@@ -424,9 +423,11 @@ class VyOSService:
     def commit_operations(self, operations: List[Dict[str, Any]]) -> ApiResponse:
         """The only call to device.configure_multiple_op.
 
-        pyvyos keeps HTTP 200 when VyOS rejects the commit. commit-confirm
-        already returns 400 in that case. Do the same here so every caller
-        can treat status 200 as applied. pyvyos raises on transport failures;
+        VyOS rejects a commit with HTTP 400 (pyvyos: "HTTP Error 400: ...");
+        an older reply shape keeps HTTP 200 with the error ("API Error ..."),
+        which becomes 400 here, as commit-confirm does, so every caller can
+        treat status 200 as applied. A 400 through pyvyos's HTTPError path
+        cannot be told from a proxy's, so it does not verify the row. pyvyos raises on transport failures;
         those become a status as well (see _transport_failure).
 
         Raises HTTPException 409 while a commit-confirm is pending on the router.
@@ -504,11 +505,15 @@ class VyOSService:
             body = resp.json()
         except ValueError:
             body = None
-        # VyOS answers every request with {"success", "data", "error"}.
-        self._router_answered(resp.status_code, isinstance(body, dict) and "success" in body)
-        if not isinstance(body, dict):
-            logger.warning("VyOS API /%s returned HTTP %s without a JSON body", endpoint, resp.status_code)
-            return ApiResponse(status=502, request={}, result={}, error="Unexpected response from the VyOS API")
+        # VyOS answers every request with {"success", "data", "error"}; any
+        # other body (HTML, or a proxy's own JSON) is not VyOS's answer, and
+        # the commit may or may not have run: an unknown outcome.
+        vyos_replied = isinstance(body, dict) and "success" in body
+        self._router_answered(resp.status_code, vyos_replied)
+        if not isinstance(body, dict) or not vyos_replied:
+            logger.warning("VyOS API /%s returned HTTP %s without the VyOS reply body", endpoint, resp.status_code)
+            status = 504 if resp.status_code == 504 else 502
+            return ApiResponse(status=status, request={}, result={}, error="Unexpected response from the VyOS API")
         if not body.get("success"):
             # 401/403 (bad API key) is kept, as pyvyos does on the plain path.
             status = resp.status_code if resp.status_code in (401, 403) else 400

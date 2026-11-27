@@ -58,8 +58,8 @@ class EventManager:
     Central pub/sub hub for banner SSE events.
 
     One channel per instance row. emit() fans an event out to every verified
-    row on the same router (device_keys); emit_to_router() also reaches a row
-    not verified yet; emit_to_instance() reaches one row.
+    row on the same router (device_keys), a refetch signal also to the router
+    an unverified row names; emit_to_instance() reaches one row.
     """
 
     def __init__(self) -> None:
@@ -113,18 +113,15 @@ class EventManager:
         Router events reach every instance row that points at the same router
         (see ``device_keys``), so a second site or organization on that router
         sees the change too. Use :meth:`emit_to_instance` for one row only.
-        """
-        self._deliver(device_keys.instances_on(device_keys.key_for(instance_id)), event_type, data)
 
-    def emit_to_router(self, instance_id: str, event_type: str, data: Any) -> None:
-        """Push a refetch signal (``data`` None) to this row, verified or not,
-        and to every verified row on the router it names.
-
-        For state that lives on the named router even before the row is
-        verified (a commit-confirm armed through a lost reply). Carry no data:
-        each row refetches what it may see.
+        A refetch signal (``data`` None) carries nothing, so it also reaches
+        this row and the rows on the router it names when it is not verified
+        (a commit that went there before any read verified it): each row
+        refetches what it may see. Data reaches only the verified rows.
         """
-        rows = device_keys.instances_on(device_keys.candidate_key(instance_id)) | {instance_id}
+        rows = device_keys.instances_on(device_keys.key_for(instance_id))
+        if data is None:
+            rows = rows | device_keys.instances_on(device_keys.candidate_key(instance_id)) | {instance_id}
         self._deliver(rows, event_type, data)
 
     def emit_to_instance(self, instance_id: str, event_type: str, data: Any) -> None:

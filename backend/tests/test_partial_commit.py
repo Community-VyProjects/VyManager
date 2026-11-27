@@ -435,7 +435,6 @@ def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, kind, sta
     }
     emitted = []
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: emitted.append(args[1]))
-    monkeypatch.setattr("vyos_service.event_manager.emit_to_router", lambda *args: emitted.append(args[1]))
 
     def post(url, data, verify, timeout):
         raise errors[kind]

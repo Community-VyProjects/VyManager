@@ -130,7 +130,7 @@ def record_failed_commit(
         return bool(landed)
 
 
-def clear_managed_config(instance_id: str, on_named_router: bool = False) -> None:
+def clear_managed_config(instance_id: str) -> None:
     """Remove the managed marker when a post-mutation read cannot be trusted.
 
     A stale managed snapshot is worse than none: reconciliation would see live
@@ -139,13 +139,14 @@ def clear_managed_config(instance_id: str, on_named_router: bool = False) -> Non
     banner. With no managed snapshot, :func:`reconcile_baseline` leaves the
     baseline alone and the edit stays visible.
 
-    ``on_named_router``: clear the router the row names even if the row is not
-    verified yet (a commit that went there with an unanswered reply).
-    Dropping a marker reveals nothing, so this is safe for any row.
+    The router the row names is cleared too, verified or not: a commit from
+    a row not verified yet still went there. Dropping a marker reveals
+    nothing, so this is safe for any row.
     """
-    key = candidate_key(instance_id) if on_named_router else key_for(instance_id)
+    keys = {key_for(instance_id), candidate_key(instance_id)}
     with _lock:
-        _managed_config_snapshots.pop(key, None)
+        for key in keys:
+            _managed_config_snapshots.pop(key, None)
 
 
 def get_saved_config(instance_id: str) -> Dict[str, Any] | None:

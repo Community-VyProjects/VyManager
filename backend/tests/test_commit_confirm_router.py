@@ -217,9 +217,13 @@ def test_a_revoked_key_takes_the_row_out_of_the_routers_state(monkeypatch):
     ApiResponse(status=200, request={}, result={}, error="Invalid response format: Expecting value"),
     ApiResponse(status=500, request={}, result={}, error="Unexpected error: boom"),
 ], ids=["proxy-502", "proxy-504", "html-200", "pyvyos-500"])
-def test_a_reply_that_is_not_vyos_verifies_no_row(monkeypatch, reply):
+@pytest.mark.parametrize("already_verified", [False, True])
+def test_a_reply_that_is_not_vyos_neither_verifies_nor_unverifies(reply, already_verified):
     """A proxy in front of the router answers without checking the key."""
-    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="wrong", version="1.5", instance_id=ROW_OTHER))
+    row = ROW_A if already_verified else ROW_OTHER
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=row))
+    if already_verified:
+        device_keys.verified(row)
     cast(Any, service.device).show = lambda path=None: reply
     cast(Any, service.device).configure_multiple_op = lambda op_path=None: reply
     cast(Any, service.device).config_file_save = lambda file=None: reply
@@ -229,19 +233,19 @@ def test_a_reply_that_is_not_vyos_verifies_no_row(monkeypatch, reply):
     service.commit_operations([{"op": "set", "path": ["system", "host-name", "x"]}])
     service.config_file_save()
 
-    assert device_keys.key_for(ROW_OTHER) == ROW_OTHER
+    assert device_keys.key_for(row) == ("router.lab:443" if already_verified else row)
 
 
 def test_a_post_reply_without_the_vyos_body_verifies_no_row(monkeypatch):
     service = _service(ROW_OTHER, verified=False)
 
-    class _Html:
+    class _ProxyJson:
         status_code = 502
 
         def json(self):
             return {"message": "bad gateway"}  # JSON, but not VyOS's reply
 
-    monkeypatch.setattr("vyos_service._requests.post", lambda *args, **kwargs: _Html())
+    monkeypatch.setattr("vyos_service._requests.post", lambda *args, **kwargs: _ProxyJson())
     service._post_api("configure", {"commands": []})
 
     assert device_keys.key_for(ROW_OTHER) == ROW_OTHER
@@ -920,7 +924,8 @@ def test_only_the_reading_row_gets_the_diff_data(monkeypatch):
 
 
 def test_a_lost_reply_from_an_unverified_row_clears_the_routers_managed_snapshot(monkeypatch):
-    monkeypatch.setattr("vyos_service.event_manager.emit_to_router", lambda *args: None)
+    delivered = []
+    monkeypatch.setattr(event_manager, "_deliver", lambda rows, kind, data: delivered.append((set(rows), kind)))
 
     def lost(url, data, verify, timeout):
         raise requests.exceptions.ReadTimeout("Read timed out.")
@@ -934,6 +939,46 @@ def test_a_lost_reply_from_an_unverified_row_clears_the_routers_managed_snapshot
     assert unverified.execute_batch(_Batch()).status == 504
 
     assert config_state.get_managed_config(ROW_A) is None
+    assert any(ROW_A in rows for rows, kind in delivered if kind == "config_diff")
+
+
+def test_a_vyos_rejection_from_an_unverified_row_clears_the_routers_snapshot(monkeypatch):
+    """VyOS refused the batch (HTTP 400, no verification) and the re-read failed."""
+    delivered = []
+    monkeypatch.setattr(event_manager, "_deliver", lambda rows, kind, data: delivered.append((set(rows), kind)))
+    _service(ROW_A)
+    config_state.set_managed_config(ROW_A, {"system": {"host-name": "before"}})
+    service = VyOSService(VyOSDeviceConfig(hostname="router.lab", apikey="k", version="1.5", instance_id=ROW_OTHER))
+    cast(Any, service.device).configure_multiple_op = lambda op_path=None: ApiResponse(
+        status=400, request={}, result={}, error="HTTP Error 400: Configuration path is not valid")
+    cast(Any, service.device).show = lambda path=None: ApiResponse(
+        status=502, request={}, result={}, error="HTTP Error 502: Bad Gateway")
+
+    assert service.execute_batch(_Batch()).status == 400
+
+    assert device_keys.key_for(ROW_OTHER) == ROW_OTHER
+    assert config_state.get_managed_config(ROW_A) is None
+    assert any(ROW_A in rows for rows, kind in delivered if kind == "config_diff")
+
+
+@pytest.mark.parametrize("status", [502, 504])
+def test_a_proxys_json_reply_to_an_arm_is_a_lost_reply(monkeypatch, status):
+    """Not VyOS's body: the timer may be armed, so the router is blocked."""
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+
+    class _ProxyJson:
+        status_code = status
+
+        def json(self):
+            return {"message": "Endpoint request timed out"}
+
+    monkeypatch.setattr("vyos_service._requests.post", lambda *args, **kwargs: _ProxyJson())
+    service = _service(ROW_A, confirm=True)
+    _service(ROW_B)
+    monkeypatch.setattr(service, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True, None))
+
+    assert service.execute_batch(_Batch()).status == status
+    assert commit_confirm_state.blocking(ROW_B) is not None
 
 
 def test_the_poller_sends_no_commit_confirm_state_for_a_row_without_a_service(monkeypatch):
