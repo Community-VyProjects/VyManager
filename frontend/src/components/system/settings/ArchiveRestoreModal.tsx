@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -315,8 +315,6 @@ export function ArchiveRestoreModal({
   const [showConfirm, setShowConfirm] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  // Cancel stale diff requests when selection changes
-  const diffAbortRef = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   const activeFilename = selected ?? (manualFilename.trim() || null);
 
@@ -380,7 +378,6 @@ export function ArchiveRestoreModal({
     }
 
     const token = { cancelled: false };
-    diffAbortRef.current = token;
     setDiff(null);
     setDiffError(null);
     setDiffLoading(true);

@@ -112,7 +112,6 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       // SSE will push the updated diff shortly; the eager fetch is best
       // effort, so its failure never reads as a failed confirm or save.
       configService.getDiff().then(setDiff).catch(() => undefined);
-      setError(null);
     } catch (err) {
       const msg = thrownMessage(err, t("banner.saveFailed"));
       setError(msg);
