@@ -98,6 +98,20 @@ def test_other_commit_errors_stay_a_generic_500(monkeypatch, module, path, body)
     assert response.json() == {"detail": "Internal server error"}
 
 
+# Every VyOSService call that can raise the 409, plus the shared interface
+# batch helper that commits for the interface routers.
+COMMIT_CALLS = frozenset({
+    "execute_batch",
+    "execute_batch_with_confirm",
+    "commit_operations",
+    "load_config_file",
+    "config_file_save",
+    "confirm_commit",
+    "run_interface_batch",
+})
+BROAD = ("Exception", "BaseException")
+
+
 def _names(node):
     found = set()
     for child in ast.walk(node):
@@ -108,41 +122,174 @@ def _names(node):
     return found
 
 
-def _handler_types(handler):
+def _committing_names(tree):
+    """COMMIT_CALLS plus every function in this module that reaches one."""
+    functions = [
+        node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    reach = set(COMMIT_CALLS)
+    grew = True
+    while grew:
+        grew = False
+        for function in functions:
+            if function.name not in reach and _names(function) & reach:
+                reach.add(function.name)
+                grew = True
+    return reach
+
+
+def _caught(handler):
     if handler.type is None:
-        return ["bare"]
-    if isinstance(handler.type, ast.Tuple):
-        return [ast.unparse(item) for item in handler.type.elts]
-    return [ast.unparse(handler.type)]
+        return ["BaseException"]
+    types = handler.type.elts if isinstance(handler.type, ast.Tuple) else [handler.type]
+    return [ast.unparse(item).rsplit(".", 1)[-1] for item in types]
 
 
-def swallowing_commit_handlers():
-    """Every try that commits and catches Exception before HTTPException."""
-    found = []
-    for path in sorted(ROUTERS.rglob("*.py")):
-        tree = ast.parse(path.read_text())
-        for function in ast.walk(tree):
-            if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+def _reraises(statement, bound):
+    """A bare raise, or a raise of the name the handler bound."""
+    if not isinstance(statement, ast.Raise) or statement.cause is not None:
+        return False
+    if statement.exc is None:
+        return True
+    return bound is not None and isinstance(statement.exc, ast.Name) and statement.exc.id == bound
+
+
+def _is_http_exception_check(test, bound):
+    return (
+        isinstance(test, ast.Call)
+        and isinstance(test.func, ast.Name)
+        and test.func.id == "isinstance"
+        and len(test.args) == 2
+        and isinstance(test.args[0], ast.Name)
+        and test.args[0].id == bound
+        and ast.unparse(test.args[1]).rsplit(".", 1)[-1] == "HTTPException"
+    )
+
+
+def _passes_http_exception(handler):
+    """True when this handler hands an HTTPException on unchanged."""
+    body = handler.body
+    if len(body) == 1 and _reraises(body[0], handler.name):
+        return True
+    # except Exception as e: if isinstance(e, HTTPException): raise
+    first = body[0]
+    return (
+        handler.name is not None
+        and isinstance(first, ast.If)
+        and _is_http_exception_check(first.test, handler.name)
+        and len(first.body) == 1
+        and _reraises(first.body[0], handler.name)
+    )
+
+
+def _swallows(block):
+    """True when an HTTPException raised in this try's body is replaced."""
+    if any(isinstance(node, (ast.Return, ast.Raise)) for part in block.finalbody for node in ast.walk(part)):
+        return True
+    for handler in block.handlers:
+        caught = _caught(handler)
+        if "HTTPException" in caught or any(name in BROAD for name in caught):
+            # The first handler an HTTPException lands in decides.
+            return not _passes_http_exception(handler)
+    return False
+
+
+def scan_source(source, label="<source>"):
+    """Return (inspected, swallowing): every try that commits, and the bad ones."""
+    tree = ast.parse(source)
+    reach = _committing_names(tree)
+    inspected, swallowing = [], []
+    for function in ast.walk(tree):
+        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for block in ast.walk(function):
+            if not isinstance(block, ast.Try):
                 continue
-            for block in ast.walk(function):
-                if not isinstance(block, ast.Try):
-                    continue
-                body_names = set().union(*(_names(statement) for statement in block.body))
-                if not any(name.startswith("execute_batch") for name in body_names):
-                    continue
-                types = [name for handler in block.handlers for name in _handler_types(handler)]
-                broad = [i for i, name in enumerate(types) if name in ("Exception", "BaseException", "bare")]
-                if not broad:
-                    continue
-                passed = [i for i, name in enumerate(types) if name.endswith("HTTPException")]
-                if passed and passed[0] < broad[0]:
-                    continue
-                handlers_source = "".join(ast.unparse(handler) for handler in block.handlers)
-                if "isinstance" in handlers_source and "HTTPException" in handlers_source:
-                    continue
-                found.append(f"{path.relative_to(ROUTERS)}:{function.name}:{block.lineno}")
-    return found
+            body_names = set().union(*(_names(statement) for statement in block.body))
+            if not (body_names & reach) - {function.name}:
+                continue
+            where = f"{label}:{function.name}:{block.lineno}"
+            inspected.append(where)
+            if _swallows(block):
+                swallowing.append(where)
+    return inspected, swallowing
+
+
+def scan_routers():
+    inspected, swallowing = [], []
+    for path in sorted(ROUTERS.rglob("*.py")):
+        seen, bad = scan_source(path.read_text(), str(path.relative_to(ROUTERS)))
+        inspected += seen
+        swallowing += bad
+    return inspected, swallowing
 
 
 def test_no_router_catches_the_409_around_a_commit():
-    assert swallowing_commit_handlers() == []
+    inspected, swallowing = scan_routers()
+
+    assert swallowing == []
+    # The scan is not vacuous: it saw the handlers this file drives by HTTP.
+    inspected_functions = {where.split(":")[1] for where in inspected}
+    assert {
+        "mpls_batch_configure",
+        "igmp_proxy_batch_configure",
+        "reorder_as_path_list_rules",
+        "update_general_settings",
+        "update_login_settings",
+        "update_watchdog_settings",
+        "configure_interface_batch",
+    } <= inspected_functions
+    assert len(inspected) >= 50
+
+
+HANDLER = """
+def handler(service, builder):
+    try:
+        return {commit}
+{handlers}
+"""
+
+SAFE = [
+    "    except HTTPException:\n        raise\n    except Exception:\n        raise HTTPException(500)",
+    "    except fastapi.HTTPException as e:\n        raise e\n    except Exception:\n        raise HTTPException(500)",
+    "    except Exception as e:\n        if isinstance(e, HTTPException):\n            raise\n        raise HTTPException(500)",
+    "    except ValueError:\n        raise HTTPException(400)",
+    "    except (HTTPException, Exception):\n        raise",
+]
+SWALLOWING = [
+    "    except Exception:\n        raise HTTPException(500)",
+    "    except:\n        raise HTTPException(500)",
+    "    except (ValueError, Exception):\n        raise HTTPException(500)",
+    "    except HTTPException:\n        raise HTTPException(500)\n    except Exception:\n        raise HTTPException(500)",
+    "    except HTTPException:\n        return None\n    except Exception:\n        raise HTTPException(500)",
+    "    except (HTTPException, Exception):\n        raise HTTPException(500)",
+    "    except Exception as e:\n        if isinstance(e, ValueError):\n            raise HTTPException(400)\n        raise HTTPException(500)",
+    "    except Exception as e:\n        if isinstance(e, HTTPException):\n            raise HTTPException(500)\n        raise HTTPException(500)",
+    "    except HTTPException:\n        raise\n    finally:\n        return None",
+]
+COMMITS = ["service.execute_batch(builder)", "run_in_threadpool(service.config_file_save)", "_local_commit(service)"]
+LOCAL_HELPER = "def _local_commit(service):\n    return service.commit_operations([])\n"
+
+
+@pytest.mark.parametrize("handlers", SAFE)
+@pytest.mark.parametrize("commit", COMMITS)
+def test_scan_accepts_a_handler_that_passes_the_409(commit, handlers):
+    inspected, swallowing = scan_source(LOCAL_HELPER + HANDLER.format(commit=commit, handlers=handlers))
+
+    assert len(inspected) == 1
+    assert swallowing == []
+
+
+@pytest.mark.parametrize("handlers", SWALLOWING)
+@pytest.mark.parametrize("commit", COMMITS)
+def test_scan_flags_a_handler_that_replaces_the_409(commit, handlers):
+    inspected, swallowing = scan_source(LOCAL_HELPER + HANDLER.format(commit=commit, handlers=handlers))
+
+    assert len(inspected) == 1
+    assert swallowing == inspected
+
+
+def test_scan_ignores_a_try_that_does_not_commit():
+    source = "def handler(service):\n    try:\n        return service.get_version()\n    except Exception:\n        raise HTTPException(500)\n"
+
+    assert scan_source(source) == ([], [])
