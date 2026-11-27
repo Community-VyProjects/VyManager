@@ -33,7 +33,7 @@ Common status codes:
 | 401 | Missing/invalid session cookie or API token |
 | 403 | Authenticated but not permitted: RBAC denial, read-only token on a write, sign-up after onboarding |
 | 404 | Resource not found; also used for "no active instance" on permission lookups |
-| 409 | A commit-confirm is already active (or confirming with none active) |
+| 409 | A commit-confirm is pending on the router (any commit, including from another instance row on the same router), or confirming with none pending |
 | 429 | Login rate limit (10 attempts per minute per IP, enforced by the frontend) |
 | 503 | Database unavailable, or the router could not be reached |
 | 504 | The router did not answer within the instance's timeout |

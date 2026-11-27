@@ -238,12 +238,13 @@ def poller(monkeypatch, db, service, loop_thread):
             return registry["service"]
 
     monkeypatch.setattr(events, "_session_device_registry", Registry())
+    monkeypatch.setattr(events, "cached_session_service", lambda _iid: registry["service"])
     monkeypatch.setattr(
         events,
         "event_manager",
         SimpleNamespace(
             update_last_state=lambda _iid, kind, value: states.update({kind: value}) or True,
-            emit=lambda instance_id, kind, data: emitted.append((instance_id, kind, data)),
+            emit_to_instance=lambda instance_id, kind, data: emitted.append((instance_id, kind, data)),
         ),
     )
     import config_state
@@ -252,7 +253,7 @@ def poller(monkeypatch, db, service, loop_thread):
     app_state = SimpleNamespace(db_pool=SimpleNamespace(acquire=_conn_factory(db)))
 
     def call():
-        _run(events._poll_banner_state_for_instance(INSTANCE, app_state), loop_thread)
+        _run(events._poll_banner_state_for_device([INSTANCE], app_state), loop_thread)
         return {kind: data for _iid, kind, data in emitted}
 
     return SimpleNamespace(call=call, registry=registry, states=states)
@@ -264,7 +265,7 @@ def test_poller_wraps_config_events_and_signals_power(poller, db, device):
     sent = poller.call()
     assert set(sent) == {"config_diff", "commit_confirm", "power_status"}
     assert sent["config_diff"]["config_diff"]["has_changes"] is False
-    assert sent["commit_confirm"] == {"commit_confirm": {"active": False}}
+    assert sent["commit_confirm"] == {"commit_confirm": {"active": False, "enabled": False, "action": None}}
     # power status names and ids never go to subscribers without POWER read
     assert sent["power_status"] is None
     assert poller.states["power_status"]["scheduled"] is True

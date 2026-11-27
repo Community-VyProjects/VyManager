@@ -111,7 +111,9 @@ SURICATA_OFFLOADED = [
 ]
 
 CONFIG_SAVE_OFFLOADED = [
-    ("save_config", "routers/config/config.py", "config_file_save", 1),
+    # Save and discard run whole under the router's write lock (#1702).
+    ("save_config", "routers/config/config.py", "_save_boot_config", 1),
+    ("discard_config", "routers/config/config.py", "_discard_unsaved", 1),
 ]
 
 HTTPS_OFFLOADED = [
@@ -304,10 +306,10 @@ CONTAINER_OFFLOADED = [
 
 # reboot_system and poweroff_system send through _run_power_action.
 POWER_OFFLOADED = [
-    ("_run_power_action", "routers/power.py", "reboot", 1),
-    ("_run_power_action", "routers/power.py", "poweroff", 1),
-    ("get_scheduled_power_status", "routers/power.py", "show", 1),
-    ("get_vyos_timezone", "routers/power.py", "get_full_config", 1),
+    ("_run_power_action", "routers/power/power.py", "reboot", 1),
+    ("_run_power_action", "routers/power/power.py", "poweroff", 1),
+    ("get_scheduled_power_status", "routers/power/power.py", "show", 1),
+    ("get_vyos_timezone", "routers/power/power.py", "get_full_config", 1),
 ]
 
 # handler, file, blocking attribute, expected offload count
@@ -345,10 +347,11 @@ def _offloaded(handler: ast.AST, attr: str) -> list[ast.Await]:
         func = call.func
         if not (isinstance(func, ast.Name) and func.id == "run_in_threadpool"):
             continue
+        target = call.args[0] if call.args else None
         if (
-            call.args
-            and isinstance(call.args[0], ast.Attribute)
-            and call.args[0].attr == attr
+            (isinstance(target, ast.Attribute) and target.attr == attr)
+            # A module-level helper that does the device I/O under a lock.
+            or (isinstance(target, ast.Name) and target.id == attr)
         ):
             found.append(node)
     return found

@@ -68,9 +68,9 @@ def _function(rel: str, name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
 @pytest.mark.parametrize(
     "rel,name",
     [
-        ("routers/power.py", "_action_path"),
-        ("routers/power.py", "_run_power_action"),
-        ("routers/power.py", "get_scheduled_power_status"),
+        ("routers/power/power.py", "_action_path"),
+        ("routers/power/power.py", "_run_power_action"),
+        ("routers/power/power.py", "get_scheduled_power_status"),
         ("routers/show.py", "get_system_updates"),
         ("routers/site_updates/site_updates.py", "_check_one_instance"),
     ],

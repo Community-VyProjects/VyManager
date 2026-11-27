@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -36,7 +36,10 @@ import {
 import { cn } from "@/lib/utils";
 import { systemSettingsService, type ArchiveFile } from "@/lib/api/system-settings";
 import type { ConfigDiff } from "@/lib/api/config";
+import { thrownMessage } from "@/lib/api-error";
 import { useToast } from "@/hooks/useToast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 // ---------------------------------------------------------------------------
 // Diff content helpers (mirrored from ConfigDiffModal)
@@ -289,10 +292,17 @@ export function ArchiveRestoreModal({
   const t = useTranslations("systemFlowArchive");
   const tc = useTranslations("common");
   const { toast } = useToast();
+  // The diff carries the whole config (CONFIGURATION read) and the restore
+  // commits one (CONFIGURATION write), on top of this screen's SYSTEM rights.
+  const { canRead, canWrite } = usePermissions();
+  const canSeeDiff = canRead(FeatureGroup.CONFIGURATION);
+  const cannotRestore = isReadOnly || !canWrite(FeatureGroup.CONFIGURATION);
 
   const [files, setFiles] = useState<ArchiveFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState<"archive.noFiles" | "archive.listFailed" | null>(null);
+  // The backend's reason when the list failed (a changed SSH host key, say).
+  const [filesErrorDetail, setFilesErrorDetail] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const [selected, setSelected] = useState<string | null>(null);
@@ -305,8 +315,6 @@ export function ArchiveRestoreModal({
   const [showConfirm, setShowConfirm] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  // Cancel stale diff requests when selection changes
-  const diffAbortRef = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   const activeFilename = selected ?? (manualFilename.trim() || null);
 
@@ -325,6 +333,7 @@ export function ArchiveRestoreModal({
     if (!location) {
       setFiles([]);
       setFilesError(null);
+      setFilesErrorDetail(null);
       setSelected(null);
       setManualFilename("");
       setDiff(null);
@@ -332,30 +341,43 @@ export function ArchiveRestoreModal({
       setSearch("");
       return;
     }
+    // A slow list for an earlier location must not land on this one.
+    const token = { cancelled: false };
     setFilesLoading(true);
     setFilesError(null);
+    setFilesErrorDetail(null);
     systemSettingsService
       .listArchiveFiles(location)
       .then((r) => {
+        if (token.cancelled) return;
         setFiles(r.files);
         if (r.files.length === 0) {
           setFilesError("archive.noFiles");
         }
       })
-      .catch(() => setFilesError("archive.listFailed"))
-      .finally(() => setFilesLoading(false));
+      .catch((err: unknown) => {
+        if (token.cancelled) return;
+        setFilesError("archive.listFailed");
+        setFilesErrorDetail(thrownMessage(err, "") || null);
+      })
+      .finally(() => {
+        if (!token.cancelled) setFilesLoading(false);
+      });
+    return () => {
+      token.cancelled = true;
+    };
   }, [location]);
 
   // Fetch diff whenever active filename changes
   useEffect(() => {
-    if (!location || !activeFilename) {
+    if (!location || !activeFilename || !canSeeDiff) {
       setDiff(null);
       setDiffError(null);
+      setDiffLoading(false);
       return;
     }
 
     const token = { cancelled: false };
-    diffAbortRef.current = token;
     setDiff(null);
     setDiffError(null);
     setDiffLoading(true);
@@ -367,9 +389,9 @@ export function ArchiveRestoreModal({
       })
       .catch((err: unknown) => {
         if (!token.cancelled) {
-          setDiffError(
-            err instanceof Error ? err.message : DIFF_LOAD_FAILED
-          );
+          // apiClient throws a plain object whose message may be an object
+          // detail; thrownMessage keeps only a non-empty string.
+          setDiffError(thrownMessage(err, DIFF_LOAD_FAILED));
         }
       })
       .finally(() => {
@@ -379,7 +401,7 @@ export function ArchiveRestoreModal({
     return () => {
       token.cancelled = true;
     };
-  }, [location, activeFilename]);
+  }, [location, activeFilename, canSeeDiff]);
 
   const handleRestore = async () => {
     if (!location || !activeFilename) return;
@@ -394,8 +416,10 @@ export function ArchiveRestoreModal({
         onClose();
         onRestored();
       }
-    } catch {
-      toast.error(t("error"), t("archive.restoreUnexpected"));
+    } catch (err: unknown) {
+      // Keep the backend's reason, e.g. the 409 naming who started a
+      // pending commit-confirm on this router.
+      toast.error(t("error"), thrownMessage(err, t("archive.restoreUnexpected")));
     } finally {
       setRestoring(false);
       setShowConfirm(false);
@@ -445,7 +469,10 @@ export function ArchiveRestoreModal({
               )}
 
               {!filesLoading && filesError && files.length === 0 && (
-                <p className="text-xs text-muted-foreground px-1">{t(filesError)}</p>
+                <p className="text-xs text-muted-foreground px-1">
+                  {t(filesError)}
+                  {filesErrorDetail && <span className="block">{filesErrorDetail}</span>}
+                </p>
               )}
 
               {!filesLoading && files.length > 0 && (
@@ -532,6 +559,12 @@ export function ArchiveRestoreModal({
               {activeFilename && !diffLoading && diff && (
                 <DiffPanel diff={diff} />
               )}
+
+              {activeFilename && !canSeeDiff && (
+                <div className="flex flex-col items-center justify-center h-full text-center gap-2">
+                  <p className="text-sm text-muted-foreground">{t("archive.diffNeedsConfigurationRead")}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -540,7 +573,7 @@ export function ArchiveRestoreModal({
               {tc("cancel")}
             </Button>
             <Button
-              disabled={!activeFilename || diffLoading || isReadOnly}
+              disabled={!activeFilename || diffLoading || cannotRestore || restoring}
               onClick={() => setShowConfirm(true)}
             >
               {t("archive.restoreSelected")}
@@ -580,7 +613,7 @@ export function ArchiveRestoreModal({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={restoring}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleRestore}
+              onClick={async (e) => { e.preventDefault(); await handleRestore(); }}
               disabled={restoring}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

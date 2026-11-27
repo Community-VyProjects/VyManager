@@ -14,6 +14,7 @@ from fastapi import HTTPException, Request
 from pyvyos.core.rest_client import ApiResponse
 
 import commit_confirm_state
+import device_keys
 import config_state
 from routers.session import session as session_router
 from vyos_builders.nat import NATBatchBuilder
@@ -47,6 +48,7 @@ def _service(version: str) -> VyOSService:
     service._record_managed_config = lambda instance_id: None
     # A failed commit re-reads the config; nothing changed on this stub router.
     service.get_full_config = lambda refresh=False: {}
+    device_keys.verified("inst-1451")  # its credentials reach the router (device_keys)
     return service
 
 
@@ -90,7 +92,7 @@ def test_1_4_batch_with_flag_on_commits_once_without_a_timer(monkeypatch):
 
     assert response.status == 200
     assert len(sent) == 1
-    assert commit_confirm_state.is_active("inst-1451") is False
+    assert commit_confirm_state.blocking("inst-1451") is None
 
 
 def test_1_4_empty_batch_stays_a_value_error():
@@ -126,7 +128,7 @@ def test_1_5_and_rolling_batch_arms_the_timer(monkeypatch, version):
     assert len(posted) == 1
     assert posted[0][0].endswith("/configure")
     assert '"confirm_time": 3' in posted[0][1]
-    assert commit_confirm_state.is_active("inst-1451") is True
+    assert commit_confirm_state.blocking("inst-1451") is not None
 
 
 def test_rejected_commit_confirm_returns_the_vyos_error_not_a_transport_error(monkeypatch):
@@ -149,7 +151,7 @@ def test_rejected_commit_confirm_returns_the_vyos_error_not_a_transport_error(mo
     assert response.status == 400
     assert response.error == "[[service dhcp-server]] failed\nCommit failed\n"
     assert managed == {}
-    assert commit_confirm_state.is_active("inst-1451") is False
+    assert commit_confirm_state.blocking("inst-1451") is None
 
 
 def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
@@ -168,7 +170,7 @@ def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
 
     assert response.status == 503
     assert response.error == "Could not reach the VyOS API"
-    assert commit_confirm_state.is_active("inst-1451") is False
+    assert commit_confirm_state.blocking("inst-1451") is None
 
 
 def test_dropped_connection_returns_a_fixed_message_without_the_url(monkeypatch):
@@ -195,10 +197,11 @@ def test_non_json_reply_is_a_502_with_an_unknown_outcome(monkeypatch):
 
     assert response.status == 502
     assert response.error.startswith(UNANSWERED_COMMIT_CONFIRM_NOTICE)
-    assert commit_confirm_state.is_active("inst-1451") is True
+    assert commit_confirm_state.blocking("inst-1451") is not None
 
 
 def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch):
+    service = _service("1.5")  # registers the instance with its router first
     commit_confirm_state.set_active("inst-1451", 3)
     monkeypatch.setattr(
         "vyos_service._requests.post",
@@ -207,24 +210,25 @@ def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch
         ),
     )
 
-    response = _service("1.5").confirm_commit("inst-1451")
+    response = service.confirm_commit("inst-1451")
 
     assert response.status == 400
     assert response.error == "'confirm' is not a valid operation"
-    assert commit_confirm_state.is_active("inst-1451") is True
+    assert commit_confirm_state.blocking("inst-1451") is not None
 
 
 def test_confirm_clears_the_timer(monkeypatch):
+    service = _service("1.5")  # registers the instance with its router first
     commit_confirm_state.set_active("inst-1451", 3)
     monkeypatch.setattr(
         "vyos_service._requests.post",
         lambda url, data, verify, timeout: _JsonResp(200, {"success": True, "data": "Reload timer stopped\n"}),
     )
 
-    response = _service("1.5").confirm_commit("inst-1451")
+    response = service.confirm_commit("inst-1451")
 
     assert response.status == 200
-    assert commit_confirm_state.is_active("inst-1451") is False
+    assert commit_confirm_state.blocking("inst-1451") is None
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,8 @@
-"""Per-instance configuration snapshots used to classify external changes.
+"""Per-router configuration snapshots used to classify external changes.
 
-Two snapshots are kept per instance:
+Two snapshots are kept per router (see ``device_keys``: two instance rows
+that point at one router share them, so each row's banner sees the other's
+edits as VyManager's, not as external). Callers pass an instance id.
 
 ``saved``
     The baseline the unsaved-changes banner diffs live config against. It
@@ -23,6 +25,8 @@ import threading
 from copy import deepcopy
 from typing import Any, Dict, List
 
+from device_keys import candidate_key, key_for
+
 # Guards both snapshot dicts. The banner poller and request handlers reconcile
 # concurrently, and reconciliation is a read-modify-write of both.
 _lock = threading.RLock()
@@ -36,10 +40,11 @@ def set_saved_config(instance_id: str, config: Dict[str, Any]) -> None:
 
     Called when live config and disk agree: initial load, save, and discard.
     """
+    key = key_for(instance_id)
     with _lock:
         snapshot = deepcopy(config)
-        _saved_config_snapshots[instance_id] = snapshot
-        _managed_config_snapshots[instance_id] = deepcopy(snapshot)
+        _saved_config_snapshots[key] = snapshot
+        _managed_config_snapshots[key] = deepcopy(snapshot)
 
 
 def clear_saved_config(instance_id: str) -> None:
@@ -48,15 +53,17 @@ def clear_saved_config(instance_id: str) -> None:
     The next diff then seeds a new baseline from live config instead of
     diffing against one that no longer matches the router.
     """
+    key = key_for(instance_id)
     with _lock:
-        _saved_config_snapshots.pop(instance_id, None)
-        _managed_config_snapshots.pop(instance_id, None)
+        _saved_config_snapshots.pop(key, None)
+        _managed_config_snapshots.pop(key, None)
 
 
 def set_managed_config(instance_id: str, config: Dict[str, Any]) -> None:
     """Record the live state produced by a successful VyManager operation."""
+    key = key_for(instance_id)
     with _lock:
-        _managed_config_snapshots[instance_id] = deepcopy(config)
+        _managed_config_snapshots[key] = deepcopy(config)
 
 
 def _node_at(tree: Any, path: List[str]) -> Any:
@@ -105,9 +112,10 @@ def record_failed_commit(
     Returns True when a touched node differs from the reference, False when
     none does or there is no baseline yet (nothing to show a change against).
     """
+    key = key_for(instance_id)
     with _lock:
-        managed = _managed_config_snapshots.get(instance_id)
-        reference = managed if managed is not None else _saved_config_snapshots.get(instance_id)
+        managed = _managed_config_snapshots.get(key)
+        reference = managed if managed is not None else _saved_config_snapshots.get(key)
         if reference is None:
             return False
         landed = [
@@ -118,7 +126,7 @@ def record_failed_commit(
             updated = deepcopy(managed)
             for path in landed:
                 _replace_node(updated, path, _node_at(current, path))
-            _managed_config_snapshots[instance_id] = updated
+            _managed_config_snapshots[key] = updated
         return bool(landed)
 
 
@@ -130,19 +138,27 @@ def clear_managed_config(instance_id: str) -> None:
     fold it into the baseline, hiding the edit from the unsaved-changes
     banner. With no managed snapshot, :func:`reconcile_baseline` leaves the
     baseline alone and the edit stays visible.
+
+    The router the row names is cleared too, verified or not: a commit from
+    a row not verified yet still went there. Dropping a marker reveals
+    nothing, so this is safe for any row.
     """
+    keys = {key_for(instance_id), candidate_key(instance_id)}
     with _lock:
-        _managed_config_snapshots.pop(instance_id, None)
+        for key in keys:
+            _managed_config_snapshots.pop(key, None)
 
 
 def get_saved_config(instance_id: str) -> Dict[str, Any] | None:
+    key = key_for(instance_id)
     with _lock:
-        return _saved_config_snapshots.get(instance_id)
+        return _saved_config_snapshots.get(key)
 
 
 def get_managed_config(instance_id: str) -> Dict[str, Any] | None:
+    key = key_for(instance_id)
     with _lock:
-        return _managed_config_snapshots.get(instance_id)
+        return _managed_config_snapshots.get(key)
 
 
 def _merge_external_changes(saved: Any, managed: Any, current: Any) -> Any:
@@ -189,12 +205,13 @@ def reconcile_baseline(instance_id: str, current: Dict[str, Any]) -> Dict[str, A
     Returns ``None`` when the instance has no baseline yet; the caller decides
     whether to seed one with :func:`set_saved_config`.
     """
+    key = key_for(instance_id)
     with _lock:
-        saved = _saved_config_snapshots.get(instance_id)
+        saved = _saved_config_snapshots.get(key)
         if saved is None:
             return None
 
-        managed = _managed_config_snapshots.get(instance_id)
+        managed = _managed_config_snapshots.get(key)
         if managed is None or managed == current:
             # Either nothing external happened, or there is no trustworthy
             # record of what VyManager produced (see clear_managed_config).
@@ -203,6 +220,6 @@ def reconcile_baseline(instance_id: str, current: Dict[str, Any]) -> Dict[str, A
             return saved
 
         merged = _merge_external_changes(saved, managed, current)
-        _saved_config_snapshots[instance_id] = merged
-        _managed_config_snapshots[instance_id] = deepcopy(current)
+        _saved_config_snapshots[key] = merged
+        _managed_config_snapshots[key] = deepcopy(current)
         return merged

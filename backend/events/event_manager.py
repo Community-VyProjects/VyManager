@@ -26,6 +26,8 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
+import device_keys
+
 logger = logging.getLogger(__name__)
 
 # ============================================================================
@@ -55,7 +57,9 @@ class EventManager:
     """
     Central pub/sub hub for banner SSE events.
 
-    Keyed by instance_id so each VyOS device has its own channel.
+    One channel per instance row. emit() fans an event out to every verified
+    row on the same router (device_keys), a refetch signal also to the router
+    an unverified row names; emit_to_instance() reaches one row.
     """
 
     def __init__(self) -> None:
@@ -105,10 +109,32 @@ class EventManager:
         Called from mutation endpoints for instant updates (on the loop or
         from a threadpool worker) and from the background poller when
         external changes are detected.
+
+        Router events reach every instance row that points at the same router
+        (see ``device_keys``), so a second site or organization on that router
+        sees the change too. Use :meth:`emit_to_instance` for one row only.
+
+        A refetch signal (``data`` None) carries nothing, so it also reaches
+        this row and the rows on the router it names when it is not verified
+        (a commit that went there before any read verified it): each row
+        refetches what it may see. Data reaches only the verified rows.
         """
+        rows = device_keys.instances_on(device_keys.key_for(instance_id))
+        if data is None:
+            rows = rows | device_keys.instances_on(device_keys.candidate_key(instance_id)) | {instance_id}
+        self._deliver(rows, event_type, data)
+
+    def emit_to_instance(self, instance_id: str, event_type: str, data: Any) -> None:
+        """Push an event to the subscribers of this one instance row."""
+        self._deliver({instance_id}, event_type, data)
+
+    def _deliver(self, instance_ids: Any, event_type: str, data: Any) -> None:
         with self._lock:
-            channel = self._channels.get(instance_id)
-            targets = list(channel.subscribers.items()) if channel else []
+            targets = [
+                item
+                for iid in instance_ids
+                for item in (self._channels[iid].subscribers.items() if iid in self._channels else ())
+            ]
         if not targets:
             return
 
@@ -126,7 +152,7 @@ class EventManager:
                 loop.call_soon_threadsafe(queue.put_nowait, payload)
             except RuntimeError:
                 # That queue's loop is closed (shutdown); no stream is left to wake.
-                logger.debug("Dropped %s event for instance %s: event loop closed", event_type, instance_id)
+                logger.debug("Dropped %s event: event loop closed", event_type)
 
     # ------------------------------------------------------------------
     # Background poller

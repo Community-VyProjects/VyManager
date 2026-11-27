@@ -60,7 +60,7 @@ def test_system_batch_handler_maps_value_error_to_http_400():
     """The 1.4 mapper guard raises ValueError; the system batch route must
     return 400, not an opaque 500. Parse the source so this holds without a
     DB or device."""
-    router_path = Path(__file__).resolve().parents[1] / "routers" / "system.py"
+    router_path = Path(__file__).resolve().parents[1] / "routers" / "system" / "system.py"
     tree = ast.parse(router_path.read_text())
 
     handler = next(

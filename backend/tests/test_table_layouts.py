@@ -314,6 +314,8 @@ def test_replace_restore_reinserts_pins_after_instance_cascade():
             return None
 
         async def fetch(self, query, *args):
+            if query == 'SELECT id FROM "instances"':
+                return [{"id": instance_id} for instance_id in sorted(self.instances)]
             columns = {
                 "users": [("id", "text"), ("email", "text"), ("role", "text")],
                 "sites": [("id", "text"), ("name", "text"), ("orgId", "text")],

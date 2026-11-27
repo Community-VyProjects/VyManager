@@ -13,6 +13,7 @@ from session_vyos_service import get_session_vyos_service, require_session_insta
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import commit_confirm_state
+import device_keys
 import logging
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF
 from config_state import (
@@ -50,9 +51,19 @@ class SaveConfigResponse(BaseModel):
 # Helper Functions
 # ========================================================================
 
+def _normalize(value: Any) -> Any:
+    """Unwrap a single-element list so ["us"] == "us": a parsed config.boot
+    (an archive) gives one value of a multi leaf as a list, the live JSON as
+    a string, or the other way round."""
+    if isinstance(value, list) and len(value) == 1:
+        return value[0]
+    return value
+
+
 def deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
     """
-    Recursively compare two configuration dictionaries.
+    Recursively compare two configuration dictionaries (the unsaved-changes
+    banner and the archive diff share it).
 
     Returns:
         tuple: (added, removed, modified)
@@ -73,7 +84,7 @@ def deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
             added.update(sub_added)
             removed.update(sub_removed)
             modified.update(sub_modified)
-        elif current[key] != saved[key]:
+        elif _normalize(current[key]) != _normalize(saved[key]):
             # Value changed
             modified[f"{path}.{key}" if path else key] = {
                 "old": saved[key],
@@ -135,7 +146,7 @@ def _build_discard_operations(added: dict, removed: dict, modified: dict) -> lis
     return operations
 
 
-async def _reseed_baseline(service, instance_id: str, fallback: Optional[Dict[str, Any]]) -> None:
+def _reseed_baseline(service, instance_id: str, fallback: Optional[Dict[str, Any]]) -> None:
     """Make live config the saved baseline after a save or a discard.
 
     The save or discard already happened on the router, so a failed re-read
@@ -143,9 +154,13 @@ async def _reseed_baseline(service, instance_id: str, fallback: Optional[Dict[st
     known to have left on the router (``fallback``). Only with no known state
     is the baseline dropped; reseeding it later from live config could
     swallow a VyManager edit committed in between.
+
+    Runs on a worker under the router's write lock (see _save_boot_config and
+    _discard_unsaved): the snapshots are shared by every row on the router, so
+    another row's commit must not land between the operation and the re-read.
     """
     try:
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        current_config = service.get_full_config(refresh=True)
     except Exception:
         logger.exception(
             "Could not re-read config for instance %s after save/discard; using the last known state",
@@ -157,6 +172,44 @@ async def _reseed_baseline(service, instance_id: str, fallback: Optional[Dict[st
             set_saved_config(instance_id, fallback)
         return
     set_saved_config(instance_id, current_config)
+
+
+def _save_boot_config(service, instance_id: str):
+    """Save to the boot config and reseed the baseline, as one step on the router."""
+    with device_keys.write_lock(instance_id):
+        # Always the device default path. A client-supplied file is not accepted.
+        response = service.config_file_save()
+        if response.status == 200:
+            # The baseline becomes the config just written to disk. If it cannot
+            # be re-read, the last config VyManager produced is the best record.
+            _reseed_baseline(service, instance_id, get_managed_config(instance_id))
+        return response
+
+
+def _discard_unsaved(service, instance_id: str):
+    """Revert the unsaved changes and reseed the baseline, as one step on the router.
+
+    Returns the commit response, or None when there is nothing to discard.
+    """
+    with device_keys.write_lock(instance_id):
+        current_config = service.get_full_config(refresh=True)
+
+        # Reconcile first. Without this, discard diffs against a baseline that
+        # has not absorbed external changes yet, so it also reverts edits made
+        # by SSH or the CLI since the last poll (#855).
+        baseline = reconcile_baseline(instance_id, current_config)
+        if baseline is None:
+            return None
+
+        added, removed, modified = deep_diff(current_config, baseline)
+        if not added and not removed and not modified:
+            return None
+
+        response = service.commit_operations(_build_discard_operations(added, removed, modified))
+        if response.status == 200:
+            # The discard restored the reconciled baseline.
+            _reseed_baseline(service, instance_id, baseline)
+        return response
 
 
 # ========================================================================
@@ -225,8 +278,7 @@ async def save_config(request: Request):
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
 
-        # Always the device default path. A client-supplied file is not accepted.
-        response = await run_in_threadpool(service.config_file_save)
+        response = await run_in_threadpool(_save_boot_config, service, instance_id)
 
         if response.status != 200:
             return SaveConfigResponse(
@@ -234,10 +286,6 @@ async def save_config(request: Request):
                 message="Failed to save configuration",
                 error=response.error or "Unknown error"
             )
-
-        # The baseline becomes the config just written to disk. If it cannot
-        # be re-read, the last config VyManager produced is the best record.
-        await _reseed_baseline(service, instance_id, get_managed_config(instance_id))
 
         # Notify SSE subscribers that diff has changed (now empty after save)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
@@ -266,22 +314,9 @@ async def discard_config(request: Request):
     try:
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-
-        # Reconcile first. Without this, discard diffs against a baseline that
-        # has not absorbed external changes yet, so it also reverts edits made
-        # by SSH or the CLI since the last poll (#855).
-        baseline = reconcile_baseline(instance_id, current_config)
-        if baseline is None:
+        response = await run_in_threadpool(_discard_unsaved, service, instance_id)
+        if response is None:
             return SaveConfigResponse(success=True, message="No changes to discard")
-
-        added, removed, modified = deep_diff(current_config, baseline)
-
-        if not added and not removed and not modified:
-            return SaveConfigResponse(success=True, message="No changes to discard")
-
-        operations = _build_discard_operations(added, removed, modified)
-        response = await run_in_threadpool(service.commit_operations, operations)
 
         if response.status != 200:
             return SaveConfigResponse(
@@ -290,8 +325,6 @@ async def discard_config(request: Request):
                 error=response.error or "Unknown error"
             )
 
-        # The discard restored the reconciled baseline.
-        await _reseed_baseline(service, instance_id, baseline)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
 
         return SaveConfigResponse(
@@ -329,12 +362,18 @@ async def refresh_config(request: Request):
 # ========================================================================
 
 class CommitConfirmStatusResponse(BaseModel):
+    """commit_confirm_state.status: the same shape the SSE banner stream sends."""
+
     active: bool
-    instance_id: Optional[str] = None
+    enabled: bool = False
     confirm_time_minutes: Optional[int] = None
     action: Optional[str] = None
+    started_at: Optional[str] = None
     seconds_remaining: Optional[int] = None
     expires_at: Optional[str] = None
+    started_by_name: Optional[str] = None
+    started_by_known: bool = False
+    unsaved_before: bool = False
 
 
 @router.get("/commit-confirm/status", response_model=CommitConfirmStatusResponse)
@@ -347,12 +386,13 @@ async def get_commit_confirm_status(request: Request):
     """
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        # Same no-instance 400 as the sibling handlers, without building a service.
-        instance_id = require_session_instance(request)["id"]
-        session = commit_confirm_state.get_active(instance_id)
-        if session is None:
-            return CommitConfirmStatusResponse(active=False)
-        return CommitConfirmStatusResponse(**session.to_dict())
+        # Same no-instance 400 as the sibling handlers, without building a
+        # service: whether this row arms one comes from the instance row, and
+        # the router's action from its last config read (known_action).
+        instance = require_session_instance(request)
+        enabled = bool(instance.get("commit_confirm_enabled")) and commit_confirm_state.supports_commit_confirm(
+            instance.get("vyos_version"))
+        return CommitConfirmStatusResponse(**commit_confirm_state.status(instance["id"], enabled=enabled))
     except HTTPException:
         raise
     except Exception:

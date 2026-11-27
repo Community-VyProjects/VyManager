@@ -88,6 +88,7 @@
     "addedInline": "+{count} 新增",
     "removedInline": "-{count} 删除",
     "modifiedInline": "~{count} 修改",
-    "restoring": "正在恢复…"
+    "restoring": "正在恢复…",
+    "diffNeedsConfigurationRead": "查看差异需要“配置”读取权限。"
   }
 }

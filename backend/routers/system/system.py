@@ -15,6 +15,7 @@ from typing import Optional, Dict, List, Any
 import inspect
 import logging
 
+from routers.config.config import deep_diff
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
@@ -743,39 +744,6 @@ async def list_archive_files_endpoint(request: Request, archive_location: str):
 # =============================================================================
 
 
-def _normalize(v: Any) -> Any:
-    """Unwrap single-element lists so ["us"] == "us" when diffing."""
-    if isinstance(v, list) and len(v) == 1:
-        return v[0]
-    return v
-
-
-def _deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
-    """Recursively compare two configuration dicts. Returns (added, removed, modified)."""
-    added: Dict[str, Any] = {}
-    removed: Dict[str, Any] = {}
-    modified: Dict[str, Any] = {}
-
-    for key in current:
-        full = f"{path}.{key}" if path else key
-        if key not in saved:
-            added[full] = current[key]
-        elif isinstance(current[key], dict) and isinstance(saved[key], dict):
-            a, r, m = _deep_diff(current[key], saved[key], full)
-            added.update(a)
-            removed.update(r)
-            modified.update(m)
-        elif _normalize(current[key]) != _normalize(saved[key]):
-            modified[full] = {"old": saved[key], "new": current[key]}
-
-    for key in saved:
-        if key not in current:
-            full = f"{path}.{key}" if path else key
-            removed[full] = saved[key]
-
-    return added, removed, modified
-
-
 @router.get("/config/archive-diff")
 async def get_archive_diff(request: Request, archive_location: str, filename: str):
     """
@@ -784,6 +752,10 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
     Returns the same ConfigDiffResponse shape as /vyos/config/diff so the
     frontend can reuse the same diff-rendering component.
     """
+    # The archive locations and the archive server are SYSTEM data, like the
+    # sibling list and restore routes; the diff itself carries the whole
+    # config, which /vyos/config/diff gates behind CONFIGURATION read.
+    await require_read_permission(request, FeatureGroup.SYSTEM)
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         if not validate_filename(filename):
@@ -822,8 +794,7 @@ async def get_archive_diff(request: Request, archive_location: str, filename: st
         except Exception as exc:
             raise HTTPException(status_code=422, detail=f"Failed to parse backup file: {exc}")
 
-        current_config = await run_in_threadpool(service.get_full_config, refresh=False)
-        added, removed, modified = _deep_diff(backup_config, current_config)
+        added, removed, modified = deep_diff(backup_config, full_config)
 
         return {
             "has_changes": bool(added or removed or modified),
@@ -861,7 +832,10 @@ async def restore_config(http_request: Request, body: ConfigRestoreRequest):
 
     Uses VyOS config_file_load API with protocol-specific URL transformation.
     """
+    # SYSTEM write for the archive; CONFIGURATION write because the load
+    # commits a whole config, like the save and discard routes.
     await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    await require_write_permission(http_request, FeatureGroup.CONFIGURATION)
     try:
         if not validate_filename(body.filename):
             raise HTTPException(
@@ -892,10 +866,10 @@ async def restore_config(http_request: Request, body: ConfigRestoreRequest):
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
-        response = await run_in_threadpool(service.device.config_file_load, file=load_url)
+        response = await run_in_threadpool(service.load_config_file, load_url)
         return VyOSResponse(
             success=response.status == 200,
-            data=response.result if response.result else None,
+            data=response.result if isinstance(response.result, dict) else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
@@ -1010,38 +984,43 @@ async def system_batch_configure(
         version = service.get_version()
         builder = SystemBatchBuilder(version=version)
 
-        for operation in body.operations:
-            method = resolve_batch_method(builder, operation.op)
+        try:
+            for operation in body.operations:
+                method = resolve_batch_method(builder, operation.op)
 
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-            n = len(params)
+                sig = inspect.signature(method)
+                params = [p for p in sig.parameters.keys() if p != "self"]
+                n = len(params)
 
-            if n == 0:
-                method()
-            elif n == 1:
-                method(body.item_name)
-            elif n == 2:
-                if operation.value is None:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation '{operation.op}' requires a value",
-                    )
-                method(body.item_name, operation.value)
-            elif n >= 3:
-                # Third (and beyond) args encoded as comma-separated in value
-                if not operation.value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation '{operation.op}' requires a comma-separated value",
-                    )
-                extra = operation.value.split(",", n - 2)
-                if len(extra) < n - 1:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation '{operation.op}' requires {n - 1} comma-separated values",
-                    )
-                method(body.item_name, *extra[: n - 1])
+                if n == 0:
+                    method()
+                elif n == 1:
+                    method(body.item_name)
+                elif n == 2:
+                    if operation.value is None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation '{operation.op}' requires a value",
+                        )
+                    method(body.item_name, operation.value)
+                elif n >= 3:
+                    # Third (and beyond) args encoded as comma-separated in value
+                    if not operation.value:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation '{operation.op}' requires a comma-separated value",
+                        )
+                    extra = operation.value.split(",", n - 2)
+                    if len(extra) < n - 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation '{operation.op}' requires {n - 1} comma-separated values",
+                        )
+                    method(body.item_name, *extra[: n - 1])
+        except ValueError as e:
+            # The builder or the version mapper rejects the op (the 1.4
+            # remote-format guard). An empty batch stays a 500 below.
+            raise HTTPException(status_code=400, detail=str(e))
 
         response = await run_in_threadpool(service.execute_batch, builder)
 
@@ -1051,9 +1030,8 @@ async def system_batch_configure(
             error=response.error if response.error else None,
         )
     except HTTPException:
+        # Includes the 409 execute_batch raises while a commit-confirm is pending.
         raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         logger.exception("Unhandled error in system_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -1042,6 +1042,9 @@ async def delete_site(request: Request, site_id: str, conn: asyncpg.Connection =
         await assert_row_in_acting_org(request, conn, site_org)
 
         async with conn.transaction():
+            instance_ids = [
+                row["id"] for row in await conn.fetch('SELECT id FROM instances WHERE "siteId" = $1', site_id)
+            ]
             # Delete will cascade to instances and user_instance_roles
             result = await conn.execute(
                 """
@@ -1053,10 +1056,15 @@ async def delete_site(request: Request, site_id: str, conn: asyncpg.Connection =
             if result == "DELETE 0":
                 raise HTTPException(status_code=404, detail="Site not found")
 
-            return ApiResponse(
-                success=True,
-                message="Site deleted successfully",
-            )
+        # The cascade removed the site's instances: drop their services and
+        # their router registrations, as delete_instance does.
+        for instance_id in instance_ids:
+            clear_session_cache(instance_id)
+
+        return ApiResponse(
+            success=True,
+            message="Site deleted successfully",
+        )
 
     except HTTPException:
         raise
@@ -1497,6 +1505,7 @@ BACKUP_EXCLUDED_TABLES: List[str] = [
     "verifications",
     "audit_logs",
     "scheduled_power_actions",
+    "commit_confirm_sessions",  # a pending timer belongs to the running router
 ]
 
 # Natural unique key per table for merge mode. When a row collides on this key
@@ -1773,6 +1782,8 @@ async def restore_backup(
 
     async with conn.transaction():
         if mode == "replace":
+            # Every instance goes away, not only those the backup brings back.
+            affected_instance_ids.extend(row["id"] for row in await conn.fetch('SELECT id FROM "instances"'))
             for table in reversed(BACKUP_TABLES):
                 await conn.execute(f'DELETE FROM "{table}"')
 
@@ -1823,7 +1834,7 @@ async def restore_backup(
             if skipped:
                 skipped_counts[table] = skipped
 
-    for instance_id in affected_instance_ids:
+    for instance_id in set(affected_instance_ids):
         if instance_id:
             clear_session_cache(instance_id)
 

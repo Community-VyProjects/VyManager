@@ -1,6 +1,6 @@
 import type { PowerActionRequest } from "./power";
 
-// Same checks as backend/routers/power.py: powerctrl reads 'at' as HH:MM
+// Same checks as backend/routers/power/power.py: powerctrl reads 'at' as HH:MM
 // (24-hour) and 'in' as a whole number of minutes, here 1 to 9999999
 // (leading zeros dropped).
 const AT_TIME = /^(?:[01]?[0-9]|2[0-3]):[0-5]?[0-9]$/;

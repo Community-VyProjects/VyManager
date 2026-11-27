@@ -17,7 +17,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from session_vyos_service import get_session_vyos_service, _session_device_registry
+from session_vyos_service import cached_session_service, get_session_vyos_service, _session_device_registry
 from fastapi_permissions import has_permission, require_read_permission
 from org_scope import org_id_from_state, request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
@@ -30,7 +30,8 @@ from events.event_manager import (
     EVENT_POWER_STATUS,
 )
 import commit_confirm_state
-from routers.power import get_scheduled_power_status
+import device_keys
+from routers.power.power import get_scheduled_power_status
 
 logger = logging.getLogger(__name__)
 
@@ -264,11 +265,8 @@ async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
 
 
 def _get_commit_confirm_state(instance_id: str) -> Dict[str, Any]:
-    """Get commit-confirm state from the in-memory tracker."""
-    session = commit_confirm_state.get_active(instance_id)
-    if session is None:
-        return {"active": False}
-    return session.to_dict()
+    """Get the row's commit-confirm state (commit_confirm_state.status), no device I/O."""
+    return commit_confirm_state.status(instance_id, cached_session_service(instance_id))
 
 
 async def _get_power_status_state(request: Request) -> Dict[str, Any]:
@@ -295,49 +293,90 @@ async def _get_power_status_state(request: Request) -> Dict[str, Any]:
 # Background Poller
 # ============================================================================
 
-async def _poll_banner_state_for_instance(
-    instance_id: str,
+async def _poll_banner_state_for_device(
+    instance_ids: list[str],
     app_state: Any,
 ) -> None:
     """
-    Poll the current banner state for a single instance and emit events
-    only if the state has changed since the last poll.
+    Poll the banner state of one router and emit events to each of its
+    subscribed instance rows only if that row's state has changed.
+
+    ``instance_ids`` are the subscribed rows verified on one router (see
+    ``device_keys``; an unverified row is polled alone). The config diff is
+    router state, so it is read once, through one row; only that row gets
+    the data. The others get a refetch signal when it changed and read it
+    with their own key, so a key revoked since it was verified is refused.
     """
-    # --- Config diff ---
-    try:
-        config_diff_data = await _config_diff_for(
-            instance_id, _session_device_registry.get(instance_id)
-        )
-        if event_manager.update_last_state(instance_id, EVENT_CONFIG_DIFF, config_diff_data):
-            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
-    except Exception:
-        logger.debug("Poller: failed to get config diff for instance %s", instance_id)
+    group_key = device_keys.key_for(instance_ids[0])
 
-    # --- Commit confirm ---
-    try:
-        cc_data = _get_commit_confirm_state(instance_id)
-        if event_manager.update_last_state(instance_id, EVENT_COMMIT_CONFIRM, cc_data):
-            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, {"commit_confirm": cc_data})
-    except Exception:
-        logger.debug("Poller: failed to get commit-confirm for instance %s", instance_id)
+    # --- Config diff: read once, through the first row whose read works ---
+    services = []
+    for iid in instance_ids:
+        try:
+            services.append((iid, _session_device_registry.get(iid)))
+        except KeyError:
+            continue
+    config_diff_data = None
+    fresh = None
+    reader = None
+    for iid, service in services:
+        try:
+            config_diff_data = await _config_diff_for(iid, service)
+            fresh = getattr(service, "_cached_config", None)
+            reader = iid
+            break
+        except Exception:
+            logger.debug("Poller: failed to get config diff through instance %s", iid)
+    # A row whose key the router refused during this tick (device_keys.rejected)
+    # is no longer on the router's key: it gets nothing read with another key.
+    instance_ids = [iid for iid in instance_ids if device_keys.key_for(iid) == group_key]
+    if config_diff_data is not None:
+        if fresh is not None:
+            # The router changed under the other rows' cached reads: drop them,
+            # so each row's next read goes out with its own credentials.
+            for _iid, service in services:
+                if getattr(service, "_cached_config", None) is not fresh:
+                    service._cached_config = None
+        for iid in instance_ids:
+            if event_manager.update_last_state(iid, EVENT_CONFIG_DIFF, config_diff_data):
+                # Only the row whose key made this read gets its data. The
+                # others get the refetch signal and read with their own key,
+                # so a key revoked on the router is refused, not served.
+                payload = {"config_diff": config_diff_data} if iid == reader else None
+                event_manager.emit_to_instance(iid, EVENT_CONFIG_DIFF, payload)
 
-    # --- Power status ---
-    try:
-        db_pool = app_state.db_pool
-        if db_pool:
+    # --- Commit confirm (per row: whether the row arms one is a row setting) ---
+    for iid in instance_ids:
+        if cached_session_service(iid) is None:
+            # Without the row's service its settings are unknown here; the
+            # status route (which reads the instance row) stays the source.
+            continue
+        try:
+            cc_data = _get_commit_confirm_state(iid)
+            if event_manager.update_last_state(iid, EVENT_COMMIT_CONFIRM, cc_data):
+                event_manager.emit_to_instance(iid, EVENT_COMMIT_CONFIRM, {"commit_confirm": cc_data})
+        except Exception:
+            logger.debug("Poller: failed to get commit-confirm for instance %s", iid)
+
+    # --- Power status (scheduled per instance row) ---
+    db_pool = app_state.db_pool
+    if not db_pool:
+        return
+    for instance_id in instance_ids:
+        try:
             status = await get_scheduled_power_status(
                 db_pool.acquire,
                 instance_id,
-                lambda: _session_device_registry.get(instance_id),
+                lambda iid=instance_id: _session_device_registry.get(iid),
             )
             # Subscribers may lack POWER read, so send the refetch signal and
             # let each client re-read through the POWER-gated GET /status.
             if event_manager.update_last_state(
                 instance_id, EVENT_POWER_STATUS, status.model_dump(mode="json")
             ):
-                event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
-    except Exception:
-        logger.debug("Poller: failed to get power status for instance %s", instance_id)
+                event_manager.emit_to_instance(instance_id, EVENT_POWER_STATUS, None)
+        except Exception:
+            logger.debug("Poller: failed to get power status for instance %s", instance_id)
 
 
 async def start_banner_poller(app_state: Any) -> None:
@@ -368,10 +407,13 @@ async def start_banner_poller(app_state: Any) -> None:
             if not instance_ids:
                 continue
 
-            # Poll each instance concurrently
+            # Poll each router once, concurrently.
+            by_device: Dict[str, list[str]] = {}
+            for iid in instance_ids:
+                by_device.setdefault(device_keys.key_for(iid), []).append(iid)
             tasks = [
-                _poll_banner_state_for_instance(iid, app_state)
-                for iid in instance_ids
+                _poll_banner_state_for_device(sorted(iids), app_state)
+                for iids in by_device.values()
             ]
             await asyncio.gather(*tasks, return_exceptions=True)
 

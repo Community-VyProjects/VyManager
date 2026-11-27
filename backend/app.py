@@ -52,8 +52,8 @@ from routers.igmp_proxy import igmp_proxy
 from routers.ospf import ospf
 from routers.ospfv3 import ospfv3
 from routers.vrf import vrf
-from routers import system
-from routers import power as power_router
+from routers.system import system
+from routers.power import power as power_router
 from routers.config import config as config_router
 from routers import show as show_router
 from routers.site_updates import site_updates as site_updates_router
@@ -117,6 +117,7 @@ from routers import version as version_router
 from routers import events as events_router
 from routers.events import start_poller, stop_poller
 import revocation_bus
+import commit_confirm_state
 from schema_gate import wait_for_schema
 import appliance_mode
 
@@ -249,6 +250,11 @@ async def lifespan(app: FastAPI):
     else:
         print("  ⚠ Session cleanup task not started (no database)")
 
+    # Pending commit-confirms survive a restart: the router keeps its timer.
+    if db_pool:
+        loaded = await commit_confirm_state.load_and_attach(db_pool)
+        print(f"  ✓ Commit-confirm state loaded ({loaded} pending)")
+
     # Start SSE banner poller
     poller_task = start_poller(app.state)
     print("  ✓ SSE banner poller started")
@@ -275,6 +281,9 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print("\n🛑 Shutting down VyManager API...")
+
+    # Finish commit-confirm writes already made before the pool closes.
+    await commit_confirm_state.flush_and_detach_store()
 
     # Stop the revocation bus listener
     try:

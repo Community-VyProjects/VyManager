@@ -32,13 +32,21 @@ PERMANENT_GLOBAL = {
         "Background banner poller: no request, no org context - it "
         "iterates every instance with active subscribers, a "
         "deployment-wide system service. It passes db_pool.acquire into "
-        "routers/power.py get_scheduled_power_status, so that power "
+        "routers/power/power.py get_scheduled_power_status, so that power "
         "status SQL (keyed on the instance id) runs unscoped from the "
         "poller only. The request-path streams in the same file use "
         "org-scoped connections per tick.",
     "revocation_bus.py":
         "Holds one dedicated LISTEN connection for the deployment-wide "
         "revocation channel; no request, no org context by nature.",
+    "commit_confirm_state.py":
+        "Write-through of the pending commit-confirm per router, keyed by "
+        "the router's host:port, which instance rows of several orgs can "
+        "share; loaded at startup and written from threadpool workers with "
+        "no request context. It reads and writes commit_confirm_sessions "
+        "only; loaded rows become the router's pending session, which every "
+        "verified row on that router sees without user or instance ids, and "
+        "the starter's name only when all those rows share the starter's org.",
     "rbac_permissions.py":
         "_acquire accepts a Pool on the short-lived /vyos permission "
         "path (the sanctioned request_scoped_conn design); flagged by "

@@ -10,9 +10,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { configService, type ConfigDiff, type CommitConfirmStatus } from "@/lib/api/config";
 import { ConfigDiffModal } from "./ConfigDiffModal";
+import {
+  commitConfirmActionKey,
+  commitConfirmRebootWarns,
+  commitConfirmStarter,
+  commitConfirmWarnsBeforeArming,
+} from "./commit-confirm-banner";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
-import { ApiError } from "@/lib/types/api";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
+import { thrownMessage } from "@/lib/api-error";
 
 interface UnsavedChangesBannerProps {
   configDiff: ConfigDiff | null;
@@ -34,6 +42,10 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
+  // Confirm, save and discard need CONFIGURATION write (the routes check it);
+  // the countdown and the diff still show for every row on the router.
+  const { canWrite } = usePermissions();
+  const canChange = canWrite(FeatureGroup.CONFIGURATION);
 
   // Sync SSE-driven props into local state
   useEffect(() => {
@@ -71,12 +83,13 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         return;
       }
       toast.success(t("banner.confirmedTitle"), t("banner.confirmedMessage"));
-      setCc({ active: false });
-      // SSE will push updated diff shortly; also fetch eagerly
-      const newDiff = await configService.getDiff();
-      setDiff(newDiff);
+      // Keep this row's settings: the unsaved-changes banner warns before the next arm.
+      setCc((prev) => ({ active: false, enabled: prev?.enabled, action: prev?.action }));
+      // SSE will push the updated diff shortly; the eager fetch is best
+      // effort, so its failure never reads as a failed confirm or save.
+      configService.getDiff().then(setDiff).catch(() => undefined);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("banner.confirmFailed");
+      const msg = thrownMessage(err, t("banner.confirmFailed"));
       setError(msg);
       toast.error(t("banner.confirmFailedTitle"), msg);
     } finally {
@@ -96,12 +109,11 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         return;
       }
       toast.success(t("banner.savedTitle"), t("banner.savedMessage"));
-      // SSE will push updated diff shortly; also fetch eagerly
-      const newDiff = await configService.getDiff();
-      setDiff(newDiff);
-      setError(null);
+      // SSE will push the updated diff shortly; the eager fetch is best
+      // effort, so its failure never reads as a failed confirm or save.
+      configService.getDiff().then(setDiff).catch(() => undefined);
     } catch (err) {
-      const msg = err instanceof Error ? (err as ApiError).message : t("banner.saveFailed");
+      const msg = thrownMessage(err, t("banner.saveFailed"));
       setError(msg);
       toast.error(t("banner.saveFailedTitle"), msg);
     } finally {
@@ -123,7 +135,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       toast.success(t("banner.discardedTitle"), t("banner.discardedMessage"));
       window.location.reload();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("banner.discardFailed");
+      const msg = thrownMessage(err, t("banner.discardFailed"));
       setError(msg);
       toast.error(t("banner.discardFailedTitle"), msg);
     } finally {
@@ -148,13 +160,10 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   // ── Commit-confirm active: show countdown banner (highest priority) ──
   if (cc?.active) {
     const isUrgent = secondsRemaining <= 60;
-    const action = cc.action ?? "reload";
-    const actionLabel =
-      action === "reload"
-        ? t("banner.actionReload")
-        : action === "rollback"
-          ? t("banner.actionRollback")
-          : action;
+    const actionKey = commitConfirmActionKey(cc.action);
+    // An unknown action is a non-null string the router sent; show it as is.
+    const actionLabel = actionKey ? t(`banner.${actionKey}`) : String(cc.action);
+    const starter = commitConfirmStarter(cc);
     return (
       <>
       <div
@@ -185,7 +194,14 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                       </span>
                     ),
                   })}
+                  {starter?.key === "startedBy" && (
+                    <> · {t("banner.startedBy", { name: starter.name })}</>
+                  )}
+                  {starter?.key === "startedByOther" && <> · {t("banner.startedByOther")}</>}
                 </p>
+                {commitConfirmRebootWarns(cc.action) && cc.unsaved_before && (
+                  <p className="text-xs font-medium text-white">{t("banner.rebootWarning")}</p>
+                )}
               </div>
             </div>
 
@@ -195,15 +211,17 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                   {error}
                 </span>
               )}
-              <Button
-                size="sm"
-                onClick={handleConfirm}
-                disabled={confirming}
-                className="bg-white text-amber-600 hover:bg-amber-50 font-semibold"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                {confirming ? t("banner.confirming") : t("banner.confirm")}
-              </Button>
+              {canChange && (
+                <Button
+                  size="sm"
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                  className="bg-white text-amber-600 hover:bg-amber-50 font-semibold"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {confirming ? t("banner.confirming") : t("banner.confirm")}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -252,6 +270,9 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                     ? t("banner.withDetails", { summary: changeSummary, details: changeDetails })
                     : changeSummary}
                 </p>
+                {commitConfirmWarnsBeforeArming(cc) && (
+                  <p className="text-xs font-medium text-white">{t("banner.rebootRiskBeforeArming")}</p>
+                )}
               </div>
             </div>
 
@@ -272,26 +293,30 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                 {t("banner.showDiffs")}
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDiscardDialog(true)}
-                disabled={discarding}
-                className="bg-red-500/20 text-white border-red-400/40 hover:bg-red-500/30 hover:text-white font-medium shadow-sm"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                {t("banner.discard")}
-              </Button>
+              {canChange && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDiscardDialog(true)}
+                    disabled={discarding}
+                    className="bg-red-500/20 text-white border-red-400/40 hover:bg-red-500/30 hover:text-white font-medium shadow-sm"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    {t("banner.discard")}
+                  </Button>
 
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? tc("saving") : t("banner.save")}
-              </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-white text-blue-600 hover:bg-blue-50 font-semibold"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? tc("saving") : t("banner.save")}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -303,7 +328,10 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         diff={diff}
       />
 
-      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+      <AlertDialog
+        open={showDiscardDialog}
+        onOpenChange={(open) => { if (!open && !discarding) setShowDiscardDialog(false); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("banner.discardTitle")}</AlertDialogTitle>

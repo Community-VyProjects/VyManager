@@ -20,7 +20,7 @@
     "commitConfirmTitle": "Commit-Confirm Active — confirm before changes revert",
     "countdown": "Auto-{action} in <countdown>{time}</countdown> · {minutes} min window",
     "actionReload": "reload",
-    "actionRollback": "rollback",
+    "actionReboot": "reboot",
     "confirming": "Confirming...",
     "confirm": "Confirm Changes",
     "confirmFailed": "Failed to confirm commit",
@@ -47,6 +47,10 @@
     "save": "Save Configuration",
     "discardTitle": "Discard All Changes?",
     "discardDescription": "This will permanently discard all unsaved changes to the running configuration, reverting it to the last saved state. This action cannot be undone.",
-    "discarding": "Discarding..."
+    "discarding": "Discarding...",
+    "startedBy": "started by {name}",
+    "startedByOther": "started by another VyManager user",
+    "rebootWarning": "If it is not confirmed, the router reboots into its saved config: the changes that were unsaved before it are lost too, not only this one.",
+    "rebootRiskBeforeArming": "Commit-confirm is on and this router reboots into its saved config if a change is not confirmed: save these changes first, or an unconfirmed change loses them too."
   }
 }
