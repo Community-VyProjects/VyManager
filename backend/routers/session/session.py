@@ -1206,11 +1206,9 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
             ' FROM instances i JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
             instance_id,
         )
-        instance_org = previous["org_id"] if previous else None
-
-        if instance_org is None:
+        if previous is None or previous["org_id"] is None:
             raise HTTPException(status_code=404, detail="Instance not found")
-        await assert_row_in_acting_org(request, conn, instance_org)
+        await assert_row_in_acting_org(request, conn, previous["org_id"])
 
         # Commit-confirm cannot be armed on 1.4. Refuse turning it on there, and
         # turn it off when the version moves to 1.4 or a stored row still has it.
