@@ -347,6 +347,8 @@ async def get_commit_confirm_status(request: Request):
     """
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
+        # Same no-instance 400 as the sibling handlers.
+        get_session_vyos_service(request)
         instance_id = request.state.instance["id"]
         session = commit_confirm_state.get_active(instance_id)
         if session is None:

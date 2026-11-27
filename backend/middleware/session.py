@@ -18,8 +18,6 @@ from session_cookie import get_session_cookie, verify_session_cookie
 logger = logging.getLogger(__name__)
 
 
-
-
 class _SecureStr:
     """Wraps a sensitive string to prevent accidental logging or serialization.
 
@@ -62,6 +60,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
         "/vyos/config/diff",
         "/session/current",
         "/vyos/power/status",
+        "/vyos/events/banners",  # SSE stream - long-lived connection
     }
 
     def __init__(self, app):

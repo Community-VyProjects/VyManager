@@ -371,3 +371,20 @@ def test_refresh_passes_the_no_session_400_through(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         asyncio.run(config_router.refresh_config(_config_request()))
     assert exc.value.status_code == 400
+
+
+def test_commit_confirm_status_without_an_instance_is_a_400(monkeypatch):
+    """An admin passes the permission check with no instance; the status read must not 500."""
+    from fastapi import HTTPException
+    from session_vyos_service import get_session_vyos_service
+
+    async def allowed(request, feature):
+        return None
+
+    monkeypatch.setattr(config_router, "require_read_permission", allowed)
+    monkeypatch.setattr(config_router, "get_session_vyos_service", get_session_vyos_service)
+    request = cast(Request, SimpleNamespace(state=SimpleNamespace(instance=None)))
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(config_router.get_commit_confirm_status(request))
+    assert exc.value.status_code == 400
