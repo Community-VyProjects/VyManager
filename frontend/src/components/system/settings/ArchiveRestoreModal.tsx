@@ -335,6 +335,7 @@ export function ArchiveRestoreModal({
     if (!location) {
       setFiles([]);
       setFilesError(null);
+      setFilesErrorDetail(null);
       setSelected(null);
       setManualFilename("");
       setDiff(null);
@@ -342,22 +343,31 @@ export function ArchiveRestoreModal({
       setSearch("");
       return;
     }
+    // A slow list for an earlier location must not land on this one.
+    const token = { cancelled: false };
     setFilesLoading(true);
     setFilesError(null);
     setFilesErrorDetail(null);
     systemSettingsService
       .listArchiveFiles(location)
       .then((r) => {
+        if (token.cancelled) return;
         setFiles(r.files);
         if (r.files.length === 0) {
           setFilesError("archive.noFiles");
         }
       })
       .catch((err: unknown) => {
+        if (token.cancelled) return;
         setFilesError("archive.listFailed");
         setFilesErrorDetail(thrownMessage(err, "") || null);
       })
-      .finally(() => setFilesLoading(false));
+      .finally(() => {
+        if (!token.cancelled) setFilesLoading(false);
+      });
+    return () => {
+      token.cancelled = true;
+    };
   }, [location]);
 
   // Fetch diff whenever active filename changes
@@ -566,7 +576,7 @@ export function ArchiveRestoreModal({
               {tc("cancel")}
             </Button>
             <Button
-              disabled={!activeFilename || diffLoading || cannotRestore}
+              disabled={!activeFilename || diffLoading || cannotRestore || restoring}
               onClick={() => setShowConfirm(true)}
             >
               {t("archive.restoreSelected")}
@@ -606,7 +616,7 @@ export function ArchiveRestoreModal({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={restoring}>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleRestore}
+              onClick={async (e) => { e.preventDefault(); await handleRestore(); }}
               disabled={restoring}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

@@ -329,7 +329,10 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         diff={diff}
       />
 
-      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+      <AlertDialog
+        open={showDiscardDialog}
+        onOpenChange={(open) => { if (!open && !discarding) setShowDiscardDialog(false); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("banner.discardTitle")}</AlertDialogTitle>
