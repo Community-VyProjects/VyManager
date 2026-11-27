@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
-import { ApiError } from "@/lib/types/api";
+import { thrownMessage } from "@/lib/api-error";
 
 interface UnsavedChangesBannerProps {
   configDiff: ConfigDiff | null;
@@ -89,7 +89,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       const newDiff = await configService.getDiff();
       setDiff(newDiff);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("banner.confirmFailed");
+      const msg = thrownMessage(err, t("banner.confirmFailed"));
       setError(msg);
       toast.error(t("banner.confirmFailedTitle"), msg);
     } finally {
@@ -114,7 +114,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       setDiff(newDiff);
       setError(null);
     } catch (err) {
-      const msg = err instanceof Error ? (err as ApiError).message : t("banner.saveFailed");
+      const msg = thrownMessage(err, t("banner.saveFailed"));
       setError(msg);
       toast.error(t("banner.saveFailedTitle"), msg);
     } finally {
@@ -136,7 +136,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       toast.success(t("banner.discardedTitle"), t("banner.discardedMessage"));
       window.location.reload();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("banner.discardFailed");
+      const msg = thrownMessage(err, t("banner.discardFailed"));
       setError(msg);
       toast.error(t("banner.discardFailedTitle"), msg);
     } finally {

@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { systemSettingsService, type ArchiveFile } from "@/lib/api/system-settings";
 import type { ConfigDiff } from "@/lib/api/config";
-import type { ApiError } from "@/lib/types/api";
+import { thrownMessage } from "@/lib/api-error";
 import { useToast } from "@/hooks/useToast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -355,7 +355,7 @@ export function ArchiveRestoreModal({
       })
       .catch((err: unknown) => {
         setFilesError("archive.listFailed");
-        setFilesErrorDetail((err as ApiError)?.message || null);
+        setFilesErrorDetail(thrownMessage(err, "") || null);
       })
       .finally(() => setFilesLoading(false));
   }, [location]);
@@ -382,8 +382,9 @@ export function ArchiveRestoreModal({
       })
       .catch((err: unknown) => {
         if (!token.cancelled) {
-          // apiClient throws a plain ApiError object, not an Error.
-          setDiffError((err as ApiError)?.message || DIFF_LOAD_FAILED);
+          // apiClient throws a plain object whose message may be an object
+          // detail; thrownMessage keeps only a non-empty string.
+          setDiffError(thrownMessage(err, DIFF_LOAD_FAILED));
         }
       })
       .finally(() => {
@@ -411,7 +412,7 @@ export function ArchiveRestoreModal({
     } catch (err: unknown) {
       // Keep the backend's reason, e.g. the 409 naming who started a
       // pending commit-confirm on this router.
-      toast.error(t("error"), (err as ApiError)?.message || t("archive.restoreUnexpected"));
+      toast.error(t("error"), thrownMessage(err, t("archive.restoreUnexpected")));
     } finally {
       setRestoring(false);
       setShowConfirm(false);
@@ -461,7 +462,10 @@ export function ArchiveRestoreModal({
               )}
 
               {!filesLoading && filesError && files.length === 0 && (
-                <p className="text-xs text-muted-foreground px-1">{filesErrorDetail ?? t(filesError)}</p>
+                <p className="text-xs text-muted-foreground px-1">
+                    {t(filesError)}
+                    {filesErrorDetail && <span className="block">{filesErrorDetail}</span>}
+                  </p>
               )}
 
               {!filesLoading && files.length > 0 && (
