@@ -170,21 +170,103 @@ def test_a_lost_reply_is_an_unknown_outcome_not_a_compare(monkeypatch, exc, stat
     assert config_state.reconcile_baseline(IID, _partly_live()) == BEFORE
 
 
-def test_a_refused_connection_never_sent_the_commit(monkeypatch):
+def _not_sent_errors():
+    """What pyvyos and _requests.post raise when nothing reached the router."""
+    import requests
+    import urllib3
+
+    import socket
+
+    pool = urllib3.HTTPSConnectionPool("lab", 443)
+    conn = urllib3.connection.HTTPSConnection("lab", 443)
+    refused = urllib3.exceptions.NewConnectionError(conn, "Failed to establish a new connection: [Errno 111] Connection refused")
+    unresolved = urllib3.exceptions.NameResolutionError("lab", conn, socket.gaierror(-5, "No address associated with hostname"))
+    return {
+        "refused": requests.exceptions.ConnectionError(urllib3.exceptions.MaxRetryError(pool, "/configure", refused)),
+        "unresolved": requests.exceptions.ConnectionError(urllib3.exceptions.MaxRetryError(pool, "/configure", unresolved)),
+        "connect_timeout": requests.exceptions.ConnectTimeout("Connection to lab timed out. (connect timeout=10)"),
+        "tls": requests.exceptions.SSLError("certificate verify failed"),
+        "bad_url": requests.exceptions.InvalidURL("Failed to parse: https://lab:1:443/configure"),
+    }
+
+
+def _as_pyvyos_raises(exc):
+    """pyvyos re-raises inside ``except``: Timeout stays Timeout, the rest become ConnectionError."""
     import requests
 
+    try:
+        raise exc
+    except requests.exceptions.Timeout:
+        try:
+            raise requests.exceptions.Timeout("Request timed out after 10 seconds")
+        except requests.exceptions.Timeout as wrapped:
+            return wrapped
+    except requests.exceptions.RequestException as original:
+        try:
+            raise requests.exceptions.ConnectionError(f"Network error: {original}")
+        except requests.exceptions.ConnectionError as wrapped:
+            return wrapped
+
+
+@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls", "bad_url"])
+def test_a_commit_that_was_never_sent_adds_no_notice(monkeypatch, kind):
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing was sent"))
     service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID))
-    _raising_device(service, requests.exceptions.ConnectionError(
-        "Network error: HTTPSConnectionPool(host='lab', port=443): Max retries exceeded "
-        "(Caused by NewConnectionError('Failed to establish a new connection: [Errno 111] Connection refused'))",
-    ))
+    service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
+    _raising_device(service, _as_pyvyos_raises(_not_sent_errors()[kind]))
+    config_state.set_managed_config(IID, BEFORE)
 
     response = service.execute_batch(BATCH)
 
     assert response.status == 503
     assert response.error == "Could not reach the VyOS API"
     assert config_state.get_managed_config(IID) == BEFORE
+
+
+@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls", "bad_url"])
+def test_a_commit_confirm_that_was_never_sent_arms_nothing(monkeypatch, kind):
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing was sent"))
+    error = _not_sent_errors()[kind]
+
+    def post(url, data, verify, timeout):
+        raise error
+
+    monkeypatch.setattr("vyos_service._requests.post", post)
+    service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID,
+                                           commit_confirm_enabled=True))
+    service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
+
+    response = service.execute_batch(BATCH)
+
+    assert response.status == 503
+    assert commit_confirm_state.is_active(IID) is False
+
+
+class _Reply:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+def test_a_rejected_api_key_adds_no_notice(monkeypatch):
+    """Lab: a wrong key gets HTTP 401 'Valid API key is required' and VyOS runs nothing."""
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing ran"))
+    plain = _service(None, commit_status=401, commit_error="HTTP Error 401: Valid API key is required", read_fails=True)
+
+    assert plain.execute_batch(BATCH).error == "HTTP Error 401: Valid API key is required"
+
+    monkeypatch.setattr("vyos_service._requests.post", lambda url, data, verify, timeout: _Reply(
+        401, {"success": False, "data": None, "error": "Valid API key is required"},
+    ))
+    confirm = _service(None, read_fails=True)
+    confirm.config.commit_confirm_enabled = True
+    response = confirm.execute_batch(BATCH)
+
+    assert (response.status, response.error) == (401, "Valid API key is required")
+    assert commit_confirm_state.is_active(IID) is False
 
 
 def test_without_a_managed_snapshot_the_saved_baseline_decides(monkeypatch):
@@ -198,16 +280,30 @@ def test_without_a_managed_snapshot_the_saved_baseline_decides(monkeypatch):
     assert nothing.error == "Set failed\n"
 
 
-@pytest.mark.parametrize("status", [502, 504])
-def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, status):
+@pytest.mark.parametrize(
+    ("kind", "status"),
+    [("read_timeout", 504), ("dropped", 502)],
+)
+def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, kind, status):
+    import requests
+
+    errors = {
+        "read_timeout": requests.exceptions.ReadTimeout("Read timed out. (read timeout=10)"),
+        "dropped": requests.exceptions.ConnectionError("('Connection aborted.', RemoteDisconnected())"),
+    }
     emitted = []
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: emitted.append(args[1]))
+
+    def post(url, data, verify, timeout):
+        raise errors[kind]
+
+    monkeypatch.setattr("vyos_service._requests.post", post)
     service = _service(None, read_fails=True)
     service.config.commit_confirm_enabled = True
-    service._post_api = lambda endpoint, data: ApiResponse(status=status, request={}, result={}, error="Request timed out")
 
     response = service.execute_batch(BATCH)
 
+    assert response.status == status
     assert response.error.startswith(UNANSWERED_COMMIT_CONFIRM_NOTICE)
     assert commit_confirm_state.is_active(IID) is True
     assert "commit_confirm" in emitted and "config_diff" in emitted

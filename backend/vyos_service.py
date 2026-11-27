@@ -9,6 +9,7 @@ from typing import Optional, Union, Dict, Any, List
 import json
 import logging
 import requests as _requests
+import urllib3 as _urllib3
 
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
@@ -56,14 +57,32 @@ UNANSWERED_COMMIT_CONFIRM_NOTICE = (
     "may be active. If the change is live, confirm it before the timer runs out."
 )
 
-# Text of a transport error raised before the request left VyManager
-# (connection refused, DNS failure). Anything else may have reached the router.
-_NOT_SENT_MARKERS = (
-    "NewConnectionError",
-    "Failed to establish a new connection",
-    "Name or service not known",
-    "Temporary failure in name resolution",
+# Transport errors raised before the request was sent: the URL was invalid,
+# the connect timed out or was refused, the name did not resolve, or TLS failed. Anything else
+# may have reached the router.
+_NOT_SENT_ERRORS = (
+    _requests.exceptions.ConnectTimeout,
+    _requests.exceptions.SSLError,
+    _requests.exceptions.InvalidURL,
+    _urllib3.exceptions.NewConnectionError,  # includes NameResolutionError
+    _urllib3.exceptions.ConnectTimeoutError,
+    _urllib3.exceptions.SSLError,
 )
+
+
+def _causes(exc: BaseException):
+    """exc and what it wraps: pyvyos re-raises inside ``except``, so the
+    original is ``__context__``; requests and urllib3 wrap the reason in
+    ``args`` and ``MaxRetryError.reason``."""
+    seen: set = set()
+    todo: List[Any] = [exc]
+    while todo:
+        item = todo.pop()
+        if not isinstance(item, BaseException) or id(item) in seen:
+            continue
+        seen.add(id(item))
+        yield item
+        todo.extend([item.__cause__, item.__context__, getattr(item, "reason", None), *item.args])
 
 
 def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
@@ -73,12 +92,10 @@ def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
     connection broke after the request may have been sent.
     """
     logger.warning("VyOS API /%s request failed: %s", endpoint, type(exc).__name__, exc_info=True)
+    if any(isinstance(cause, _NOT_SENT_ERRORS) for cause in _causes(exc)):
+        return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
     if isinstance(exc, _requests.exceptions.Timeout):
         return ApiResponse(status=504, request={}, result={}, error="Request timed out")
-    if isinstance(exc, _requests.exceptions.ConnectionError) and any(
-        marker in str(exc) for marker in _NOT_SENT_MARKERS
-    ):
-        return ApiResponse(status=503, request={}, result={}, error="Could not reach the VyOS API")
     return ApiResponse(status=502, request={}, result={}, error="The connection to the VyOS API was lost")
 
 
@@ -263,8 +280,8 @@ class VyOSService:
         this batch touched are recorded as VyManager's change, so the
         unsaved-changes banner shows them, and the error says so.
         """
-        if response.status == 503:
-            return  # The request was never sent.
+        if response.status in (401, 403, 503):
+            return  # Never sent, or refused before VyOS ran anything.
 
         if response.status in (502, 504):
             # The router may still be applying the commit, so a re-read now
@@ -395,8 +412,10 @@ class VyOSService:
             logger.warning("VyOS API /%s returned HTTP %s without a JSON body", endpoint, resp.status_code)
             return ApiResponse(status=502, request={}, result={}, error="Unexpected response from the VyOS API")
         if not body.get("success"):
+            # 401/403 (bad API key) is kept, as pyvyos does on the plain path.
+            status = resp.status_code if resp.status_code in (401, 403) else 400
             return ApiResponse(
-                status=400, request={}, result={}, error=body.get("error") or "Unknown error from VyOS API",
+                status=status, request={}, result={}, error=body.get("error") or "Unknown error from VyOS API",
             )
         return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
 

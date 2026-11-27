@@ -145,11 +145,12 @@ def test_rejected_commit_confirm_returns_the_vyos_error_not_a_transport_error(mo
 def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
     import requests
 
+    import urllib3
+
     def _refused(url, data, verify, timeout):
-        raise requests.exceptions.ConnectionError(
-            f"HTTPSConnectionPool(host='lab', port=443): Max retries exceeded with url: {url} "
-            "(Caused by NewConnectionError('Failed to establish a new connection: [Errno 111] Connection refused'))",
-        )
+        pool = urllib3.HTTPSConnectionPool("lab", 443)
+        reason = urllib3.exceptions.NewConnectionError(pool, "Failed to establish a new connection: [Errno 111] Connection refused")
+        raise requests.exceptions.ConnectionError(urllib3.exceptions.MaxRetryError(pool, url, reason))
 
     monkeypatch.setattr("vyos_service._requests.post", _refused)
 
