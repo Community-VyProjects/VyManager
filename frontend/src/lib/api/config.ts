@@ -29,6 +29,9 @@ export interface CommitConfirmStatus {
   action?: string | null;
   seconds_remaining?: number | null;
   expires_at?: string | null;
+  started_by_id?: string | null;
+  /** Left out when another organization's instance row shares the router. */
+  started_by_name?: string | null;
 }
 
 // ============================================================================

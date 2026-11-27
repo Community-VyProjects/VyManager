@@ -20,6 +20,7 @@
     "commitConfirmTitle": "确认提交已激活——请在更改自动回滚前确认",
     "countdown": "将在 <countdown>{time}</countdown> 后自动{action} · 确认窗口 {minutes} 分钟",
     "actionReload": "重新加载",
+    "actionReboot": "重启",
     "actionRollback": "回滚",
     "confirming": "正在确认...",
     "confirm": "确认更改",
@@ -47,6 +48,9 @@
     "save": "保存配置",
     "discardTitle": "放弃所有更改？",
     "discardDescription": "这将永久放弃对运行配置的所有未保存更改，并恢复到上次保存的状态。此操作无法撤销。",
-    "discarding": "正在放弃..."
+    "discarding": "正在放弃...",
+    "startedBy": "由 {name} 发起",
+    "startedByOther": "由另一位 VyManager 用户发起",
+    "rebootWarning": "如果未及时确认，路由器将重启到已保存的配置，所有未保存的更改都会丢失，而不仅是这一项。"
   }
 }

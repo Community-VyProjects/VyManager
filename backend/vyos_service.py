@@ -6,6 +6,7 @@ Much cleaner and easier to maintain!
 """
 
 from typing import Optional, Dict, Any, List, Protocol
+import contextlib
 import json
 import logging
 import ssl as _ssl
@@ -15,6 +16,7 @@ import urllib3 as _urllib3
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
+import device_keys
 from config_state import clear_managed_config, record_failed_commit, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 from vyos_builders.interfaces import (
@@ -108,6 +110,9 @@ def _transport_failure(exc: Exception, endpoint: str) -> ApiResponse:
     return ApiResponse(status=502, request={}, result={}, error="The connection to the VyOS API was lost")
 
 
+_NO_LOCK = contextlib.nullcontext()
+
+
 class BatchOperations(Protocol):
     """What execute_batch needs from a batch builder: every builder has these."""
 
@@ -162,6 +167,36 @@ class VyOSService:
         )
         # Cache for full configuration (for read operations)
         self._cached_config: Optional[Dict[str, Any]] = None
+        if device_config.instance_id:
+            device_keys.register(device_config.instance_id, device_config.hostname, device_config.port)
+
+    def _write_lock(self) -> Any:
+        """The router's write lock (see device_keys.write_lock); a no-op lock without an instance."""
+        if not self.config.instance_id:
+            return _NO_LOCK
+        return device_keys.write_lock(self.config.instance_id)
+
+    def _refuse_during_commit_confirm(self) -> None:
+        """409 when a commit-confirm is pending on this router.
+
+        Any commit during the window would be archived by VyOS and make the
+        pending change permanent, so every commit path checks this under the
+        router's write lock.
+        """
+        from fastapi import HTTPException
+
+        session = commit_confirm_state.get_active(self.config.instance_id) if self.config.instance_id else None
+        if session is None:
+            return
+        starter = session.starter_label()
+        who = f" started by {starter}" if starter else ""
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"A commit-confirm{who} is pending on this router. "
+                f"Confirm it or wait {session.seconds_remaining()} seconds for it to run out."
+            ),
+        )
 
     def get_version(self) -> str:
         """Get the VyOS version for this device."""
@@ -289,6 +324,7 @@ class VyOSService:
         operations: List[Dict[str, Any]],
         response: ApiResponse,
         commit_confirm: bool = False,
+        action: str = commit_confirm_state.DEFAULT_ACTION,
     ) -> None:
         """After a failed commit, keep whatever still reached the router visible.
 
@@ -309,7 +345,7 @@ class VyOSService:
             if commit_confirm:
                 # The timer may be armed on the router. Show the countdown so
                 # it can be confirmed; confirming with nothing pending is a no-op.
-                commit_confirm_state.set_active(instance_id, self.config.commit_confirm_minutes)
+                commit_confirm_state.set_active(instance_id, self.config.commit_confirm_minutes, action)
                 notice = UNANSWERED_COMMIT_CONFIRM_NOTICE
                 event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
             self._prefix_error(response, notice)
@@ -347,11 +383,15 @@ class VyOSService:
         already returns 400 in that case. Do the same here so every caller
         can treat status 200 as applied. pyvyos raises on transport failures;
         those become a status as well (see _transport_failure).
+
+        Raises HTTPException 409 while a commit-confirm is pending on the router.
         """
-        try:
-            response = self.device.configure_multiple_op(op_path=operations)
-        except _requests.exceptions.RequestException as exc:
-            return _transport_failure(exc, "configure")
+        with self._write_lock():
+            self._refuse_during_commit_confirm()
+            try:
+                response = self.device.configure_multiple_op(op_path=operations)
+            except _requests.exceptions.RequestException as exc:
+                return _transport_failure(exc, "configure")
         if response.status == 200 and response.error:
             response.status = 400
         return response
@@ -366,6 +406,9 @@ class VyOSService:
         supports it, the batch is executed with a rollback timer automatically.
         On a version without commit-confirm the flag is ignored and the batch
         commits normally. No router changes are needed.
+
+        The router's write lock is held from the commit-confirm check to the
+        recorded result, so another write cannot land in between.
         """
         if (
             self.config.commit_confirm_enabled
@@ -378,13 +421,14 @@ class VyOSService:
             raise ValueError("Cannot execute empty batch")
 
         operations = batch.get_operations()
-        response = self.commit_operations(operations)
-        if self.config.instance_id:
-            if response.status == 200:
-                self._record_managed_config(self.config.instance_id)
-                event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
-            else:
-                self._note_failed_commit(self.config.instance_id, operations, response)
+        with self._write_lock():
+            response = self.commit_operations(operations)
+            if self.config.instance_id:
+                if response.status == 200:
+                    self._record_managed_config(self.config.instance_id)
+                    event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
+                else:
+                    self._note_failed_commit(self.config.instance_id, operations, response)
         return response
 
     def _post_api(self, endpoint: str, data: Dict[str, Any]) -> ApiResponse:
@@ -436,21 +480,9 @@ class VyOSService:
         version; this method never calls back into execute_batch.
 
         Raises:
-            HTTPException 409: If a commit-confirm is already active for this instance.
+            HTTPException 409: If a commit-confirm is already pending on this router.
             ValueError: If the batch is empty.
         """
-        from fastapi import HTTPException
-
-        if commit_confirm_state.is_active(instance_id):
-            session = commit_confirm_state.get_active(instance_id)
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"A commit-confirm is already active for this instance. "
-                    f"Please confirm or wait {session.seconds_remaining()} seconds for it to expire."
-                ),
-            )
-
         if batch.is_empty():
             raise ValueError("Cannot execute empty batch")
 
@@ -462,21 +494,33 @@ class VyOSService:
         # confirm_time we'd try to include. We must build this payload manually so
         # the timer is armed atomically with the same commit that applies the ops.
         operations = batch.get_operations()
-        response = self._post_api(
-            "configure",
-            {"commands": operations, "confirm_time": confirm_time_minutes},
-        )
-        if response.status != 200:
-            # A rejected commit arms no timer, so whatever landed stays live
-            # with no rollback. A lost reply may have armed one.
-            self._note_failed_commit(instance_id, operations, response, commit_confirm=True)
-            return response
+        with self._write_lock():
+            self._refuse_during_commit_confirm()
+            action = self._commit_confirm_action()
+            response = self._post_api(
+                "configure",
+                {"commands": operations, "confirm_time": confirm_time_minutes},
+            )
+            if response.status != 200:
+                # A rejected commit arms no timer, so whatever landed stays live
+                # with no rollback. A lost reply may have armed one.
+                self._note_failed_commit(instance_id, operations, response, commit_confirm=True, action=action)
+                return response
 
-        commit_confirm_state.set_active(instance_id, confirm_time_minutes)
-        self._record_managed_config(instance_id)
+            commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+            self._record_managed_config(instance_id)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
         event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
         return response
+
+    def _commit_confirm_action(self) -> str:
+        """What the router does when the timer runs out (reboot unless it sets reload)."""
+        try:
+            config = self._cached_config if self._cached_config is not None else self.get_full_config()
+        except Exception:
+            logger.warning("Could not read the commit-confirm action for instance %s", self.config.instance_id)
+            return commit_confirm_state.DEFAULT_ACTION
+        return commit_confirm_state.router_action(config)
 
     def confirm_commit(self, instance_id: str) -> ApiResponse:
         """
@@ -487,19 +531,31 @@ class VyOSService:
         """
         from fastapi import HTTPException
 
-        if not commit_confirm_state.is_active(instance_id):
-            raise HTTPException(
-                status_code=409,
-                detail="No active commit-confirm session for this instance.",
-            )
+        with self._write_lock():
+            if not commit_confirm_state.is_active(instance_id):
+                raise HTTPException(
+                    status_code=409,
+                    detail="No commit-confirm is pending on this router.",
+                )
 
-        # Tested format: confirm goes to /config-file with op: confirm
-        response = self._post_api("config-file", {"op": "confirm"})
+            # Tested format: confirm goes to /config-file with op: confirm
+            response = self._post_api("config-file", {"op": "confirm"})
+            if response.status == 200:
+                commit_confirm_state.clear(instance_id)
         if response.status == 200:
-            commit_confirm_state.clear(instance_id)
             event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
             event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
         return response
+
+    def load_config_file(self, file: str) -> ApiResponse:
+        """Load and commit a config file (archive restore).
+
+        A load is a commit, so it holds the router's write lock and is
+        refused while a commit-confirm is pending, like every other commit.
+        """
+        with self._write_lock():
+            self._refuse_during_commit_confirm()
+            return self.device.config_file_load(file=file)
 
     def get_full_config(self, refresh: bool = False) -> Dict[str, Any]:
         """
@@ -556,8 +612,17 @@ class VyOSService:
         Example:
             >>> service.config_file_save()
             >>> service.config_file_save(file="/config/backup.boot")
+
+        Saving the boot config while a commit-confirm is pending would make
+        the pending change survive the router's revert (a reboot boots the
+        saved config), so that save is refused with a 409 until it is
+        confirmed or runs out.
         """
-        return self.device.config_file_save(file=file)
+        if file is not None:
+            return self.device.config_file_save(file=file)
+        with self._write_lock():
+            self._refuse_during_commit_confirm()
+            return self.device.config_file_save(file=file)
 
     def generate(self, path: List[str]) -> ApiResponse:
         """

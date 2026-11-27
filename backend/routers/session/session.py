@@ -1497,6 +1497,7 @@ BACKUP_EXCLUDED_TABLES: List[str] = [
     "verifications",
     "audit_logs",
     "scheduled_power_actions",
+    "commit_confirm_sessions",  # a pending timer belongs to the running router
 ]
 
 # Natural unique key per table for merge mode. When a row collides on this key

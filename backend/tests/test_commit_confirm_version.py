@@ -199,6 +199,7 @@ def test_non_json_reply_is_a_502_with_an_unknown_outcome(monkeypatch):
 
 
 def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch):
+    service = _service("1.5")  # registers the instance with its router first
     commit_confirm_state.set_active("inst-1451", 3)
     monkeypatch.setattr(
         "vyos_service._requests.post",
@@ -207,7 +208,7 @@ def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch
         ),
     )
 
-    response = _service("1.5").confirm_commit("inst-1451")
+    response = service.confirm_commit("inst-1451")
 
     assert response.status == 400
     assert response.error == "'confirm' is not a valid operation"
@@ -215,13 +216,14 @@ def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch
 
 
 def test_confirm_clears_the_timer(monkeypatch):
+    service = _service("1.5")  # registers the instance with its router first
     commit_confirm_state.set_active("inst-1451", 3)
     monkeypatch.setattr(
         "vyos_service._requests.post",
         lambda url, data, verify, timeout: _JsonResp(200, {"success": True, "data": "Reload timer stopped\n"}),
     )
 
-    response = _service("1.5").confirm_commit("inst-1451")
+    response = service.confirm_commit("inst-1451")
 
     assert response.status == 200
     assert commit_confirm_state.is_active("inst-1451") is False

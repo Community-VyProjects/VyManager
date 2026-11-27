@@ -39,6 +39,12 @@ PERMANENT_GLOBAL = {
     "revocation_bus.py":
         "Holds one dedicated LISTEN connection for the deployment-wide "
         "revocation channel; no request, no org context by nature.",
+    "commit_confirm_state.py":
+        "Write-through of the pending commit-confirm per router, keyed by "
+        "the router's host:port, which instance rows of several orgs can "
+        "share; loaded at startup and written from threadpool workers with "
+        "no request context. It reads and writes commit_confirm_sessions "
+        "only and never returns rows to a caller.",
     "rbac_permissions.py":
         "_acquire accepts a Pool on the short-lived /vyos permission "
         "path (the sanctioned request_scoped_conn design); flagged by "

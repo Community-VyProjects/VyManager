@@ -30,6 +30,7 @@ from events.event_manager import (
     EVENT_POWER_STATUS,
 )
 import commit_confirm_state
+import device_keys
 from routers.power import get_scheduled_power_status
 
 logger = logging.getLogger(__name__)
@@ -295,49 +296,62 @@ async def _get_power_status_state(request: Request) -> Dict[str, Any]:
 # Background Poller
 # ============================================================================
 
-async def _poll_banner_state_for_instance(
-    instance_id: str,
+async def _poll_banner_state_for_device(
+    instance_ids: list[str],
     app_state: Any,
 ) -> None:
     """
-    Poll the current banner state for a single instance and emit events
-    only if the state has changed since the last poll.
+    Poll the banner state of one router and emit events to each of its
+    subscribed instance rows only if that row's state has changed.
+
+    The config diff and the commit-confirm are router state (see
+    ``device_keys``), so they are read once for all rows on the router.
     """
     # --- Config diff ---
     try:
-        config_diff_data = await _config_diff_for(
-            instance_id, _session_device_registry.get(instance_id)
-        )
-        if event_manager.update_last_state(instance_id, EVENT_CONFIG_DIFF, config_diff_data):
-            event_manager.emit(instance_id, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
+        service = None
+        for iid in instance_ids:
+            try:
+                service = _session_device_registry.get(iid)
+                break
+            except KeyError:
+                continue
+        if service is not None:
+            config_diff_data = await _config_diff_for(instance_ids[0], service)
+            for iid in instance_ids:
+                if event_manager.update_last_state(iid, EVENT_CONFIG_DIFF, config_diff_data):
+                    event_manager.emit_to_instance(iid, EVENT_CONFIG_DIFF, {"config_diff": config_diff_data})
     except Exception:
-        logger.debug("Poller: failed to get config diff for instance %s", instance_id)
+        logger.debug("Poller: failed to get config diff for instances %s", instance_ids)
 
     # --- Commit confirm ---
     try:
-        cc_data = _get_commit_confirm_state(instance_id)
-        if event_manager.update_last_state(instance_id, EVENT_COMMIT_CONFIRM, cc_data):
-            event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, {"commit_confirm": cc_data})
+        cc_data = _get_commit_confirm_state(instance_ids[0])
+        for iid in instance_ids:
+            if event_manager.update_last_state(iid, EVENT_COMMIT_CONFIRM, cc_data):
+                event_manager.emit_to_instance(iid, EVENT_COMMIT_CONFIRM, {"commit_confirm": cc_data})
     except Exception:
-        logger.debug("Poller: failed to get commit-confirm for instance %s", instance_id)
+        logger.debug("Poller: failed to get commit-confirm for instances %s", instance_ids)
 
-    # --- Power status ---
-    try:
-        db_pool = app_state.db_pool
-        if db_pool:
+    # --- Power status (scheduled per instance row) ---
+    db_pool = app_state.db_pool
+    if not db_pool:
+        return
+    for instance_id in instance_ids:
+        try:
             status = await get_scheduled_power_status(
                 db_pool.acquire,
                 instance_id,
-                lambda: _session_device_registry.get(instance_id),
+                lambda iid=instance_id: _session_device_registry.get(iid),
             )
             # Subscribers may lack POWER read, so send the refetch signal and
             # let each client re-read through the POWER-gated GET /status.
             if event_manager.update_last_state(
                 instance_id, EVENT_POWER_STATUS, status.model_dump(mode="json")
             ):
-                event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
-    except Exception:
-        logger.debug("Poller: failed to get power status for instance %s", instance_id)
+                event_manager.emit_to_instance(instance_id, EVENT_POWER_STATUS, None)
+        except Exception:
+            logger.debug("Poller: failed to get power status for instance %s", instance_id)
 
 
 async def start_banner_poller(app_state: Any) -> None:
@@ -368,10 +382,13 @@ async def start_banner_poller(app_state: Any) -> None:
             if not instance_ids:
                 continue
 
-            # Poll each instance concurrently
+            # Poll each router once, concurrently.
+            by_device: Dict[str, list[str]] = {}
+            for iid in instance_ids:
+                by_device.setdefault(device_keys.key_for(iid), []).append(iid)
             tasks = [
-                _poll_banner_state_for_instance(iid, app_state)
-                for iid in instance_ids
+                _poll_banner_state_for_device(sorted(iids), app_state)
+                for iids in by_device.values()
             ]
             await asyncio.gather(*tasks, return_exceptions=True)
 

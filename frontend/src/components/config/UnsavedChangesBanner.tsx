@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { configService, type ConfigDiff, type CommitConfirmStatus } from "@/lib/api/config";
 import { ConfigDiffModal } from "./ConfigDiffModal";
+import { commitConfirmActionKey, commitConfirmRebootWarns, commitConfirmStarter } from "./commit-confirm-banner";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
 import { ApiError } from "@/lib/types/api";
@@ -148,13 +149,9 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   // ── Commit-confirm active: show countdown banner (highest priority) ──
   if (cc?.active) {
     const isUrgent = secondsRemaining <= 60;
-    const action = cc.action ?? "reload";
-    const actionLabel =
-      action === "reload"
-        ? t("banner.actionReload")
-        : action === "rollback"
-          ? t("banner.actionRollback")
-          : action;
+    const actionKey = commitConfirmActionKey(cc.action);
+    const actionLabel = actionKey ? t(`banner.${actionKey}`) : (cc.action ?? "");
+    const starter = commitConfirmStarter(cc);
     return (
       <>
       <div
@@ -185,7 +182,14 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
                       </span>
                     ),
                   })}
+                  {starter?.key === "startedBy" && (
+                    <> · {t("banner.startedBy", { name: starter.name })}</>
+                  )}
+                  {starter?.key === "startedByOther" && <> · {t("banner.startedByOther")}</>}
                 </p>
+                {commitConfirmRebootWarns(cc.action) && (
+                  <p className="text-xs font-medium text-white">{t("banner.rebootWarning")}</p>
+                )}
               </div>
             </div>
 

@@ -307,6 +307,7 @@ model Instance {
   activeSessions    ActiveSession[]
   userInstanceRoles UserInstanceRole[]
   sshHostKeys       SshHostKey[]
+  commitConfirms    CommitConfirmSession[]
 
   @@unique([siteId, name])
   @@index([siteId])
@@ -325,6 +326,26 @@ model SshHostKey {
 
   @@id([instanceId, host, port])
   @@map("ssh_host_keys")
+}
+
+// CommitConfirmSession - The pending commit-confirm on one router, so a
+// backend restart keeps the countdown and the commit block (the router has no
+// call that reports a pending timer). Keyed by the normalized "host:port", so
+// every instance row on that router shares it. Written by the backend only.
+model CommitConfirmSession {
+  deviceKey      String   @id
+  instanceId     String // the instance row it was started from
+  startedAt      DateTime
+  expiresAt      DateTime
+  confirmMinutes Int
+  action         String // the router's commit-confirm action: "reboot" or "reload"
+  startedById    String?
+  startedByName  String?
+  startedByOrgId String?
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@map("commit_confirm_sessions")
 }
 
 // ActiveSession - Tracks which instance a user is currently connected to

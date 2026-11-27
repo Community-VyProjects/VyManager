@@ -15,6 +15,7 @@ from pyvyos.core.rest_client import ApiResponse
 import config_state
 from routers.config.config import deep_diff
 import commit_confirm_state
+import device_keys
 from vyos_service import (
     PARTIAL_COMMIT_NOTICE,
     UNANSWERED_COMMIT_CONFIRM_NOTICE,
@@ -50,11 +51,14 @@ BATCH: Any = _Batch([
 
 @pytest.fixture(autouse=True)
 def _baseline():
+    # Every service here points at host "lab"; state is keyed by the router.
+    device_keys.register(IID, "lab", 443)
     config_state.set_saved_config(IID, BEFORE)
     commit_confirm_state.clear(IID)
     yield
     config_state.clear_saved_config(IID)
     commit_confirm_state.clear(IID)
+    device_keys.forget(IID)
 
 
 def _service(live, *, commit_status=400, commit_error="[[service dhcp-server]] failed\nCommit failed\n", read_fails=False):
@@ -339,6 +343,7 @@ def test_a_commit_confirm_that_was_never_sent_arms_nothing(monkeypatch, kind):
     monkeypatch.setattr("vyos_service._requests.post", post)
     service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID,
                                            commit_confirm_enabled=True))
+    service._cached_config = {}  # the commit-confirm action is read from the cached config
     service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
 
     response = service.execute_batch(BATCH)
@@ -467,6 +472,7 @@ def test_commit_confirm_request_that_never_reached_the_router_adds_no_notice(mon
     service._post_api = lambda endpoint, data: ApiResponse(
         status=503, request={}, result={}, error="Could not reach the VyOS API",
     )
+    service._cached_config = {}  # the commit-confirm action is read from the cached config
     service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
 
     assert service.execute_batch(BATCH).error == "Could not reach the VyOS API"

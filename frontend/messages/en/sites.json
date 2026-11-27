@@ -80,7 +80,7 @@
     "apiKeyPlaceholder": "VyOS API key",
     "apiPort": "API Port",
     "commitConfirmEnable": "Enable Commit-Confirm",
-    "commitConfirmHint": "All changes will require confirmation or VyOS will auto-revert",
+    "commitConfirmHint": "Each change must be confirmed in time, or the router reverts it (by default VyOS reboots into the saved config)",
     "commitConfirmUnsupported": "Not supported on this version",
     "confirmWindow": "Confirm window",
     "createButton": "Create Instance",

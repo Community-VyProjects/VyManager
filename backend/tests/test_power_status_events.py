@@ -243,7 +243,7 @@ def poller(monkeypatch, db, service, loop_thread):
         "event_manager",
         SimpleNamespace(
             update_last_state=lambda _iid, kind, value: states.update({kind: value}) or True,
-            emit=lambda instance_id, kind, data: emitted.append((instance_id, kind, data)),
+            emit_to_instance=lambda instance_id, kind, data: emitted.append((instance_id, kind, data)),
         ),
     )
     import config_state
@@ -252,7 +252,7 @@ def poller(monkeypatch, db, service, loop_thread):
     app_state = SimpleNamespace(db_pool=SimpleNamespace(acquire=_conn_factory(db)))
 
     def call():
-        _run(events._poll_banner_state_for_instance(INSTANCE, app_state), loop_thread)
+        _run(events._poll_banner_state_for_device([INSTANCE], app_state), loop_thread)
         return {kind: data for _iid, kind, data in emitted}
 
     return SimpleNamespace(call=call, registry=registry, states=states)

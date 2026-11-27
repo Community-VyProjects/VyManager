@@ -14,10 +14,20 @@ Commit-confirm is a per-instance setting (Site Manager → edit instance): an on
 
 When enabled, every batch commit arms a rollback timer on the router in the same operation. If nobody confirms before the timer expires, VyOS reverts the change — a misconfigured firewall rule that locks you out undoes itself.
 
+How VyOS reverts is the router's `system config-management commit-confirm action`:
+
+- `reboot` (the VyOS default when the router sets nothing): the router reboots into its **saved** config. Every unsaved change is lost, not only the pending one, and the banner says so.
+- `reload`: the router reloads the config it had before the pending commit.
+
+To keep unsaved changes safe, either save before a risky change or set `set system config-management commit-confirm action reload` on the router.
+
 While a commit-confirm is pending:
 
-- A banner in the UI counts down and offers Confirm.
-- Further write operations on that instance are rejected with `409` until the pending commit is confirmed or expires.
+- A banner counts down, names the router's action and who started it, and offers Confirm.
+- Every other commit to that router is rejected with `409` until the pending commit is confirmed or expires: batches, discard, archive restore, and saving the boot config (a save would make the pending change survive a reboot revert). This holds across sites and organizations: the state belongs to the router (`host:port`), not to the instance row, so two instance rows that point at one router share one countdown. Anyone with write access on any of those rows can confirm.
+- The countdown survives a backend restart: it is stored in the `commit_confirm_sessions` table, because the router has no call that reports a pending timer.
+
+Starter names are shown only when every instance row on the router belongs to the starter's organization; otherwise the banner says another VyManager user started it.
 
 Confirming stops the timer and makes the change permanent in the running config. Confirming does not save to disk — save the configuration separately when ready.
 

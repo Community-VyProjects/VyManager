@@ -18,7 +18,7 @@ Rule-based features (firewall, NAT, policies) additionally expose a `/reorder` e
 
 ## Config lifecycle
 
-VyOS distinguishes the running config from the saved boot config. VyManager tracks this per instance under `/vyos/config`:
+VyOS distinguishes the running config from the saved boot config. VyManager tracks this per router (instance rows that point at the same `host:port` share it) under `/vyos/config`:
 
 - `GET /vyos/config/diff` — structured diff of running config vs. the config as of the last save: what is unsaved.
 - `POST /vyos/config/save` — write the running config to `/config/config.boot` and reset the saved baseline.

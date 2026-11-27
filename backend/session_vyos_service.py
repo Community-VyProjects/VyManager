@@ -8,6 +8,8 @@ Replaces the single-device pattern with dynamic multi-instance support.
 from fastapi import Request, HTTPException
 from vyos_service import VyOSService, VyOSDeviceConfig, VyOSDeviceRegistry
 import appliance_mode
+import commit_confirm_state
+import device_keys
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,11 @@ def require_session_instance(request: Request) -> dict:
 
     Reads request state only, so a route that needs the instance id but no
     device I/O can call it on the event loop.
+
+    Every route that reaches the router comes through here, so it also
+    records which router the instance points at (``device_keys``) and who
+    is asking (``commit_confirm_state.current_actor``, read when a
+    commit-confirm is started from the threadpool).
     """
     instance = getattr(request.state, "instance", None)
     if not instance:
@@ -34,6 +41,15 @@ def require_session_instance(request: Request) -> dict:
                 "redirect": appliance_mode.no_instance_redirect(),
             },
         )
+    org = getattr(request.state, "org", None)
+    org_id = org.get("id") if isinstance(org, dict) else None
+    if instance.get("host"):
+        device_keys.register(instance["id"], instance["host"], instance.get("port"), org_id)
+    user = getattr(request.state, "user", None)
+    if isinstance(user, dict):
+        commit_confirm_state.current_actor.set(commit_confirm_state.Actor(
+            user_id=user.get("id"), name=user.get("name") or user.get("email"), org_id=org_id,
+        ))
     return instance
 
 

@@ -892,7 +892,7 @@ async def restore_config(http_request: Request, body: ConfigRestoreRequest):
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
-        response = await run_in_threadpool(service.device.config_file_load, file=load_url)
+        response = await run_in_threadpool(service.load_config_file, load_url)
         return VyOSResponse(
             success=response.status == 200,
             data=response.result if response.result else None,
