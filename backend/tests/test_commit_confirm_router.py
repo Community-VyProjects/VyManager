@@ -550,6 +550,47 @@ def test_an_unverified_row_learns_no_action():
     assert commit_confirm_state.status(ROW_OTHER, stranger, enabled=True)["action"] is None
 
 
+def test_a_lost_reply_from_an_unverified_row_blocks_the_whole_router(monkeypatch):
+    """No read has verified the row yet (it failed, or the backend restarted)."""
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+
+    def lost(url, data, verify, timeout):
+        raise requests.exceptions.ReadTimeout("Read timed out.")
+
+    monkeypatch.setattr("vyos_service._requests.post", lost)
+    unverified = _service(ROW_A, confirm=True, verified=False)
+    monkeypatch.setattr(unverified, "_before_arming", lambda *_args: (commit_confirm_state.DEFAULT_ACTION, True))
+    other = _service(ROW_B)
+
+    assert unverified.execute_batch(_Batch()).status == 504
+
+    assert commit_confirm_state.blocking(ROW_B) is not None
+    with pytest.raises(HTTPException) as exc:
+        other.execute_batch(_Batch())
+    assert exc.value.status_code == 409
+    # Once a read verifies the row, its own countdown is still there.
+    device_keys.verified(ROW_A)
+    assert _active(ROW_A) is not None
+
+
+def test_an_unverified_row_can_confirm_the_timer_its_lost_reply_armed(monkeypatch):
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+    service = _service(ROW_A, confirm=True, verified=False)
+    commit_confirm_state.set_active(ROW_A, 2)
+    posts = []
+
+    def confirmed(endpoint, data):
+        posts.append(data)
+        service._router_answered(200)
+        return ApiResponse(status=200, request={}, result=cast(Any, "Reboot timer stopped\n"), error="")
+
+    monkeypatch.setattr(service, "_post_api", confirmed)
+
+    assert service.confirm_commit(ROW_A).status == 200
+    assert posts == [{"op": "confirm"}]
+    assert commit_confirm_state.blocking(ROW_B) is None
+
+
 def test_while_pending_enabled_is_still_the_rows_own_setting(router):
     _alice_arms()
 

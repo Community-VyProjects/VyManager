@@ -57,7 +57,8 @@ class EventManager:
     """
     Central pub/sub hub for banner SSE events.
 
-    Keyed by instance_id so each VyOS device has its own channel.
+    One channel per instance row. emit() fans an event out to every verified
+    row on the same router (device_keys); emit_to_instance() reaches one row.
     """
 
     def __init__(self) -> None:

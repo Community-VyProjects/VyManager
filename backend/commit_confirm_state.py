@@ -148,11 +148,17 @@ def set_active(
     action: str = DEFAULT_ACTION,
     unsaved_before: bool = False,
 ) -> CommitConfirmSession:
-    """Record a new pending commit-confirm on this instance's router."""
+    """Record a new pending commit-confirm on the router the commit went to.
+
+    Keyed by the router the row names (``candidate_key``), not by whether its
+    credentials were verified yet: a lost reply (502/504) can arm the timer
+    before any read verified the row, and the router blocks everyone then.
+    A verified row's key is the same router.
+    """
     now = datetime.now(timezone.utc)
     actor = current_actor.get()
     session = CommitConfirmSession(
-        device_key=device_keys.key_for(instance_id),
+        device_key=device_keys.candidate_key(instance_id),
         instance_id=instance_id,
         started_at=now,
         expires_at=now + timedelta(minutes=confirm_time_minutes),

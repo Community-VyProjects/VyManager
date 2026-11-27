@@ -568,7 +568,10 @@ class VyOSService:
         from fastapi import HTTPException
 
         with self._write_lock():
-            if not commit_confirm_state.is_active(instance_id):
+            # The router the row names, verified or not: a lost reply can arm
+            # one before any read verified the row. The router checks the key;
+            # its 200 verifies the row, so clear() below finds the session.
+            if commit_confirm_state.blocking(instance_id) is None:
                 raise HTTPException(
                     status_code=409,
                     detail="No commit-confirm is pending on this router.",
