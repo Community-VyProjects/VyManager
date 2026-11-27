@@ -8,6 +8,7 @@ Much cleaner and easier to maintain!
 from typing import Optional, Union, Dict, Any, List
 import json
 import logging
+import ssl as _ssl
 import requests as _requests
 import urllib3 as _urllib3
 
@@ -58,15 +59,17 @@ UNANSWERED_COMMIT_CONFIRM_NOTICE = (
 )
 
 # Transport errors raised before the request was sent: the URL was invalid,
-# the connect timed out or was refused, the name did not resolve, or TLS failed. Anything else
+# the connect timed out or was refused, the name did not resolve, or the
+# certificate was rejected. Anything else
 # may have reached the router.
+# Only a certificate check failure counts for TLS: urllib3 also raises
+# SSLError for a TLS error while reading the reply, after the request went out.
 _NOT_SENT_ERRORS = (
     _requests.exceptions.ConnectTimeout,
-    _requests.exceptions.SSLError,
     _requests.exceptions.InvalidURL,
     _urllib3.exceptions.NewConnectionError,  # includes NameResolutionError
     _urllib3.exceptions.ConnectTimeoutError,
-    _urllib3.exceptions.SSLError,
+    _ssl.SSLCertVerificationError,  # ssl.CertificateError is the same class
 )
 
 
@@ -388,7 +391,8 @@ class VyOSService:
 
         VyOS answers a rejected request with HTTP 400 and a JSON body that
         carries the error, so the body is read before the status: status 200
-        means ``success`` was true, status 400 carries the VyOS error text.
+        means ``success`` was true, status 400 carries the VyOS error text,
+        and 401/403 (bad API key) keep their status and text.
         Transport failures are logged and get a fixed message, so the device
         URL and the requests text never reach the client.
         """

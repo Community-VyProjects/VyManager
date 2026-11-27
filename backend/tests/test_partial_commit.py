@@ -172,24 +172,37 @@ def test_a_lost_reply_is_an_unknown_outcome_not_a_compare(monkeypatch, exc, stat
 
 def _not_sent_errors():
     """What pyvyos and _requests.post raise when nothing reached the router."""
+    import socket
+    import ssl
+
     import requests
     import urllib3
-
-    import socket
-
     from urllib3.connection import HTTPSConnection
 
     pool = urllib3.HTTPSConnectionPool("lab", 443)
     conn = HTTPSConnection("lab", 443)
     refused = urllib3.exceptions.NewConnectionError(conn, "Failed to establish a new connection: [Errno 111] Connection refused")
     unresolved = urllib3.exceptions.NameResolutionError("lab", conn, socket.gaierror(-5, "No address associated with hostname"))
+    cert = urllib3.exceptions.SSLError(ssl.SSLCertVerificationError(1, "certificate verify failed: self-signed certificate"))
     return {
         "refused": requests.exceptions.ConnectionError(urllib3.exceptions.MaxRetryError(pool, "/configure", refused)),
         "unresolved": requests.exceptions.ConnectionError(urllib3.exceptions.MaxRetryError(pool, "/configure", unresolved)),
         "connect_timeout": requests.exceptions.ConnectTimeout("Connection to lab timed out. (connect timeout=10)"),
-        "tls": requests.exceptions.SSLError("certificate verify failed"),
+        "tls_cert": requests.exceptions.SSLError(urllib3.exceptions.MaxRetryError(pool, "/configure", cert)),
         "bad_url": requests.exceptions.InvalidURL("Failed to parse: https://lab:1:443/configure"),
     }
+
+
+def _tls_error_after_sending():
+    """urllib3 raises SSLError for a TLS fault while reading the reply too."""
+    import ssl
+
+    import requests
+    import urllib3
+
+    pool = urllib3.HTTPSConnectionPool("lab", 443)
+    record = urllib3.exceptions.SSLError(ssl.SSLError(1, "[SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] bad record mac"))
+    return requests.exceptions.SSLError(urllib3.exceptions.MaxRetryError(pool, "/configure", record))
 
 
 def _as_pyvyos_raises(exc):
@@ -210,7 +223,7 @@ def _as_pyvyos_raises(exc):
             return wrapped
 
 
-@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls", "bad_url"])
+@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls_cert", "bad_url"])
 def test_a_commit_that_was_never_sent_adds_no_notice(monkeypatch, kind):
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing was sent"))
     service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID))
@@ -225,7 +238,7 @@ def test_a_commit_that_was_never_sent_adds_no_notice(monkeypatch, kind):
     assert config_state.get_managed_config(IID) == BEFORE
 
 
-@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls", "bad_url"])
+@pytest.mark.parametrize("kind", ["refused", "unresolved", "connect_timeout", "tls_cert", "bad_url"])
 def test_a_commit_confirm_that_was_never_sent_arms_nothing(monkeypatch, kind):
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing was sent"))
     error = _not_sent_errors()[kind]
@@ -242,6 +255,20 @@ def test_a_commit_confirm_that_was_never_sent_arms_nothing(monkeypatch, kind):
 
     assert response.status == 503
     assert commit_confirm_state.is_active(IID) is False
+
+
+def test_a_tls_error_after_sending_is_an_unknown_outcome(monkeypatch):
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+    service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID))
+    service.get_full_config = lambda refresh=False: pytest.fail("a re-read during a running commit proves nothing")
+    _raising_device(service, _as_pyvyos_raises(_tls_error_after_sending()))
+    config_state.set_managed_config(IID, BEFORE)
+
+    response = service.execute_batch(BATCH)
+
+    assert response.status == 502
+    assert response.error.startswith(UNANSWERED_COMMIT_NOTICE)
+    assert config_state.get_managed_config(IID) is None
 
 
 class _Reply:
