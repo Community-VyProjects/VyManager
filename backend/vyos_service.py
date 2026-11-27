@@ -20,7 +20,6 @@ from vyos_builders.firewall import FirewallGroupsBatchBuilder
 from vyos_builders.interfaces import (
     EthernetInterfaceBuilderMixin,
     DummyInterfaceBuilderMixin,
-    BondingInterfaceBuilderMixin,
     GeneveInterfaceBuilderMixin,
     InputInterfaceBuilderMixin,
     L2TPv3InterfaceBuilderMixin,
@@ -29,11 +28,9 @@ from vyos_builders.interfaces import (
     OpenvpnInterfaceBuilderMixin,
     PppoeInterfaceBuilderMixin,
     PseudoEthernetInterfaceBuilderMixin,
-    SstpcInterfaceBuilderMixin,
     VirtualEthernetInterfaceBuilderMixin,
     VppInterfaceBuilderMixin,
     VtiInterfaceBuilderMixin,
-    WirelessInterfaceBuilderMixin,
 )
 from vyos_builders.nat import NATBatchBuilder
 from vyos_builders.system import SystemPerformanceBatchBuilder
@@ -141,14 +138,6 @@ class VyOSService:
         """
         return LoopbackInterfaceBuilderMixin(self.config.version)
 
-    def create_macsec_batch(self) -> MacsecInterfaceBuilderMixin:
-        """
-        Create a batch builder for MACsec interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return MacsecInterfaceBuilderMixin(self.config.version)
-
     def create_openvpn_batch(self) -> OpenvpnInterfaceBuilderMixin:
         """
         Create a batch builder for OpenVPN interfaces.
@@ -173,14 +162,6 @@ class VyOSService:
         """
         return PseudoEthernetInterfaceBuilderMixin(self.config.version)
 
-    def create_sstpc_batch(self) -> SstpcInterfaceBuilderMixin:
-        """
-        Create a batch builder for SSTPC interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return SstpcInterfaceBuilderMixin(self.config.version)
-
     def create_virtual_ethernet_batch(self) -> VirtualEthernetInterfaceBuilderMixin:
         """
         Create a batch builder for virtual-ethernet interfaces.
@@ -204,45 +185,6 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return VtiInterfaceBuilderMixin(self.config.version)
-
-    def create_wireless_batch(self) -> WirelessInterfaceBuilderMixin:
-        """
-        Create a batch builder for wireless interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return WirelessInterfaceBuilderMixin(self.config.version)
-
-    def create_bonding_batch(self) -> BondingInterfaceBuilderMixin:
-        """
-        Create a batch builder for bonding interfaces.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return BondingInterfaceBuilderMixin(self.config.version)
-
-    def create_firewall_groups_batch(self) -> FirewallGroupsBatchBuilder:
-        """
-        Create a batch builder for firewall groups.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return FirewallGroupsBatchBuilder(self.config.version)
-
-    def create_nat_batch(self) -> NATBatchBuilder:
-        """
-        Create a batch builder for NAT configuration.
-
-        The builder automatically uses correct command syntax based on version.
-        """
-        return NATBatchBuilder(self.config.version)
-
-    def create_system_performance_batch(self) -> SystemPerformanceBatchBuilder:
-        """
-        Create a batch builder for system option performance.
-        Version-aware (1.4: throughput/latency; 1.5: five profiles).
-        """
-        return SystemPerformanceBatchBuilder(self.config.version)
 
     def _record_managed_config(self, instance_id: str) -> None:
         """Record post-mutation live config as VyManager-produced state.
@@ -509,34 +451,6 @@ class VyOSService:
         """
         return self.device.generate(path=path)
 
-    def show_config(self, path: Optional[List[str]] = None) -> Dict[str, Any]:
-        """
-        Retrieve configuration from VyOS using pyvyos.
-
-        DEPRECATED: Use get_full_config() for read operations instead.
-        This method is kept for backward compatibility.
-
-        Args:
-            path: Configuration path as list (e.g., ['interfaces', 'ethernet'])
-                  If None, retrieves entire configuration
-
-        Returns:
-            Configuration data as dictionary
-
-        Example:
-            >>> service.show_config(["interfaces", "ethernet"])
-            {'eth0': {'address': ['10.0.0.1/24'], 'description': 'WAN'}}
-        """
-        # Use pyvyos retrieve_show_config with path parameter
-        response = self.device.retrieve_show_config(path=path)
-
-        if response.status != 200:
-            error_msg = response.error if response.error else "Unknown error"
-            raise ValueError(f"Failed to retrieve config: {error_msg}")
-
-        return response.result.get("data", {})
-
-
 class VyOSDeviceRegistry:
     """Registry for managing multiple VyOS devices."""
 
@@ -556,10 +470,6 @@ class VyOSDeviceRegistry:
     def unregister(self, name: str) -> None:
         """Unregister a device."""
         self._devices.pop(name, None)
-
-    def list_devices(self) -> list:
-        """Get list of registered device names."""
-        return list(self._devices.keys())
 
     def clear(self) -> None:
         """Clear all registered devices."""
