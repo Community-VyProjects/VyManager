@@ -444,4 +444,3 @@ def test_commit_confirm_url_brackets_an_ipv6_host(monkeypatch):
 
     assert service.execute_batch(_batch("1.5")).status == 200
     assert urls == ["https://[fd00::1]:443/configure"]
-    commit_confirm_state.clear("inst-1451")
