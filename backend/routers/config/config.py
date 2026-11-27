@@ -17,6 +17,7 @@ import logging
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF
 from config_state import (
     clear_saved_config,
+    get_managed_config,
     reconcile_baseline,
     set_saved_config,
 )
@@ -134,21 +135,26 @@ def _build_discard_operations(added: dict, removed: dict, modified: dict) -> lis
     return operations
 
 
-async def _reseed_baseline(service, instance_id: str) -> None:
+async def _reseed_baseline(service, instance_id: str, fallback: Optional[Dict[str, Any]]) -> None:
     """Make live config the saved baseline after a save or a discard.
 
     The save or discard already happened on the router, so a failed re-read
-    must not fail the request. Drop the baseline instead: the next diff
-    reseeds it from live config, which is what both operations leave behind.
+    must not fail the request. Fall back to the config this operation is
+    known to have left on the router (``fallback``). Only with no known state
+    is the baseline dropped; reseeding it later from live config could
+    swallow a VyManager edit committed in between.
     """
     try:
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
     except Exception:
         logger.exception(
-            "Could not re-read config for instance %s after save/discard; dropped the baseline",
+            "Could not re-read config for instance %s after save/discard; using the last known state",
             instance_id,
         )
-        clear_saved_config(instance_id)
+        if fallback is None:
+            clear_saved_config(instance_id)
+        else:
+            set_saved_config(instance_id, fallback)
         return
     set_saved_config(instance_id, current_config)
 
@@ -229,8 +235,9 @@ async def save_config(request: Request):
                 error=response.error or "Unknown error"
             )
 
-        # The baseline becomes the config just written to disk.
-        await _reseed_baseline(service, instance_id)
+        # The baseline becomes the config just written to disk. If it cannot
+        # be re-read, the last config VyManager produced is the best record.
+        await _reseed_baseline(service, instance_id, get_managed_config(instance_id))
 
         # Notify SSE subscribers that diff has changed (now empty after save)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
@@ -283,7 +290,8 @@ async def discard_config(request: Request):
                 error=response.error or "Unknown error"
             )
 
-        await _reseed_baseline(service, instance_id)
+        # The discard restored the reconciled baseline.
+        await _reseed_baseline(service, instance_id, baseline)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
 
         return SaveConfigResponse(

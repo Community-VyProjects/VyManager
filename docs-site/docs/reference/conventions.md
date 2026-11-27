@@ -25,7 +25,7 @@ VyOS distinguishes the running config from the saved boot config. VyManager trac
 - `POST /vyos/config/discard` — revert all unsaved changes by computing and applying the reverse of the diff.
 - `POST /vyos/config/refresh` — drop the backend's cached config and re-read from the router.
 
-The UI polls the diff endpoint to show the unsaved-changes indicator.
+The unsaved-changes banner listens on the `/vyos/events/banners` SSE stream and fetches the diff when a `config_diff` event arrives.
 
 ## No pagination
 

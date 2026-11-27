@@ -18,7 +18,6 @@ from session_cookie import get_session_cookie, verify_session_cookie
 logger = logging.getLogger(__name__)
 
 
-logger = logging.getLogger(__name__)
 
 
 class _SecureStr:

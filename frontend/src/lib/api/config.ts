@@ -72,7 +72,7 @@ class ConfigService {
   }
 
   /**
-   * Confirm an active commit-confirm, stopping the rollback timer and saving to disk
+   * Confirm an active commit-confirm, stopping the rollback timer. Does not save to disk.
    */
   async confirmCommit(): Promise<SaveConfigResponse> {
     return apiClient.post<SaveConfigResponse>("/vyos/config/commit-confirm/confirm");

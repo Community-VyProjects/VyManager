@@ -138,24 +138,29 @@ def test_emit_after_the_loop_closed_does_not_raise():
 
 
 def test_each_queue_is_served_on_its_own_loop():
-    """Two loops with subscribers: each put runs on the loop that owns that queue."""
+    """Two loops with subscribers: the other loop's parked getter is woken by the emit.
+
+    With one manager-wide loop, the other loop's queue got a put from the
+    wrong thread and its getter was only served at its timeout.
+    """
+    import time
+
     manager = EventManager()
     ready = threading.Event()
-    release = threading.Event()
     seen = {}
 
     def other_loop():
         async def run():
             queue = manager.subscribe("inst")
             ready.set()
-            seen["other"] = await asyncio.wait_for(queue.get(), timeout=2)
-            seen["other_thread"] = threading.get_ident()
+            started = time.monotonic()
+            seen["other"] = await asyncio.wait_for(queue.get(), timeout=3)
+            seen["other_wait"] = time.monotonic() - started
         asyncio.run(run())
-        release.set()
 
     thread = threading.Thread(target=other_loop)
     thread.start()
-    ready.wait(2)
+    assert ready.wait(2)
 
     async def main():
         queue = manager.subscribe("inst")
@@ -163,11 +168,10 @@ def test_each_queue_is_served_on_its_own_loop():
         return await asyncio.wait_for(queue.get(), timeout=2)
 
     mine = asyncio.run(main())
-    release.wait(3)
-    thread.join()
+    thread.join(5)
     assert '"n": 1' in mine
     assert '"n": 1' in seen["other"]
-    assert seen["other_thread"] == thread.ident
+    assert seen["other_wait"] < 1.0
 
 
 class _JsonResp:
@@ -296,7 +300,7 @@ class _WriteThenRead:
         return self.live
 
 
-def test_save_succeeds_and_drops_the_baseline_when_the_reread_fails(monkeypatch):
+def test_save_succeeds_and_keeps_a_baseline_when_the_reread_fails(monkeypatch):
     import config_state
 
     config_state.set_saved_config("inst-cfg", {"system": {"host-name": "old"}})
@@ -306,11 +310,24 @@ def test_save_succeeds_and_drops_the_baseline_when_the_reread_fails(monkeypatch)
     response = asyncio.run(config_router.save_config(_config_request()))
 
     assert response.success is True
-    assert config_state.get_saved_config("inst-cfg") is None
+    # Falls back to the last config VyManager produced, not to no baseline.
+    assert config_state.get_saved_config("inst-cfg") == {"system": {"host-name": "old"}}
     assert emitted == [("inst-cfg", EVENT_CONFIG_DIFF, None)]
 
 
-def test_discard_succeeds_and_drops_the_baseline_when_the_reread_fails(monkeypatch):
+def test_save_drops_the_baseline_only_with_no_known_state(monkeypatch):
+    import config_state
+
+    config_state.set_saved_config("inst-cfg", {"system": {"host-name": "old"}})
+    config_state.clear_managed_config("inst-cfg")
+    service = _WriteThenRead(live={"system": {"host-name": "old"}}, fail_after_write=True)
+    _route_stubs(monkeypatch, service)
+
+    assert asyncio.run(config_router.save_config(_config_request())).success is True
+    assert config_state.get_saved_config("inst-cfg") is None
+
+
+def test_discard_succeeds_and_keeps_the_restored_baseline_when_the_reread_fails(monkeypatch):
     import config_state
 
     config_state.set_saved_config("inst-cfg", {"system": {"host-name": "old"}})
@@ -323,7 +340,8 @@ def test_discard_succeeds_and_drops_the_baseline_when_the_reread_fails(monkeypat
 
     assert response.success is True
     assert service.ops  # the reverse ops were committed
-    assert config_state.get_saved_config("inst-cfg") is None
+    # Falls back to the baseline the discard restored.
+    assert config_state.get_saved_config("inst-cfg") == {"system": {"host-name": "old"}}
     assert emitted == [("inst-cfg", EVENT_CONFIG_DIFF, None)]
 
 
