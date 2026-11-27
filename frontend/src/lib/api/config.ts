@@ -4,12 +4,6 @@ import { apiClient } from "./client";
 // TypeScript Interfaces
 // ============================================================================
 
-export interface ConfigSnapshot {
-  config: Record<string, unknown>;
-  timestamp?: string | null;
-  saved: boolean;
-}
-
 export interface ConfigDiff {
   has_changes: boolean;
   added: Record<string, unknown>;
@@ -42,13 +36,6 @@ export interface CommitConfirmStatus {
 // ============================================================================
 
 class ConfigService {
-  /**
-   * Get the last saved configuration snapshot
-   */
-  async getSnapshot(): Promise<ConfigSnapshot> {
-    return apiClient.get<ConfigSnapshot>("/vyos/config/snapshot");
-  }
-
   /**
    * Get configuration differences between current and saved state
    */

@@ -10,19 +10,21 @@ Two update paths:
   2. Background — a poller detects external changes (e.g. CLI edits)
      and emits only when state actually differs from the last push.
 
-Subscriber queues are asyncio queues owned by the event loop. emit() is
-also called from threadpool workers (VyOSService.execute_batch runs under
-run_in_threadpool), and asyncio queues are not thread-safe: a put from a
-worker thread does not wake the SSE generator waiting in queue.get(). So
-every delivery runs on the loop, handed over with call_soon_threadsafe
-when emit() is called from another thread.
+Subscriber queues are asyncio queues owned by the event loop that created
+them. emit() is also called from threadpool workers (VyOSService.execute_batch
+runs under run_in_threadpool), and asyncio queues are not thread-safe: a put
+from a worker thread does not wake the SSE generator waiting in queue.get().
+So each put is handed to the queue's own loop with call_soon_threadsafe when
+emit() runs anywhere else, and a lock guards the channel table, which the
+loop and the workers both read.
 """
 
 import asyncio
 import json
 import logging
+import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +43,11 @@ EVENT_POWER_STATUS = "power_status"
 
 @dataclass
 class _InstanceChannel:
-    """Holds the subscribers and last-known state for one VyOS instance."""
-    subscribers: Set[asyncio.Queue] = field(default_factory=set)
+    """Holds the subscribers and last-known state for one VyOS instance.
+
+    Each subscriber queue maps to the event loop that owns it.
+    """
+    subscribers: Dict[asyncio.Queue, asyncio.AbstractEventLoop] = field(default_factory=dict)
     last_state: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -55,8 +60,9 @@ class EventManager:
 
     def __init__(self) -> None:
         self._channels: Dict[str, _InstanceChannel] = {}
-        # The loop that owns the subscriber queues, recorded on subscribe.
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        # Guards _channels: subscribe/unsubscribe run on the loop, emit may
+        # run on a threadpool worker.
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Subscribe / unsubscribe
@@ -65,25 +71,28 @@ class EventManager:
     def subscribe(self, instance_id: str) -> asyncio.Queue:
         """Add a new subscriber for an instance, returning its queue.
 
-        Called from the SSE route on the event loop.
+        Called from the SSE route on the event loop that will read the queue.
         """
-        self._loop = asyncio.get_running_loop()
-        channel = self._channels.setdefault(instance_id, _InstanceChannel())
+        loop = asyncio.get_running_loop()
         queue: asyncio.Queue = asyncio.Queue()
-        channel.subscribers.add(queue)
-        logger.info("SSE subscriber added for instance %s (total: %d)",
-                     instance_id, len(channel.subscribers))
+        with self._lock:
+            channel = self._channels.setdefault(instance_id, _InstanceChannel())
+            channel.subscribers[queue] = loop
+            total = len(channel.subscribers)
+        logger.info("SSE subscriber added for instance %s (total: %d)", instance_id, total)
         return queue
 
     def unsubscribe(self, instance_id: str, queue: asyncio.Queue) -> None:
         """Remove a subscriber queue."""
-        channel = self._channels.get(instance_id)
-        if channel:
-            channel.subscribers.discard(queue)
-            logger.info("SSE subscriber removed for instance %s (total: %d)",
-                         instance_id, len(channel.subscribers))
+        with self._lock:
+            channel = self._channels.get(instance_id)
+            if not channel:
+                return
+            channel.subscribers.pop(queue, None)
+            total = len(channel.subscribers)
             if not channel.subscribers:
                 del self._channels[instance_id]
+        logger.info("SSE subscriber removed for instance %s (total: %d)", instance_id, total)
 
     # ------------------------------------------------------------------
     # Emit events
@@ -97,9 +106,11 @@ class EventManager:
         from a threadpool worker) and from the background poller when
         external changes are detected.
         """
-        loop = self._loop
-        if loop is None:
-            return  # Nobody has ever subscribed.
+        with self._lock:
+            channel = self._channels.get(instance_id)
+            targets = list(channel.subscribers.items()) if channel else []
+        if not targets:
+            return
 
         payload = json.dumps({"type": event_type, "data": data})
         try:
@@ -107,22 +118,15 @@ class EventManager:
         except RuntimeError:
             running = None
 
-        if running is loop:
-            self._deliver(instance_id, payload)
-            return
-        try:
-            loop.call_soon_threadsafe(self._deliver, instance_id, payload)
-        except RuntimeError:
-            # The loop is closed (shutdown); there is no stream left to wake.
-            logger.debug("Dropped %s event for instance %s: event loop closed", event_type, instance_id)
-
-    def _deliver(self, instance_id: str, payload: str) -> None:
-        """Put one payload on every subscriber queue. Runs on the loop."""
-        channel = self._channels.get(instance_id)
-        if not channel:
-            return
-        for queue in channel.subscribers:
-            queue.put_nowait(payload)
+        for queue, loop in targets:
+            if loop is running:
+                queue.put_nowait(payload)
+                continue
+            try:
+                loop.call_soon_threadsafe(queue.put_nowait, payload)
+            except RuntimeError:
+                # That queue's loop is closed (shutdown); no stream is left to wake.
+                logger.debug("Dropped %s event for instance %s: event loop closed", event_type, instance_id)
 
     # ------------------------------------------------------------------
     # Background poller
@@ -133,22 +137,24 @@ class EventManager:
         Update cached state for an instance.
         Returns True if the value changed (i.e. an event should be emitted).
         """
-        channel = self._channels.get(instance_id)
-        if not channel:
-            return False
-
-        old = channel.last_state.get(key)
         serialized_new = json.dumps(value, sort_keys=True, default=str)
-        serialized_old = json.dumps(old, sort_keys=True, default=str) if old is not None else None
+        with self._lock:
+            channel = self._channels.get(instance_id)
+            if not channel:
+                return False
 
-        if serialized_new != serialized_old:
-            channel.last_state[key] = value
-            return True
-        return False
+            old = channel.last_state.get(key)
+            serialized_old = json.dumps(old, sort_keys=True, default=str) if old is not None else None
+
+            if serialized_new != serialized_old:
+                channel.last_state[key] = value
+                return True
+            return False
 
     def get_subscribed_instance_ids(self) -> list[str]:
         """Return instance IDs that have at least one subscriber."""
-        return [iid for iid, ch in self._channels.items() if ch.subscribers]
+        with self._lock:
+            return [iid for iid, ch in self._channels.items() if ch.subscribers]
 
 
 # Singleton

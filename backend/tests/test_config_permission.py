@@ -1,6 +1,6 @@
 """Config router handlers must check FeatureGroup.CONFIGURATION (#592).
 
-Snapshot, diff, save, discard, and commit-confirm already called
+Diff, save, discard, and commit-confirm already called
 require_*_permission. POST /refresh pulled the full device config with
 no check. These tests parse the router source so a missing call fails
 without a database or a device.
@@ -12,7 +12,6 @@ from pathlib import Path
 CONFIG_ROUTER = Path(__file__).resolve().parents[1] / "routers" / "config" / "config.py"
 
 GATED_HANDLERS = {
-    "get_config_snapshot": "require_read_permission",
     "get_config_diff": "require_read_permission",
     "save_config": "require_write_permission",
     "discard_config": "require_write_permission",
