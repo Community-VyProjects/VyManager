@@ -146,7 +146,10 @@ def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
     import requests
 
     def _refused(url, data, verify, timeout):
-        raise requests.exceptions.ConnectionError(f"HTTPSConnectionPool(host='lab', port=443): {url}")
+        raise requests.exceptions.ConnectionError(
+            f"HTTPSConnectionPool(host='lab', port=443): Max retries exceeded with url: {url} "
+            "(Caused by NewConnectionError('Failed to establish a new connection: [Errno 111] Connection refused'))",
+        )
 
     monkeypatch.setattr("vyos_service._requests.post", _refused)
 
@@ -157,13 +160,31 @@ def test_unreachable_api_returns_a_fixed_message_without_the_url(monkeypatch):
     assert commit_confirm_state.is_active("inst-1451") is False
 
 
-def test_non_json_reply_is_a_502(monkeypatch):
+def test_dropped_connection_returns_a_fixed_message_without_the_url(monkeypatch):
+    import requests
+
+    def _dropped(url, data, verify, timeout):
+        raise requests.exceptions.ConnectionError(f"('Connection aborted.', RemoteDisconnected()) {url}")
+
+    monkeypatch.setattr("vyos_service._requests.post", _dropped)
+
+    response = _service("1.5").execute_batch(_batch("1.5"))
+
+    assert response.status == 502
+    assert "lab" not in response.error and "Connection aborted" not in response.error
+
+
+def test_non_json_reply_is_a_502_with_an_unknown_outcome(monkeypatch):
+    """An unparsable reply says nothing about the commit, so the timer may be armed."""
+    from vyos_service import UNANSWERED_COMMIT_CONFIRM_NOTICE
+
     monkeypatch.setattr("vyos_service._requests.post", lambda url, data, verify, timeout: _JsonResp(502, None))
 
     response = _service("1.5").execute_batch(_batch("1.5"))
 
     assert response.status == 502
-    assert commit_confirm_state.is_active("inst-1451") is False
+    assert response.error.startswith(UNANSWERED_COMMIT_CONFIRM_NOTICE)
+    assert commit_confirm_state.is_active("inst-1451") is True
 
 
 def test_rejected_confirm_returns_the_vyos_error_and_keeps_the_timer(monkeypatch):

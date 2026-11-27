@@ -14,9 +14,12 @@ from pyvyos.core.rest_client import ApiResponse
 
 import config_state
 from routers.config.config import deep_diff
+import commit_confirm_state
 from vyos_service import (
     PARTIAL_COMMIT_NOTICE,
-    UNKNOWN_COMMIT_NOTICE,
+    UNANSWERED_COMMIT_CONFIRM_NOTICE,
+    UNANSWERED_COMMIT_NOTICE,
+    UNREAD_COMMIT_NOTICE,
     VyOSDeviceConfig,
     VyOSService,
 )
@@ -48,8 +51,10 @@ BATCH: Any = _Batch([
 @pytest.fixture(autouse=True)
 def _baseline():
     config_state.set_saved_config(IID, BEFORE)
+    commit_confirm_state.clear(IID)
     yield
     config_state.clear_saved_config(IID)
+    commit_confirm_state.clear(IID)
 
 
 def _service(live, *, commit_status=400, commit_error="[[service dhcp-server]] failed\nCommit failed\n", read_fails=False):
@@ -97,13 +102,6 @@ def test_landed_part_stays_in_the_banner_and_the_error_says_so(monkeypatch):
     assert emitted == [(IID, "config_diff")]
 
 
-def test_without_the_fix_the_landed_part_is_absorbed():
-    """The base behavior this locks out: no managed update, the edit looks external."""
-    live = _partly_live()
-    added, removed, modified = _banner(live)
-    assert not (added or removed or modified)
-
-
 def test_a_set_time_rejection_changes_nothing_and_adds_no_notice(monkeypatch):
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing changed"))
     error = "Error: 300.1.1.1/32 is not a valid IP host\nSet failed\n"
@@ -125,27 +123,94 @@ def test_an_external_edit_elsewhere_is_still_external(monkeypatch):
     assert "system.host-name" not in modified
 
 
-def test_unreadable_router_after_a_failure_warns_and_keeps_the_baseline(monkeypatch):
+def test_unreadable_router_after_a_rejection_warns_and_keeps_the_baseline(monkeypatch):
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
 
-    response = _service(None, commit_status=504, commit_error="Request timed out", read_fails=True).execute_batch(BATCH)
+    response = _service(None, read_fails=True).execute_batch(BATCH)
 
-    assert response.error.startswith(UNKNOWN_COMMIT_NOTICE)
+    assert response.error.startswith(UNREAD_COMMIT_NOTICE)
     assert config_state.get_managed_config(IID) is None
     # With no managed snapshot, reconciliation leaves the baseline alone.
     assert config_state.reconcile_baseline(IID, _partly_live()) == BEFORE
 
 
-def test_a_timed_out_commit_that_fully_landed_is_reported(monkeypatch):
+def _raising_device(service, exc):
+    def configure(op_path=None):
+        raise exc
+    service.device.configure_multiple_op = configure  # type: ignore[method-assign]
+
+
+@pytest.mark.parametrize(
+    ("exc", "status"),
+    [
+        ("timeout", 504),
+        ("dropped", 502),
+    ],
+)
+def test_a_lost_reply_is_an_unknown_outcome_not_a_compare(monkeypatch, exc, status):
+    """pyvyos raises on a timeout; the commit may still be running, so the re-read proves nothing."""
+    import requests
+
+    errors = {
+        "timeout": requests.exceptions.Timeout("Request timed out after 10 seconds"),
+        "dropped": requests.exceptions.ConnectionError("Network error: ('Connection aborted.', RemoteDisconnected())"),
+    }
     monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
-    live = _partly_live()
-    live["service"] = {"dhcp-server": {"shared-network-name": {"T": {"subnet": {"10.9.9.0/24": {"subnet-id": "1"}}}}}}
+    service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID))
+    service.get_full_config = lambda refresh=False: pytest.fail("a re-read during a running commit proves nothing")
+    _raising_device(service, errors[exc])
 
-    response = _service(live, commit_status=504, commit_error="Request timed out").execute_batch(BATCH)
+    response = service.execute_batch(BATCH)
 
-    assert response.error.startswith(PARTIAL_COMMIT_NOTICE)
-    added, _, _ = _banner(live)
-    assert "interfaces.dummy.dum1" in added and "service" in added
+    assert response.status == status
+    assert response.error.startswith(UNANSWERED_COMMIT_NOTICE)
+    assert "lab" not in response.error.split("\n", 1)[1]
+    # No managed snapshot: whatever lands later stays in the banner.
+    assert config_state.get_managed_config(IID) is None
+    assert config_state.reconcile_baseline(IID, _partly_live()) == BEFORE
+
+
+def test_a_refused_connection_never_sent_the_commit(monkeypatch):
+    import requests
+
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: pytest.fail("nothing was sent"))
+    service = VyOSService(VyOSDeviceConfig(hostname="lab", apikey="k", version="1.5", instance_id=IID))
+    _raising_device(service, requests.exceptions.ConnectionError(
+        "Network error: HTTPSConnectionPool(host='lab', port=443): Max retries exceeded "
+        "(Caused by NewConnectionError('Failed to establish a new connection: [Errno 111] Connection refused'))",
+    ))
+
+    response = service.execute_batch(BATCH)
+
+    assert response.status == 503
+    assert response.error == "Could not reach the VyOS API"
+    assert config_state.get_managed_config(IID) == BEFORE
+
+
+def test_without_a_managed_snapshot_the_saved_baseline_decides(monkeypatch):
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: None)
+    config_state.clear_managed_config(IID)
+
+    landed = _service(_partly_live()).execute_batch(BATCH)
+    nothing = _service(BEFORE, commit_error="Set failed\n").execute_batch(BATCH)
+
+    assert landed.error.startswith(PARTIAL_COMMIT_NOTICE)
+    assert nothing.error == "Set failed\n"
+
+
+@pytest.mark.parametrize("status", [502, 504])
+def test_commit_confirm_with_a_lost_reply_shows_the_timer(monkeypatch, status):
+    emitted = []
+    monkeypatch.setattr("vyos_service.event_manager.emit", lambda *args: emitted.append(args[1]))
+    service = _service(None, read_fails=True)
+    service.config.commit_confirm_enabled = True
+    service._post_api = lambda endpoint, data: ApiResponse(status=status, request={}, result={}, error="Request timed out")
+
+    response = service.execute_batch(BATCH)
+
+    assert response.error.startswith(UNANSWERED_COMMIT_CONFIRM_NOTICE)
+    assert commit_confirm_state.is_active(IID) is True
+    assert "commit_confirm" in emitted and "config_diff" in emitted
 
 
 def test_commit_confirm_failure_records_the_landed_part(monkeypatch):
@@ -164,9 +229,9 @@ def test_commit_confirm_failure_records_the_landed_part(monkeypatch):
     assert "interfaces.dummy.dum1" in added
 
 
-def test_record_failed_commit_without_a_managed_snapshot_is_unknown():
-    config_state.clear_managed_config(IID)
-    assert config_state.record_failed_commit(IID, _partly_live(), [["interfaces", "dummy", "dum1"]]) is None
+def test_record_failed_commit_with_no_baseline_reports_nothing():
+    config_state.clear_saved_config(IID)
+    assert config_state.record_failed_commit(IID, _partly_live(), [["interfaces", "dummy", "dum1"]]) is False
 
 
 def test_record_failed_commit_removes_a_node_the_batch_deleted():
@@ -186,5 +251,6 @@ def test_commit_confirm_request_that_never_reached_the_router_adds_no_notice(mon
     service._post_api = lambda endpoint, data: ApiResponse(
         status=503, request={}, result={}, error="Could not reach the VyOS API",
     )
+    service.get_full_config = lambda refresh=False: pytest.fail("nothing was sent")
 
     assert service.execute_batch(BATCH).error == "Could not reach the VyOS API"
