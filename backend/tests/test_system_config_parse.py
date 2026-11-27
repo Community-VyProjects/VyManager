@@ -1,6 +1,7 @@
 """System GET /config parse lives on the mapper (issue #664)."""
 
 from pathlib import Path
+from typing import Any
 
 from vyos_mappers.system.system_versions import get_system_mapper
 
@@ -130,3 +131,76 @@ def test_get_config_returns_mapper_parse(monkeypatch):
     assert body["syslog"]["local_facilities"][0]["facility"] == "all"
     assert body["sflow"]["agent_address"] == "10.0.0.1"
     assert body["conntrack_global_timeouts"] is None
+
+
+def _system_client(monkeypatch, service, *, read=None, write=None):
+    async def allow(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("routers.system.system.require_read_permission", read or allow)
+    monkeypatch.setattr("routers.system.system.require_write_permission", write or allow)
+    monkeypatch.setattr("routers.system.system.get_session_vyos_service", lambda _req: service)
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from routers.system.system import router
+
+    app = FastAPI()
+    app.include_router(router)
+    return TestClient(app)
+
+
+def test_the_archive_diff_needs_system_read(monkeypatch):
+    """Archive locations and archived files are SYSTEM data (list and restore check it too)."""
+    from fastapi import HTTPException
+    from rbac_permissions import FeatureGroup
+
+    checked = []
+
+    async def read(_request, feature):
+        checked.append(feature)
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    client = _system_client(monkeypatch, object(), read=read)
+    response = client.get("/vyos/system/config/archive-diff",
+                          params={"archive_location": "sftp://b/cfg/", "filename": "config.boot"})
+
+    assert response.status_code == 403
+    assert checked == [FeatureGroup.SYSTEM]
+
+
+def test_a_restore_whose_reply_data_is_text_is_still_a_success(monkeypatch):
+    """VyOS's /config-file load answers with its commit output as a string."""
+    from pyvyos.core.rest_client import ApiResponse
+
+    class FakeService:
+        def get_version(self):
+            return "1.5"
+
+        def get_full_config(self, refresh=False):
+            return {"system": {"config-management": {"commit-archive": {"location": ["sftp://b/cfg/"]}}}}
+
+        def load_config_file(self, url):
+            text: Any = "commit will be called in the background\n"
+            return ApiResponse(status=200, request={}, result=text, error="")
+
+    client = _system_client(monkeypatch, FakeService())
+    response = client.post("/vyos/system/config/restore",
+                           json={"archive_location": "sftp://b/cfg/", "filename": "config.boot.2026-11-27-0800"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+
+
+def test_an_empty_system_batch_stays_a_500(monkeypatch):
+    class FakeService:
+        def get_version(self):
+            return "1.5"
+
+        def execute_batch(self, builder):
+            raise ValueError("Cannot execute empty batch")
+
+    client = _system_client(monkeypatch, FakeService())
+    response = client.post("/vyos/system/batch", json={"item_name": "x", "operations": []})
+
+    assert response.status_code == 500
