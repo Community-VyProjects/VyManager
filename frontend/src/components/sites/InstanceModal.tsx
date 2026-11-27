@@ -65,6 +65,12 @@ export function InstanceModal({
   const isEdit = modalIsEdit(existing);
   const [draft, setDraft] = useState<InstanceDraft>(emptyInstanceDraft());
   const [loading, setLoading] = useState(false);
+
+  // A save in flight keeps the dialog open, so a failed save still shows its error.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && loading) return;
+    onOpenChange(next);
+  };
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -120,7 +126,7 @@ export function InstanceModal({
     isEdit && sites.find((s) => s.id === existing.site_id)?.role === "ADMIN";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -508,7 +514,7 @@ export function InstanceModal({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={loading}
             >
               {tc("cancel")}

@@ -19,7 +19,7 @@
   "unreachable": "不可达",
   "validation": {
     "apiKeyRequired": "API 密钥为必填项",
-    "commitConfirmMinutesRange": "确认窗口必须在 1 到 60 分钟之间",
+    "commitConfirmMinutesRange": "确认时限必须在 1 到 60 分钟之间",
     "hostRequired": "主机为必填项",
     "instanceNameRequired": "实例名称为必填项",
     "portRange": "端口必须在 1 到 65535 之间",

@@ -1,8 +1,8 @@
 """Rejected VyOS commits are status 400 at the one device call site.
 
 pyvyos keeps HTTP 200 and sets error. commit_operations is the only caller
-of device.configure_multiple_op, so execute_batch, configure_batch, and
-config discard all see the same result.
+of device.configure_multiple_op, so execute_batch and config discard
+see the same result.
 """
 
 from pyvyos.core.rest_client import ApiResponse
@@ -62,15 +62,3 @@ def test_execute_batch_keeps_http_200_when_commit_applied():
 
     assert response.status == 200
     assert recorded == ["inst"]
-
-
-def test_configure_batch_rejects_http_200_with_vyos_error():
-    recorded.clear()
-    service = _service()
-    service.device.configure_multiple_op = lambda op_path: _rejected()
-
-    result = service.configure_batch(["set nat destination rule 10 description probe"])
-
-    assert result["success"] is False
-    assert "translation requires" in result["error"]
-    assert recorded == []
