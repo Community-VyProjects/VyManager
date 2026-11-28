@@ -23,6 +23,7 @@ import { ThemeSelector } from "@/components/ui/theme-selector";
 import { LanguageSelector } from "@/components/ui/language-selector";
 import { SearchCommand } from "@/components/search/SearchCommand";
 import { BugReportModal } from "@/components/bug-report/BugReportModal";
+import { InstanceSwitcher } from "@/components/layout/InstanceSwitcher";
 
 import { getSidebarNavigation, type NavItem, type NavChild } from "@/lib/navigation";
 import { useNavTitle } from "@/i18n/nav-title";
@@ -341,15 +342,21 @@ export function Sidebar() {
         {/* Active Instance Indicator */}
         {activeSession ? (
           <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/30 px-2.5 py-2 glow-border">
-            <Building2 className="h-4 w-4 text-primary glow-text shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-primary truncate">
-                {activeSession.instance_name}
-              </p>
-              <p className="text-[11px] text-muted-foreground truncate leading-tight">
-                {activeSession.site_name}
-              </p>
-            </div>
+            {appliance ? (
+              <>
+                <Building2 className="h-4 w-4 text-primary glow-text shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-primary truncate">
+                    {activeSession.instance_name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate leading-tight">
+                    {activeSession.site_name}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <InstanceSwitcher activeSession={activeSession} />
+            )}
             <span
               className="h-2 w-2 rounded-full bg-primary animate-pulse glow-primary-subtle shrink-0"
               title={t("connected")}

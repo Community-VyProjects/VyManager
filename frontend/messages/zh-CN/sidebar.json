@@ -6,5 +6,16 @@
   "connectToInstance": "连接到实例",
   "userFallback": "用户",
   "logout": "退出登录",
-  "logoAlt": "VyOS 标志"
+  "logoAlt": "VyOS 标志",
+  "switcher": {
+    "title": "切换实例",
+    "searchPlaceholder": "搜索实例或站点...",
+    "loading": "正在加载实例...",
+    "empty": "没有可用的实例",
+    "noMatches": "没有匹配的实例",
+    "inactive": "未启用",
+    "manageSites": "管理站点",
+    "loadFailed": "加载实例失败",
+    "connectFailed": "无法连接到 {name}"
+  }
 }
