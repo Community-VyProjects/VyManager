@@ -80,10 +80,10 @@ export function InstanceCard({
       }`}
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div
-            className={`rounded-lg p-2 ${
+            className={`shrink-0 rounded-lg p-2 ${
               isActive ? "bg-primary/10" : "bg-muted"
             }`}
           >
@@ -93,15 +93,15 @@ export function InstanceCard({
               }`}
             />
           </div>
-          <div>
-            <h3 className="font-semibold text-foreground">{instance.name}</h3>
-            <p className="text-sm text-muted-foreground">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-foreground break-all">{instance.name}</h3>
+            <p className="text-sm text-muted-foreground break-all">
               {instance.host}:{instance.port}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {/* Reachability (API + creds) — shown for active instances we poll */}
           {instance.is_active && reachability && (
             <ReachabilityDot state={reachability} showLabel />
