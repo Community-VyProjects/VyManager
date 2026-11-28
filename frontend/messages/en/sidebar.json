@@ -6,5 +6,16 @@
   "connectToInstance": "Connect to Instance",
   "userFallback": "User",
   "logout": "Logout",
-  "logoAlt": "VyOS Logo"
+  "logoAlt": "VyOS Logo",
+  "switcher": {
+    "title": "Switch instance",
+    "searchPlaceholder": "Search instances or sites...",
+    "loading": "Loading instances...",
+    "empty": "No instances available",
+    "noMatches": "No matching instances",
+    "inactive": "Inactive",
+    "manageSites": "Manage sites",
+    "loadFailed": "Failed to load instances",
+    "connectFailed": "Failed to connect to {name}"
+  }
 }
